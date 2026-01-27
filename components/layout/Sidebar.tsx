@@ -11,7 +11,8 @@ import {
     ChevronsRight,
     FileText,
     Hexagon,
-    BarChart3
+    BarChart3,
+    MonitorDot
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -40,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const sidebarItems = viewMode === 'BUYER' ? [
         { id: 'MAP', label: 'Intelligence Map', icon: MapIcon },
         { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
+        { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'FLEET', label: 'My Fleet', icon: Ship },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
         { id: 'COMPLIANCE', label: 'Compliance', icon: FileText },
