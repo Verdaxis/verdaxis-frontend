@@ -8,6 +8,8 @@ import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
 import { createCustomIcon } from '../utils';
 import { api } from '../services/api';
+import { VesselMarkers } from './map/VesselMarkers';
+import { MapLegend } from './map/MapLegend';
 
 // Fix: Cast components to any to bypass "Property does not exist" errors on standard props like center, icon, attribution
 const MapContainer = LMapContainer as any;
@@ -60,10 +62,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
 
     if (loading) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+            <div className="w-full h-full flex items-center justify-center bg-slate-900">
                 <div className="flex flex-col items-center">
-                    <Loader2 size={40} className="text-verdaxis animate-spin mb-4" />
-                    <p className="text-slate-500 font-bold animate-pulse">Loading Intelligence Map...</p>
+                    <Loader2 size={40} className="text-emerald-400 animate-spin mb-4" />
+                    <p className="text-slate-400 font-bold animate-pulse">Loading Intelligence Map...</p>
                 </div>
             </div>
         );
@@ -85,30 +87,33 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                     />
                     
-                    {/* Common Trade Routes (Digital Lines) */}
                     {showArbitrage && TRADE_ROUTES.map((route, idx) => (
                         // Fix: Use pathOptions for Polyline styling in react-leaflet v3+
                         <Polyline 
                             key={idx}
                             positions={route.positions}
                             pathOptions={{
-                                color: "#334155",
-                                dashArray: "5, 10",
+                                color: "#10b981",
+                                dashArray: "8, 12",
                                 weight: 2,
-                                opacity: 0.6
+                                opacity: 0.7,
+                                className: 'animated-route' 
                             }}
                         >
                              <Popup>
                                 <div className="text-xs font-bold text-slate-700">
                                     {route.label}<br/>
-                                    <span className="text-verdaxis">Active Methanol Lifting Route</span>
+                                    <span className="text-emerald-600">Active Methanol Lifting Route</span>
                                 </div>
                             </Popup>
                         </Polyline>
                     ))}
+
+                    {/* Fleet Layer */}
+                    <VesselMarkers />
 
                     {ports.map((port) => (
                         <Marker 
@@ -183,21 +188,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                     {/* Top Row: Widgets */}
                     <div className="flex justify-between items-end flex-wrap-reverse gap-4">
                         {/* 1. Real Time Methanol Availability (Left) */}
-                        <div className="pointer-events-auto w-64 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 p-4 hidden lg:block">
-                            <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 pb-2">
-                                <BarChart3 size={16} className="text-verdaxis" />
-                                <span className="text-xs font-bold text-[#334155] uppercase">Methanol Avails (Top Ports)</span>
+                        <div className="pointer-events-auto w-64 bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-4 hidden lg:block">
+                            <div className="flex items-center space-x-2 mb-3 border-b border-slate-700 pb-2">
+                                <BarChart3 size={16} className="text-emerald-400" />
+                                <span className="text-xs font-bold text-slate-300 uppercase">Methanol Avails (Top Ports)</span>
                             </div>
                             <div className="space-y-3">
                                 {topPorts.map((p, i) => (
                                     <div key={p.id}>
-                                        <div className="flex justify-between text-[10px] mb-1 font-bold text-slate-600">
+                                        <div className="flex justify-between text-[10px] mb-1 font-bold text-slate-400">
                                             <span>{p.name}</span>
                                             <span>{p.methanolSupply}</span>
                                         </div>
-                                        <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                        <div className="w-full bg-slate-700 rounded-full h-1.5">
                                             <div 
-                                                className={`h-1.5 rounded-full ${p.methanolSupply === 'High' ? 'bg-green-500' : p.methanolSupply === 'Medium' ? 'bg-amber-400' : 'bg-red-400'}`} 
+                                                className={`h-1.5 rounded-full ${p.methanolSupply === 'High' ? 'bg-emerald-500' : p.methanolSupply === 'Medium' ? 'bg-amber-400' : 'bg-red-400'}`} 
                                                 style={{ width: p.methanolSupply === 'High' ? '90%' : p.methanolSupply === 'Medium' ? '60%' : '30%' }}
                                             ></div>
                                         </div>
@@ -207,19 +212,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                         </div>
 
                         {/* 2. Last Done Widget (Right) */}
-                        <div className="pointer-events-auto w-64 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 p-4 hidden lg:block ml-auto">
-                            <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 pb-2">
-                                <History size={16} className="text-[#334155]" />
-                                <span className="text-xs font-bold text-[#334155] uppercase">Last Done at Key Ports</span>
+                        <div className="pointer-events-auto w-64 bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-4 hidden lg:block ml-auto">
+                            <div className="flex items-center space-x-2 mb-3 border-b border-slate-700 pb-2">
+                                <History size={16} className="text-slate-400" />
+                                <span className="text-xs font-bold text-slate-300 uppercase">Last Done at Key Ports</span>
                             </div>
                             <div className="space-y-2">
                                 {topPorts.slice(0, 4).map((p, i) => (
-                                    <div key={p.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 rounded cursor-pointer" onClick={() => handleMarkerClick(p.id)}>
+                                    <div key={p.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-800 rounded cursor-pointer" onClick={() => handleMarkerClick(p.id)}>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                                            <span className="font-bold text-slate-600">{p.name}</span>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                            <span className="font-bold text-slate-300">{p.name}</span>
                                         </div>
-                                        <span className="font-mono text-[#334155]">{p.details?.lastDone || '--'}</span>
+                                        <span className="font-mono text-emerald-400">{p.details?.lastDone || '--'}</span>
                                     </div>
                                 ))}
                             </div>
@@ -232,12 +237,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                     </div>
                 </div>
 
-                <div className="absolute top-6 left-6 z-[20] bg-white rounded-lg shadow-md p-2 space-y-2">
+                <div className="absolute top-6 left-6 z-[20] bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700 p-3 space-y-2">
                     <div className="flex items-center space-x-2">
-                        <div className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${showArbitrage ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => setShowArbitrage(!showArbitrage)}>
+                        <div className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${showArbitrage ? 'bg-emerald-500' : 'bg-slate-600'}`} onClick={() => setShowArbitrage(!showArbitrage)}>
                              <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${showArbitrage ? 'translate-x-5' : 'translate-x-0'}`}></div>
                         </div>
-                        <span className="text-xs font-bold text-slate-600">Highlight Routes</span>
+                        <span className="text-xs font-bold text-slate-300">Show Routes</span>
                     </div>
                 </div>
             </div>
@@ -246,13 +251,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
             {!isPanelOpen && (
                 <button
                     onClick={() => setIsPanelOpen(true)}
-                    className="absolute top-4 right-4 z-[20] bg-white p-2 rounded-lg shadow-lg border border-slate-200 text-slate-500 hover:text-verdaxis transition-colors"
+                    className="absolute top-4 right-4 z-[20] bg-slate-900/90 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-slate-700 text-slate-400 hover:text-emerald-400 transition-colors"
                 >
                     <Tooltip content="Show Insights" position="left">
                          <PanelRightOpen size={24} />
                     </Tooltip>
                 </button>
             )}
+
+            <MapLegend />
 
             <IntelligencePanel 
                 isOpen={isPanelOpen}

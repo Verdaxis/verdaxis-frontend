@@ -335,19 +335,21 @@ export const VESSELS: Vessel[] = [
         complianceFuelEU: 'Compliant',
         ciiGrade: 'B',
         nextVoyage: 'Singapore -> Rotterdam',
-        nextDryDock: '2025-Q3'
+        nextDryDock: '2025-Q3',
+        location: { lat: 10.5, lng: 65.0 } // Indian Ocean
     },
     { 
         id: 'v2', 
         name: 'Ocean Guardian', 
         imo: '9823456', 
         vesselType: 'Bulk Carrier',
-        status: 'In Port', 
+        status: 'At Sea', // Changed from In Port for visual effect
         complianceEUETS: 'Warning', 
         complianceFuelEU: 'Compliant',
         ciiGrade: 'C',
         nextVoyage: 'Houston -> Hamburg',
-        nextDryDock: '2024-Q4'
+        nextDryDock: '2024-Q4',
+        location: { lat: 38.5, lng: -45.0 } // Mid-Atlantic
     },
     { 
         id: 'v3', 
@@ -359,7 +361,8 @@ export const VESSELS: Vessel[] = [
         complianceFuelEU: 'Warning',
         ciiGrade: 'D',
         nextVoyage: 'Rotterdam -> Shanghai',
-        nextDryDock: '2025-Q1'
+        nextDryDock: '2025-Q1',
+        location: { lat: 14.5, lng: 55.0 } // Arabian Sea
     },
     { 
         id: 'v4', 
@@ -371,7 +374,8 @@ export const VESSELS: Vessel[] = [
         complianceFuelEU: 'Compliant',
         ciiGrade: 'A',
         nextVoyage: 'Long Beach -> Tokyo',
-        nextDryDock: '2026-Q2'
+        nextDryDock: '2026-Q2',
+        location: { lat: 32.0, lng: -165.0 } // Pacific
     },
 ];
 

@@ -61,6 +61,7 @@ export interface Vessel {
     ciiGrade: 'A' | 'B' | 'C' | 'D' | 'E';
     nextVoyage: string;
     nextDryDock: string;
+    location?: GeoLocation; // Live position
 }
 
 export interface Course {
