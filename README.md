@@ -1,117 +1,54 @@
-# Verdaxis Intelligence Cockpit - Developer Handbook
+# Verdaxis Intelligence Cockpit
 
-> **Current Version:** v0.9 (High-Fidelity Demo)  
-> **Tech Stack:** React 18, TypeScript, Tailwind CSS, Leaflet, Google Gemini AI  
-> **Status:** Client-Side Simulated Backend
+Verdaxis is a next-generation maritime intelligence platform designed to bridge the gap between fuel procurement, regulatory compliance, and geospatial analytics. It provides a unified interface for Buyers (Shipping Lines) and Suppliers (Bunker Providers) to manage RFQs, track vessel compliance (CII, EU ETS), and verify sustainable fuel origins.
 
----
+## Features
 
-## 1. Project Overview
+- **Interactive Geospatial Map**: Real-time visualization of ports, vessels, and trade routes using Leaflet.
+- **Intelligent Marketplace**: Digital RFQ workflow with state machine logic (Draft -> Quoted -> Confirmed).
+- **AI Copilot**: Integrated generative AI (Google Gemini) for market insights, risk analysis, and operational assistance.
+- **Compliance Ledger**: Traceability for green fuels (Methanol, Biofuels) with document verification tracking.
+- **Role-Based Views**: Distinct interfaces for Buyers and Suppliers.
 
-Verdaxis is a financial-grade maritime intelligence platform designed to handle the procurement of alternative green fuels (Methanol, Ammonia, Biofuel) and manage complex EU regulatory compliance (EU ETS, FuelEU Maritime).
+## Tech Stack
 
-**Core Value Propositions:**
-1.  **Intelligence Map:** Geospatial visualization of fuel supply, price arbitrage, and port congestion.
-2.  **Marketplace:** End-to-end RFQ (Request for Quote) management with credit risk integration.
-3.  **Compliance Engine:** Automated tracking of carbon allowances and document verification.
-4.  **AI Copilot:** Natural language interface for complex querying and market narratives.
+- **Framework**: React 19 + Vite
+- **Language**: TypeScript
+- **Styling**: Modern CSS (Variables, Glassmorphism, HSL colors)
+- **Maps**: Leaflet / React-Leaflet
+- **AI**: Google Gemini SDK (`@google/genai`)
+- **Icons**: Lucide React
 
----
+## Getting Started
 
-## 2. Current Architecture (The Demo Stack)
+1.  **Install Dependencies**
 
-This project is currently architected as a **Standalone Frontend** that simulates a backend environment. This allows for rapid prototyping and zero-setup demos while maintaining a code structure that is ready for production migration.
-
-### A. The "Simulated Backend" (`services/api.ts`)
-Instead of making `fetch()` calls to a real server, the app imports `services/api.ts`.
-*   **What it does:** It maintains an in-memory database state (`db_quotes`, `db_inventory`) initialized from `data.ts`.
-*   **Latency:** It artificially injects 300ms - 800ms delays to mimic real-world network conditions.
-*   **Usage:**
-    ```typescript
-    // Current (Demo)
-    const data = await api.quotes.list(); 
-    
-    // Future (Production)
-    // This will be easily refactored to:
-    // const { data } = await axios.get('/api/v1/quotes');
+    ```bash
+    npm install
     ```
 
-### B. Data Model (`types.ts` & `data.ts`)
-*   **Strict Typing:** All entities (Vessels, Ports, Quotes) are strictly typed interfaces.
-*   **Seed Data:** `data.ts` contains the static "Golden Path" data used to impress investors/users during the demo.
+2.  **Environment Setup**
+    Create a `.env` file in the root directory:
 
-### C. AI Integration (`services/ai.ts`)
-*   **Provider:** Google Gemini API (via `@google/genai`).
-*   **Features:**
-    *   **Copilot:** Renders Markdown responses.
-    *   **Market Narrative:** Generates "financial news" style summaries for ports.
-    *   **Risk Radar:** Evaluates counterparty credit risk.
-*   **Note:** The API Key is currently consumed from `process.env` in the frontend. **In production, this must move to a backend proxy** to prevent key leakage.
+    ```env
+    VITE_GEMINI_API_KEY=your_api_key_here
+    ```
 
----
+3.  **Run Development Server**
+    ```bash
+    npm run dev
+    ```
 
-## 3. Migration Roadmap (Demo -> Production)
+## Project Structure
 
-To turn this into a real platform, follow this execution plan:
+- `src/components`: UI components (Map, Marketplace, Fleet, Compliance)
+- `src/services`: Logic layer
+  - `api.ts`: Mock backend service (simulates database & API responses)
+  - `ai-engine/`: Gemini integration, tool definitions, and chat logic
+- `src/types.ts`: Core TypeScript definitions (Port, Vessel, Quote, etc.)
+- `src/data.ts`: Mock data for development
 
-### Phase 1: The Backend Foundation
-1.  **Database:** Spin up a **PostgreSQL** instance with **PostGIS** enabled.
-    *   *Action:* Run the schema provided in `database/schema.txt`.
-2.  **API Layer:** Build a REST or GraphQL API (Node.js/NestJS or Python/FastAPI recommended).
-3.  **Authentication:** Implement JWT Auth (Auth0 or Supabase).
-    *   *Refactor:* Replace the hardcoded `viewMode` state in `App.tsx` with a real `useAuth()` context.
+## Development Notes
 
-### Phase 2: Wiring the Frontend
-1.  **Replace `api.ts`:** Rewrite the methods in `services/api.ts` to call your new backend endpoints using `fetch` or `axios`.
-2.  **SWR/React Query:** Implement a data fetching library to handle caching and revalidation, replacing the basic `useEffect` patterns currently used.
-
-### Phase 3: Real Data Integration
-1.  **Map Data:** Replace static lat/lng in `data.ts` with live vessel telemetry (e.g., Spire, MarineTraffic API).
-2.  **Pricing:** Connect to an index provider (e.g., Platts, Argus) for the Market Watch ticker.
-
----
-
-## 4. Key Feature Implementation Guide
-
-### A. The Intelligence Map (`BuyerMap.tsx`)
-*   **Current:** Uses Leaflet with OpenStreetMap tiles.
-*   **Prod Upgrade:** Consider Mapbox GL JS for better performance with 10,000+ vessel markers and custom vector styling that matches the Verdaxis brand.
-
-### B. Document Intelligence (`ComplianceDataInput.tsx`)
-*   **Current:** Simulates an upload process with timeouts.
-*   **Prod Upgrade:**
-    1.  Upload file to AWS S3 / Google Cloud Storage.
-    2.  Trigger a Lambda function to run **Google Cloud Document AI** or **AWS Textract**.
-    3.  Parse the BDN (Bunker Delivery Note) JSON output.
-    4.  Match extracted fields (Fuel Type, Quantity) against the Order record in Postgres.
-
-### C. AI Copilot (`Copilot.tsx`)
-*   **Current:** Direct call to Gemini 2.5 Flash.
-*   **Prod Upgrade:** Implement **RAG (Retrieval-Augmented Generation)**.
-    *   The AI needs access to *your* database to answer "Where is *my* vessel?".
-    *   *Stack:* LangChain + Vector DB (pgvector) + Gemini.
-
----
-
-## 5. Environment Variables
-
-Create a `.env` file in the root:
-
-```env
-# Required for AI Features
-API_KEY=your_google_gemini_api_key_here
-
-# Future Production Keys
-# VITE_API_URL=https://api.verdaxis.com
-# VITE_MAPBOX_TOKEN=pk.eyJ...
-```
-
----
-
-## 6. Developer Notes
-
-*   **Styling:** We use Tailwind CSS. The theme colors are defined in `index.html` script config (Verdaxis Blue: `#5DADE2`).
-*   **Icons:** Lucide-React is used throughout.
-*   **Formatting:** The AI Copilot uses a custom Markdown renderer to handle bolding and newlines.
-
-*Verdaxis Engineering Team*
+- The project currently uses a **Mock API** (`services/api.ts`) for rapid frontend prototyping.
+- Transitions to a real backend should replace calls in `src/services/api.ts` with transparent HTTP requests.
