@@ -11,7 +11,7 @@ import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
-import { MarketTerminal } from './components/MarketTerminal';
+import { BraemarTerminal } from './components/BraemarTerminal';
 import { ViewMode, Page, Port } from './types';
 
 const App: React.FC = () => {
@@ -58,7 +58,7 @@ const App: React.FC = () => {
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
-        return <MarketTerminal />;
+        return <BraemarTerminal />;
       case 'FLEET':
         return <Fleet />;
       case 'COMPLIANCE':
