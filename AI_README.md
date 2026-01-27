@@ -41,3 +41,9 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 1.  **Styling**: Use standard CSS variables defined in `:root` (e.g., `--color-primary`, `--glass-bg`). Avoid inline styles where possible.
 2.  **State Management**: Local state with `useState` for UI; `useEffect` for data fetching via `api` service.
 3.  **Typos/Naming**: Maritime terminology is specific (e.g., "Bunkering", "LSMGO", "DWT"). Preserve these acronyms.
+
+## Deployment Access
+
+- **VPS Host**: 144.126.151.136
+- **User**: verdaxis-prod
+- **Command**: `ssh verdaxis-prod@144.126.151.136`
