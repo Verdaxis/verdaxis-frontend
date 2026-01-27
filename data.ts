@@ -20,7 +20,11 @@ export const PORTS: Port[] = [
             plattsPrice: 518.50,
             ffaPrice: 525.00,
             swapPrice: 522.10,
-            lastDone: "1,200MT @ $519"
+            lastDone: "1,200MT @ $519",
+            upcomingProjects: [
+                { year: '2027 Q1', project: 'Jurong Green Methanol', capacity: '500kt' },
+                { year: '2028 Q3', project: 'Tuas Ammonia Terminal', capacity: '1.2Mt' }
+            ]
         }
     },
     {
@@ -41,7 +45,10 @@ export const PORTS: Port[] = [
             plattsPrice: 542.00,
             ffaPrice: 540.00,
             swapPrice: 541.50,
-            lastDone: "800MT @ $544"
+            lastDone: "800MT @ $544",
+            upcomingProjects: [
+                { year: '2026 Q2', project: 'Maasvlakte Bio-Methanol', capacity: '200kt' }
+            ]
         }
     },
     {
@@ -104,7 +111,11 @@ export const PORTS: Port[] = [
             plattsPrice: 478.00,
             ffaPrice: 485.00,
             swapPrice: 482.00,
-            lastDone: "3,500MT @ $479"
+            lastDone: "3,500MT @ $479",
+            upcomingProjects: [
+                { year: '2026 Q3', project: 'Gulf Coast Blue Ammonia', capacity: '1.2Mt' },
+                { year: '2027 Q4', project: 'Texas e-Fuel Hub', capacity: '300kt' } 
+            ]
         }
     },
     {
@@ -135,7 +146,10 @@ export const PORTS: Port[] = [
             plattsPrice: 508.00,
             ffaPrice: 515.00,
             swapPrice: 512.00,
-            lastDone: "1,000MT @ $511"
+            lastDone: "1,000MT @ $511",
+            upcomingProjects: [
+                { year: '2027 Q4', project: 'Yangshan E-Methanol Pilot', capacity: '50kt' }
+            ]
         }
     },
     {

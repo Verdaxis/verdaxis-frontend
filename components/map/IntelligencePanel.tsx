@@ -131,6 +131,28 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             </div>
                         </div>
 
+                        {/* Future Compliance & Projects */}
+                        {selectedPort.details.upcomingProjects && (
+                            <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
+                                <h3 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
+                                    <TrendingUp size={10} /> Future Production Pipeline
+                                </h3>
+                                <div className="space-y-2">
+                                    {selectedPort.details.upcomingProjects.map((project, idx) => (
+                                        <div key={idx} className="flex justify-between items-center text-xs bg-white p-2 rounded border border-slate-100 shadow-sm">
+                                            <div>
+                                                <div className="font-bold text-verdaxis-dark">{project.project}</div>
+                                                <div className="text-[10px] text-slate-500">{project.year}</div>
+                                            </div>
+                                            <div className="font-mono font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                {project.capacity}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Mock Price Chart */}
                         <div className="border border-slate-100 rounded-lg p-4">
                             <h3 className="text-xs font-bold text-slate-500 uppercase mb-3">Methanol Price (7 Day)</h3>

@@ -15,6 +15,11 @@ export interface PortDetails {
     ffaPrice?: number;
     swapPrice?: number;
     lastDone?: string; // e.g., "500MT @ $540"
+    upcomingProjects?: { 
+        year: string; 
+        project: string; 
+        capacity: string; 
+    }[];
 }
 
 export interface Port {
@@ -128,4 +133,41 @@ export interface MarketWatchItem {
 
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
-export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL';
+// ============== RFQ Marketplace Types ==============
+export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
+export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Forward 2027' | 'Forward 2028';
+export type TierLabel = 'Tier 1 Producer' | 'Major Trader' | 'Regional Supplier' | 'Independent Supplier';
+export type ListingStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+export type MatchStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED' | 'CANCELLED';
+
+export interface PublicListing {
+    id: string;
+    region: string;
+    fuel_type: string;
+    fuel_grade: FuelGrade;
+    quantity_mt: number;
+    price_per_mt_usd: number;
+    availability_window: AvailabilityWindow;
+    tier_label: TierLabel;
+    certifications: string[];
+    is_verdaxis_verified: boolean;
+    status: ListingStatus;
+    created_at: string;
+}
+
+export interface RFQMatch {
+    id: string;
+    listing_id: string;
+    buyer_id?: string;
+    status: MatchStatus;
+    buyer_accepted_terms_at: string;
+    created_at: string;
+    // De-anonymized details (after match)
+    supplier_name?: string;
+    buyer_name?: string;
+    final_quantity_mt?: number;
+    final_price_per_mt?: number;
+    final_total_usd?: number;
+}
+
+export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'RFQ_MARKETPLACE' | 'LISTINGS';
