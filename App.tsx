@@ -1,5 +1,9 @@
 
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import { Layout } from './components/Layout';
 import { BuyerMap } from './components/BuyerMap';
 import { Marketplace } from './components/Marketplace';
@@ -14,7 +18,24 @@ import { Stats } from './components/Stats';
 import { BraemarTerminal } from './components/BraemarTerminal';
 import { ViewMode, Page, Port } from './types';
 
-const App: React.FC = () => {
+// Protected Route Wrapper
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+    const { isAuthenticated, isLoading } = useAuth();
+    const location = useLocation();
+
+    if (isLoading) {
+        return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">Loading...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+};
+
+const Dashboard: React.FC = () => {
+  // Original App Logic for Dashboard
   const [viewMode, setViewMode] = useState<ViewMode>('BUYER');
   const [currentPage, setCurrentPage] = useState<Page>('MAP');
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
@@ -33,7 +54,6 @@ const App: React.FC = () => {
     setCurrentPage('MARKETPLACE');
   };
 
-  // Simple router implementation
   const renderContent = () => {
     if (currentPage === 'SETTINGS') {
         return <Settings viewMode={viewMode} />;
@@ -81,6 +101,26 @@ const App: React.FC = () => {
     >
       {renderContent()}
     </Layout>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+        <BrowserRouter>
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/" element={
+                    <ProtectedRoute>
+                        <Dashboard />
+                    </ProtectedRoute>
+                } />
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </BrowserRouter>
+    </AuthProvider>
   );
 };
 
