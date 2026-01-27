@@ -47,3 +47,24 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 - **VPS Host**: 144.126.151.136
 - **User**: verdaxis-prod
 - **Command**: `ssh verdaxis-prod@144.126.151.136`
+- **Frontend URL**: http://144.126.151.136:5173/
+- **Backend API**: http://144.126.151.136:8000/
+
+## Test Credentials
+
+| Role         | Email              | Password    |
+| ------------ | ------------------ | ----------- |
+| **Admin**    | admin@verdaxis.com | ***REMOVED***    |
+| **Buyer**    | buyer@demo.com     | ***REMOVED***    |
+| **Supplier** | supplier@demo.com  | ***REMOVED*** |
+
+### Role Switching (Admin Only)
+
+The Admin can switch roles for testing via the API:
+
+```
+PUT /api/auth/switch-role/{BUYER|SUPPLIER|ADMIN}
+Authorization: Bearer <admin_token>
+```
+
+This returns a new token with the switched role, useful for testing different views.
