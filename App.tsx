@@ -11,6 +11,7 @@ import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
+import { MarketTerminal } from './components/MarketTerminal';
 import { ViewMode, Page, Port } from './types';
 
 const App: React.FC = () => {
@@ -56,6 +57,8 @@ const App: React.FC = () => {
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
+      case 'TERMINAL':
+        return <MarketTerminal />;
       case 'FLEET':
         return <Fleet />;
       case 'COMPLIANCE':
