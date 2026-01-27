@@ -31,7 +31,7 @@ export interface ChatResponse {
 }
 
 export const chatWithCopilot = async (message: string, history: { role: 'user' | 'model', text: string }[]): Promise<ChatResponse> => {
-    if (!apiKey) return { text: "AI features are disabled (Missing API Key)." };
+    if (!ai || !apiKey) return { text: "AI features are disabled (Missing API Key)." };
 
     try {
         const chat = ai.chats.create({
