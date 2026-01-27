@@ -87,7 +87,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                              <div className="flex items-center justify-between">
                                 <div>
                                     <div className="text-sm font-bold text-[#334155]">Market Alerts</div>
-                                    <div className="text-xs text-slate-500">Notify on >5% price shifts in Methanol</div>
+                                    <div className="text-xs text-slate-500">Notify on &gt;5% price shifts in Methanol</div>
                                 </div>
                                 <div className="w-10 h-6 bg-[#5DADE2] rounded-full relative cursor-pointer">
                                     <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
