@@ -1,4 +1,4 @@
 import { GoogleGenAI } from "@google/genai";
 
-export const apiKey = process.env.API_KEY || '';
-export const ai = new GoogleGenAI({ apiKey });
+export const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+export const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
