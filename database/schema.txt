@@ -1,0 +1,163 @@
+-- VERDAXIS PRODUCTION DATABASE SCHEMA (PostgreSQL 15+)
+-- Designed for: Financial Integrity, Geospatial Intelligence, and Compliance Auditing
+
+-- Enable PostGIS for maritime geospatial queries
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- ==========================================
+-- 1. ORGANIZATION & AUTHENTICATION
+-- ==========================================
+
+CREATE TYPE user_role AS ENUM ('BUYER', 'SUPPLIER', 'ADMIN');
+CREATE TYPE org_type AS ENUM ('SHIPPING_LINE', 'FUEL_SUPPLIER', 'PORT_AUTHORITY');
+
+CREATE TABLE organizations (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name text NOT NULL,
+    type org_type NOT NULL,
+    tax_id text,
+    country_code char(2),
+    verification_status text DEFAULT 'PENDING', -- KYB Status
+    created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE users (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    email text UNIQUE NOT NULL,
+    password_hash text NOT NULL,
+    first_name text,
+    last_name text,
+    role user_role NOT NULL,
+    organization_id uuid REFERENCES organizations(id),
+    last_login timestamptz,
+    created_at timestamptz DEFAULT now()
+);
+
+-- ==========================================
+-- 2. MARITIME ASSETS (Vessels & Ports)
+-- ==========================================
+
+CREATE TABLE ports (
+    id text PRIMARY KEY, -- e.g., 'sg-sin'
+    name text NOT NULL,
+    country text NOT NULL,
+    location geography(POINT), -- PostGIS Point for spatial queries
+    timezone text,
+    is_active boolean DEFAULT true
+);
+
+CREATE TABLE port_intelligence (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    port_id text REFERENCES ports(id),
+    congestion_level text CHECK (congestion_level IN ('Low', 'Moderate', 'High')),
+    methanol_price_avg numeric(10, 2),
+    biofuel_price_avg numeric(10, 2),
+    captured_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE vessels (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid REFERENCES organizations(id), -- Owner
+    name text NOT NULL,
+    imo_number text UNIQUE NOT NULL,
+    vessel_type text,
+    flag_state text,
+    dwt numeric,
+    
+    -- Compliance Status (Cached from Telemetry)
+    cii_rating char(1), -- A-E
+    eu_ets_status text, -- 'Compliant', 'Warning'
+    fueleu_status text,
+    
+    current_location geography(POINT),
+    updated_at timestamptz DEFAULT now()
+);
+
+-- ==========================================
+-- 3. MARKETPLACE (Inventory & Quotes)
+-- ==========================================
+
+CREATE TYPE fuel_type AS ENUM ('Methanol', 'Biofuel', 'LNG', 'Ammonia', 'LSMGO');
+CREATE TYPE quote_status AS ENUM ('Draft', 'Pending', 'Quoted', 'Negotiating', 'Confirmed', 'Rejected', 'Completed');
+
+CREATE TABLE inventory_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    supplier_id uuid REFERENCES organizations(id),
+    port_id text REFERENCES ports(id),
+    fuel_type fuel_type NOT NULL,
+    product_name text, -- e.g. "Green Methanol (ISCC)"
+    
+    current_stock_mt numeric(10, 2) NOT NULL,
+    incoming_stock_mt numeric(10, 2) DEFAULT 0,
+    reserved_stock_mt numeric(10, 2) DEFAULT 0,
+    
+    price_per_mt_usd numeric(10, 2),
+    energy_density_mj_kg numeric(5, 2), -- Crucial for FuelEU calc
+    is_certified boolean DEFAULT false,
+    updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE quote_requests (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    buyer_id uuid REFERENCES organizations(id),
+    vessel_id uuid REFERENCES vessels(id),
+    port_id text REFERENCES ports(id),
+    
+    fuel_type fuel_type NOT NULL,
+    quantity_mt numeric(10, 2) NOT NULL,
+    delivery_window_start date,
+    delivery_window_end date,
+    
+    status quote_status DEFAULT 'Pending',
+    
+    -- Negotiation Snapshot
+    awarded_supplier_id uuid REFERENCES organizations(id),
+    final_price_usd numeric(12, 2),
+    final_price_per_mt numeric(10, 2),
+    
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+-- ==========================================
+-- 4. COMPLIANCE & TRACEABILITY
+-- ==========================================
+
+CREATE TABLE traceability_events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    quote_id uuid REFERENCES quote_requests(id),
+    
+    stage text NOT NULL, -- 'Origin', 'Production', 'Bunkering'
+    location_name text,
+    timestamp timestamptz,
+    
+    verification_type text, -- 'DigitalTwin', 'Document', 'PhysicalTracer'
+    verification_doc_url text, -- Link to S3/Blob storage
+    verification_hash text, -- Blockchain hash if applicable
+    
+    is_verified boolean DEFAULT false
+);
+
+CREATE TABLE compliance_ledger (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id uuid REFERENCES organizations(id),
+    
+    transaction_type text, -- 'EUA_Purchase', 'FuelEU_Penalty', 'Pooling_Transfer'
+    amount numeric(12, 2),
+    currency text DEFAULT 'EUR',
+    units numeric(10, 2), -- Quantity of allowances/credits
+    
+    description text,
+    reference_id text, -- External transaction ID
+    created_at timestamptz DEFAULT now()
+);
+
+-- ==========================================
+-- 5. INDEXES & PERFORMANCE
+-- ==========================================
+
+CREATE INDEX idx_vessels_location ON vessels USING GIST (current_location);
+CREATE INDEX idx_ports_location ON ports USING GIST (location);
+CREATE INDEX idx_quotes_buyer ON quote_requests(buyer_id);
+CREATE INDEX idx_quotes_supplier ON quote_requests(awarded_supplier_id);
+CREATE INDEX idx_inventory_port ON inventory_items(port_id, fuel_type);
