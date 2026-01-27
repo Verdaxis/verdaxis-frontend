@@ -12,7 +12,8 @@ import {
     FileText,
     Hexagon,
     BarChart3,
-    MonitorDot
+    MonitorDot,
+    Handshake
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -40,7 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const sidebarItems = viewMode === 'BUYER' ? [
         { id: 'MAP', label: 'Intelligence Map', icon: MapIcon },
-        { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
+        { id: 'MARKETPLACE', label: 'Find Suppliers', icon: ShoppingCart },
+        { id: 'RFQ_MARKETPLACE', label: 'RFQ Marketplace', icon: Handshake },
         { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'FLEET', label: 'My Fleet', icon: Ship },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
@@ -50,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'DASHBOARD', label: 'Command Center', icon: LayoutDashboard },
         { id: 'QUOTES', label: 'Quotes & Orders', icon: ShoppingCart },
         { id: 'INVENTORY', label: 'Inventory', icon: Box },
+        { id: 'LISTINGS', label: 'My Listings', icon: Handshake },
     ];
 
     const handleNavigate = (page: Page) => {

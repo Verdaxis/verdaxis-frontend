@@ -130,5 +130,115 @@ export const api = {
             await delay();
             return COURSES;
         }
-    }
+    },
+
+    // ============== RFQ Marketplace API ==============
+    listings: {
+        list: async (filters?: { region?: string; fuelType?: string; availability?: string }): Promise<any[]> => {
+            await delay();
+            // Mock data for anonymized listings
+            return [
+                {
+                    id: 'lst-001',
+                    region: 'Singapore',
+                    fuel_type: 'Methanol',
+                    fuel_grade: 'Green',
+                    quantity_mt: 5000,
+                    price_per_mt_usd: 520,
+                    availability_window: 'Spot',
+                    tier_label: 'Tier 1 Producer',
+                    certifications: ['ISCC', 'Nanolumi'],
+                    is_verdaxis_verified: true,
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString(),
+                },
+                {
+                    id: 'lst-002',
+                    region: 'ARA',
+                    fuel_type: 'Methanol',
+                    fuel_grade: 'Conventional',
+                    quantity_mt: 3000,
+                    price_per_mt_usd: 485,
+                    availability_window: 'Q1 2026',
+                    tier_label: 'Major Trader',
+                    certifications: ['ISCC'],
+                    is_verdaxis_verified: true,
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString(),
+                },
+                {
+                    id: 'lst-003',
+                    region: 'Houston',
+                    fuel_type: 'Biofuel',
+                    fuel_grade: 'Bio',
+                    quantity_mt: 2500,
+                    price_per_mt_usd: 780,
+                    availability_window: 'Spot',
+                    tier_label: 'Regional Supplier',
+                    certifications: ['ProofOfSustainability'],
+                    is_verdaxis_verified: false,
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString(),
+                },
+                {
+                    id: 'lst-004',
+                    region: 'Singapore',
+                    fuel_type: 'LNG',
+                    fuel_grade: 'Conventional',
+                    quantity_mt: 10000,
+                    price_per_mt_usd: 890,
+                    availability_window: 'Q2 2026',
+                    tier_label: 'Tier 1 Producer',
+                    certifications: [],
+                    is_verdaxis_verified: true,
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString(),
+                },
+                {
+                    id: 'lst-005',
+                    region: 'ARA',
+                    fuel_type: 'Methanol',
+                    fuel_grade: 'Green',
+                    quantity_mt: 8000,
+                    price_per_mt_usd: 545,
+                    availability_window: 'Spot',
+                    tier_label: 'Independent Supplier',
+                    certifications: ['ISCC', 'Nanolumi', 'ProofOfSustainability'],
+                    is_verdaxis_verified: true,
+                    status: 'ACTIVE',
+                    created_at: new Date().toISOString(),
+                },
+            ].filter(l => {
+                if (filters?.region && !l.region.toLowerCase().includes(filters.region.toLowerCase())) return false;
+                if (filters?.fuelType && l.fuel_type !== filters.fuelType) return false;
+                if (filters?.availability && l.availability_window !== filters.availability) return false;
+                return true;
+            });
+        },
+        getRegions: async (): Promise<string[]> => {
+            await delay(200);
+            return ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai'];
+        },
+        getFuelTypes: async (): Promise<string[]> => {
+            await delay(200);
+            return ['Methanol', 'Biofuel', 'LNG', 'Ammonia'];
+        },
+    },
+
+    rfq: {
+        request: async (listingId: string, acceptedTerms: boolean): Promise<any> => {
+            await delay(800);
+            if (!acceptedTerms) throw new Error('Terms must be accepted');
+            return {
+                id: `rfq-${Date.now()}`,
+                listing_id: listingId,
+                status: 'PENDING',
+                created_at: new Date().toISOString(),
+            };
+        },
+        listMyRequests: async (): Promise<any[]> => {
+            await delay();
+            return []; // Mock empty for now
+        },
+    },
 };

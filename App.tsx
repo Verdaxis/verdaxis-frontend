@@ -16,6 +16,8 @@ import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { BraemarTerminal } from './components/BraemarTerminal';
+import { RFQMarketplace } from './components/RFQMarketplace';
+import { SupplierListingConsole } from './components/SupplierListingConsole';
 import { ViewMode, Page, Port } from './types';
 
 // Protected Route Wrapper
@@ -67,6 +69,8 @@ const Dashboard: React.FC = () => {
                 return <SupplierQuotes />;
             case 'INVENTORY':
                 return <SupplierInventory />;
+            case 'LISTINGS':
+                return <SupplierListingConsole />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} />;
         }
@@ -87,6 +91,8 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'STATS':
          return <Stats />;
+      case 'RFQ_MARKETPLACE':
+         return <RFQMarketplace />;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} />;
     }
