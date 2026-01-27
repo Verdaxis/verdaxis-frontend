@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_URL } from '../services/config';
+
 
 // Define types matching our backend
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -37,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(storedToken);
         try {
           // Fetch user details from backend using the token
-          const response = await fetch('http://localhost:8000/api/auth/me', {
+          const response = await fetch(`${API_URL}/auth/me`, {
             headers: {
               'Authorization': `Bearer ${storedToken}`
             }
@@ -67,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Trigger a re-fetch of user data or decode token if we had one
     // For simplicity, reload or let the effect handle it if we structured differently. 
     // But since effect runs once, we should fetch user here immediately.
-    fetch('http://localhost:8000/api/auth/me', {
+    fetch(`${API_URL}/auth/me`, {
             headers: {
               'Authorization': `Bearer ${newToken}`
             }
