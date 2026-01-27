@@ -1,0 +1,181 @@
+import React, { useState } from 'react';
+import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X } from 'lucide-react';
+import { InventoryItem } from '../types';
+
+// Mock Inventory Data
+const INITIAL_INVENTORY: InventoryItem[] = [
+    { id: 'inv-1', productName: 'Green Methanol', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 1200, incomingStock: 500, pricePerMt: 545, status: 'Available' },
+    { id: 'inv-2', productName: 'Biofuel B24', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 450, incomingStock: 1000, pricePerMt: 780, status: 'Low Stock' },
+    { id: 'inv-3', productName: 'LSMGO', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 3500, incomingStock: 0, pricePerMt: 620, status: 'Available' },
+];
+
+export const SupplierInventory: React.FC = () => {
+    const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    const handleAddProduct = (e: React.FormEvent) => {
+        e.preventDefault();
+        // Mock adding functionality
+        const newItem: InventoryItem = {
+            id: `inv-${Date.now()}`,
+            productName: 'LNG',
+            portId: 'nl-rtm',
+            portName: 'Rotterdam',
+            currentStock: 2500,
+            incomingStock: 0,
+            pricePerMt: 890,
+            status: 'Available'
+        };
+        setInventory([...inventory, newItem]);
+        setIsAddModalOpen(false);
+    };
+
+    return (
+        <div className="p-6 max-w-7xl mx-auto">
+            <div className="mb-8 flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155]">Inventory Management</h1>
+                    <p className="text-slate-500 mt-2">Monitor stock levels, adjust pricing, and manage replenishment.</p>
+                </div>
+                <button 
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-[#334155] text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-700 transition-colors flex items-center space-x-2"
+                >
+                    <Plus size={18} />
+                    <span>Add Product</span>
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div className="p-3 bg-blue-50 rounded-lg text-[#5DADE2]">
+                        <Box size={24} />
+                    </div>
+                    <div>
+                        <div className="text-xs text-slate-500 font-bold uppercase">Total Capacity</div>
+                        <div className="text-xl font-bold text-[#334155]">15,000 MT</div>
+                    </div>
+                </div>
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div className="p-3 bg-green-50 rounded-lg text-[#4CAF50]">
+                        <CheckCircle2 size={24} />
+                    </div>
+                    <div>
+                        <div className="text-xs text-slate-500 font-bold uppercase">Utilization</div>
+                        <div className="text-xl font-bold text-[#334155]">34%</div>
+                    </div>
+                </div>
+                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div className="p-3 bg-amber-50 rounded-lg text-amber-500">
+                        <AlertTriangle size={24} />
+                    </div>
+                    <div>
+                        <div className="text-xs text-slate-500 font-bold uppercase">Low Stock Alerts</div>
+                        <div className="text-xl font-bold text-[#334155]">1 Product</div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                             <tr className="bg-slate-50 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                                <th className="px-6 py-4">Product Name</th>
+                                <th className="px-6 py-4">Location</th>
+                                <th className="px-6 py-4">Stock Level (MT)</th>
+                                <th className="px-6 py-4">Incoming</th>
+                                <th className="px-6 py-4">Price / MT</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                             {inventory.map((item) => (
+                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-4 font-bold text-[#334155]">{item.productName}</td>
+                                    <td className="px-6 py-4 text-slate-600">{item.portName}</td>
+                                    <td className="px-6 py-4 font-mono font-medium">{item.currentStock.toLocaleString()}</td>
+                                    <td className="px-6 py-4 text-slate-400">+{item.incomingStock.toLocaleString()}</td>
+                                    <td className="px-6 py-4 font-medium text-[#334155]">${item.pricePerMt}</td>
+                                    <td className="px-6 py-4">
+                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                             item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                                         }`}>
+                                            {item.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button 
+                                            className="text-[#5DADE2] hover:text-[#4FA3D9] font-bold text-xs flex items-center justify-end space-x-1 ml-auto"
+                                            title="🚧 Edit details - Feature under construction"
+                                        >
+                                            <Edit2 size={14} />
+                                            <span>Edit</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                             ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Add Product Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155]">Add New Product</h3>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddProduct}>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Product Type</label>
+                                    <select className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium">
+                                        <option>Methanol</option>
+                                        <option>Biofuel B24</option>
+                                        <option>LNG</option>
+                                        <option>LSMGO</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Location</label>
+                                    <input type="text" value="Rotterdam" disabled className="w-full p-2 border border-slate-200 rounded bg-slate-100 text-slate-500 text-sm font-medium" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Initial Stock (MT)</label>
+                                        <input type="number" className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" placeholder="0" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price / MT ($)</label>
+                                        <input type="number" className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" placeholder="0.00" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end space-x-3 rounded-b-2xl">
+                                <button 
+                                    type="button"
+                                    onClick={() => setIsAddModalOpen(false)}
+                                    className="px-4 py-2 text-slate-600 font-bold hover:text-slate-800 text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    type="submit"
+                                    className="px-4 py-2 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm text-sm"
+                                >
+                                    Add to Inventory
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
