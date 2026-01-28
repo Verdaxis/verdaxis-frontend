@@ -20,6 +20,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (token: string) => void;
+  loginWithRedirect: () => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -32,6 +33,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check for hash (OIDC Callback)
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+        const params = new URLSearchParams(hash.substring(1)); // remove #
+        const accessToken = params.get("access_token");
+        if (accessToken) {
+            // Set token and clear hash
+            localStorage.setItem('token', accessToken);
+            setToken(accessToken); // This will trigger initAuth via re-render or we call it
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
     // Initialize auth state from local storage or validate token
     const initAuth = async () => {
       const storedToken = localStorage.getItem('token');
@@ -61,22 +75,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initAuth();
-  }, []);
+  }, [token]); // Added token dependency to re-run if token changes (e.g. from hash)
 
   const login = (newToken: string) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
-    // Trigger a re-fetch of user data or decode token if we had one
-    // For simplicity, reload or let the effect handle it if we structured differently. 
-    // But since effect runs once, we should fetch user here immediately.
-    fetch(`${API_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${newToken}`
-            }
-          })
-          .then(res => res.json())
-          .then(data => setUser(data))
-          .catch(() => logout());
+    // Token dependency in useEffect will handle fetching user
+  };
+
+  const loginWithRedirect = () => {
+    const authUrl = import.meta.env.VITE_AUTHENTIK_URL;
+    const clientId = import.meta.env.VITE_AUTHENTIK_CLIENT_ID;
+    const redirectUri = window.location.origin;
+    
+    if (!authUrl || !clientId) {
+        console.error("Authentik configuration missing");
+        return;
+    }
+
+    // Implicit Flow for simplicity
+    window.location.href = `${authUrl}/application/o/authorize/?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=openid profile email`;
   };
 
   const logout = () => {
@@ -91,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       token, 
       isLoading, 
       login, 
+      loginWithRedirect,
       logout,
       isAuthenticated: !!user 
     }}>
