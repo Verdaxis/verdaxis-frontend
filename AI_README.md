@@ -68,3 +68,111 @@ Authorization: Bearer <admin_token>
 ```
 
 This returns a new token with the switched role, useful for testing different views.
+
+---
+
+## Git Workflow
+
+### Branches
+
+- **`main`**: Development branch. All active development happens here.
+- **`prod`**: Production branch. Stable releases only.
+
+### Commands (Local)
+
+```bash
+# Push to main (development)
+git add -A && git commit -m "your message" && git push origin main
+
+# Deploy to production
+git checkout prod
+git merge main
+git push origin prod
+git checkout main
+```
+
+### Commands (Server)
+
+```bash
+# SSH to server
+ssh verdaxis-prod@144.126.151.136
+
+# Pull latest and restart
+cd ~/verdaxis-frontend
+git pull origin main
+pkill -f vite || true
+nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
+```
+
+---
+
+## Deployment
+
+### One-Command Deploy (from local)
+
+```bash
+# From Verdaxis root directory
+./scripts/push-deploy.sh                  # Deploy both frontend and backend
+./scripts/push-deploy.sh --frontend-only  # Deploy frontend only
+./scripts/push-deploy.sh --with-tests     # Run tests before deploying
+```
+
+### Manual Server Deploy
+
+```bash
+# SSH to server
+ssh verdaxis-prod@144.126.151.136
+
+# Deploy frontend
+cd ~/verdaxis-frontend && bash scripts/deploy.sh
+
+# Or manually:
+cd ~/verdaxis-frontend
+git pull origin main
+npm install
+pkill -f vite || true
+nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
+```
+
+### Viewing Logs
+
+```bash
+# View frontend logs on server
+tail -f ~/verdaxis-frontend/frontend.log
+```
+
+---
+
+## Testing
+
+### Run All Tests
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+```
+
+### Test Structure
+
+| File/Directory        | Purpose                          |
+| --------------------- | -------------------------------- |
+| `tests/utils.test.ts` | Unit tests for utility functions |
+| `tests/setup.ts`      | Vitest global setup              |
+| `vitest.config.ts`    | Vitest configuration             |
+
+### Writing Tests
+
+Tests use **Vitest** with **@testing-library/react**:
+
+```typescript
+import { describe, it, expect } from "vitest";
+
+describe("MyFeature", () => {
+  it("should do something", () => {
+    expect(true).toBe(true);
+  });
+});
+```
