@@ -27,6 +27,8 @@ if [ ! -f ".env" ]; then
     echo ">>> Creating .env file..."
     cat > .env << 'EOF'
 VITE_API_URL=http://144.126.151.136:8000
+VITE_AUTHENTIK_URL=http://144.126.151.136:9000
+VITE_AUTHENTIK_CLIENT_ID=verdaxis-client-id
 EOF
 fi
 

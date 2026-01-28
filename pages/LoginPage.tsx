@@ -31,12 +31,12 @@ const LoginPage: React.FC = () => {
           onClick={loginWithRedirect}
           className="w-full group relative overflow-hidden bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-emerald-500/25 flex items-center justify-center gap-3"
         >
-          <span>Sign In with SSO</span>
+          <span>Log In / Sign Up</span>
           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </button>
 
         <p className="mt-8 text-xs text-slate-500 text-center">
-          Secure Identity Provider • Enterprise Grade Encryption
+          Supports Email, Google, and Enterprise SSO
         </p>
       </div>
     </div>
