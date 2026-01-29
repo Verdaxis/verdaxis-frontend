@@ -142,15 +142,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                             <Popup 
                                 className="verdaxis-popup" 
                                 maxWidth={300}
+                                minWidth={260}
+                                autoPanPadding={[100, 100]}
                                 eventHandlers={{
                                     add: (e: any) => {
-                                        requestAnimationFrame(() => {
+                                        setTimeout(() => {
                                             e.target.update();
-                                        });
+                                        }, 100);
                                     }
                                 }}
                             >
-                                <div className="p-1 min-w-[240px]">
+                                <div className="min-w-[240px]">
                                     <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
                                         <h3 className="font-['Montserrat'] font-bold text-lg text-verdaxis-dark">{port.name}</h3>
                                         <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{port.country}</span>
