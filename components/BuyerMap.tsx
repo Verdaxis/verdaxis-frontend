@@ -139,7 +139,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate }) 
                                     )}
                                 </div>
                             </MapTooltip>
-                            <Popup className="verdaxis-popup" maxWidth={300}>
+                            <Popup 
+                                className="verdaxis-popup" 
+                                maxWidth={300}
+                                eventHandlers={{
+                                    add: (e: any) => {
+                                        requestAnimationFrame(() => {
+                                            e.target.update();
+                                        });
+                                    }
+                                }}
+                            >
                                 <div className="p-1 min-w-[240px]">
                                     <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
                                         <h3 className="font-['Montserrat'] font-bold text-lg text-verdaxis-dark">{port.name}</h3>
