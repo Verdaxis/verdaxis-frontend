@@ -3,7 +3,7 @@ import { AuthProvider as OidcProvider, useAuth as useOidcAuth } from "react-oidc
 import { User as OidcUser } from "oidc-client-ts";
 import { API_URL } from '../services/config';
 
-const DEV_BYPASS = false; // TOGGLE THIS FOR DEV MODE
+const DEV_BYPASS = import.meta.env.VITE_ENABLE_AUTH_BYPASS === 'true'; // Controlled by env var
 
 // Define types matching our backend
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -62,6 +62,7 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
               role: 'ADMIN',
               status: 'APPROVED'
             });
+            console.log("Starting in DEV_BYPASS mode as Dev Admin");
             setAppLoading(false);
             return;
         }
@@ -98,7 +99,7 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const value = {
         user,
-        token: oidc.user?.access_token || null,
+        token: oidc.user?.access_token || (DEV_BYPASS ? "dev-bypass-token" : null),
         isLoading: oidc.isLoading || appLoading,
         login: () => {}, // No manual login with OIDC usually, handled by library
         loginWithRedirect,

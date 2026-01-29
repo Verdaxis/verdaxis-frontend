@@ -81,63 +81,44 @@ This returns a new token with the switched role, useful for testing different vi
 ### Commands (Local)
 
 ```bash
-# Push to main (development)
+# Push to main (development) - TRIGGERS AUTOMATIC DEPLOYMENT
 git add -A && git commit -m "your message" && git push origin main
-
-# Deploy to production
-git checkout prod
-git merge main
-git push origin prod
-git checkout main
 ```
 
-### Commands (Server)
+> **Note**: The `prod` branch is currently mirrored from `main` logic. Deployment happens from `main`.
+
+### Manual Server Access (Debugging Only)
 
 ```bash
 # SSH to server
 ssh verdaxis-prod@144.126.151.136
 
-# Pull latest and restart
-cd ~/verdaxis-frontend
-git pull origin main
-pkill -f vite || true
-nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
+# Check logs
+tail -f ~/verdaxis-frontend/frontend.log
 ```
 
 ---
 
 ## Deployment
 
-### One-Command Deploy (from local)
+### Automated Deployment (CI/CD)
+
+The project is configured with **GitHub Actions**.
+
+- **Trigger**: Push to `main`.
+- **Process**:
+  1.  Runs `npm test`.
+  2.  If tests pass, connects to VPS via SSH.
+  3.  Executes `git pull` and re-runs the startup script.
+
+### Monitoring
+
+Check the [GitHub Actions](https://github.com/jonathanjie/verdaxis-frontend/actions) tab for build status.
+
+On the server, you can still view logs manually:
 
 ```bash
-# From Verdaxis root directory
-./scripts/push-deploy.sh                  # Deploy both frontend and backend
-./scripts/push-deploy.sh --frontend-only  # Deploy frontend only
-./scripts/push-deploy.sh --with-tests     # Run tests before deploying
-```
-
-### Manual Server Deploy
-
-```bash
-# SSH to server
 ssh verdaxis-prod@144.126.151.136
-
-# Deploy frontend
-cd ~/verdaxis-frontend && bash scripts/deploy.sh
-
-# Or manually:
-cd ~/verdaxis-frontend
-git pull origin main
-npm install
-pkill -f vite || true
-nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
-```
-
-### Viewing Logs
-
-```bash
-# View frontend logs on server
 tail -f ~/verdaxis-frontend/frontend.log
 ```
 
