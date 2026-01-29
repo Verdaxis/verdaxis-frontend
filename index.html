@@ -148,6 +148,21 @@
         background: rgba(15, 23, 42, 0.95);
         border: 1px solid #334155;
       }
+
+      /* Fix for popup clipping */
+      .leaflet-popup-content {
+        margin: 0 !important;
+        width: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+      .verdaxis-popup .leaflet-popup-content-wrapper {
+        padding: 0;
+        overflow: hidden;
+      }
+      .verdaxis-popup .leaflet-popup-content {
+        padding: 12px;
+      }
     </style>
     <script type="importmap">
       {

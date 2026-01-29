@@ -141,9 +141,12 @@ export const analyzeRisk = async (buyerName: string, profile: RiskProfile) => {
 };
 
 export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> => {
-    if (!apiKey) return null;
+    if (!apiKey) {
+        console.warn("Market Watch: No API Key found.");
+        return null;
+    }
 
-    const cacheKey = 'live_market_watch_v3'; 
+    const cacheKey = 'live_market_watch_v5'; 
     const cachedResponse = getCachedData(cacheKey);
     if (cachedResponse) {
         try {
@@ -154,16 +157,21 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
     }
 
     try {
-        const prompt = `Get the latest market price and today's percentage change for:
-        1. VLSFO-Methanol Spread (estimate)
-        2. EU Carbon Permits (EUA)
-        3. Brent Crude Oil
-        4. LNG (Japan/Korea Marker)
+        console.log("Market Watch: Fetching live data...");
+        const prompt = `You are a financial market data provider. Return a JSON array for these commodities:
+        1. VLSFO-Methanol Spread (current estimate in $/mt)
+        2. EU Carbon Permits (EUA prices in EUR)
+        3. Brent Crude Oil (current price in USD)
+        4. JKM LNG Price (in USD/mmBtu)
 
-        Return a JSON array.`;
+        Rules:
+        - Use Google Search to find REAL-TIME prices from today or the latest trading session.
+        - The 'change' should be today's percentage move (e.g. '+1.2%').
+        - The 'up' boolean should reflect if the change is positive.
+        - Return ONLY the JSON array. No conversational text.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest',
+            model: 'gemini-2.0-flash', // Using a more robust model for search
             contents: prompt,
             config: {
                 tools: [{ googleSearch: {} }],
@@ -184,19 +192,26 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
             }
         });
 
+        console.log("Market Watch: AI raw response received");
         const text = response.text;
-        if (!text) return null;
+        if (!text) {
+            console.warn("Market Watch: Empty response text from AI");
+            return null;
+        }
 
+        console.log("Market Watch: Parsing JSON from:", text.substring(0, 100) + "...");
         const cleanJson = text.replace(/```json|```/g, '').trim();
         const data = JSON.parse(cleanJson);
 
         if (Array.isArray(data)) {
+            console.log("Market Watch: Success, items found:", data.length);
             setCachedData(cacheKey, JSON.stringify(data));
             return data;
         }
+        console.warn("Market Watch: Data is not an array");
         return null;
     } catch (error) {
-        console.warn("Live Market Data Fetch Failed", error);
+        console.error("Market Watch: Error during fetch:", error);
         return null;
     }
 };
@@ -210,7 +225,7 @@ export const performWebSearch = async (query: string) => {
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest',
+            model: 'gemini-2.0-flash',
             contents: `Search request: "${query}". Provide a detailed summary of the search results focusing on facts and figures.`,
             config: {
                 tools: [{ googleSearch: {} }],
