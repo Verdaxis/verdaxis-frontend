@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { AuthProvider as OidcProvider, useAuth as useOidcAuth } from "react-oidc-context";
+import { User as OidcUser } from "oidc-client-ts";
 import { API_URL } from '../services/config';
 
+const DEV_BYPASS = false; // TOGGLE THIS FOR DEV MODE
 
 // Define types matching our backend
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -27,94 +30,109 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [isLoading, setIsLoading] = useState(true);
+// Internal component to bridge OIDC context with our App's AuthContext
+const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const oidc = useOidcAuth();
+    const [user, setUser] = useState<User | null>(null);
+    const [appLoading, setAppLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for hash (OIDC Callback)
-    const hash = window.location.hash;
-    if (hash && hash.includes("access_token")) {
-        const params = new URLSearchParams(hash.substring(1)); // remove #
-        const accessToken = params.get("access_token");
-        if (accessToken) {
-            // Set token and clear hash
-            localStorage.setItem('token', accessToken);
-            setToken(accessToken); // This will trigger initAuth via re-render or we call it
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    }
-
-    // Initialize auth state from local storage or validate token
-    const initAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        setToken(storedToken);
-        try {
-          // Fetch user details from backend using the token
-          const response = await fetch(`${API_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${storedToken}`
-            }
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            // Token invalid or expired
-            logout();
-          }
-        } catch (error) {
-          console.error("Auth initialization failed", error);
-          logout();
-        }
-      }
-      setIsLoading(false);
+    const loginWithRedirect = () => {
+        oidc.signinRedirect();
     };
 
-    initAuth();
-  }, [token]); // Added token dependency to re-run if token changes (e.g. from hash)
+    const logout = () => {
+        setUser(null);
+        oidc.removeUser();
+        // Clear local storage if we were using it, though oidc-client-ts handles its own storage
+        localStorage.removeItem('token');
+    };
 
-  const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    // Token dependency in useEffect will handle fetching user
+    // Effect to sync OIDC state with App state
+    useEffect(() => {
+        if (oidc.isLoading) {
+            return;
+        }
+
+        if (DEV_BYPASS) {
+             setUser({
+              id: 'dev-admin',
+              email: 'dev@admin.com',
+              first_name: 'Dev',
+              last_name: 'Admin',
+              role: 'ADMIN',
+              status: 'APPROVED'
+            });
+            setAppLoading(false);
+            return;
+        }
+
+        if (oidc.isAuthenticated && oidc.user?.access_token) {
+            const token = oidc.user.access_token;
+            localStorage.setItem('token', token); // Keep for legacy calls if needed
+
+            // Fetch full user profile from our backend
+            fetch(`${API_URL}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => {
+                if (res.ok) return res.json();
+                throw new Error("Failed to fetch user profile");
+            })
+            .then(userData => {
+                setUser(userData);
+            })
+            .catch(err => {
+                console.error("Error fetching user profile:", err);
+                // Optional: logout if profile fetch fails?
+            })
+            .finally(() => {
+                setAppLoading(false);
+            });
+        } else {
+            setAppLoading(false);
+        }
+
+    }, [oidc.isLoading, oidc.isAuthenticated, oidc.user?.access_token]);
+
+    const value = {
+        user,
+        token: oidc.user?.access_token || null,
+        isLoading: oidc.isLoading || appLoading,
+        login: () => {}, // No manual login with OIDC usually, handled by library
+        loginWithRedirect,
+        logout,
+        isAuthenticated: !!user || (DEV_BYPASS)
+    };
+
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const oidcConfig = {
+    authority: import.meta.env.VITE_AUTHENTIK_URL || "https://authentik.verdaxis.com", // Fallback for safety
+    client_id: import.meta.env.VITE_AUTHENTIK_CLIENT_ID || "",
+    redirect_uri: window.location.origin,
+    response_type: "code",
+    scope: "openid profile email",
+    automaticSilentRenew: true,
   };
 
-  const loginWithRedirect = () => {
-    const authUrl = import.meta.env.VITE_AUTHENTIK_URL;
-    const clientId = import.meta.env.VITE_AUTHENTIK_CLIENT_ID;
-    const redirectUri = window.location.origin;
-    
-    if (!authUrl || !clientId) {
-        console.error("Authentik configuration missing");
-        return;
-    }
-
-    // Implicit Flow for simplicity
-    window.location.href = `${authUrl}/application/o/authorize/?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=openid profile email`;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  };
+  if (!oidcConfig.client_id) {
+      console.warn("OIDC Client ID missing in environment variables");
+  }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      isLoading, 
-      login, 
-      loginWithRedirect,
-      logout,
-      isAuthenticated: !!user 
-    }}>
-      {children}
-    </AuthContext.Provider>
+    <OidcProvider {...oidcConfig}>
+        <AuthContextAdapter>
+            {children}
+        </AuthContextAdapter>
+    </OidcProvider>
   );
 };
 
