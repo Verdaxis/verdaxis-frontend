@@ -6,12 +6,29 @@ import { Tooltip } from './ui/Tooltip';
 import { analyzeRisk } from '../services/ai';
 import { api } from '../services/api';
 import MarkdownRenderer from './ui/MarkdownRenderer';
+import { useCopilotContext } from '../context/CopilotContext';
 
 export const SupplierQuotes: React.FC = () => {
+    const { setPageContext } = useCopilotContext();
     const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     
+    // Broadcast Context
+    useEffect(() => {
+        if (!loading) {
+            setPageContext({
+                view: 'Supplier Quotes & Orders',
+                total_records: quotes.length,
+                pending: quotes.filter(q => q.status === 'Pending').length,
+                quoted: quotes.filter(q => q.status === 'Quoted').length,
+                confirmed: quotes.filter(q => q.status === 'Confirmed').length,
+                search_query: searchQuery || 'None',
+                summary: 'Detailed list of RFQs and orders with status and actions.'
+            });
+        }
+    }, [quotes, loading, searchQuery, setPageContext]);
+
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
     const [editingQuote, setEditingQuote] = useState<QuoteRequest | null>(null);
@@ -90,13 +107,13 @@ export const SupplierQuotes: React.FC = () => {
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155]">Quotes & Orders</h1>
-                <p className="text-slate-500 mt-2">Manage incoming RFQs, active quotes, and confirmed bunkering orders.</p>
+                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Quotes & Orders</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">Manage incoming RFQs, active quotes, and confirmed bunkering orders.</p>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px]">
                 {/* Toolbar */}
-                <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input 
@@ -104,13 +121,13 @@ export const SupplierQuotes: React.FC = () => {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search by ID, Vessel, or Buyer..." 
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-[#5DADE2] outline-none transition-all focus:border-[#5DADE2]"
+                            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#5DADE2] outline-none transition-all focus:border-[#5DADE2] bg-white dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
                         />
                     </div>
                     <div className="flex items-center space-x-3 w-full md:w-auto">
                         <Tooltip content="Advanced Filters">
                             <button 
-                                className="flex items-center space-x-2 px-3 py-2 border border-slate-200 rounded-lg text-slate-600 text-sm font-medium hover:bg-slate-50"
+                                className="flex items-center space-x-2 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                             >
                                 <Filter size={16} />
                                 <span>Filter</span>
@@ -118,7 +135,7 @@ export const SupplierQuotes: React.FC = () => {
                         </Tooltip>
                         <Tooltip content="Export as CSV">
                             <button 
-                                className="flex items-center space-x-2 px-3 py-2 border border-slate-200 rounded-lg text-slate-600 text-sm font-medium hover:bg-slate-50"
+                                className="flex items-center space-x-2 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                             >
                                 <Download size={16} />
                                 <span>Export</span>
@@ -135,7 +152,7 @@ export const SupplierQuotes: React.FC = () => {
                 <div className="overflow-visible">
                     <table className="w-full text-left">
                         <thead>
-                             <tr className="bg-slate-50 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                             <tr className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
                                 <th className="px-6 py-4"></th>
                                 <th className="px-6 py-4">ID</th>
                                 <th className="px-6 py-4">Status</th>
@@ -146,10 +163,10 @@ export const SupplierQuotes: React.FC = () => {
                                 <th className="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
                              {quotes.map((req) => (
                                 <React.Fragment key={req.id}>
-                                    <tr className={`hover:bg-slate-50 transition-colors relative ${expandedQuoteId === req.id ? 'bg-slate-50' : ''}`}>
+                                    <tr className={`hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative ${expandedQuoteId === req.id ? 'bg-slate-50 dark:bg-slate-700' : ''}`}>
                                         <td className="px-2 py-4 text-center">
                                             <button onClick={() => toggleExpand(req.id)} className="text-slate-400 hover:text-slate-600">
                                                 {expandedQuoteId === req.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -173,9 +190,9 @@ export const SupplierQuotes: React.FC = () => {
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-[#334155]">{req.buyerName || 'Global Shipping Co.'}</td>
-                                        <td className="px-6 py-4">{req.fuelType} ({req.quantity} MT)</td>
-                                        <td className="px-6 py-4 font-medium text-[#334155]">
+                                        <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">{req.buyerName || 'Global Shipping Co.'}</td>
+                                        <td className="px-6 py-4 dark:text-slate-300">{req.fuelType} ({req.quantity} MT)</td>
+                                        <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">
                                             {req.price ? `$${req.price.toLocaleString()}` : '-'}
                                         </td>
                                         <td className="px-6 py-4 text-slate-500">{req.deliveryDate}</td>

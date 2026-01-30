@@ -54,12 +54,14 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         if (DEV_BYPASS) {
+             const mockToken = "dev-bypass-token";
+             localStorage.setItem('token', mockToken);
              setUser({
               id: 'dev-admin',
               email: 'dev@admin.com',
               first_name: 'Dev',
               last_name: 'Admin',
-              role: 'ADMIN',
+              role: 'SUPPLIER',
               status: 'APPROVED'
             });
             console.log("Starting in DEV_BYPASS mode as Dev Admin");

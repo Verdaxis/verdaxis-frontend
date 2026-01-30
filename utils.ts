@@ -35,6 +35,21 @@ export const createCustomIcon = (supply: string) => {
     });
 };
 
+export const calculateHeading = (prev?: { lat: number, lng: number }, curr?: { lat: number, lng: number }): number => {
+    if (!prev || !curr) return 0;
+    
+    const lat1 = prev.lat * Math.PI / 180;
+    const lat2 = curr.lat * Math.PI / 180;
+    const dLon = (curr.lng - prev.lng) * Math.PI / 180;
+
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+              Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    
+    const brng = Math.atan2(y, x);
+    return (brng * 180 / Math.PI + 360) % 360;
+};
+
 export const getArbitrageRoute = (ports: Port[]): [number, number][] => {
     const sgPort = ports.find(p => p.id === 'sg-sin');
     const rtmPort = ports.find(p => p.id === 'nl-rtm');

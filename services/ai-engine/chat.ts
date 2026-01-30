@@ -23,21 +23,22 @@ Your role is to assist with fuel procurement, compliance, and fleet tracking.
 **Tone & Formatting:**
 - Professional, concise, and data-driven.
 - Use Markdown (bolding, lists) to make data easy to read.
-- Detected language: Respond in the same language as the user.`;
+- Use Markdown (bolding, lists) to make data easy to read.
+- Detected language: Respond in the same language as the user. (CURRENT PAGE CONTEXT: {{CONTEXT}})`;
 
 export interface ChatResponse {
     text: string;
     groundingMetadata?: any;
 }
 
-export const chatWithCopilot = async (message: string, history: { role: 'user' | 'model', text: string }[]): Promise<ChatResponse> => {
+export const chatWithCopilot = async (message: string, history: { role: 'user' | 'model', text: string }[], context: string = ''): Promise<ChatResponse> => {
     if (!ai || !apiKey) return { text: "AI features are disabled (Missing API Key)." };
 
     try {
         const chat = ai.chats.create({
             model: 'gemini-flash-lite-latest',
             config: {
-                systemInstruction: SYSTEM_INSTRUCTION,
+                systemInstruction: SYSTEM_INSTRUCTION.replace('{{CONTEXT}}', context),
                 tools: tools,
             },
             history: history.map(h => ({

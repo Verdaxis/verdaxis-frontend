@@ -67,6 +67,7 @@ export interface Vessel {
     nextVoyage: string;
     nextDryDock: string;
     location?: GeoLocation; // Live position
+    previousLocation?: GeoLocation; // For heading
 }
 
 export interface Course {
@@ -90,8 +91,20 @@ export interface QuoteRequest {
     status: 'Pending' | 'Quoted' | 'Confirmed';
     supplierId?: string;
     price?: number;
+    offers?: QuoteOffer[];
     buyerName?: string; // For Supplier View
     buyerRiskProfile?: RiskProfile; // For Supplier View
+}
+
+export interface QuoteOffer {
+    id: string;
+    requestId: string;
+    supplierId: string;
+    pricePerMt: number;
+    validUntil?: string;
+    terms?: string;
+    isAccepted: boolean;
+    createdAt: string;
 }
 
 export interface InventoryItem {

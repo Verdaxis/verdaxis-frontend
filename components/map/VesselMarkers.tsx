@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Marker, Popup } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import { Ship, Anchor, AlertCircle } from 'lucide-react';
-import { VESSELS } from '../../data';
+import { api } from '../../services/api';
 import { Vessel } from '../../types';
+import { calculateHeading } from '../../utils';
 
 // Fix: Alias imports if strictly needed, but assuming standard react-leaflet approach for now
 // If this file fails to compile with props errors, we might need similar casting as BuyerMap
@@ -16,21 +17,22 @@ const createVesselIcon = (vessel: Vessel) => {
         : vessel.complianceEUETS === 'Non-Compliant' || vessel.complianceFuelEU === 'Non-Compliant'
             ? '#ef4444' 
             : '#f59e0b';
+            
+    const heading = calculateHeading(vessel.previousLocation, vessel.location);
 
     const iconMarkup = renderToStaticMarkup(
         <div className="relative group">
              {/* Directional Triangle / Ship Shape */}
              <div 
-                className="w-0 h-0 transform -rotate-45"
+                className="w-0 h-0 transition-transform duration-500"
                 style={{
                     borderLeft: '10px solid transparent',
                     borderRight: '10px solid transparent',
                     borderBottom: `24px solid ${statusColor}`,
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
+                    transform: `rotate(${heading}deg)`
                 }}
             />
-            {/* Center Dot */}
-            <div className="absolute top-3 left-[-3px] w-1.5 h-1.5 bg-white rounded-full opacity-80"></div>
             
             {/* Hover Tooltip Label */}
             <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-700 pointer-events-none">
@@ -48,9 +50,28 @@ const createVesselIcon = (vessel: Vessel) => {
 };
 
 export const VesselMarkers: React.FC = () => {
+    const [vessels, setVessels] = React.useState<Vessel[]>([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        const fetchVessels = async () => {
+            try {
+                const data = await api.vessels.list();
+                setVessels(data);
+            } catch (e) {
+                console.error("VesselMarkers: Error fetching vessels", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchVessels();
+    }, []);
+
+    if (loading) return null;
+
     return (
         <>
-            {VESSELS.map((vessel) => (
+            {vessels.map((vessel) => (
                 vessel.location && (
                     <Marker 
                         key={vessel.id}

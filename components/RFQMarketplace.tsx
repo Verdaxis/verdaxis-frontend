@@ -3,13 +3,15 @@ import { Search, Filter, Loader2, CheckCircle2, AlertCircle, Droplets, Leaf, Fla
 import { PublicListing } from '../types';
 import { ListingCard } from './rfq/ListingCard';
 import { RFQConfirmModal } from './rfq/RFQConfirmModal';
-import { InsightPanel } from './ai/InsightPanel';
+
 import { api } from '../services/api';
+import { useCopilotContext } from '../context/CopilotContext';
 
 const REGIONS = ['All', 'Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai'];
 const FUEL_TYPES = ['All', 'Methanol', 'Biofuel', 'LNG', 'Ammonia'];
 
 export const RFQMarketplace: React.FC = () => {
+    const { setPageContext } = useCopilotContext();
     const [listings, setListings] = useState<PublicListing[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRegion, setSelectedRegion] = useState('All');
@@ -34,6 +36,13 @@ export const RFQMarketplace: React.FC = () => {
             
             const data = await api.listings.list(filters);
             setListings(data);
+             // Broadcast to Copilot
+             setPageContext({
+                view: 'RFQ Marketplace (Detailed)',
+                filters: filters,
+                listings: data.slice(0, 50), // Limit to avoid hitting token limits
+                summary: `Showing ${data.length} detailed listings.`
+            });
         } catch (error) {
             console.error('Failed to fetch listings:', error);
         } finally {
@@ -79,15 +88,15 @@ export const RFQMarketplace: React.FC = () => {
     });
 
     return (
-        <div className="min-h-screen bg-slate-900 p-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors">
             {/* Header */}
             <div className="max-w-7xl mx-auto mb-8">
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-100 mb-2">
-                            Fuel Marketplace
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                            Marketplace
                         </h1>
-                        <p className="text-slate-400">
+                        <p className="text-slate-500 dark:text-slate-400">
                             Browse available stems from verified suppliers. Request quotes directly.
                         </p>
                     </div>
@@ -100,7 +109,7 @@ export const RFQMarketplace: React.FC = () => {
                             placeholder="Search listings..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
                         />
                     </div>
                 </div>
@@ -124,8 +133,8 @@ export const RFQMarketplace: React.FC = () => {
                                 onClick={() => setSelectedRegion(region)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                     selectedRegion === region
-                                        ? 'bg-emerald-500 text-slate-900'
-                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                                        ? 'bg-emerald-500 text-white dark:text-slate-900 shadow-md'
+                                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-slate-200'
                                 }`}
                             >
                                 {region}
@@ -142,8 +151,8 @@ export const RFQMarketplace: React.FC = () => {
                                 onClick={() => setSelectedFuelType(fuel)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
                                     selectedFuelType === fuel
-                                        ? 'bg-slate-700 text-slate-100 border border-slate-500'
-                                        : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700 hover:text-slate-200 border border-transparent'
+                                        ? 'bg-slate-800 dark:bg-slate-700 text-white dark:text-slate-100 border border-slate-600 dark:border-slate-500 shadow-sm'
+                                        : 'bg-white dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-transparent hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-emerald-600 dark:hover:text-slate-200'
                                 }`}
                             >
                                 {fuel === 'Methanol' && <Droplets size={14} className="text-emerald-400" />}
@@ -193,17 +202,17 @@ export const RFQMarketplace: React.FC = () => {
                 {/* Summary Stats */}
                 <div className="mt-8 pt-8 border-t border-slate-800 flex flex-wrap gap-8 justify-center text-sm">
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-200">{filteredListings.length}</div>
+                        <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">{filteredListings.length}</div>
                         <div className="text-slate-500">Active Listings</div>
                     </div>
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-emerald-400">
+                        <div className="text-2xl font-bold text-emerald-500 dark:text-emerald-400">
                             {filteredListings.reduce((sum, l) => sum + l.quantity_mt, 0).toLocaleString()} MT
                         </div>
                         <div className="text-slate-500">Total Volume</div>
                     </div>
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-200">
+                        <div className="text-2xl font-bold text-slate-700 dark:text-slate-200">
                             {filteredListings.filter(l => l.is_verdaxis_verified).length}
                         </div>
                         <div className="text-slate-500">Verified Suppliers</div>
@@ -222,12 +231,7 @@ export const RFQMarketplace: React.FC = () => {
             )}
 
             {/* AI Insight Panel */}
-            <InsightPanel 
-                context={{
-                    region: selectedRegion !== 'All' ? selectedRegion : undefined,
-                    fuelType: selectedFuelType !== 'All' ? selectedFuelType : undefined,
-                }}
-            />
+
         </div>
     );
 };

@@ -27,7 +27,26 @@ export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
             const res = await fetch(`${API_URL}/ports`, { headers: getHeaders() });
-            return handleResponse(res);
+            const data = await handleResponse(res);
+            // Transform backend data to frontend Port interface
+            return data.map((p: any) => ({
+                ...p,
+                location: { lat: p.lat, lng: p.lng },
+                // Ensure default values for missing intelligence/details if necessary
+                priceMethanol: p.intelligence?.methanol_price_avg || 0,
+                methanolSupply: p.intelligence?.congestion_level || 'Medium', // Use congestion as proxy or default
+                details: {
+                    ...p.details,
+                    plattsPrice: p.intelligence?.methanol_price_avg,
+                    ffaPrice: p.intelligence?.biofuel_price_avg,
+                    priceHistory: p.details?.priceHistory || [500, 510, 505, 520, 515, 525, 530], // Mock history if missing
+                    congestionLevel: p.intelligence?.congestion_level || 'Low',
+                    avgWaitingTime: 0,
+                    activeBarges: 0,
+                    forecastSupply: 'Balanced',
+                    upcomingProjects: []
+                }
+            }));
         },
         getById: async (id: string): Promise<Port | undefined> => {
             const res = await fetch(`${API_URL}/ports/${id}`, { headers: getHeaders() });
@@ -38,7 +57,23 @@ export const api = {
     vessels: {
         list: async (): Promise<Vessel[]> => {
             const res = await fetch(`${API_URL}/vessels`, { headers: getHeaders() });
-            return handleResponse(res);
+            const data = await handleResponse(res);
+            return data.map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                imo: v.imo_number, // backend: imo_number
+                vesselType: v.vessel_type,
+                status: 'At Sea', // Mock status for now as backend doesn't store operational status yet
+                complianceEUETS: v.eu_ets_status || 'Non-Compliant',
+                complianceFuelEU: v.fueleu_status || 'Non-Compliant',
+                ciiGrade: v.cii_rating || 'C',
+                // Mock voyage info until backend supports it
+                nextVoyage: 'Singapore -> Rotterdam (ETA: 4 Days)',
+                nextDryDock: 'Sep 2026', 
+                location: v.lat && v.lng ? { lat: v.lat, lng: v.lng } : undefined,
+                // Add previous location if needed for heading
+                previousLocation: v.prev_lat && v.prev_lng ? { lat: v.prev_lat, lng: v.prev_lng } : undefined
+            }));
         },
         updateStatus: async (id: string, status: 'At Sea' | 'In Port'): Promise<Vessel> => {
            // Backend doesn't have status update yet, mock for now or implement?
@@ -65,15 +100,69 @@ export const api = {
     },
 
     quotes: {
-        // This was the old global quote system. The new system is RFQ-based.
-        // We'll map this to RFQ listings if possible, or leave empty if the UI has migrated.
-        list: async (role: 'BUYER' | 'SUPPLIER' = 'BUYER', search?: string): Promise<QuoteRequest[]> => {
-             return []; // Legacy
+        list: async (): Promise<QuoteRequest[]> => {
+             const res = await fetch(`${API_URL}/quotes`, { headers: getHeaders() });
+             const data = await handleResponse(res);
+             return data.map((q: any) => ({
+                 id: q.id,
+                 portId: q.port_id,
+                 fuelType: q.fuel_type,
+                 quantity: q.quantity_mt,
+                 deliveryDate: q.delivery_window_start,
+                 vesselId: q.vessel_id,
+                 status: q.status,
+                 supplierId: q.awarded_supplier_id,
+                 price: q.final_price_per_mt,
+                 offers: q.offers?.map((o: any) => ({
+                     id: o.id,
+                     requestId: o.request_id,
+                     supplierId: o.supplier_id,
+                     pricePerMt: o.price_per_mt_usd,
+                     validUntil: o.valid_until,
+                     terms: o.terms_and_conditions,
+                     isAccepted: o.is_accepted,
+                     createdAt: o.created_at
+                 })) || []
+             }));
         },
-        create: async (request: any): Promise<any> => {
-            return {};
+        create: async (request: Partial<QuoteRequest>): Promise<QuoteRequest> => {
+            const payload = {
+                port_id: request.portId,
+                fuel_type: request.fuelType,
+                quantity_mt: request.quantity,
+                delivery_window_start: request.deliveryDate,
+                delivery_window_end: request.deliveryDate, // Simplified 1-day window
+                vessel_id: request.vesselId
+            };
+            const res = await fetch(`${API_URL}/quotes`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(payload)
+            });
+            return handleResponse(res);
+        },
+        createOffer: async (quoteId: string, offer: { pricePerMt: number, validUntil?: string, terms?: string }): Promise<any> => {
+            const payload = {
+                price_per_mt_usd: offer.pricePerMt,
+                valid_until: offer.validUntil,
+                terms_and_conditions: offer.terms
+            };
+            const res = await fetch(`${API_URL}/quotes/${quoteId}/offers`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(payload)
+            });
+            return handleResponse(res);
+        },
+        acceptOffer: async (quoteId: string, offerId: string): Promise<any> => {
+             const res = await fetch(`${API_URL}/quotes/${quoteId}/accept/${offerId}`, {
+                method: 'PUT',
+                headers: getHeaders()
+            });
+            return handleResponse(res);
         },
         update: async (id: string, updates: any): Promise<any> => {
+            // Not implemented fully yet
             return {};
         },
         delete: async (id: string): Promise<void> => {
@@ -100,7 +189,7 @@ export const api = {
         list: async (): Promise<Notification[]> => {
             // Mock notifications for now as backend doesn't have this yet
             return [
-                { id: '1', type: 'info', message: 'Welcome to the new implementation', read: false, date: new Date().toISOString() }
+                { id: 1, type: 'info', title: 'Welcome', desc: 'Welcome to the new implementation', time: new Date().toISOString() }
             ];
         }
     },
@@ -109,7 +198,16 @@ export const api = {
         list: async (): Promise<Course[]> => {
              // Mock training data
              return [
-                 { id: '1', title: 'Methanol Safety', provider: 'Verdaxis', duration: '2h', completed: false }
+                 { 
+                     id: '1', 
+                     title: 'Methanol Safety', 
+                     duration: '2h',
+                     description: 'Basics of methanol bunkering safety',
+                     category: 'Safety',
+                     requiredForFuel: ['Methanol'],
+                     level: 'Beginner',
+                     syllabus: ['Introduction', 'Properties', 'Hazards', 'Response']
+                 }
              ];
         }
     },
@@ -123,6 +221,15 @@ export const api = {
             if (filters?.availability) params.append('availability', filters.availability);
             
             const res = await fetch(`${API_URL}/listings?${params.toString()}`, { headers: getHeaders() });
+            const data = await handleResponse(res);
+            return data.map((item: any) => ({
+                ...item,
+                quantity_mt: Number(item.quantity_mt),
+                price_per_mt_usd: Number(item.price_per_mt_usd)
+            }));
+        },
+        getAggregated: async (): Promise<any[]> => {
+            const res = await fetch(`${API_URL}/listings/aggregated`, { headers: getHeaders() });
             return handleResponse(res);
         },
         getRegions: async (): Promise<string[]> => {

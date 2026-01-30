@@ -1,12 +1,36 @@
 import React from 'react';
 import { ViewMode } from '../types';
-import { User, Bell, Shield, Globe, CreditCard } from 'lucide-react';
+import { User, Bell, Shield, Globe, CreditCard, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 interface SettingsProps {
     viewMode: ViewMode;
 }
 
+interface ThemeOptionProps {
+    label: string;
+    icon: React.ReactNode;
+    active: boolean;
+    onClick: () => void;
+}
+
+const ThemeOption: React.FC<ThemeOptionProps> = ({ label, icon, active, onClick }) => (
+    <button 
+        onClick={onClick}
+        className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
+            active 
+                ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-slate-700 dark:border-slate-600 dark:text-blue-400' 
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700'
+        }`}
+    >
+        <div className="mb-2">{icon}</div>
+        <span className="text-xs font-bold">{label}</span>
+    </button>
+);
+
 export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
+    const { theme, setTheme } = useTheme();
+
     return (
         <div className="max-w-5xl mx-auto p-4 lg:p-10">
              <div className="mb-6 lg:mb-8">
@@ -51,16 +75,16 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label className="v-label">First Name</label>
-                                        <input type="text" value={viewMode === 'BUYER' ? "Sarah" : "David"} className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium" readOnly />
+                                        <input type="text" value={viewMode === 'BUYER' ? "Sarah" : "David"} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly />
                                     </div>
                                     <div>
                                         <label className="v-label">Last Name</label>
-                                        <input type="text" value={viewMode === 'BUYER' ? "Jenkins" : "Chen"} className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium" readOnly />
+                                        <input type="text" value={viewMode === 'BUYER' ? "Jenkins" : "Chen"} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="v-label">Email Address</label>
-                                    <input type="email" value={viewMode === 'BUYER' ? "sarah.jenkins@shipping.co" : "david.chen@portservices.net"} className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium" readOnly />
+                                    <input type="email" value={viewMode === 'BUYER' ? "sarah.jenkins@shipping.co" : "david.chen@portservices.net"} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly />
                                 </div>
                                 <div>
                                     <label className="v-label">Role</label>
@@ -93,16 +117,40 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                     <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
                                 </div>
                             </div>
-                             <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between">
                                 <div>
-                                    <div className="text-sm font-bold text-[#334155]">Currency</div>
-                                    <div className="text-xs text-slate-500">Display prices in</div>
+                                    <div className="text-sm font-bold text-[#334155] dark:text-slate-200">Currency</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Display prices in</div>
                                 </div>
-                                <select className="p-1 border border-slate-200 rounded text-sm font-bold text-[#334155]">
+                                <select className="p-1 border border-slate-200 dark:border-slate-700 rounded text-sm font-bold text-[#334155] dark:text-slate-200 bg-transparent">
                                     <option>USD ($)</option>
                                     <option>EUR (€)</option>
                                     <option>CNY (¥)</option>
                                 </select>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">Appearance</h3>
+                                <div className="grid grid-cols-3 gap-3">
+                                    <ThemeOption 
+                                        label="Light" 
+                                        icon={<Sun size={18} />} 
+                                        active={theme === 'light'} 
+                                        onClick={() => setTheme('light')} 
+                                    />
+                                    <ThemeOption 
+                                        label="Dark" 
+                                        icon={<Moon size={18} />} 
+                                        active={theme === 'dark'} 
+                                        onClick={() => setTheme('dark')} 
+                                    />
+                                    <ThemeOption 
+                                        label="System" 
+                                        icon={<Monitor size={18} />} 
+                                        active={theme === 'system'} 
+                                        onClick={() => setTheme('system')} 
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

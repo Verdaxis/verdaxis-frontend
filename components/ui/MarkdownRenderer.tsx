@@ -43,17 +43,17 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
                 <div key={index} className="my-2 w-full overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                            <tr className="border-b-2 border-slate-300">
+                            <tr className="border-b-2 border-slate-300 dark:border-slate-600">
                                 {headers.map((header, hIndex) => (
-                                    <th key={hIndex} className="p-2 font-bold text-slate-600">{parseInline(header)}</th>
+                                    <th key={hIndex} className="p-2 font-bold text-slate-600 dark:text-slate-200">{parseInline(header)}</th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {bodyRows.map((row, rIndex) => (
-                                <tr key={rIndex} className="border-b border-slate-200">
+                                <tr key={rIndex} className="border-b border-slate-200 dark:border-slate-700">
                                     {row.map((cell, cIndex) => (
-                                        <td key={cIndex} className="p-2 text-slate-700">{parseInline(cell)}</td>
+                                        <td key={cIndex} className="p-2 text-slate-700 dark:text-slate-300">{parseInline(cell)}</td>
                                     ))}
                                 </tr>
                             ))}

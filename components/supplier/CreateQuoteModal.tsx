@@ -7,7 +7,21 @@ interface CreateQuoteModalProps {
     onSubmit: () => void;
 }
 
+import { useState } from 'react';
+
 export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({ requestId, onClose, onSubmit }) => {
+    const [price, setPrice] = useState(520);
+    const [validity, setValidity] = useState('24 Hours');
+
+    const handleSubmit = () => {
+        // Mock date conversion
+        const validUntil = new Date();
+        validUntil.setHours(validUntil.getHours() + (validity === '24 Hours' ? 24 : validity === '48 Hours' ? 48 : 168));
+        
+        // Pass data back (we'll need to update the prop type)
+        (onSubmit as any)(price, validUntil.toISOString());
+    };
+
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
@@ -32,12 +46,22 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({ requestId, o
 
                         <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price per MT ($)</label>
-                        <input type="number" className="w-full p-3 border border-slate-200 rounded-lg bg-white font-bold text-[#334155]" defaultValue={520} />
+                        <input 
+                            type="number" 
+                            className="w-full p-3 border border-slate-200 rounded-lg bg-white font-bold text-[#334155]" 
+                            value={price}
+                            onChange={(e) => setPrice(Number(e.target.value))}
+                        />
                         </div>
 
                         <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Validity</label>
-                        <select className="w-full p-3 border border-slate-200 rounded-lg bg-white font-medium">
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Validity</label>
+                        <select 
+                            className="w-full p-3 border border-slate-200 rounded-lg bg-white font-medium"
+                            value={validity}
+                            onChange={(e) => setValidity(e.target.value)}
+                        >
                             <option>24 Hours</option>
                             <option>48 Hours</option>
                             <option>7 Days</option>
@@ -53,7 +77,7 @@ export const CreateQuoteModal: React.FC<CreateQuoteModalProps> = ({ requestId, o
                         Cancel
                     </button>
                         <button 
-                        onClick={onSubmit}
+                        onClick={handleSubmit}
                         className="px-6 py-2 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm flex items-center space-x-2 text-sm"
                     >
                         <span>Send Quote</span>

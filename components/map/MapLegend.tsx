@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, MapPin, Ship, AlertCircle } from 'lucide-react';
 
 export const MapLegend: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(true);
+    const [isOpen, setIsOpen] = useState(false);
 
     return (
         <div className="absolute top-4 right-20 z-[20] flex flex-col items-end">
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-500 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors mb-2"
+                className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors mb-2"
             >
                 {isOpen ? <ChevronUp size={20} /> : <HelpCircle size={20} />}
             </button>
 
             {isOpen && (
-                <div className="bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-xl p-4 w-64 text-slate-700">
-                    <h4 className="text-xs font-bold uppercase text-slate-500 mb-3 border-b border-slate-100 pb-2">Map Intelligence Legend</h4>
+                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 w-64 text-slate-700 dark:text-slate-200">
+                    <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">Map Intelligence Legend</h4>
                     
                     <div className="space-y-4">
                         {/* Port Supply */}
@@ -54,7 +54,7 @@ export const MapLegend: React.FC = () => {
 
                         {/* Routes */}
                         <div>
-                            <div className="text-[10px] font-bold text-slate-500 mb-2">INFRASTRUCTURE</div>
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2">INFRASTRUCTURE</div>
                             <div className="flex items-center gap-2 text-xs">
                                 <div className="w-8 h-0.5 bg-emerald-500 border-t border-dashed border-emerald-300"></div>
                                 <span>Active Green Corridor</span>

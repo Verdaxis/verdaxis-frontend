@@ -1,8 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useCopilotContext } from '../../context/CopilotContext';
 import { MessageSquare, X, Send, Sparkles, Bot, Globe } from 'lucide-react';
 import { chatWithCopilot } from '../../services/ai';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
+
 
 interface Message {
     id: string;
@@ -11,7 +14,12 @@ interface Message {
     groundingMetadata?: any;
 }
 
-export const Copilot: React.FC = () => {
+interface CopilotProps {
+    viewMode?: string;
+    currentPage?: string;
+}
+
+export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +27,9 @@ export const Copilot: React.FC = () => {
         { id: '1', role: 'model', text: 'Hello. I am the Verdaxis Copilot. How can I assist with your fleet or procurement today?' }
     ]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const location = useLocation();
+
+    const { pageContext } = useCopilotContext();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,9 +50,16 @@ export const Copilot: React.FC = () => {
 
         // Prepare history for API
         const history = messages.map(m => ({ role: m.role, text: m.text }));
+        
+        // Prepare context
+        let context = `User is currently viewing page: ${currentPage || 'DASHBOARD'} (View Mode: ${viewMode || 'BUYER'}). Path: ${location.pathname}${location.search}`;
+
+        if (pageContext) {
+            context += `\n\n[CURRENT PAGE DATA]:\n${JSON.stringify(pageContext, null, 2)}`;
+        }
 
         try {
-            const response = await chatWithCopilot(userMsg.text, history);
+            const response = await chatWithCopilot(userMsg.text, history, context);
             const aiMsg: Message = { 
                 id: (Date.now() + 1).toString(), 
                 role: 'model', 
@@ -71,7 +89,7 @@ export const Copilot: React.FC = () => {
 
             {/* Chat Window */}
             <div className={`
-                fixed bottom-24 right-6 w-[calc(100vw-3rem)] md:w-96 max-w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-200 z-[80] overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right
+                fixed bottom-24 right-6 w-[calc(100vw-3rem)] md:w-96 max-w-[380px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 z-[80] overflow-hidden flex flex-col transition-all duration-300 origin-bottom-right
                 ${isOpen ? 'opacity-100 scale-100 h-[500px]' : 'opacity-0 scale-95 h-0 pointer-events-none'}
             `}>
                 {/* Header */}
@@ -89,7 +107,7 @@ export const Copilot: React.FC = () => {
                 </div>
 
                 {/* Messages Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-900/50">
                     {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.role === 'model' && (
@@ -101,7 +119,7 @@ export const Copilot: React.FC = () => {
                                 max-w-[80%] rounded-2xl px-4 py-3 text-sm font-medium leading-relaxed shadow-sm
                                 ${msg.role === 'user' 
                                     ? 'bg-slate-800 text-white rounded-br-none' 
-                                    : 'bg-white text-slate-600 border border-slate-200 rounded-bl-none'}
+                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-bl-none'}
                             `}>
                                 {msg.role === 'model' ? <MarkdownRenderer content={msg.text} /> : msg.text}
                                 
@@ -119,7 +137,7 @@ export const Copilot: React.FC = () => {
                                                         href={chunk.web.uri}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="bg-white border border-slate-200 text-slate-500 hover:text-verdaxis hover:border-verdaxis text-[10px] px-2 py-1 rounded flex items-center space-x-1 transition-all max-w-[200px]"
+                                                        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-verdaxis hover:border-verdaxis text-[10px] px-2 py-1 rounded flex items-center space-x-1 transition-all max-w-[200px]"
                                                     >
                                                         <span className="truncate">{chunk.web.title || 'Web Source'}</span>
                                                     </a>
@@ -149,14 +167,14 @@ export const Copilot: React.FC = () => {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-3 bg-white border-t border-slate-200">
+                <div className="p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
                     <form onSubmit={handleSubmit} className="relative flex items-center">
                         <input 
                             type="text" 
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Ask about prices, compliance..."
-                            className="w-full bg-slate-100 border-none rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-verdaxis focus:outline-none placeholder-slate-400 font-medium text-slate-700"
+                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-verdaxis focus:outline-none placeholder-slate-400 font-medium text-slate-700 dark:text-white"
                         />
                         <button 
                             type="submit"

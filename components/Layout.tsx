@@ -24,7 +24,7 @@ export const Layout: React.FC<LayoutProps> = ({
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
     return (
-        <div className="flex h-screen w-full bg-[#F8FAFC] overflow-hidden">
+        <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-900 transition-colors duration-200 overflow-hidden">
             {/* Mobile Sidebar Overlay */}
             {isMobileSidebarOpen && (
                 <div 
@@ -51,12 +51,12 @@ export const Layout: React.FC<LayoutProps> = ({
                     onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
                 />
 
-                <main className="flex-1 overflow-y-auto p-0 relative z-0 bg-[#F8FAFC]">
+                <main className="flex-1 overflow-y-auto p-0 relative z-0 bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
                     {children}
                 </main>
                 
                 {/* AI Copilot Overlay */}
-                <Copilot />
+                <Copilot viewMode={viewMode} currentPage={currentPage} />
             </div>
         </div>
     );

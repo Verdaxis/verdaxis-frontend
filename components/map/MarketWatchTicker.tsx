@@ -50,14 +50,14 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     }, []);
 
     return (
-        <div className="bg-white/95 backdrop-blur-sm border border-slate-200 shadow-lg rounded-lg p-3 flex items-center space-x-6 overflow-x-auto w-full">
+        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-lg rounded-lg p-3 flex items-center space-x-6 overflow-x-auto w-full">
             <div className="flex items-center space-x-2 border-r border-slate-200 pr-4 min-w-fit">
                 {status === 'LIVE' && <Activity size={18} className="text-green-600 animate-pulse" />}
                 {status === 'LOADING' && <RefreshCw size={18} className="text-verdaxis animate-spin" />}
                 {status === 'ERROR' && <WifiOff size={18} className="text-red-500" />}
                 
                 <div>
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap block">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap block">
                         Market Watch
                     </span>
                     {status === 'LIVE' && <span className="text-[8px] font-bold text-green-600 uppercase tracking-wider">● LIVE FEED</span>}
@@ -68,9 +68,9 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
 
             {items.map((item, i) => (
                 <div key={i} className="flex flex-col min-w-fit">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">{item.pair}</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase">{item.pair}</span>
                     <div className="flex items-center space-x-2">
-                        <span className={`text-sm font-bold ${status === 'ERROR' || item.val === 'Loading...' ? 'text-slate-400' : 'text-verdaxis-dark'}`}>
+                        <span className={`text-sm font-bold ${status === 'ERROR' || item.val === 'Loading...' ? 'text-slate-400 dark:text-slate-500' : 'text-sky-700 dark:text-sky-300'}`}>
                             {item.val}
                         </span>
                         {status === 'LIVE' && (

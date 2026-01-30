@@ -41,8 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const sidebarItems = viewMode === 'BUYER' ? [
         { id: 'MAP', label: 'Intelligence Map', icon: MapIcon },
-        { id: 'MARKETPLACE', label: 'Find Suppliers', icon: ShoppingCart },
-        { id: 'RFQ_MARKETPLACE', label: 'RFQ Marketplace', icon: Handshake },
+        { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
         { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'FLEET', label: 'My Fleet', icon: Ship },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
@@ -63,13 +62,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
         <aside className={`
             fixed md:static inset-y-0 left-0 z-[70]
-            bg-verdaxis-dark text-white flex flex-col flex-shrink-0 shadow-xl 
+            bg-[#343E50] dark:bg-[#0f172a] border-r border-[#2A3344] dark:border-[#1e293b] text-white flex flex-col flex-shrink-0 shadow-xl 
             transition-all duration-300 ease-in-out
             ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             ${isCollapsed ? 'md:w-20' : 'md:w-64'}
             w-64
         `}>
-            <div className={`p-6 border-b border-slate-600 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+            <div className={`p-6 border-b border-[#2A3344] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 <div className="flex items-center space-x-3 overflow-hidden">
                     {/* Logo Container - Rounded White Square */}
                     <div className="w-11 h-11 bg-white rounded-lg p-1.5 flex items-center justify-center flex-shrink-0 shadow-inner">
@@ -112,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentPage === item.id 
                                 ? 'bg-verdaxis text-white shadow-lg' 
-                                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
                             <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
@@ -122,14 +121,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-slate-600">
+            <div className="p-4 border-t border-[#2A3344]">
                 <Tooltip content={isCollapsed ? 'System Settings' : ''} position="right">
                     <button 
                         onClick={() => handleNavigate('SETTINGS')}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                             currentPage === 'SETTINGS' 
                             ? 'bg-verdaxis text-white shadow-lg'
-                            : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                            : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                         } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                     >
                         <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
