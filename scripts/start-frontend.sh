@@ -22,15 +22,13 @@ if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
     npm install
 fi
 
-# Create .env if it doesn't exist
-if [ ! -f ".env" ]; then
-    echo ">>> Creating .env file..."
-    cat > .env << 'EOF'
+# Create or Overwrite .env
+echo ">>> Updating .env file..."
+cat > .env << 'EOF'
 VITE_API_URL=http://144.126.151.136:8000
 VITE_AUTHENTIK_URL=http://144.126.151.136:9000
 VITE_AUTHENTIK_CLIENT_ID=verdaxis-client-id
 EOF
-fi
 
 # Start the dev server in background
 echo ">>> Starting Vite dev server on 0.0.0.0:5173..."
