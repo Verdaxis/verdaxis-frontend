@@ -123,13 +123,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ? authentikBase 
     : `${authentikBase.replace(/\/$/, '')}/application/o/verdaxis/`;
 
+  // Check if running in a secure context (HTTPS or localhost)
+  // Web Crypto API (required for PKCE) only works in secure contexts
+  const isSecureContext = 
+    window.isSecureContext ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
   const oidcConfig = {
     authority,
     client_id: import.meta.env.VITE_AUTHENTIK_CLIENT_ID || "",
     redirect_uri: window.location.origin,
     response_type: "code",
     scope: "openid profile email",
-    automaticSilentRenew: true,
+    automaticSilentRenew: isSecureContext, // Silent renew also requires secure context
+    // Disable PKCE when not in a secure context, as Web Crypto API
+    // is unavailable over plain HTTP. For production, always use HTTPS!
+    disablePKCE: !isSecureContext,
   };
 
   if (!oidcConfig.client_id) {

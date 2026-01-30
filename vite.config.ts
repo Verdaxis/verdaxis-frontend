@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: false,
           },
+          '/authentik': {
+            target: 'http://144.126.151.136:9000',
+            changeOrigin: true,
+            secure: false,
+            rewrite: (path) => path.replace(/^\/authentik/, ''),
+          },
         },
       },
       plugins: [react()],
