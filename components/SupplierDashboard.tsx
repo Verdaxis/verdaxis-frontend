@@ -8,7 +8,10 @@ interface SupplierDashboardProps {
     onNavigate: (page: Page) => void;
 }
 
+import { useCopilotContext } from '../context/CopilotContext';
+
 export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate }) => {
+    const { setPageContext } = useCopilotContext();
     const [activeTab, setActiveTab] = useState<'INCOMING' | 'ACTIVE' | 'HISTORY'>('INCOMING');
     const [requests, setRequests] = useState<QuoteRequest[]>([]);
     const [loading, setLoading] = useState(true);
@@ -19,7 +22,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
     useEffect(() => {
         const fetchQuotes = async () => {
             try {
-                const data = await api.quotes.list('SUPPLIER');
+                const data = await api.quotes.list();
                 setRequests(data);
             } catch (e) {
                 console.error("Error fetching quotes", e);
@@ -30,21 +33,35 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
         fetchQuotes();
     }, []);
 
+    // Update Context
+    useEffect(() => {
+        if (!loading) {
+            setPageContext({
+                view: 'Supplier Command Center',
+                pending_requests: requests.filter(r => r.status === 'Pending').length,
+                active_quotes: requests.filter(r => r.status === 'Quoted').length,
+                volume_sold: '12,450 MT',
+                summary: 'Overview of incoming RFQs and active quotes.'
+            });
+        }
+    }, [requests, loading, setPageContext]);
+
     const handleOpenQuote = (id: string) => {
         setSelectedRequest(id);
     };
 
-    const handleSubmitQuote = async () => {
+    const handleSubmitQuote = async (price: number, validUntil: string) => {
         if (selectedRequest) {
             setProcessing(true);
             try {
-                // Optimistic UI update could happen here, but we'll wait for API
-                const updatedReq = await api.quotes.update(selectedRequest, { 
-                    status: 'Quoted', 
-                    price: 560000 
+                await api.quotes.createOffer(selectedRequest, {
+                    pricePerMt: price,
+                    validUntil: validUntil,
+                    terms: 'Standard Terms'
                 });
                 
-                setRequests(prev => prev.map(r => r.id === selectedRequest ? updatedReq : r));
+                // Optimistic Update
+                setRequests(prev => prev.map(r => r.id === selectedRequest ? { ...r, status: 'Quoted' } : r));
                 setSelectedRequest(null);
             } catch (e) {
                 alert("Failed to submit quote");
@@ -136,7 +153,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-slate-50 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                            <tr className="bg-[#1e293b] text-xs uppercase text-slate-300 font-bold tracking-wider">
                                 <th className="px-6 py-4">Request ID</th>
                                 <th className="px-6 py-4">Vessel / Buyer</th>
                                 <th className="px-6 py-4">Product</th>
@@ -212,7 +229,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                 <CreateQuoteModal 
                     requestId={selectedRequest} 
                     onClose={() => setSelectedRequest(null)} 
-                    onSubmit={handleSubmitQuote} 
+                    onSubmit={handleSubmitQuote as any} 
                 />
             )}
         </div>

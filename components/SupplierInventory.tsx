@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X } from 'lucide-react';
 import { InventoryItem } from '../types';
 
@@ -9,9 +9,27 @@ const INITIAL_INVENTORY: InventoryItem[] = [
     { id: 'inv-3', productName: 'LSMGO', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 3500, incomingStock: 0, pricePerMt: 620, status: 'Available' },
 ];
 
+import { useCopilotContext } from '../context/CopilotContext';
+
 export const SupplierInventory: React.FC = () => {
+    const { setPageContext } = useCopilotContext();
     const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // Broadcast Context
+    useEffect(() => {
+        setPageContext({
+            view: 'Supplier Inventory',
+            products: inventory.map(i => ({
+                name: i.productName,
+                stock: i.currentStock,
+                status: i.status
+            })),
+            total_capacity: '15,000 MT',
+            utilization: '34%',
+            summary: 'Live inventory levels and stock management.'
+        });
+    }, [inventory, setPageContext]);
 
     const handleAddProduct = (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,12 +52,12 @@ export const SupplierInventory: React.FC = () => {
         <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8 flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155]">Inventory Management</h1>
-                    <p className="text-slate-500 mt-2">Monitor stock levels, adjust pricing, and manage replenishment.</p>
+                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Inventory Management</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">Monitor stock levels, adjust pricing, and manage replenishment.</p>
                 </div>
                 <button 
                     onClick={() => setIsAddModalOpen(true)}
-                    className="bg-[#334155] text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-700 transition-colors flex items-center space-x-2"
+                    className="bg-[#334155] dark:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center space-x-2"
                 >
                     <Plus size={18} />
                     <span>Add Product</span>
@@ -47,40 +65,40 @@ export const SupplierInventory: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div className="p-3 bg-blue-50 rounded-lg text-[#5DADE2]">
+                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center space-x-4">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-[#5DADE2]">
                         <Box size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 font-bold uppercase">Total Capacity</div>
-                        <div className="text-xl font-bold text-[#334155]">15,000 MT</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Total Capacity</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">15,000 MT</div>
                     </div>
                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div className="p-3 bg-green-50 rounded-lg text-[#4CAF50]">
+                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center space-x-4">
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-[#4CAF50]">
                         <CheckCircle2 size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 font-bold uppercase">Utilization</div>
-                        <div className="text-xl font-bold text-[#334155]">34%</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Utilization</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">34%</div>
                     </div>
                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div className="p-3 bg-amber-50 rounded-lg text-amber-500">
+                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center space-x-4">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-500">
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 font-bold uppercase">Low Stock Alerts</div>
-                        <div className="text-xl font-bold text-[#334155]">1 Product</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Low Stock Alerts</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">1 Product</div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                             <tr className="bg-slate-50 text-xs uppercase text-slate-500 font-bold tracking-wider">
+                             <tr className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
                                 <th className="px-6 py-4">Product Name</th>
                                 <th className="px-6 py-4">Location</th>
                                 <th className="px-6 py-4">Stock Level (MT)</th>
@@ -92,12 +110,12 @@ export const SupplierInventory: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
                              {inventory.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 font-bold text-[#334155]">{item.productName}</td>
-                                    <td className="px-6 py-4 text-slate-600">{item.portName}</td>
-                                    <td className="px-6 py-4 font-mono font-medium">{item.currentStock.toLocaleString()}</td>
+                                <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                                    <td className="px-6 py-4 font-bold text-[#334155] dark:text-slate-200">{item.productName}</td>
+                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{item.portName}</td>
+                                    <td className="px-6 py-4 font-mono font-medium dark:text-slate-300">{item.currentStock.toLocaleString()}</td>
                                     <td className="px-6 py-4 text-slate-400">+{item.incomingStock.toLocaleString()}</td>
-                                    <td className="px-6 py-4 font-medium text-[#334155]">${item.pricePerMt}</td>
+                                    <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">${item.pricePerMt}</td>
                                     <td className="px-6 py-4">
                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                                              item.status === 'Available' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'

@@ -58,9 +58,24 @@ const SPREAD_DATA = [
     { time: '16:00', spread: 17.2 },
 ];
 
+import { useCopilotContext } from '../context/CopilotContext';
+
 export const BraemarTerminal: React.FC = () => {
+    const { setPageContext } = useCopilotContext();
     const [marketData, setMarketData] = useState<MarketRow[]>(INITIAL_CURVE);
     const [selectedCell, setSelectedCell] = useState<{ rowId: string, field: 'bid' | 'ask' } | null>(null);
+
+    // Broadcast Context
+    useEffect(() => {
+        setPageContext({
+            view: 'Live Terminal',
+            product: 'Methanol (Singapore/Rotterdam)',
+            market_data_summary: 'Showing active spot and forward curves for Methanol.',
+            spread: 'Spot Spread $18.50 (Arb Open)',
+            active_bids: marketData.filter(r => r.bid).length,
+            active_offers: marketData.filter(r => r.ask).length
+        });
+    }, [marketData, setPageContext]);
     
     // Order Entry State
     const [orderType, setOrderType] = useState<'BID' | 'OFFER'>('BID');
@@ -108,18 +123,18 @@ export const BraemarTerminal: React.FC = () => {
     const isRowActive = (row: MarketRow) => row.last !== null;
 
     return (
-        <div className="flex flex-col h-full bg-[#050505] text-[#e5e5e5] font-mono overflow-hidden">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-hidden transition-colors">
             
             {/* Top Section: Header & Spread Chart */}
-            <div className="h-64 border-b border-[#222] flex">
+            <div className="h-64 border-b border-slate-200 dark:border-[#222] flex">
                 {/* Product Header */}
-                <div className="w-80 p-6 border-r border-[#222] flex flex-col justify-between bg-[#0a0a0a]">
+                <div className="w-80 p-6 border-r border-slate-200 dark:border-[#222] flex flex-col justify-between bg-white dark:bg-[#0a0a0a]">
                     <div>
-                        <div className="flex items-center space-x-2 text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
+                        <div className="flex items-center space-x-2 text-slate-400 dark:text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
                             <Zap size={12} className="text-verdaxis" />
                             <span>Live Terminal</span>
                         </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight mb-0.5">METHANOL</h1>
+                        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-0.5">METHANOL</h1>
                         <div className="flex items-center space-x-2 text-xs font-semibold">
                             <span className="text-emerald-500">SINGAPORE</span>
                             <span className="text-[#333]">/</span>
@@ -129,19 +144,19 @@ export const BraemarTerminal: React.FC = () => {
                     
                     <div className="space-y-4">
                         <div className="flex justify-between items-end">
-                            <span className="text-xs text-[#888] font-bold">SPOT SPREAD</span>
+                            <span className="text-xs text-slate-400 dark:text-[#888] font-bold">SPOT SPREAD</span>
                             <div className="text-right">
-                                <span className="text-2xl font-bold text-white">$18.50</span>
+                                <span className="text-2xl font-bold text-slate-800 dark:text-white">$18.50</span>
                                 <div className="text-[10px] text-emerald-500 flex items-center justify-end space-x-1">
                                     <TrendingUp size={10} />
                                     <span>+1.20</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="w-full bg-[#222] h-1.5 rounded-sm overflow-hidden">
+                        <div className="w-full bg-slate-200 dark:bg-[#222] h-1.5 rounded-sm overflow-hidden">
                             <div className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full w-[70%]"></div>
                         </div>
-                        <div className="text-[10px] text-[#555] flex justify-between uppercase font-bold tracking-wider">
+                        <div className="text-[10px] text-slate-500 dark:text-[#555] flex justify-between uppercase font-bold tracking-wider">
                             <span>Arb: <span className="text-emerald-500">Open</span></span>
                             <span>Vol: 25.4k</span>
                         </div>
@@ -149,19 +164,19 @@ export const BraemarTerminal: React.FC = () => {
                 </div>
 
                 {/* Spread Chart */}
-                <div className="flex-1 p-4 bg-[#080808]">
+                <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808]">
                      <div className="flex justify-between items-start mb-2 px-2">
                         <div>
-                            <div className="text-[#888] text-[10px] font-bold tracking-widest uppercase">Spread Visualization</div>
-                            <div className="text-xs text-[#444]">METHANOL SIN-ROT</div>
+                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">Spread Visualization</div>
+                            <div className="text-xs text-slate-600 dark:text-[#444]">METHANOL SIN-ROT</div>
                         </div>
-                        <button className="p-1.5 hover:bg-[#222] rounded text-[#666]"><Maximize2 size={14}/></button>
+                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
                     <ResponsiveContainer width="100%" height="80%">
                         <LineChart data={SPREAD_DATA}>
-                            <CartesianGrid strokeDasharray="2 2" stroke="#1a1a1a" vertical={false} />
-                            <XAxis dataKey="time" stroke="#333" tick={{fontSize: 10, fill: '#555'}} tickLine={false} axisLine={false} />
-                            <YAxis orientation="right" stroke="#333" tick={{fontSize: 10, fill: '#555'}} tickLine={false} axisLine={false} domain={['dataMin - 2', 'dataMax + 2']} />
+                            <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.1} vertical={false} />
+                            <XAxis dataKey="time" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} />
+                            <YAxis orientation="right" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} domain={['dataMin - 2', 'dataMax + 2']} />
                             <RechartsTooltip 
                                 contentStyle={{ backgroundColor: '#111', border: '1px solid #333', fontSize: '12px' }}
                                 itemStyle={{ color: '#fff' }}
@@ -181,9 +196,9 @@ export const BraemarTerminal: React.FC = () => {
             </div>
 
             {/* The Market Grid */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-[#050505] relative">
+            <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-[#050505] relative">
                 {/* Grid Header */}
-                <div className="flex items-center bg-[#0a0a0a] border-b border-[#222] text-[10px] uppercase font-bold text-[#555] py-2 select-none">
+                <div className="flex items-center bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] uppercase font-bold text-slate-500 dark:text-[#555] py-2 select-none">
                     <div className="w-32 px-4">Period</div>
                     <div className="w-24 text-right px-4">Bid Qty</div>
                     <div className="w-24 text-right px-4 text-emerald-700">Bid</div>
@@ -198,14 +213,14 @@ export const BraemarTerminal: React.FC = () => {
                 <div className="overflow-y-auto flex-1 font-mono">
                     {marketData.map((row) => {
                         const active = isRowActive(row);
-                        const textColor = active ? 'text-white' : 'text-[#444]';
-                        const hoverColor = active ? 'hover:bg-[#111]' : 'hover:bg-[#0a0a0a]';
+                        const textColor = active ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-[#444]';
+                        const hoverColor = active ? 'hover:bg-slate-50 dark:hover:bg-[#111]' : 'hover:bg-slate-50 dark:hover:bg-[#0a0a0a]';
 
                         return (
                             <div 
                                 key={row.id}
                                 className={`
-                                    flex items-center border-b border-[#111] py-1.5 transition-colors group
+                                    flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group
                                     ${hoverColor}
                                     ${textColor}
                                     ${row.flash === 'up' ? 'animate-flash' : ''}
@@ -229,10 +244,10 @@ export const BraemarTerminal: React.FC = () => {
                                         className={`
                                             w-full text-right px-2 py-0.5 rounded cursor-pointer transition-all
                                             ${row.bid 
-                                                ? 'text-emerald-500 font-bold hover:bg-[#1a1a1a] hover:text-emerald-400' 
-                                                : 'text-[#222] hover:text-[#444] hover:bg-[#111]'
+                                                ? 'text-emerald-600 dark:text-emerald-500 font-bold hover:bg-slate-200 dark:hover:bg-[#1a1a1a] hover:text-emerald-700 dark:hover:text-emerald-400' 
+                                                : 'text-slate-300 dark:text-[#222] hover:text-slate-500 dark:hover:text-[#444] hover:bg-slate-100 dark:hover:bg-[#111]'
                                             }
-                                            ${selectedCell?.rowId === row.id && selectedCell.field === 'bid' ? 'bg-[#222] ring-1 ring-emerald-600' : ''}
+                                            ${selectedCell?.rowId === row.id && selectedCell.field === 'bid' ? 'bg-slate-200 dark:bg-[#222] ring-1 ring-emerald-600' : ''}
                                         `}
                                     >
                                         {row.bid ? row.bid.toFixed(2) : '--'}
@@ -246,10 +261,10 @@ export const BraemarTerminal: React.FC = () => {
                                          className={`
                                             w-full text-right px-2 py-0.5 rounded cursor-pointer transition-all
                                             ${row.ask 
-                                                ? 'text-rose-500 font-bold hover:bg-[#1a1a1a] hover:text-rose-400' 
-                                                : 'text-[#222] hover:text-[#444] hover:bg-[#111]'
+                                                ? 'text-rose-600 dark:text-rose-500 font-bold hover:bg-slate-200 dark:hover:bg-[#1a1a1a] hover:text-rose-700 dark:hover:text-rose-400' 
+                                                : 'text-slate-300 dark:text-[#222] hover:text-slate-500 dark:hover:text-[#444] hover:bg-slate-100 dark:hover:bg-[#111]'
                                             }
-                                            ${selectedCell?.rowId === row.id && selectedCell.field === 'ask' ? 'bg-[#222] ring-1 ring-rose-600' : ''}
+                                            ${selectedCell?.rowId === row.id && selectedCell.field === 'ask' ? 'bg-slate-200 dark:bg-[#222] ring-1 ring-rose-600' : ''}
                                         `}
                                     >
                                         {row.ask ? row.ask.toFixed(2) : '--'}
@@ -262,12 +277,12 @@ export const BraemarTerminal: React.FC = () => {
                                 </div>
 
                                 {/* Last Done */}
-                                <div className={`w-24 text-right px-4 font-bold text-xs ${active ? 'text-white' : 'text-[#222]'}`}>
+                                <div className={`w-24 text-right px-4 font-bold text-xs ${active ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-[#222]'}`}>
                                     {row.last?.toFixed(2) || ''}
                                 </div>
 
                                 {/* Change */}
-                                <div className={`w-24 text-right px-4 text-[10px] flex justify-end items-center space-x-1 ${row.change && row.change > 0 ? 'text-emerald-500' : row.change && row.change < 0 ? 'text-rose-500' : 'text-[#222]'}`}>
+                                <div className={`w-24 text-right px-4 text-[10px] flex justify-end items-center space-x-1 ${row.change && row.change > 0 ? 'text-emerald-600 dark:text-emerald-500' : row.change && row.change < 0 ? 'text-rose-600 dark:text-rose-500' : 'text-slate-300 dark:text-[#222]'}`}>
                                     {row.change ? (
                                         <>
                                             {row.change > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
@@ -284,14 +299,14 @@ export const BraemarTerminal: React.FC = () => {
             {/* Order Entry Popover */}
             {selectedCell && (
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
-                    <div className="bg-[#111] border border-[#333] shadow-2xl w-72 animate-in zoom-in-95 duration-100 rounded-sm">
+                    <div className="bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] shadow-2xl w-72 animate-in zoom-in-95 duration-100 rounded-sm">
                         {/* Modal Header */}
-                        <div className="bg-[#1a1a1a] px-4 py-2 flex justify-between items-center border-b border-[#333]">
-                            <span className="text-xs font-bold text-white tracking-wider flex items-center space-x-2">
+                        <div className="bg-slate-100 dark:bg-[#1a1a1a] px-4 py-2 flex justify-between items-center border-b border-slate-200 dark:border-[#333]">
+                            <span className="text-xs font-bold text-slate-700 dark:text-white tracking-wider flex items-center space-x-2">
                                 <Activity size={12} className="text-verdaxis" />
                                 <span>MAKE A MARKET</span>
                             </span>
-                            <button onClick={() => setSelectedCell(null)} className="text-[#666] hover:text-white">
+                            <button onClick={() => setSelectedCell(null)} className="text-slate-400 hover:text-slate-600 dark:text-[#666] dark:hover:text-white">
                                 <X size={14} />
                             </button>
                         </div>
@@ -299,23 +314,23 @@ export const BraemarTerminal: React.FC = () => {
                         <div className="p-4 space-y-4">
                             {/* Product Info */}
                             <div className="text-center mb-4">
-                                <div className="text-2xl font-bold text-white font-mono">
+                                <div className="text-2xl font-bold text-slate-800 dark:text-white font-mono">
                                     {marketData.find(r => r.id === selectedCell.rowId)?.period}
                                 </div>
-                                <div className="text-[10px] text-[#666] uppercase tracking-widest">Pricing Window</div>
+                                <div className="text-[10px] text-slate-400 dark:text-[#666] uppercase tracking-widest">Pricing Window</div>
                             </div>
 
                             {/* Buy/Sell Toggle */}
-                            <div className="grid grid-cols-2 gap-px bg-[#333] p-px rounded-sm">
+                            <div className="grid grid-cols-2 gap-px bg-slate-200 dark:bg-[#333] p-px rounded-sm">
                                 <button 
                                     onClick={() => setOrderType('BID')}
-                                    className={`py-1.5 text-xs font-bold uppercase transition-colors ${orderType === 'BID' ? 'bg-emerald-600 text-white' : 'bg-[#111] text-[#666] hover:bg-[#161616]'}`}
+                                    className={`py-1.5 text-xs font-bold uppercase transition-colors ${orderType === 'BID' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-[#111] text-slate-500 dark:text-[#666] hover:bg-slate-50 dark:hover:bg-[#161616]'}`}
                                 >
                                     Bid
                                 </button>
                                 <button 
                                     onClick={() => setOrderType('OFFER')}
-                                    className={`py-1.5 text-xs font-bold uppercase transition-colors ${orderType === 'OFFER' ? 'bg-rose-600 text-white' : 'bg-[#111] text-[#666] hover:bg-[#161616]'}`}
+                                    className={`py-1.5 text-xs font-bold uppercase transition-colors ${orderType === 'OFFER' ? 'bg-rose-600 text-white' : 'bg-white dark:bg-[#111] text-slate-500 dark:text-[#666] hover:bg-slate-50 dark:hover:bg-[#161616]'}`}
                                 >
                                     Offer
                                 </button>
@@ -324,7 +339,7 @@ export const BraemarTerminal: React.FC = () => {
                             {/* Inputs */}
                             <div className="space-y-3">
                                 <div>
-                                    <label className="text-[10px] text-[#666] uppercase font-bold block mb-1">Price ($/MT)</label>
+                                    <label className="text-[10px] text-slate-400 dark:text-[#666] uppercase font-bold block mb-1">Price ($/MT)</label>
                                     <div className="relative">
                                         <input 
                                             autoFocus
@@ -332,22 +347,22 @@ export const BraemarTerminal: React.FC = () => {
                                             value={orderPrice}
                                             onChange={(e) => setOrderPrice(e.target.value)}
                                             className={`
-                                                w-full bg-[#050505] border rounded-sm p-2 text-white font-mono outline-none text-lg transition-colors
-                                                ${orderType === 'BID' ? 'border-emerald-900 focus:border-emerald-500' : 'border-rose-900 focus:border-rose-500'}
+                                                w-full bg-white dark:bg-[#050505] border rounded-sm p-2 text-slate-900 dark:text-white font-mono outline-none text-lg transition-colors
+                                                ${orderType === 'BID' ? 'border-emerald-500/50 dark:border-emerald-900 focus:border-emerald-500' : 'border-rose-500/50 dark:border-rose-900 focus:border-rose-500'}
                                             `}
                                             placeholder="0.00"
                                         />
-                                        <span className="absolute right-3 top-3 text-xs text-[#444]">$</span>
+                                        <span className="absolute right-3 top-3 text-xs text-slate-400 dark:text-[#444]">$</span>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="text-[10px] text-[#666] uppercase font-bold block mb-1">Quantity (MT)</label>
+                                    <label className="text-[10px] text-slate-400 dark:text-[#666] uppercase font-bold block mb-1">Quantity (MT)</label>
                                     <input 
                                         type="number" 
                                         value={orderQty}
                                         onChange={(e) => setOrderQty(e.target.value)}
-                                        className="w-full bg-[#050505] border border-[#333] rounded-sm p-2 text-white font-mono focus:border-[#666] outline-none text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-[#333] rounded-sm p-2 text-slate-900 dark:text-white font-mono focus:border-slate-500 dark:focus:border-[#666] outline-none text-sm"
                                         placeholder="1000"
                                     />
                                 </div>

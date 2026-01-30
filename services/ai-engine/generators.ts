@@ -146,7 +146,7 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
         return null;
     }
 
-    const cacheKey = 'live_market_watch_v5'; 
+    const cacheKey = 'live_market_watch_v6'; // Incrementing cache key
     const cachedResponse = getCachedData(cacheKey);
     if (cachedResponse) {
         try {
@@ -157,7 +157,7 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
     }
 
     try {
-        console.log("Market Watch: Fetching live data...");
+        console.log("Market Watch: Fetching live data using gemini-2.5-flash-lite...");
         const prompt = `You are a financial market data provider. Return a JSON array for these commodities:
         1. VLSFO-Methanol Spread (current estimate in $/mt)
         2. EU Carbon Permits (EUA prices in EUR)
@@ -168,27 +168,15 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
         - Use Google Search to find REAL-TIME prices from today or the latest trading session.
         - The 'change' should be today's percentage move (e.g. '+1.2%').
         - The 'up' boolean should reflect if the change is positive.
-        - Return ONLY the JSON array. No conversational text.`;
+        - Return ONLY the JSON array. No conversational text.
+        - Format: [{"pair": "Brent Crude", "val": "$80.00", "change": "+1.2%", "up": true}, ...]`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash', // Using a more robust model for search
+            model: 'gemini-2.5-flash-lite',
             contents: prompt,
             config: {
                 tools: [{ googleSearch: {} }],
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            pair: { type: Type.STRING },
-                            val: { type: Type.STRING },
-                            change: { type: Type.STRING },
-                            up: { type: Type.BOOLEAN }
-                        },
-                        required: ["pair", "val", "change", "up"]
-                    }
-                }
+                // Note: responseMimeType is omitted because it currently conflicts with googleSearch tool on this model
             }
         });
 
@@ -199,16 +187,22 @@ export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> =
             return null;
         }
 
-        console.log("Market Watch: Parsing JSON from:", text.substring(0, 100) + "...");
-        const cleanJson = text.replace(/```json|```/g, '').trim();
-        const data = JSON.parse(cleanJson);
-
-        if (Array.isArray(data)) {
-            console.log("Market Watch: Success, items found:", data.length);
-            setCachedData(cacheKey, JSON.stringify(data));
-            return data;
+        console.log("Market Watch: Parsing JSON from raw text...");
+        // More robust JSON extraction
+        const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+        const cleanJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
+        
+        try {
+            const data = JSON.parse(cleanJson);
+            if (Array.isArray(data)) {
+                console.log("Market Watch: Success, items found:", data.length);
+                setCachedData(cacheKey, JSON.stringify(data));
+                return data;
+            }
+            console.warn("Market Watch: Parsed data is not an array");
+        } catch (parseError) {
+            console.error("Market Watch: JSON Parse Error. Raw text:", text);
         }
-        console.warn("Market Watch: Data is not an array");
         return null;
     } catch (error) {
         console.error("Market Watch: Error during fetch:", error);
@@ -225,7 +219,7 @@ export const performWebSearch = async (query: string) => {
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash-lite',
             contents: `Search request: "${query}". Provide a detailed summary of the search results focusing on facts and figures.`,
             config: {
                 tools: [{ googleSearch: {} }],

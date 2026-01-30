@@ -97,18 +97,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         
                         {/* Autocomplete Dropdown */}
                         {showSuggestions && suggestions.length > 0 && (
-                            <div className="absolute top-full left-0 w-full bg-white rounded-lg shadow-xl border border-slate-100 mt-1 z-30 overflow-hidden">
+                            <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 mt-1 z-30 overflow-hidden">
                                 {suggestions.map(port => (
                                     <div 
                                         key={port.id}
-                                        className="px-4 py-3 hover:bg-slate-50 cursor-pointer flex items-center space-x-2"
+                                        className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center space-x-2 transition-colors"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             selectSuggestion(port.name);
                                         }}
                                     >
                                         <MapPin size={14} className="text-slate-400" />
-                                        <span className="text-sm font-medium text-slate-700">{port.name}, {port.country}</span>
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{port.name}, {port.country}</span>
                                     </div>
                                 ))}
                             </div>

@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
     return (
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative transition-colors duration-200">
             <div className="flex items-center flex-1">
                 <button 
                     className="md:hidden mr-4 text-slate-500 hover:text-verdaxis-dark"
@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     <input 
                         type="text" 
                         placeholder={viewMode === 'BUYER' ? "Search..." : "Search requests..."}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-verdaxis text-sm"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-verdaxis text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400"
                     />
                 </div>
             </div>
@@ -58,33 +58,33 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     </Tooltip>
 
                     {isNotificationsOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-slate-100 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
-                            <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                                <p className="text-sm font-bold text-verdaxis-dark">Notifications</p>
+                        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
+                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                <p className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">Notifications</p>
                                 <span className="text-xs font-bold text-verdaxis cursor-pointer">Mark all read</span>
                             </div>
                             <div className="max-h-[300px] overflow-y-auto">
                                 {NOTIFICATIONS.map(notif => (
-                                    <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 cursor-pointer group transition-colors">
+                                    <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-50 dark:border-slate-700 last:border-0 cursor-pointer group transition-colors">
                                         <div className="flex items-start space-x-3">
                                             <div className={`mt-1 p-1 rounded-full flex-shrink-0 
-                                                ${notif.type === 'warning' ? 'bg-amber-100 text-amber-600' : 
-                                                    notif.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`
+                                                ${notif.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 
+                                                    notif.type === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`
                                             }>
                                                 {notif.type === 'warning' ? <AlertTriangle size={12} /> : 
                                                     notif.type === 'success' ? <CheckCircle2 size={12} /> : <Bell size={12} />}
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-verdaxis-dark group-hover:text-verdaxis transition-colors">{notif.title}</p>
-                                                <p className="text-xs text-slate-500 mt-0.5">{notif.desc}</p>
+                                                <p className="text-sm font-bold text-verdaxis-dark dark:text-slate-200 group-hover:text-verdaxis transition-colors">{notif.title}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{notif.desc}</p>
                                                 <p className="text-[10px] text-slate-400 mt-1 font-bold">{notif.time}</p>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="p-2 border-t border-slate-100 bg-slate-50 text-center">
-                                <button className="text-xs font-bold text-slate-500 hover:text-verdaxis-dark">View All Activity</button>
+                            <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center">
+                                <button className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-verdaxis-dark dark:hover:text-slate-200">View All Activity</button>
                             </div>
                         </div>
                     )}
@@ -97,10 +97,10 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                         className="flex items-center space-x-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
                     >
                         <div className="text-right hidden md:block">
-                            <div className="text-sm font-bold text-verdaxis-dark">
+                            <div className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">
                                 {viewMode === 'BUYER' ? 'Sarah Jenkins' : 'David Chen'}
                             </div>
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
                                 {viewMode === 'BUYER' ? 'Head of Procurement' : 'Ops Manager'}
                             </div>
                         </div>
@@ -111,8 +111,8 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     </button>
 
                     {isProfileOpen && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-100 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
-                            <div className="px-4 py-3 border-b border-slate-100">
+                        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
+                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
                                 <p className="text-xs font-bold text-slate-400 uppercase">Role Switcher</p>
                             </div>
                             <button 
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                     onSwitchView('BUYER');
                                     setIsProfileOpen(false);
                                 }}
-                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center justify-between ${viewMode === 'BUYER' ? 'text-verdaxis font-bold' : 'text-slate-600'}`}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'BUYER' ? 'text-verdaxis font-bold' : 'text-slate-600 dark:text-slate-300'}`}
                             >
                                 <span>Buyer View</span>
                                 {viewMode === 'BUYER' && <div className="w-2 h-2 bg-verdaxis rounded-full"></div>}
@@ -130,13 +130,13 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                     onSwitchView('SUPPLIER');
                                     setIsProfileOpen(false);
                                 }}
-                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center justify-between ${viewMode === 'SUPPLIER' ? 'text-verdaxis-green font-bold' : 'text-slate-600'}`}
+                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'SUPPLIER' ? 'text-verdaxis-green font-bold' : 'text-slate-600 dark:text-slate-300'}`}
                             >
                                 <span>Supplier View</span>
                                 {viewMode === 'SUPPLIER' && <div className="w-2 h-2 bg-verdaxis-green rounded-full"></div>}
                             </button>
-                            <div className="border-t border-slate-100 mt-1">
-                                <button className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 flex items-center space-x-2">
+                            <div className="border-t border-slate-100 dark:border-slate-700 mt-1">
+                                <button className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2">
                                     <LogOut size={16} />
                                     <span>Sign Out</span>
                                 </button>
