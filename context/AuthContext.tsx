@@ -117,8 +117,14 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const authentikBase = import.meta.env.VITE_AUTHENTIK_URL || "https://authentik.verdaxis.com";
+  // Ensure we have the full application path
+  const authority = authentikBase.includes('/application/o/') 
+    ? authentikBase 
+    : `${authentikBase.replace(/\/$/, '')}/application/o/verdaxis/`;
+
   const oidcConfig = {
-    authority: import.meta.env.VITE_AUTHENTIK_URL || "https://authentik.verdaxis.com", // Fallback for safety
+    authority,
     client_id: import.meta.env.VITE_AUTHENTIK_CLIENT_ID || "",
     redirect_uri: window.location.origin,
     response_type: "code",
