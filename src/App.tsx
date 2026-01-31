@@ -7,6 +7,7 @@ import { CopilotProvider } from './context/CopilotContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import CreateOrganizationPage from './pages/CreateOrganizationPage';
 import { Layout } from './components/Layout';
 import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard } from './components/BuyerDashboard';
@@ -50,6 +51,19 @@ const RequireProfile = ({ children }: { children: React.ReactElement }) => {
     // check user.role is falsy or not in allowed roles
     if (user && !user.role) {
         return <Navigate to="/onboarding" replace />; // No state.from to avoid loop
+    }
+
+    return children;
+};
+
+// Guard: Forces user to create/join organization
+const RequireOrganization = ({ children }: { children: React.ReactElement }) => {
+    const { user, isLoading } = useAuth();
+    
+    if (isLoading) return null;
+
+    if (user && !user.organization_id) {
+        return <Navigate to="/create-organization" replace />;
     }
 
     return children;
@@ -162,6 +176,12 @@ const App: React.FC = () => {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     
+                    <Route path="/create-organization" element={
+                        <ProtectedRoute>
+                            <CreateOrganizationPage />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/onboarding" element={
                         <ProtectedRoute>
                             <OnboardingGuard> {/* OnboardingGuard here to redirect if already onboarded */}
@@ -172,9 +192,11 @@ const App: React.FC = () => {
                     
                     <Route path="/" element={
                         <ProtectedRoute>
-                            <RequireProfile>
-                                <Dashboard />
-                            </RequireProfile>
+                            <RequireOrganization>
+                                <RequireProfile>
+                                    <Dashboard />
+                                </RequireProfile>
+                            </RequireOrganization>
                         </ProtectedRoute>
                     } />
                     {/* Fallback */}
