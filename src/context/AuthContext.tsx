@@ -13,7 +13,7 @@ interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: UserRole;
+  role: UserRole | null;
   organization_id?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
@@ -49,53 +49,48 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Effect to sync OIDC state with App state
     useEffect(() => {
-        if (oidc.isLoading) {
-            return;
-        }
+        const checkAuth = async () => {
+            let activeToken: string | null = null;
 
-        if (DEV_BYPASS) {
-             const mockToken = "dev-bypass-token";
-             localStorage.setItem('token', mockToken);
-             setUser({
-              id: 'dev-admin',
-              email: 'dev@admin.com',
-              first_name: 'Dev',
-              last_name: 'Admin',
-              role: 'SUPPLIER',
-              status: 'APPROVED'
-            });
-            console.log("Starting in DEV_BYPASS mode as Dev Admin");
-            setAppLoading(false);
-            return;
-        }
+            if (DEV_BYPASS) {
+                activeToken = "dev-bypass-token";
+                // localStorage.setItem('token', activeToken); 
+                // Don't necessarily need to persist if we rely on this env var
+            } else if (oidc.isAuthenticated && oidc.user?.access_token) {
+                activeToken = oidc.user.access_token;
+            }
 
-        if (oidc.isAuthenticated && oidc.user?.access_token) {
-            const token = oidc.user.access_token;
-            localStorage.setItem('token', token); // Keep for legacy calls if needed
+            if (!activeToken) {
+                if (!oidc.isLoading) setAppLoading(false);
+                return;
+            }
 
-            // Fetch full user profile from our backend
-            fetch(`${API_URL}/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+            try {
+                // Fetch full user profile from our backend
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${activeToken}`
+                    }
+                });
+
+                if (res.ok) {
+                    const userData = await res.json();
+                    setUser(userData);
+                } else {
+                    console.error("Failed to fetch user profile", res.status);
+                    // If dev bypass fails (e.g. backend down), maybe fallback?
+                    // But for now, let it fail so we know backend is unreachable
                 }
-            })
-            .then(res => {
-                if (res.ok) return res.json();
-                throw new Error("Failed to fetch user profile");
-            })
-            .then(userData => {
-                setUser(userData);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Error fetching user profile:", err);
-                // Optional: logout if profile fetch fails?
-            })
-            .finally(() => {
+            } finally {
                 setAppLoading(false);
-            });
-        } else {
-            setAppLoading(false);
-        }
+            }
+        };
+
+        if (oidc.isLoading) return;
+        
+        checkAuth();
 
     }, [oidc.isLoading, oidc.isAuthenticated, oidc.user?.access_token]);
 
@@ -106,7 +101,7 @@ const AuthContextAdapter: React.FC<{ children: React.ReactNode }> = ({ children 
         login: () => {}, // No manual login with OIDC usually, handled by library
         loginWithRedirect,
         logout,
-        isAuthenticated: !!user || (DEV_BYPASS)
+        isAuthenticated: !!user || (DEV_BYPASS && !!user) // Only authenticated if we have user data
     };
 
     return (

@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { CopilotProvider } from './context/CopilotContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import { OnboardingPage } from './pages/OnboardingPage';
 import { Layout } from './components/Layout';
 import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard } from './components/BuyerDashboard';
@@ -34,6 +35,34 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+};
+
+// Guard: Forces user to onboarding if profile is incomplete
+const RequireProfile = ({ children }: { children: React.ReactElement }) => {
+    const { user, isLoading } = useAuth();
+    
+    if (isLoading) return null;
+
+    // If user exists (valid auth) but has no role, send to onboarding
+    // check user.role is falsy or not in allowed roles
+    if (user && !user.role) {
+        return <Navigate to="/onboarding" replace />; // No state.from to avoid loop
+    }
+
+    return children;
+};
+
+// Guard: Prevents users with completed profile from accessing onboarding
+const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
+    const { user, isLoading } = useAuth();
+
+    if (isLoading) return null;
+
+    if (user && user.role) {
+        return <Navigate to="/" replace />;
     }
 
     return children;
@@ -132,13 +161,26 @@ const App: React.FC = () => {
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    
+                    <Route path="/onboarding" element={
+                        <ProtectedRoute>
+                            <OnboardingGuard> {/* OnboardingGuard here to redirect if already onboarded */}
+                                <OnboardingPage />
+                            </OnboardingGuard>
+                        </ProtectedRoute>
+                    } />
+                    
                     <Route path="/" element={
                         <ProtectedRoute>
-                            <Dashboard />
+                            <RequireProfile>
+                                <Dashboard />
+                            </RequireProfile>
                         </ProtectedRoute>
                     } />
                     {/* Fallback */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={
+                         <Navigate to="/" replace />
+                    } />
                 </Routes>
             </BrowserRouter>
         </CopilotProvider>
