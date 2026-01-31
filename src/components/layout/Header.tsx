@@ -13,6 +13,7 @@ import {
 import { ViewMode } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 import { NOTIFICATIONS } from '../../data';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
     viewMode: ViewMode;
@@ -21,6 +22,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar }) => {
+    const { user } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -112,29 +114,33 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
 
                     {isProfileOpen && (
                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
-                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                                <p className="text-xs font-bold text-slate-400 uppercase">Role Switcher</p>
-                            </div>
-                            <button 
-                                onClick={() => {
-                                    onSwitchView('BUYER');
-                                    setIsProfileOpen(false);
-                                }}
-                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'BUYER' ? 'text-verdaxis font-bold' : 'text-slate-600 dark:text-slate-300'}`}
-                            >
-                                <span>Buyer View</span>
-                                {viewMode === 'BUYER' && <div className="w-2 h-2 bg-verdaxis rounded-full"></div>}
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    onSwitchView('SUPPLIER');
-                                    setIsProfileOpen(false);
-                                }}
-                                className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'SUPPLIER' ? 'text-verdaxis-green font-bold' : 'text-slate-600 dark:text-slate-300'}`}
-                            >
-                                <span>Supplier View</span>
-                                {viewMode === 'SUPPLIER' && <div className="w-2 h-2 bg-verdaxis-green rounded-full"></div>}
-                            </button>
+                            {user?.role === 'ADMIN' && (
+                                <>
+                                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">Role Switcher</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            onSwitchView('BUYER');
+                                            setIsProfileOpen(false);
+                                        }}
+                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'BUYER' ? 'text-verdaxis font-bold' : 'text-slate-600 dark:text-slate-300'}`}
+                                    >
+                                        <span>Buyer View</span>
+                                        {viewMode === 'BUYER' && <div className="w-2 h-2 bg-verdaxis rounded-full"></div>}
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            onSwitchView('SUPPLIER');
+                                            setIsProfileOpen(false);
+                                        }}
+                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'SUPPLIER' ? 'text-verdaxis-green font-bold' : 'text-slate-600 dark:text-slate-300'}`}
+                                    >
+                                        <span>Supplier View</span>
+                                        {viewMode === 'SUPPLIER' && <div className="w-2 h-2 bg-verdaxis-green rounded-full"></div>}
+                                    </button>
+                                </>
+                            )}
                             <div className="border-t border-slate-100 dark:border-slate-700 mt-1">
                                 <button className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-2">
                                     <LogOut size={16} />
