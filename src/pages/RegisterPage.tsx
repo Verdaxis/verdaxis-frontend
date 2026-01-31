@@ -30,7 +30,12 @@ const RegisterPage: React.FC = () => {
       });
 
       if (res.ok) {
-        navigate('/login');
+        const data = await res.json();
+        if (data.status === 'requires_org') {
+             navigate('/create-organization', { state: { registration_token: data.registration_token } });
+        } else {
+             navigate('/login');
+        }
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Registration failed');

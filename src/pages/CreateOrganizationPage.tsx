@@ -1,13 +1,25 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Building2, Globe, FileText, AlertCircle } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 
 const CreateOrganizationPage: React.FC = () => {
   const navigate = useNavigate();
-  const { checkAuth, token } = useAuth();
+  const location = useLocation();
+  const { checkAuth } = useAuth(); // kept for potential cleanup, but we use location token now
+  
+  const registrationToken = location.state?.registration_token;
+
+  useEffect(() => {
+    if (!registrationToken) {
+        // If no token, this page shouldn't be accessed directly in new flow
+        // Redirect to register
+        navigate('/register');
+    }
+  }, [registrationToken, navigate]);
+
   
   const [formData, setFormData] = useState({
     name: '',
@@ -25,19 +37,22 @@ const CreateOrganizationPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_URL}/auth/create-organization`, {
+      const payload = {
+          registration_token: registrationToken,
+          organization: formData
+      };
+
+      const res = await fetch(`${API_URL}/auth/register-with-org`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        // Refresh auth context to get the updated user with organization_id
-        await checkAuth();
-        navigate('/');
+        // User created successfully. Redirect to Login.
+        navigate('/login');
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Failed to create organization');
