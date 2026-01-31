@@ -1,0 +1,65 @@
+version: 1
+metadata:
+  name: verdaxis-branding
+  labels:
+    verdaxis.com/type: branding
+
+entries:
+  # 1. Update the Default Authentication Flow Title
+  - model: authentik_flows.flow
+    identifiers:
+      slug: default-authentication-flow
+    attrs:
+      title: "Welcome to Verdaxis"
+      designation: authentication
+      name: Welcome to authentik! # Internal name, keep or change
+
+  # 2. Define the Brand (Programmatic Branding)
+  - model: authentik_brands.brand
+    identifiers:
+      domain: authentik-default
+    attrs:
+      # If you want this to be the default brand (catch-all)
+      default: true
+      branding_title: "Verdaxis Intelligence"
+      branding_logo: "/static/dist/assets/icons/icon.png" # You might need to change this if using custom uploaded logo
+      branding_favicon: "/static/dist/assets/icons/icon.png"
+
+      # Flow Settings (Map the flows to this brand)
+      flow_authentication:
+        !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      flow_invalidation:
+        !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+
+      # Custom CSS
+      # We can embed the CSS here directly to avoid UI pasting!
+      attributes:
+        custom_css: |
+          /* Verdaxis Authentik Theme - Programmatically Applied */
+          :root {
+              --pf-v6-global--primary-color--100: #5DADE2 !important;
+              --pf-v6-global--primary-color--200: #3b8dc4 !important;
+              --pf-v6-global--link--Color: #5DADE2 !important;
+              --pf-v6-global--BackgroundColor--100: #0F172A !important;
+              --pf-v6-global--BackgroundColor--200: #1E293B !important;
+              --pf-v6-global--Color--100: #F8FAFC !important;
+              --pf-v6-global--Color--200: #94A3B8 !important;
+          }
+          .pf-v6-c-login__main, .pf-v6-c-login__main-body {
+              background-color: #1E293B !important;
+              border-radius: 16px !important;
+              border: 1px solid #334155 !important;
+              box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5) !important;
+          }
+          .pf-v6-c-title { color: #F8FAFC !important; }
+          .pf-v6-c-button.pf-m-primary {
+              background-color: #5DADE2 !important;
+              border-color: #5DADE2 !important;
+              color: #0F172A !important;
+              font-weight: 600 !important;
+          }
+          .pf-v6-c-form-control {
+              background-color: #0F172A !important;
+              border-color: #334155 !important;
+              color: #F8FAFC !important;
+          }
