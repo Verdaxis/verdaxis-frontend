@@ -100,10 +100,10 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     >
                         <div className="text-right hidden md:block">
                             <div className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">
-                                {viewMode === 'BUYER' ? 'Sarah Jenkins' : 'David Chen'}
+                                {user ? `${user.first_name} ${user.last_name}` : 'Guest User'}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">
-                                {viewMode === 'BUYER' ? 'Head of Procurement' : 'Ops Manager'}
+                                {user && user.role === 'BUYER' ? 'Buyer Account' : user && user.role === 'SUPPLIER' ? 'Supplier Account' : user && user.role === 'ADMIN' ? 'Administrator' : 'Guest'}
                             </div>
                         </div>
                         <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center border border-slate-300 text-slate-500">
