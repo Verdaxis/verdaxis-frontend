@@ -1,2 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-export const API_URL = API_BASE_URL; // VITE_API_URL should include /api/v1 if needed, or we append it here if base is root
+const envUrl = import.meta.env.VITE_API_URL || '/api';
+// Ensure we always have /api at the end, handling cases where the env var misses it
+export const API_BASE_URL = envUrl.endsWith('/api') 
+  ? envUrl 
+  : `${envUrl.replace(/\/+$/, '')}/api`;
+export const API_URL = API_BASE_URL;
