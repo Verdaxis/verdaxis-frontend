@@ -9,10 +9,11 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 ## Architecture
 
 - **SPA**: Client-side React application bundled with Vite.
+- **Serving**: In production, served via **Nginx** (multi-stage Docker build). Nginx handles routing and proxies API requests.
 - **Structure**: Source code moved to `src` directory to align with Vite best practices.
 - **Data Layer**: Centralized in `src/services/api.ts`.
   - **Pattern**: Components call `api.entity.action()` (e.g., `api.quotes.list()`).
-  - **Backend**: Connects to FastAPI backend (`VITE_API_URL`).
+  - **Backend**: Connects to FastAPI backend via `/api` proxy (local) or direct URL.
 - **AI Integration**:
   - Logic resides in `src/services/ai-engine/`.
   - `chat.ts`: Manages multi-turn conversations and system prompts.
@@ -25,9 +26,9 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 - **Protocol**: Standard JWT (JSON Web Token).
 - **Flow**:
   1. User submits Email/Password to direct Login form (`/login`).
-  2. Backend validates via `POST /auth/login` and returns JWT.
+  2. Backend validates via `POST /api/auth/login` and returns JWT.
   3. Frontend stores token in `localStorage`.
-  4. App validates token on reload via `GET /auth/me`.
+  4. App validates token on reload via `GET /api/auth/me`.
 - **Configuration**:
   - `VITE_API_URL`: Backend API URL (for login/register endpoints).
 
@@ -37,7 +38,7 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 - **Logic**:
   - `src/App.tsx` has a `RequireProfile` guard.
   - If a logged-in user has no `role` property (null), they are forced to `/onboarding`.
-  - `OnboardingPage` submits `PUT /auth/me` to the backend to update the profile.
+  - `OnboardingPage` submits `PUT /api/auth/me` to the backend to update the profile.
 
 ### Legacy / Disabled Configs
 
