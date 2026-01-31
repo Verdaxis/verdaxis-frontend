@@ -20,16 +20,16 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
 
 ## Authentication & Onboarding
 
-### Authentik Integration
+### Simple Authentication
 
-- **Protocol**: OIDC (OpenID Connect) via `react-oidc-context`.
+- **Protocol**: Standard JWT (JSON Web Token).
 - **Flow**:
-  1. User clicks "Login" -> Redirects to Authentik.
-  2. User authenticates (Email/Password).
-  3. Authentik redirects back with code -> App exchanges for Token.
+  1. User submits Email/Password to direct Login form (`/login`).
+  2. Backend validates via `POST /auth/login` and returns JWT.
+  3. Frontend stores token in `localStorage`.
+  4. App validates token on reload via `GET /auth/me`.
 - **Configuration**:
-  - `VITE_AUTHENTIK_URL`: URL of Authentik instance.
-  - `VITE_AUTHENTIK_CLIENT_ID`: Client ID for OIDC.
+  - `VITE_API_URL`: Backend API URL (for login/register endpoints).
 
 ### Onboarding Flow
 
@@ -39,11 +39,10 @@ Verdaxis is a maritime platform handling **Fuel Procurement**, **Compliance Audi
   - If a logged-in user has no `role` property (null), they are forced to `/onboarding`.
   - `OnboardingPage` submits `PUT /auth/me` to the backend to update the profile.
 
-### Local Development Bypass
+### Legacy / Disabled Configs
 
-- **Variable**: `VITE_ENABLE_AUTH_BYPASS=true` (in `.env`).
-- **Effect**: Simulates a logged-in user without hitting Authentik.
-- **Mock User**: By default, mocks a user with `role: null` to test the Onboarding flow.
+- **Authentik**: Previous OIDC integration is deprecated but config vars (`VITE_AUTHENTIK_URL`) remain for future reference.
+- **Auth Bypass**: `VITE_ENABLE_AUTH_BYPASS` is no longer needed as simple auth is fast and reliable.
 
 ## Key Entities (`src/types.ts`)
 
