@@ -176,11 +176,7 @@ const App: React.FC = () => {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     
-                    <Route path="/create-organization" element={
-                        <ProtectedRoute>
-                            <CreateOrganizationPage />
-                        </ProtectedRoute>
-                    } />
+                    <Route path="/create-organization" element={<CreateOrganizationPage />} />
 
                     <Route path="/onboarding" element={
                         <ProtectedRoute>
