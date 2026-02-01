@@ -187,10 +187,27 @@ export const api = {
 
     notifications: {
         list: async (): Promise<Notification[]> => {
-            // Mock notifications for now as backend doesn't have this yet
-            return [
-                { id: 1, type: 'info', title: 'Welcome', desc: 'Welcome to the new implementation', time: new Date().toISOString() }
-            ];
+            const res = await fetch(`${API_URL}/notifications`, { headers: getHeaders() });
+            return handleResponse(res);
+        },
+        getUnreadCount: async (): Promise<number> => {
+            const res = await fetch(`${API_URL}/notifications/unread-count`, { headers: getHeaders() });
+            const data = await handleResponse(res);
+            return data.count;
+        },
+        markRead: async (id: string): Promise<any> => {
+            const res = await fetch(`${API_URL}/notifications/${id}/read`, {
+                method: 'PATCH',
+                headers: getHeaders()
+            });
+            return handleResponse(res);
+        },
+        markAllRead: async (): Promise<any> => {
+            const res = await fetch(`${API_URL}/notifications/read-all`, {
+                method: 'PATCH',
+                headers: getHeaders()
+            });
+            return handleResponse(res);
         }
     },
 
@@ -212,7 +229,7 @@ export const api = {
         }
     },
 
-    // ============== RFQ Marketplace API ==============
+    // ============== Order Marketplace API ==============
     listings: {
         list: async (filters?: { region?: string; fuelType?: string; availability?: string }): Promise<any[]> => {
             const params = new URLSearchParams();
@@ -254,33 +271,38 @@ export const api = {
         }
     },
 
-    rfq: {
-        request: async (listingId: string, acceptedTerms: boolean): Promise<any> => {
-            const res = await fetch(`${API_URL}/rfq/request`, {
+    orders: {
+        create: async (listingId: string, acceptedTerms: boolean, quantity?: number, deliveryDate?: string): Promise<any> => {
+            const res = await fetch(`${API_URL}/orders`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify({ listing_id: listingId, accepted_terms: acceptedTerms })
+                body: JSON.stringify({ 
+                    listing_id: listingId, 
+                    accepted_terms: acceptedTerms,
+                    quantity_mt: quantity,
+                    delivery_date: deliveryDate
+                })
             });
             return handleResponse(res);
         },
-        listMyRequests: async (): Promise<any[]> => {
-             const res = await fetch(`${API_URL}/rfq/my-requests`, { headers: getHeaders() });
+        listMyOrders: async (): Promise<any[]> => {
+             const res = await fetch(`${API_URL}/orders/my-orders`, { headers: getHeaders() });
              return handleResponse(res);
         },
         listIncoming: async (): Promise<any[]> => {
-             const res = await fetch(`${API_URL}/rfq/incoming`, { headers: getHeaders() });
+             const res = await fetch(`${API_URL}/orders/incoming`, { headers: getHeaders() });
              return handleResponse(res);
         },
-        respond: async (matchId: string, status: string): Promise<any> => {
-             const res = await fetch(`${API_URL}/rfq/${matchId}/respond`, {
+        respond: async (orderId: string, status: string): Promise<any> => {
+             const res = await fetch(`${API_URL}/orders/${orderId}/respond`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify({ status })
             });
             return handleResponse(res);
         },
-        complete: async (matchId: string, data: { final_quantity_mt: number, final_price_per_mt: number }): Promise<any> => {
-             const res = await fetch(`${API_URL}/rfq/${matchId}/complete`, {
+        complete: async (orderId: string, data: { final_quantity_mt: number, final_price_per_mt: number }): Promise<any> => {
+             const res = await fetch(`${API_URL}/orders/${orderId}/complete`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data)

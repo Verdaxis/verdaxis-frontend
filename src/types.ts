@@ -130,11 +130,13 @@ export interface TraceEvent {
 }
 
 export interface Notification {
-    id: number;
+    id: string;
+    type: 'SYSTEM' | 'ORDER_UPDATE' | 'QUOTE_REQUEST' | 'QUOTE_OFFER' | 'USER_STATUS';
     title: string;
-    desc: string;
-    time: string;
-    type: 'info' | 'warning' | 'success';
+    message: string;
+    data?: any;
+    is_read: boolean;
+    created_at: string;
 }
 
 export interface MarketWatchItem {
@@ -146,12 +148,12 @@ export interface MarketWatchItem {
 
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
-// ============== RFQ Marketplace Types ==============
+// ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Forward 2027' | 'Forward 2028';
 export type TierLabel = 'Tier 1 Producer' | 'Major Trader' | 'Regional Supplier' | 'Independent Supplier';
 export type ListingStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
-export type MatchStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED' | 'CANCELLED';
 
 export interface PublicListing {
     id: string;
@@ -168,16 +170,18 @@ export interface PublicListing {
     created_at: string;
 }
 
-export interface RFQMatch {
+export interface Order {
     id: string;
     listing_id: string;
     buyer_id?: string;
-    status: MatchStatus;
+    status: OrderStatus;
     buyer_accepted_terms_at: string;
     created_at: string;
     // De-anonymized details (after match)
     supplier_name?: string;
     buyer_name?: string;
+    requested_quantity_mt?: number;
+    requested_delivery_date?: string;
     final_quantity_mt?: number;
     final_price_per_mt?: number;
     final_total_usd?: number;

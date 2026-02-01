@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { X, AlertTriangle, CheckCircle2, FileText } from 'lucide-react';
 import { PublicListing } from '../../types';
 
-interface RFQConfirmModalProps {
+interface OrderConfirmModalProps {
     listing: PublicListing;
     onConfirm: () => void;
     onCancel: () => void;
     isLoading?: boolean;
 }
 
-export const RFQConfirmModal: React.FC<RFQConfirmModalProps> = ({
+export const ActionConfirmModal: React.FC<OrderConfirmModalProps> = ({
     listing,
     onConfirm,
     onCancel,
@@ -28,7 +28,7 @@ export const RFQConfirmModal: React.FC<RFQConfirmModalProps> = ({
                         <div className="p-2 bg-emerald-500/20 rounded-lg">
                             <FileText className="text-emerald-400" size={24} />
                         </div>
-                        <h2 className="text-xl font-bold text-slate-200">Confirm RFQ Request</h2>
+                        <h2 className="text-xl font-bold text-slate-200">Confirm Order Request</h2>
                     </div>
                     <button 
                         onClick={onCancel}
@@ -82,7 +82,7 @@ export const RFQConfirmModal: React.FC<RFQConfirmModalProps> = ({
                         <div className="text-sm text-slate-300">
                             <p className="font-medium text-amber-400 mb-1">Important Notice</p>
                             <p>
-                                By submitting this RFQ, your identity will be revealed to the supplier 
+                                By placing this Order, your identity will be revealed to the supplier 
                                 and their identity will be revealed to you. This enables direct negotiation.
                             </p>
                         </div>
@@ -138,7 +138,7 @@ export const RFQConfirmModal: React.FC<RFQConfirmModalProps> = ({
                                 Sending...
                             </>
                         ) : (
-                            'Confirm & Send RFQ'
+                            'Confirm Order'
                         )}
                     </button>
                 </div>
