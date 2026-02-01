@@ -24,13 +24,16 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append('username', email); // OAuth2PasswordRequestForm expects 'username'
       formData.append('password', password);
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        body: formData,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(), // Ensure string representation
       });
 
       if (res.ok) {

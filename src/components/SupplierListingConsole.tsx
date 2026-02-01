@@ -136,7 +136,7 @@ export const SupplierListingConsole: React.FC = () => {
                             Listing Console
                         </h1>
                         <p className="text-slate-600 dark:text-slate-400">
-                            Manage your fuel listings and track incoming RFQ requests.
+                            Manage your fuel listings and track incoming orders.
                         </p>
                     </div>
                     <button
@@ -191,7 +191,7 @@ export const SupplierListingConsole: React.FC = () => {
                             <div className="text-2xl font-bold text-slate-900 dark:text-slate-200">
                                 {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : totalMatches}
                             </div>
-                            <div className="text-xs text-slate-500 uppercase font-bold">RFQ Matches</div>
+                            <div className="text-xs text-slate-500 uppercase font-bold">Order Matches</div>
                         </div>
                     </div>
                 </div>
@@ -214,7 +214,7 @@ export const SupplierListingConsole: React.FC = () => {
                                             <th className="px-6 py-4 text-right">Quantity</th>
                                             <th className="px-6 py-4 text-right">Price</th>
                                             <th className="px-6 py-4 text-center">Certifications</th>
-                                            <th className="px-6 py-4 text-center">RFQ Matches</th>
+                                            <th className="px-6 py-4 text-center">Order Matches</th>
                                             <th className="px-6 py-4 text-center">Status</th>
                                             <th className="px-6 py-4 text-right">Actions</th>
                                         </tr>

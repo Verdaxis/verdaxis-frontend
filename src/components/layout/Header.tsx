@@ -12,8 +12,8 @@ import {
 } from 'lucide-react';
 import { ViewMode } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
-import { NOTIFICATIONS } from '../../data';
 import { useAuth } from '../../context/AuthContext';
+import { NotificationBell } from '../notifications/NotificationBell';
 
 interface HeaderProps {
     viewMode: ViewMode;
@@ -24,7 +24,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar }) => {
     const { user, logout } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
     return (
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative transition-colors duration-200">
@@ -50,46 +49,8 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 {/* Notifications Dropdown */}
                 <div className="relative">
                     <Tooltip content="View Notifications" position="bottom">
-                        <button 
-                            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                            className={`relative p-2 rounded-full transition-colors ${isNotificationsOpen ? 'bg-slate-100 text-verdaxis-dark' : 'text-slate-500 hover:text-verdaxis-dark hover:bg-slate-50'}`}
-                        >
-                            <Bell size={20} />
-                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-                        </button>
+                        <NotificationBell />
                     </Tooltip>
-
-                    {isNotificationsOpen && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
-                            <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                <p className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">Notifications</p>
-                                <span className="text-xs font-bold text-verdaxis cursor-pointer">Mark all read</span>
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto">
-                                {NOTIFICATIONS.map(notif => (
-                                    <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-50 dark:border-slate-700 last:border-0 cursor-pointer group transition-colors">
-                                        <div className="flex items-start space-x-3">
-                                            <div className={`mt-1 p-1 rounded-full flex-shrink-0 
-                                                ${notif.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 
-                                                    notif.type === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'}`
-                                            }>
-                                                {notif.type === 'warning' ? <AlertTriangle size={12} /> : 
-                                                    notif.type === 'success' ? <CheckCircle2 size={12} /> : <Bell size={12} />}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-verdaxis-dark dark:text-slate-200 group-hover:text-verdaxis transition-colors">{notif.title}</p>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{notif.desc}</p>
-                                                <p className="text-[10px] text-slate-400 mt-1 font-bold">{notif.time}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="p-2 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center">
-                                <button className="text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-verdaxis-dark dark:hover:text-slate-200">View All Activity</button>
-                            </div>
-                        </div>
-                    )}
                 </div>
                 
                 {/* Profile Dropdown */}
