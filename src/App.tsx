@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CopilotProvider } from './context/CopilotContext';
+import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -20,9 +21,8 @@ import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { BraemarTerminal } from './components/BraemarTerminal';
-import { RFQMarketplace } from './components/RFQMarketplace';
+import { Marketplace } from './components/Marketplace';
 import { SupplierListingConsole } from './components/SupplierListingConsole';
-import { RFQModal } from './components/rfq/RFQModal';
 import { ViewMode, Page, Port } from './types';
 
 // Protected Route Wrapper
@@ -84,11 +84,10 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 
 const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
-  const [viewMode, setViewMode] = useState<ViewMode>('BUYER');
+  const { user } = useAuth();
+  const [viewMode, setViewMode] = useState<ViewMode>(user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   const [currentPage, setCurrentPage] = useState<Page>('MAP');
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
-  const [isRFQModalOpen, setIsRFQModalOpen] = useState(false);
-  const [rfqPort, setRfqPort] = useState<Port | null>(null);
 
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
@@ -105,8 +104,9 @@ const Dashboard: React.FC = () => {
   };
 
   const handleOrderClick = (port: Port) => {
-    setRfqPort(port);
-    setIsRFQModalOpen(true);
+    // Redirect to Marketplace with port selected
+    setSelectedPort(port);
+    setCurrentPage('MARKETPLACE');
   };
 
   const renderContent = () => {
@@ -135,7 +135,7 @@ const Dashboard: React.FC = () => {
       case 'DASHBOARD':
         return <BuyerDashboard onNavigate={handleNavigate} />;
       case 'MARKETPLACE':
-        return <RFQMarketplace />;
+        return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
         return <BraemarTerminal />;
       case 'FLEET':
@@ -147,7 +147,7 @@ const Dashboard: React.FC = () => {
       case 'STATS':
          return <Stats />;
       case 'RFQ_MARKETPLACE':
-         return <RFQMarketplace />;
+         return <Marketplace initialPort={selectedPort}/>;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
     }
@@ -161,7 +161,6 @@ const Dashboard: React.FC = () => {
       onNavigate={handleNavigate}
     >
       {renderContent()}
-      <RFQModal isOpen={isRFQModalOpen} onClose={() => setIsRFQModalOpen(false)} port={rfqPort} />
     </Layout>
   );
 };
@@ -170,6 +169,7 @@ const App: React.FC = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <NotificationProvider>
         <CopilotProvider>
             <BrowserRouter>
                 <Routes>
@@ -202,6 +202,7 @@ const App: React.FC = () => {
                 </Routes>
             </BrowserRouter>
         </CopilotProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   );
