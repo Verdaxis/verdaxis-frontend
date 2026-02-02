@@ -185,6 +185,7 @@ export interface Order {
     final_quantity_mt?: number;
     final_price_per_mt?: number;
     final_total_usd?: number;
+    price_per_mt_usd?: number; // From listing
 }
 
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'DIRECT_ORDER_MARKETPLACE' | 'LISTINGS';

@@ -98,6 +98,22 @@ export const SupplierQuotes: React.FC = () => {
         }
     };
 
+    const handleComplete = async (id: string, req: Order) => {
+        if (window.confirm('Confirm order completion? This will deduce inventory and calculate commission.')) {
+            try {
+                // Use requested quantity/price as final for now
+                await api.orders.complete(id, {
+                    final_quantity_mt: req.requested_quantity_mt || 0,
+                    final_price_per_mt: req.price_per_mt_usd || 0
+                });
+                fetchOrders();
+            } catch (error) {
+                console.error("Failed to complete", error);
+                alert("Error completing order");
+            }
+        }
+    };
+
     const toggleExpand = (id: string) => {
         setExpandedOrderId(expandedOrderId === id ? null : id);
         setAiRiskAnalysis(null); // Reset analysis on toggle
@@ -205,9 +221,19 @@ export const SupplierQuotes: React.FC = () => {
                                                         <XCircle size={20} />
                                                     </button>
                                                 </div>
+                                            ) : req.status === 'ACCEPTED' ? (
+                                                <div className="flex justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => handleComplete(req.id, req)}
+                                                        className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                                        title="Complete Order & Finalize"
+                                                    >
+                                                        <CheckCircle2 size={12} /> Complete
+                                                    </button>
+                                                </div>
                                             ) : (
                                                 <span className="text-slate-400 text-xs italic">
-                                                    {req.status === 'ACCEPTED' ? 'Order Confirmed' : 'Closed'}
+                                                    {req.status === 'COMPLETED' ? 'Completed & Billed' : 'Closed'}
                                                 </span>
                                             )}
                                         </td>
