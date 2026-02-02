@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { MOCK_REQUESTS } from '../data';
-import { QuoteRequest } from '../types';
+import { DirectOrder } from '../types';
 import { BarChart3, TrendingUp, TrendingDown, Clock, CheckCircle2 } from 'lucide-react';
 
 export const Stats: React.FC = () => {
     // Filter for completed/confirmed/quoted requests to show history
-    const [history, setHistory] = useState<QuoteRequest[]>([]);
+    const [history, setHistory] = useState<DirectOrder[]>([]);
 
     useEffect(() => {
         // Simulate fetching history

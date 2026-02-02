@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, TrendingUp, Anchor, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { QuoteRequest, Page } from '../types';
+import { DirectOrder, Page } from '../types';
 import { api } from '../services/api';
 
 interface BuyerDashboardProps {
@@ -8,14 +8,14 @@ interface BuyerDashboardProps {
 }
 
 export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) => {
-    const [requests, setRequests] = useState<QuoteRequest[]>([]);
+    const [requests, setRequests] = useState<DirectOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
         const fetchQuotes = async () => {
             try {
-                const data = await api.quotes.list();
+                const data = await api.directOrders.list();
                 setRequests(data);
             } catch (e) {
                 console.error("Error fetching quotes", e);
@@ -31,7 +31,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) =>
         
         setProcessing(true);
         try {
-            await api.quotes.acceptOffer(quoteId, offerId);
+            await api.directOrders.acceptOffer(quoteId, offerId);
             setRequests(prev => prev.map(r => 
                 r.id === quoteId ? { ...r, status: 'Confirmed' } : r
             ));

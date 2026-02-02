@@ -146,7 +146,7 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'STATS':
          return <Stats />;
-      case 'RFQ_MARKETPLACE':
+      case 'DIRECT_ORDER_MARKETPLACE':
          return <Marketplace initialPort={selectedPort}/>;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
