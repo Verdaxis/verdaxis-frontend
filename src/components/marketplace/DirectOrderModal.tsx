@@ -3,12 +3,12 @@ import { ShieldCheck, AlertTriangle, FileText, ExternalLink, ArrowRight, CheckCi
 import { Supplier, Course } from '../../types';
 import { COURSES } from '../../data';
 
-interface QuoteRequestModalProps {
+interface DirectOrderModalProps {
     supplier: Supplier;
     onClose: () => void;
 }
 
-export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({ supplier, onClose }) => {
+export const DirectOrderModal: React.FC<DirectOrderModalProps> = ({ supplier, onClose }) => {
     const [quoteStep, setQuoteStep] = useState<'FORM' | 'CONFIRMING' | 'SUCCESS'>('FORM');
 
     const handleConfirmQuote = () => {
@@ -24,7 +24,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({ supplier, 
                 {quoteStep === 'FORM' && (
                     <>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-slate-100">Request Quote</h3>
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-slate-100">Request Direct Order</h3>
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
                         </div>
                         <div className="p-6 space-y-6">
@@ -91,7 +91,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({ supplier, 
                                 onClick={handleConfirmQuote}
                                 className="px-6 py-2.5 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg shadow-lg flex items-center space-x-2"
                             >
-                                <span>Confirm Request</span>
+                                <span>Confirm Order</span>
                                 <ArrowRight size={16} />
                             </button>
                         </div>
@@ -113,7 +113,7 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({ supplier, 
                         </div>
                         <h3 className="text-2xl font-['Montserrat'] font-bold text-[#334155] dark:text-slate-100 mb-2">Request Sent!</h3>
                         <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-8">
-                            Request #QR-2939 has been securely transmitted to {supplier.name}. Expect a response within 4 hours.
+                            Request #DO-2939 has been securely transmitted to {supplier.name}. Expect a response within 4 hours.
                         </p>
                         <div className="flex space-x-4">
                             <button 

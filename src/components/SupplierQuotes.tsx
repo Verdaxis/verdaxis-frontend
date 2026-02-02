@@ -118,7 +118,7 @@ export const SupplierQuotes: React.FC = () => {
         <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Quotes & Orders</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-2">Manage incoming RFQs, active quotes, and confirmed bunkering orders.</p>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">Manage incoming Direct Orders, active quotes, and confirmed bunkering orders.</p>
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px]">

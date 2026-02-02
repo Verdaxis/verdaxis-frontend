@@ -297,7 +297,7 @@ export const SupplierListingConsole: React.FC = () => {
                                 <div className="p-12 text-center text-slate-500">
                                     <Package size={48} className="mx-auto mb-4 opacity-50" />
                                     <p className="text-lg">No listings yet</p>
-                                    <p className="text-sm mt-1">Create your first listing to start receiving RFQ requests</p>
+                                    <p className="text-sm mt-1">Create your first listing to start receiving Direct Orders</p>
                                 </div>
                             )}
                         </>

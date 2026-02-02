@@ -20,7 +20,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
         
         // Handle context navigation
         if (notification.data) {
-            if (notification.type === 'RFQ_MATCH' || notification.type === 'QUOTE_REQUEST' || notification.type === 'QUOTE_OFFER') {
+            if (notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
                 // Determine if buyer or supplier view and navigate appropriately
                 // For now, simpler redirection
                 if (notification.data.rfq_id) {
@@ -33,9 +33,8 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
 
     const getIcon = (type: string) => {
         switch (type) {
-            case 'RFQ_MATCH': return <Briefcase size={16} className="text-blue-400" />;
-            case 'QUOTE_REQUEST': return <MessageSquare size={16} className="text-emerald-400" />;
-            case 'QUOTE_OFFER': return <Briefcase size={16} className="text-purple-400" />;
+            case 'DIRECT_ORDER': return <MessageSquare size={16} className="text-emerald-400" />;
+            case 'DIRECT_ORDER_OFFER': return <Briefcase size={16} className="text-purple-400" />;
             case 'USER_STATUS': return <UserCheck size={16} className="text-yellow-400" />;
             default: return <Info size={16} className="text-slate-400" />;
         }

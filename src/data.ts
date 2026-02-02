@@ -1,5 +1,5 @@
 
-import { Port, Vessel, Supplier, Course, QuoteRequest, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
+import { Port, Vessel, Supplier, Course, DirectOrder, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
 
 export const PORTS: Port[] = [
     {
@@ -670,7 +670,7 @@ export const COURSES: Course[] = [
 ];
 
 // Enriched mock requests for Supplier view
-export const MOCK_REQUESTS: QuoteRequest[] = [
+export const MOCK_REQUESTS: DirectOrder[] = [
     { 
         id: 'qr-101', portId: 'sg-sin', fuelType: 'Methanol', quantity: 500, deliveryDate: '2023-11-15', vesselId: 'v1', status: 'Pending', buyerName: 'Global Shipping Co.',
         buyerRiskProfile: { creditScore: 90, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'AA', avgPaymentDays: 28 }
@@ -754,7 +754,7 @@ export const TRACE_EVENTS: TraceEvent[] = [
 ];
 
 export const NOTIFICATIONS: Notification[] = [
-    { id: 1, title: 'New RFQ Received', desc: 'Global Shipping Co. requested 500MT Methanol', time: '10m ago', type: 'info' },
+    { id: 1, title: 'New Direct Order Received', desc: 'Global Shipping Co. requested 500MT Methanol', time: '10m ago', type: 'info' },
     { id: 2, title: 'Compliance Alert', desc: 'Vessel Ocean Guardian approaching CII limit', time: '2h ago', type: 'warning' },
     { id: 3, title: 'Order Confirmed', desc: 'Bunkering schedule confirmed for Nov 15', time: '1d ago', type: 'success' },
 ];

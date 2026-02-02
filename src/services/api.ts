@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, QuoteRequest, InventoryItem, Notification, Course } from '../types';
+import { Port, Vessel, Supplier, DirectOrder, InventoryItem, Notification, Course } from '../types';
 import { API_URL } from './config';
 
 // Helper to get auth header
@@ -99,9 +99,9 @@ export const api = {
         }
     },
 
-    quotes: {
-        list: async (): Promise<QuoteRequest[]> => {
-             const res = await fetch(`${API_URL}/quotes`, { headers: getHeaders() });
+    directOrders: {
+        list: async (): Promise<DirectOrder[]> => {
+             const res = await fetch(`${API_URL}/direct-orders`, { headers: getHeaders() });
              const data = await handleResponse(res);
              return data.map((q: any) => ({
                  id: q.id,
@@ -115,7 +115,7 @@ export const api = {
                  price: q.final_price_per_mt,
                  offers: q.offers?.map((o: any) => ({
                      id: o.id,
-                     requestId: o.request_id,
+                     directOrderId: o.direct_order_id,
                      supplierId: o.supplier_id,
                      pricePerMt: o.price_per_mt_usd,
                      validUntil: o.valid_until,
@@ -125,7 +125,7 @@ export const api = {
                  })) || []
              }));
         },
-        create: async (request: Partial<QuoteRequest>): Promise<QuoteRequest> => {
+        create: async (request: Partial<DirectOrder>): Promise<DirectOrder> => {
             const payload = {
                 port_id: request.portId,
                 fuel_type: request.fuelType,
@@ -134,7 +134,7 @@ export const api = {
                 delivery_window_end: request.deliveryDate, // Simplified 1-day window
                 vessel_id: request.vesselId
             };
-            const res = await fetch(`${API_URL}/quotes`, {
+            const res = await fetch(`${API_URL}/direct-orders`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(payload)
@@ -147,7 +147,7 @@ export const api = {
                 valid_until: offer.validUntil,
                 terms_and_conditions: offer.terms
             };
-            const res = await fetch(`${API_URL}/quotes/${quoteId}/offers`, {
+            const res = await fetch(`${API_URL}/direct-orders/${quoteId}/offers`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(payload)
@@ -155,7 +155,7 @@ export const api = {
             return handleResponse(res);
         },
         acceptOffer: async (quoteId: string, offerId: string): Promise<any> => {
-             const res = await fetch(`${API_URL}/quotes/${quoteId}/accept/${offerId}`, {
+             const res = await fetch(`${API_URL}/direct-orders/${quoteId}/accept/${offerId}`, {
                 method: 'PUT',
                 headers: getHeaders()
             });

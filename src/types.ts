@@ -81,7 +81,7 @@ export interface Course {
     syllabus: string[];
 }
 
-export interface QuoteRequest {
+export interface DirectOrder {
     id: string;
     portId: string;
     fuelType: 'Methanol' | 'Biofuel' | 'LNG' | 'Ammonia (Green)';
@@ -91,14 +91,14 @@ export interface QuoteRequest {
     status: 'Pending' | 'Quoted' | 'Confirmed';
     supplierId?: string;
     price?: number;
-    offers?: QuoteOffer[];
+    offers?: DirectOrderOffer[];
     buyerName?: string; // For Supplier View
     buyerRiskProfile?: RiskProfile; // For Supplier View
 }
 
-export interface QuoteOffer {
+export interface DirectOrderOffer {
     id: string;
-    requestId: string;
+    directOrderId: string;
     supplierId: string;
     pricePerMt: number;
     validUntil?: string;
@@ -131,7 +131,7 @@ export interface TraceEvent {
 
 export interface Notification {
     id: string;
-    type: 'SYSTEM' | 'ORDER_UPDATE' | 'QUOTE_REQUEST' | 'QUOTE_OFFER' | 'USER_STATUS';
+    type: 'SYSTEM' | 'ORDER_UPDATE' | 'DIRECT_ORDER' | 'DIRECT_ORDER_OFFER' | 'USER_STATUS';
     title: string;
     message: string;
     data?: any;
@@ -187,4 +187,4 @@ export interface Order {
     final_total_usd?: number;
 }
 
-export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'RFQ_MARKETPLACE' | 'LISTINGS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'DIRECT_ORDER_MARKETPLACE' | 'LISTINGS';
