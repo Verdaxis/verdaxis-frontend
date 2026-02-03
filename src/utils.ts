@@ -62,3 +62,10 @@ export const getArbitrageRoute = (ports: Port[]): [number, number][] => {
     }
     return [];
 };
+
+export const formatTierLabel = (tier: string): string => {
+    return tier
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+};
