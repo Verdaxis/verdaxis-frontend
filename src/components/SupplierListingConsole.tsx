@@ -155,10 +155,24 @@ export const SupplierListingConsole: React.FC = () => {
 
     const handleConfirmAction = async () => {
         if (confirmState.type === 'DELETE' && confirmState.id) {
-             console.log("Delete listing", confirmState.id);
-             setListings(prev => prev.filter(l => l.id !== confirmState.id));
-             closeConfirm();
-             // In real app, call API here
+            try {
+                setIsLoading(true);
+                await api.listings.delete(confirmState.id);
+                setListings(prev => prev.filter(l => l.id !== confirmState.id));
+                closeConfirm();
+                // Optional: show success message
+            } catch (error) {
+                console.error("Failed to delete listing:", error);
+                setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: 'Delete Failed',
+                    message: error instanceof Error ? error.message : 'Failed to delete listing. Please try again.',
+                    variant: 'danger'
+                });
+            } finally {
+                setIsLoading(false);
+            }
         } else {
             closeConfirm();
         }

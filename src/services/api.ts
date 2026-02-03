@@ -268,6 +268,16 @@ export const api = {
                 body: JSON.stringify(data)
             });
             return handleResponse(res);
+        },
+        delete: async (id: string): Promise<void> => {
+             const res = await fetch(`${API_URL}/listings/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders()
+            });
+            if (!res.ok) {
+                const error = await res.text();
+                throw new Error(error || "Failed to delete listing");
+            }
         }
     },
 
