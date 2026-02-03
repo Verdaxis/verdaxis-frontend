@@ -57,7 +57,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
             setPageContext({
                 view: 'Supplier Command Center',
                 pending_requests: orders.filter(r => r.status === 'PENDING').length,
-                active_orders: orders.filter(r => r.status === 'ACCEPTED').length,
+                active_orders: orders.filter(r => r.status === 'CONFIRMED').length,
                 volume_sold: '12,450 MT',
                 summary: 'Overview of incoming order requests and active orders.'
             });
@@ -79,7 +79,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
         if (confirmState.type === 'ACCEPT' && confirmState.id) {
             setProcessing(true);
             try {
-                await api.orders.respond(confirmState.id, 'ACCEPTED');
+                await api.orders.respond(confirmState.id, 'CONFIRMED');
                 // Refresh list
                 const data = await api.orders.listIncoming();
                 setOrders(data);
@@ -111,7 +111,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
 
     const filteredOrders = orders.filter(req => {
         if (activeTab === 'INCOMING') return req.status === 'PENDING';
-        if (activeTab === 'ACTIVE') return req.status === 'ACCEPTED';
+        if (activeTab === 'ACTIVE') return req.status === 'CONFIRMED';
         if (activeTab === 'HISTORY') return ['DECLINED', 'COMPLETED', 'CANCELLED'].includes(req.status);
         return true;
     });
@@ -163,7 +163,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                         <span>Active Orders</span>
                     </div>
                     <div className="text-4xl v-heading">
-                        {orders.filter(r => r.status === 'ACCEPTED').length}
+                        {orders.filter(r => r.status === 'CONFIRMED').length}
                     </div>
                     <div className="text-xs text-slate-400 font-bold mt-1">$4.2M Potential Value</div>
                 </div>
@@ -215,7 +215,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                 Action Required
                                             </span>
-                                        ) : req.status === 'ACCEPTED' ? (
+                                        ) : req.status === 'CONFIRMED' ? (
                                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                                 Confirmed
                                             </span>
