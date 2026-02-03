@@ -1,23 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X } from 'lucide-react';
+import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X, Loader2 } from 'lucide-react';
 import { InventoryItem } from '../types';
-
-// Mock Inventory Data
-const INITIAL_INVENTORY: InventoryItem[] = [
-    { id: 'inv-1', productName: 'Green Methanol', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 1200, incomingStock: 500, pricePerMt: 545, status: 'Available' },
-    { id: 'inv-2', productName: 'Biofuel B24', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 450, incomingStock: 1000, pricePerMt: 780, status: 'Low Stock' },
-    { id: 'inv-3', productName: 'LSMGO', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 3500, incomingStock: 0, pricePerMt: 620, status: 'Available' },
-];
-
+import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 
 export const SupplierInventory: React.FC = () => {
     const { setPageContext } = useCopilotContext();
-    const [inventory, setInventory] = useState<InventoryItem[]>(INITIAL_INVENTORY);
+    const [inventory, setInventory] = useState<InventoryItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    
+    // Form state for adding new product
+    const [newProductType, setNewProductType] = useState('Methanol');
+    const [newStock, setNewStock] = useState('');
+    const [newPrice, setNewPrice] = useState('');
+
+    // Load inventory from API
+    useEffect(() => {
+        const loadInventory = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
+                const data = await api.inventory.list();
+                setInventory(data);
+            } catch (err: any) {
+                console.error('Failed to load inventory:', err);
+                setError(err.message || 'Failed to load inventory');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadInventory();
+    }, []);
 
     // Broadcast Context
     useEffect(() => {
+        const totalStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
+        const lowStockCount = inventory.filter(i => i.status === 'Low Stock').length;
+        const capacity = 15000; // Assumed max capacity
+        const utilization = capacity > 0 ? Math.round((totalStock / capacity) * 100) : 0;
+        
         setPageContext({
             view: 'Supplier Inventory',
             products: inventory.map(i => ({
@@ -25,28 +49,44 @@ export const SupplierInventory: React.FC = () => {
                 stock: i.currentStock,
                 status: i.status
             })),
-            total_capacity: '15,000 MT',
-            utilization: '34%',
+            total_capacity: `${capacity.toLocaleString()} MT`,
+            utilization: `${utilization}%`,
             summary: 'Live inventory levels and stock management.'
         });
     }, [inventory, setPageContext]);
 
-    const handleAddProduct = (e: React.FormEvent) => {
+    const handleAddProduct = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Mock adding functionality
-        const newItem: InventoryItem = {
-            id: `inv-${Date.now()}`,
-            productName: 'LNG',
-            portId: 'nl-rtm',
-            portName: 'Rotterdam',
-            currentStock: 2500,
-            incomingStock: 0,
-            pricePerMt: 890,
-            status: 'Available'
-        };
-        setInventory([...inventory, newItem]);
-        setIsAddModalOpen(false);
+        try {
+            setIsAdding(true);
+            const newItem = await api.inventory.add({
+                productName: newProductType,
+                portId: 'nl-rtm', // Default to Rotterdam
+                portName: 'Rotterdam',
+                currentStock: parseFloat(newStock) || 0,
+                incomingStock: 0,
+                pricePerMt: parseFloat(newPrice) || 0,
+                status: 'Available'
+            });
+            setInventory([...inventory, newItem]);
+            setIsAddModalOpen(false);
+            // Reset form
+            setNewProductType('Methanol');
+            setNewStock('');
+            setNewPrice('');
+        } catch (err: any) {
+            console.error('Failed to add inventory:', err);
+            setError(err.message || 'Failed to add product');
+        } finally {
+            setIsAdding(false);
+        }
     };
+
+    // Calculate KPIs
+    const totalStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
+    const lowStockCount = inventory.filter(i => i.status === 'Low Stock').length;
+    const capacity = 15000;
+    const utilization = capacity > 0 ? Math.round((totalStock / capacity) * 100) : 0;
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
@@ -71,7 +111,7 @@ export const SupplierInventory: React.FC = () => {
                     </div>
                     <div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Total Capacity</div>
-                        <div className="text-xl font-bold text-[#334155] dark:text-white">15,000 MT</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">{capacity.toLocaleString()} MT</div>
                     </div>
                 </div>
                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center space-x-4">
@@ -80,7 +120,7 @@ export const SupplierInventory: React.FC = () => {
                     </div>
                     <div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Utilization</div>
-                        <div className="text-xl font-bold text-[#334155] dark:text-white">34%</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">{utilization}%</div>
                     </div>
                 </div>
                  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex items-center space-x-4">
@@ -89,12 +129,24 @@ export const SupplierInventory: React.FC = () => {
                     </div>
                     <div>
                         <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Low Stock Alerts</div>
-                        <div className="text-xl font-bold text-[#334155] dark:text-white">1 Product</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">{lowStockCount} Product{lowStockCount !== 1 ? 's' : ''}</div>
                     </div>
                 </div>
             </div>
 
+            {error && (
+                <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300">
+                    {error}
+                </div>
+            )}
+
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <Loader2 className="animate-spin text-slate-400" size={32} />
+                        <span className="ml-3 text-slate-500">Loading inventory...</span>
+                    </div>
+                ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
@@ -137,6 +189,7 @@ export const SupplierInventory: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
+                )}
             </div>
 
             {/* Add Product Modal */}
@@ -153,11 +206,16 @@ export const SupplierInventory: React.FC = () => {
                             <div className="p-6 space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Product Type</label>
-                                    <select className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium">
-                                        <option>Methanol</option>
-                                        <option>Biofuel B24</option>
-                                        <option>LNG</option>
-                                        <option>LSMGO</option>
+                                    <select 
+                                        value={newProductType}
+                                        onChange={(e) => setNewProductType(e.target.value)}
+                                        className="w-full p-2 border border-slate-200 rounded bg-slate-50 text-sm font-medium"
+                                    >
+                                        <option value="Methanol">Methanol</option>
+                                        <option value="Biofuel">Biofuel B24</option>
+                                        <option value="LNG">LNG</option>
+                                        <option value="LSMGO">LSMGO</option>
+                                        <option value="Ammonia">Ammonia</option>
                                     </select>
                                 </div>
                                 <div>
@@ -167,11 +225,23 @@ export const SupplierInventory: React.FC = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Initial Stock (MT)</label>
-                                        <input type="number" className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" placeholder="0" />
+                                        <input 
+                                            type="number" 
+                                            value={newStock}
+                                            onChange={(e) => setNewStock(e.target.value)}
+                                            className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" 
+                                            placeholder="0" 
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Price / MT ($)</label>
-                                        <input type="number" className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" placeholder="0.00" />
+                                        <input 
+                                            type="number" 
+                                            value={newPrice}
+                                            onChange={(e) => setNewPrice(e.target.value)}
+                                            className="w-full p-2 border border-slate-200 rounded bg-white text-sm font-medium" 
+                                            placeholder="0.00" 
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -185,9 +255,11 @@ export const SupplierInventory: React.FC = () => {
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="px-4 py-2 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm text-sm"
+                                    disabled={isAdding}
+                                    className="px-4 py-2 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm text-sm disabled:opacity-50 flex items-center space-x-2"
                                 >
-                                    Add to Inventory
+                                    {isAdding && <Loader2 className="animate-spin" size={16} />}
+                                    <span>{isAdding ? 'Adding...' : 'Add to Inventory'}</span>
                                 </button>
                             </div>
                         </form>

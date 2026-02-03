@@ -173,15 +173,64 @@ export const api = {
     inventory: {
         list: async (): Promise<InventoryItem[]> => {
             const res = await fetch(`${API_URL}/inventory`, { headers: getHeaders() });
-            return handleResponse(res);
+            const data = await handleResponse(res);
+            // Transform backend data to frontend InventoryItem interface
+            return data.map((item: any) => {
+                // Determine status based on stock levels
+                let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
+                const currentStock = Number(item.current_stock_mt);
+                if (currentStock <= 0) {
+                    status = 'Out of Stock';
+                } else if (currentStock < 500) {
+                    status = 'Low Stock';
+                }
+                
+                return {
+                    id: item.id,
+                    productName: item.product_name || item.fuel_type,
+                    portId: item.port_id,
+                    portName: item.port_id?.split('-')[1]?.toUpperCase() || item.port_id, // Extract readable port name
+                    currentStock: currentStock,
+                    incomingStock: Number(item.incoming_stock_mt) || 0,
+                    pricePerMt: Number(item.price_per_mt_usd) || 0,
+                    status: status
+                };
+            });
         },
         add: async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
-             const res = await fetch(`${API_URL}/inventory`, {
+            // Transform frontend format to backend format
+            const payload = {
+                port_id: item.portId,
+                fuel_type: item.productName, // Use product name as fuel type
+                product_name: item.productName,
+                current_stock_mt: item.currentStock,
+                incoming_stock_mt: item.incomingStock,
+                price_per_mt_usd: item.pricePerMt
+            };
+            const res = await fetch(`${API_URL}/inventory`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(item)
+                body: JSON.stringify(payload)
             });
-            return handleResponse(res);
+            const data = await handleResponse(res);
+            // Transform response back to frontend format
+            let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
+            const currentStock = Number(data.current_stock_mt);
+            if (currentStock <= 0) {
+                status = 'Out of Stock';
+            } else if (currentStock < 500) {
+                status = 'Low Stock';
+            }
+            return {
+                id: data.id,
+                productName: data.product_name || data.fuel_type,
+                portId: data.port_id,
+                portName: data.port_id?.split('-')[1]?.toUpperCase() || data.port_id,
+                currentStock: currentStock,
+                incomingStock: Number(data.incoming_stock_mt) || 0,
+                pricePerMt: Number(data.price_per_mt_usd) || 0,
+                status: status
+            };
         }
     },
 
