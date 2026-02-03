@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, TrendingUp, Anchor, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { DirectOrder, Page } from '../types';
 import { api } from '../services/api';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 interface BuyerDashboardProps {
     onNavigate: (page: Page) => void;
@@ -11,6 +12,26 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) =>
     const [requests, setRequests] = useState<DirectOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
+    
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        type: 'ACCEPT_OFFER' | 'ERROR' | 'SUCCESS' | null;
+        title: string;
+        message: string;
+        quoteId?: string;
+        offerId?: string;
+        variant?: 'info' | 'success' | 'danger' | 'warning';
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: ''
+    });
+
+    const closeConfirm = () => {
+        if (processing) return;
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+    };
 
     useEffect(() => {
         const fetchQuotes = async () => {
@@ -26,20 +47,46 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) =>
         fetchQuotes();
     }, []);
 
-    const handleAcceptOffer = async (quoteId: string, offerId: string) => {
-        if (!confirm('Are you sure you want to accept this offer? This will generate a binding confirmation.')) return;
-        
-        setProcessing(true);
-        try {
-            await api.directOrders.acceptOffer(quoteId, offerId);
-            setRequests(prev => prev.map(r => 
-                r.id === quoteId ? { ...r, status: 'Confirmed' } : r
-            ));
-            alert('Offer accepted successfully!');
-        } catch (e: any) {
-            alert('Failed to accept offer: ' + e.message);
-        } finally {
-            setProcessing(false);
+    const handleAcceptOffer = (quoteId: string, offerId: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'ACCEPT_OFFER',
+            title: 'Accept Offer',
+            message: 'Are you sure you want to accept this offer? This will generate a binding confirmation.',
+            quoteId,
+            offerId,
+            variant: 'info'
+        });
+    };
+
+    const handleConfirmAction = async () => {
+        if (confirmState.type === 'ACCEPT_OFFER' && confirmState.quoteId && confirmState.offerId) {
+            setProcessing(true);
+            try {
+                await api.directOrders.acceptOffer(confirmState.quoteId, confirmState.offerId);
+                setRequests(prev => prev.map(r => 
+                    r.id === confirmState.quoteId ? { ...r, status: 'Confirmed' } : r
+                ));
+                 setConfirmState({
+                    isOpen: true,
+                    type: 'SUCCESS',
+                    title: 'Offer Accepted',
+                    message: 'Offer accepted successfully!',
+                    variant: 'success'
+                });
+            } catch (e: any) {
+                 setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: 'Action Failed',
+                    message: 'Failed to accept offer: ' + e.message,
+                    variant: 'danger'
+                });
+            } finally {
+                setProcessing(false);
+            }
+        } else {
+            closeConfirm();
         }
     };
 
@@ -142,6 +189,19 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) =>
                     ))
                 )}
             </div>
+
+            
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={handleConfirmAction}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                isLoading={processing}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+            />
         </div>
     );
 };

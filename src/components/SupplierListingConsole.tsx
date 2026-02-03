@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { CreateListingModal, ListingFormData } from './supplier/CreateListingModal';
 import { api } from '../services/api';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 interface SupplierListing {
     id: string;
@@ -72,6 +73,22 @@ export const SupplierListingConsole: React.FC = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        type: 'DELETE' | 'ERROR' | 'SUCCESS' | null;
+        title: string;
+        message: string;
+        id?: string;
+        variant?: 'danger' | 'warning' | 'info' | 'success';
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: ''
+    });
+
+    const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
+
     // Fetch Listings
     useEffect(() => {
         fetchListings();
@@ -103,7 +120,13 @@ export const SupplierListingConsole: React.FC = () => {
             setIsCreateModalOpen(false);
         } catch (error) {
             console.error("Failed to create listing:", error);
-            alert("Failed to create listing. Please try again.");
+            setConfirmState({
+                isOpen: true,
+                type: 'ERROR',
+                title: 'Creation Failed',
+                message: 'Failed to create listing. Please try again.',
+                variant: 'danger'
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -119,11 +142,26 @@ export const SupplierListingConsole: React.FC = () => {
         ));
     };
 
-    const deleteListing = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this listing?")) return;
-        
-        console.log("Delete listing", id);
-        setListings(prev => prev.filter(l => l.id !== id));
+    const deleteListing = (id: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'DELETE',
+            title: 'Delete Listing',
+            message: 'Are you sure you want to delete this listing?',
+            id,
+            variant: 'danger'
+        });
+    };
+
+    const handleConfirmAction = async () => {
+        if (confirmState.type === 'DELETE' && confirmState.id) {
+             console.log("Delete listing", confirmState.id);
+             setListings(prev => prev.filter(l => l.id !== confirmState.id));
+             closeConfirm();
+             // In real app, call API here
+        } else {
+            closeConfirm();
+        }
     };
 
     return (
@@ -313,6 +351,18 @@ export const SupplierListingConsole: React.FC = () => {
                     isLoading={isSubmitting}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={handleConfirmAction}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+            />
         </div>
     );
+
 };
