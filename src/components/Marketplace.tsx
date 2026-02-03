@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Port, PublicListing, AvailabilityWindow } from '../types';
 import { PORTS } from '../data'; 
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
+
+import { formatTierLabel } from '../utils';
 
 interface MarketplaceProps {
     initialPort: Port | null;
@@ -25,7 +27,7 @@ const ListingCard: React.FC<{
                 <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-transparent">
-                            {listing.fuel_type}
+                            {formatTierLabel(listing.tier_label)}
                         </span>
                         <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
                             {listing.fuel_grade}
@@ -35,9 +37,11 @@ const ListingCard: React.FC<{
                         </span>
                     </div>
                     
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">
-                        {listing.tier_label}
-                    </h3>
+                    <div className="mb-1">
+                        <span className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-bold rounded-lg border border-blue-100 dark:border-blue-800">
+                            {listing.fuel_type}
+                        </span>
+                    </div>
                     
                     <div className="flex items-center gap-4 text-sm text-slate-500 mt-3">
                         <div className="flex items-center gap-1.5">
@@ -137,15 +141,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setShowSuggestions(false);
     };
 
-    const handleSearch = async (e?: React.FormEvent) => {
+    const handleSearch = async (e?: React.FormEvent, isSilent = false) => {
         if (e) e.preventDefault();
         
         setIsSearching(true);
-        setLoading(true);
+        if (!isSilent) setLoading(true);
         
         try {
-            // "Smart Search": Pass the input directly to API for fuzzy matching
-            // Note: api.listings.list() expects separate filters, simplified for now
             const data = await api.listings.list({
                 region: portInput,
                 fuelType: fuelType === 'All' ? undefined : fuelType,
@@ -159,6 +161,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setIsSearching(false);
         }
     };
+
+    // Auto-refresh polling (60 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            handleSearch(undefined, true);
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [portInput, fuelType, availability]);
 
     const handleBuyClick = (listing: PublicListing) => {
         setSelectedListing(listing);
@@ -293,10 +303,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <h2 className="text-lg lg:text-xl v-heading">
                         {loading ? 'Searching Listings...' : `Available Listings ${portInput ? `matching "${portInput}"` : ''}`}
                     </h2>
-                    <button className="flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-[#5DADE2]">
-                        <Filter size={16} />
-                        <span>Filter Results</span>
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => handleSearch()}
+                            className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
+                        >
+                            <RefreshCw size={16} className={isSearching ? 'animate-spin' : ''} />
+                            <span className="hidden sm:inline">Refresh</span>
+                        </button>
+                        <button className="flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-[#5DADE2]">
+                            <Filter size={16} />
+                            <span>Filter Results</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
