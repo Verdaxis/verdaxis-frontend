@@ -14,7 +14,6 @@ export interface ListingFormData {
     quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: string;
-    tier_label: string;
     certifications: string[];
 }
 
@@ -22,7 +21,6 @@ const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai'];
 const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
 const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
-const TIER_LABELS = ['Tier 1 Producer', 'Major Trader', 'Regional Supplier', 'Independent Supplier'];
 
 export const CreateListingModal: React.FC<CreateListingModalProps> = ({
     onSubmit,
@@ -36,7 +34,6 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
         quantity_mt: 0,
         price_per_mt_usd: 0,
         availability_window: AVAILABILITY_WINDOWS[0],
-        tier_label: TIER_LABELS[2],
         certifications: [],
     });
 
@@ -171,18 +168,7 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Tier Label */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Supplier Tier (Shown to Buyers)</label>
-                            <select
-                                value={formData.tier_label}
-                                onChange={(e) => handleChange('tier_label', e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                            >
-                                {TIER_LABELS.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                            <p className="text-xs text-slate-500 mt-1">This label is shown to buyers instead of your company name</p>
-                        </div>
+
 
                         {/* Certification Upload */}
                         <div>
