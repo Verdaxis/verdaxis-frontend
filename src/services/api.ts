@@ -301,11 +301,18 @@ export const api = {
             });
             return handleResponse(res);
         },
-        complete: async (orderId: string, data: { final_quantity_mt: number, final_price_per_mt: number }): Promise<any> => {
-             const res = await fetch(`${API_URL}/orders/${orderId}/complete`, {
+        deliver: async (orderId: string, data: { final_quantity_mt: number, final_price_per_mt: number }): Promise<any> => {
+             const res = await fetch(`${API_URL}/orders/${orderId}/deliver`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data)
+            });
+            return handleResponse(res);
+        },
+        markPaid: async (orderId: string): Promise<any> => {
+             const res = await fetch(`${API_URL}/orders/${orderId}/pay`, {
+                method: 'POST',
+                headers: getHeaders()
             });
             return handleResponse(res);
         }

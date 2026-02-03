@@ -153,7 +153,7 @@ export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Forward 2027' | 'Forward 2028';
 export type TierLabel = 'Tier 1 Producer' | 'Major Trader' | 'Regional Supplier' | 'Independent Supplier';
 export type ListingStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
-export type OrderStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'COMPLETED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'DELIVERED' | 'PAID' | 'CANCELLED';
 
 export interface PublicListing {
     id: string;
