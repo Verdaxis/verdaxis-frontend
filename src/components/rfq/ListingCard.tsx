@@ -27,10 +27,20 @@ const getGradeColor = (grade: string) => {
 
 const getTierColor = (tier: string) => {
     switch (tier) {
-        case 'Tier 1 Producer': return 'text-amber-400';
-        case 'Major Trader': return 'text-blue-400';
-        case 'Regional Supplier': return 'text-slate-400';
+        case 'TIER_1_PRODUCER': return 'text-amber-400';
+        case 'MAJOR_TRADER': return 'text-blue-400';
+        case 'REGIONAL_SUPPLIER': return 'text-slate-400';
         default: return 'text-slate-500';
+    }
+};
+
+const getTierDisplay = (tier: string) => {
+    switch (tier) {
+        case 'TIER_1_PRODUCER': return 'Tier 1 Producer';
+        case 'MAJOR_TRADER': return 'Major Trader';
+        case 'REGIONAL_SUPPLIER': return 'Regional Supplier';
+        case 'INDEPENDENT': return 'Independent Supplier';
+        default: return tier;
     }
 };
 
@@ -61,7 +71,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, onRequestQuot
             <div className="flex items-center gap-2 mb-4 pb-4 border-b border-slate-100 dark:border-slate-700">
                 <Shield size={16} className={getTierColor(listing.tier_label)} />
                 <span className={`font-medium ${getTierColor(listing.tier_label)}`}>
-                    {listing.tier_label}
+                    {getTierDisplay(listing.tier_label)}
                 </span>
                 {listing.is_verdaxis_verified && (
                     <span className="flex items-center gap-1 text-xs text-emerald-400 ml-auto">

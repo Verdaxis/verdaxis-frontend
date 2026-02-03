@@ -151,7 +151,7 @@ export type ViewMode = 'BUYER' | 'SUPPLIER';
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Forward 2027' | 'Forward 2028';
-export type TierLabel = 'Tier 1 Producer' | 'Major Trader' | 'Regional Supplier' | 'Independent Supplier';
+export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 export type ListingStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'DELIVERED' | 'PAID' | 'CANCELLED';
 
