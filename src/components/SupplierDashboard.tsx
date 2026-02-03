@@ -6,16 +6,40 @@ import { ConfirmModal } from './ui/ConfirmModal';
 
 interface SupplierDashboardProps {
     onNavigate: (page: Page) => void;
+    openOrderId?: string;
 }
 
 import { useCopilotContext } from '../context/CopilotContext';
 
-export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate }) => {
+export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate, openOrderId }) => {
     const { setPageContext } = useCopilotContext();
     const [activeTab, setActiveTab] = useState<'INCOMING' | 'ACTIVE' | 'HISTORY'>('INCOMING');
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
+
+    // Scroll to order
+    useEffect(() => {
+        if (!loading && openOrderId) {
+            // Check which tab this order belongs to and switch if necessary
+            const order = orders.find(o => o.id === openOrderId);
+            if (order) {
+                if (order.status === 'PENDING') setActiveTab('INCOMING');
+                else if (order.status === 'CONFIRMED') setActiveTab('ACTIVE');
+                else setActiveTab('HISTORY');
+
+                // Wait for render
+                setTimeout(() => {
+                    const element = document.getElementById(`order-${openOrderId}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.classList.add('bg-emerald-500/20');
+                        setTimeout(() => element.classList.remove('bg-emerald-500/20'), 3000);
+                    }
+                }, 100);
+            }
+        }
+    }, [loading, openOrderId, orders]);
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -201,7 +225,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
                             {filteredOrders.map((req) => (
-                                <tr key={req.id} className="hover:bg-slate-50 transition-colors group">
+                                <tr key={req.id} id={`order-${req.id}`} className="hover:bg-slate-50 transition-colors group">
                                     <td className="px-6 py-4 font-medium text-[#334155] font-mono">{req.id.slice(0, 8)}...</td>
                                     <td className="px-6 py-4">
                                         <div className="font-bold text-[#334155]">{req.buyer_name || 'Anonymous'}</div>

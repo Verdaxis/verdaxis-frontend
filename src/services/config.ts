@@ -1,5 +1,4 @@
-// Hardcoded remote backend for E2E testing
-const envUrl = 'http://144.126.151.136:8000/api';
+const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export const API_BASE_URL = envUrl;
 
