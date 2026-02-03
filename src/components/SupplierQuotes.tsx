@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, Download, MoreVertical, Trash2, Edit2, X, Save, ChevronDown, ChevronUp, Shield, Building, Clock, Sparkles, FileText, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Filter, Download, MoreVertical, Trash2, Edit2, X, Save, ChevronDown, ChevronUp, Shield, Building, Clock, Sparkles, FileText, Loader2, CheckCircle2, XCircle, Truck, Banknote } from 'lucide-react';
 import { Order } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { analyzeRisk } from '../services/ai';
@@ -22,7 +22,7 @@ export const SupplierQuotes: React.FC = () => {
                 view: 'Supplier Orders',
                 total_records: orders.length,
                 pending: orders.filter(q => q.status === 'PENDING').length,
-                confirmed: orders.filter(q => q.status === 'ACCEPTED').length,
+                confirmed: orders.filter(q => q.status === 'CONFIRMED').length,
                 search_query: searchQuery || 'None',
                 summary: 'Detailed list of incoming orders with status and actions.'
             });
@@ -38,7 +38,7 @@ export const SupplierQuotes: React.FC = () => {
     // Confirmation Modal State
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
-        type: 'ACCEPT' | 'DECLINE' | 'COMPLETE' | 'ERROR' | 'SUCCESS' | null;
+        type: 'ACCEPT' | 'DECLINE' | 'COMPLETE' | 'MARK_PAID' | 'ERROR' | 'SUCCESS' | null;
         title: string;
         message: string;
         orderId: string | null;
@@ -105,7 +105,7 @@ export const SupplierQuotes: React.FC = () => {
 
         try {
             if (confirmState.type === 'ACCEPT' && confirmState.orderId) {
-                await api.orders.respond(confirmState.orderId, 'ACCEPTED');
+                await api.orders.respond(confirmState.orderId, 'CONFIRMED');
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
@@ -116,10 +116,15 @@ export const SupplierQuotes: React.FC = () => {
             }
             else if (confirmState.type === 'COMPLETE' && confirmState.orderId && confirmState.orderData) {
                 const req = confirmState.orderData;
-                await api.orders.complete(confirmState.orderId, {
+                await api.orders.deliver(confirmState.orderId, {
                     final_quantity_mt: req.requested_quantity_mt || 0,
                     final_price_per_mt: req.price_per_mt_usd || 0
                 });
+                await fetchOrders();
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+            else if (confirmState.type === 'MARK_PAID' && confirmState.orderId) {
+                await api.orders.markPaid(confirmState.orderId);
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
@@ -171,11 +176,22 @@ export const SupplierQuotes: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'COMPLETE',
-            title: 'Confirm Order Completion',
-            message: 'Confirm order completion? This will deduce inventory and calculate commission.',
+            title: 'Confirm Delivery',
+            message: 'Confirm delivery (BDN signed)? This will deduce inventory and calculate commission.',
             orderId: id,
             orderData: req,
             variant: 'info'
+        });
+    };
+    
+    const handleMarkPaid = (id: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'MARK_PAID',
+            title: 'Confirm Payment',
+            message: 'Confirm that payment has been received for this order?',
+            orderId: id,
+            variant: 'success'
         });
     };
 
@@ -251,9 +267,19 @@ export const SupplierQuotes: React.FC = () => {
                                                     Action Required
                                                 </span>
                                             )}
-                                            {req.status === 'ACCEPTED' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            {req.status === 'CONFIRMED' && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                                     Confirmed
+                                                </span>
+                                            )}
+                                            {req.status === 'DELIVERED' && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                    Delivered
+                                                </span>
+                                            )}
+                                            {req.status === 'PAID' && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                    Paid
                                                 </span>
                                             )}
                                             {req.status === 'DECLINED' && (
@@ -274,7 +300,7 @@ export const SupplierQuotes: React.FC = () => {
                                                     <button 
                                                         onClick={() => handleAccept(req.id)}
                                                         className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                                                        title="Accept Order"
+                                                        title="Confirm Order"
                                                     >
                                                         <CheckCircle2 size={20} />
                                                     </button>
@@ -286,19 +312,29 @@ export const SupplierQuotes: React.FC = () => {
                                                         <XCircle size={20} />
                                                     </button>
                                                 </div>
-                                            ) : req.status === 'ACCEPTED' ? (
+                                            ) : req.status === 'CONFIRMED' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleComplete(req.id, req)}
                                                         className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-colors flex items-center gap-1"
-                                                        title="Complete Order & Finalize"
+                                                        title="Confirm Delivery (BDN)"
                                                     >
-                                                        <CheckCircle2 size={12} /> Complete
+                                                        <Truck size={12} /> Confirm Delivery
+                                                    </button>
+                                                </div>
+                                            ) : req.status === 'DELIVERED' ? (
+                                                <div className="flex justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => handleMarkPaid(req.id)}
+                                                        className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                                                        title="Mark as Paid"
+                                                    >
+                                                        <Banknote size={12} /> Mark Paid
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-slate-400 text-xs italic">
-                                                    {req.status === 'COMPLETED' ? 'Completed & Billed' : 'Closed'}
+                                                <span className="text-slate-400 text-xs italic flex items-center gap-1 justify-end">
+                                                    {req.status === 'PAID' ? <><CheckCircle2 size={12}/> Paid</> : 'Closed'}
                                                 </span>
                                             )}
                                         </td>
