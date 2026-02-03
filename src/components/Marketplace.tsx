@@ -3,6 +3,7 @@ import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, In
 import { Port, PublicListing, AvailabilityWindow } from '../types';
 import { PORTS } from '../data'; 
 import { api } from '../services/api';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 interface MarketplaceProps {
     initialPort: Port | null;
@@ -96,7 +97,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [selectedListing, setSelectedListing] = useState<PublicListing | null>(null);
     const [buyQuantity, setBuyQuantity] = useState<number>(0);
     const [buyDate, setBuyDate] = useState<string>('');
+
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        type: 'SUCCESS' | 'ERROR' | null;
+        title: string;
+        message: string;
+        variant?: 'success' | 'danger';
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: ''
+    });
+
+    const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
 
     // Initial load
     useEffect(() => {
@@ -158,11 +175,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setIsSubmitting(true);
         try {
             await api.orders.create(selectedListing.id, true, buyQuantity, buyDate);
-            alert("Order Request Sent! The supplier will review your request.");
             setSelectedListing(null);
+            setConfirmState({
+                isOpen: true,
+                type: 'SUCCESS',
+                title: 'Order Request Sent',
+                message: 'Your order request has been sent! The supplier will review it shortly.',
+                variant: 'success'
+            });
         } catch (error: any) {
             console.error("Failed to place order:", error);
-            alert("Failed to submit order: " + error.message);
+            setConfirmState({
+                isOpen: true,
+                type: 'ERROR',
+                title: 'Order Failed',
+                message: 'Failed to submit order: ' + error.message,
+                variant: 'danger'
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -372,6 +401,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={closeConfirm}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                confirmText="Close"
+                cancelText={undefined}
+            />
         </div>
     );
 };

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MoreHorizontal, Check, TrendingUp, Clock, Anchor, Loader2 } from 'lucide-react';
 import { Order, Page, OrderStatus } from '../types';
 import { api } from '../services/api';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 interface SupplierDashboardProps {
     onNavigate: (page: Page) => void;
@@ -15,6 +16,25 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
+
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        type: 'ACCEPT' | 'ERROR' | 'SUCCESS' | null;
+        title: string;
+        message: string;
+        id?: string;
+        variant?: 'danger' | 'warning' | 'info' | 'success';
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: ''
+    });
+    
+    const closeConfirm = () => {
+         if (processing) return;
+         setConfirmState(prev => ({ ...prev, isOpen: false }));
+    };
 
     // Fetch Orders from API
     useEffect(() => {
@@ -44,20 +64,40 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
         }
     }, [orders, loading, setPageContext]);
 
-    const handleAccept = async (id: string) => {
-        if (window.confirm('Are you sure you want to ACCEPT this order request?')) {
+    const handleAccept = (id: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'ACCEPT',
+            title: 'Accept Order Request',
+            message: 'Are you sure you want to ACCEPT this order request?',
+            id,
+            variant: 'info'
+        });
+    };
+
+    const handleConfirmAction = async () => {
+        if (confirmState.type === 'ACCEPT' && confirmState.id) {
             setProcessing(true);
             try {
-                await api.orders.respond(id, 'ACCEPTED');
+                await api.orders.respond(confirmState.id, 'ACCEPTED');
                 // Refresh list
                 const data = await api.orders.listIncoming();
                 setOrders(data);
+                closeConfirm();
             } catch (error) {
                 console.error("Failed to accept", error);
-                alert("Error accepting order");
+                setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: 'Action Failed',
+                    message: 'Error accepting order',
+                    variant: 'danger'
+                });
             } finally {
                 setProcessing(false);
             }
+        } else {
+            closeConfirm();
         }
     };
 
@@ -215,6 +255,18 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={handleConfirmAction}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                isLoading={processing}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+            />
         </div>
     );
 };

@@ -7,6 +7,7 @@ import { analyzeRisk } from '../services/ai';
 import { api } from '../services/api';
 import MarkdownRenderer from './ui/MarkdownRenderer';
 import { useCopilotContext } from '../context/CopilotContext';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 export const SupplierQuotes: React.FC = () => {
     const { setPageContext } = useCopilotContext();
@@ -33,6 +34,30 @@ export const SupplierQuotes: React.FC = () => {
     const [aiRiskAnalysis, setAiRiskAnalysis] = useState<string | null>(null);
     const [isAnalyzingRisk, setIsAnalyzingRisk] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Confirmation Modal State
+    const [confirmState, setConfirmState] = useState<{
+        isOpen: boolean;
+        type: 'ACCEPT' | 'DECLINE' | 'COMPLETE' | 'ERROR' | 'SUCCESS' | null;
+        title: string;
+        message: string;
+        orderId: string | null;
+        orderData?: Order;
+        variant: 'danger' | 'warning' | 'info' | 'success';
+        isLoading?: boolean;
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: '',
+        orderId: null,
+        variant: 'info'
+    });
+
+    const closeConfirm = () => {
+        if (confirmState.isLoading) return;
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+    };
 
     // Fetch Incoming Orders
     const fetchOrders = async () => {
@@ -73,45 +98,85 @@ export const SupplierQuotes: React.FC = () => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    const handleAccept = async (id: string) => {
-        if (window.confirm('Are you sure you want to ACCEPT this order request?')) {
-            try {
-                await api.orders.respond(id, 'ACCEPTED');
-                // Refresh list
-                fetchOrders();
-            } catch (error) {
-                console.error("Failed to accept", error);
-                alert("Error accepting order");
-            }
-        }
-    };
+    const handleAction = async () => {
+        if (!confirmState.orderId && confirmState.type !== 'ERROR' && confirmState.type !== 'SUCCESS') return;
 
-    const handleDecline = async (id: string) => {
-        if (window.confirm('Are you sure you want to DECLINE this order request?')) {
-             try {
-                await api.orders.respond(id, 'DECLINED');
-                fetchOrders();
-            } catch (error) {
-                console.error("Failed to decline", error);
-                alert("Error declining order");
-            }
-        }
-    };
+        setConfirmState(prev => ({ ...prev, isLoading: true }));
 
-    const handleComplete = async (id: string, req: Order) => {
-        if (window.confirm('Confirm order completion? This will deduce inventory and calculate commission.')) {
-            try {
-                // Use requested quantity/price as final for now
-                await api.orders.complete(id, {
+        try {
+            if (confirmState.type === 'ACCEPT' && confirmState.orderId) {
+                await api.orders.respond(confirmState.orderId, 'ACCEPTED');
+                await fetchOrders();
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+            else if (confirmState.type === 'DECLINE' && confirmState.orderId) {
+                await api.orders.respond(confirmState.orderId, 'DECLINED');
+                await fetchOrders();
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+            else if (confirmState.type === 'COMPLETE' && confirmState.orderId && confirmState.orderData) {
+                const req = confirmState.orderData;
+                await api.orders.complete(confirmState.orderId, {
                     final_quantity_mt: req.requested_quantity_mt || 0,
                     final_price_per_mt: req.price_per_mt_usd || 0
                 });
-                fetchOrders();
-            } catch (error) {
-                console.error("Failed to complete", error);
-                alert("Error completing order");
+                await fetchOrders();
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+            else {
+                // For alerts (ERROR/SUCCESS), just close
+                setConfirmState(prev => ({ ...prev, isOpen: false }));
+            }
+        } catch (error: any) {
+            console.error("Action failed", error);
+            setConfirmState(prev => ({
+                ...prev,
+                type: 'ERROR',
+                title: 'Action Failed',
+                message: error.message || 'An unexpected error occurred.',
+                variant: 'danger',
+                isLoading: false,
+                // Keep orderId so we don't lose context if needed, but important part is changing content
+            }));
+        } finally {
+            if (confirmState.type !== 'ERROR') {
+                 setConfirmState(prev => ({ ...prev, isLoading: false }));
             }
         }
+    };
+
+    const handleAccept = (id: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'ACCEPT',
+            title: 'Accept Order Request',
+            message: 'Are you sure you want to ACCEPT this order request? This will notify the buyer.',
+            orderId: id,
+            variant: 'success'
+        });
+    };
+
+    const handleDecline = (id: string) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'DECLINE',
+            title: 'Decline Order Request',
+            message: 'Are you sure you want to DECLINE this order request? This cannot be undone.',
+            orderId: id,
+            variant: 'danger'
+        });
+    };
+
+    const handleComplete = (id: string, req: Order) => {
+        setConfirmState({
+            isOpen: true,
+            type: 'COMPLETE',
+            title: 'Confirm Order Completion',
+            message: 'Confirm order completion? This will deduce inventory and calculate commission.',
+            orderId: id,
+            orderData: req,
+            variant: 'info'
+        });
     };
 
     const toggleExpand = (id: string) => {
@@ -325,6 +390,19 @@ export const SupplierQuotes: React.FC = () => {
                     Showing {orders.length} recent records
                 </div>
             </div>
+
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={closeConfirm}
+                onConfirm={handleAction}
+                title={confirmState.title}
+                message={confirmState.message}
+                variant={confirmState.variant}
+                isLoading={confirmState.isLoading}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+            />
         </div>
     );
 };
