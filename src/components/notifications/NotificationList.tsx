@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNotifications } from '../../context/NotificationContext';
-import { Check, X, BellOff, Info, MessageSquare, Briefcase, UserCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Check, X, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { Notification } from '../../types';
@@ -11,6 +12,7 @@ interface NotificationListProps {
 
 export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) => {
     const { notifications, markAsRead, markAllAsRead } = useNotifications();
+    const { user } = useAuth();
     const navigate = useNavigate();
 
     const handleNotificationClick = (notification: Notification) => {
@@ -19,22 +21,28 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
         }
         
         // Handle context navigation
-        if (notification.data) {
-            if (notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
-                // Determine if buyer or supplier view and navigate appropriately
-                // For now, simpler redirection
-                if (notification.data.rfq_id) {
-                     navigate('/dashboard', { state: { openRfqId: notification.data.rfq_id }}); // Example
-                }
-            }
+        if (notification.type === 'ORDER_UPDATE' || notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
+            // Navigate to Dashboard where orders are visible
+            // Both Buyer and Supplier use 'DASHBOARD' page currently for main order lists
+            navigate('/', { 
+                state: { 
+                    targetPage: 'DASHBOARD',
+                    openOrderId: notification.data?.order_id || notification.data?.rfq_id
+                } 
+            });
         }
+        
         onClose();
     };
 
-    const getIcon = (type: string) => {
+    const getIcon = (type: string, title: string) => {
+        if (title.includes('Payment')) return <CreditCard size={16} className="text-emerald-400" />;
+        if (title.includes('Order')) return <FileText size={16} className="text-blue-400" />;
+        
         switch (type) {
             case 'DIRECT_ORDER': return <MessageSquare size={16} className="text-emerald-400" />;
             case 'DIRECT_ORDER_OFFER': return <Briefcase size={16} className="text-purple-400" />;
+            case 'ORDER_UPDATE': return <FileText size={16} className="text-blue-400" />;
             case 'USER_STATUS': return <UserCheck size={16} className="text-yellow-400" />;
             default: return <Info size={16} className="text-slate-400" />;
         }
@@ -79,7 +87,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                     >
                         <div className="flex gap-3">
                             <div className="mt-1 shrink-0">
-                                {getIcon(notification.type)}
+                                {getIcon(notification.type, notification.title)}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-2">

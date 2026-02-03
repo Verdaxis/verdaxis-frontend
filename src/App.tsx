@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -85,9 +85,25 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
   const { user } = useAuth();
+  const location = useLocation();
   const [viewMode, setViewMode] = useState<ViewMode>(user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   const [currentPage, setCurrentPage] = useState<Page>('MAP');
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
+  const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+      if (location.state) {
+        const state = location.state as any;
+        if (state.targetPage) {
+            setCurrentPage(state.targetPage);
+        }
+        if (state.openOrderId) {
+            setOpenOrderId(state.openOrderId);
+            // Clear state after consuming? keeping it in state might re-trigger if location doesn't change
+            // For now, let's rely on the prop change
+        }
+      }
+  }, [location]);
 
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
@@ -117,7 +133,7 @@ const Dashboard: React.FC = () => {
     if (viewMode === 'SUPPLIER') {
         switch (currentPage) {
             case 'DASHBOARD':
-                return <SupplierDashboard onNavigate={handleNavigate} />;
+                return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
             case 'INVENTORY':
@@ -125,7 +141,7 @@ const Dashboard: React.FC = () => {
             case 'LISTINGS':
                 return <SupplierListingConsole />;
             default:
-                return <SupplierDashboard onNavigate={handleNavigate} />;
+                return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
     }
 
@@ -133,7 +149,7 @@ const Dashboard: React.FC = () => {
       case 'MAP':
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
       case 'DASHBOARD':
-        return <BuyerDashboard onNavigate={handleNavigate} />;
+        return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':

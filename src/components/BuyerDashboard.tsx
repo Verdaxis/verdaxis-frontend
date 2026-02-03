@@ -6,13 +6,28 @@ import { ConfirmModal } from './ui/ConfirmModal';
 
 interface BuyerDashboardProps {
     onNavigate: (page: Page) => void;
+    openOrderId?: string;
 }
 
-export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) => {
+export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, openOrderId }) => {
     const [requests, setRequests] = useState<DirectOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     
+    // Scroll to order when loaded
+    useEffect(() => {
+        if (!loading && openOrderId) {
+            const element = document.getElementById(`order-${openOrderId}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('ring-2', 'ring-emerald-500', 'ring-offset-2');
+                setTimeout(() => {
+                     element.classList.remove('ring-2', 'ring-emerald-500', 'ring-offset-2');
+                }, 3000);
+            }
+        }
+    }, [loading, openOrderId]);
+
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
         type: 'ACCEPT_OFFER' | 'ERROR' | 'SUCCESS' | null;
@@ -117,7 +132,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate }) =>
                     </div>
                 ) : (
                     requests.map(req => (
-                        <div key={req.id} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div key={req.id} id={`order-${req.id}`} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all duration-500">
                             {/* Header */}
                             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
                                 <div>
