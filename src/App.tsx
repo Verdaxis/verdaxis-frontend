@@ -20,7 +20,7 @@ import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
-import { BraemarTerminal } from './components/BraemarTerminal';
+import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { SupplierListingConsole } from './components/SupplierListingConsole';
 import { ViewMode, Page, Port } from './types';
@@ -153,7 +153,7 @@ const Dashboard: React.FC = () => {
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
-        return <BraemarTerminal />;
+        return <MarketTerminal />;
       case 'FLEET':
         return <Fleet />;
       case 'COMPLIANCE':

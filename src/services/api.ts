@@ -58,22 +58,34 @@ export const api = {
         list: async (): Promise<Vessel[]> => {
             const res = await fetch(`${API_URL}/vessels`, { headers: getHeaders() });
             const data = await handleResponse(res);
-            return data.map((v: any) => ({
-                id: v.id,
-                name: v.name,
-                imo: v.imo_number, // backend: imo_number
-                vesselType: v.vessel_type,
-                status: 'At Sea', // Mock status for now as backend doesn't store operational status yet
-                complianceEUETS: v.eu_ets_status || 'Non-Compliant',
-                complianceFuelEU: v.fueleu_status || 'Non-Compliant',
-                ciiGrade: v.cii_rating || 'C',
-                // Mock voyage info until backend supports it
-                nextVoyage: 'Singapore -> Rotterdam (ETA: 4 Days)',
-                nextDryDock: 'Sep 2026', 
-                location: v.lat && v.lng ? { lat: v.lat, lng: v.lng } : undefined,
-                // Add previous location if needed for heading
-                previousLocation: v.prev_lat && v.prev_lng ? { lat: v.prev_lat, lng: v.prev_lng } : undefined
-            }));
+            // Varied mock voyage/status data keyed by IMO suffix
+            const voyageData: Record<string, { status: string; nextVoyage: string; nextDryDock: string }> = {
+                '9919475': { status: 'At Sea', nextVoyage: 'Colombo → Rotterdam (ETA: 12 Days)', nextDryDock: 'Mar 2027' },
+                '9919487': { status: 'At Sea', nextVoyage: 'Halifax → Antwerp (ETA: 6 Days)', nextDryDock: 'Sep 2026' },
+                '9919499': { status: 'At Sea', nextVoyage: 'Honolulu → Yokohama (ETA: 9 Days)', nextDryDock: 'Jan 2028' },
+                '9919504': { status: 'At Sea', nextVoyage: 'Santos → Algeciras (ETA: 8 Days)', nextDryDock: 'Jun 2026' },
+                '9919516': { status: 'At Sea', nextVoyage: 'Durban → Singapore (ETA: 14 Days)', nextDryDock: 'Nov 2026' },
+                '9919528': { status: 'In Port', nextVoyage: 'Hamburg → Gothenburg (Dep: Tomorrow)', nextDryDock: 'Apr 2027' },
+                '9919530': { status: 'At Sea', nextVoyage: 'Guayaquil → Cartagena (ETA: 3 Days)', nextDryDock: 'Aug 2026' },
+                '9919542': { status: 'At Sea', nextVoyage: 'Fujairah → Jebel Ali (ETA: 1 Day)', nextDryDock: 'Feb 2026' },
+            };
+            return data.map((v: any) => {
+                const meta = voyageData[v.imo_number] || { status: 'At Sea', nextVoyage: 'En route', nextDryDock: 'TBD' };
+                return {
+                    id: v.id,
+                    name: v.name,
+                    imo: v.imo_number,
+                    vesselType: v.vessel_type,
+                    status: meta.status as Vessel['status'],
+                    complianceEUETS: v.eu_ets_status || 'Non-Compliant',
+                    complianceFuelEU: v.fueleu_status || 'Non-Compliant',
+                    ciiGrade: v.cii_rating || 'C',
+                    nextVoyage: meta.nextVoyage,
+                    nextDryDock: meta.nextDryDock,
+                    location: v.lat && v.lng ? { lat: v.lat, lng: v.lng } : undefined,
+                    previousLocation: v.prev_lat && v.prev_lng ? { lat: v.prev_lat, lng: v.prev_lng } : undefined,
+                };
+            });
         },
         updateStatus: async (id: string, status: 'At Sea' | 'In Port'): Promise<Vessel> => {
            // Backend doesn't have status update yet, mock for now or implement?

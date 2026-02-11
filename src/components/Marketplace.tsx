@@ -261,6 +261,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <option value="All">All types</option>
                             <option>Methanol</option>
                             <option>Biofuel</option>
+                            <option>Ethanol</option>
                             <option>LNG</option>
                             <option>Ammonia</option>
                             <option>LSMGO</option>
@@ -268,17 +269,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
                     <div>
                         <label className="v-label">Delivery Window</label>
-                         <select 
+                         <select
                             value={availability}
                             onChange={(e) => setAvailability(e.target.value as any)}
                             className="v-input appearance-none"
                         >
                             <option value="">Any</option>
                             <option value="Spot">Spot</option>
-                            <option value="Q1 2025">Q1 2025</option>
-                            <option value="Q2 2025">Q2 2025</option>
-                            <option value="Q3 2025">Q3 2025</option>
-                            <option value="Q4 2025">Q4 2025</option>
+                            <option value="Q1 2026">Q1 2026</option>
+                            <option value="Q2 2026">Q2 2026</option>
+                            <option value="Q3 2026">Q3 2026</option>
+                            <option value="Q4 2026">Q4 2026</option>
+                            <option value="Forward 2027">Forward 2027</option>
+                            <option value="Forward 2028">Forward 2028</option>
                         </select>
                     </div>
                     <button 

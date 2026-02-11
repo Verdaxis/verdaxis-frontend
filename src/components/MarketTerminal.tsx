@@ -1,214 +1,435 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    Activity, 
-    TrendingUp, 
-    TrendingDown, 
-    ArrowRightLeft, 
-    Zap, 
-    BarChart3, 
-    Clock, 
-    AlertCircle,
-    MoreHorizontal,
-    Search
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    ResponsiveContainer,
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip as RechartsTooltip,
+    BarChart,
+    Bar
+} from 'recharts';
+import {
+    ArrowUpRight,
+    ArrowDownRight,
+    Zap,
+    Maximize2,
+    X,
+    TrendingUp,
+    Activity,
+    Loader2,
+    ChevronDown
 } from 'lucide-react';
+import { PublicListing, Port } from '../types';
+import { api } from '../services/api';
+import { useCopilotContext } from '../context/CopilotContext';
 
-interface MarketData {
+// --- Types ---
+interface TerminalRow {
     id: string;
-    product: string;
-    qtyBid: number;
-    bid: number;
-    ask: number;
-    qtyAsk: number;
-    change: number;
-    lastDone: string;
+    period: string;
+    type: 'SPOT' | 'MONTH' | 'QTR' | 'YEAR';
+    bidQty: number | null;
+    bid: number | null;
+    ask: number | null;
+    askQty: number | null;
+    last: number | null;
+    change: number | null;
     flash?: 'up' | 'down' | null;
 }
 
-const INITIAL_DATA: MarketData[] = [
-    { id: '1', product: 'VLSFO Rotterdam', qtyBid: 500, bid: 542.50, ask: 544.00, qtyAsk: 1000, change: 1.5, lastDone: '200MT @ 543.0' },
-    { id: '2', product: 'MGO Singapore', qtyBid: 250, bid: 785.00, ask: 788.50, qtyAsk: 500, change: -2.0, lastDone: '100MT @ 786.0' },
-    { id: '3', product: 'BioB24 Singapore', qtyBid: 1000, bid: 820.50, ask: 822.00, qtyAsk: 1200, change: 0.5, lastDone: '500MT @ 821.0' },
-    { id: '4', product: 'Methanol Singapore', qtyBid: 300, bid: 415.00, ask: 417.00, qtyAsk: 600, change: 4.25, lastDone: '150MT @ 416.0' },
-    { id: '5', product: 'LNG Rotterdam', qtyBid: 2000, bid: 612.00, ask: 615.50, qtyAsk: 1500, change: -1.25, lastDone: '500MT @ 613.5' },
-    { id: '6', product: 'MGO Fujairah', qtyBid: 400, bid: 810.00, ask: 812.50, qtyAsk: 800, change: 0.1, lastDone: '200MT @ 811.0' },
+// Map availability windows to terminal periods
+const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type'] }[] = [
+    { window: 'Spot', period: 'SPOT', type: 'SPOT' },
+    { window: 'Q1 2026', period: 'Q1 26', type: 'QTR' },
+    { window: 'Q2 2026', period: 'Q2 26', type: 'QTR' },
+    { window: 'Q3 2026', period: 'Q3 26', type: 'QTR' },
+    { window: 'Q4 2026', period: 'Q4 26', type: 'QTR' },
+    { window: 'Forward 2027', period: 'CAL 27', type: 'YEAR' },
+    { window: 'Forward 2028', period: 'CAL 28', type: 'YEAR' },
 ];
 
+// Available fuel types for the selector
+const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia', 'Ethanol', 'LSMGO'];
+
 export const MarketTerminal: React.FC = () => {
-    const [marketData, setMarketData] = useState<MarketData[]>(INITIAL_DATA);
-    const [tradeTape, setTradeTape] = useState<string[]>([]);
+    const { setPageContext } = useCopilotContext();
+
+    // Port & Fuel selectors
+    const [ports, setPorts] = useState<Port[]>([]);
+    const [selectedPort, setSelectedPort] = useState<string>('Singapore');
+    const [selectedFuel, setSelectedFuel] = useState<string>('Methanol');
+    const [showPortDropdown, setShowPortDropdown] = useState(false);
+    const [showFuelDropdown, setShowFuelDropdown] = useState(false);
+
+    // Listings from API (marketplace sync)
+    const [allListings, setAllListings] = useState<PublicListing[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch ports for the selector
+    useEffect(() => {
+        api.ports.list().then(setPorts).catch(console.error);
+    }, []);
+
+    // Fetch listings from the marketplace (one-way sync)
+    const fetchListings = async () => {
+        setLoading(true);
+        try {
+            const data = await api.listings.list({});
+            setAllListings(data);
+        } catch (e) {
+            console.error('Failed to load listings for terminal', e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            const index = Math.floor(Math.random() * marketData.length);
-            const isUp = Math.random() > 0.5;
-            const delta = (Math.random() * 2).toFixed(2);
-            
-            setMarketData(prev => prev.map((item, i) => {
-                if (i === index) {
-                    const newBid = isUp ? item.bid + parseFloat(delta) : item.bid - parseFloat(delta);
-                    const newAsk = isUp ? item.ask + parseFloat(delta) : item.ask - parseFloat(delta);
-                    return { 
-                        ...item, 
-                        bid: parseFloat(newBid.toFixed(2)), 
-                        ask: parseFloat(newAsk.toFixed(2)),
-                        change: parseFloat((item.change + (isUp ? 0.1 : -0.1)).toFixed(2)),
-                        flash: isUp ? 'up' : 'down'
-                    };
-                }
-                return { ...item, flash: null };
-            }));
-
-            // Add to trade tape
-            const products = ['CAPE', 'PMAX', 'SMAX', 'VLSFO', 'MGO'];
-            const newTrade = `${products[Math.floor(Math.random() * products.length)]} ${isUp ? 'LIFTED' : 'HIT'} @ ${marketData[index].bid} (${(Math.random() * 500).toFixed(0)}MT)`;
-            setTradeTape(prev => [newTrade, ...prev].slice(0, 15));
-
-        }, 3000);
-
+        fetchListings();
+        // Auto-refresh every 30 seconds
+        const interval = setInterval(fetchListings, 30000);
         return () => clearInterval(interval);
-    }, [marketData]);
+    }, []);
+
+    // Filter listings by selected port and fuel
+    const filteredListings = useMemo(() => {
+        return allListings.filter(l => {
+            const matchPort = l.region.toLowerCase().includes(selectedPort.toLowerCase());
+            const matchFuel = l.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
+            return matchPort && matchFuel;
+        });
+    }, [allListings, selectedPort, selectedFuel]);
+
+    // Build terminal rows from filtered listings (marketplace -> terminal sync)
+    const terminalData: TerminalRow[] = useMemo(() => {
+        return PERIOD_CONFIG.map((config, idx) => {
+            // Find listings matching this availability window
+            const periodListings = filteredListings.filter(
+                l => l.availability_window === config.window
+            );
+
+            const askPrices = periodListings.map(l => Number(l.price_per_mt_usd)).filter(Boolean);
+            const totalQty = periodListings.reduce((sum, l) => sum + Number(l.quantity_mt), 0);
+
+            const bestAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
+            const askQty = totalQty > 0 ? totalQty : null;
+
+            // Last done is the most recent listing price (if any exist)
+            const lastDone = askPrices.length > 0 ? askPrices[0] : null;
+
+            // Change is synthetic for now (difference from spot)
+            let change: number | null = null;
+            if (lastDone !== null && idx > 0) {
+                const spotListings = filteredListings.filter(l => l.availability_window === 'Spot');
+                const spotPrice = spotListings.length > 0 ? Number(spotListings[0].price_per_mt_usd) : null;
+                if (spotPrice) {
+                    change = lastDone - spotPrice;
+                }
+            }
+
+            return {
+                id: String(idx + 1),
+                period: config.period,
+                type: config.type,
+                bidQty: null, // Bids not tracked yet
+                bid: null,
+                ask: bestAsk,
+                askQty: askQty,
+                last: lastDone,
+                change: change,
+            };
+        });
+    }, [filteredListings]);
+
+    // Build chart data from listings by period
+    const chartData = useMemo(() => {
+        return PERIOD_CONFIG.map(config => {
+            const periodListings = filteredListings.filter(
+                l => l.availability_window === config.window
+            );
+            const prices = periodListings.map(l => Number(l.price_per_mt_usd));
+            const avgPrice = prices.length > 0
+                ? prices.reduce((a, b) => a + b, 0) / prices.length
+                : null;
+            const totalQty = periodListings.reduce((s, l) => s + Number(l.quantity_mt), 0);
+
+            return {
+                period: config.period,
+                price: avgPrice,
+                quantity: totalQty || null,
+            };
+        }).filter(d => d.price !== null);
+    }, [filteredListings]);
+
+    // Summary stats
+    const spotPrice = terminalData.find(r => r.type === 'SPOT')?.ask;
+    const totalListings = filteredListings.length;
+    const totalVolume = filteredListings.reduce((s, l) => s + Number(l.quantity_mt), 0);
+
+    // Broadcast Context
+    useEffect(() => {
+        setPageContext({
+            view: 'Market Terminal',
+            product: `${selectedFuel} (${selectedPort})`,
+            market_data_summary: `Showing ${totalListings} active listings for ${selectedFuel} at ${selectedPort}.`,
+            spot_price: spotPrice ? `$${spotPrice.toFixed(2)}` : 'No offers',
+            total_volume: `${totalVolume.toLocaleString()} MT`,
+        });
+    }, [terminalData, selectedPort, selectedFuel, setPageContext]);
+
+    // Helper to determine if a row is "Active"
+    const isRowActive = (row: TerminalRow) => row.ask !== null || row.last !== null;
+
+    // Unique port names from ports list
+    const portNames = useMemo(() => {
+        const names = ports.map(p => p.name);
+        // Also add any region names from listings that aren't in ports
+        allListings.forEach(l => {
+            if (!names.includes(l.region)) names.push(l.region);
+        });
+        return [...new Set(names)].sort();
+    }, [ports, allListings]);
+
+    // Unique fuel types from listings
+    const availableFuels = useMemo(() => {
+        const fromListings = [...new Set(allListings.map(l => l.fuel_type))];
+        const combined = [...new Set([...FUEL_TYPES, ...fromListings])];
+        return combined.sort();
+    }, [allListings]);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 font-mono text-sm overflow-hidden transition-colors duration-200">
-            {/* Terminal Header */}
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-3 flex items-center justify-between transition-colors duration-200">
-                <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2 text-verdaxis font-bold">
-                        <Activity size={18} />
-                        <span>VERDAXIS_TERMINAL_v2.0</span>
-                    </div>
-                    <div className="h-4 w-px bg-slate-700 mx-2"></div>
-                    <div className="flex items-center space-x-4 text-slate-400">
-                        <span className="flex items-center space-x-1">
-                            <Clock size={14} />
-                            <span className="text-xs">MARKET OPEN (GMT+8)</span>
-                        </span>
-                        <div className="flex items-center space-x-2 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                            <Search size={14} />
-                            <input className="bg-transparent border-none outline-none text-xs w-32" placeholder="SEARCH TICKER..." />
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-1 text-emerald-400 text-xs bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">
-                        <TrendingUp size={12} />
-                        <span>EST. SAVINGS: +4.2%</span>
-                    </div>
-                    <button className="text-slate-400 hover:text-white transition-colors">
-                        <MoreHorizontal size={20} />
-                    </button>
-                </div>
-            </div>
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
 
-            {/* Main Content Area */}
-            <div className="flex flex-1 overflow-hidden">
-                {/* Left Side: Bid/Ask Screen */}
-                <div className="flex-[3] border-r border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
-                    <div className="bg-slate-100 dark:bg-slate-900/50 flex items-center p-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0 transition-colors duration-200">
-                        <div className="w-1/4">Product / Contract</div>
-                        <div className="w-1/6 text-right px-4">Qty (Bid)</div>
-                        <div className="w-1/6 text-center">Bid</div>
-                        <div className="w-1/6 text-center">Ask</div>
-                        <div className="w-1/6 text-left px-4">Qty (Ask)</div>
-                        <div className="w-1/6 text-right pr-4">Change</div>
-                    </div>
-                    
-                    <div className="flex-1 overflow-y-auto">
-                        {marketData.map((item) => (
-                            <div 
-                                key={item.id} 
-                                className={`
-                                    flex items-center p-3 border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors group cursor-pointer
-                                    ${item.flash === 'up' ? 'bg-emerald-50 dark:bg-emerald-950/20' : item.flash === 'down' ? 'bg-rose-50 dark:bg-rose-950/20' : ''}
-                                `}
+            {/* Top Section: Header & Chart */}
+            <div className="h-64 border-b border-slate-200 dark:border-[#222] flex">
+                {/* Product Header with Selectors */}
+                <div className="w-80 p-6 border-r border-slate-200 dark:border-[#222] flex flex-col justify-between bg-white dark:bg-[#0a0a0a]">
+                    <div>
+                        <div className="flex items-center space-x-2 text-slate-400 dark:text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
+                            <Zap size={12} className="text-verdaxis" />
+                            <span>Market Terminal</span>
+                        </div>
+
+                        {/* Fuel Type Selector */}
+                        <div className="relative mb-2" onClick={e => e.stopPropagation()}>
+                            <button
+                                onClick={() => { setShowFuelDropdown(!showFuelDropdown); setShowPortDropdown(false); }}
+                                className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 hover:text-emerald-500 transition-colors"
                             >
-                                <div className="w-1/4 flex flex-col font-bold text-slate-700 dark:text-slate-100">
-                                    <span>{item.product}</span>
-                                    <span className="text-[10px] text-slate-500">{item.lastDone}</span>
+                                {selectedFuel.toUpperCase()}
+                                <ChevronDown size={16} className="text-slate-400" />
+                            </button>
+                            {showFuelDropdown && (
+                                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded shadow-xl z-50 min-w-[160px] max-h-48 overflow-y-auto">
+                                    {availableFuels.map(fuel => (
+                                        <button
+                                            key={fuel}
+                                            onClick={() => { setSelectedFuel(fuel); setShowFuelDropdown(false); }}
+                                            className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1a1a] transition-colors ${
+                                                selectedFuel === fuel ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
+                                            }`}
+                                        >
+                                            {fuel}
+                                        </button>
+                                    ))}
                                 </div>
-                                <div className="w-1/6 text-right px-4 text-slate-500 dark:text-slate-400">{item.qtyBid}</div>
-                                <div className={`w-1/6 text-right px-4 py-2 rounded transition-all duration-300 font-bold border border-transparent ${item.flash === 'up' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : item.flash === 'down' ? 'text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.2)]' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                    {item.bid.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </div>
-                                <div className={`w-1/6 text-left px-4 py-2 rounded transition-all duration-300 font-bold border border-transparent ${item.flash === 'up' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]' : item.flash === 'down' ? 'text-rose-600 dark:text-rose-400 border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.2)]' : 'text-rose-600 dark:text-rose-400'}`}>
-                                    {item.ask.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </div>
-                                <div className="w-1/6 text-left px-4 text-slate-500 dark:text-slate-400">{item.qtyAsk}</div>
-                                <div className={`w-1/6 text-right pr-4 flex items-center justify-end space-x-1 ${item.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                    {item.change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                    <span>{item.change > 0 ? '+' : ''}{item.change.toFixed(2)}</span>
-                                </div>
+                            )}
+                        </div>
 
-                                {/* Hover Actions - Adjusted for light mode readability */}
-                                <div className="absolute right-4 opacity-0 group-hover:opacity-100 flex items-center space-x-1 transition-opacity">
-                                    <button className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">LIFT</button>
-                                    <button className="bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">HIT</button>
-                                    <button className="bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-lg">NEG</button>
+                        {/* Port Selector */}
+                        <div className="relative" onClick={e => e.stopPropagation()}>
+                            <button
+                                onClick={() => { setShowPortDropdown(!showPortDropdown); setShowFuelDropdown(false); }}
+                                className="text-xs font-semibold flex items-center gap-1.5 hover:text-emerald-500 transition-colors"
+                            >
+                                <span className="text-emerald-500">{selectedPort.toUpperCase()}</span>
+                                <ChevronDown size={12} className="text-slate-400" />
+                            </button>
+                            {showPortDropdown && (
+                                <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded shadow-xl z-50 min-w-[180px] max-h-48 overflow-y-auto">
+                                    {portNames.map(name => (
+                                        <button
+                                            key={name}
+                                            onClick={() => { setSelectedPort(name); setShowPortDropdown(false); }}
+                                            className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1a1a] transition-colors ${
+                                                selectedPort === name ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
+                                            }`}
+                                        >
+                                            {name}
+                                        </button>
+                                    ))}
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Matrix View Mock */}
-                    <div className="h-48 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 p-4 transition-colors duration-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center space-x-2">
-                                <BarChart3 size={14} />
-                                <span>MARKET_DEPTH_VISUALIZATION</span>
-                            </span>
-                        </div>
-                        <div className="flex h-24 items-end space-x-1 px-4">
-                            {[40, 60, 45, 80, 55, 90, 75, 40, 30, 65, 85, 95, 100, 80, 60, 45, 30, 20].map((h, i) => (
-                                <div 
-                                    key={i} 
-                                    style={{ height: `${h}%` }} 
-                                    className={`flex-1 rounded-t-sm ${i < 9 ? 'bg-emerald-500' : 'bg-rose-500'} opacity-50 hover:opacity-100 transition-opacity`}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Side: Trade Tape & Info */}
-                <div className="flex-1 bg-white dark:bg-slate-900/50 flex flex-col overflow-hidden border-l border-slate-200 dark:border-slate-800 transition-colors duration-200">
-                    {/* Insights Hub */}
-                    <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center space-x-2 text-verdaxis mb-4">
-                            <Zap size={14} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Verdaxis AI_INTEL</span>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-verdaxis/20 rounded p-3 text-[11px] leading-relaxed italic text-slate-600 dark:text-slate-300">
-                            "Methanol prices in Singapore showing bullish divergence due to logistical tight spots in the Malacca Strait. Recommend locking in JAN26 volume now."
-                        </div>
-                    </div>
-
-                    {/* Trade Tape */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <div className="bg-slate-100 dark:bg-slate-900 p-2 text-[10px] font-bold text-slate-500 uppercase flex items-center space-x-2">
-                            <ArrowRightLeft size={14} />
-                            <span>LIVE_TRADE_TAPE</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1 bg-white dark:bg-transparent">
-                            {tradeTape.map((trade, i) => (
-                                <div key={i} className={`flex items-center space-x-2 text-[10px] py-1 border-l-2 pl-2 ${trade.includes('LIFTED') ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'border-rose-500 text-rose-600 dark:text-rose-400'} animate-in slide-in-from-top-1`}>
-                                    <span className="text-slate-400">[{new Date().toLocaleTimeString()}]</span>
-                                    <span className="font-bold">{trade}</span>
-                                </div>
-                            ))}
-                            {tradeTape.length === 0 && (
-                                <div className="text-slate-400 text-[10px] animate-pulse">awaiting_market_data...</div>
                             )}
                         </div>
                     </div>
 
-                    {/* Connection Status */}
-                    <div className="p-2 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[9px]">
-                        <div className="flex items-center space-x-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,1)] animate-pulse"></div>
-                            <span className="text-emerald-600 dark:text-emerald-500 uppercase">SERVER_LINK: ACTIVE</span>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-end">
+                            <span className="text-xs text-slate-400 dark:text-[#888] font-bold">BEST OFFER</span>
+                            <div className="text-right">
+                                {spotPrice ? (
+                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">${spotPrice.toFixed(2)}</span>
+                                ) : (
+                                    <span className="text-lg font-bold text-slate-400 dark:text-[#555]">No offers</span>
+                                )}
+                            </div>
                         </div>
-                        <div className="text-slate-500 font-bold">LATENCY: 42ms</div>
+                        <div className="text-[10px] text-slate-500 dark:text-[#555] flex justify-between uppercase font-bold tracking-wider">
+                            <span>Listings: <span className="text-emerald-500">{totalListings}</span></span>
+                            <span>Vol: {totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}k MT` : '--'}</span>
+                        </div>
                     </div>
+                </div>
+
+                {/* Price Curve Chart */}
+                <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808]">
+                    <div className="flex justify-between items-start mb-2 px-2">
+                        <div>
+                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">Forward Curve</div>
+                            <div className="text-xs text-slate-600 dark:text-[#444]">{selectedFuel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
+                        </div>
+                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
+                    </div>
+                    {loading ? (
+                        <div className="flex items-center justify-center h-[80%]">
+                            <Loader2 size={24} className="animate-spin text-emerald-500" />
+                        </div>
+                    ) : chartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="80%">
+                            <LineChart data={chartData}>
+                                <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.1} vertical={false} />
+                                <XAxis dataKey="period" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} />
+                                <YAxis orientation="right" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} domain={['dataMin - 10', 'dataMax + 10']} />
+                                <RechartsTooltip
+                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333', fontSize: '12px' }}
+                                    itemStyle={{ color: '#fff' }}
+                                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="price"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={{ r: 3, fill: '#10b981', stroke: '#000' }}
+                                    activeDot={{ r: 5, fill: '#10b981', stroke: '#000' }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[80%] text-xs text-slate-400 dark:text-[#555]">
+                            No listing data available for {selectedFuel} at {selectedPort}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* The Market Grid */}
+            <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-[#050505] relative">
+                {/* Grid Header */}
+                <div className="flex items-center bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] uppercase font-bold text-slate-500 dark:text-[#555] py-2 select-none">
+                    <div className="w-32 px-4">Period</div>
+                    <div className="w-24 text-right px-4">Bid Qty</div>
+                    <div className="w-24 text-right px-4 text-emerald-700">Bid</div>
+                    <div className="w-24 text-right px-4 text-rose-700">Ask</div>
+                    <div className="w-24 text-right px-4">Ask Qty</div>
+                    <div className="w-24 text-right px-4">Last</div>
+                    <div className="w-24 text-right px-4">Chg</div>
+                    <div className="flex-1 text-right px-4"># Offers</div>
+                </div>
+
+                {/* Grid Rows */}
+                <div className="overflow-y-auto flex-1 font-mono">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 size={24} className="animate-spin text-emerald-500" />
+                        </div>
+                    ) : (
+                        terminalData.map((row) => {
+                            const active = isRowActive(row);
+                            const textColor = active ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-[#444]';
+                            const hoverColor = active ? 'hover:bg-slate-50 dark:hover:bg-[#111]' : 'hover:bg-slate-50 dark:hover:bg-[#0a0a0a]';
+
+                            // Count offers for this period
+                            const periodConfig = PERIOD_CONFIG.find(p => p.period === row.period);
+                            const offerCount = periodConfig
+                                ? filteredListings.filter(l => l.availability_window === periodConfig.window).length
+                                : 0;
+
+                            return (
+                                <div
+                                    key={row.id}
+                                    className={`
+                                        flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group
+                                        ${hoverColor}
+                                        ${textColor}
+                                    `}
+                                >
+                                    {/* Period */}
+                                    <div className="w-32 px-4 text-xs font-bold flex items-center space-x-2">
+                                        {row.type === 'SPOT' && <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse mr-1"/>}
+                                        <span>{row.period}</span>
+                                    </div>
+
+                                    {/* Bid Qty */}
+                                    <div className="w-24 text-right px-4 text-[11px] opacity-70">
+                                        {row.bidQty?.toLocaleString() || ''}
+                                    </div>
+
+                                    {/* BID PRICE */}
+                                    <div className="w-24 px-1">
+                                        <div className={`w-full text-right px-2 py-0.5 rounded text-[11px] ${
+                                            row.bid
+                                                ? 'text-emerald-600 dark:text-emerald-500 font-bold'
+                                                : 'text-slate-300 dark:text-[#222]'
+                                        }`}>
+                                            {row.bid ? row.bid.toFixed(2) : '--'}
+                                        </div>
+                                    </div>
+
+                                    {/* ASK PRICE (from marketplace listings) */}
+                                    <div className="w-24 px-1">
+                                        <div className={`w-full text-right px-2 py-0.5 rounded text-[11px] ${
+                                            row.ask
+                                                ? 'text-rose-600 dark:text-rose-500 font-bold'
+                                                : 'text-slate-300 dark:text-[#222]'
+                                        }`}>
+                                            {row.ask ? row.ask.toFixed(2) : '--'}
+                                        </div>
+                                    </div>
+
+                                    {/* Ask Qty */}
+                                    <div className="w-24 text-right px-4 text-[11px] opacity-70">
+                                        {row.askQty ? Math.round(row.askQty).toLocaleString() : ''}
+                                    </div>
+
+                                    {/* Last Done */}
+                                    <div className={`w-24 text-right px-4 font-bold text-xs ${active ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-[#222]'}`}>
+                                        {row.last?.toFixed(2) || ''}
+                                    </div>
+
+                                    {/* Change */}
+                                    <div className={`w-24 text-right px-4 text-[10px] flex justify-end items-center space-x-1 ${row.change && row.change > 0 ? 'text-emerald-600 dark:text-emerald-500' : row.change && row.change < 0 ? 'text-rose-600 dark:text-rose-500' : 'text-slate-300 dark:text-[#222]'}`}>
+                                        {row.change ? (
+                                            <>
+                                                {row.change > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                                                <span>{Math.abs(row.change).toFixed(2)}</span>
+                                            </>
+                                        ) : ''}
+                                    </div>
+
+                                    {/* Offer Count */}
+                                    <div className="flex-1 text-right px-4 text-[10px]">
+                                        {offerCount > 0 && (
+                                            <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold">
+                                                {offerCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
             </div>
         </div>
