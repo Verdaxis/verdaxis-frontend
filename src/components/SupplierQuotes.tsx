@@ -252,7 +252,7 @@ export const SupplierQuotes: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
-                             {orders.map((req) => (
+                             {orders.map((req, index) => (
                                 <React.Fragment key={req.id}>
                                     <tr className={`hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative ${expandedOrderId === req.id ? 'bg-slate-50 dark:bg-slate-700' : ''}`}>
                                         <td className="px-2 py-4 text-center">
@@ -260,30 +260,30 @@ export const SupplierQuotes: React.FC = () => {
                                                 {expandedOrderId === req.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                             </button>
                                         </td>
-                                        <td className="px-6 py-4 font-mono font-medium text-slate-600">{req.id.slice(0, 8)}...</td>
+                                        <td className="px-6 py-4 font-mono font-medium text-slate-600 dark:text-slate-300">ORD-{String(index + 1).padStart(3, '0')}</td>
                                         <td className="px-6 py-4">
                                             {req.status === 'PENDING_CONFIRMATION' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400">
                                                     Action Required
                                                 </span>
                                             )}
                                             {req.status === 'CONFIRMED' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
                                                     Confirmed
                                                 </span>
                                             )}
                                             {req.status === 'DELIVERED' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400">
                                                     Delivered
                                                 </span>
                                             )}
                                             {req.status === 'PAID' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
                                                     Paid
                                                 </span>
                                             )}
                                             {req.status === 'DECLINED' && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
                                                     Declined
                                                 </span>
                                             )}
@@ -341,18 +341,18 @@ export const SupplierQuotes: React.FC = () => {
                                     </tr>
                                     {/* Expanded Buyer Risk Panel */}
                                     {expandedOrderId === req.id && (
-                                        <tr className="bg-slate-50 animate-in slide-in-from-top-2">
-                                            <td colSpan={8} className="p-6 border-b border-slate-200">
-                                                <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                                        <tr className="bg-slate-50 dark:bg-slate-800 animate-in slide-in-from-top-2">
+                                            <td colSpan={8} className="p-6 border-b border-slate-200 dark:border-slate-700">
+                                                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm">
                                                     <div className="flex items-center justify-between mb-4">
-                                                        <div className="flex items-center gap-2 text-sm font-bold text-[#334155] uppercase tracking-wider">
+                                                        <div className="flex items-center gap-2 text-sm font-bold text-[#334155] dark:text-slate-200 uppercase tracking-wider">
                                                             <Shield size={16} className="text-[#5DADE2]" />
                                                             Counterparty Risk Analysis
                                                         </div>
                                                         <button 
                                                             onClick={() => handleGenerateRiskAnalysis(req)}
                                                             disabled={isAnalyzingRisk || !!aiRiskAnalysis}
-                                                            className="text-xs bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-md font-bold border border-indigo-100 hover:bg-indigo-100 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                                                            className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-md font-bold border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center space-x-2 disabled:opacity-50"
                                                         >
                                                             {isAnalyzingRisk ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12} />}
                                                             <span>{isAnalyzingRisk ? 'Generating...' : aiRiskAnalysis ? 'Memo Generated' : 'Generate AI Risk Memo'}</span>
@@ -361,34 +361,34 @@ export const SupplierQuotes: React.FC = () => {
                                                     
                                                     {/* Placeholder Stats */}
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                                                        <div className="p-3 bg-slate-50 rounded border border-slate-100 flex items-center gap-3">
+                                                        <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded border border-slate-100 dark:border-slate-600 flex items-center gap-3">
                                                             <Building size={20} className="text-slate-400" />
                                                             <div>
                                                                 <div className="text-xs text-slate-500 uppercase font-bold">Solvency Grade</div>
-                                                                <div className="font-bold text-[#334155] text-lg">A (Excellent)</div>
+                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">A (Excellent)</div>
                                                             </div>
                                                         </div>
-                                                        <div className="p-3 bg-slate-50 rounded border border-slate-100 flex items-center gap-3">
+                                                        <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded border border-slate-100 dark:border-slate-600 flex items-center gap-3">
                                                             <Clock size={20} className="text-slate-400" />
                                                             <div>
                                                                 <div className="text-xs text-slate-500 uppercase font-bold">Avg Pmt Time</div>
-                                                                <div className="font-bold text-[#334155] text-lg">15 Days</div>
+                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">15 Days</div>
                                                             </div>
                                                         </div>
-                                                        <div className="p-3 bg-green-50 rounded border border-green-100 flex items-center gap-3">
+                                                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800 flex items-center gap-3">
                                                             <Shield size={20} className="text-green-500" />
                                                             <div>
-                                                                <div className="text-xs text-green-700 uppercase font-bold">KYB Status</div>
-                                                                <div className="font-bold text-green-700 text-lg">Verified</div>
+                                                                <div className="text-xs text-green-700 dark:text-green-400 uppercase font-bold">KYB Status</div>
+                                                                <div className="font-bold text-green-700 dark:text-green-400 text-lg">Verified</div>
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     {/* AI Output Section */}
                                                     {(aiRiskAnalysis || isAnalyzingRisk) && (
-                                                        <div className="bg-gradient-to-br from-indigo-50 to-white/50 p-4 rounded-lg border border-indigo-100 animate-in fade-in">
+                                                        <div className="bg-gradient-to-br from-indigo-50 dark:from-indigo-900/20 to-white/50 dark:to-slate-800/50 p-4 rounded-lg border border-indigo-100 dark:border-indigo-800 animate-in fade-in">
                                                             <div className="flex items-start space-x-3">
-                                                                <div className="p-1.5 bg-indigo-100 rounded-full mt-0.5">
+                                                                <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mt-0.5">
                                                                     <FileText size={16} className="text-indigo-500" />
                                                                 </div>
                                                                 <div className="flex-1">
@@ -399,7 +399,7 @@ export const SupplierQuotes: React.FC = () => {
                                                                             <div className="h-2 bg-indigo-200 rounded w-1/2 animate-pulse"></div>
                                                                         </div>
                                                                     ) : (
-                                                                        <div className="text-sm text-slate-700 leading-relaxed font-medium">
+                                                                        <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                                                                             <MarkdownRenderer content={aiRiskAnalysis || ''} />
                                                                         </div>
                                                                     )}
@@ -422,7 +422,7 @@ export const SupplierQuotes: React.FC = () => {
                     )}
                 </div>
                 )}
-                 <div className="p-4 border-t border-slate-200 bg-slate-50 text-center text-xs text-slate-500">
+                 <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
                     Showing {orders.length} recent records
                 </div>
             </div>

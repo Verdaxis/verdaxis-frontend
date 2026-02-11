@@ -128,7 +128,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
     // Calculate KPI values from real order data
     const volumeSold = orders
         .filter(o => o.status === 'DELIVERED' || o.status === 'PAID')
-        .reduce((sum, o) => sum + (o.final_quantity_mt ?? o.quantity_mt ?? 0), 0);
+        .reduce((sum, o) => sum + (Number(o.final_quantity_mt) || Number(o.quantity_mt) || 0), 0);
 
     const activeOrdersValue = orders
         .filter(o => o.status === 'CONFIRMED' || o.status === 'PENDING_CONFIRMATION')
@@ -220,15 +220,15 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
 
             {/* Order Management */}
             <div className="v-card overflow-hidden">
-                <div className="border-b border-slate-200 px-6 py-4 flex space-x-8">
+                <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex space-x-8">
                     {['INCOMING', 'ACTIVE', 'HISTORY'].map(tab => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
                             className={`text-sm font-bold pb-4 -mb-4 border-b-2 transition-colors ${
                                 activeTab === tab 
-                                ? 'border-[#334155] text-[#334155]' 
-                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                ? 'border-[#334155] text-[#334155] dark:text-white dark:border-white'
+                                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
                             {tab}
@@ -248,29 +248,29 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                                 <th className="px-6 py-4 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 text-sm">
-                            {filteredOrders.map((req) => (
-                                <tr key={req.id} id={`order-${req.id}`} className="hover:bg-slate-50 transition-colors group">
-                                    <td className="px-6 py-4 font-medium text-[#334155] font-mono">{req.id.slice(0, 8)}...</td>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+                            {filteredOrders.map((req, index) => (
+                                <tr key={req.id} id={`order-${req.id}`} className="hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors group">
+                                    <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200 font-mono">ORD-{String(index + 1).padStart(3, '0')}</td>
                                     <td className="px-6 py-4">
-                                        <div className="font-bold text-[#334155]">{req.buyer_name || 'Anonymous'}</div>
+                                        <div className="font-bold text-[#334155] dark:text-slate-200">{req.buyer_name || 'Anonymous'}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="font-medium text-[#334155]">{req.fuel_type} &middot; {req.region}</div>
+                                        <div className="font-medium text-[#334155] dark:text-slate-200">{req.fuel_type} &middot; {req.region}</div>
                                         <div className="text-xs text-slate-500 mt-0.5">{req.quantity_mt?.toLocaleString()} MT @ ${req.price_per_mt_usd}/MT</div>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600">{req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Spot'}</td>
+                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Spot'}</td>
                                     <td className="px-6 py-4">
                                         {req.status === 'PENDING_CONFIRMATION' ? (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
                                                 Action Required
                                             </span>
                                         ) : req.status === 'CONFIRMED' ? (
-                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
                                                 Confirmed
                                             </span>
                                         ) : (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300">
                                                 {req.status}
                                             </span>
                                         )}
@@ -285,8 +285,8 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                                                 {processing ? '...' : 'Accept Order'}
                                             </button>
                                         ) : (
-                                            <button 
-                                                className="text-slate-400 hover:text-[#334155]"
+                                            <button
+                                                className="text-slate-400 hover:text-[#334155] dark:hover:text-slate-200"
                                                 title="View details"
                                             >
                                                 <MoreHorizontal size={20} />
