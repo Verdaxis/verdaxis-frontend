@@ -78,10 +78,10 @@ export const SupplierStats: React.FC = () => {
         (o) => o.status === 'DELIVERED' || o.status === 'PAID'
     );
 
-    const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.final_total_usd || 0), 0);
+    const totalRevenue = completedOrders.reduce((sum, o) => sum + (Number(o.final_total_usd) || 0), 0);
 
     const volumeSold = completedOrders.reduce(
-        (sum, o) => sum + (o.final_quantity_mt || 0),
+        (sum, o) => sum + (Number(o.final_quantity_mt) || 0),
         0
     );
 
@@ -222,7 +222,7 @@ export const SupplierStats: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
                             {history.map((order) => {
-                                const myPrice = order.final_price_per_mt || order.price_per_mt_usd || 0;
+                                const myPrice = Number(order.final_price_per_mt) || Number(order.price_per_mt_usd) || 0;
                                 const marketPrice = getMarketAvgPrice(order.fuel_type, order.region, myPrice);
                                 const diff = myPrice && marketPrice ? ((myPrice - marketPrice) / marketPrice) * 100 : 0;
                                 const isAboveMarket = diff > 0;
@@ -250,7 +250,7 @@ export const SupplierStats: React.FC = () => {
 
                                         {/* Quantity */}
                                         <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                                            {(order.final_quantity_mt || order.quantity_mt || 0).toLocaleString()} MT
+                                            {(Number(order.final_quantity_mt) || Number(order.quantity_mt) || 0).toLocaleString()} MT
                                         </td>
 
                                         {/* Your Price */}

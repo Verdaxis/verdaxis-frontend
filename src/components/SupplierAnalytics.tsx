@@ -109,12 +109,12 @@ export const SupplierAnalytics: React.FC = () => {
     );
 
     const totalRevenue = useMemo(
-        () => completedOrders.reduce((sum, o) => sum + (o.final_total_usd || 0), 0),
+        () => completedOrders.reduce((sum, o) => sum + (Number(o.final_total_usd) || 0), 0),
         [completedOrders]
     );
 
     const totalVolume = useMemo(
-        () => completedOrders.reduce((sum, o) => sum + (o.final_quantity_mt || 0), 0),
+        () => completedOrders.reduce((sum, o) => sum + (Number(o.final_quantity_mt) || 0), 0),
         [completedOrders]
     );
 
@@ -134,7 +134,7 @@ export const SupplierAnalytics: React.FC = () => {
         completedOrders.forEach((o) => {
             const d = new Date(o.created_at);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            map.set(key, (map.get(key) || 0) + (o.final_total_usd || 0));
+            map.set(key, (map.get(key) || 0) + (Number(o.final_total_usd) || 0));
         });
         return Array.from(map.entries())
             .sort(([a], [b]) => a.localeCompare(b))
@@ -153,7 +153,7 @@ export const SupplierAnalytics: React.FC = () => {
         const map = new Map<string, number>();
         completedOrders.forEach((o) => {
             const ft = o.fuel_type || 'Unknown';
-            map.set(ft, (map.get(ft) || 0) + (o.final_total_usd || 0));
+            map.set(ft, (map.get(ft) || 0) + (Number(o.final_total_usd) || 0));
         });
         return Array.from(map.entries())
             .sort((a, b) => b[1] - a[1])
@@ -169,7 +169,7 @@ export const SupplierAnalytics: React.FC = () => {
         const map = new Map<string, number>();
         completedOrders.forEach((o) => {
             const region = o.region || 'Unknown';
-            map.set(region, (map.get(region) || 0) + (o.final_quantity_mt || 0));
+            map.set(region, (map.get(region) || 0) + (Number(o.final_quantity_mt) || 0));
         });
         return Array.from(map.entries())
             .sort((a, b) => b[1] - a[1])
