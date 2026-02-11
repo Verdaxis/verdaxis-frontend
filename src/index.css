@@ -67,3 +67,9 @@ body {
 .dark .v-btn-primary:hover {
     background-color: #475569; /* slate-600 */
 }
+
+/* Ticker animation for PriceTicker */
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
