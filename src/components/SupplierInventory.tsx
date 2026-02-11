@@ -375,8 +375,8 @@ export const SupplierInventory: React.FC = () => {
 
             {/* Add Product Modal */}
             {isAddModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
+                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                             <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Add New Product</h3>
                             <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
@@ -388,6 +388,7 @@ export const SupplierInventory: React.FC = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Product Type</label>
                                     <select
+                                        autoFocus
                                         value={newProductType}
                                         onChange={(e) => setNewProductType(e.target.value)}
                                         className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white"
@@ -460,8 +461,8 @@ export const SupplierInventory: React.FC = () => {
 
             {/* Delete Confirmation Modal */}
             {deleteConfirmItem && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                             <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Confirm Deletion</h3>
                             <button onClick={() => setDeleteConfirmItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
@@ -498,8 +499,8 @@ export const SupplierInventory: React.FC = () => {
 
             {/* Edit Product Modal */}
             {isEditModalOpen && editingItem && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
+                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                             <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Edit Product</h3>
                             <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
