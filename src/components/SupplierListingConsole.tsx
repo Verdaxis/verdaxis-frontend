@@ -1,77 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    Plus, 
-    Edit2, 
-    Trash2, 
-    AlertTriangle, 
-    CheckCircle2, 
-    Eye, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    Plus,
+    Edit2,
+    Trash2,
+    AlertTriangle,
+    CheckCircle2,
+    Eye,
     EyeOff,
     Loader2,
     TrendingUp,
     Package,
     FileText,
-    Shield
+    Shield,
+    X,
+    BarChart3
 } from 'lucide-react';
 import { CreateListingModal, ListingFormData } from './supplier/CreateListingModal';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 
-interface SupplierListing {
-    id: string;
+import { OrderBookOrder, OrderBookStatus, AggregatedOrderbook } from '../types';
+
+export interface AggregatedMarketEntry {
     region: string;
     fuel_type: string;
-    fuel_grade: string;
-    quantity_mt: number;
-    price_per_mt_usd: number;
-    availability_window: string;
-    tier_label: string;
-    certifications: string[];
-    is_verdaxis_verified: boolean;
-    status: 'ACTIVE' | 'INACTIVE';
-    match_count: number;
-    created_at: string;
+    side?: string;
+    min_price: number;
+    max_price: number;
+    avg_price: number;
+    total_quantity: number;
+    listing_count: number;
+    order_count?: number;
 }
 
-// Mock data
-const INITIAL_LISTINGS: SupplierListing[] = [
-    {
-        id: 'lst-001',
-        region: 'Singapore',
-        fuel_type: 'Methanol',
-        fuel_grade: 'Green',
-        quantity_mt: 5000,
-        price_per_mt_usd: 520,
-        availability_window: 'Spot',
-        tier_label: 'Tier 1 Producer',
-        certifications: ['ISCC', 'Nanolumi'],
-        is_verdaxis_verified: true,
-        status: 'ACTIVE',
-        match_count: 3,
-        created_at: '2026-01-15T10:00:00Z',
-    },
-    {
-        id: 'lst-002',
-        region: 'ARA',
-        fuel_type: 'Methanol',
-        fuel_grade: 'Conventional',
-        quantity_mt: 3000,
-        price_per_mt_usd: 485,
-        availability_window: 'Q1 2026',
-        tier_label: 'Major Trader',
-        certifications: ['ISCC'],
-        is_verdaxis_verified: true,
-        status: 'ACTIVE',
-        match_count: 1,
-        created_at: '2026-01-20T14:30:00Z',
-    },
-];
+type SupplierListing = OrderBookOrder;
 
 export const SupplierListingConsole: React.FC = () => {
     const [listings, setListings] = useState<SupplierListing[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [marketData, setMarketData] = useState<AggregatedMarketEntry[]>([]);
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -89,16 +58,36 @@ export const SupplierListingConsole: React.FC = () => {
 
     const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
 
-    // Fetch Listings
+    // Edit modal state
+    const [editingListing, setEditingListing] = useState<SupplierListing | null>(null);
+    const [editForm, setEditForm] = useState<{
+        quantity_mt: number;
+        price_per_mt_usd: number;
+        availability_window: string;
+        certifications: string[];
+        status: OrderBookStatus;
+    }>({
+        quantity_mt: 0,
+        price_per_mt_usd: 0,
+        availability_window: '',
+        certifications: [],
+        status: 'OPEN',
+    });
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    // Fetch Listings & Market Data
     useEffect(() => {
         fetchListings();
+        fetchMarketData();
     }, []);
 
     const fetchListings = async () => {
         try {
             setIsLoading(true);
-            const data = await api.listings.getMyListings();
-            setListings(data);
+            const data = await api.orderbook.myOrders();
+            // Filter to only show ASK orders (supplier listings)
+            const askOrders = data.filter((o: OrderBookOrder) => o.side === 'ASK');
+            setListings(askOrders);
         } catch (error) {
             console.error("Failed to fetch listings:", error);
             // Fallback to empty or handled error state
@@ -107,15 +96,24 @@ export const SupplierListingConsole: React.FC = () => {
         }
     };
 
+    const fetchMarketData = async () => {
+        try {
+            const data = await api.orderbook.aggregated();
+            setMarketData(data);
+        } catch (error) {
+            console.error("Failed to fetch market data:", error);
+        }
+    };
+
     // Stats
     const totalVolume = listings.reduce((sum, l) => sum + (l.quantity_mt || 0), 0);
-    const activeListings = listings.filter(l => l.status === 'ACTIVE').length;
-    const totalMatches = listings.reduce((sum, l) => sum + (l.match_count || 0), 0);
+    const activeListings = listings.filter(l => l.status === 'OPEN').length;
+    const totalMatches = listings.reduce((sum, l) => sum + (l.trade_count || 0), 0);
 
     const handleCreateListing = async (data: ListingFormData) => {
         setIsSubmitting(true);
         try {
-            await api.listings.create(data);
+            await api.orderbook.create({ side: 'ASK', ...data });
             await fetchListings(); // Refresh list
             setIsCreateModalOpen(false);
         } catch (error) {
@@ -133,13 +131,47 @@ export const SupplierListingConsole: React.FC = () => {
     };
 
     const toggleListingStatus = async (id: string, currentStatus: string) => {
-        // Optimistic update
-        console.log("Toggle status for", id);
-        setListings(prev => prev.map(l => 
-            l.id === id 
-                ? { ...l, status: l.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-                : l
-        ));
+        if (currentStatus === 'OPEN') {
+            // Cancel the order (OPEN -> CANCELLED)
+            const newStatus = 'CANCELLED' as OrderBookStatus;
+            setListings(prev => prev.map(l =>
+                l.id === id ? { ...l, status: newStatus } : l
+            ));
+            try {
+                await api.orderbook.cancel(id);
+            } catch (error) {
+                setListings(prev => prev.map(l =>
+                    l.id === id ? { ...l, status: currentStatus as OrderBookStatus } : l
+                ));
+                setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: 'Update Failed',
+                    message: error instanceof Error ? error.message : 'Failed to update listing status. Please try again.',
+                    variant: 'danger'
+                });
+            }
+        } else {
+            // Re-activate by updating status to OPEN
+            const newStatus = 'OPEN' as OrderBookStatus;
+            setListings(prev => prev.map(l =>
+                l.id === id ? { ...l, status: newStatus } : l
+            ));
+            try {
+                await api.orderbook.update(id, { status: newStatus });
+            } catch (error) {
+                setListings(prev => prev.map(l =>
+                    l.id === id ? { ...l, status: currentStatus as OrderBookStatus } : l
+                ));
+                setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: 'Update Failed',
+                    message: error instanceof Error ? error.message : 'Failed to update listing status. Please try again.',
+                    variant: 'danger'
+                });
+            }
+        }
     };
 
     const deleteListing = (id: string) => {
@@ -157,7 +189,7 @@ export const SupplierListingConsole: React.FC = () => {
         if (confirmState.type === 'DELETE' && confirmState.id) {
             try {
                 setIsLoading(true);
-                await api.listings.delete(confirmState.id);
+                await api.orderbook.cancel(confirmState.id);
                 setListings(prev => prev.filter(l => l.id !== confirmState.id));
                 closeConfirm();
                 // Optional: show success message
@@ -176,6 +208,194 @@ export const SupplierListingConsole: React.FC = () => {
         } else {
             closeConfirm();
         }
+    };
+
+    const openEditModal = (listing: SupplierListing) => {
+        setEditingListing(listing);
+        setEditForm({
+            quantity_mt: listing.quantity_mt,
+            price_per_mt_usd: listing.price_per_mt_usd,
+            availability_window: listing.availability_window,
+            certifications: [...(listing.certifications || [])],
+            status: listing.status,
+        });
+    };
+
+    const closeEditModal = () => {
+        setEditingListing(null);
+        setIsUpdating(false);
+    };
+
+    const handleEditFormChange = (field: string, value: string | number | string[]) => {
+        setEditForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleEditSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingListing) return;
+        if (editForm.quantity_mt <= 0 || editForm.price_per_mt_usd <= 0) return;
+
+        setIsUpdating(true);
+        try {
+            await api.orderbook.update(editingListing.id, {
+                quantity_mt: editForm.quantity_mt,
+                price_per_mt_usd: editForm.price_per_mt_usd,
+                availability_window: editForm.availability_window,
+                certifications: editForm.certifications,
+                status: editForm.status,
+            });
+            await fetchListings();
+            closeEditModal();
+        } catch (error) {
+            console.error("Failed to update listing:", error);
+            setConfirmState({
+                isOpen: true,
+                type: 'ERROR',
+                title: 'Update Failed',
+                message: error instanceof Error ? error.message : 'Failed to update listing. Please try again.',
+                variant: 'danger',
+            });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleCertificationInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const value = (e.target as HTMLInputElement).value.trim().replace(/,$/, '');
+            if (value && !editForm.certifications.includes(value)) {
+                handleEditFormChange('certifications', [...editForm.certifications, value]);
+            }
+            (e.target as HTMLInputElement).value = '';
+        }
+    };
+
+    const removeEditCertification = (index: number) => {
+        handleEditFormChange(
+            'certifications',
+            editForm.certifications.filter((_, i) => i !== index)
+        );
+    };
+
+    // ---- Market Context Panel ----
+    const MarketContextPanel: React.FC<{
+        region: string;
+        fuelType: string;
+        price: number;
+    }> = ({ region, fuelType, price }) => {
+        const entry = marketData.find(
+            (d) => d.region === region && d.fuel_type === fuelType
+        );
+
+        if (!entry) {
+            return (
+                <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-slate-700/30 p-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <BarChart3 size={14} />
+                        <span>No market data available for this combination</span>
+                    </div>
+                </div>
+            );
+        }
+
+        const { min_price, max_price, avg_price, total_quantity, listing_count } = entry;
+        const range = max_price - min_price;
+
+        // Competitiveness indicator
+        let competitiveLabel = '';
+        let competitiveColor = '';
+        let indicatorBg = '';
+
+        if (price > 0 && avg_price > 0) {
+            const pctDiff = ((price - avg_price) / avg_price) * 100;
+            if (pctDiff <= -3) {
+                competitiveLabel = `Your price is ${Math.abs(pctDiff).toFixed(1)}% below market average`;
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+                indicatorBg = 'bg-emerald-500';
+            } else if (pctDiff <= 3) {
+                competitiveLabel = 'Your price is competitive';
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+                indicatorBg = 'bg-emerald-500';
+            } else if (pctDiff <= 10) {
+                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveColor = 'text-amber-600 dark:text-amber-400';
+                indicatorBg = 'bg-amber-500';
+            } else {
+                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveColor = 'text-rose-600 dark:text-rose-400';
+                indicatorBg = 'bg-rose-500';
+            }
+        }
+
+        // Position of price marker on the range bar (clamped 0-100%)
+        const markerPct = price > 0 && range > 0
+            ? Math.min(100, Math.max(0, ((price - min_price) / range) * 100))
+            : -1;
+
+        return (
+            <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-emerald-900/20 p-3 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    <BarChart3 size={14} className="text-emerald-500 dark:text-emerald-400" />
+                    Market Context
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Price range:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${min_price.toLocaleString()} - ${max_price.toLocaleString()} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Avg price:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${avg_price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Active listings:</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                            {listing_count} listing{listing_count !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Total available:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            {total_quantity.toLocaleString()} MT
+                        </span>
+                    </div>
+                </div>
+
+                {/* Price position bar */}
+                {price > 0 && range > 0 && (
+                    <div className="pt-1">
+                        <div className="relative h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400 dark:from-emerald-500 dark:via-amber-500 dark:to-rose-500 overflow-visible">
+                            {markerPct >= 0 && (
+                                <div
+                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-800 shadow-md"
+                                    style={{
+                                        left: `${markerPct}%`,
+                                        backgroundColor: markerPct <= 40 ? '#10b981' : markerPct <= 70 ? '#f59e0b' : '#f43f5e',
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono">
+                            <span>${min_price}</span>
+                            <span>${max_price}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Competitiveness label */}
+                {price > 0 && competitiveLabel && (
+                    <div className={`text-xs font-semibold ${competitiveColor}`}>
+                        {competitiveLabel}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -283,6 +503,9 @@ export const SupplierListingConsole: React.FC = () => {
                                                 <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{listing.availability_window}</td>
                                                 <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
                                                     {listing.quantity_mt.toLocaleString()} MT
+                                                    {listing.remaining_quantity_mt !== undefined && listing.remaining_quantity_mt !== listing.quantity_mt && (
+                                                        <div className="text-xs text-slate-400">({listing.remaining_quantity_mt.toLocaleString()} remaining)</div>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">${listing.price_per_mt_usd}</span>
@@ -304,9 +527,9 @@ export const SupplierListingConsole: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    {(listing.match_count || 0) > 0 ? (
+                                                    {(listing.trade_count || 0) > 0 ? (
                                                         <span className="px-3 py-1 bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-sm font-bold border border-purple-200 dark:border-purple-500/30">
-                                                            {listing.match_count}
+                                                            {listing.trade_count}
                                                         </span>
                                                     ) : (
                                                         <span className="text-slate-400">—</span>
@@ -314,21 +537,30 @@ export const SupplierListingConsole: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                                                        listing.status === 'ACTIVE'
+                                                        listing.status === 'OPEN'
                                                             ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30'
+                                                            : listing.status === 'PARTIALLY_FILLED'
+                                                            ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30'
                                                             : 'bg-slate-100 dark:bg-slate-600/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-500/50'
                                                     }`}>
-                                                        {listing.status}
+                                                        {listing.status === 'OPEN' ? 'Active' : listing.status === 'CANCELLED' ? 'Inactive' : listing.status === 'PARTIALLY_FILLED' ? 'Partial Fill' : listing.status === 'FILLED' ? 'Filled' : listing.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
+                                                            onClick={() => openEditModal(listing)}
+                                                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                            title="Edit"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
                                                             onClick={() => toggleListingStatus(listing.id, listing.status)}
                                                             className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                                                            title={listing.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                                            title={listing.status === 'OPEN' ? 'Deactivate' : 'Activate'}
                                                         >
-                                                            {listing.status === 'ACTIVE' ? <EyeOff size={16} /> : <Eye size={16} />}
+                                                            {listing.status === 'OPEN' ? <EyeOff size={16} /> : <Eye size={16} />}
                                                         </button>
                                                         <button
                                                             onClick={() => deleteListing(listing.id)}
@@ -363,7 +595,163 @@ export const SupplierListingConsole: React.FC = () => {
                     onSubmit={handleCreateListing}
                     onCancel={() => setIsCreateModalOpen(false)}
                     isLoading={isSubmitting}
+                    marketData={marketData}
                 />
+            )}
+
+            {/* Edit Listing Modal */}
+            {editingListing && (
+                <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200">Edit Listing</h2>
+                            <button
+                                onClick={closeEditModal}
+                                className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Form */}
+                        <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
+                            <div className="p-6 space-y-6">
+                                {/* Read-only Fields */}
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Fuel Type</label>
+                                        <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                                            {editingListing.fuel_type} ({editingListing.fuel_grade})
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Region</label>
+                                        <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                                            {editingListing.region}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Status</label>
+                                        <select
+                                            value={editForm.status}
+                                            onChange={(e) => handleEditFormChange('status', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        >
+                                            <option value="OPEN">Active</option>
+                                            <option value="CANCELLED">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Editable Fields */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Quantity (MT)</label>
+                                        <input
+                                            type="number"
+                                            value={editForm.quantity_mt || ''}
+                                            onChange={(e) => handleEditFormChange('quantity_mt', parseFloat(e.target.value) || 0)}
+                                            placeholder="e.g., 5000"
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Price ($/MT)</label>
+                                        <input
+                                            type="number"
+                                            value={editForm.price_per_mt_usd || ''}
+                                            onChange={(e) => handleEditFormChange('price_per_mt_usd', parseFloat(e.target.value) || 0)}
+                                            placeholder="e.g., 520"
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Price Benchmarking */}
+                                <MarketContextPanel
+                                    region={editingListing.region}
+                                    fuelType={editingListing.fuel_type}
+                                    price={editForm.price_per_mt_usd}
+                                />
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Availability Window</label>
+                                    <select
+                                        value={editForm.availability_window}
+                                        onChange={(e) => handleEditFormChange('availability_window', e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    >
+                                        {['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'].map(a => (
+                                            <option key={a} value={a}>{a}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Certifications */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Certifications</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Type a certification and press Enter"
+                                        onKeyDown={handleCertificationInputKeyDown}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    />
+                                    {editForm.certifications.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {editForm.certifications.map((cert, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="flex items-center gap-1 px-3 py-1 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30 rounded-full text-xs text-emerald-600 dark:text-emerald-400"
+                                                >
+                                                    <CheckCircle2 size={12} />
+                                                    {cert}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeEditCertification(idx)}
+                                                        className="ml-1 text-emerald-400 hover:text-red-400 transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={closeEditModal}
+                                    disabled={isUpdating}
+                                    className="flex-1 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={editForm.quantity_mt <= 0 || editForm.price_per_mt_usd <= 0 || isUpdating}
+                                    className={`flex-1 py-3 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                                        editForm.quantity_mt > 0 && editForm.price_per_mt_usd > 0 && !isUpdating
+                                            ? 'bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-900'
+                                            : 'bg-slate-200 dark:bg-slate-600 text-slate-400 cursor-not-allowed border border-slate-300 dark:border-transparent'
+                                    }`}
+                                >
+                                    {isUpdating ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={18} />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        'Save Changes'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
 
             <ConfirmModal

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { X, Upload, CheckCircle2, AlertCircle, Loader2, FileText, Trash2 } from 'lucide-react';
+import { X, Upload, CheckCircle2, AlertCircle, Loader2, FileText, Trash2, BarChart3 } from 'lucide-react';
+import type { AggregatedMarketEntry } from '../SupplierListingConsole';
 
 interface CreateListingModalProps {
     onSubmit: (data: ListingFormData) => void;
     onCancel: () => void;
     isLoading?: boolean;
+    marketData?: AggregatedMarketEntry[];
 }
 
 export interface ListingFormData {
@@ -26,6 +28,7 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
     onSubmit,
     onCancel,
     isLoading = false,
+    marketData = [],
 }) => {
     const [formData, setFormData] = useState<ListingFormData>({
         region: REGIONS[0],
@@ -78,6 +81,118 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
         e.preventDefault();
         if (formData.quantity_mt <= 0 || formData.price_per_mt_usd <= 0) return;
         onSubmit(formData);
+    };
+
+    // Find matching market data for selected region + fuel type
+    const marketEntry = marketData.find(
+        (d) => d.region === formData.region && d.fuel_type === formData.fuel_type
+    );
+
+    const renderMarketContext = () => {
+        if (!marketEntry) {
+            return (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-slate-700/30 p-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <BarChart3 size={14} />
+                        <span>No market data available for this combination</span>
+                    </div>
+                </div>
+            );
+        }
+
+        const { min_price, max_price, avg_price, total_quantity, listing_count } = marketEntry;
+        const range = max_price - min_price;
+        const price = formData.price_per_mt_usd;
+
+        // Competitiveness indicator
+        let competitiveLabel = '';
+        let competitiveColor = '';
+
+        if (price > 0 && avg_price > 0) {
+            const pctDiff = ((price - avg_price) / avg_price) * 100;
+            if (pctDiff <= -3) {
+                competitiveLabel = `Your price is ${Math.abs(pctDiff).toFixed(1)}% below market average`;
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+            } else if (pctDiff <= 3) {
+                competitiveLabel = 'Your price is competitive';
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+            } else if (pctDiff <= 10) {
+                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveColor = 'text-amber-600 dark:text-amber-400';
+            } else {
+                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveColor = 'text-rose-600 dark:text-rose-400';
+            }
+        }
+
+        // Position of price marker on the range bar (clamped 0-100%)
+        const markerPct = price > 0 && range > 0
+            ? Math.min(100, Math.max(0, ((price - min_price) / range) * 100))
+            : -1;
+
+        return (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-emerald-900/20 p-3 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    <BarChart3 size={14} className="text-emerald-500 dark:text-emerald-400" />
+                    Market Context
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Price range:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${min_price.toLocaleString()} - ${max_price.toLocaleString()} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Avg price:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${avg_price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Active listings:</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                            {listing_count} listing{listing_count !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">Total available:</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            {total_quantity.toLocaleString()} MT
+                        </span>
+                    </div>
+                </div>
+
+                {/* Price position bar */}
+                {price > 0 && range > 0 && (
+                    <div className="pt-1">
+                        <div className="relative h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400 dark:from-emerald-500 dark:via-amber-500 dark:to-rose-500 overflow-visible">
+                            {markerPct >= 0 && (
+                                <div
+                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-800 shadow-md"
+                                    style={{
+                                        left: `${markerPct}%`,
+                                        backgroundColor: markerPct <= 40 ? '#10b981' : markerPct <= 70 ? '#f59e0b' : '#f43f5e',
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono">
+                            <span>${min_price}</span>
+                            <span>${max_price}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Competitiveness label */}
+                {price > 0 && competitiveLabel && (
+                    <div className={`text-xs font-semibold ${competitiveColor}`}>
+                        {competitiveLabel}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -168,7 +283,8 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
                             </div>
                         </div>
 
-
+                        {/* Price Benchmarking */}
+                        {renderMarketContext()}
 
                         {/* Certification Upload */}
                         <div>

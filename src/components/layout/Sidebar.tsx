@@ -13,7 +13,7 @@ import {
     Hexagon,
     BarChart3,
     MonitorDot,
-    Handshake
+    TrendingUp
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -50,8 +50,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ] : [
         { id: 'DASHBOARD', label: 'Command Center', icon: LayoutDashboard },
         { id: 'QUOTES', label: 'Quotes & Orders', icon: ShoppingCart },
+        { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'INVENTORY', label: 'Inventory', icon: Box },
-        { id: 'LISTINGS', label: 'My Listings', icon: Handshake },
+        { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
+        { id: 'ANALYTICS', label: 'Analytics', icon: TrendingUp },
     ];
 
     const handleNavigate = (page: Page) => {

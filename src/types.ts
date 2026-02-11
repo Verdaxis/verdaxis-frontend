@@ -81,32 +81,6 @@ export interface Course {
     syllabus: string[];
 }
 
-export interface DirectOrder {
-    id: string;
-    portId: string;
-    fuelType: 'Methanol' | 'Biofuel' | 'LNG' | 'Ammonia (Green)';
-    quantity: number;
-    deliveryDate: string;
-    vesselId: string;
-    status: 'Pending' | 'Quoted' | 'Confirmed';
-    supplierId?: string;
-    price?: number;
-    offers?: DirectOrderOffer[];
-    buyerName?: string; // For Supplier View
-    buyerRiskProfile?: RiskProfile; // For Supplier View
-}
-
-export interface DirectOrderOffer {
-    id: string;
-    directOrderId: string;
-    supplierId: string;
-    pricePerMt: number;
-    validUntil?: string;
-    terms?: string;
-    isAccepted: boolean;
-    createdAt: string;
-}
-
 export interface InventoryItem {
     id: string;
     productName: string;
@@ -152,40 +126,73 @@ export type ViewMode = 'BUYER' | 'SUPPLIER';
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Forward 2028';
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
-export type ListingStatus = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'DELIVERED' | 'PAID' | 'CANCELLED';
 
-export interface PublicListing {
+// ============== Unified Orderbook Types ==============
+export type OrderSide = 'BID' | 'ASK';
+export type OrderBookStatus = 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'EXPIRED';
+export type TradeStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'DELIVERED' | 'PAID' | 'CANCELLED' | 'DECLINED';
+export type Initiator = 'BUYER' | 'SELLER';
+
+export interface OrderBookOrder {
     id: string;
-    region: string;
+    organization_id?: string; // Only in "my" view
+    side: OrderSide;
     fuel_type: string;
     fuel_grade: FuelGrade;
+    region: string;
+    port_id?: string;
+    vessel_id?: string;
     quantity_mt: number;
+    remaining_quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: AvailabilityWindow;
-    tier_label: TierLabel;
+    delivery_window_start?: string;
+    delivery_window_end?: string;
     certifications: string[];
     is_verdaxis_verified: boolean;
-    status: ListingStatus;
+    tier_label: TierLabel;
+    status: OrderBookStatus;
+    expires_at?: string;
     created_at: string;
+    updated_at?: string;
+    trade_count?: number; // Only in "my" view
 }
 
-export interface Order {
+export interface Trade {
     id: string;
-    listing_id: string;
-    buyer_id?: string;
-    status: OrderStatus;
-    buyer_accepted_terms_at: string;
-    created_at: string;
-    // De-anonymized details (after match)
-    supplier_name?: string;
-    buyer_name?: string;
-    requested_quantity_mt?: number;
-    requested_delivery_date?: string;
+    bid_order_id?: string;
+    ask_order_id?: string;
+    buyer_id: string;
+    seller_id: string;
+    buyer_name: string;
+    seller_name: string;
+    initiated_by: Initiator;
+    quantity_mt: number;
+    price_per_mt_usd: number;
+    status: TradeStatus;
     final_quantity_mt?: number;
     final_price_per_mt?: number;
     final_total_usd?: number;
-    price_per_mt_usd?: number; // From listing
+    commission_rate_pct: number;
+    commission_amount_usd?: number;
+    confirmed_at?: string;
+    delivered_at?: string;
+    paid_at?: string;
+    created_at: string;
+    // Denormalized from order
+    fuel_type: string;
+    fuel_grade?: FuelGrade;
+    region: string;
 }
 
-export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'DIRECT_ORDER_MARKETPLACE' | 'LISTINGS';
+export interface AggregatedOrderbook {
+    region: string;
+    fuel_type: string;
+    side: OrderSide;
+    min_price: number;
+    max_price: number;
+    total_quantity: number;
+    order_count: number;
+}
+
+export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, TrendingUp, Anchor, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { DirectOrder, Page } from '../types';
+import { Page, Trade } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 
@@ -10,7 +10,7 @@ interface BuyerDashboardProps {
 }
 
 export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, openOrderId }) => {
-    const [requests, setRequests] = useState<DirectOrder[]>([]);
+    const [requests, setRequests] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     
@@ -30,11 +30,10 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
-        type: 'ACCEPT_OFFER' | 'ERROR' | 'SUCCESS' | null;
+        type: 'CONFIRM_TRADE' | 'ERROR' | 'SUCCESS' | null;
         title: string;
         message: string;
-        quoteId?: string;
-        offerId?: string;
+        tradeId?: string;
         variant?: 'info' | 'success' | 'danger' | 'warning';
     }>({
         isOpen: false,
@@ -49,44 +48,43 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
     };
 
     useEffect(() => {
-        const fetchQuotes = async () => {
+        const fetchTrades = async () => {
             try {
-                const data = await api.directOrders.list();
+                const data = await api.trades.myTrades();
                 setRequests(data);
             } catch (e) {
-                console.error("Error fetching quotes", e);
+                console.error("Error fetching trades", e);
             } finally {
                 setLoading(false);
             }
         };
-        fetchQuotes();
+        fetchTrades();
     }, []);
 
-    const handleAcceptOffer = (quoteId: string, offerId: string) => {
+    const handleConfirmTrade = (tradeId: string) => {
         setConfirmState({
             isOpen: true,
-            type: 'ACCEPT_OFFER',
-            title: 'Accept Offer',
-            message: 'Are you sure you want to accept this offer? This will generate a binding confirmation.',
-            quoteId,
-            offerId,
+            type: 'CONFIRM_TRADE',
+            title: 'Confirm Trade',
+            message: 'Are you sure you want to confirm this trade? This will generate a binding confirmation.',
+            tradeId,
             variant: 'info'
         });
     };
 
     const handleConfirmAction = async () => {
-        if (confirmState.type === 'ACCEPT_OFFER' && confirmState.quoteId && confirmState.offerId) {
+        if (confirmState.type === 'CONFIRM_TRADE' && confirmState.tradeId) {
             setProcessing(true);
             try {
-                await api.directOrders.acceptOffer(confirmState.quoteId, confirmState.offerId);
-                setRequests(prev => prev.map(r => 
-                    r.id === confirmState.quoteId ? { ...r, status: 'Confirmed' } : r
+                await api.trades.confirm(confirmState.tradeId);
+                setRequests(prev => prev.map(r =>
+                    r.id === confirmState.tradeId ? { ...r, status: 'CONFIRMED' as const } : r
                 ));
                  setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
-                    title: 'Offer Accepted',
-                    message: 'Offer accepted successfully!',
+                    title: 'Trade Confirmed',
+                    message: 'Trade confirmed successfully!',
                     variant: 'success'
                 });
             } catch (e: any) {
@@ -94,7 +92,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                     isOpen: true,
                     type: 'ERROR',
                     title: 'Action Failed',
-                    message: 'Failed to accept offer: ' + e.message,
+                    message: 'Failed to confirm trade: ' + e.message,
                     variant: 'danger'
                 });
             } finally {
@@ -137,66 +135,81 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                             <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <span className={`text-sm font-bold uppercase ${req.fuelType === 'Methanol' ? 'text-blue-600' : 'text-green-600'}`}>
-                                            {req.fuelType}
+                                        <span className={`text-sm font-bold uppercase ${req.fuel_type === 'Methanol' ? 'text-blue-600' : 'text-green-600'}`}>
+                                            {req.fuel_type}
                                         </span>
                                         <span className="text-slate-400">•</span>
-                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{req.quantity} MT</span>
+                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{req.quantity_mt} MT</span>
+                                        <span className="text-slate-400">•</span>
+                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">${req.price_per_mt_usd}/MT</span>
                                     </div>
-                                    <div className="text-xs text-slate-500 mt-1">ID: {req.id.slice(0, 8)} • {req.deliveryDate}</div>
+                                    <div className="text-xs text-slate-500 mt-1">ID: {req.id.slice(0, 8)} • {new Date(req.created_at).toLocaleDateString()} • Seller: {req.seller_name}</div>
                                 </div>
                                 <div>
-                                    {req.status === 'Pending' && (
+                                    {req.status === 'PENDING_CONFIRMATION' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                            <Clock size={14} /> Pending Quotes
+                                            <Clock size={14} /> Pending Confirmation
                                         </span>
                                     )}
-                                    {req.status === 'Negotiating' && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                            <TrendingUp size={14} /> Offers Received
-                                        </span>
-                                    )}
-                                    {req.status === 'Confirmed' && (
+                                    {req.status === 'CONFIRMED' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                                             <CheckCircle size={14} /> Confirmed
+                                        </span>
+                                    )}
+                                    {req.status === 'DELIVERED' && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                                            <TrendingUp size={14} /> Delivered
+                                        </span>
+                                    )}
+                                    {req.status === 'PAID' && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                            <CheckCircle size={14} /> Paid
+                                        </span>
+                                    )}
+                                    {req.status === 'CANCELLED' && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                                            <AlertCircle size={14} /> Cancelled
+                                        </span>
+                                    )}
+                                    {req.status === 'DECLINED' && (
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                                            <AlertCircle size={14} /> Declined
                                         </span>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Offers Section */}
+                            {/* Trade Details */}
                             <div className="p-6">
-                                {req.offers && req.offers.length > 0 ? (
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Supplier Offers</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                            {req.offers.map(offer => (
-                                                <div key={offer.id} className={`p-4 rounded-lg border ${offer.isAccepted ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-slate-200 dark:border-slate-700'}`}>
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <span className="font-bold text-lg text-slate-900 dark:text-white">${offer.pricePerMt}</span>
-                                                        {offer.isAccepted && <CheckCircle className="text-emerald-500" size={20} />}
-                                                    </div>
-                                                    <div className="text-xs text-slate-500 dark:text-slate-400 mb-4 space-y-1">
-                                                        <p>Valid until: {new Date(offer.validUntil || '').toLocaleDateString()}</p>
-                                                        <p>{offer.terms}</p>
-                                                    </div>
-                                                    {!req.offers?.some(o => o.isAccepted) && (
-                                                        <button 
-                                                            onClick={() => handleAcceptOffer(req.id, offer.id)}
-                                                            disabled={processing}
-                                                            className="w-full py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold rounded hover:opacity-90 transition-opacity"
-                                                        >
-                                                            Accept Offer
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Region</div>
+                                        <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{req.region}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Quantity</div>
+                                        <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{req.quantity_mt} MT</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Price</div>
+                                        <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${req.price_per_mt_usd}/MT</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Total</div>
+                                        <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                                            {req.final_total_usd ? `$${Number(req.final_total_usd).toLocaleString()}` : `$${(req.quantity_mt * req.price_per_mt_usd).toLocaleString()}`}
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="text-sm text-slate-500 flex items-center gap-2">
-                                        <Loader2 size={16} className="animate-spin" />
-                                        Waiting for suppliers to quote...
+                                </div>
+                                {req.status === 'PENDING_CONFIRMATION' && (
+                                    <div className="mt-4 flex justify-end">
+                                        <button
+                                            onClick={() => handleConfirmTrade(req.id)}
+                                            disabled={processing}
+                                            className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold rounded hover:opacity-90 transition-opacity"
+                                        >
+                                            Confirm Trade
+                                        </button>
                                     </div>
                                 )}
                             </div>

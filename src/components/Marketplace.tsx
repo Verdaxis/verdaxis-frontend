@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw } from 'lucide-react';
-import { Port, PublicListing, AvailabilityWindow } from '../types';
+import { Port, AvailabilityWindow, OrderBookOrder } from '../types';
 import { PORTS } from '../data'; 
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -12,8 +12,8 @@ interface MarketplaceProps {
 }
 
 const ListingCard: React.FC<{
-    listing: PublicListing;
-    onBuy: (listing: PublicListing) => void;
+    listing: OrderBookOrder;
+    onBuy: (listing: OrderBookOrder) => void;
 }> = ({ listing, onBuy }) => {
     return (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
@@ -89,7 +89,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [fuelType, setFuelType] = useState('Methanol');
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>('');
     
-    const [listings, setListings] = useState<PublicListing[]>([]);
+    const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
     
@@ -98,7 +98,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Selected Listing for Modal
-    const [selectedListing, setSelectedListing] = useState<PublicListing | null>(null);
+    const [selectedListing, setSelectedListing] = useState<OrderBookOrder | null>(null);
     const [buyQuantity, setBuyQuantity] = useState<number>(0);
     const [buyDate, setBuyDate] = useState<string>('');
 
@@ -148,9 +148,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         if (!isSilent) setLoading(true);
         
         try {
-            const data = await api.listings.list({
-                region: portInput,
-                fuelType: fuelType === 'All' ? undefined : fuelType,
+            const data = await api.orderbook.listAsks({
+                region: portInput || undefined,
+                fuel_type: fuelType === 'All' ? undefined : fuelType,
                 availability: availability || undefined
             });
             setListings(data);
@@ -170,7 +170,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         return () => clearInterval(interval);
     }, [portInput, fuelType, availability]);
 
-    const handleBuyClick = (listing: PublicListing) => {
+    const handleBuyClick = (listing: OrderBookOrder) => {
         setSelectedListing(listing);
         setBuyQuantity(listing.quantity_mt); // Default to max available
         // Default date: today + 14 days
@@ -184,7 +184,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         
         setIsSubmitting(true);
         try {
-            await api.orders.create(selectedListing.id, true, buyQuantity, buyDate);
+            await api.trades.initiate({ order_id: selectedListing.id, quantity_mt: buyQuantity || selectedListing.quantity_mt });
             setSelectedListing(null);
             setConfirmState({
                 isOpen: true,
