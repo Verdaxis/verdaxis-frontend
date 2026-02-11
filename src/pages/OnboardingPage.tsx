@@ -46,7 +46,7 @@ export const OnboardingPage: React.FC = () => {
             
             // Force reload or re-fetch profile?
             // Ideally AuthContext should expose a `refreshUser` or we just reload window
-            window.location.href = '/'; 
+            window.location.href = '/app'; 
             
         } catch (err: any) {
             console.error("Onboarding error:", err);
