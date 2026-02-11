@@ -1,5 +1,5 @@
 
-import { Port, Supplier, Course, DirectOrder, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
+import { Port, Supplier, Course, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
 
 export const PORTS: Port[] = [
     {
@@ -612,57 +612,6 @@ export const COURSES: Course[] = [
             "Compatibility Testing"
         ]
     },
-];
-
-// Enriched mock requests for Supplier view
-export const MOCK_REQUESTS: DirectOrder[] = [
-    { 
-        id: 'qr-101', portId: 'sg-sin', fuelType: 'Methanol', quantity: 500, deliveryDate: '2023-11-15', vesselId: 'v1', status: 'Pending', buyerName: 'Global Shipping Co.',
-        buyerRiskProfile: { creditScore: 90, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'AA', avgPaymentDays: 28 }
-    },
-    { 
-        id: 'qr-102', portId: 'nl-rtm', fuelType: 'Biofuel', quantity: 200, deliveryDate: '2023-11-18', vesselId: 'v2', status: 'Quoted', supplierId: 's2', price: 110000, buyerName: 'Oceanic Freight',
-        buyerRiskProfile: { creditScore: 82, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'A', avgPaymentDays: 35 }
-    },
-    { id: 'qr-103', portId: 'nl-rtm', fuelType: 'LNG', quantity: 1500, deliveryDate: '2023-11-20', vesselId: 'v3', status: 'Pending', buyerName: 'Blue Horizon Logistics',
-        buyerRiskProfile: { creditScore: 75, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 15', solvencyGrade: 'B', avgPaymentDays: 42 }
-    },
-    { id: 'qr-104', portId: 'sg-sin', fuelType: 'Biofuel', quantity: 800, deliveryDate: '2023-11-22', vesselId: 'v4', status: 'Confirmed', supplierId: 's1', price: 624000, buyerName: 'Global Shipping Co.',
-        buyerRiskProfile: { creditScore: 90, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'AA', avgPaymentDays: 28 }
-    },
-    { id: 'qr-105', portId: 'us-hou', fuelType: 'Methanol', quantity: 1200, deliveryDate: '2023-12-01', vesselId: 'v1', status: 'Quoted', supplierId: 's3', price: 576000, buyerName: 'Global Shipping Co.',
-        buyerRiskProfile: { creditScore: 90, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'AA', avgPaymentDays: 28 }
-    },
-    { id: 'qr-106', portId: 'cn-sha', fuelType: 'Methanol', quantity: 450, deliveryDate: '2023-12-05', vesselId: 'v2', status: 'Pending', buyerName: 'East Sea Trans',
-        buyerRiskProfile: { creditScore: 65, kybStatus: 'Pending', sanctionsClear: true, paymentTerms: 'Prepayment', solvencyGrade: 'C', avgPaymentDays: 55 }
-    },
-    { id: 'qr-107', portId: 'sg-sin', fuelType: 'Biofuel', quantity: 300, deliveryDate: '2023-12-08', vesselId: 'v4', status: 'Confirmed', supplierId: 's1', price: 234000, buyerName: 'Nordic Lines',
-        buyerRiskProfile: { creditScore: 88, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 45', solvencyGrade: 'A', avgPaymentDays: 30 }
-    },
-    { id: 'qr-108', portId: 'gi-gib', fuelType: 'Biofuel', quantity: 600, deliveryDate: '2023-12-10', vesselId: 'v1', status: 'Pending', buyerName: 'Med Logistica',
-        buyerRiskProfile: { creditScore: 78, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'B', avgPaymentDays: 38 }
-    },
-    { id: 'qr-109', portId: 'be-ant', fuelType: 'Methanol', quantity: 1000, deliveryDate: '2023-12-12', vesselId: 'v3', status: 'Pending', buyerName: 'Atlantic Carriers',
-        buyerRiskProfile: { creditScore: 92, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 60', solvencyGrade: 'AAA', avgPaymentDays: 25 }
-    },
-    { id: 'qr-110', portId: 'kr-bus', fuelType: 'Ammonia (Green)', quantity: 2500, deliveryDate: '2023-12-15', vesselId: 'v2', status: 'Quoted', supplierId: 's1', price: 1450000, buyerName: 'Pacific Rim Shipping',
-        buyerRiskProfile: { creditScore: 85, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'A', avgPaymentDays: 32 }
-    },
-    { id: 'qr-111', portId: 'pa-bal', fuelType: 'Biofuel', quantity: 400, deliveryDate: '2023-12-18', vesselId: 'v4', status: 'Pending', buyerName: 'Americas Freight',
-        buyerRiskProfile: { creditScore: 70, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'B', avgPaymentDays: 45 }
-    },
-    { id: 'qr-112', portId: 'nl-rtm', fuelType: 'Methanol', quantity: 850, deliveryDate: '2023-12-20', vesselId: 'v1', status: 'Confirmed', supplierId: 's2', price: 463250, buyerName: 'Global Shipping Co.',
-        buyerRiskProfile: { creditScore: 90, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'AA', avgPaymentDays: 28 }
-    },
-    { id: 'qr-113', portId: 'ae-jeb', fuelType: 'Biofuel', quantity: 1500, deliveryDate: '2023-12-22', vesselId: 'v3', status: 'Pending', buyerName: 'Gulf Stream Tankers',
-        buyerRiskProfile: { creditScore: 81, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 45', solvencyGrade: 'A', avgPaymentDays: 40 }
-    },
-    { id: 'qr-114', portId: 'be-ant', fuelType: 'LNG', quantity: 3000, deliveryDate: '2023-12-24', vesselId: 'v2', status: 'Quoted', supplierId: 's2', price: 1950000, buyerName: 'North Sea Logistics',
-        buyerRiskProfile: { creditScore: 89, kybStatus: 'Verified', sanctionsClear: true, paymentTerms: 'Net 30', solvencyGrade: 'A', avgPaymentDays: 29 }
-    },
-    { id: 'qr-115', portId: 'sg-sin', fuelType: 'Ammonia (Green)', quantity: 500, deliveryDate: '2023-12-28', vesselId: 'v4', status: 'Pending', buyerName: 'Future Energy Maritime',
-        buyerRiskProfile: { creditScore: 60, kybStatus: 'Pending', sanctionsClear: true, paymentTerms: 'Prepayment', solvencyGrade: 'C', avgPaymentDays: 60 }
-    }
 ];
 
 export const TRACE_EVENTS: TraceEvent[] = [

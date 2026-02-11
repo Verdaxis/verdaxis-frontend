@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, DirectOrder, InventoryItem, Notification, Course } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course } from '../types';
 import { API_URL } from './config';
 
 // Helper to get auth header
@@ -23,6 +23,12 @@ const handleResponse = async (res: Response) => {
     return res.json();
 };
 
+// Helper to fetch from API and handle response
+const fetchApi = async (path: string, options?: RequestInit) => {
+    const res = await fetch(`${API_URL}${path}`, options);
+    return handleResponse(res);
+};
+
 export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
@@ -34,6 +40,7 @@ export const api = {
                 location: { lat: p.lat, lng: p.lng },
                 // Ensure default values for missing intelligence/details if necessary
                 priceMethanol: p.intelligence?.methanol_price_avg || 0,
+                priceTrend: p.intelligence?.price_trend ?? 0,
                 methanolSupply: p.intelligence?.congestion_level || 'Medium', // Use congestion as proxy or default
                 details: {
                     ...p.details,
@@ -111,77 +118,6 @@ export const api = {
         }
     },
 
-    directOrders: {
-        list: async (): Promise<DirectOrder[]> => {
-             const res = await fetch(`${API_URL}/direct-orders`, { headers: getHeaders() });
-             const data = await handleResponse(res);
-             return data.map((q: any) => ({
-                 id: q.id,
-                 portId: q.port_id,
-                 fuelType: q.fuel_type,
-                 quantity: q.quantity_mt,
-                 deliveryDate: q.delivery_window_start,
-                 vesselId: q.vessel_id,
-                 status: q.status,
-                 supplierId: q.awarded_supplier_id,
-                 price: q.final_price_per_mt,
-                 offers: q.offers?.map((o: any) => ({
-                     id: o.id,
-                     directOrderId: o.direct_order_id,
-                     supplierId: o.supplier_id,
-                     pricePerMt: o.price_per_mt_usd,
-                     validUntil: o.valid_until,
-                     terms: o.terms_and_conditions,
-                     isAccepted: o.is_accepted,
-                     createdAt: o.created_at
-                 })) || []
-             }));
-        },
-        create: async (request: Partial<DirectOrder>): Promise<DirectOrder> => {
-            const payload = {
-                port_id: request.portId,
-                fuel_type: request.fuelType,
-                quantity_mt: request.quantity,
-                delivery_window_start: request.deliveryDate,
-                delivery_window_end: request.deliveryDate, // Simplified 1-day window
-                vessel_id: request.vesselId
-            };
-            const res = await fetch(`${API_URL}/direct-orders`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(payload)
-            });
-            return handleResponse(res);
-        },
-        createOffer: async (quoteId: string, offer: { pricePerMt: number, validUntil?: string, terms?: string }): Promise<any> => {
-            const payload = {
-                price_per_mt_usd: offer.pricePerMt,
-                valid_until: offer.validUntil,
-                terms_and_conditions: offer.terms
-            };
-            const res = await fetch(`${API_URL}/direct-orders/${quoteId}/offers`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(payload)
-            });
-            return handleResponse(res);
-        },
-        acceptOffer: async (quoteId: string, offerId: string): Promise<any> => {
-             const res = await fetch(`${API_URL}/direct-orders/${quoteId}/accept/${offerId}`, {
-                method: 'PUT',
-                headers: getHeaders()
-            });
-            return handleResponse(res);
-        },
-        update: async (id: string, updates: any): Promise<any> => {
-            // Not implemented fully yet
-            return {};
-        },
-        delete: async (id: string): Promise<void> => {
-            return;
-        }
-    },
-
     inventory: {
         list: async (): Promise<InventoryItem[]> => {
             const res = await fetch(`${API_URL}/inventory`, { headers: getHeaders() });
@@ -208,6 +144,31 @@ export const api = {
                     status: status
                 };
             });
+        },
+        publish: async (itemId: string): Promise<any> => {
+            const res = await fetch(`${API_URL}/inventory/${itemId}/publish`, {
+                method: 'POST',
+                headers: getHeaders()
+            });
+            return handleResponse(res);
+        },
+        update: async (itemId: string, data: any): Promise<any> => {
+            const res = await fetch(`${API_URL}/inventory/${itemId}`, {
+                method: 'PATCH',
+                headers: getHeaders(),
+                body: JSON.stringify(data)
+            });
+            return handleResponse(res);
+        },
+        delete: async (itemId: string): Promise<void> => {
+            const res = await fetch(`${API_URL}/inventory/${itemId}`, {
+                method: 'DELETE',
+                headers: getHeaders()
+            });
+            if (!res.ok) {
+                const error = await res.text();
+                throw new Error(error || "Failed to delete inventory item");
+            }
         },
         add: async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
             // Transform frontend format to backend format
@@ -290,102 +251,101 @@ export const api = {
         }
     },
 
-    // ============== Order Marketplace API ==============
-    listings: {
-        list: async (filters?: { region?: string; fuelType?: string; availability?: string }): Promise<any[]> => {
-            const params = new URLSearchParams();
-            if (filters?.region) params.append('region', filters.region);
-            if (filters?.fuelType) params.append('fuel_type', filters.fuelType); // Note snake_case param in backend
-            if (filters?.availability) params.append('availability', filters.availability);
-            
-            const res = await fetch(`${API_URL}/listings?${params.toString()}`, { headers: getHeaders() });
-            const data = await handleResponse(res);
-            return data.map((item: any) => ({
-                ...item,
-                quantity_mt: Number(item.quantity_mt),
-                price_per_mt_usd: Number(item.price_per_mt_usd)
-            }));
+    orderbook: {
+        list: async (params?: { region?: string; fuel_type?: string; side?: string; availability?: string }) => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.side) searchParams.append('side', params.side);
+            if (params?.availability) searchParams.append('availability', params.availability);
+            const query = searchParams.toString();
+            return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
-        getAggregated: async (): Promise<any[]> => {
-            const res = await fetch(`${API_URL}/listings/aggregated`, { headers: getHeaders() });
-            return handleResponse(res);
+        listBids: async (params?: { region?: string; fuel_type?: string; availability?: string }) => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.availability) searchParams.append('availability', params.availability);
+            const query = searchParams.toString();
+            return fetchApi(`/orderbook/bids${query ? `?${query}` : ''}`);
         },
-        getRegions: async (): Promise<string[]> => {
-             const res = await fetch(`${API_URL}/listings/regions/list`, { headers: getHeaders() });
-             return handleResponse(res);
+        listAsks: async (params?: { region?: string; fuel_type?: string; availability?: string }) => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.availability) searchParams.append('availability', params.availability);
+            const query = searchParams.toString();
+            return fetchApi(`/orderbook/asks${query ? `?${query}` : ''}`);
         },
-        getFuelTypes: async (): Promise<string[]> => {
-             const res = await fetch(`${API_URL}/listings/fuel-types/list`, { headers: getHeaders() });
-             return handleResponse(res);
+        myOrders: async () => {
+            return fetchApi('/orderbook/my', { headers: getHeaders() });
         },
-        getMyListings: async (): Promise<any[]> => {
-             const res = await fetch(`${API_URL}/listings/my`, { headers: getHeaders() });
-             return handleResponse(res);
-        },
-        create: async (data: any): Promise<any> => {
-             const res = await fetch(`${API_URL}/listings`, {
+        create: async (data: any) => {
+            return fetchApi('/orderbook', {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(data)
+                body: JSON.stringify(data),
             });
-            return handleResponse(res);
         },
-        delete: async (id: string): Promise<void> => {
-             const res = await fetch(`${API_URL}/listings/${id}`, {
-                method: 'DELETE',
-                headers: getHeaders()
+        update: async (id: string, data: any) => {
+            return fetchApi(`/orderbook/${id}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(data),
             });
-            if (!res.ok) {
-                const error = await res.text();
-                throw new Error(error || "Failed to delete listing");
-            }
-        }
+        },
+        cancel: async (id: string) => {
+            return fetchApi(`/orderbook/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+            });
+        },
+        aggregated: async () => {
+            return fetchApi('/orderbook/aggregated');
+        },
+        regions: async () => {
+            return fetchApi('/orderbook/regions');
+        },
+        fuelTypes: async () => {
+            return fetchApi('/orderbook/fuel-types');
+        },
     },
 
-    orders: {
-        create: async (listingId: string, acceptedTerms: boolean, quantity?: number, deliveryDate?: string): Promise<any> => {
-            const res = await fetch(`${API_URL}/orders`, {
+    trades: {
+        initiate: async (data: { order_id: string; quantity_mt: number }) => {
+            return fetchApi('/trades', {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify({ 
-                    listing_id: listingId, 
-                    accepted_terms: acceptedTerms,
-                    quantity_mt: quantity,
-                    delivery_date: deliveryDate
-                })
+                body: JSON.stringify(data),
             });
-            return handleResponse(res);
         },
-        listMyOrders: async (): Promise<any[]> => {
-             const res = await fetch(`${API_URL}/orders/my-orders`, { headers: getHeaders() });
-             return handleResponse(res);
+        myTrades: async () => {
+            return fetchApi('/trades/my', { headers: getHeaders() });
         },
-        listIncoming: async (): Promise<any[]> => {
-             const res = await fetch(`${API_URL}/orders/incoming`, { headers: getHeaders() });
-             return handleResponse(res);
-        },
-        respond: async (orderId: string, status: string): Promise<any> => {
-             const res = await fetch(`${API_URL}/orders/${orderId}/respond`, {
+        confirm: async (tradeId: string) => {
+            return fetchApi(`/trades/${tradeId}/confirm`, {
                 method: 'PUT',
                 headers: getHeaders(),
-                body: JSON.stringify({ status })
             });
-            return handleResponse(res);
         },
-        deliver: async (orderId: string, data: { final_quantity_mt: number, final_price_per_mt: number }): Promise<any> => {
-             const res = await fetch(`${API_URL}/orders/${orderId}/deliver`, {
+        decline: async (tradeId: string) => {
+            return fetchApi(`/trades/${tradeId}/decline`, {
                 method: 'PUT',
                 headers: getHeaders(),
-                body: JSON.stringify(data)
             });
-            return handleResponse(res);
         },
-        markPaid: async (orderId: string): Promise<any> => {
-             const res = await fetch(`${API_URL}/orders/${orderId}/pay`, {
+        deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }) => {
+            return fetchApi(`/trades/${tradeId}/deliver`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(data),
+            });
+        },
+        pay: async (tradeId: string) => {
+            return fetchApi(`/trades/${tradeId}/pay`, {
                 method: 'POST',
-                headers: getHeaders()
+                headers: getHeaders(),
             });
-            return handleResponse(res);
-        }
+        },
     },
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
     ResponsiveContainer,
     LineChart,
@@ -7,21 +7,18 @@ import {
     YAxis,
     CartesianGrid,
     Tooltip as RechartsTooltip,
-    BarChart,
-    Bar
 } from 'recharts';
 import {
     ArrowUpRight,
     ArrowDownRight,
     Zap,
     Maximize2,
-    X,
     TrendingUp,
     Activity,
     Loader2,
     ChevronDown
 } from 'lucide-react';
-import { PublicListing, Port } from '../types';
+import { Port, OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 
@@ -39,6 +36,16 @@ interface TerminalRow {
     flash?: 'up' | 'down' | null;
 }
 
+interface TradeEvent {
+    id: string;
+    time: string;
+    qty: number;
+    price: number;
+    port: string;
+    period: string;
+    side: 'BUY' | 'SELL';
+}
+
 // Map availability windows to terminal periods
 const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type'] }[] = [
     { window: 'Spot', period: 'SPOT', type: 'SPOT' },
@@ -50,8 +57,100 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
     { window: 'Forward 2028', period: 'CAL 28', type: 'YEAR' },
 ];
 
+// Base prices by fuel type for simulation
+const FUEL_BASE_PRICES: Record<string, number> = {
+    'Methanol': 540,
+    'Biofuel': 1200,
+    'LNG': 680,
+    'Ammonia': 450,
+    'Ethanol': 780,
+    'LSMGO': 620,
+};
+
+// Region price modifiers (spread vs base)
+const REGION_MODIFIERS: Record<string, number> = {
+    'Singapore': 0,
+    'Rotterdam': 8,
+    'ARA': 10,
+    'Houston': -12,
+    'Fujairah': 5,
+    'Busan': 3,
+    'Shanghai': -5,
+    'Algeciras': 6,
+};
+
 // Available fuel types for the selector
 const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia', 'Ethanol', 'LSMGO'];
+
+// Seeded random for deterministic-looking but varying data
+const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+};
+
+// Generate simulated market data for a period
+const generateSimulatedRow = (
+    periodIndex: number,
+    basePrice: number,
+    realAsk: number | null,
+    realAskQty: number | null,
+    tick: number
+): { bid: number; bidQty: number; last: number; change: number } => {
+    // Forward curve: slight contango (prices increase with time)
+    const forwardPremium = periodIndex * (2 + seededRandom(tick * 7 + periodIndex) * 3);
+    const periodBase = basePrice + forwardPremium;
+
+    // Small tick-to-tick variance
+    const tickNoise = (seededRandom(tick * 13 + periodIndex * 37) - 0.5) * 4;
+    const currentMid = periodBase + tickNoise;
+
+    // Bid sits below ask (or below mid if no ask)
+    const spread = 3 + seededRandom(tick * 19 + periodIndex) * 5;
+    const bid = realAsk
+        ? realAsk - spread
+        : currentMid - spread / 2;
+
+    // Bid quantity: random realistic amounts
+    const bidQty = Math.round((200 + seededRandom(tick * 23 + periodIndex * 11) * 800) / 50) * 50;
+
+    // Last done: between bid and ask, with slight randomness
+    const askForCalc = realAsk || (currentMid + spread / 2);
+    const lastPct = 0.3 + seededRandom(tick * 29 + periodIndex * 43) * 0.4;
+    const last = bid + (askForCalc - bid) * lastPct;
+
+    // Change from previous (small random delta)
+    const change = (seededRandom(tick * 31 + periodIndex * 53) - 0.45) * 8;
+
+    return {
+        bid: Math.round(bid * 100) / 100,
+        bidQty,
+        last: Math.round(last * 100) / 100,
+        change: Math.round(change * 100) / 100,
+    };
+};
+
+// Generate a simulated trade event
+const generateTradeEvent = (port: string, tick: number, idx: number, basePrice: number): TradeEvent => {
+    const periodIdx = Math.floor(seededRandom(tick * 41 + idx * 67) * PERIOD_CONFIG.length);
+    const period = PERIOD_CONFIG[periodIdx].period;
+    const forwardPremium = periodIdx * 2.5;
+    const price = basePrice + forwardPremium + (seededRandom(tick * 47 + idx * 71) - 0.5) * 10;
+    const qty = Math.round((100 + seededRandom(tick * 53 + idx * 79) * 900) / 50) * 50;
+    const side = seededRandom(tick * 59 + idx * 83) > 0.5 ? 'BUY' : 'SELL';
+    const now = new Date();
+    now.setSeconds(now.getSeconds() - Math.floor(seededRandom(tick * 61 + idx) * 60));
+    const time = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    return {
+        id: `${tick}-${idx}`,
+        time,
+        qty,
+        price: Math.round(price * 100) / 100,
+        port,
+        period,
+        side,
+    };
+};
 
 export const MarketTerminal: React.FC = () => {
     const { setPageContext } = useCopilotContext();
@@ -63,109 +162,154 @@ export const MarketTerminal: React.FC = () => {
     const [showPortDropdown, setShowPortDropdown] = useState(false);
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
 
-    // Listings from API (marketplace sync)
-    const [allListings, setAllListings] = useState<PublicListing[]>([]);
+    // Orders from API (orderbook sync)
+    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Simulation tick counter (drives price movement)
+    const [tick, setTick] = useState(0);
+    const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
+    const tradeScrollRef = useRef<HTMLDivElement>(null);
 
     // Fetch ports for the selector
     useEffect(() => {
         api.ports.list().then(setPorts).catch(console.error);
     }, []);
 
-    // Fetch listings from the marketplace (one-way sync)
-    const fetchListings = async () => {
+    // Fetch orders from the orderbook (one-way sync)
+    const fetchOrders = async () => {
         setLoading(true);
         try {
-            const data = await api.listings.list({});
-            setAllListings(data);
+            const data = await api.orderbook.list();
+            setAllOrders(data);
         } catch (e) {
-            console.error('Failed to load listings for terminal', e);
+            console.error('Failed to load orderbook for terminal', e);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchListings();
-        // Auto-refresh every 30 seconds
-        const interval = setInterval(fetchListings, 30000);
+        fetchOrders();
+        const interval = setInterval(fetchOrders, 30000);
         return () => clearInterval(interval);
     }, []);
 
-    // Filter listings by selected port and fuel
-    const filteredListings = useMemo(() => {
-        return allListings.filter(l => {
-            const matchPort = l.region.toLowerCase().includes(selectedPort.toLowerCase());
-            const matchFuel = l.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
+    // Simulation tick: update every 6 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTick(t => t + 1);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Generate trade events on tick
+    const basePrice = FUEL_BASE_PRICES[selectedFuel] || 540;
+    const regionMod = REGION_MODIFIERS[selectedPort] || 0;
+    const effectiveBase = basePrice + regionMod;
+
+    useEffect(() => {
+        if (tick === 0) return;
+        // Generate 1-3 new trades per tick
+        const count = 1 + Math.floor(seededRandom(tick * 97) * 3);
+        const newTrades: TradeEvent[] = [];
+        for (let i = 0; i < count; i++) {
+            newTrades.push(generateTradeEvent(selectedPort, tick, i, effectiveBase));
+        }
+        setTradeEvents(prev => [...newTrades, ...prev].slice(0, 50));
+    }, [tick, selectedPort, effectiveBase]);
+
+    // Auto-scroll trade feed
+    useEffect(() => {
+        if (tradeScrollRef.current) {
+            tradeScrollRef.current.scrollTop = 0;
+        }
+    }, [tradeEvents]);
+
+    // Filter orders by selected port and fuel, split into asks and bids
+    const filteredOrders = useMemo(() => {
+        return allOrders.filter(o => {
+            const matchPort = o.region.toLowerCase().includes(selectedPort.toLowerCase());
+            const matchFuel = o.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
             return matchPort && matchFuel;
         });
-    }, [allListings, selectedPort, selectedFuel]);
+    }, [allOrders, selectedPort, selectedFuel]);
 
-    // Build terminal rows from filtered listings (marketplace -> terminal sync)
+    const filteredAsks = useMemo(() => filteredOrders.filter(o => o.side === 'ASK'), [filteredOrders]);
+    const filteredBids = useMemo(() => filteredOrders.filter(o => o.side === 'BID'), [filteredOrders]);
+
+    // Build terminal rows: merge real orderbook data (bids + asks) with simulated activity
     const terminalData: TerminalRow[] = useMemo(() => {
         return PERIOD_CONFIG.map((config, idx) => {
-            // Find listings matching this availability window
-            const periodListings = filteredListings.filter(
-                l => l.availability_window === config.window
+            const periodAsks = filteredAsks.filter(
+                o => o.availability_window === config.window
+            );
+            const periodBids = filteredBids.filter(
+                o => o.availability_window === config.window
             );
 
-            const askPrices = periodListings.map(l => Number(l.price_per_mt_usd)).filter(Boolean);
-            const totalQty = periodListings.reduce((sum, l) => sum + Number(l.quantity_mt), 0);
+            const askPrices = periodAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+            const totalAskQty = periodAsks.reduce((sum, o) => sum + Number(o.remaining_quantity_mt || o.quantity_mt), 0);
 
-            const bestAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
-            const askQty = totalQty > 0 ? totalQty : null;
+            const bidPrices = periodBids.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+            const totalBidQty = periodBids.reduce((sum, o) => sum + Number(o.remaining_quantity_mt || o.quantity_mt), 0);
 
-            // Last done is the most recent listing price (if any exist)
-            const lastDone = askPrices.length > 0 ? askPrices[0] : null;
+            // Real orderbook data
+            const realAsk = askPrices.length > 0 ? Math.min(...askPrices) : null;
+            const realAskQty = totalAskQty > 0 ? totalAskQty : null;
+            const realBid = bidPrices.length > 0 ? Math.max(...bidPrices) : null;
+            const realBidQty = totalBidQty > 0 ? totalBidQty : null;
 
-            // Change is synthetic for now (difference from spot)
-            let change: number | null = null;
-            if (lastDone !== null && idx > 0) {
-                const spotListings = filteredListings.filter(l => l.availability_window === 'Spot');
-                const spotPrice = spotListings.length > 0 ? Number(spotListings[0].price_per_mt_usd) : null;
-                if (spotPrice) {
-                    change = lastDone - spotPrice;
-                }
-            }
+            // Simulated data for last/change (and fallback bid if no real bids)
+            const sim = generateSimulatedRow(idx, effectiveBase, realAsk, realAskQty, tick);
+
+            // Use real bid if available, otherwise simulated
+            const bid = realBid ?? sim.bid;
+            const bidQty = realBidQty ?? sim.bidQty;
+
+            // Use real ask if available, otherwise simulated
+            const ask = realAsk ?? Math.round(((bid || sim.bid) + 3 + seededRandom(tick * 37 + idx * 17) * 5) * 100) / 100;
+            const askQty = realAskQty ?? Math.round((150 + seededRandom(tick * 43 + idx * 23) * 600) / 50) * 50;
 
             return {
                 id: String(idx + 1),
                 period: config.period,
                 type: config.type,
-                bidQty: null, // Bids not tracked yet
-                bid: null,
-                ask: bestAsk,
+                bidQty: bidQty,
+                bid: bid,
+                ask: ask,
                 askQty: askQty,
-                last: lastDone,
-                change: change,
+                last: sim.last,
+                change: sim.change,
             };
         });
-    }, [filteredListings]);
+    }, [filteredAsks, filteredBids, tick, effectiveBase]);
 
-    // Build chart data from listings by period
+    // Build chart data from orderbook by period
     const chartData = useMemo(() => {
-        return PERIOD_CONFIG.map(config => {
-            const periodListings = filteredListings.filter(
-                l => l.availability_window === config.window
+        return PERIOD_CONFIG.map((config, idx) => {
+            const periodOrders = filteredOrders.filter(
+                o => o.availability_window === config.window
             );
-            const prices = periodListings.map(l => Number(l.price_per_mt_usd));
+            const prices = periodOrders.map(o => Number(o.price_per_mt_usd));
+            // Use real prices if available, otherwise use simulated mid price
             const avgPrice = prices.length > 0
                 ? prices.reduce((a, b) => a + b, 0) / prices.length
-                : null;
-            const totalQty = periodListings.reduce((s, l) => s + Number(l.quantity_mt), 0);
+                : effectiveBase + idx * 2.5 + (seededRandom(tick * 7 + idx) - 0.5) * 3;
+            const totalQty = periodOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
 
             return {
                 period: config.period,
-                price: avgPrice,
+                price: Math.round(avgPrice * 100) / 100,
                 quantity: totalQty || null,
             };
-        }).filter(d => d.price !== null);
-    }, [filteredListings]);
+        });
+    }, [filteredOrders, effectiveBase, tick]);
 
     // Summary stats
     const spotPrice = terminalData.find(r => r.type === 'SPOT')?.ask;
-    const totalListings = filteredListings.length;
-    const totalVolume = filteredListings.reduce((s, l) => s + Number(l.quantity_mt), 0);
+    const totalListings = filteredOrders.length;
+    const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
 
     // Broadcast Context
     useEffect(() => {
@@ -178,25 +322,28 @@ export const MarketTerminal: React.FC = () => {
         });
     }, [terminalData, selectedPort, selectedFuel, setPageContext]);
 
-    // Helper to determine if a row is "Active"
-    const isRowActive = (row: TerminalRow) => row.ask !== null || row.last !== null;
+    // Helper to determine if a row has real orderbook data
+    const hasRealData = useCallback((row: TerminalRow) => {
+        const config = PERIOD_CONFIG.find(p => p.period === row.period);
+        if (!config) return false;
+        return filteredOrders.some(o => o.availability_window === config.window);
+    }, [filteredOrders]);
 
     // Unique port names from ports list
     const portNames = useMemo(() => {
         const names = ports.map(p => p.name);
-        // Also add any region names from listings that aren't in ports
-        allListings.forEach(l => {
-            if (!names.includes(l.region)) names.push(l.region);
+        allOrders.forEach(o => {
+            if (!names.includes(o.region)) names.push(o.region);
         });
         return [...new Set(names)].sort();
-    }, [ports, allListings]);
+    }, [ports, allOrders]);
 
-    // Unique fuel types from listings
+    // Unique fuel types from orderbook
     const availableFuels = useMemo(() => {
-        const fromListings = [...new Set(allListings.map(l => l.fuel_type))];
-        const combined = [...new Set([...FUEL_TYPES, ...fromListings])];
+        const fromOrders = [...new Set(allOrders.map(o => o.fuel_type))];
+        const combined = [...new Set([...FUEL_TYPES, ...fromOrders])];
         return combined.sort();
-    }, [allListings]);
+    }, [allOrders]);
 
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
@@ -295,7 +442,7 @@ export const MarketTerminal: React.FC = () => {
                         <div className="flex items-center justify-center h-[80%]">
                             <Loader2 size={24} className="animate-spin text-emerald-500" />
                         </div>
-                    ) : chartData.length > 0 ? (
+                    ) : (
                         <ResponsiveContainer width="100%" height="80%">
                             <LineChart data={chartData}>
                                 <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.1} vertical={false} />
@@ -316,10 +463,6 @@ export const MarketTerminal: React.FC = () => {
                                 />
                             </LineChart>
                         </ResponsiveContainer>
-                    ) : (
-                        <div className="flex items-center justify-center h-[80%] text-xs text-slate-400 dark:text-[#555]">
-                            No listing data available for {selectedFuel} at {selectedPort}
-                        </div>
                     )}
                 </div>
             </div>
@@ -346,33 +489,28 @@ export const MarketTerminal: React.FC = () => {
                         </div>
                     ) : (
                         terminalData.map((row) => {
-                            const active = isRowActive(row);
-                            const textColor = active ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-[#444]';
-                            const hoverColor = active ? 'hover:bg-slate-50 dark:hover:bg-[#111]' : 'hover:bg-slate-50 dark:hover:bg-[#0a0a0a]';
+                            const real = hasRealData(row);
+                            const hoverColor = 'hover:bg-slate-50 dark:hover:bg-[#111]';
 
                             // Count offers for this period
                             const periodConfig = PERIOD_CONFIG.find(p => p.period === row.period);
                             const offerCount = periodConfig
-                                ? filteredListings.filter(l => l.availability_window === periodConfig.window).length
+                                ? filteredOrders.filter(o => o.availability_window === periodConfig.window).length
                                 : 0;
 
                             return (
                                 <div
                                     key={row.id}
-                                    className={`
-                                        flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group
-                                        ${hoverColor}
-                                        ${textColor}
-                                    `}
+                                    className={`flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group ${hoverColor}`}
                                 >
                                     {/* Period */}
-                                    <div className="w-32 px-4 text-xs font-bold flex items-center space-x-2">
+                                    <div className="w-32 px-4 text-xs font-bold flex items-center space-x-2 text-slate-900 dark:text-white">
                                         {row.type === 'SPOT' && <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse mr-1"/>}
                                         <span>{row.period}</span>
                                     </div>
 
                                     {/* Bid Qty */}
-                                    <div className="w-24 text-right px-4 text-[11px] opacity-70">
+                                    <div className="w-24 text-right px-4 text-[11px] text-slate-600 dark:text-slate-400 opacity-70">
                                         {row.bidQty?.toLocaleString() || ''}
                                     </div>
 
@@ -387,11 +525,11 @@ export const MarketTerminal: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* ASK PRICE (from marketplace listings) */}
+                                    {/* ASK PRICE */}
                                     <div className="w-24 px-1">
                                         <div className={`w-full text-right px-2 py-0.5 rounded text-[11px] ${
                                             row.ask
-                                                ? 'text-rose-600 dark:text-rose-500 font-bold'
+                                                ? `text-rose-600 dark:text-rose-500 font-bold ${real ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`
                                                 : 'text-slate-300 dark:text-[#222]'
                                         }`}>
                                             {row.ask ? row.ask.toFixed(2) : '--'}
@@ -399,12 +537,12 @@ export const MarketTerminal: React.FC = () => {
                                     </div>
 
                                     {/* Ask Qty */}
-                                    <div className="w-24 text-right px-4 text-[11px] opacity-70">
+                                    <div className="w-24 text-right px-4 text-[11px] text-slate-600 dark:text-slate-400 opacity-70">
                                         {row.askQty ? Math.round(row.askQty).toLocaleString() : ''}
                                     </div>
 
                                     {/* Last Done */}
-                                    <div className={`w-24 text-right px-4 font-bold text-xs ${active ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-[#222]'}`}>
+                                    <div className="w-24 text-right px-4 font-bold text-xs text-slate-900 dark:text-white">
                                         {row.last?.toFixed(2) || ''}
                                     </div>
 
@@ -430,6 +568,35 @@ export const MarketTerminal: React.FC = () => {
                             );
                         })
                     )}
+                </div>
+
+                {/* Trade Activity Feed */}
+                <div className="border-t border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#0a0a0a]">
+                    <div className="flex items-center px-4 py-1.5 border-b border-slate-100 dark:border-[#181818]">
+                        <Activity size={12} className="text-emerald-500 mr-2" />
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-[#666] uppercase tracking-widest">Trade Activity</span>
+                        <div className="ml-2 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                    </div>
+                    <div ref={tradeScrollRef} className="h-24 overflow-y-auto px-2 py-1">
+                        {tradeEvents.length === 0 ? (
+                            <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">Waiting for activity...</div>
+                        ) : (
+                            tradeEvents.map((trade) => (
+                                <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">
+                                    <span className="text-slate-400 dark:text-[#555] w-16 shrink-0">{trade.time}</span>
+                                    <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
+                                        {trade.side}
+                                    </span>
+                                    <span className="text-slate-700 dark:text-slate-300 font-bold">
+                                        {trade.qty.toLocaleString()} MT
+                                    </span>
+                                    <span className="text-slate-400 dark:text-[#666] mx-1">@</span>
+                                    <span className="text-slate-900 dark:text-white font-bold">${trade.price.toFixed(2)}</span>
+                                    <span className="text-slate-400 dark:text-[#555] ml-auto">{trade.period}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

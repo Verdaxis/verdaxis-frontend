@@ -34,9 +34,9 @@ export const search_suppliers: FunctionDeclaration = {
     }
 };
 
-export const get_direct_orders: FunctionDeclaration = {
-    name: "get_direct_orders",
-    description: "Get active direct orders (formerly RFQs).",
+export const get_bid_orders: FunctionDeclaration = {
+    name: "get_bid_orders",
+    description: "Get active bid orders from the orderbook.",
     parameters: {
         type: Type.OBJECT,
         properties: {
@@ -88,7 +88,7 @@ export const tools: Tool[] = [
             list_ports,
             search_vessels,
             search_suppliers,
-            get_direct_orders,
+            get_bid_orders,
             get_inventory,
             get_market_prices,
             get_notifications,
@@ -120,13 +120,13 @@ export const toolExecutors: Record<string, (args: any) => Promise<any>> = {
     "search_suppliers": async ({ query }) => {
         return await api.suppliers.list(query);
     },
-    "get_direct_orders": async ({ search }) => {
-        const orders = await api.directOrders.list();
+    "get_bid_orders": async ({ search }) => {
+        const orders = await api.orderbook.listBids();
         if (search) {
              const lower = search.toLowerCase();
-             return orders.filter(o => 
-                 o.id.toLowerCase().includes(lower) || 
-                 (o.fuelType && o.fuelType.toLowerCase().includes(lower))
+             return orders.filter((o: any) =>
+                 o.id.toLowerCase().includes(lower) ||
+                 (o.fuel_type && o.fuel_type.toLowerCase().includes(lower))
              );
         }
         return orders;

@@ -22,7 +22,8 @@ import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
-import { SupplierListingConsole } from './components/SupplierListingConsole';
+import { SupplierStats } from './components/SupplierStats';
+import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { ViewMode, Page, Port } from './types';
 
 // Protected Route Wrapper
@@ -136,10 +137,14 @@ const Dashboard: React.FC = () => {
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
+            case 'TERMINAL':
+                return <MarketTerminal />;
             case 'INVENTORY':
                 return <SupplierInventory />;
-            case 'LISTINGS':
-                return <SupplierListingConsole />;
+            case 'STATS':
+                return <SupplierStats />;
+            case 'ANALYTICS':
+                return <SupplierAnalytics />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
@@ -162,8 +167,6 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'STATS':
          return <Stats />;
-      case 'DIRECT_ORDER_MARKETPLACE':
-         return <Marketplace initialPort={selectedPort}/>;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
     }

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, Download, MoreVertical, Trash2, Edit2, X, Save, ChevronDown, ChevronUp, Shield, Building, Clock, Sparkles, FileText, Loader2, CheckCircle2, XCircle, Truck, Banknote } from 'lucide-react';
-import { Order } from '../types';
+import { Trade } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { analyzeRisk } from '../services/ai';
 import { api } from '../services/api';
@@ -11,7 +11,7 @@ import { ConfirmModal } from './ui/ConfirmModal';
 
 export const SupplierQuotes: React.FC = () => {
     const { setPageContext } = useCopilotContext();
-    const [orders, setOrders] = useState<Order[]>([]);
+    const [orders, setOrders] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     
@@ -21,7 +21,7 @@ export const SupplierQuotes: React.FC = () => {
             setPageContext({
                 view: 'Supplier Orders',
                 total_records: orders.length,
-                pending: orders.filter(q => q.status === 'PENDING').length,
+                pending: orders.filter(q => q.status === 'PENDING_CONFIRMATION').length,
                 confirmed: orders.filter(q => q.status === 'CONFIRMED').length,
                 search_query: searchQuery || 'None',
                 summary: 'Detailed list of incoming orders with status and actions.'
@@ -42,7 +42,7 @@ export const SupplierQuotes: React.FC = () => {
         title: string;
         message: string;
         orderId: string | null;
-        orderData?: Order;
+        orderData?: Trade;
         variant: 'danger' | 'warning' | 'info' | 'success';
         isLoading?: boolean;
     }>({
@@ -63,11 +63,11 @@ export const SupplierQuotes: React.FC = () => {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const data = await api.orders.listIncoming();
+            const data = await api.trades.myTrades();
             // Filter by search query if exists
-            const filtered = searchQuery 
-                ? data.filter(item => 
-                    item.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            const filtered = searchQuery
+                ? data.filter((item: Trade) =>
+                    item.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     item.fuel_type?.toLowerCase().includes(searchQuery.toLowerCase())
                   )
                 : data;
@@ -105,26 +105,26 @@ export const SupplierQuotes: React.FC = () => {
 
         try {
             if (confirmState.type === 'ACCEPT' && confirmState.orderId) {
-                await api.orders.respond(confirmState.orderId, 'CONFIRMED');
+                await api.trades.confirm(confirmState.orderId);
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
             else if (confirmState.type === 'DECLINE' && confirmState.orderId) {
-                await api.orders.respond(confirmState.orderId, 'DECLINED');
+                await api.trades.decline(confirmState.orderId);
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
             else if (confirmState.type === 'COMPLETE' && confirmState.orderId && confirmState.orderData) {
                 const req = confirmState.orderData;
-                await api.orders.deliver(confirmState.orderId, {
-                    final_quantity_mt: req.requested_quantity_mt || 0,
+                await api.trades.deliver(confirmState.orderId, {
+                    final_quantity_mt: req.quantity_mt || 0,
                     final_price_per_mt: req.price_per_mt_usd || 0
                 });
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
             else if (confirmState.type === 'MARK_PAID' && confirmState.orderId) {
-                await api.orders.markPaid(confirmState.orderId);
+                await api.trades.pay(confirmState.orderId);
                 await fetchOrders();
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
@@ -172,7 +172,7 @@ export const SupplierQuotes: React.FC = () => {
         });
     };
 
-    const handleComplete = (id: string, req: Order) => {
+    const handleComplete = (id: string, req: Trade) => {
         setConfirmState({
             isOpen: true,
             type: 'COMPLETE',
@@ -200,7 +200,7 @@ export const SupplierQuotes: React.FC = () => {
         setAiRiskAnalysis(null); // Reset analysis on toggle
     };
 
-    const handleGenerateRiskAnalysis = async (req: Order) => {
+    const handleGenerateRiskAnalysis = async (req: Trade) => {
          // Mock risk profile if missing for now
         const riskProfile = { solvencyGrade: 'A', avgPaymentDays: 25, kybStatus: 'Verified' }; 
         
@@ -262,7 +262,7 @@ export const SupplierQuotes: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 font-mono font-medium text-slate-600">{req.id.slice(0, 8)}...</td>
                                         <td className="px-6 py-4">
-                                            {req.status === 'PENDING' && (
+                                            {req.status === 'PENDING_CONFIRMATION' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                                     Action Required
                                                 </span>
@@ -290,12 +290,12 @@ export const SupplierQuotes: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">{req.buyer_name || 'Anonymous Buyer'}</td>
                                         <td className="px-6 py-4 dark:text-slate-300">
-                                            {req.requested_quantity_mt?.toLocaleString()} MT
-                                            <div className="text-xs text-slate-400">{req.listing_id ? 'Listing Match' : 'Direct'}</div>
+                                            {req.quantity_mt?.toLocaleString()} MT
+                                            <div className="text-xs text-slate-400">{req.fuel_type} &middot; {req.region}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-500">{req.requested_delivery_date || 'Spot'}</td>
+                                        <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Spot'}</td>
                                         <td className="px-6 py-4 text-right">
-                                            {req.status === 'PENDING' ? (
+                                            {req.status === 'PENDING_CONFIRMATION' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleAccept(req.id)}
