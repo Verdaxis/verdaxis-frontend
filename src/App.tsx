@@ -25,6 +25,22 @@ import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { ViewMode, Page, Port } from './types';
+import { PublicLayout } from './components/public/PublicLayout';
+import { LandingPage } from './pages/public/LandingPage';
+import { HowItWorksPage } from './pages/public/HowItWorksPage';
+import { FuelCoveragePage } from './pages/public/FuelCoveragePage';
+import { ComplianceInfoPage } from './pages/public/ComplianceInfoPage';
+import { ProducerUseCasePage } from './pages/public/ProducerUseCasePage';
+import { BuyerUseCasePage } from './pages/public/BuyerUseCasePage';
+import { TraderUseCasePage } from './pages/public/TraderUseCasePage';
+import { FinancierUseCasePage } from './pages/public/FinancierUseCasePage';
+import { GovernancePage } from './pages/public/GovernancePage';
+import { PilotPage } from './pages/public/PilotPage';
+import { EducationPage } from './pages/public/EducationPage';
+import { EducationArticlePage } from './pages/public/EducationArticlePage';
+import { RoadmapPage } from './pages/public/RoadmapPage';
+import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
+import { ProducerMapPage } from './pages/public/ProducerMapPage';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
@@ -77,7 +93,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
     if (isLoading) return null;
 
     if (user && user.role) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/app" replace />;
     }
 
     return children;
@@ -192,20 +208,39 @@ const App: React.FC = () => {
         <CopilotProvider>
             <BrowserRouter>
                 <Routes>
+                    {/* Auth routes */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
-                    
-                    <Route path="/create-organization" element={<CreateOrganizationPage />} />
 
+                    {/* Public routes */}
+                    <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
+                    <Route path="/how-it-works" element={<PublicLayout><HowItWorksPage /></PublicLayout>} />
+                    <Route path="/fuels" element={<PublicLayout><FuelCoveragePage /></PublicLayout>} />
+                    <Route path="/compliance" element={<PublicLayout><ComplianceInfoPage /></PublicLayout>} />
+                    <Route path="/for-producers" element={<PublicLayout><ProducerUseCasePage /></PublicLayout>} />
+                    <Route path="/for-buyers" element={<PublicLayout><BuyerUseCasePage /></PublicLayout>} />
+                    <Route path="/for-traders" element={<PublicLayout><TraderUseCasePage /></PublicLayout>} />
+                    <Route path="/for-financiers" element={<PublicLayout><FinancierUseCasePage /></PublicLayout>} />
+                    <Route path="/governance" element={<PublicLayout><GovernancePage /></PublicLayout>} />
+                    <Route path="/pilot" element={<PublicLayout><PilotPage /></PublicLayout>} />
+                    <Route path="/education" element={<PublicLayout><EducationPage /></PublicLayout>} />
+                    <Route path="/education/:slug" element={<PublicLayout><EducationArticlePage /></PublicLayout>} />
+                    <Route path="/roadmap" element={<PublicLayout><RoadmapPage /></PublicLayout>} />
+                    <Route path="/tools/energy-calculator" element={<PublicLayout><EnergyCalculatorPage /></PublicLayout>} />
+                    <Route path="/map/producers" element={<PublicLayout><ProducerMapPage /></PublicLayout>} />
+
+                    {/* Authenticated routes */}
                     <Route path="/onboarding" element={
                         <ProtectedRoute>
-                            <OnboardingGuard> {/* OnboardingGuard here to redirect if already onboarded */}
+                            <OnboardingGuard>
                                 <OnboardingPage />
                             </OnboardingGuard>
                         </ProtectedRoute>
                     } />
-                    
-                    <Route path="/" element={
+
+                    <Route path="/create-organization" element={<CreateOrganizationPage />} />
+
+                    <Route path="/app" element={
                         <ProtectedRoute>
                             <RequireOrganization>
                                 <RequireProfile>
@@ -214,10 +249,9 @@ const App: React.FC = () => {
                             </RequireOrganization>
                         </ProtectedRoute>
                     } />
+
                     {/* Fallback */}
-                    <Route path="*" element={
-                         <Navigate to="/" replace />
-                    } />
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </BrowserRouter>
         </CopilotProvider>
