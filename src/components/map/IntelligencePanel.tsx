@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
-import { Port, Page } from '../../types';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { Port, Page, Vessel } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
+import { api } from '../../services/api';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 
 interface IntelligencePanelProps {
@@ -30,6 +31,12 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     
     const [arbitrageData, setArbitrageData] = useState<{narrative: string, spread: number} | null>(null);
     const [isArbitrageLoading, setIsArbitrageLoading] = useState(false);
+    const [fleetVessels, setFleetVessels] = useState<Vessel[]>([]);
+
+    // Fetch fleet data for alerts
+    useEffect(() => {
+        api.vessels.list().then(setFleetVessels).catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (selectedPort) {
@@ -42,17 +49,15 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             });
         } else {
             // Fetch Global Arbitrage Insight
-            // Only fetch if we have ports and haven't loaded data yet or if it's a fresh mount
             if (ports.length > 0) {
                 setIsArbitrageLoading(true);
                 generateArbitrageInsight(ports).then(data => {
-                    // Data is guaranteed to be returned (real or mock)
                     if (data) {
                         setArbitrageData({
                             narrative: data.narrative,
                             spread: data.spread
                         });
-    
+
                         if (onArbitrageUpdate) {
                             onArbitrageUpdate(data.originId, data.destinationId, data.spread, data.narrative);
                         }
@@ -61,7 +66,25 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 });
             }
         }
-    }, [selectedPort?.id, ports.length]); // Use ID for stability
+    }, [selectedPort?.id, ports.length]);
+
+    // Derive forward curve data from top ports
+    const forwardCurves = ports.slice(0, 2).map(p => ({
+        label: `Methanol (${p.name.substring(0, 3).toUpperCase()})`,
+        change: p.priceTrend >= 0 ? `+${p.priceTrend.toFixed(1)}%` : `${p.priceTrend.toFixed(1)}%`,
+        up: p.priceTrend >= 0,
+        price: `$${p.priceMethanol}`,
+        curve: p.priceTrend >= 0 ? 'Contango' : 'Backwardation',
+    }));
+
+    // Find the most at-risk vessel for fleet alert
+    const atRiskVessel = fleetVessels.find(v =>
+        v.complianceFuelEU === 'Non-Compliant' || v.complianceFuelEU === 'Warning' ||
+        v.complianceEUETS === 'Non-Compliant' || v.complianceEUETS === 'Warning'
+    );
+    const alertType = atRiskVessel
+        ? (atRiskVessel.complianceFuelEU === 'Non-Compliant' || atRiskVessel.complianceFuelEU === 'Warning' ? 'FuelEU' : 'EU ETS')
+        : null;
 
     return (
         <div className={`
@@ -117,9 +140,12 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Market Price</div>
                                 <div className="text-2xl font-['Montserrat'] font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                     ${selectedPort.priceMethanol}
-                                    <span className="text-xs font-medium text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded ml-2 flex items-center">
-                                        <TrendingUp size={10} className="mr-0.5" /> +2.4%
-                                    </span>
+                                    {selectedPort.priceTrend !== undefined && (
+                                        <span className={`text-xs font-medium ${selectedPort.priceTrend >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20'} px-1.5 py-0.5 rounded ml-2 flex items-center`}>
+                                            {selectedPort.priceTrend >= 0 ? <TrendingUp size={10} className="mr-0.5" /> : <TrendingDown size={10} className="mr-0.5" />}
+                                            {selectedPort.priceTrend >= 0 ? '+' : ''}{selectedPort.priceTrend.toFixed(1)}%
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -245,10 +271,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 <LineChart size={14} className="text-slate-400" />
                             </div>
                             <div className="space-y-3">
-                                {[
-                                    { label: 'Methanol (RTM)', change: '+2.4%', up: true, price: '$545', curve: 'Contango' },
-                                    { label: 'Biofuel B24 (SIN)', change: '-0.8%', up: false, price: '$780', curve: 'Backwardation' },
-                                ].map((item, i) => (
+                                {forwardCurves.map((item, i) => (
                                     <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                                         <div className="flex justify-between items-center mb-1">
                                             <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
@@ -269,22 +292,34 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     </>
                 )}
 
-                {/* Compliance Alert (Always Visible) */}
-                <div className="p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg mt-auto">
-                    <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-500 mb-2">
-                        <AlertCircle size={16} />
-                        <span className="text-xs font-bold uppercase">Fleet Alert</span>
+                {/* Compliance Alert - Dynamic from fleet data */}
+                {atRiskVessel ? (
+                    <div className="p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg mt-auto">
+                        <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-500 mb-2">
+                            <AlertCircle size={16} />
+                            <span className="text-xs font-bold uppercase">Fleet Alert</span>
+                        </div>
+                        <p className="text-xs text-amber-800 dark:text-amber-400">
+                            Vessel <span className="font-bold">{atRiskVessel.name}</span> has {alertType} status: <span className="font-bold">{alertType === 'FuelEU' ? atRiskVessel.complianceFuelEU : atRiskVessel.complianceEUETS}</span>. CII Grade: {atRiskVessel.ciiGrade}.
+                        </p>
+                        <button
+                            onClick={() => onNavigate('FLEET')}
+                            className="mt-3 w-full text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded py-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                        >
+                            View Fleet Status
+                        </button>
                     </div>
-                    <p className="text-xs text-amber-800 dark:text-amber-400">
-                        Vessel <span className="font-bold">Ocean Guardian</span> is projected to exceed FuelEU intensity limits by Dec 15.
-                    </p>
-                    <button 
-                        onClick={() => onNavigate('FLEET')}
-                        className="mt-3 w-full text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded py-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                    >
-                        View Fleet Status
-                    </button>
-                </div>
+                ) : (
+                    <div className="p-4 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg mt-auto">
+                        <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-500 mb-2">
+                            <Ship size={16} />
+                            <span className="text-xs font-bold uppercase">Fleet Status</span>
+                        </div>
+                        <p className="text-xs text-emerald-800 dark:text-emerald-400">
+                            All vessels are compliant. No alerts at this time.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

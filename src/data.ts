@@ -1,5 +1,5 @@
 
-import { Port, Vessel, Supplier, Course, DirectOrder, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
+import { Port, Supplier, Course, DirectOrder, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
 
 export const PORTS: Port[] = [
     {
@@ -336,61 +336,6 @@ export const PORTS: Port[] = [
         priceMethanol: 595,
         priceTrend: 2.5
     }
-];
-
-export const VESSELS: Vessel[] = [
-    { 
-        id: 'v1', 
-        name: 'Verdaxis Pioneer', 
-        imo: '9812345', 
-        vesselType: 'Container Ship',
-        status: 'At Sea', 
-        complianceEUETS: 'Compliant', 
-        complianceFuelEU: 'Compliant',
-        ciiGrade: 'B',
-        nextVoyage: 'Singapore -> Rotterdam',
-        nextDryDock: '2025-Q3',
-        location: { lat: 10.5, lng: 65.0 } // Indian Ocean
-    },
-    { 
-        id: 'v2', 
-        name: 'Ocean Guardian', 
-        imo: '9823456', 
-        vesselType: 'Bulk Carrier',
-        status: 'At Sea', // Changed from In Port for visual effect
-        complianceEUETS: 'Warning', 
-        complianceFuelEU: 'Compliant',
-        ciiGrade: 'C',
-        nextVoyage: 'Houston -> Hamburg',
-        nextDryDock: '2024-Q4',
-        location: { lat: 38.5, lng: -45.0 } // Mid-Atlantic
-    },
-    { 
-        id: 'v3', 
-        name: 'Green Horizon', 
-        imo: '9834567', 
-        vesselType: 'LNG Tanker',
-        status: 'At Sea', 
-        complianceEUETS: 'Compliant', 
-        complianceFuelEU: 'Warning',
-        ciiGrade: 'D',
-        nextVoyage: 'Rotterdam -> Shanghai',
-        nextDryDock: '2025-Q1',
-        location: { lat: 14.5, lng: 55.0 } // Arabian Sea
-    },
-    { 
-        id: 'v4', 
-        name: 'Nordic Star', 
-        imo: '9123456', 
-        vesselType: 'Ro-Ro',
-        status: 'At Sea', 
-        complianceEUETS: 'Compliant', 
-        complianceFuelEU: 'Compliant',
-        ciiGrade: 'A',
-        nextVoyage: 'Long Beach -> Tokyo',
-        nextDryDock: '2026-Q2',
-        location: { lat: 32.0, lng: -165.0 } // Pacific
-    },
 ];
 
 export const SUPPLIERS: Supplier[] = [

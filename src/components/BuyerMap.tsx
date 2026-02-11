@@ -26,14 +26,28 @@ interface BuyerMapProps {
     onOrderClick?: (port: Port) => void;
 }
 
-// Major Methanol Trade Routes (Digital Lines)
-// Coordinates approximate: Start -> End
-const TRADE_ROUTES: { positions: [number, number][]; label: string }[] = [
-    { positions: [[1.29027, 103.851959], [51.9225, 4.47917]], label: "Singapore to Rotterdam (Main Trunk)" },
-    { positions: [[29.7604, -95.3698], [51.9225, 4.47917]], label: "Houston to Rotterdam (Atlantic)" },
-    { positions: [[29.7604, -95.3698], [31.2304, 121.4737]], label: "Houston to Shanghai (Pacific)" },
-    { positions: [[-6.2088, 106.8456], [44.1025, 9.8241]], label: "Indonesia to La Spezia (Bio-Methanol)" },
-];
+// Build trade routes dynamically from loaded ports
+const buildTradeRoutes = (ports: Port[]): { positions: [number, number][]; label: string }[] => {
+    if (ports.length < 2) return [];
+    const findPort = (name: string) => ports.find(p => p.name.toLowerCase().includes(name.toLowerCase()));
+    const routeDefs = [
+        { from: 'Singapore', to: 'Rotterdam', label: 'Main Trunk' },
+        { from: 'Houston', to: 'Rotterdam', label: 'Atlantic' },
+        { from: 'Houston', to: 'Shanghai', label: 'Pacific' },
+        { from: 'Jakarta', to: 'La Spezia', label: 'Bio-Methanol' },
+    ];
+    return routeDefs
+        .map(r => {
+            const origin = findPort(r.from);
+            const dest = findPort(r.to);
+            if (!origin || !dest) return null;
+            return {
+                positions: [[origin.location.lat, origin.location.lng], [dest.location.lat, dest.location.lng]] as [number, number][],
+                label: `${origin.name} to ${dest.name} (${r.label})`,
+            };
+        })
+        .filter(Boolean) as { positions: [number, number][]; label: string }[];
+};
 
 import { useTheme } from '../context/ThemeContext';
 
@@ -52,23 +66,20 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             try {
                 const data = await api.ports.list();
                 setPorts(data);
+                setPageContext({
+                    view: 'Global Intelligence Map',
+                    available_ports: data.length,
+                    port_names: data.map((p: Port) => p.name),
+                    summary: "User is viewing the global interactive map showing methanol availability and vessel movements."
+                });
             } catch (e) {
                 console.error("Failed to load ports", e);
             } finally {
                 setLoading(false);
             }
-
         };
         fetchPorts();
-
-        // Set Map Context
-        setPageContext({
-            view: 'Global Intelligence Map',
-            available_ports: ports.length > 0 ? ports.length : 'Loading...',
-            trade_routes: ['Singapore-Rotterdam', 'Houston-Rotterdam', 'Houston-Shanghai'],
-            summary: "User is viewing the global interactive map showing methanol availability and vessel movements."
-        });
-    }, [ports.length]); // Update when ports load
+    }, []);
 
     const selectedPort = ports.find(p => p.id === selectedPortId);
 
@@ -118,7 +129,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                              : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"}
                     />
                     
-                    {showArbitrage && TRADE_ROUTES.map((route, idx) => (
+                    {showArbitrage && buildTradeRoutes(ports).map((route, idx) => (
                         // Fix: Use pathOptions for Polyline styling in react-leaflet v3+
                         <Polyline 
                             key={idx}
@@ -209,10 +220,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                                     <span className="font-bold text-slate-100">${port.details.plattsPrice?.toFixed(2) || '--'}</span>
                                                 </div>
                                                 <div className="flex justify-between text-xs">
-                                                    <span className="text-slate-400">FFA:</span>
-                                                    <span className="font-bold text-slate-100">${port.details.ffaPrice?.toFixed(2) || '--'}</span>
-                                                </div>
-                                                <div className="flex justify-between text-xs">
                                                     <span className="text-slate-400">Swap:</span>
                                                     <span className="font-bold text-slate-100">${port.details.swapPrice?.toFixed(2) || '--'}</span>
                                                 </div>
@@ -270,20 +277,20 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             </div>
                         </div>
 
-                        {/* 2. Last Done Widget (Right) */}
-                        <div className="pointer-events-auto w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-4 hidden lg:block ml-auto">
-                            <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
-                                <History size={16} className="text-slate-500 dark:text-slate-400" />
-                                <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Last Done at Key Ports</span>
+                        {/* 2. Last Done Widget (Right) - Compact */}
+                        <div className="pointer-events-auto w-48 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 hidden lg:block ml-auto">
+                            <div className="flex items-center space-x-1.5 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                                <History size={12} className="text-slate-500 dark:text-slate-400" />
+                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">Last Done</span>
                             </div>
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                                 {topPorts.slice(0, 4).map((p, i) => (
-                                    <div key={p.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors" onClick={() => handleMarkerClick(p.id)}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                    <div key={p.id} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors" onClick={() => handleMarkerClick(p.id)}>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
                                             <span className="font-bold text-slate-700 dark:text-slate-300">{p.name}</span>
                                         </div>
-                                        <span className="font-mono text-emerald-600">{p.details?.lastDone || '--'}</span>
+                                        <span className="font-mono text-emerald-600 text-[9px]">{p.details?.lastDone || '--'}</span>
                                     </div>
                                 ))}
                             </div>
