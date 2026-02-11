@@ -30,7 +30,15 @@ npm run dev
 
 `.env` should use `VITE_API_URL=/api` for local dev. The vite proxy (configured in `vite.config.ts`) forwards `/api/*` to `http://144.126.151.136:8000/api/*`, avoiding CORS issues.
 
-**Production `.env`** on server uses `VITE_API_URL=https://api.verdaxis.exchange/api`.
+## Environment Configuration
+
+Production API URL is set in `.env.production` (committed to git). Vite automatically uses this file during `vite build`, so the correct URL is always baked in regardless of what `.env` exists on the server.
+
+- **`.env`** — local dev only (`VITE_API_URL=/api`), gitignored
+- **`.env.production`** — production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
+- **`.env.example`** — reference template, committed
+
+**Never set `VITE_API_URL` in the server's `.env` file.** The `.env.production` file handles it automatically. Setting it in `.env` on the server risks mixed-content errors if the value is wrong.
 
 ## Known Gotchas
 
