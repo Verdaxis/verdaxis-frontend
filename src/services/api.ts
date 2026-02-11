@@ -17,22 +17,35 @@ const handleResponse = async (res: Response) => {
             const errorJson = JSON.parse(errorText);
             throw new Error(errorJson.detail || res.statusText);
         } catch (e) {
+            if (e instanceof Error && e.message !== errorText) throw e;
             throw new Error(errorText || res.statusText);
         }
     }
     return res.json();
 };
 
+// Fetch with timeout to prevent indefinite loading spinners
+const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000): Promise<Response> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: controller.signal })
+        .catch((err) => {
+            if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            throw err;
+        })
+        .finally(() => clearTimeout(timeout));
+};
+
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
-    const res = await fetch(`${API_URL}${path}`, options);
+    const res = await fetchWithTimeout(`${API_URL}${path}`, options);
     return handleResponse(res);
 };
 
 export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
-            const res = await fetch(`${API_URL}/ports`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
             const data = await handleResponse(res);
             // Transform backend data to frontend Port interface
             return data.map((p: any) => ({
@@ -56,14 +69,14 @@ export const api = {
             }));
         },
         getById: async (id: string): Promise<Port | undefined> => {
-            const res = await fetch(`${API_URL}/ports/${id}`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/ports/${id}`, { headers: getHeaders() });
             return handleResponse(res);
         }
     },
 
     vessels: {
         list: async (): Promise<Vessel[]> => {
-            const res = await fetch(`${API_URL}/vessels`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/vessels`, { headers: getHeaders() });
             const data = await handleResponse(res);
             // Varied mock voyage/status data keyed by IMO suffix
             const voyageData: Record<string, { status: string; nextVoyage: string; nextDryDock: string }> = {
@@ -102,7 +115,7 @@ export const api = {
            // Backend Vessel model has filtering by org.
            // Let's assume for now read-only for vessels from backend, or simple error.
            console.warn("Vessel status update not strictly implemented in backend yet");
-           const res = await fetch(`${API_URL}/vessels/${id}`, { headers: getHeaders() }); 
+           const res = await fetchWithTimeout(`${API_URL}/vessels/${id}`, { headers: getHeaders() });
            return handleResponse(res);
         }
     },
@@ -120,7 +133,7 @@ export const api = {
 
     inventory: {
         list: async (): Promise<InventoryItem[]> => {
-            const res = await fetch(`${API_URL}/inventory`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/inventory`, { headers: getHeaders() });
             const data = await handleResponse(res);
             // Transform backend data to frontend InventoryItem interface
             return data.map((item: any) => {
@@ -146,14 +159,14 @@ export const api = {
             });
         },
         publish: async (itemId: string): Promise<any> => {
-            const res = await fetch(`${API_URL}/inventory/${itemId}/publish`, {
+            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}/publish`, {
                 method: 'POST',
                 headers: getHeaders()
             });
             return handleResponse(res);
         },
         update: async (itemId: string, data: any): Promise<any> => {
-            const res = await fetch(`${API_URL}/inventory/${itemId}`, {
+            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}`, {
                 method: 'PATCH',
                 headers: getHeaders(),
                 body: JSON.stringify(data)
@@ -161,7 +174,7 @@ export const api = {
             return handleResponse(res);
         },
         delete: async (itemId: string): Promise<void> => {
-            const res = await fetch(`${API_URL}/inventory/${itemId}`, {
+            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}`, {
                 method: 'DELETE',
                 headers: getHeaders()
             });
@@ -180,7 +193,7 @@ export const api = {
                 incoming_stock_mt: item.incomingStock,
                 price_per_mt_usd: item.pricePerMt
             };
-            const res = await fetch(`${API_URL}/inventory`, {
+            const res = await fetchWithTimeout(`${API_URL}/inventory`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(payload)
@@ -209,23 +222,23 @@ export const api = {
 
     notifications: {
         list: async (): Promise<Notification[]> => {
-            const res = await fetch(`${API_URL}/notifications`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/notifications`, { headers: getHeaders() });
             return handleResponse(res);
         },
         getUnreadCount: async (): Promise<number> => {
-            const res = await fetch(`${API_URL}/notifications/unread-count`, { headers: getHeaders() });
+            const res = await fetchWithTimeout(`${API_URL}/notifications/unread-count`, { headers: getHeaders() });
             const data = await handleResponse(res);
             return data.count;
         },
         markRead: async (id: string): Promise<any> => {
-            const res = await fetch(`${API_URL}/notifications/${id}/read`, {
+            const res = await fetchWithTimeout(`${API_URL}/notifications/${id}/read`, {
                 method: 'PATCH',
                 headers: getHeaders()
             });
             return handleResponse(res);
         },
         markAllRead: async (): Promise<any> => {
-            const res = await fetch(`${API_URL}/notifications/read-all`, {
+            const res = await fetchWithTimeout(`${API_URL}/notifications/read-all`, {
                 method: 'PATCH',
                 headers: getHeaders()
             });
