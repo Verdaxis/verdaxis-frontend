@@ -14,7 +14,7 @@ const LoginPage: React.FC = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/app');
     }
   }, [isAuthenticated, navigate]);
 
@@ -39,7 +39,7 @@ const LoginPage: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         login(data.access_token);
-        navigate('/');
+        navigate('/app');
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Login failed');
