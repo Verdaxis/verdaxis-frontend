@@ -136,18 +136,50 @@ const CONTINENTS: [number, number][][] = [
   ],
 ];
 
+/* ─── Viewport-aware projection ─── */
+/* On portrait (mobile), zoom into Europe→SE Asia corridor instead of showing
+   the whole squished world. On landscape, show everything. */
+function getProjection(w: number, h: number) {
+  const aspect = w / h;
+  const marginX = w * 0.04;
+  const marginY = h * 0.06;
+
+  // Portrait: crop to the Europe-to-East-Asia corridor (nx: 0.40–0.95, ny: 0.05–0.65)
+  if (aspect < 1) {
+    const cropL = 0.38, cropR = 0.95, cropT = 0.02, cropB = 0.68;
+    const cw = cropR - cropL;
+    const ch = cropB - cropT;
+    const usableW = w - marginX * 2;
+    const usableH = h - marginY * 2;
+    return {
+      toScreen: (nx: number, ny: number): [number, number] => [
+        marginX + ((nx - cropL) / cw) * usableW,
+        marginY + ((ny - cropT) / ch) * usableH,
+      ],
+      marginX, marginY,
+      usableW, usableH,
+      cropL, cropR, cropT, cropB,
+    };
+  }
+
+  // Landscape: show the full world
+  const usableW = w - marginX * 2;
+  const usableH = h - marginY * 2;
+  return {
+    toScreen: (nx: number, ny: number): [number, number] => [
+      marginX + nx * usableW,
+      marginY + ny * usableH,
+    ],
+    marginX, marginY,
+    usableW, usableH,
+    cropL: 0, cropR: 1, cropT: 0, cropB: 1,
+  };
+}
+
 /* ─── Generate dots along routes + port clusters ─── */
 function buildShippingDots(w: number, h: number): Dot[] {
   const dots: Dot[] = [];
-  const marginX = w * 0.04;
-  const marginY = h * 0.06;
-  const usableW = w - marginX * 2;
-  const usableH = h - marginY * 2;
-
-  const toScreen = (nx: number, ny: number): [number, number] => [
-    marginX + nx * usableW,
-    marginY + ny * usableH,
-  ];
+  const { toScreen } = getProjection(w, h);
 
   const addDot = (bx: number, by: number, isPort: boolean) => {
     dots.push({
@@ -282,18 +314,14 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
       ctx!.clearRect(0, 0, w, h);
 
       // Draw faint continent outlines (behind everything)
-      const mX = w * 0.04;
-      const mY = h * 0.06;
-      const uuW = w - mX * 2;
-      const uuH = h - mY * 2;
+      const proj = getProjection(w, h);
       ctx!.strokeStyle = 'rgba(15, 23, 42, 0.045)';
       ctx!.fillStyle = 'rgba(15, 23, 42, 0.012)';
       ctx!.lineWidth = 0.8;
       for (const continent of CONTINENTS) {
         ctx!.beginPath();
         for (let i = 0; i < continent.length; i++) {
-          const cx = mX + continent[i][0] * uuW;
-          const cy = mY + continent[i][1] * uuH;
+          const [cx, cy] = proj.toScreen(continent[i][0], continent[i][1]);
           if (i === 0) ctx!.moveTo(cx, cy);
           else ctx!.lineTo(cx, cy);
         }
@@ -397,17 +425,10 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
       }
 
       // Animated "packets" traveling along routes
-      const mrgX = w * 0.04;
-      const mrgY = h * 0.06;
-      const uW = w - mrgX * 2;
-      const uH = h - mrgY * 2;
-
       for (let r = 0; r < ROUTES.length; r++) {
         const [a, b] = ROUTES[r];
-        const pax = mrgX + PORTS[a][0] * uW;
-        const pay = mrgY + PORTS[a][1] * uH;
-        const pbx = mrgX + PORTS[b][0] * uW;
-        const pby = mrgY + PORTS[b][1] * uH;
+        const [pax, pay] = proj.toScreen(PORTS[a][0], PORTS[a][1]);
+        const [pbx, pby] = proj.toScreen(PORTS[b][0], PORTS[b][1]);
 
         const speed = 0.00018 + (r % 5) * 0.00004;
         const progress = ((time * speed + r * 0.15) % 1);
