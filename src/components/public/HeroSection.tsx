@@ -67,6 +67,7 @@ export const HeroSection: React.FC = () => {
   return (
     <section
       ref={sectionRef}
+      className="hero-section"
       style={{
         position: 'relative',
         overflow: 'hidden',
@@ -177,6 +178,7 @@ export const HeroSection: React.FC = () => {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          className="hero-subtitle"
           style={{
             fontSize: 18,
             lineHeight: 1.75,
@@ -195,6 +197,7 @@ export const HeroSection: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="hero-cta"
           style={{
             display: 'flex',
             gap: 16,
@@ -256,6 +259,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Trust Signals */}
         <div
+          className="trust-signals"
           style={{
             display: 'flex',
             justifyContent: 'flex-start',
@@ -300,7 +304,16 @@ export const HeroSection: React.FC = () => {
       {/* Responsive styles */}
       <style>{`
         @media (max-width: 640px) {
-          h1 { font-size: 40px !important; }
+          .hero-section { padding: 80px 20px 60px !important; }
+          .hero-section h1 { font-size: 36px !important; line-height: 1.12 !important; margin-bottom: 18px !important; }
+          .hero-section .hero-subtitle { font-size: 16px !important; margin-bottom: 32px !important; }
+          .hero-section .hero-cta { margin-bottom: 40px !important; }
+          .hero-section .hero-cta > div { width: 100%; }
+          .hero-section .hero-cta a { width: 100%; justify-content: center; }
+          .hero-section .trust-signals { gap: 16px !important; }
+        }
+        @media (max-width: 480px) {
+          .hero-section h1 { font-size: 30px !important; }
         }
       `}</style>
     </section>
