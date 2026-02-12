@@ -15,14 +15,14 @@ export const ComplianceDataInput: React.FC = () => {
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 lg:p-10 animate-in fade-in duration-300 flex flex-col items-center justify-center min-h-[500px]">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 lg:p-10 animate-in fade-in duration-300 flex flex-col items-center justify-center min-h-[500px]">
             {uploadStep === 'IDLE' && (
                 <div className="text-center max-w-md">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200">
+                    <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-6 border border-slate-200 dark:border-slate-700">
                         <UploadCloud size={40} className="text-slate-400" />
                     </div>
-                    <h2 className="text-xl font-bold text-[#334155] mb-2">Upload Bunker Delivery Note (BDN)</h2>
-                    <p className="text-slate-500 mb-8">Drag and drop your PDF or Image file here. Our AI will automatically extract verification data.</p>
+                    <h2 className="text-xl font-bold text-[#334155] dark:text-white mb-2">Upload Bunker Delivery Note (BDN)</h2>
+                    <p className="text-slate-500 dark:text-slate-400 mb-8">Drag and drop your PDF or Image file here. Our AI will automatically extract verification data.</p>
                     
                     <button 
                         onClick={handleSimulateUpload}
@@ -40,39 +40,39 @@ export const ComplianceDataInput: React.FC = () => {
                         <div className="absolute inset-0 border-4 border-t-[#5DADE2] rounded-full animate-spin"></div>
                         <ScanLine size={32} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#5DADE2]" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#334155]">Processing Document...</h3>
-                    <p className="text-slate-500 text-sm mt-2">Running OCR extraction and compliance checks.</p>
+                    <h3 className="text-lg font-bold text-[#334155] dark:text-white">Processing Document...</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Running OCR extraction and compliance checks.</p>
                 </div>
             )}
 
             {uploadStep === 'REVIEW' && (
                 <div className="w-full max-w-2xl animate-in zoom-in duration-300">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-[#334155]">Verify Extracted Data</h3>
+                        <h3 className="text-lg font-bold text-[#334155] dark:text-white">Verify Extracted Data</h3>
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">High Confidence Match</span>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-6 mb-8">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Vessel Name</label>
-                            <input type="text" value="Verdaxis Pioneer" className="w-full p-3 bg-slate-50 border border-slate-200 rounded font-bold text-[#334155]" readOnly />
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vessel Name</label>
+                            <input type="text" value="Verdaxis Pioneer" className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded font-bold text-[#334155] dark:text-slate-200" readOnly />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bunkering Port</label>
-                            <input type="text" value="Singapore" className="w-full p-3 bg-slate-50 border border-slate-200 rounded font-bold text-[#334155]" readOnly />
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Bunkering Port</label>
+                            <input type="text" value="Singapore" className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded font-bold text-[#334155] dark:text-slate-200" readOnly />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fuel Type</label>
-                            <input type="text" value="Bio-Methanol (ISCC)" className="w-full p-3 bg-slate-50 border border-slate-200 rounded font-bold text-[#334155]" readOnly />
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Fuel Type</label>
+                            <input type="text" value="Bio-Methanol (ISCC)" className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded font-bold text-[#334155] dark:text-slate-200" readOnly />
                         </div>
                          <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantity (MT)</label>
-                            <input type="text" value="500.00" className="w-full p-3 bg-slate-50 border border-slate-200 rounded font-bold text-[#334155]" readOnly />
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Quantity (MT)</label>
+                            <input type="text" value="500.00" className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded font-bold text-[#334155] dark:text-slate-200" readOnly />
                         </div>
                     </div>
 
                     <div className="flex justify-end space-x-4">
-                        <button onClick={() => setUploadStep('IDLE')} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cancel</button>
+                        <button onClick={() => setUploadStep('IDLE')} className="px-6 py-3 text-slate-500 dark:text-slate-400 font-bold hover:text-slate-700 dark:hover:text-slate-200">Cancel</button>
                         <button onClick={handleSubmitData} className="px-8 py-3 bg-[#4CAF50] text-white rounded-lg font-bold hover:bg-green-600 shadow-md flex items-center gap-2">
                             <CheckCircle2 size={18} /> Confirm & Submit
                         </button>
@@ -85,8 +85,8 @@ export const ComplianceDataInput: React.FC = () => {
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                         <CheckCircle2 size={40} className="text-green-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-[#334155] mb-2">Data Ingested Successfully</h2>
-                    <p className="text-slate-500">Your compliance ledger has been updated. Verification ID: #BDN-2993</p>
+                    <h2 className="text-2xl font-bold text-[#334155] dark:text-white mb-2">Data Ingested Successfully</h2>
+                    <p className="text-slate-500 dark:text-slate-400">Your compliance ledger has been updated. Verification ID: #BDN-2993</p>
                 </div>
             )}
         </div>

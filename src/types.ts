@@ -298,4 +298,4 @@ export interface DemandSignal {
     created_at: string;
 }
 
-export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK';
+export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED';
