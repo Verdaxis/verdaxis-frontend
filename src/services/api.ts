@@ -381,6 +381,44 @@ export const api = {
         },
     },
 
+    producers: {
+        list: async (params?: {
+            fuel_type?: string;
+            country?: string;
+            status?: string;
+            cod_year_min?: number;
+            cod_year_max?: number;
+        }): Promise<import('../types').ProducerProject[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.country) searchParams.append('country', params.country);
+            if (params?.status) searchParams.append('status', params.status);
+            if (params?.cod_year_min) searchParams.append('cod_year_min', String(params.cod_year_min));
+            if (params?.cod_year_max) searchParams.append('cod_year_max', String(params.cod_year_max));
+            const query = searchParams.toString();
+            return fetchApi(`/producers${query ? `?${query}` : ''}`);
+        },
+    },
+
+    availability: {
+        list: async (params?: { fuel_type?: string }): Promise<import('../types').PortFuelAvailability[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            const query = searchParams.toString();
+            return fetchApi(`/availability${query ? `?${query}` : ''}`);
+        },
+    },
+
+    demand: {
+        signals: async (params?: { fuel_type?: string; region?: string }): Promise<import('../types').DemandSignal[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.region) searchParams.append('region', params.region);
+            const query = searchParams.toString();
+            return fetchApi(`/demand${query ? `?${query}` : ''}`);
+        },
+    },
+
     matchmaking: {
         suggestions: async (): Promise<import('../types').MatchSuggestion[]> => {
             return fetchApi('/matchmaking/suggestions', { headers: getHeaders() });
