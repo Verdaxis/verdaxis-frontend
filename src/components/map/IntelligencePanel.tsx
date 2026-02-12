@@ -11,7 +11,6 @@ interface IntelligencePanelProps {
     selectedPort: Port | undefined;
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
-    onShowArbitrage: () => void;
     ports: Port[];
     onArbitrageUpdate?: (originId: string, destId: string, spread: number, text: string) => void;
 }
@@ -22,7 +21,6 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     selectedPort,
     onPortSelect,
     onNavigate,
-    onShowArbitrage,
     ports,
     onArbitrageUpdate
 }) => {
@@ -250,14 +248,6 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                     ) : (
                                         <div className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed mt-1 font-medium">
                                             <MarkdownRenderer content={arbitrageData?.narrative || "Analyzing market data..."} />
-                                            {arbitrageData && (
-                                                <button 
-                                                    className="mt-3 text-[10px] bg-indigo-100 dark:bg-indigo-800 hover:bg-indigo-200 dark:hover:bg-indigo-700 text-indigo-700 dark:text-indigo-200 px-2 py-1 rounded font-bold flex items-center gap-1 transition-colors" 
-                                                    onClick={onShowArbitrage}
-                                                >
-                                                    <TrendingUp size={12} /> Visualize Flow
-                                                </button>
-                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw, Plus } from 'lucide-react';
 import { Port, AvailabilityWindow, OrderBookOrder } from '../types';
-import { PORTS } from '../data'; 
+import { PORTS } from '../data';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { CreateBidModal, BidFormData } from './buyer/CreateBidModal';
 
 import { formatTierLabel } from '../utils';
 
@@ -118,6 +119,44 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     });
 
     const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
+
+    // Bid modal state
+    const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+    const [isSubmittingBid, setIsSubmittingBid] = useState(false);
+
+    const handleCreateBid = async (data: BidFormData) => {
+        setIsSubmittingBid(true);
+        try {
+            await api.orderbook.create({
+                side: 'BID',
+                fuel_type: data.fuel_type,
+                fuel_grade: data.fuel_grade,
+                region: data.region,
+                quantity_mt: data.quantity_mt,
+                price_per_mt_usd: data.price_per_mt_usd,
+                availability_window: data.availability_window,
+            });
+            setIsBidModalOpen(false);
+            setConfirmState({
+                isOpen: true,
+                type: 'SUCCESS',
+                title: 'Bid Placed Successfully',
+                message: 'Your bid is now live and visible to suppliers in the Buyer Demand Feed.',
+                variant: 'success'
+            });
+        } catch (error: any) {
+            console.error("Failed to place bid:", error);
+            setConfirmState({
+                isOpen: true,
+                type: 'ERROR',
+                title: 'Bid Failed',
+                message: 'Failed to place bid: ' + error.message,
+                variant: 'danger'
+            });
+        } finally {
+            setIsSubmittingBid(false);
+        }
+    };
 
     // Initial load
     useEffect(() => {
@@ -307,7 +346,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         {loading ? 'Searching Listings...' : `Available Listings ${portInput ? `matching "${portInput}"` : ''}`}
                     </h2>
                     <div className="flex items-center gap-4">
-                        <button 
+                        <button
+                            onClick={() => setIsBidModalOpen(true)}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
+                        >
+                            <Plus size={16} />
+                            <span>Place Bid</span>
+                        </button>
+                        <button
                             onClick={() => handleSearch()}
                             className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                         >
@@ -422,6 +468,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isBidModalOpen && (
+                <CreateBidModal
+                    onSubmit={handleCreateBid}
+                    onCancel={() => setIsBidModalOpen(false)}
+                    isLoading={isSubmittingBid}
+                />
             )}
 
             <ConfirmModal

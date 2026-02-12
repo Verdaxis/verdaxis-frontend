@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { DataOcean } from '../components/public/DataOcean';
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
@@ -56,10 +57,13 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-[#0F172A] z-0"></div>
-      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
+      <div className="absolute inset-0 z-[1] opacity-40 pointer-events-auto">
+        <DataOcean style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+      </div>
+      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] z-[2] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] z-[2] pointer-events-none"></div>
 
-      <div className="w-full max-w-md p-8 relative z-10">
+      <div className="w-full max-w-md p-8 relative z-10 pointer-events-auto">
         <div className="text-center mb-10">
            <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
            <p className="text-slate-400">Intelligence Cockpit</p>
