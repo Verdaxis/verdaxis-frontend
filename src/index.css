@@ -181,3 +181,87 @@ body {
   background-size: 200% 100%;
   animation: shimmer 4s ease-in-out infinite;
 }
+
+/* ── CTA Button Effects ── */
+
+/* Breathing glow behind primary CTA buttons */
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4), 0 2px 8px rgba(15,23,42,0.15); }
+  50% { box-shadow: 0 0 20px 4px rgba(76, 175, 80, 0.15), 0 2px 12px rgba(15,23,42,0.2); }
+}
+
+@keyframes ctaPulseGradient {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4), 0 2px 16px rgba(76,175,80,0.2); }
+  50% { box-shadow: 0 0 24px 6px rgba(93, 173, 226, 0.2), 0 2px 20px rgba(76,175,80,0.3); }
+}
+
+/* Shimmer sweep across button surface */
+@keyframes btnShimmer {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+.cta-primary {
+  position: relative;
+  overflow: hidden;
+  animation: ctaPulse 3s ease-in-out infinite;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cta-primary:hover {
+  animation: none;
+  box-shadow: 0 0 28px 6px rgba(76, 175, 80, 0.2), 0 4px 16px rgba(15,23,42,0.2);
+  transform: translateY(-2px);
+}
+
+.cta-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  animation: btnShimmer 4s ease-in-out infinite;
+  animation-delay: 1.5s;
+  pointer-events: none;
+}
+
+.cta-gradient {
+  position: relative;
+  overflow: hidden;
+  animation: ctaPulseGradient 3s ease-in-out infinite;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.cta-gradient:hover {
+  animation: none;
+  box-shadow: 0 0 32px 8px rgba(93, 173, 226, 0.2), 0 4px 20px rgba(76,175,80,0.3);
+  transform: translateY(-3px);
+  filter: brightness(1.1);
+}
+
+.cta-gradient::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  animation: btnShimmer 3.5s ease-in-out infinite;
+  animation-delay: 1s;
+  pointer-events: none;
+}
+
+/* Secondary outline button glow on hover */
+.cta-secondary {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease, background 0.3s ease;
+}
+
+.cta-secondary:hover {
+  border-color: #5DADE2 !important;
+  box-shadow: 0 0 16px 2px rgba(93, 173, 226, 0.1);
+  transform: translateY(-2px);
+  background: rgba(93, 173, 226, 0.04) !important;
+}

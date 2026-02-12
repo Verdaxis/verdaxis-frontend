@@ -205,9 +205,10 @@ export const HeroSection: React.FC = () => {
             marginBottom: 64,
           }}
         >
-          <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+          <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to="/pilot"
+              className="cta-primary"
               style={{
                 background: '#0F172A',
                 color: '#FFFFFF',
@@ -219,16 +220,16 @@ export const HeroSection: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                boxShadow: '0 2px 8px rgba(15,23,42,0.15)',
               }}
             >
               Apply for Pilot
               <ArrowRight size={16} />
             </Link>
           </motion.div>
-          <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+          <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to="/how-it-works"
+              className="cta-secondary"
               style={{
                 background: 'transparent',
                 color: '#334155',

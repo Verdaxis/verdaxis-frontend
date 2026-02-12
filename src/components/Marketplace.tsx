@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw, Plus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw, Plus, ChevronDown, X } from 'lucide-react';
 import { Port, AvailabilityWindow, OrderBookOrder } from '../types';
 import { PORTS } from '../data';
 import { api } from '../services/api';
@@ -119,6 +119,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     });
 
     const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
+
+    // Filter state
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterGrade, setFilterGrade] = useState<string>('All');
+    const [filterVerifiedOnly, setFilterVerifiedOnly] = useState(false);
+    const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
+
+    const filteredListings = useMemo(() => {
+        let result = [...listings];
+        if (filterGrade !== 'All') {
+            result = result.filter(l => l.fuel_grade === filterGrade);
+        }
+        if (filterVerifiedOnly) {
+            result = result.filter(l => l.is_verdaxis_verified);
+        }
+        switch (sortBy) {
+            case 'price_asc': result.sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd); break;
+            case 'price_desc': result.sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd); break;
+            case 'quantity_desc': result.sort((a, b) => b.remaining_quantity_mt - a.remaining_quantity_mt); break;
+            case 'newest': result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
+        }
+        return result;
+    }, [listings, filterGrade, filterVerifiedOnly, sortBy]);
+
+    const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (filterVerifiedOnly ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
 
     // Bid modal state
     const [isBidModalOpen, setIsBidModalOpen] = useState(false);
@@ -360,24 +385,84 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <RefreshCw size={16} className={isSearching ? 'animate-spin' : ''} />
                             <span className="hidden sm:inline">Refresh</span>
                         </button>
-                        <button className="flex items-center space-x-2 text-sm font-medium text-slate-500 hover:text-[#5DADE2]">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center space-x-2 text-sm font-medium transition-colors ${showFilters ? 'text-emerald-500' : 'text-slate-500 hover:text-[#5DADE2]'}`}
+                        >
                             <Filter size={16} />
-                            <span>Filter Results</span>
+                            <span>Filters</span>
+                            {activeFilterCount > 0 && (
+                                <span className="ml-1 px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">{activeFilterCount}</span>
+                            )}
+                            <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                         </button>
                     </div>
                 </div>
+
+                {/* Filter Panel */}
+                {showFilters && (
+                    <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-200">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Grade</label>
+                            <select
+                                value={filterGrade}
+                                onChange={(e) => setFilterGrade(e.target.value)}
+                                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                            >
+                                <option value="All">All Grades</option>
+                                <option value="Conventional">Conventional</option>
+                                <option value="Green">Green</option>
+                                <option value="Bio">Bio</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sort By</label>
+                            <select
+                                value={sortBy}
+                                onChange={(e) => setSortBy(e.target.value as any)}
+                                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                            >
+                                <option value="price_asc">Price: Low to High</option>
+                                <option value="price_desc">Price: High to Low</option>
+                                <option value="quantity_desc">Largest Quantity</option>
+                                <option value="newest">Newest First</option>
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <label className="flex items-center gap-2 cursor-pointer py-1.5">
+                                <input
+                                    type="checkbox"
+                                    checked={filterVerifiedOnly}
+                                    onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
+                                    className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
+                                />
+                                <span className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                    <Shield size={14} className="text-emerald-500" /> Verified Only
+                                </span>
+                            </label>
+                        </div>
+                        {activeFilterCount > 0 && (
+                            <button
+                                onClick={() => { setFilterGrade('All'); setFilterVerifiedOnly(false); setSortBy('price_asc'); }}
+                                className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
+                            >
+                                <X size={12} /> Clear Filters
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {loading ? (
                         <div className="col-span-full flex items-center justify-center py-20">
                              <Loader2 size={32} className="animate-spin text-verdaxis" />
                         </div>
-                    ) : listings.length > 0 ? (
-                        listings.map((listing) => (
-                            <ListingCard 
-                                key={listing.id} 
-                                listing={listing} 
-                                onBuy={handleBuyClick} 
+                    ) : filteredListings.length > 0 ? (
+                        filteredListings.map((listing) => (
+                            <ListingCard
+                                key={listing.id}
+                                listing={listing}
+                                onBuy={handleBuyClick}
                             />
                         ))
                     ) : (

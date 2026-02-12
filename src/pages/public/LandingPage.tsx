@@ -816,9 +816,10 @@ export const LandingPage: React.FC = () => {
                 flexWrap: 'wrap',
               }}
             >
-              <motion.div whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+              <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <Link
                   to="/pilot"
+                  className="cta-gradient"
                   style={{
                     background: 'linear-gradient(135deg, #4CAF50, #5DADE2)',
                     color: '#FFFFFF',
@@ -830,16 +831,16 @@ export const LandingPage: React.FC = () => {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 8,
-                    boxShadow: '0 2px 16px rgba(76,175,80,0.2)',
                   }}
                 >
                   Apply for Pilot
                   <ArrowRight size={16} />
                 </Link>
               </motion.div>
-              <motion.div whileHover={{ y: -3 }} whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+              <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <a
                   href="mailto:info@verdaxis.exchange"
+                  className="cta-secondary"
                   style={{
                     background: 'transparent',
                     color: '#F8FAFC',
