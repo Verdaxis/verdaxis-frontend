@@ -214,4 +214,18 @@ export interface PriceDiscoveryResponse {
     generated_at: string;
 }
 
+// ============== CI-Adjusted Pricing ==============
+export interface CIAdjustedPrice {
+    base_price_per_mt: number;
+    carbon_intensity_gco2_mj: number;
+    fueleu_ghg_intensity: number;
+    compliance_cost_per_mt: number;
+    effective_price_per_mt: number;
+    ghg_reduction_pct: number;
+}
+
+export interface OrderBookOrderWithCI extends OrderBookOrder {
+    ci_adjusted_price?: CIAdjustedPrice | null;
+}
+
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK';

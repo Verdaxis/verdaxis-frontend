@@ -265,6 +265,14 @@ export const api = {
     },
 
     orderbook: {
+        listWithCI: async (params?: { region?: string; fuel_type?: string; side?: string }) => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.side) searchParams.append('side', params.side);
+            const query = searchParams.toString();
+            return fetchApi(`/orderbook/with-ci${query ? `?${query}` : ''}`);
+        },
         list: async (params?: { region?: string; fuel_type?: string; side?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
