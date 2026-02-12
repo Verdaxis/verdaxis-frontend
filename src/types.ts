@@ -244,4 +244,58 @@ export interface MatchSuggestion {
     ask_order?: OrderBookOrder;
 }
 
+// ============== Producer Project Types ==============
+export type ProjectStatus = 'ANNOUNCED' | 'UNDER_CONSTRUCTION' | 'OPERATIONAL' | 'CANCELLED';
+
+export interface ProducerProject {
+    id: string;
+    name: string;
+    fuel_type: string;
+    capacity_kt_per_year?: number | null;
+    country: string;
+    region?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    cod_date?: string | null;
+    cod_year?: number | null;
+    status: ProjectStatus;
+    data_source?: string | null;
+    gena_project_id?: string | null;
+    organization_id?: string | null;
+    feedstock?: string | null;
+    technology?: string | null;
+    carbon_intensity_gco2_mj?: number | null;
+    notes?: string | null;
+    created_at: string;
+}
+
+// ============== Availability Map Types ==============
+export type AvailabilityLevel = 'AVAILABLE' | 'LIMITED' | 'NONE';
+
+export interface PortFuelAvailability {
+    port_id: string;
+    port_name: string;
+    lat: number;
+    lng: number;
+    fuel_type: string;
+    total_stock_mt: number;
+    supplier_count: number;
+    availability_level: AvailabilityLevel;
+    avg_price_per_mt: number | null;
+}
+
+// ============== Demand Signal Types ==============
+export type UrgencyLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface DemandSignal {
+    fuel_type: string;
+    region: string;
+    volume_mt: number;
+    max_price_per_mt: number;
+    urgency: UrgencyLevel;
+    bid_count: number;
+    earliest_delivery: string;
+    created_at: string;
+}
+
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK';
