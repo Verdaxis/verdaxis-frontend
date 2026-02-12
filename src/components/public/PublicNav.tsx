@@ -22,10 +22,10 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Solutions',
     dropdown: [
-      { label: 'For Producers', to: '/solutions/producers' },
-      { label: 'For Buyers', to: '/solutions/buyers' },
-      { label: 'For Traders', to: '/solutions/traders' },
-      { label: 'For Financiers', to: '/solutions/financiers' },
+      { label: 'For Producers', to: '/for-producers' },
+      { label: 'For Buyers', to: '/for-buyers' },
+      { label: 'For Traders', to: '/for-traders' },
+      { label: 'For Financiers', to: '/for-financiers' },
     ],
   },
   { label: 'Fuels', to: '/fuels' },
@@ -34,8 +34,8 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Tools',
     dropdown: [
-      { label: 'Energy Calculator', to: '/tools/calculator' },
-      { label: 'Producer Map', to: '/tools/map' },
+      { label: 'Energy Calculator', to: '/tools/energy-calculator' },
+      { label: 'Producer Map', to: '/map/producers' },
     ],
   },
   { label: 'Roadmap', to: '/roadmap' },

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   Factory,
   ClipboardCheck,
@@ -10,6 +11,15 @@ import {
   Ban,
   Link as LinkIcon,
 } from 'lucide-react';
+import {
+  Reveal,
+  HoverCard,
+  StaggerGrid,
+  StaggerItem,
+  GradientOrb,
+  CircuitLines,
+  HoverButton,
+} from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -93,7 +103,8 @@ const sectionPadding: React.CSSProperties = {
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 32,
-  fontWeight: 700,
+  fontWeight: 400,
+  fontFamily: '"DM Serif Display", serif',
   color: '#0F172A',
   textAlign: 'center',
   marginBottom: 12,
@@ -112,87 +123,27 @@ const sectionSubtitle: React.CSSProperties = {
 /*  Flow Step Component                                                */
 /* ------------------------------------------------------------------ */
 
-const StepCard: React.FC<{
-  icon: React.FC<{ size?: number; color?: string }>;
-  title: string;
-  description: string;
-}> = ({ icon: Icon, title, description }) => (
-  <div
-    style={{
-      background: '#FFFFFF',
-      border: '1px solid #E2E8F0',
-      borderRadius: 12,
-      padding: 24,
-      display: 'inline-block',
-      textAlign: 'left',
-      maxWidth: 320,
-    }}
-  >
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 8,
-          background: '#EFF6FF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <Icon size={18} color="#5DADE2" />
-      </div>
-      <h3 style={{ fontSize: 17, fontWeight: 700, color: '#0F172A', margin: 0 }}>{title}</h3>
-    </div>
-    <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
-  </div>
-);
+/* ------------------------------------------------------------------ */
+/*  Flow Step Components — connected horizontal pipeline (desktop)      */
+/*  and vertical timeline (mobile)                                      */
+/* ------------------------------------------------------------------ */
 
-const FlowStep: React.FC<{
+const FlowStepCard: React.FC<{
   step: (typeof flowSteps)[number];
-  isLeft: boolean;
-  isLast: boolean;
-}> = ({ step, isLeft, isLast }) => {
-  const { number, icon, title, description } = step;
+  index: number;
+}> = ({ step, index }) => {
+  const { number, icon: Icon, title, description } = step;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 0,
-        position: 'relative',
-        maxWidth: 800,
-        margin: '0 auto',
-      }}
-    >
-      {/* Left content area */}
-      <div
-        style={{
-          flex: 1,
-          textAlign: 'right',
-          paddingRight: 32,
-        }}
-      >
-        {isLeft && <StepCard icon={icon} title={title} description={description} />}
-      </div>
-
-      {/* Center timeline */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          flexShrink: 0,
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        <div
+    <Reveal delay={index * 0.12}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
+        {/* Number badge */}
+        <motion.div
+          whileHover={{ scale: 1.1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           style={{
-            width: 40,
-            height: 40,
+            width: 48,
+            height: 48,
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
             color: '#FFFFFF',
@@ -200,120 +151,157 @@ const FlowStep: React.FC<{
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 700,
-            fontSize: 16,
-            flexShrink: 0,
+            fontSize: 18,
+            marginBottom: 20,
+            boxShadow: '0 4px 16px rgba(93,173,226,0.25)',
+            position: 'relative',
+            zIndex: 2,
           }}
         >
           {number}
-        </div>
-        {!isLast && (
+        </motion.div>
+
+        {/* Card */}
+        <HoverCard
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderRadius: 14,
+            padding: 24,
+            textAlign: 'center',
+            width: '100%',
+            maxWidth: 220,
+          }}
+        >
           <div
             style={{
-              width: 2,
-              height: 60,
-              background: 'linear-gradient(180deg, #5DADE2, #4CAF50)',
-              opacity: 0.3,
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(93,173,226,0.1), rgba(76,175,80,0.1))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px',
             }}
-          />
-        )}
+          >
+            <Icon size={20} color="#5DADE2" />
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: '0 0 8px', lineHeight: 1.3 }}>{title}</h3>
+          <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
+        </HoverCard>
       </div>
-
-      {/* Right content area */}
-      <div
-        style={{
-          flex: 1,
-          textAlign: 'left',
-          paddingLeft: 32,
-        }}
-      >
-        {!isLeft && <StepCard icon={icon} title={title} description={description} />}
-      </div>
-    </div>
+    </Reveal>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Mobile Flow Step Component (single column)                         */
-/* ------------------------------------------------------------------ */
+/** SVG connecting line between step badges on desktop */
+const FlowConnector: React.FC = () => (
+  <div style={{
+    position: 'absolute',
+    top: 24,
+    left: '10%',
+    right: '10%',
+    height: 2,
+    zIndex: 1,
+  }}>
+    <svg width="100%" height="2" preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#5DADE2" stopOpacity="0.4" />
+          <stop offset="50%" stopColor="#4CAF50" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#5DADE2" stopOpacity="0.4" />
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="1" x2="100%" y2="1" stroke="url(#flow-grad)" strokeWidth="2" strokeDasharray="6 4" />
+    </svg>
+    {/* Animated pulse traveling along the line */}
+    <div className="flow-pulse" style={{
+      position: 'absolute',
+      top: -3,
+      width: 8,
+      height: 8,
+      borderRadius: '50%',
+      background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+      boxShadow: '0 0 10px rgba(93,173,226,0.5)',
+    }} />
+  </div>
+);
 
 const MobileFlowStep: React.FC<{
   step: (typeof flowSteps)[number];
   isLast: boolean;
-}> = ({ step, isLast }) => {
+  index: number;
+}> = ({ step, isLast, index }) => {
   const { number, icon: Icon, title, description } = step;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-      {/* Timeline column */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 700,
-            fontSize: 14,
-            flexShrink: 0,
-          }}
-        >
-          {number}
-        </div>
-        {!isLast && (
-          <div
+    <Reveal delay={index * 0.12}>
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 16 }}>
+        {/* Timeline column */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 700,
+              fontSize: 15,
+              flexShrink: 0,
+              boxShadow: '0 3px 12px rgba(93,173,226,0.25)',
+            }}
+          >
+            {number}
+          </motion.div>
+          {!isLast && (
+            <div style={{
               width: 2,
               flex: 1,
-              minHeight: 24,
-              background: 'linear-gradient(180deg, #5DADE2, #4CAF50)',
+              minHeight: 20,
+              background: 'linear-gradient(180deg, #5DADE2 0%, #4CAF50 100%)',
               opacity: 0.3,
-            }}
-          />
-        )}
-      </div>
+              borderRadius: 1,
+            }} />
+          )}
+        </div>
 
-      {/* Content */}
-      <div
-        style={{
-          background: '#FFFFFF',
-          border: '1px solid #E2E8F0',
-          borderRadius: 12,
-          padding: 20,
-          flex: 1,
-          marginBottom: isLast ? 0 : 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div
-            style={{
+        {/* Content card */}
+        <HoverCard
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderRadius: 12,
+            padding: 20,
+            flex: 1,
+            marginBottom: isLast ? 0 : 8,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <div style={{
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: '#EFF6FF',
+              background: 'linear-gradient(135deg, rgba(93,173,226,0.1), rgba(76,175,80,0.1))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-            }}
-          >
-            <Icon size={16} color="#5DADE2" />
+            }}>
+              <Icon size={16} color="#5DADE2" />
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>{title}</h3>
           </div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>{title}</h3>
-        </div>
-        <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
+          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
+        </HoverCard>
       </div>
-    </div>
+    </Reveal>
   );
 };
 
@@ -339,70 +327,139 @@ export const HowItWorksPage: React.FC = () => {
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 72px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <h1
-            style={{
-              fontSize: 42,
-              fontWeight: 800,
-              color: '#F8FAFC',
-              marginBottom: 16,
-              lineHeight: 1.2,
-            }}
+        <GradientOrb
+          color="rgba(76,175,80,0.08)"
+          size={500}
+          style={{ top: -150, right: -100 }}
+        />
+        <GradientOrb
+          color="rgba(93,173,226,0.06)"
+          size={350}
+          style={{ bottom: -120, left: -80 }}
+        />
+
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
           >
-            How Verdaxis Works
-          </h1>
-          <p
-            style={{
-              fontSize: 18,
-              color: '#94A3B8',
-              lineHeight: 1.7,
-              maxWidth: 620,
-              margin: '0 auto',
-            }}
+            <h1
+              style={{
+                fontSize: 42,
+                fontWeight: 400,
+                fontFamily: '"DM Serif Display", serif',
+                color: '#F8FAFC',
+                marginBottom: 16,
+                lineHeight: 1.2,
+              }}
+            >
+              How Verdaxis Works
+            </h1>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
-            From physical fuel production to verified downstream claims &mdash; every step traceable,
-            every attribute locked.
-          </p>
+            <p
+              style={{
+                fontSize: 18,
+                color: '#94A3B8',
+                lineHeight: 1.7,
+                maxWidth: 620,
+                margin: '0 auto',
+              }}
+            >
+              From physical fuel production to verified downstream claims &mdash; every step traceable,
+              every attribute locked.
+            </p>
+          </motion.div>
         </div>
       </section>
 
       {/* ---- Section 2: 5-Step Visual Flow ---- */}
-      <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <h2 style={sectionTitle}>The Verdaxis Flow</h2>
-        <p style={sectionSubtitle}>
-          Five steps from fuel production to verifiable downstream claims.
-        </p>
+      <section style={{ ...sectionPadding, background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
+        <CircuitLines
+          color="rgba(93,173,226,0.06)"
+          style={{ width: 300, top: 40, right: -60 }}
+        />
+        <CircuitLines
+          color="rgba(76,175,80,0.05)"
+          style={{ width: 260, bottom: 60, left: -40, transform: 'scaleX(-1)' }}
+        />
 
-        {isMobile ? (
-          <div style={{ maxWidth: 480, margin: '0 auto' }}>
-            {flowSteps.map((step, idx) => (
-              <MobileFlowStep key={step.number} step={step} isLast={idx === flowSteps.length - 1} />
-            ))}
-          </div>
-        ) : (
-          <div>
-            {flowSteps.map((step, idx) => (
-              <FlowStep
-                key={step.number}
-                step={step}
-                isLeft={idx % 2 === 0}
-                isLast={idx === flowSteps.length - 1}
-              />
-            ))}
-          </div>
-        )}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <Reveal>
+            <h2 style={sectionTitle}>The Verdaxis Flow</h2>
+          </Reveal>
+          <Reveal delay={0.08}>
+            <p style={sectionSubtitle}>
+              Five steps from fuel production to verifiable downstream claims.
+            </p>
+          </Reveal>
+
+          {isMobile ? (
+            <div style={{ maxWidth: 480, margin: '0 auto' }}>
+              {flowSteps.map((step, idx) => (
+                <MobileFlowStep
+                  key={step.number}
+                  step={step}
+                  isLast={idx === flowSteps.length - 1}
+                  index={idx}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{ position: 'relative', maxWidth: 1100, margin: '0 auto' }}>
+              {/* Connecting line behind the badges */}
+              <FlowConnector />
+              {/* Step cards in a horizontal row */}
+              <div style={{
+                display: 'flex',
+                gap: 20,
+                justifyContent: 'center',
+                position: 'relative',
+                zIndex: 2,
+              }}>
+                {flowSteps.map((step, idx) => (
+                  <FlowStepCard key={step.number} step={step} index={idx} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Animated pulse keyframes */}
+          <style>{`
+            @keyframes flowPulseTravel {
+              0% { left: 0%; opacity: 0; }
+              10% { opacity: 1; }
+              90% { opacity: 1; }
+              100% { left: 100%; opacity: 0; }
+            }
+            .flow-pulse {
+              animation: flowPulseTravel 4s ease-in-out infinite;
+            }
+          `}</style>
+        </div>
       </section>
 
       {/* ---- Section 3: Key Principles ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
-        <h2 style={sectionTitle}>Key Principles</h2>
-        <p style={sectionSubtitle}>
-          The design choices that make Verdaxis different from existing environmental credit systems.
-        </p>
+        <Reveal>
+          <h2 style={sectionTitle}>Key Principles</h2>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <p style={sectionSubtitle}>
+            The design choices that make Verdaxis different from existing environmental credit systems.
+          </p>
+        </Reveal>
 
-        <div
+        <StaggerGrid
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -412,152 +469,160 @@ export const HowItWorksPage: React.FC = () => {
           }}
         >
           {principles.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              style={{
-                background: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                borderRadius: 12,
-                padding: 28,
-              }}
-            >
-              <div
+            <StaggerItem key={title}>
+              <HoverCard
                 style={{
-                  width: 48,
-                  height: 48,
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
                   borderRadius: 12,
-                  background: 'linear-gradient(135deg, rgba(93,173,226,0.12), rgba(76,175,80,0.12))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
+                  padding: 28,
+                  height: '100%',
                 }}
               >
-                <Icon size={22} color="#5DADE2" />
-              </div>
-              <h3
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  marginBottom: 8,
-                }}
-              >
-                {title}
-              </h3>
-              <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
-                {description}
-              </p>
-            </div>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, rgba(93,173,226,0.12), rgba(76,175,80,0.12))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <Icon size={22} color="#5DADE2" />
+                </div>
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    marginBottom: 8,
+                  }}
+                >
+                  {title}
+                </h3>
+                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
+                  {description}
+                </p>
+              </HoverCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ---- Section 4: Verdaxis vs Traditional ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <h2 style={sectionTitle}>Verdaxis vs Traditional</h2>
-        <p style={sectionSubtitle}>
-          How Verdaxis compares to legacy approaches to environmental attribute tracking.
-        </p>
+        <Reveal>
+          <h2 style={sectionTitle}>Verdaxis vs Traditional</h2>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <p style={sectionSubtitle}>
+            How Verdaxis compares to legacy approaches to environmental attribute tracking.
+          </p>
+        </Reveal>
 
-        <div
-          style={{
-            maxWidth: 800,
-            margin: '0 auto',
-            overflowX: 'auto',
-          }}
-        >
-          <table
+        <Reveal delay={0.16}>
+          <div
             style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              background: '#FFFFFF',
-              borderRadius: 12,
-              overflow: 'hidden',
-              border: '1px solid #E2E8F0',
+              maxWidth: 800,
+              margin: '0 auto',
+              overflowX: 'auto',
             }}
           >
-            <thead>
-              <tr style={{ background: '#0F172A' }}>
-                <th
-                  style={{
-                    padding: '14px 20px',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: '#94A3B8',
-                    borderBottom: '1px solid #1E293B',
-                  }}
-                />
-                <th
-                  style={{
-                    padding: '14px 20px',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: '#94A3B8',
-                    borderBottom: '1px solid #1E293B',
-                  }}
-                >
-                  Traditional
-                </th>
-                <th
-                  style={{
-                    padding: '14px 20px',
-                    textAlign: 'left',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: '#5DADE2',
-                    borderBottom: '1px solid #1E293B',
-                  }}
-                >
-                  Verdaxis
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {comparisonRows.map(({ label, traditional, verdaxis }, idx) => (
-                <tr
-                  key={label}
-                  style={{
-                    background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
-                    borderBottom: idx < comparisonRows.length - 1 ? '1px solid #E2E8F0' : 'none',
-                  }}
-                >
-                  <td
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                background: '#FFFFFF',
+                borderRadius: 12,
+                overflow: 'hidden',
+                border: '1px solid #E2E8F0',
+              }}
+            >
+              <thead>
+                <tr style={{ background: '#0F172A' }}>
+                  <th
                     style={{
                       padding: '14px 20px',
+                      textAlign: 'left',
                       fontSize: 14,
                       fontWeight: 600,
-                      color: '#0F172A',
+                      color: '#94A3B8',
+                      borderBottom: '1px solid #1E293B',
                     }}
-                  >
-                    {label}
-                  </td>
-                  <td
+                  />
+                  <th
                     style={{
                       padding: '14px 20px',
+                      textAlign: 'left',
                       fontSize: 14,
-                      color: '#64748B',
-                    }}
-                  >
-                    {traditional}
-                  </td>
-                  <td
-                    style={{
-                      padding: '14px 20px',
-                      fontSize: 14,
-                      color: '#4CAF50',
                       fontWeight: 600,
+                      color: '#94A3B8',
+                      borderBottom: '1px solid #1E293B',
                     }}
                   >
-                    {verdaxis}
-                  </td>
+                    Traditional
+                  </th>
+                  <th
+                    style={{
+                      padding: '14px 20px',
+                      textAlign: 'left',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#5DADE2',
+                      borderBottom: '1px solid #1E293B',
+                    }}
+                  >
+                    Verdaxis
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {comparisonRows.map(({ label, traditional, verdaxis }, idx) => (
+                  <tr
+                    key={label}
+                    style={{
+                      background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+                      borderBottom: idx < comparisonRows.length - 1 ? '1px solid #E2E8F0' : 'none',
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: '14px 20px',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#0F172A',
+                      }}
+                    >
+                      {label}
+                    </td>
+                    <td
+                      style={{
+                        padding: '14px 20px',
+                        fontSize: 14,
+                        color: '#64748B',
+                      }}
+                    >
+                      {traditional}
+                    </td>
+                    <td
+                      style={{
+                        padding: '14px 20px',
+                        fontSize: 14,
+                        color: '#4CAF50',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {verdaxis}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
       </section>
 
       {/* ---- Section 5: CTA ---- */}
@@ -566,35 +631,50 @@ export const HowItWorksPage: React.FC = () => {
           background: '#0F172A',
           padding: '80px 24px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <h2
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#F8FAFC',
-              marginBottom: 16,
-            }}
-          >
-            See what fuels are supported on the platform
-          </h2>
-          <Link
-            to="/fuels"
-            style={{
-              display: 'inline-block',
-              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-              color: '#FFFFFF',
-              padding: '14px 36px',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 600,
-              textDecoration: 'none',
-              marginTop: 12,
-            }}
-          >
-            Explore Fuel Coverage
-          </Link>
+        <GradientOrb
+          color="rgba(76,175,80,0.06)"
+          size={400}
+          style={{ top: -120, left: '50%', transform: 'translateX(-50%)' }}
+        />
+
+        <div style={{ maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <Reveal>
+            <h2
+              style={{
+                fontSize: 32,
+                fontWeight: 400,
+                fontFamily: '"DM Serif Display", serif',
+                color: '#F8FAFC',
+                marginBottom: 16,
+              }}
+            >
+              See what fuels are supported on the platform
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <HoverButton>
+              <Link
+                to="/fuels"
+                style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+                  color: '#FFFFFF',
+                  padding: '14px 36px',
+                  borderRadius: 8,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  marginTop: 12,
+                }}
+              >
+                Explore Fuel Coverage
+              </Link>
+            </HoverButton>
+          </Reveal>
         </div>
       </section>
     </div>

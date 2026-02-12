@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import {
   Droplets,
   Wheat,
@@ -11,6 +12,16 @@ import {
   Award,
   BookOpen,
 } from 'lucide-react';
+import {
+  Reveal,
+  HoverCard,
+  StaggerGrid,
+  StaggerItem,
+  GradientOrb,
+  DotGrid,
+  LeafDecor,
+  HoverButton,
+} from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -146,7 +157,8 @@ const sectionPadding: React.CSSProperties = {
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 32,
-  fontWeight: 700,
+  fontFamily: '"DM Serif Display", serif',
+  fontWeight: 400,
   color: '#0F172A',
   textAlign: 'center',
   marginBottom: 12,
@@ -160,6 +172,21 @@ const sectionSubtitle: React.CSSProperties = {
   margin: '0 auto 48px',
   lineHeight: 1.6,
 };
+
+/* ------------------------------------------------------------------ */
+/*  Responsive style tag                                                */
+/* ------------------------------------------------------------------ */
+
+const responsiveStyles = `
+  @media (max-width: 640px) {
+    .fuel-grid {
+      grid-template-columns: 1fr !important;
+    }
+    .attribute-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+`;
 
 /* ------------------------------------------------------------------ */
 /*  FuelCard Component                                                  */
@@ -337,19 +364,48 @@ const AttributeCard: React.FC<{ attribute: Attribute }> = ({ attribute }) => {
 export const FuelCoveragePage: React.FC = () => {
   return (
     <div>
+      <style>{responsiveStyles}</style>
+
       {/* ---- Section 1: Hero ---- */}
       <section
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 72px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <GradientOrb
+          color="rgba(93,173,226,0.08)"
+          size={500}
+          style={{ top: -200, left: -150 }}
+        />
+        <GradientOrb
+          color="rgba(76,175,80,0.06)"
+          size={400}
+          style={{ bottom: -180, right: -100 }}
+        />
+        <DotGrid
+          color="rgba(248,250,252,0.05)"
+          style={{ top: 30, right: 40 }}
+        />
+        <LeafDecor
+          color="rgba(93,173,226,0.04)"
+          style={{ width: 220, height: 220, bottom: -60, left: 20 }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}
+        >
           <h1
             style={{
               fontSize: 42,
-              fontWeight: 800,
+              fontFamily: '"DM Serif Display", serif',
+              fontWeight: 400,
               color: '#F8FAFC',
               marginBottom: 16,
               lineHeight: 1.2,
@@ -369,39 +425,63 @@ export const FuelCoveragePage: React.FC = () => {
             Verdaxis supports a growing range of low-carbon fuels and their verified environmental
             attributes. Here's what can be registered, traded, and tracked on the platform.
           </p>
-        </div>
+        </motion.div>
       </section>
 
       {/* ---- Section 2: Fuel Types Grid ---- */}
-      <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <h2 style={sectionTitle}>Supported Fuel Types</h2>
-        <p style={sectionSubtitle}>
-          Each fuel type has distinct pathways, carbon intensity profiles, and market applications.
-        </p>
+      <section style={{ ...sectionPadding, background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
+        <DotGrid
+          color="rgba(15,23,42,0.03)"
+          style={{ top: 20, left: 30 }}
+        />
 
-        <div
+        <Reveal>
+          <h2 style={sectionTitle}>Supported Fuel Types</h2>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <p style={sectionSubtitle}>
+            Each fuel type has distinct pathways, carbon intensity profiles, and market applications.
+          </p>
+        </Reveal>
+
+        <StaggerGrid
+          className="fuel-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 24,
             maxWidth: 1100,
             margin: '0 auto',
           }}
         >
           {fuelTypes.map((fuel) => (
-            <FuelCard key={fuel.name} fuel={fuel} />
+            <StaggerItem key={fuel.name}>
+              <HoverCard>
+                <FuelCard fuel={fuel} />
+              </HoverCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ---- Section 3: Attributes Supported ---- */}
-      <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
-        <h2 style={sectionTitle}>Attributes Tracked</h2>
-        <p style={sectionSubtitle}>
-          Every fuel registered on Verdaxis carries verified environmental data across these dimensions.
-        </p>
+      <section style={{ ...sectionPadding, background: '#FFFFFF', position: 'relative', overflow: 'hidden' }}>
+        <LeafDecor
+          color="rgba(76,175,80,0.04)"
+          style={{ width: 180, height: 180, top: -40, right: -30 }}
+        />
 
-        <div
+        <Reveal>
+          <h2 style={sectionTitle}>Attributes Tracked</h2>
+        </Reveal>
+        <Reveal delay={0.1}>
+          <p style={sectionSubtitle}>
+            Every fuel registered on Verdaxis carries verified environmental data across these dimensions.
+          </p>
+        </Reveal>
+
+        <StaggerGrid
+          className="attribute-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -411,9 +491,13 @@ export const FuelCoveragePage: React.FC = () => {
           }}
         >
           {attributes.map((attr) => (
-            <AttributeCard key={attr.title} attribute={attr} />
+            <StaggerItem key={attr.title}>
+              <HoverCard>
+                <AttributeCard attribute={attr} />
+              </HoverCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ---- Section 4: CTA ---- */}
@@ -422,35 +506,59 @@ export const FuelCoveragePage: React.FC = () => {
           background: '#0F172A',
           padding: '80px 24px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <h2
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#F8FAFC',
-              marginBottom: 16,
-            }}
-          >
-            See how these fuels are produced around the world
-          </h2>
-          <Link
-            to="/map/producers"
-            style={{
-              display: 'inline-block',
-              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-              color: '#FFFFFF',
-              padding: '14px 36px',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 600,
-              textDecoration: 'none',
-              marginTop: 12,
-            }}
-          >
-            Explore Producer Map
-          </Link>
+        <GradientOrb
+          color="rgba(93,173,226,0.06)"
+          size={350}
+          style={{ top: -120, right: -80 }}
+        />
+        <GradientOrb
+          color="rgba(76,175,80,0.05)"
+          size={300}
+          style={{ bottom: -100, left: -60 }}
+        />
+        <DotGrid
+          color="rgba(248,250,252,0.04)"
+          style={{ bottom: 20, left: 40 }}
+        />
+
+        <div style={{ maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <Reveal>
+            <h2
+              style={{
+                fontSize: 32,
+                fontFamily: '"DM Serif Display", serif',
+                fontWeight: 400,
+                color: '#F8FAFC',
+                marginBottom: 16,
+              }}
+            >
+              See how these fuels are produced around the world
+            </h2>
+          </Reveal>
+          <Reveal delay={0.15}>
+            <HoverButton>
+              <Link
+                to="/map/producers"
+                style={{
+                  display: 'inline-block',
+                  background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+                  color: '#FFFFFF',
+                  padding: '14px 36px',
+                  borderRadius: 8,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  marginTop: 12,
+                }}
+              >
+                Explore Producer Map
+              </Link>
+            </HoverButton>
+          </Reveal>
         </div>
       </section>
     </div>

@@ -7,6 +7,16 @@ import {
   FileCheck,
   ClipboardCheck,
 } from 'lucide-react';
+import { motion } from 'motion/react';
+import {
+  Reveal,
+  HoverCard,
+  StaggerGrid,
+  StaggerItem,
+  GradientOrb,
+  DotGrid,
+  HoverButton,
+} from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -56,8 +66,9 @@ const sectionPadding: React.CSSProperties = {
 };
 
 const sectionTitle: React.CSSProperties = {
+  fontFamily: '"DM Serif Display", serif',
   fontSize: 32,
-  fontWeight: 700,
+  fontWeight: 400,
   color: '#0F172A',
   textAlign: 'center',
   marginBottom: 12,
@@ -85,9 +96,21 @@ export const BuyerUseCasePage: React.FC = () => {
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 72px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <GradientOrb
+          size={500}
+          color="rgba(93,173,226,0.07)"
+          style={{ top: -150, right: -100 }}
+        />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}
+        >
           <div
             style={{
               width: 64,
@@ -104,8 +127,9 @@ export const BuyerUseCasePage: React.FC = () => {
           </div>
           <h1
             style={{
+              fontFamily: '"DM Serif Display", serif',
               fontSize: 42,
-              fontWeight: 800,
+              fontWeight: 400,
               color: '#F8FAFC',
               marginBottom: 16,
               lineHeight: 1.2,
@@ -125,112 +149,131 @@ export const BuyerUseCasePage: React.FC = () => {
             Source verified low-carbon fuels with full compliance traceability
             &mdash; from energy-adjusted pricing to MC declaration.
           </p>
-        </div>
+        </motion.div>
       </section>
 
       {/* ---- Value Propositions ---- */}
-      <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
-        <h2 style={sectionTitle}>Why Buyers Choose Verdaxis</h2>
-        <p style={sectionSubtitle}>
-          Full visibility on what you are buying and how it impacts your compliance position.
-        </p>
-        <div
+      <section
+        style={{
+          ...sectionPadding,
+          background: '#FFFFFF',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <DotGrid
+          style={{ bottom: 20, right: 20 }}
+          color="rgba(15,23,42,0.04)"
+        />
+        <Reveal>
+          <h2 style={sectionTitle}>Why Buyers Choose Verdaxis</h2>
+          <p style={sectionSubtitle}>
+            Full visibility on what you are buying and how it impacts your compliance position.
+          </p>
+        </Reveal>
+        <StaggerGrid
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 24,
             maxWidth: 1100,
             margin: '0 auto',
           }}
+          className="buyer-value-grid"
         >
           {valueProps.map(({ icon: Icon, title, description }) => (
-            <div
-              key={title}
-              style={{
-                background: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                borderRadius: 12,
-                padding: 28,
-              }}
-            >
-              <div
+            <StaggerItem key={title}>
+              <HoverCard
                 style={{
-                  width: 48,
-                  height: 48,
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
                   borderRadius: 12,
-                  background: `${ACCENT}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
+                  padding: 28,
+                  height: '100%',
                 }}
               >
-                <Icon size={22} color={ACCENT} />
-              </div>
-              <h3
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  marginBottom: 8,
-                }}
-              >
-                {title}
-              </h3>
-              <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
-                {description}
-              </p>
-            </div>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
+                    background: `${ACCENT}15`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <Icon size={22} color={ACCENT} />
+                </div>
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    marginBottom: 8,
+                  }}
+                >
+                  {title}
+                </h3>
+                <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
+                  {description}
+                </p>
+              </HoverCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ---- How It Works For You ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <h2 style={sectionTitle}>How It Works For You</h2>
-        <p style={sectionSubtitle}>
-          From fuel requirement to compliance-ready trade in three steps.
-        </p>
+        <Reveal>
+          <h2 style={sectionTitle}>How It Works For You</h2>
+          <p style={sectionSubtitle}>
+            From fuel requirement to compliance-ready trade in three steps.
+          </p>
+        </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {howItWorksSteps.map((step, idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 20,
-                marginBottom: idx < howItWorksSteps.length - 1 ? 32 : 0,
-              }}
-            >
+            <Reveal key={idx} delay={idx * 0.15}>
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  background: ACCENT,
-                  color: '#FFFFFF',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: 16,
-                  flexShrink: 0,
+                  alignItems: 'flex-start',
+                  gap: 20,
+                  marginBottom: idx < howItWorksSteps.length - 1 ? 32 : 0,
                 }}
               >
-                {idx + 1}
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '50%',
+                    background: ACCENT,
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                >
+                  {idx + 1}
+                </div>
+                <p
+                  style={{
+                    fontSize: 16,
+                    color: '#334155',
+                    lineHeight: 1.6,
+                    margin: 0,
+                    paddingTop: 8,
+                  }}
+                >
+                  {step}
+                </p>
               </div>
-              <p
-                style={{
-                  fontSize: 16,
-                  color: '#334155',
-                  lineHeight: 1.6,
-                  margin: 0,
-                  paddingTop: 8,
-                }}
-              >
-                {step}
-              </p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -241,47 +284,72 @@ export const BuyerUseCasePage: React.FC = () => {
           background: '#0F172A',
           padding: '80px 24px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <h2
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#F8FAFC',
-              marginBottom: 16,
-            }}
-          >
-            Ready to source with confidence?
-          </h2>
-          <p
-            style={{
-              fontSize: 16,
-              color: '#94A3B8',
-              lineHeight: 1.7,
-              marginBottom: 32,
-            }}
-          >
-            Join the Verdaxis pilot programme and start sourcing verified
-            low-carbon fuels with full compliance traceability.
-          </p>
-          <Link
-            to="/pilot"
-            style={{
-              display: 'inline-block',
-              background: `linear-gradient(135deg, ${ACCENT}, #4CAF50)`,
-              color: '#FFFFFF',
-              padding: '14px 36px',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            Apply for Pilot
-          </Link>
+        <GradientOrb
+          size={500}
+          color="rgba(76,175,80,0.05)"
+          style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+        />
+        <div style={{ maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <Reveal>
+            <h2
+              style={{
+                fontFamily: '"DM Serif Display", serif',
+                fontSize: 32,
+                fontWeight: 400,
+                color: '#F8FAFC',
+                marginBottom: 16,
+              }}
+            >
+              Ready to source with confidence?
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <p
+              style={{
+                fontSize: 16,
+                color: '#94A3B8',
+                lineHeight: 1.7,
+                marginBottom: 32,
+              }}
+            >
+              Join the Verdaxis pilot programme and start sourcing verified
+              low-carbon fuels with full compliance traceability.
+            </p>
+          </Reveal>
+          <Reveal delay={0.2}>
+            <HoverButton>
+              <Link
+                to="/pilot"
+                style={{
+                  display: 'inline-block',
+                  background: `linear-gradient(135deg, ${ACCENT}, #4CAF50)`,
+                  color: '#FFFFFF',
+                  padding: '14px 36px',
+                  borderRadius: 8,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+              >
+                Apply for Pilot
+              </Link>
+            </HoverButton>
+          </Reveal>
         </div>
       </section>
+
+      {/* Responsive overrides */}
+      <style>{`
+        @media (max-width: 640px) {
+          .buyer-value-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -42,6 +42,15 @@ import { RoadmapPage } from './pages/public/RoadmapPage';
 import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
 import { ProducerMapPage } from './pages/public/ProducerMapPage';
 
+// Scroll to top on route change
+const ScrollToTop: React.FC = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     const { isAuthenticated, isLoading } = useAuth();
@@ -207,6 +216,7 @@ const App: React.FC = () => {
         <NotificationProvider>
         <CopilotProvider>
             <BrowserRouter>
+                <ScrollToTop />
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<LoginPage />} />
