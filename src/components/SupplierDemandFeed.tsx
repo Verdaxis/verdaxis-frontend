@@ -17,7 +17,7 @@ import {
     ChevronDown,
     DollarSign,
 } from 'lucide-react';
-import { OrderBookOrder } from '../types';
+import { OrderBookOrder, DemandSignal } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 
@@ -89,6 +89,7 @@ const getFuelIcon = (fuelType: string) => {
 export const SupplierDemandFeed: React.FC = () => {
     const { setPageContext } = useCopilotContext();
     const [orders, setOrders] = useState<OrderBookOrder[]>([]);
+    const [demandSignals, setDemandSignals] = useState<DemandSignal[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -124,8 +125,12 @@ export const SupplierDemandFeed: React.FC = () => {
         setError(null);
 
         try {
-            const data = await api.orderbook.listBids();
-            setOrders(data);
+            const [bids, signals] = await Promise.all([
+                api.orderbook.listBids(),
+                api.demand.signals(),
+            ]);
+            setOrders(bids);
+            setDemandSignals(signals);
         } catch (e: any) {
             console.error('Failed to fetch demand feed:', e);
             setError(e.message || 'Failed to load buyer requests. Please try again.');
@@ -308,6 +313,32 @@ export const SupplierDemandFeed: React.FC = () => {
                 </div>
             ) : (
                 <>
+                    {/* Demand Signals Summary */}
+                    {demandSignals.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            {demandSignals.slice(0, 6).map((signal, idx) => (
+                                <div key={idx} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-bold text-slate-800 dark:text-white">{signal.fuel_type}</span>
+                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                            signal.urgency === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                                            : signal.urgency === 'MEDIUM' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                                            : 'bg-slate-100 text-slate-700 dark:bg-slate-600 dark:text-slate-300'
+                                        }`}>
+                                            {signal.urgency}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                                        <div>{signal.region} &mdash; {signal.bid_count} buyer{signal.bid_count > 1 ? 's' : ''}</div>
+                                        <div>{signal.volume_mt.toLocaleString()} MT demanded</div>
+                                        <div>Up to ${signal.max_price_per_mt.toLocaleString()}/MT</div>
+                                        <div>{signal.earliest_delivery}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {/* Count Badge */}
                     <div className="mb-4 flex items-center gap-2">
                         <span className="text-sm text-slate-500 dark:text-slate-400">
