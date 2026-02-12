@@ -315,8 +315,8 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
 
       // Draw faint continent outlines (behind everything)
       const proj = getProjection(w, h);
-      ctx!.strokeStyle = 'rgba(15, 23, 42, 0.045)';
-      ctx!.fillStyle = 'rgba(15, 23, 42, 0.012)';
+      ctx!.strokeStyle = 'rgba(148, 163, 184, 0.07)';
+      ctx!.fillStyle = 'rgba(148, 163, 184, 0.02)';
       ctx!.lineWidth = 0.8;
       for (const continent of CONTINENTS) {
         ctx!.beginPath();
