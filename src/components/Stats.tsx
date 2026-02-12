@@ -72,13 +72,13 @@ export const Stats: React.FC = () => {
     }, []);
 
     // Calculate KPIs from real data
-    const totalVolume = history.reduce((sum, t) => sum + (t.final_quantity_mt || t.quantity_mt || 0), 0);
+    const totalVolume = history.reduce((sum, t) => sum + (Number(t.final_quantity_mt) || Number(t.quantity_mt) || 0), 0);
     
     // Calculate average price performance
     let avgPerformance = 0;
     if (history.length > 0) {
         const performances = history.map(o => {
-            const myPrice = o.final_price_per_mt || o.price_per_mt_usd || 0;
+            const myPrice = Number(o.final_price_per_mt) || Number(o.price_per_mt_usd) || 0;
             const marketPrice = getMarketAvgPrice(o.fuel_type, o.region, myPrice);
             return ((myPrice - marketPrice) / marketPrice) * 100;
         });
@@ -214,7 +214,7 @@ export const Stats: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
                             {history.map((trade) => {
-                                const myPrice = trade.final_price_per_mt || trade.price_per_mt_usd || 0;
+                                const myPrice = Number(trade.final_price_per_mt) || Number(trade.price_per_mt_usd) || 0;
                                 const marketPrice = getMarketAvgPrice(trade.fuel_type, trade.region, myPrice);
                                 const diff = ((myPrice - marketPrice) / marketPrice) * 100;
                                 const isBetter = diff < 0;
@@ -233,7 +233,7 @@ export const Stats: React.FC = () => {
                                         <td className="px-6 py-4">
                                             <div className="font-bold text-[#334155] dark:text-slate-200">{trade.fuel_type}</div>
                                             <div className="text-xs text-slate-400">
-                                                {trade.final_quantity_mt || trade.quantity_mt || 0} MT
+                                                {Number(trade.final_quantity_mt) || Number(trade.quantity_mt) || 0} MT
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 font-bold text-[#334155] dark:text-emerald-400">

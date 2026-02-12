@@ -24,6 +24,7 @@ import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
+import { SupplierDemandFeed } from './components/SupplierDemandFeed';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
 import { LandingPage } from './pages/public/LandingPage';
@@ -170,6 +171,8 @@ const Dashboard: React.FC = () => {
                 return <SupplierStats />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
+            case 'DEMAND_FEED':
+                return <SupplierDemandFeed />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
