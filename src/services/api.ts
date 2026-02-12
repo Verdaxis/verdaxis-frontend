@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse } from '../types';
 import { API_URL } from './config';
 
 // Helper to get auth header
@@ -321,6 +321,17 @@ export const api = {
         },
         fuelTypes: async () => {
             return fetchApi('/orderbook/fuel-types');
+        },
+    },
+
+    prices: {
+        getSummaries: async (params?: { fuel_type?: string; region?: string; hours?: number }): Promise<PriceDiscoveryResponse> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.hours) searchParams.append('hours', String(params.hours));
+            const query = searchParams.toString();
+            return fetchApi(`/prices${query ? `?${query}` : ''}`);
         },
     },
 

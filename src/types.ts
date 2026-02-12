@@ -195,4 +195,23 @@ export interface AggregatedOrderbook {
     order_count: number;
 }
 
+// ============== Price Discovery Types ==============
+export interface PriceSummary {
+    fuel_type: string;
+    region: string;
+    last_price: number | null;
+    avg_price_24h: number | null;
+    high_24h: number | null;
+    low_24h: number | null;
+    volume_24h: number;
+    trade_count_24h: number;
+    price_change_pct: number | null;
+    last_trade_at: string | null;
+}
+
+export interface PriceDiscoveryResponse {
+    summaries: PriceSummary[];
+    generated_at: string;
+}
+
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK';
