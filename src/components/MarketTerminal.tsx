@@ -18,7 +18,7 @@ import {
     Loader2,
     ChevronDown
 } from 'lucide-react';
-import { Port, OrderBookOrder } from '../types';
+import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 
@@ -195,6 +195,26 @@ export const MarketTerminal: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // Fetch real price summaries from price discovery API
+    const [priceSummaries, setPriceSummaries] = useState<PriceSummary[]>([]);
+
+    useEffect(() => {
+        const fetchPrices = async () => {
+            try {
+                const resp = await api.prices.getSummaries({
+                    fuel_type: selectedFuel,
+                    region: selectedPort,
+                });
+                setPriceSummaries(resp.summaries);
+            } catch (e) {
+                console.error('Failed to load price summaries', e);
+            }
+        };
+        fetchPrices();
+        const interval = setInterval(fetchPrices, 30000);
+        return () => clearInterval(interval);
+    }, [selectedFuel, selectedPort]);
+
     // Simulation tick: update every 6 seconds
     useEffect(() => {
         const interval = setInterval(() => {
@@ -271,6 +291,16 @@ export const MarketTerminal: React.FC = () => {
             const ask = realAsk ?? Math.round(((bid || sim.bid) + 3 + seededRandom(tick * 37 + idx * 17) * 5) * 100) / 100;
             const askQty = realAskQty ?? Math.round((150 + seededRandom(tick * 43 + idx * 23) * 600) / 50) * 50;
 
+            // Use real price discovery data for last/change when available
+            const matchingSummary = priceSummaries.find(
+                s => s.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase())
+                  && s.region.toLowerCase().includes(selectedPort.toLowerCase())
+            );
+            const last = matchingSummary?.last_price ?? sim.last;
+            const change = matchingSummary?.price_change_pct
+                ? Number(matchingSummary.price_change_pct)
+                : sim.change;
+
             return {
                 id: String(idx + 1),
                 period: config.period,
@@ -279,11 +309,11 @@ export const MarketTerminal: React.FC = () => {
                 bid: bid,
                 ask: ask,
                 askQty: askQty,
-                last: sim.last,
-                change: sim.change,
+                last: last,
+                change: change,
             };
         });
-    }, [filteredAsks, filteredBids, tick, effectiveBase]);
+    }, [filteredAsks, filteredBids, tick, effectiveBase, priceSummaries, selectedFuel, selectedPort]);
 
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
