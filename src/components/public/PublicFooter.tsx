@@ -13,15 +13,15 @@ const PLATFORM_LINKS = [
 ];
 
 const SOLUTIONS_LINKS = [
-  { label: 'For Producers', to: '/solutions/producers' },
-  { label: 'For Buyers', to: '/solutions/buyers' },
-  { label: 'For Traders', to: '/solutions/traders' },
-  { label: 'For Financiers', to: '/solutions/financiers' },
+  { label: 'For Producers', to: '/for-producers' },
+  { label: 'For Buyers', to: '/for-buyers' },
+  { label: 'For Traders', to: '/for-traders' },
+  { label: 'For Financiers', to: '/for-financiers' },
 ];
 
 const TOOLS_LINKS = [
-  { label: 'Energy Calculator', to: '/tools/calculator' },
-  { label: 'Producer Map', to: '/tools/map' },
+  { label: 'Energy Calculator', to: '/tools/energy-calculator' },
+  { label: 'Producer Map', to: '/map/producers' },
 ];
 
 const FooterColumn: React.FC<{ title: string; links: { label: string; to: string }[] }> = ({ title, links }) => (

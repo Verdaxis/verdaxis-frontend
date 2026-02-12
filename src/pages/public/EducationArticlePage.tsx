@@ -1,7 +1,9 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock } from 'lucide-react';
+import { motion } from 'motion/react';
 import { educationArticles } from '../../data/educationArticles';
+import { Reveal, GradientOrb, HoverButton } from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -45,21 +47,23 @@ export const EducationArticlePage: React.FC = () => {
         <p style={{ fontSize: 16, color: '#64748B', marginBottom: 24 }}>
           The article you are looking for does not exist or has been moved.
         </p>
-        <Link
-          to="/education"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 15,
-            fontWeight: 600,
-            color: '#5DADE2',
-            textDecoration: 'none',
-          }}
-        >
-          <ArrowLeft size={16} />
-          Back to Education
-        </Link>
+        <HoverButton>
+          <Link
+            to="/education"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 15,
+              fontWeight: 600,
+              color: '#5DADE2',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} />
+            Back to Education
+          </Link>
+        </HoverButton>
       </div>
     );
   }
@@ -75,29 +79,55 @@ export const EducationArticlePage: React.FC = () => {
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 64px',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        {/* Decorative gradient orbs */}
+        <GradientOrb
+          color="rgba(93,173,226,0.08)"
+          size={500}
+          style={{ top: -180, right: -120 }}
+        />
+        <GradientOrb
+          color="rgba(76,175,80,0.06)"
+          size={350}
+          style={{ bottom: -100, left: -80 }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}
+        >
           {/* Back link */}
-          <Link
-            to="/education"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#94A3B8',
-              textDecoration: 'none',
-              marginBottom: 24,
-            }}
-          >
-            <ArrowLeft size={16} />
-            Back to Education
-          </Link>
+          <HoverButton>
+            <Link
+              to="/education"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#94A3B8',
+                textDecoration: 'none',
+                marginBottom: 24,
+              }}
+            >
+              <ArrowLeft size={16} />
+              Back to Education
+            </Link>
+          </HoverButton>
 
           {/* Category badge */}
-          <div style={{ marginBottom: 16 }}>
+          <motion.div
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            style={{ marginBottom: 16, marginTop: 24 }}
+          >
             <span
               style={{
                 display: 'inline-block',
@@ -111,23 +141,30 @@ export const EducationArticlePage: React.FC = () => {
             >
               {article.category}
             </span>
-          </div>
+          </motion.div>
 
           {/* Title */}
-          <h1
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
             style={{
               fontSize: 38,
-              fontWeight: 800,
+              fontFamily: '"DM Serif Display", serif',
+              fontWeight: 400,
               color: '#F8FAFC',
               lineHeight: 1.25,
               marginBottom: 16,
             }}
           >
             {article.title}
-          </h1>
+          </motion.h1>
 
           {/* Read time */}
-          <span
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -138,8 +175,8 @@ export const EducationArticlePage: React.FC = () => {
           >
             <Clock size={15} />
             {article.readTime} min read
-          </span>
-        </div>
+          </motion.span>
+        </motion.div>
       </section>
 
       {/* ---- Content ---- */}
@@ -151,43 +188,48 @@ export const EducationArticlePage: React.FC = () => {
       >
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           {paragraphs.map((para, idx) => (
-            <p
-              key={idx}
-              style={{
-                fontSize: 16,
-                color: '#334155',
-                lineHeight: 1.8,
-                marginBottom: 24,
-              }}
-            >
-              {para}
-            </p>
+            <Reveal key={idx} delay={idx < 4 ? idx * 0.08 : 0}>
+              <p
+                style={{
+                  fontSize: 16,
+                  color: '#334155',
+                  lineHeight: 1.8,
+                  marginBottom: 24,
+                }}
+              >
+                {para}
+              </p>
+            </Reveal>
           ))}
 
           {/* Back link at bottom */}
-          <div
-            style={{
-              borderTop: '1px solid #E2E8F0',
-              paddingTop: 32,
-              marginTop: 32,
-            }}
-          >
-            <Link
-              to="/education"
+          <Reveal>
+            <div
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 15,
-                fontWeight: 600,
-                color: '#5DADE2',
-                textDecoration: 'none',
+                borderTop: '1px solid #E2E8F0',
+                paddingTop: 32,
+                marginTop: 32,
               }}
             >
-              <ArrowLeft size={16} />
-              Back to Education
-            </Link>
-          </div>
+              <HoverButton>
+                <Link
+                  to="/education"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: '#5DADE2',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ArrowLeft size={16} />
+                  Back to Education
+                </Link>
+              </HoverButton>
+            </div>
+          </Reveal>
         </div>
       </section>
     </div>

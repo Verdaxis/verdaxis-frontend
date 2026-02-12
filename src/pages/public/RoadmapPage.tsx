@@ -1,6 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Shield, TrendingUp, Scale } from 'lucide-react';
+import { motion } from 'motion/react';
+import {
+  Reveal,
+  HoverCard,
+  StaggerGrid,
+  StaggerItem,
+  GradientOrb,
+  HoverButton,
+} from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -113,7 +122,8 @@ const sectionPadding: React.CSSProperties = {
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 32,
-  fontWeight: 700,
+  fontFamily: '"DM Serif Display", serif',
+  fontWeight: 400,
   color: '#0F172A',
   textAlign: 'center',
   marginBottom: 12,
@@ -191,65 +201,67 @@ const PhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, index }) 
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 0,
-        position: 'relative',
-        marginBottom: index < phases.length - 1 ? 0 : 0,
-      }}
-    >
-      {/* Desktop layout: alternate left/right */}
-      {/* Left side content (even indices) */}
+    <Reveal delay={index * 0.12}>
       <div
         style={{
-          flex: 1,
           display: 'flex',
-          justifyContent: 'flex-end',
-          paddingRight: 24,
+          alignItems: 'flex-start',
+          gap: 0,
+          position: 'relative',
+          marginBottom: index < phases.length - 1 ? 0 : 0,
         }}
-        className="roadmap-left-col"
       >
-        {isLeft && (
-          <div style={cardStyle}>
-            <PhaseCardContent phase={phase} />
-          </div>
-        )}
-      </div>
+        {/* Desktop layout: alternate left/right */}
+        {/* Left side content (even indices) */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            paddingRight: 24,
+          }}
+          className="roadmap-left-col"
+        >
+          {isLeft && (
+            <div style={cardStyle}>
+              <PhaseCardContent phase={phase} />
+            </div>
+          )}
+        </div>
 
-      {/* Center timeline marker */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          flexShrink: 0,
-          width: 44,
-        }}
-      >
-        <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
-          {phase.number}
+        {/* Center timeline marker */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flexShrink: 0,
+            width: 44,
+          }}
+        >
+          <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
+            {phase.number}
+          </div>
+        </div>
+
+        {/* Right side content (odd indices) */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'flex-start',
+            paddingLeft: 24,
+          }}
+          className="roadmap-right-col"
+        >
+          {!isLeft && (
+            <div style={cardStyle}>
+              <PhaseCardContent phase={phase} />
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Right side content (odd indices) */}
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          justifyContent: 'flex-start',
-          paddingLeft: 24,
-        }}
-        className="roadmap-right-col"
-      >
-        {!isLeft && (
-          <div style={cardStyle}>
-            <PhaseCardContent phase={phase} />
-          </div>
-        )}
-      </div>
-    </div>
+    </Reveal>
   );
 };
 
@@ -381,35 +393,37 @@ const MobilePhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, ind
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 16,
-        position: 'relative',
-        paddingBottom: index < phases.length - 1 ? 0 : 0,
-      }}
-    >
-      {/* Timeline marker */}
+    <Reveal delay={index * 0.12}>
       <div
         style={{
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          flexShrink: 0,
-          width: 36,
+          alignItems: 'flex-start',
+          gap: 16,
+          position: 'relative',
+          paddingBottom: index < phases.length - 1 ? 0 : 0,
         }}
       >
-        <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
-          {phase.number}
+        {/* Timeline marker */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flexShrink: 0,
+            width: 36,
+          }}
+        >
+          <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
+            {phase.number}
+          </div>
+        </div>
+
+        {/* Card content */}
+        <div style={cardStyle}>
+          <PhaseCardContent phase={phase} />
         </div>
       </div>
-
-      {/* Card content */}
-      <div style={cardStyle}>
-        <PhaseCardContent phase={phase} />
-      </div>
-    </div>
+    </Reveal>
   );
 };
 
@@ -429,13 +443,32 @@ export const RoadmapPage: React.FC = () => {
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 72px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <GradientOrb
+          size={500}
+          color="rgba(93,173,226,0.08)"
+          style={{ top: -150, left: -100 }}
+        />
+        <GradientOrb
+          size={400}
+          color="rgba(76,175,80,0.06)"
+          style={{ bottom: -120, right: -80 }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}
+        >
           <h1
             style={{
               fontSize: 42,
-              fontWeight: 800,
+              fontFamily: '"DM Serif Display", serif',
+              fontWeight: 400,
               color: '#F8FAFC',
               marginBottom: 16,
               lineHeight: 1.2,
@@ -456,7 +489,7 @@ export const RoadmapPage: React.FC = () => {
             expanding capability while maintaining integrity. No dates — just sequence and
             commitment.
           </p>
-        </div>
+        </motion.div>
       </section>
 
       {/* ---- Section 2: Vertical Timeline ---- */}
@@ -511,12 +544,16 @@ export const RoadmapPage: React.FC = () => {
 
       {/* ---- Section 3: Design Principles ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
-        <h2 style={sectionTitle}>How We Build</h2>
-        <p style={sectionSubtitle}>
-          Three principles guide every feature decision on the Verdaxis platform.
-        </p>
+        <Reveal>
+          <h2 style={sectionTitle}>How We Build</h2>
+        </Reveal>
+        <Reveal delay={0.08}>
+          <p style={sectionSubtitle}>
+            Three principles guide every feature decision on the Verdaxis platform.
+          </p>
+        </Reveal>
 
-        <div
+        <StaggerGrid
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -526,46 +563,48 @@ export const RoadmapPage: React.FC = () => {
           }}
         >
           {designPrinciples.map(({ icon: Icon, title, description }) => (
-            <div key={title} style={card}>
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 14,
-                  background:
-                    'linear-gradient(135deg, rgba(93,173,226,0.12), rgba(76,175,80,0.12))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  marginBottom: 20,
-                }}
-              >
-                <Icon size={26} color="#5DADE2" />
-              </div>
-              <h3
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  marginBottom: 12,
-                }}
-              >
-                {title}
-              </h3>
-              <p
-                style={{
-                  fontSize: 15,
-                  color: '#64748B',
-                  lineHeight: 1.7,
-                  margin: 0,
-                }}
-              >
-                {description}
-              </p>
-            </div>
+            <StaggerItem key={title}>
+              <HoverCard style={card}>
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 14,
+                    background:
+                      'linear-gradient(135deg, rgba(93,173,226,0.12), rgba(76,175,80,0.12))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginBottom: 20,
+                  }}
+                >
+                  <Icon size={26} color="#5DADE2" />
+                </div>
+                <h3
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: '#0F172A',
+                    marginBottom: 12,
+                  }}
+                >
+                  {title}
+                </h3>
+                <p
+                  style={{
+                    fontSize: 15,
+                    color: '#64748B',
+                    lineHeight: 1.7,
+                    margin: 0,
+                  }}
+                >
+                  {description}
+                </p>
+              </HoverCard>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGrid>
       </section>
 
       {/* ---- Section 4: CTA ---- */}
@@ -577,35 +616,40 @@ export const RoadmapPage: React.FC = () => {
         }}
       >
         <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <h2
-            style={{
-              fontSize: 32,
-              fontWeight: 800,
-              color: '#F8FAFC',
-              marginBottom: 16,
-            }}
-          >
-            Want to be part of the journey?
-          </h2>
-          <Link
-            to="/pilot"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-              color: '#FFFFFF',
-              padding: '14px 36px',
-              borderRadius: 8,
-              fontSize: 16,
-              fontWeight: 600,
-              textDecoration: 'none',
-              marginTop: 12,
-            }}
-          >
-            Apply for Pilot
-            <ArrowRight size={18} />
-          </Link>
+          <Reveal>
+            <h2
+              style={{
+                fontSize: 32,
+                fontFamily: '"DM Serif Display", serif',
+                fontWeight: 400,
+                color: '#F8FAFC',
+                marginBottom: 16,
+              }}
+            >
+              Want to be part of the journey?
+            </h2>
+          </Reveal>
+          <HoverButton>
+            <Link
+              to="/pilot"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+                color: '#FFFFFF',
+                padding: '14px 36px',
+                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: 600,
+                textDecoration: 'none',
+                marginTop: 12,
+              }}
+            >
+              Apply for Pilot
+              <ArrowRight size={18} />
+            </Link>
+          </HoverButton>
         </div>
       </section>
 

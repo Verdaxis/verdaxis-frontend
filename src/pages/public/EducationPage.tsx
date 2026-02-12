@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { BookOpen, Clock, ArrowRight } from 'lucide-react';
 import { educationArticles, type EducationArticle } from '../../data/educationArticles';
+import {
+  Reveal,
+  HoverCard,
+  StaggerGrid,
+  StaggerItem,
+  GradientOrb,
+  HoverButton,
+} from '../../components/public/motionUtils';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -31,7 +40,7 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
   const colors = categoryColors[article.category] ?? { bg: '#F1F5F9', text: '#64748B' };
 
   return (
-    <div
+    <HoverCard
       style={{
         background: '#FFFFFF',
         border: '1px solid #E2E8F0',
@@ -40,7 +49,7 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: 'box-shadow 0.2s, border-color 0.2s',
+        height: '100%',
       }}
     >
       <div>
@@ -124,7 +133,7 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
           <ArrowRight size={16} />
         </Link>
       </div>
-    </div>
+    </HoverCard>
   );
 };
 
@@ -148,9 +157,21 @@ export const EducationPage: React.FC = () => {
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
           padding: '96px 24px 72px',
           textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+        <GradientOrb
+          color="rgba(93,173,226,0.08)"
+          size={500}
+          style={{ top: -150, right: -100 }}
+        />
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}
+        >
           <div
             style={{
               width: 64,
@@ -168,7 +189,8 @@ export const EducationPage: React.FC = () => {
           <h1
             style={{
               fontSize: 42,
-              fontWeight: 800,
+              fontFamily: '"DM Serif Display", serif',
+              fontWeight: 400,
               color: '#F8FAFC',
               marginBottom: 16,
               lineHeight: 1.2,
@@ -187,12 +209,42 @@ export const EducationPage: React.FC = () => {
           >
             Short explainers on the concepts that matter most in low-carbon fuel markets.
           </p>
-        </div>
+        </motion.div>
       </section>
 
       {/* ---- Category Tabs + Article Grid ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          {/* Section heading */}
+          <Reveal>
+            <h2
+              style={{
+                fontSize: 32,
+                fontFamily: '"DM Serif Display", serif',
+                fontWeight: 400,
+                color: '#0F172A',
+                textAlign: 'center',
+                marginBottom: 12,
+              }}
+            >
+              Browse Articles
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <p
+              style={{
+                fontSize: 16,
+                color: '#64748B',
+                textAlign: 'center',
+                maxWidth: 640,
+                margin: '0 auto 40px',
+                lineHeight: 1.6,
+              }}
+            >
+              Filter by topic to find the explainers most relevant to you.
+            </p>
+          </Reveal>
+
           {/* Category filter tabs */}
           <div
             style={{
@@ -206,9 +258,10 @@ export const EducationPage: React.FC = () => {
             {categories.map((cat) => {
               const isActive = activeCategory === cat;
               return (
-                <button
+                <motion.button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
+                  whileTap={{ scale: 0.95 }}
                   style={{
                     padding: '8px 20px',
                     borderRadius: 8,
@@ -222,13 +275,14 @@ export const EducationPage: React.FC = () => {
                   }}
                 >
                   {cat}
-                </button>
+                </motion.button>
               );
             })}
           </div>
 
           {/* Article grid */}
-          <div
+          <StaggerGrid
+            key={activeCategory}
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -236,9 +290,11 @@ export const EducationPage: React.FC = () => {
             }}
           >
             {filtered.map((article) => (
-              <ArticleCard key={article.slug} article={article} />
+              <StaggerItem key={article.slug}>
+                <ArticleCard article={article} />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerGrid>
         </div>
       </section>
     </div>
