@@ -345,7 +345,7 @@ export const api = {
 
     trades: {
         initiate: async (data: { order_id: string; quantity_mt: number }) => {
-            return fetchApi('/trades', {
+            return fetchApi('/trades/', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
