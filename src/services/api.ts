@@ -380,4 +380,22 @@ export const api = {
             });
         },
     },
+
+    matchmaking: {
+        suggestions: async (): Promise<import('../types').MatchSuggestion[]> => {
+            return fetchApi('/matchmaking/suggestions', { headers: getHeaders() });
+        },
+        generate: async (orderId: string) => {
+            return fetchApi(`/matchmaking/generate/${orderId}`, {
+                method: 'POST',
+                headers: getHeaders(),
+            });
+        },
+        dismiss: async (suggestionId: string) => {
+            return fetchApi(`/matchmaking/suggestions/${suggestionId}/dismiss`, {
+                method: 'PATCH',
+                headers: getHeaders(),
+            });
+        },
+    },
 };
