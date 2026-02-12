@@ -252,8 +252,8 @@ export const PublicNav: React.FC = () => {
           >
             Apply for Pilot
           </Link>
-          <Link
-            to="/login"
+          <a
+            href="https://app.verdaxis.exchange/login"
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -273,7 +273,7 @@ export const PublicNav: React.FC = () => {
             }}
           >
             Sign In
-          </Link>
+          </a>
         </div>
 
         {/* Mobile Hamburger */}
@@ -395,8 +395,8 @@ export const PublicNav: React.FC = () => {
             >
               Apply for Pilot
             </Link>
-            <Link
-              to="/login"
+            <a
+              href="https://app.verdaxis.exchange/login"
               onClick={() => setMobileOpen(false)}
               style={{
                 padding: '12px 0',
@@ -408,10 +408,11 @@ export const PublicNav: React.FC = () => {
                 border: `1.5px solid ${DARK}`,
                 borderRadius: 8,
                 textDecoration: 'none',
+                display: 'block',
               }}
             >
               Sign In
-            </Link>
+            </a>
           </div>
         </div>
       )}
