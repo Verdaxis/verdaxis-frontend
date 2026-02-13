@@ -15,7 +15,7 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/calculator' } = {}
 describe('EnergyCalculatorPage', () => {
   it('renders calculator with default values', () => {
     renderWithRouter(<EnergyCalculatorPage />);
-    expect(screen.getByText('Energy Value Calculator')).toBeTruthy();
+    expect(screen.getByText('Energy Calculator')).toBeTruthy();
     expect(
       screen.getByText(/compare fuels by energy content, not just price per tonne/i)
     ).toBeTruthy();

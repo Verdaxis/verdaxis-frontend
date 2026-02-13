@@ -42,6 +42,7 @@ import { EducationArticlePage } from './pages/public/EducationArticlePage';
 import { RoadmapPage } from './pages/public/RoadmapPage';
 import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
 import { ProducerMapPage } from './pages/public/ProducerMapPage';
+import { PartnerShowcasePage } from './pages/public/PartnerShowcasePage';
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -241,6 +242,7 @@ const App: React.FC = () => {
                     <Route path="/roadmap" element={<PublicLayout><RoadmapPage /></PublicLayout>} />
                     <Route path="/tools/energy-calculator" element={<PublicLayout><EnergyCalculatorPage /></PublicLayout>} />
                     <Route path="/map/producers" element={<PublicLayout><ProducerMapPage /></PublicLayout>} />
+                    <Route path="/partners-preview" element={<PartnerShowcasePage />} />
 
                     {/* Authenticated routes */}
                     <Route path="/onboarding" element={
