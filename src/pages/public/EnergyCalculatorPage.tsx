@@ -309,7 +309,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
         className="calc-metric-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 12,
         }}
       >
@@ -835,9 +835,6 @@ export const EnergyCalculatorPage: React.FC = () => {
           .calc-input-panel {
             width: 100% !important;
             position: static !important;
-          }
-          .calc-metric-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
           }
         }
         @media (max-width: 640px) {

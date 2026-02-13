@@ -10,7 +10,7 @@ interface Partner {
   role: string;
   description: string;
   color: string;
-  logoSvg: React.ReactNode;
+  logoUrl: string;
 }
 
 const partners: Partner[] = [
@@ -21,13 +21,7 @@ const partners: Partner[] = [
     description:
       'Global trade association for the methanol industry. Members gain direct access to verified pricing, compliance data, and marketplace liquidity through the Verdaxis platform.',
     color: '#0078D4',
-    logoSvg: (
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="8" y="12" width="64" height="56" rx="4" stroke="#0078D4" strokeWidth="2.5" fill="none" />
-        <text x="40" y="48" textAnchor="middle" fontFamily="'Montserrat', system-ui" fontWeight="800" fontSize="28" fill="#0078D4">MI</text>
-        <line x1="8" y1="24" x2="72" y2="24" stroke="#0078D4" strokeWidth="1.5" />
-      </svg>
-    ),
+    logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
   },
   {
     name: 'S&P Global Platts',
@@ -36,13 +30,7 @@ const partners: Partner[] = [
     description:
       'The global benchmark for commodity pricing. Verdaxis integrates Platts assessments to provide transparent, reference-grade pricing across all fuel pathways.',
     color: '#E8373E',
-    logoSvg: (
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="40" cy="40" r="30" stroke="#E8373E" strokeWidth="2.5" fill="none" />
-        <text x="40" y="36" textAnchor="middle" fontFamily="'Montserrat', system-ui" fontWeight="800" fontSize="14" fill="#E8373E">S&amp;P</text>
-        <text x="40" y="52" textAnchor="middle" fontFamily="'Montserrat', system-ui" fontWeight="600" fontSize="10" fill="#E8373E">PLATTS</text>
-      </svg>
-    ),
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
   },
   {
     name: 'MPA Singapore',
@@ -51,30 +39,16 @@ const partners: Partner[] = [
     description:
       'Singapore\'s maritime regulator and the world\'s largest bunkering port authority. Verdaxis aligns with MPA\'s Green Ship Programme and future fuels framework.',
     color: '#1B5E9C',
-    logoSvg: (
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M20 50 L40 18 L60 50 Z" stroke="#1B5E9C" strokeWidth="2.5" fill="none" />
-        <line x1="12" y1="56" x2="68" y2="56" stroke="#1B5E9C" strokeWidth="2" />
-        <line x1="16" y1="62" x2="64" y2="62" stroke="#1B5E9C" strokeWidth="1.5" />
-        <text x="40" y="48" textAnchor="middle" fontFamily="'Montserrat', system-ui" fontWeight="800" fontSize="12" fill="#1B5E9C">MPA</text>
-      </svg>
-    ),
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
   },
   {
-    name: 'Ghana',
-    fullName: 'Republic of Ghana — Ministry of Energy',
-    role: 'Sovereign Partner',
+    name: 'Gena Solutions',
+    fullName: 'GENA Solutions Oy',
+    role: 'Analytics & Technology',
     description:
-      'Strategic partnership with Ghana\'s Ministry of Energy to develop low-carbon fuel supply chains across West Africa, supporting the country\'s energy transition ambitions.',
-    color: '#006B3F',
-    logoSvg: (
-      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="15" y="20" width="50" height="12" fill="#CE1126" rx="2" />
-        <rect x="15" y="32" width="50" height="12" fill="#FCD116" rx="0" />
-        <rect x="15" y="44" width="50" height="12" fill="#006B3F" rx="2" />
-        <polygon points="40,34 42,38 46,38 43,41 44,45 40,43 36,45 37,41 34,38 38,38" fill="#0D0D0D" />
-      </svg>
-    ),
+      'Finnish energy technology company providing advanced project analytics, cost curve modelling, and emissions analysis tools for industrial and energy transition projects.',
+    color: '#00897B',
+    logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
   },
 ];
 
@@ -248,7 +222,7 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
                 flexShrink: 0,
               }}
             >
-              <div style={{ width: 48, height: 48 }}>{partner.logoSvg}</div>
+              <img src={partner.logoUrl} alt={partner.name} style={{ width: 48, height: 48, objectFit: 'contain' }} />
             </div>
             <div>
               <h3
@@ -378,7 +352,7 @@ export const PartnerShowcasePage: React.FC = () => {
         color: '#F8FAFC',
         fontFamily: '"Montserrat", system-ui, -apple-system, sans-serif',
         position: 'relative',
-        overflow: 'hidden',
+        overflowX: 'hidden',
       }}
     >
       <GridBackground />
@@ -776,7 +750,7 @@ export const PartnerShowcasePage: React.FC = () => {
               }}
             >
               {partners.map((p) => (
-                <div key={p.name} style={{ width: 56, height: 56 }}>{p.logoSvg}</div>
+                <img key={p.name} src={p.logoUrl} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
               ))}
             </div>
           </Reveal>
