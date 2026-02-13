@@ -58,7 +58,7 @@ describe('PartnerShowcasePage', () => {
     expect(screen.getAllByText('Methanol Institute').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('S&P Global Platts')).toBeTruthy();
     expect(screen.getByText('MPA Singapore')).toBeTruthy();
-    expect(screen.getByText('Ghana')).toBeTruthy();
+    expect(screen.getByText('Gena Solutions')).toBeTruthy();
   });
 
   it('renders partner role badges', () => {
@@ -66,7 +66,7 @@ describe('PartnerShowcasePage', () => {
     expect(screen.getByText('Industry Standards Body')).toBeTruthy();
     expect(screen.getByText('Pricing & Benchmarks')).toBeTruthy();
     expect(screen.getByText('Regulatory Authority')).toBeTruthy();
-    expect(screen.getByText('Sovereign Partner')).toBeTruthy();
+    expect(screen.getByText('Analytics & Technology')).toBeTruthy();
   });
 
   it('renders verified partner badges', () => {
