@@ -445,181 +445,172 @@ export const EnergyCalculatorPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ---- Section 2: Input Panel + Results Panel ---- */}
-      <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
+      {/* ---- Section 2: Inputs (horizontal) ---- */}
+      <section style={{ ...sectionPadding, background: '#F8FAFC', paddingBottom: 32 }}>
         <div
-          className="calc-layout"
+          className="calc-inputs-row"
           style={{
-            maxWidth: 1280,
+            maxWidth: 1100,
             margin: '0 auto',
-            display: 'flex',
-            gap: 32,
-            alignItems: 'flex-start',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 20,
           }}
         >
-          {/* Left: Input Panel (sticky on desktop) */}
-          <div
-            className="calc-input-panel"
-            style={{
-              width: 340,
-              flexShrink: 0,
-              position: 'sticky',
-              top: 100,
-            }}
-          >
-            {/* Voyage Parameters */}
-            <div style={{ ...card, marginBottom: 16 }}>
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                  marginBottom: 20,
-                  paddingBottom: 12,
-                  borderBottom: '2px solid #E2E8F0',
-                }}
-              >
-                Voyage Parameters
-              </h3>
-              <SliderInput
-                label="Voyage Days"
-                value={inputs.voyageDays}
-                onChange={(v) => update('voyageDays', v)}
-                min={1}
-                max={60}
-                step={1}
-                unit="days"
-              />
-              <SliderInput
-                label="Daily Consumption"
-                value={inputs.dailyConsumption}
-                onChange={(v) => update('dailyConsumption', v)}
-                min={10}
-                max={100}
-                step={1}
-                unit="t/day"
-              />
-              <SliderInput
-                label="Fuel Price"
-                value={inputs.fuelPrice}
-                onChange={(v) => update('fuelPrice', v)}
-                min={200}
-                max={1500}
-                step={10}
-                unit="$/mt"
-              />
-            </div>
-
-            {/* Fuel Comparison */}
-            <div style={{ ...card, marginBottom: 16 }}>
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                  marginBottom: 20,
-                  paddingBottom: 12,
-                  borderBottom: '2px solid #E2E8F0',
-                }}
-              >
-                Fuel Comparison
-              </h3>
-              <SliderInput
-                label="Fuel A Energy Density"
-                value={inputs.fuelA_energyDensity}
-                onChange={(v) => update('fuelA_energyDensity', v)}
-                min={15}
-                max={50}
-                step={0.1}
-                unit="MJ/kg"
-              />
-              <SliderInput
-                label="Fuel B Energy Density"
-                value={inputs.fuelB_energyDensity}
-                onChange={(v) => update('fuelB_energyDensity', v)}
-                min={15}
-                max={50}
-                step={0.1}
-                unit="MJ/kg"
-              />
-            </div>
-
-            {/* Regulatory Parameters */}
-            <div style={card}>
-              <h3
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#0F172A',
-                  textTransform: 'uppercase',
-                  letterSpacing: 1,
-                  marginBottom: 20,
-                  paddingBottom: 12,
-                  borderBottom: '2px solid #E2E8F0',
-                }}
-              >
-                Regulatory Parameters
-              </h3>
-              <SliderInput
-                label={`EUA Price`}
-                value={inputs.euaPrice}
-                onChange={(v) => update('euaPrice', v)}
-                min={20}
-                max={200}
-                step={1}
-                unit={`\u20AC/tCO\u2082`}
-              />
-              <DropdownInput
-                label="EU ETS Coverage"
-                value={inputs.etsCoverage}
-                onChange={(v) => update('etsCoverage', v)}
-                options={[
-                  { label: '40%', value: 0.4 },
-                  { label: '50%', value: 0.5 },
-                  { label: '70%', value: 0.7 },
-                  { label: '100%', value: 1.0 },
-                ]}
-              />
-              <SliderInput
-                label={`FuelEU Threshold`}
-                value={inputs.fueleuThreshold}
-                onChange={(v) => update('fueleuThreshold', v)}
-                min={50}
-                max={100}
-                step={0.01}
-                unit={`gCO\u2082e/MJ`}
-              />
-              <SliderInput
-                label="EUR/USD Rate"
-                value={inputs.eurToUsd}
-                onChange={(v) => update('eurToUsd', v)}
-                min={0.8}
-                max={1.5}
-                step={0.01}
-                unit=""
-              />
-            </div>
-          </div>
-
-          {/* Right: Results Panel */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <FuelResultRow
-              label="Fuel A"
-              result={resultA}
-              inputs={inputs}
-              isCheaper={aIsCheaper}
+          {/* Voyage Parameters */}
+          <div style={card}>
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                marginBottom: 20,
+                paddingBottom: 12,
+                borderBottom: '2px solid #E2E8F0',
+              }}
+            >
+              Voyage Parameters
+            </h3>
+            <SliderInput
+              label="Voyage Days"
+              value={inputs.voyageDays}
+              onChange={(v) => update('voyageDays', v)}
+              min={1}
+              max={60}
+              step={1}
+              unit="days"
             />
-            <FuelResultRow
-              label="Fuel B"
-              result={resultB}
-              inputs={inputs}
-              isCheaper={!aIsCheaper}
+            <SliderInput
+              label="Daily Consumption"
+              value={inputs.dailyConsumption}
+              onChange={(v) => update('dailyConsumption', v)}
+              min={10}
+              max={100}
+              step={1}
+              unit="t/day"
+            />
+            <SliderInput
+              label="Fuel Price"
+              value={inputs.fuelPrice}
+              onChange={(v) => update('fuelPrice', v)}
+              min={200}
+              max={1500}
+              step={10}
+              unit="$/mt"
             />
           </div>
+
+          {/* Fuel Comparison */}
+          <div style={card}>
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                marginBottom: 20,
+                paddingBottom: 12,
+                borderBottom: '2px solid #E2E8F0',
+              }}
+            >
+              Fuel Comparison
+            </h3>
+            <SliderInput
+              label="Fuel A Energy Density"
+              value={inputs.fuelA_energyDensity}
+              onChange={(v) => update('fuelA_energyDensity', v)}
+              min={15}
+              max={50}
+              step={0.1}
+              unit="MJ/kg"
+            />
+            <SliderInput
+              label="Fuel B Energy Density"
+              value={inputs.fuelB_energyDensity}
+              onChange={(v) => update('fuelB_energyDensity', v)}
+              min={15}
+              max={50}
+              step={0.1}
+              unit="MJ/kg"
+            />
+          </div>
+
+          {/* Regulatory Parameters */}
+          <div style={card}>
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                marginBottom: 20,
+                paddingBottom: 12,
+                borderBottom: '2px solid #E2E8F0',
+              }}
+            >
+              Regulatory Parameters
+            </h3>
+            <SliderInput
+              label={`EUA Price`}
+              value={inputs.euaPrice}
+              onChange={(v) => update('euaPrice', v)}
+              min={20}
+              max={200}
+              step={1}
+              unit={`\u20AC/tCO\u2082`}
+            />
+            <DropdownInput
+              label="EU ETS Coverage"
+              value={inputs.etsCoverage}
+              onChange={(v) => update('etsCoverage', v)}
+              options={[
+                { label: '40%', value: 0.4 },
+                { label: '50%', value: 0.5 },
+                { label: '70%', value: 0.7 },
+                { label: '100%', value: 1.0 },
+              ]}
+            />
+            <SliderInput
+              label={`FuelEU Threshold`}
+              value={inputs.fueleuThreshold}
+              onChange={(v) => update('fueleuThreshold', v)}
+              min={50}
+              max={100}
+              step={0.01}
+              unit={`gCO\u2082e/MJ`}
+            />
+            <SliderInput
+              label="EUR/USD Rate"
+              value={inputs.eurToUsd}
+              onChange={(v) => update('eurToUsd', v)}
+              min={0.8}
+              max={1.5}
+              step={0.01}
+              unit=""
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Section 2b: Results (full width) ---- */}
+      <section style={{ padding: '32px 24px 72px', background: '#F8FAFC' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <FuelResultRow
+            label="Fuel A"
+            result={resultA}
+            inputs={inputs}
+            isCheaper={aIsCheaper}
+          />
+          <FuelResultRow
+            label="Fuel B"
+            result={resultB}
+            inputs={inputs}
+            isCheaper={!aIsCheaper}
+          />
         </div>
       </section>
 
@@ -769,7 +760,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               lineHeight: 1.6,
             }}
           >
-            {'\u2248'} ${perTonneLow}\u2013${perTonneHigh} per tonne in effective value based on energy alone
+            {'\u2248'} ${perTonneLow}{'\u2013'}${perTonneHigh} per tonne in effective value based on energy alone
           </p>
         </div>
       </section>
@@ -828,13 +819,9 @@ export const EnergyCalculatorPage: React.FC = () => {
 
       {/* ---- Responsive styles ---- */}
       <style>{`
-        @media (max-width: 1024px) {
-          .calc-layout {
-            flex-direction: column !important;
-          }
-          .calc-input-panel {
-            width: 100% !important;
-            position: static !important;
+        @media (max-width: 900px) {
+          .calc-inputs-row {
+            grid-template-columns: 1fr !important;
           }
         }
         @media (max-width: 640px) {

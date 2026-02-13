@@ -1,6 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
-import gsap from 'gsap';
 
 /* ── Partner Data ── */
 
@@ -52,81 +51,6 @@ const partners: Partner[] = [
   },
 ];
 
-/* ── Animated grid background ── */
-
-const GridBackground: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    let frame = 0;
-    const draw = () => {
-      frame++;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Subtle grid
-      ctx.strokeStyle = 'rgba(93, 173, 226, 0.04)';
-      ctx.lineWidth = 0.5;
-      const spacing = 60;
-      for (let x = 0; x < canvas.width; x += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < canvas.height; y += spacing) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
-
-      // Animated nodes at intersections
-      const t = frame * 0.005;
-      for (let x = spacing; x < canvas.width; x += spacing * 3) {
-        for (let y = spacing; y < canvas.height; y += spacing * 3) {
-          const pulse = Math.sin(t + x * 0.01 + y * 0.008) * 0.5 + 0.5;
-          ctx.fillStyle = `rgba(93, 173, 226, ${0.05 + pulse * 0.08})`;
-          ctx.beginPath();
-          ctx.arc(x, y, 1.5 + pulse * 1.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-
-      requestAnimationFrame(draw);
-    };
-    const animId = requestAnimationFrame(draw);
-
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animId);
-    };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        pointerEvents: 'none',
-        zIndex: 0,
-      }}
-    />
-  );
-};
-
 /* ── Reveal wrapper ── */
 
 const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 0 }) => {
@@ -147,62 +71,30 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ child
 /* ── Partner Card ── */
 
 const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, index }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-
-    const handleMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      el.style.setProperty('--glow-x', `${x}px`);
-      el.style.setProperty('--glow-y', `${y}px`);
-    };
-
-    el.addEventListener('mousemove', handleMove);
-    return () => el.removeEventListener('mousemove', handleMove);
-  }, []);
-
   return (
     <Reveal delay={index * 0.12}>
       <motion.div
-        ref={cardRef}
-        whileHover={{ y: -4, scale: 1.01 }}
+        whileHover={{ y: -4, boxShadow: '0 12px 40px rgba(0,0,0,0.08)' }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="partner-card"
         style={{
-          position: 'relative',
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: `1px solid rgba(${partner.color === '#E8373E' ? '232,55,62' : partner.color === '#0078D4' ? '0,120,212' : partner.color === '#1B5E9C' ? '27,94,156' : '0,107,63'}, 0.2)`,
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
           borderRadius: 16,
           padding: 32,
-          overflow: 'hidden',
           cursor: 'default',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/* Hover glow effect */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: `radial-gradient(300px circle at var(--glow-x, 50%) var(--glow-y, 50%), ${partner.color}08, transparent 60%)`,
-            pointerEvents: 'none',
-          }}
-        />
-
         {/* Top accent line */}
         <div
           style={{
             position: 'absolute',
             top: 0,
-            left: 32,
-            right: 32,
-            height: 2,
-            background: `linear-gradient(90deg, transparent, ${partner.color}60, transparent)`,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: `linear-gradient(90deg, ${partner.color}, ${partner.color}40)`,
           }}
         />
 
@@ -214,12 +106,13 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
                 width: 64,
                 height: 64,
                 borderRadius: 12,
-                background: 'rgba(255,255,255,0.04)',
-                border: `1px solid ${partner.color}30`,
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
+                padding: 8,
               }}
             >
               <img src={partner.logoUrl} alt={partner.name} style={{ width: 48, height: 48, objectFit: 'contain' }} />
@@ -230,7 +123,7 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
                   fontFamily: '"Montserrat", system-ui',
                   fontSize: 18,
                   fontWeight: 700,
-                  color: '#F8FAFC',
+                  color: '#0F172A',
                   marginBottom: 4,
                   letterSpacing: '-0.01em',
                 }}
@@ -244,8 +137,8 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
                   gap: 6,
                   padding: '3px 10px',
                   borderRadius: 6,
-                  background: `${partner.color}15`,
-                  border: `1px solid ${partner.color}25`,
+                  background: `${partner.color}0A`,
+                  border: `1px solid ${partner.color}20`,
                 }}
               >
                 <div
@@ -275,7 +168,7 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
           <p
             style={{
               fontSize: 13,
-              color: '#94A3B8',
+              color: '#64748B',
               fontWeight: 500,
               marginBottom: 12,
               fontStyle: 'italic',
@@ -288,7 +181,7 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
           <p
             style={{
               fontSize: 14,
-              color: '#CBD5E1',
+              color: '#475569',
               lineHeight: 1.7,
             }}
           >
@@ -332,146 +225,101 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
 /* ── Main Page ── */
 
 export const PartnerShowcasePage: React.FC = () => {
-  const heroRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    gsap.fromTo(
-      el.querySelectorAll('.hero-line'),
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, stagger: 0.12, duration: 0.8, ease: 'power3.out' }
-    );
-  }, []);
-
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: '#060A13',
-        color: '#F8FAFC',
+        background: '#F8FAFC',
+        color: '#0F172A',
         fontFamily: '"Montserrat", system-ui, -apple-system, sans-serif',
-        position: 'relative',
-        overflowX: 'hidden',
       }}
     >
-      <GridBackground />
-
-      {/* Gradient overlays */}
+      {/* Top bar */}
       <div
         style={{
-          position: 'fixed',
-          top: -200,
-          right: -200,
-          width: 600,
-          height: 600,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(93,173,226,0.06) 0%, transparent 60%)',
-          pointerEvents: 'none',
-          zIndex: 0,
+          padding: '20px 32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #E2E8F0',
+          background: '#FFFFFF',
         }}
-      />
-      <div
-        style={{
-          position: 'fixed',
-          bottom: -300,
-          left: -200,
-          width: 700,
-          height: 700,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(76,175,80,0.04) 0%, transparent 60%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
-
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        {/* Top bar */}
-        <div
-          style={{
-            padding: '20px 32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255,255,255,0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 6,
-                background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 14,
-              }}
-            >
-              V
-            </div>
-            <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em' }}>
-              Verdaxis
-            </span>
-          </div>
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              fontSize: 11,
-              color: '#64748B',
-              fontWeight: 500,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 14,
             }}
           >
-            Partner Network — Preview
+            V
           </div>
+          <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: '#0F172A' }}>
+            Verdaxis
+          </span>
         </div>
-
-        {/* Hero */}
-        <section
-          ref={heroRef}
+        <div
           style={{
-            padding: '100px 24px 72px',
-            maxWidth: 900,
-            margin: '0 auto',
-            textAlign: 'center',
+            fontSize: 11,
+            color: '#94A3B8',
+            fontWeight: 500,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
           }}
         >
-          <div className="hero-line">
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(93,173,226,0.08)',
-                border: '1px solid rgba(93,173,226,0.15)',
-                padding: '6px 16px',
-                borderRadius: 9999,
-                marginBottom: 32,
-              }}
-            >
-              <motion.span
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  background: '#5DADE2',
-                  display: 'inline-block',
-                }}
-              />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5DADE2', letterSpacing: '0.06em' }}>
-                STRATEGIC ECOSYSTEM
-              </span>
-            </div>
-          </div>
+          Partner Network {'\u2014'} Preview
+        </div>
+      </div>
 
+      {/* Hero */}
+      <section
+        style={{
+          padding: '80px 24px 60px',
+          maxWidth: 900,
+          margin: '0 auto',
+          textAlign: 'center',
+        }}
+      >
+        <Reveal>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(93,173,226,0.08)',
+              border: '1px solid rgba(93,173,226,0.15)',
+              padding: '6px 16px',
+              borderRadius: 9999,
+              marginBottom: 32,
+            }}
+          >
+            <motion.span
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                background: '#5DADE2',
+                display: 'inline-block',
+              }}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#5DADE2', letterSpacing: '0.06em' }}>
+              STRATEGIC ECOSYSTEM
+            </span>
+          </div>
+        </Reveal>
+
+        <Reveal delay={0.1}>
           <h1
-            className="hero-line"
             style={{
               fontFamily: '"DM Serif Display", serif',
               fontSize: 52,
@@ -479,6 +327,7 @@ export const PartnerShowcasePage: React.FC = () => {
               lineHeight: 1.1,
               marginBottom: 24,
               letterSpacing: '-0.02em',
+              color: '#0F172A',
             }}
           >
             Trusted by the{' '}
@@ -495,286 +344,287 @@ export const PartnerShowcasePage: React.FC = () => {
             <br />
             that shape the market
           </h1>
+        </Reveal>
 
+        <Reveal delay={0.2}>
           <p
-            className="hero-line"
             style={{
               fontSize: 17,
-              color: '#94A3B8',
+              color: '#64748B',
               lineHeight: 1.75,
               maxWidth: 600,
               margin: '0 auto 40px',
             }}
           >
-            Verdaxis partners with sovereign governments, global pricing agencies,
-            maritime regulators, and industry standards bodies to build the most
+            Verdaxis partners with global pricing agencies, maritime regulators,
+            technology providers, and industry standards bodies to build the most
             trusted exchange for low-carbon fuels.
           </p>
+        </Reveal>
 
-          {/* Decorative line */}
-          <motion.div
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 1.2, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            style={{
-              height: 1,
-              background: 'linear-gradient(90deg, transparent, rgba(93,173,226,0.3), transparent)',
-              transformOrigin: 'center',
-              maxWidth: 400,
-              margin: '0 auto',
-            }}
-          />
-        </section>
-
-        {/* Partner Grid */}
-        <section style={{ padding: '0 24px 96px', maxWidth: 1000, margin: '0 auto' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 24,
-            }}
-            className="partner-grid"
-          >
-            {partners.map((p, i) => (
-              <PartnerCard key={p.name} partner={p} index={i} />
-            ))}
-          </div>
-        </section>
-
-        {/* How Members Are Represented */}
-        <section
+        {/* Decorative line */}
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 1.2, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
           style={{
-            padding: '80px 24px',
-            borderTop: '1px solid rgba(255,255,255,0.04)',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, #CBD5E1, transparent)',
+            transformOrigin: 'center',
+            maxWidth: 400,
+            margin: '0 auto',
           }}
+        />
+      </section>
+
+      {/* Partner Grid */}
+      <section style={{ padding: '0 24px 96px', maxWidth: 1000, margin: '0 auto' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 24,
+          }}
+          className="partner-grid"
         >
-          <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-            <Reveal>
-              <p
+          {partners.map((p, i) => (
+            <PartnerCard key={p.name} partner={p} index={i} />
+          ))}
+        </div>
+      </section>
+
+      {/* How Members Are Represented */}
+      <section
+        style={{
+          padding: '80px 24px',
+          borderTop: '1px solid #E2E8F0',
+          background: '#FFFFFF',
+        }}
+      >
+        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+          <Reveal>
+            <p
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.12em',
+                color: '#4CAF50',
+                marginBottom: 16,
+              }}
+            >
+              Member Representation
+            </p>
+            <h2
+              style={{
+                fontFamily: '"DM Serif Display", serif',
+                fontSize: 36,
+                fontWeight: 400,
+                marginBottom: 20,
+                color: '#0F172A',
+              }}
+            >
+              How institute members appear on the platform
+            </h2>
+            <p
+              style={{
+                fontSize: 15,
+                color: '#64748B',
+                lineHeight: 1.75,
+                maxWidth: 560,
+                margin: '0 auto 48px',
+              }}
+            >
+              Members of partner institutions receive a verified trust badge on their
+              marketplace listings, establishing credibility without compromising the
+              Verdaxis brand identity.
+            </p>
+          </Reveal>
+
+          {/* Mock listing card */}
+          <Reveal delay={0.2}>
+            <div
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: 16,
+                padding: 32,
+                textAlign: 'left',
+                maxWidth: 600,
+                margin: '0 auto',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 700,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#94A3B8',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  color: '#4CAF50',
+                  letterSpacing: '0.1em',
                   marginBottom: 16,
                 }}
               >
-                Member Representation
-              </p>
-              <h2
-                style={{
-                  fontFamily: '"DM Serif Display", serif',
-                  fontSize: 36,
-                  fontWeight: 400,
-                  marginBottom: 20,
-                }}
-              >
-                How institute members appear on the platform
-              </h2>
-              <p
-                style={{
-                  fontSize: 15,
-                  color: '#94A3B8',
-                  lineHeight: 1.75,
-                  maxWidth: 560,
-                  margin: '0 auto 48px',
-                }}
-              >
-                Members of partner institutions receive a verified trust badge on their
-                marketplace listings, establishing credibility without compromising the
-                Verdaxis brand identity.
-              </p>
-            </Reveal>
+                Example Marketplace Listing
+              </div>
 
-            {/* Mock listing card showing badge integration */}
-            <Reveal delay={0.2}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#0F172A' }}>Green Methanol {'\u2014'} Rotterdam</h3>
+                  <p style={{ fontSize: 14, color: '#64748B' }}>OCI Global &middot; 5,000 MT &middot; Spot</p>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#5DADE2' }}>$485<span style={{ fontSize: 13, color: '#94A3B8' }}>/MT</span></div>
+              </div>
+
+              {/* Trust badges row */}
               <div
                 style={{
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(93,173,226,0.12)',
-                  borderRadius: 16,
-                  padding: 32,
-                  textAlign: 'left',
-                  maxWidth: 600,
-                  margin: '0 auto',
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  padding: '16px 0',
+                  borderTop: '1px solid #E2E8F0',
                 }}
               >
                 <div
                   style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: '#64748B',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.1em',
-                    marginBottom: 16,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'rgba(76,175,80,0.08)',
+                    border: '1px solid rgba(76,175,80,0.2)',
                   }}
                 >
-                  Example Marketplace Listing
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M5 8L7 10L11 6" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#4CAF50' }}>Verdaxis Verified</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-                  <div>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Green Methanol — Rotterdam</h3>
-                    <p style={{ fontSize: 14, color: '#94A3B8' }}>OCI Global &middot; 5,000 MT &middot; Spot</p>
-                  </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#5DADE2' }}>$485<span style={{ fontSize: 13, color: '#64748B' }}>/MT</span></div>
-                </div>
-
-                {/* Trust badges row */}
                 <div
                   style={{
-                    display: 'flex',
-                    gap: 8,
-                    flexWrap: 'wrap',
-                    padding: '16px 0',
-                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'rgba(0,120,212,0.08)',
+                    border: '1px solid rgba(0,120,212,0.2)',
                   }}
                 >
-                  {/* Verdaxis verified */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      background: 'rgba(76,175,80,0.08)',
-                      border: '1px solid rgba(76,175,80,0.2)',
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                      <path d="M5 8L7 10L11 6" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#4CAF50' }}>Verdaxis Verified</span>
-                  </div>
-
-                  {/* Methanol Institute member */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      background: 'rgba(0,120,212,0.08)',
-                      border: '1px solid rgba(0,120,212,0.2)',
-                    }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                      <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#0078D4" strokeWidth="1.2" />
-                      <text x="8" y="10.5" textAnchor="middle" fontWeight="800" fontSize="6" fill="#0078D4">MI</text>
-                    </svg>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#0078D4' }}>MI Member</span>
-                  </div>
-
-                  {/* S&P Platts indexed */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      background: 'rgba(232,55,62,0.06)',
-                      border: '1px solid rgba(232,55,62,0.15)',
-                    }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#E8373E' }}>Platts-Indexed</span>
-                  </div>
-
-                  {/* ISCC certified */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8' }}>ISCC EU</span>
-                  </div>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#0078D4" strokeWidth="1.2" />
+                    <text x="8" y="10.5" textAnchor="middle" fontWeight="800" fontSize="6" fill="#0078D4">MI</text>
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0078D4' }}>MI Member</span>
                 </div>
 
-                {/* Info row */}
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: 12,
-                    marginTop: 16,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: 'rgba(232,55,62,0.06)',
+                    border: '1px solid rgba(232,55,62,0.15)',
                   }}
                 >
-                  {[
-                    { label: 'CI Score', value: '14.2 gCO\u2082e/MJ' },
-                    { label: 'Energy', value: '19.9 MJ/kg' },
-                    { label: 'FuelEU', value: 'Compliant' },
-                    { label: 'Pathway', value: 'e-Methanol' },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <div style={{ fontSize: 10, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                        {item.label}
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#CBD5E1' }}>
-                        {item.value}
-                      </div>
-                    </div>
-                  ))}
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#E8373E' }}>Platts-Indexed</span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 10px',
+                    borderRadius: 6,
+                    background: '#F1F5F9',
+                    border: '1px solid #E2E8F0',
+                  }}
+                >
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#64748B' }}>ISCC EU</span>
                 </div>
               </div>
-            </Reveal>
-          </div>
-        </section>
 
-        {/* Trust strip */}
-        <section
-          style={{
-            padding: '48px 24px',
-            borderTop: '1px solid rgba(255,255,255,0.04)',
-            textAlign: 'center',
-          }}
-        >
-          <Reveal>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 48,
-                flexWrap: 'wrap',
-                opacity: 0.4,
-              }}
-            >
-              {partners.map((p) => (
-                <img key={p.name} src={p.logoUrl} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
-              ))}
+              {/* Info row */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: 12,
+                  marginTop: 16,
+                }}
+              >
+                {[
+                  { label: 'CI Score', value: '14.2 gCO\u2082e/MJ' },
+                  { label: 'Energy', value: '19.9 MJ/kg' },
+                  { label: 'FuelEU', value: 'Compliant' },
+                  { label: 'Pathway', value: 'e-Methanol' },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </Reveal>
-        </section>
+        </div>
+      </section>
 
-        {/* Footer */}
-        <footer
-          style={{
-            padding: '32px 24px',
-            borderTop: '1px solid rgba(255,255,255,0.04)',
-            textAlign: 'center',
-          }}
-        >
-          <p style={{ fontSize: 12, color: '#475569' }}>
-            This is a confidential preview page for internal use and partner discussions.
-            Not published on the public Verdaxis website.
-          </p>
-          <p style={{ fontSize: 11, color: '#334155', marginTop: 8 }}>
-            &copy; {new Date().getFullYear()} Verdaxis. All rights reserved.
-          </p>
-        </footer>
-      </div>
+      {/* Trust strip */}
+      <section
+        style={{
+          padding: '48px 24px',
+          borderTop: '1px solid #E2E8F0',
+          textAlign: 'center',
+          background: '#F8FAFC',
+        }}
+      >
+        <Reveal>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 48,
+              flexWrap: 'wrap',
+              opacity: 0.5,
+            }}
+          >
+            {partners.map((p) => (
+              <img key={p.name} src={p.logoUrl} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+            ))}
+          </div>
+        </Reveal>
+      </section>
 
-      {/* Responsive */}
+      {/* Footer */}
+      <footer
+        style={{
+          padding: '32px 24px',
+          borderTop: '1px solid #E2E8F0',
+          textAlign: 'center',
+          background: '#FFFFFF',
+        }}
+      >
+        <p style={{ fontSize: 12, color: '#94A3B8' }}>
+          This is a confidential preview page for internal use and partner discussions.
+          Not published on the public Verdaxis website.
+        </p>
+        <p style={{ fontSize: 11, color: '#CBD5E1', marginTop: 8 }}>
+          &copy; {new Date().getFullYear()} Verdaxis. All rights reserved.
+        </p>
+      </footer>
+
+      {/* Responsive + Fonts */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Montserrat:wght@400;500;600;700;800&display=swap');
 
