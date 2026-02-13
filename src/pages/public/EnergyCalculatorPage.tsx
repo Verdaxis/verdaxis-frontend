@@ -428,7 +428,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Energy Value Calculator
+            Energy Calculator
           </h1>
           <p
             style={{

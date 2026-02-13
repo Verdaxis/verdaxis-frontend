@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock react-leaflet to avoid JSDOM issues
@@ -33,6 +33,12 @@ describe('ProducerMapPage', () => {
     ).toBeTruthy();
     // Stats should show project count and country count
     expect(screen.getByText(new RegExp(`${producerProjects.length} projects`))).toBeTruthy();
+  });
+
+  it('renders tab navigation with Map and Future Production tabs', () => {
+    renderWithRouter(<ProducerMapPage />);
+    expect(screen.getByText('Project Map')).toBeTruthy();
+    expect(screen.getByText('Future Production')).toBeTruthy();
   });
 
   it('renders filter sidebar with fuel type checkboxes', () => {
@@ -84,5 +90,46 @@ describe('ProducerMapPage', () => {
   it('renders search input', () => {
     renderWithRouter(<ProducerMapPage />);
     expect(screen.getByPlaceholderText(/search.*name.*company/i)).toBeTruthy();
+  });
+});
+
+describe('ProducerMapPage - Future Production tab', () => {
+  it('shows future production marketplace when tab is clicked', () => {
+    renderWithRouter(<ProducerMapPage />);
+
+    const futureTab = screen.getByText('Future Production');
+    fireEvent.click(futureTab);
+
+    expect(screen.getByText('Future Production Marketplace')).toBeTruthy();
+    expect(screen.getAllByText(/upcoming/i).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows future project count badge on tab', () => {
+    renderWithRouter(<ProducerMapPage />);
+    const futureProjectsList = producerProjects.filter(
+      (p) => p.status === 'Under Construction' || p.status === 'Planned'
+    );
+    // The badge shows the count number
+    expect(screen.getByText(String(futureProjectsList.length))).toBeTruthy();
+  });
+
+  it('shows express interest buttons for future projects', () => {
+    renderWithRouter(<ProducerMapPage />);
+
+    fireEvent.click(screen.getByText('Future Production'));
+
+    const expressButtons = screen.getAllByText('Express Interest');
+    expect(expressButtons.length).toBeGreaterThan(0);
+  });
+
+  it('shows contextual CTA when on futures tab', () => {
+    renderWithRouter(<ProducerMapPage />);
+
+    fireEvent.click(screen.getByText('Future Production'));
+
+    expect(screen.getByText(/have future production to offer/i)).toBeTruthy();
+    const ctaLink = screen.getByRole('link', { name: /list your production/i });
+    expect(ctaLink).toBeTruthy();
+    expect(ctaLink.getAttribute('href')).toBe('/pilot');
   });
 });
