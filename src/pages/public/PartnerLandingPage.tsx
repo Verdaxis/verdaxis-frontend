@@ -32,24 +32,28 @@ const partners = [
     role: 'Industry Standards Body',
     logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
     color: '#0078D4',
+    website: 'https://methanol.org',
   },
   {
     name: 'S&P Global Platts',
     role: 'Pricing & Benchmarks',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
     color: '#E8373E',
+    website: 'https://www.spglobal.com/commodityinsights',
   },
   {
     name: 'MPA Singapore',
     role: 'Regulatory Authority',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
     color: '#1B5E9C',
+    website: 'https://www.mpa.gov.sg',
   },
   {
     name: 'Gena Solutions',
     role: 'Analytics & Technology',
     logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
     color: '#00897B',
+    website: 'https://genasolutions.com',
   },
 ];
 
@@ -353,8 +357,11 @@ export const PartnerLandingPage: React.FC = () => {
               }}
             >
               {partners.map((p, i) => (
-                <motion.div
+                <motion.a
                   key={p.name}
+                  href={p.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -365,7 +372,8 @@ export const PartnerLandingPage: React.FC = () => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: 14,
-                    cursor: 'default',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
                   }}
                 >
                   <div
@@ -415,45 +423,11 @@ export const PartnerLandingPage: React.FC = () => {
                       {p.role}
                     </div>
                   </div>
-                </motion.div>
+                </motion.a>
               ))}
             </div>
           </RevealSection>
 
-          {/* Verdaxis Verified badge strip */}
-          <RevealSection delay={0.3}>
-            <div
-              style={{
-                marginTop: 48,
-                display: 'flex',
-                justifyContent: 'center',
-                gap: 16,
-                flexWrap: 'wrap',
-              }}
-            >
-              {partners.map((p) => (
-                <div
-                  key={p.name}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 14px',
-                    borderRadius: 8,
-                    background: 'rgba(76,175,80,0.06)',
-                    border: '1px solid rgba(76,175,80,0.12)',
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M5 8L7 10L11 6" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#4CAF50' }}>
-                    {p.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </RevealSection>
         </div>
       </section>
 
