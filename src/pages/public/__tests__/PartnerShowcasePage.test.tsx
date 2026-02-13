@@ -2,38 +2,14 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mock canvas and IntersectionObserver for JSDOM
+// Mock IntersectionObserver for motion/react useInView
 beforeAll(() => {
-  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
-    clearRect: vi.fn(),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-    stroke: vi.fn(),
-    arc: vi.fn(),
-    fill: vi.fn(),
-    strokeStyle: '',
-    fillStyle: '',
-    lineWidth: 0,
-  })) as any;
-
   global.IntersectionObserver = vi.fn().mockImplementation(() => ({
     observe: vi.fn(),
     unobserve: vi.fn(),
     disconnect: vi.fn(),
   }));
 });
-
-// Mock gsap
-vi.mock('gsap', () => ({
-  default: {
-    fromTo: vi.fn(),
-    registerPlugin: vi.fn(),
-  },
-}));
-vi.mock('gsap/ScrollTrigger', () => ({
-  ScrollTrigger: {},
-}));
 
 import { PartnerShowcasePage } from '../PartnerShowcasePage';
 

@@ -334,8 +334,8 @@ export const PartnerLandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                Verdaxis partners with sovereign governments, global pricing agencies,
-                maritime regulators, and industry standards bodies.
+                Verdaxis partners with global pricing agencies, maritime regulators,
+                technology providers, and industry standards bodies.
               </p>
             </div>
           </RevealSection>
