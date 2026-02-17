@@ -15,32 +15,32 @@ import {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const ALL_FUEL_TYPES: FuelType[] = ['Methanol', 'Ethanol', 'SAF', 'Ammonia', 'Biofuel', 'Biomethane'];
-const ALL_STATUSES: (ProjectStatus | 'All')[] = ['All', 'Operational', 'Under Construction', 'Planned'];
+const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Biomethanol', 'Low-Carbon Methanol'];
+const ALL_STATUSES: (ProjectStatus | 'All')[] = ['All', 'Operational', 'Under Construction', 'Engineering', 'Pre-Feasibility'];
 
 const statusColors: Record<ProjectStatus, string> = {
   Operational: '#4CAF50',
   'Under Construction': '#FF9800',
-  Planned: '#9E9E9E',
+  Engineering: '#2196F3',
+  'Pre-Feasibility': '#9E9E9E',
 };
 
 const minCodYear = Math.min(...producerProjects.map((p) => p.codYear));
 const maxCodYear = Math.max(...producerProjects.map((p) => p.codYear));
 
 function getMarkerRadius(capacity: number): number {
-  if (capacity > 500000) return 10;
-  if (capacity >= 50000) return 7;
+  if (capacity > 500) return 10;
+  if (capacity >= 50) return 7;
   return 5;
 }
 
-function formatCapacity(mtpa: number): string {
-  return mtpa.toLocaleString();
+function formatCapacity(ktpa: number): string {
+  return ktpa.toLocaleString();
 }
 
-function formatCapacityShort(mtpa: number): string {
-  if (mtpa >= 1_000_000) return `${(mtpa / 1_000_000).toFixed(1)}M`;
-  if (mtpa >= 1_000) return `${(mtpa / 1_000).toFixed(0)}K`;
-  return mtpa.toLocaleString();
+function formatCapacityShort(ktpa: number): string {
+  if (ktpa >= 1_000) return `${(ktpa / 1_000).toFixed(1)}K`;
+  return ktpa.toLocaleString();
 }
 
 /* ------------------------------------------------------------------ */
@@ -49,17 +49,14 @@ function formatCapacityShort(mtpa: number): string {
 
 const totalProjects = producerProjects.length;
 const uniqueCountries = new Set(producerProjects.map((p) => p.country)).size;
-const totalCapacityMtpa = producerProjects.reduce((sum, p) => sum + p.capacityMtpa, 0);
-const totalCapacityFormatted =
-  totalCapacityMtpa >= 1_000_000
-    ? `${(totalCapacityMtpa / 1_000_000).toFixed(1)}M`
-    : `${(totalCapacityMtpa / 1000).toFixed(0)}K`;
+const totalCapacityKtpa = producerProjects.reduce((sum, p) => sum + p.capacityKtpa, 0);
+const totalCapacityFormatted = formatCapacityShort(totalCapacityKtpa);
 
 // Future production stats
 const futureProjects = producerProjects.filter(
-  (p) => p.status === 'Under Construction' || p.status === 'Planned'
+  (p) => p.status !== 'Operational'
 );
-const futureCapacity = futureProjects.reduce((sum, p) => sum + p.capacityMtpa, 0);
+const futureCapacity = futureProjects.reduce((sum, p) => sum + p.capacityKtpa, 0);
 
 type TabId = 'map' | 'futures';
 
@@ -99,7 +96,7 @@ export const ProducerMapPage: React.FC = () => {
       })
       .sort((a, b) => {
         if (futuresSortBy === 'codYear') return a.codYear - b.codYear;
-        return b.capacityMtpa - a.capacityMtpa;
+        return b.capacityKtpa - a.capacityKtpa;
       });
   }, [futuresSearch, futuresFuelFilter, futuresSortBy]);
 
@@ -140,7 +137,7 @@ export const ProducerMapPage: React.FC = () => {
       >
         <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>Producer & Project Map</h1>
         <p style={{ fontSize: 16, color: '#94A3B8', marginTop: 12, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
-          Explore low-carbon fuel production facilities worldwide. Filter by fuel type, project status,
+          Explore methanol production projects worldwide. Filter by fuel type, project status,
           and timeline.
         </p>
         <div
@@ -159,7 +156,7 @@ export const ProducerMapPage: React.FC = () => {
             <strong style={{ color: '#5DADE2', fontSize: 18 }}>{uniqueCountries}</strong> countries
           </span>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
-            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalCapacityFormatted}</strong> mtpa total
+            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalCapacityFormatted}</strong> ktpa total
             capacity
           </span>
         </div>
@@ -399,7 +396,7 @@ export const ProducerMapPage: React.FC = () => {
                   </div>
                 ))}
                 <div style={{ marginTop: 10, fontSize: 12, color: '#94A3B8' }}>
-                  Marker size indicates capacity (small &lt;50K, medium 50K-500K, large &gt;500K mt/year)
+                  Marker size indicates capacity (small &lt;50, medium 50-500, large &gt;500 ktpa)
                 </div>
               </div>
             </aside>
@@ -451,7 +448,7 @@ export const ProducerMapPage: React.FC = () => {
                     {futureProjects.length} upcoming projects
                   </div>
                   <div style={{ padding: '6px 14px', background: '#E8F5E9', border: '1px solid #A5D6A7', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#2E7D32' }}>
-                    {formatCapacityShort(futureCapacity)} mtpa pipeline
+                    {formatCapacityShort(futureCapacity)} ktpa pipeline
                   </div>
                 </div>
               </div>
@@ -558,7 +555,7 @@ export const ProducerMapPage: React.FC = () => {
                     <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
                     <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>
                       {projects.length} project{projects.length > 1 ? 's' : ''} &middot;{' '}
-                      {formatCapacityShort(projects.reduce((s, p) => s + p.capacityMtpa, 0))} mtpa
+                      {formatCapacityShort(projects.reduce((s, p) => s + p.capacityKtpa, 0))} ktpa
                     </span>
                   </div>
 
@@ -739,7 +736,7 @@ const FutureProjectCard: React.FC<{ project: ProducerProject }> = ({ project }) 
             <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capacity</span>
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
-            {formatCapacity(project.capacityMtpa)} <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>mt/yr</span>
+            {formatCapacity(project.capacityKtpa)} <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>ktpa</span>
           </div>
         </div>
         <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
@@ -757,7 +754,7 @@ const FutureProjectCard: React.FC<{ project: ProducerProject }> = ({ project }) 
             <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-            {project.country}
+            {project.city ? `${project.city}, ${project.country}` : project.country}
           </div>
         </div>
         <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
@@ -771,28 +768,9 @@ const FutureProjectCard: React.FC<{ project: ProducerProject }> = ({ project }) 
         </div>
       </div>
 
-      {/* CI and certifications */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {project.ci !== undefined && (
-          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#E8F5E9', color: '#2E7D32', border: '1px solid #C8E6C9' }}>
-            CI: {project.ci.toFixed(1)} gCO{'\u2082'}e/MJ
-          </span>
-        )}
-        {project.certifications?.map((cert) => (
-          <span key={cert} style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: '#EBF5FB', color: '#1E88E5' }}>
-            {cert}
-          </span>
-        ))}
-        {project.offtakeCommitted && (
-          <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#FFF3E0', color: '#E65100', border: '1px solid #FFE0B2' }}>
-            Offtake Committed
-          </span>
-        )}
-      </div>
-
       {/* Express Interest CTA */}
       <a
-        href={`mailto:info@verdaxis.exchange?subject=Off-take Interest: ${encodeURIComponent(project.name)}&body=${encodeURIComponent(`I am interested in discussing off-take arrangements for the ${project.name} project (${project.fuelType}, ${formatCapacity(project.capacityMtpa)} mt/yr, COD ${project.codYear}).`)}`}
+        href={`mailto:info@verdaxis.exchange?subject=Off-take Interest: ${encodeURIComponent(project.name)}&body=${encodeURIComponent(`I am interested in discussing off-take arrangements for the ${project.name} project (${project.fuelType}, ${formatCapacity(project.capacityKtpa)} ktpa, COD ${project.codYear}).`)}`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -826,7 +804,7 @@ const FutureProjectCard: React.FC<{ project: ProducerProject }> = ({ project }) 
 
 const ProjectMarker: React.FC<{ project: ProducerProject }> = ({ project }) => {
   const color = fuelTypeColors[project.fuelType];
-  const radius = getMarkerRadius(project.capacityMtpa);
+  const radius = getMarkerRadius(project.capacityKtpa);
 
   return (
     <CircleMarker
@@ -875,53 +853,10 @@ const ProjectMarker: React.FC<{ project: ProducerProject }> = ({ project }) => {
             </span>
           </div>
 
-          <div><strong>Capacity:</strong> {formatCapacity(project.capacityMtpa)} mt/year</div>
+          <div><strong>Capacity:</strong> {formatCapacity(project.capacityKtpa)} ktpa</div>
           <div><strong>COD:</strong> {project.codYear}</div>
+          {project.city && <div><strong>City:</strong> {project.city}</div>}
           <div><strong>Country:</strong> {project.country}</div>
-
-          {project.ci !== undefined && (
-            <div><strong>CI:</strong> {project.ci.toFixed(1)} gCO&#x2082;e/MJ</div>
-          )}
-
-          {project.certifications && project.certifications.length > 0 && (
-            <div style={{ marginTop: 4 }}>
-              {project.certifications.map((cert) => (
-                <span
-                  key={cert}
-                  style={{
-                    display: 'inline-block',
-                    padding: '2px 6px',
-                    background: '#EBF5FB',
-                    color: '#1E88E5',
-                    borderRadius: 4,
-                    fontSize: 11,
-                    marginRight: 4,
-                    fontWeight: 500,
-                  }}
-                >
-                  {cert}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {project.offtakeCommitted && (
-            <div style={{ marginTop: 4 }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '2px 8px',
-                  background: '#E8F5E9',
-                  color: '#2E7D32',
-                  borderRadius: 4,
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-              >
-                Offtake Committed
-              </span>
-            </div>
-          )}
         </div>
       </Popup>
     </CircleMarker>

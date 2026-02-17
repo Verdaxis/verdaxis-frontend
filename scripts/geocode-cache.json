@@ -1,0 +1,926 @@
+{
+  "Aalborg|Denmark": {
+    "lat": 57.0463,
+    "lng": 9.9215
+  },
+  "Aanekoski|Finland": {
+    "lat": 62.6032,
+    "lng": 25.7301
+  },
+  "Agioi Theodoroi|Greece": {
+    "lat": 35.5361,
+    "lng": 23.9308
+  },
+  "Almazan|Spain": {
+    "lat": 41.4871,
+    "lng": -2.5336
+  },
+  "Amsterdam|Netherlands": {
+    "lat": 52.3731,
+    "lng": 4.8925
+  },
+  "Anda|China": {
+    "lat": 46.517,
+    "lng": 125.4193
+  },
+  "Ankara|Turkiye": {
+    "lat": 39.9208,
+    "lng": 32.854
+  },
+  "Anpengzhen, Tongbai County, Nanyang|China": {
+    "lat": 32.37,
+    "lng": 113.43
+  },
+  "Antofagasta|Chile": {
+    "lat": -23.6464,
+    "lng": -70.398
+  },
+  "Anyang|China": {
+    "lat": 35.9901,
+    "lng": 114.5097
+  },
+  "Arcos de la Frontera|Spain": {
+    "lat": 36.7527,
+    "lng": -5.8122
+  },
+  "Arnhem|Netherlands": {
+    "lat": 52.0057,
+    "lng": 5.8762
+  },
+  "Asco|Spain": {
+    "lat": 41.1805,
+    "lng": 0.568
+  },
+  "Bairin Left Banner, Chifeng|China": {
+    "lat": 44.1884,
+    "lng": 119.2498
+  },
+  "Balikpapan|Indonesia": {
+    "lat": -1.2399,
+    "lng": 116.8593
+  },
+  "Bayin Aobao|China": {
+    "lat": 41.8644,
+    "lng": 110.121
+  },
+  "Beaumont|United States": {
+    "lat": 30.0829,
+    "lng": -94.0984
+  },
+  "Begonte|Spain": {
+    "lat": 43.1501,
+    "lng": -7.6852
+  },
+  "Bell Bay|Australia": {
+    "lat": -41.1314,
+    "lng": 146.8658
+  },
+  "Binhai|China": {
+    "lat": 39.0149,
+    "lng": 117.6888
+  },
+  "Boyle|Canada": {
+    "lat": 54.5908,
+    "lng": -112.8092
+  },
+  "Burnie|Australia": {
+    "lat": -41.0524,
+    "lng": 145.9064
+  },
+  "Caddo-Bossier|United States": {
+    "lat": 32.6991,
+    "lng": -93.7429
+  },
+  "Calcasieu Parish|United States": {
+    "lat": 30.2232,
+    "lng": -93.3434
+  },
+  "Caldas|Spain": {
+    "lat": 42.621,
+    "lng": -8.6093
+  },
+  "Candeias (Port of Aratu)|Brazil": {
+    "lat": -12.78,
+    "lng": -38.5
+  },
+  "Chambers County|United States": {
+    "lat": 29.7191,
+    "lng": -94.5412
+  },
+  "Changling County|China": {
+    "lat": 44.3438,
+    "lng": 123.5873
+  },
+  "Changxing|China": {
+    "lat": 31.0279,
+    "lng": 119.9066
+  },
+  "Chaoyang|China": {
+    "lat": 41.5755,
+    "lng": 120.4391
+  },
+  "Chavelot|France": {
+    "lat": 48.238,
+    "lng": 6.4376
+  },
+  "Cixian Country, Handan|China": {
+    "lat": 36.37,
+    "lng": 114.43
+  },
+  "Clear Lake|United States": {
+    "lat": 43.1371,
+    "lng": -93.3814
+  },
+  "Cottbus|Germany": {
+    "lat": 51.7567,
+    "lng": 14.3357
+  },
+  "Daan, Baicheng|China": {
+    "lat": 45.5044,
+    "lng": 124.2856
+  },
+  "Dafeng District, Yancheng|China": {
+    "lat": 33.202,
+    "lng": 120.4962
+  },
+  "Daqing|China": {
+    "lat": 46.324,
+    "lng": 124.5598
+  },
+  "Delfzijl|Netherlands": {
+    "lat": 53.3326,
+    "lng": 6.9135
+  },
+  "Diaobingshan, Tieling|China": {
+    "lat": 42.47,
+    "lng": 123.57
+  },
+  "Dong Fang|China": {
+    "lat": 22.5335,
+    "lng": 113.9774
+  },
+  "Dongfang|China": {
+    "lat": 19.0979,
+    "lng": 108.6482
+  },
+  "Dongta Town, Lingwu|China": {
+    "lat": 38.1,
+    "lng": 106.33
+  },
+  "Dunhua|China": {
+    "lat": 43.3686,
+    "lng": 128.2268
+  },
+  "Duolun County, Xilin Gol League|China": {
+    "lat": 42.1997,
+    "lng": 116.4792
+  },
+  "Duolun County, Xilingol League|China": {
+    "lat": 42.1997,
+    "lng": 116.4792
+  },
+  "Effingham|United States": {
+    "lat": 39.0521,
+    "lng": -88.6029
+  },
+  "El Morell|Spain": {
+    "lat": 41.1924,
+    "lng": 1.2071
+  },
+  "Etuoke Banner (Otog Banner), Ordos|China": {
+    "lat": 38.1638,
+    "lng": 106.8033
+  },
+  "Etuoke Banner (Otog Banner)|China": {
+    "lat": 38.1638,
+    "lng": 106.8033
+  },
+  "Farso|Denmark": {
+    "lat": 56.7722,
+    "lng": 9.34
+  },
+  "Fawley|United Kingdom": {
+    "lat": 51.5297,
+    "lng": -1.4354
+  },
+  "Finnfjord|Norway": {
+    "lat": 69.2207,
+    "lng": 18.0886
+  },
+  "Finsterwalde|Germany": {
+    "lat": 51.6315,
+    "lng": 13.7074
+  },
+  "Fos-sur-Mer|France": {
+    "lat": 43.4381,
+    "lng": 4.9456
+  },
+  "Fuhai County, Altay Prefecture|China": {
+    "lat": 46.3297,
+    "lng": 87.8967
+  },
+  "Fuyu County, Qiqihar|China": {
+    "lat": 47.6599,
+    "lng": 124.5645
+  },
+  "Ganqimaodu, Bayannur|China": {
+    "lat": 42.4004,
+    "lng": 107.5734
+  },
+  "Garray|Spain": {
+    "lat": 41.8151,
+    "lng": -2.4461
+  },
+  "Geismar|United States": {
+    "lat": 30.2044,
+    "lng": -91.0226
+  },
+  "Gijon|Spain": {
+    "lat": 43.5449,
+    "lng": -5.6627
+  },
+  "Goldboro|Canada": {
+    "lat": 45.1824,
+    "lng": -61.6524
+  },
+  "Grindavik|Iceland": {
+    "lat": 63.8442,
+    "lng": -22.4317
+  },
+  "Grundartangi|Iceland": {
+    "lat": 64.3602,
+    "lng": -21.7841
+  },
+  "Gunsan|Korea, South": {
+    "lat": 35.97,
+    "lng": 126.71
+  },
+  "Guyang County, Baotou|China": {
+    "lat": 41.0326,
+    "lng": 110.054
+  },
+  "Haapavesi|Finland": {
+    "lat": 64.1379,
+    "lng": 25.3658
+  },
+  "Hagfors|Sweden": {
+    "lat": 60.0298,
+    "lng": 13.6519
+  },
+  "Haiyang|China": {
+    "lat": 36.6885,
+    "lng": 121.1685
+  },
+  "Harbin|China": {
+    "lat": 45.7594,
+    "lng": 126.6276
+  },
+  "Hexigten Banner, Chifeng|China": {
+    "lat": 43.2595,
+    "lng": 117.5377
+  },
+  "Horqin Left Middle Banner, Tongliao|China": {
+    "lat": 44.1228,
+    "lng": 123.3136
+  },
+  "Horqin Left Rear Banner, Tongliao|China": {
+    "lat": 42.9531,
+    "lng": 122.3406
+  },
+  "Horqin Right Front Banner, Xing'an League|China": {
+    "lat": 46.342,
+    "lng": 121.2632
+  },
+  "Horqin, Tongliao|China": {
+    "lat": 42.9531,
+    "lng": 122.3406
+  },
+  "Huanan County, Jiamusi|China": {
+    "lat": 46.2845,
+    "lng": 130.7007
+  },
+  "Huelva|Spain": {
+    "lat": 37.2576,
+    "lng": -6.9485
+  },
+  "Humble|United States": {
+    "lat": 29.9988,
+    "lng": -95.2622
+  },
+  "Ipojuca (Port of Suape)|Brazil": {
+    "lat": -8.39,
+    "lng": -34.97
+  },
+  "Jarud Banner, Tongliao|China": {
+    "lat": 44.8451,
+    "lng": 120.5733
+  },
+  "Jefferson County|United States": {
+    "lat": 29.8348,
+    "lng": -94.1704
+  },
+  "Jidong County, Jixi|China": {
+    "lat": 45.2611,
+    "lng": 131.2999
+  },
+  "Jining|China": {
+    "lat": 35.4125,
+    "lng": 116.5849
+  },
+  "Jinshanzhen, Guyang County, Baotou|China": {
+    "lat": 41.03,
+    "lng": 110.05
+  },
+  "Jixian County, Shuangyashan|China": {
+    "lat": 46.7983,
+    "lng": 131.1794
+  },
+  "Jixi|China": {
+    "lat": 45.2929,
+    "lng": 130.9619
+  },
+  "Joensuu|Finland": {
+    "lat": 62.6006,
+    "lng": 29.762
+  },
+  "Ju County, Rizhao|China": {
+    "lat": 35.5867,
+    "lng": 118.827
+  },
+  "Kangping County, Shenyang|China": {
+    "lat": 42.75,
+    "lng": 123.35
+  },
+  "Kasso|Denmark": {
+    "lat": 55.0368,
+    "lng": 9.2343
+  },
+  "Keflavik|Iceland": {
+    "lat": 63.9998,
+    "lng": -22.5565
+  },
+  "Kristinestad|Finland": {
+    "lat": 62.2742,
+    "lng": 21.3772
+  },
+  "La Robla|Spain": {
+    "lat": 42.8029,
+    "lng": -5.6292
+  },
+  "La Roda de Andalucía|Spain": {
+    "lat": 37.2004,
+    "lng": -4.7773
+  },
+  "Laha, Nehe, Qiqihar|China": {
+    "lat": 48.2035,
+    "lng": 124.6243
+  },
+  "Lanzhou|China": {
+    "lat": 36.4744,
+    "lng": 103.7332
+  },
+  "Lianyungang|China": {
+    "lat": 34.5933,
+    "lng": 119.2172
+  },
+  "Liaocheng|China": {
+    "lat": 36.4442,
+    "lng": 115.9642
+  },
+  "Liaoyuan|China": {
+    "lat": 42.8864,
+    "lng": 125.1375
+  },
+  "Lindongzhen, Bairin Left Banner, Chifeng|China": {
+    "lat": 44.19,
+    "lng": 119.25
+  },
+  "Linhai|China": {
+    "lat": 28.8617,
+    "lng": 121.1402
+  },
+  "Linxi County, Chifeng|China": {
+    "lat": 43.6997,
+    "lng": 118.0922
+  },
+  "Linxi County|China": {
+    "lat": 43.6997,
+    "lng": 118.0922
+  },
+  "Lishu County, Siping|China": {
+    "lat": 43.4873,
+    "lng": 124.3329
+  },
+  "Lockerbie|United Kingdom": {
+    "lat": 55.1219,
+    "lng": -3.3553
+  },
+  "Ludwigshafen|Germany": {
+    "lat": 49.4704,
+    "lng": 8.4382
+  },
+  "Lugnvik|Sweden": {
+    "lat": 62.9296,
+    "lng": 17.9142
+  },
+  "Lulea|Sweden": {
+    "lat": 65.5831,
+    "lng": 22.146
+  },
+  "Malkangiri|India": {
+    "lat": 18.2745,
+    "lng": 81.952
+  },
+  "Manfredonia|Italy": {
+    "lat": 41.6255,
+    "lng": 15.9096
+  },
+  "Mangualde|Portugal": {
+    "lat": 40.6035,
+    "lng": -7.7656
+  },
+  "Marl|Germany": {
+    "lat": 51.6486,
+    "lng": 7.0829
+  },
+  "Matagorda|United States": {
+    "lat": 28.888,
+    "lng": -96.0035
+  },
+  "Medicine Hat|Canada": {
+    "lat": 50.043,
+    "lng": -110.679
+  },
+  "Meihekou, Tonghua|China": {
+    "lat": 42.5358,
+    "lng": 125.6925
+  },
+  "Moerdijk|Netherlands": {
+    "lat": 51.6628,
+    "lng": 4.5256
+  },
+  "Monfarracinos, Zamora|Spain": {
+    "lat": 41.5526,
+    "lng": -5.7064
+  },
+  "Mongstad|Norway": {
+    "lat": 60.7979,
+    "lng": 5.0116
+  },
+  "Monsteras|Sweden": {
+    "lat": 57.0667,
+    "lng": 16.4167
+  },
+  "Montalieu-Vercieu|France": {
+    "lat": 45.816,
+    "lng": 5.4038
+  },
+  "Montoir-de-Bretagne|France": {
+    "lat": 47.3286,
+    "lng": -2.1543
+  },
+  "Mugardos|Spain": {
+    "lat": 43.4618,
+    "lng": -8.2571
+  },
+  "Naantali|Finland": {
+    "lat": 60.4689,
+    "lng": 22.0291
+  },
+  "Nakskov|Denmark": {
+    "lat": 54.8305,
+    "lng": 11.1494
+  },
+  "Nanjing|China": {
+    "lat": 32.0438,
+    "lng": 118.7789
+  },
+  "Niigata|Japan": {
+    "lat": 37.6452,
+    "lng": 138.7669
+  },
+  "Ningcheng County, Chifeng City|China": {
+    "lat": 41.579,
+    "lng": 118.8647
+  },
+  "Ningcheng County, Chifeng|China": {
+    "lat": 41.579,
+    "lng": 118.8647
+  },
+  "Ordos|China": {
+    "lat": 39.4603,
+    "lng": 108.8134
+  },
+  "Origny-Sainte-Benoite|France": {
+    "lat": 49.8399,
+    "lng": 3.488
+  },
+  "Ornskoldsvik|Sweden": {
+    "lat": 63.2889,
+    "lng": 18.716
+  },
+  "Oroville|United States": {
+    "lat": 39.5138,
+    "lng": -121.5564
+  },
+  "Ossa de Montiel|Spain": {
+    "lat": 38.9625,
+    "lng": -2.7454
+  },
+  "Oulu|Finland": {
+    "lat": 65.0118,
+    "lng": 25.4702
+  },
+  "Oxagon|Saudi Arabia": {
+    "lat": 27.5679,
+    "lng": 35.546
+  },
+  "Padborg|Denmark": {
+    "lat": 54.8295,
+    "lng": 9.3607
+  },
+  "Palos de la Frontera|Spain": {
+    "lat": 37.2277,
+    "lng": -6.8954
+  },
+  "Pampa|United States": {
+    "lat": 35.5363,
+    "lng": -100.9602
+  },
+  "Pardies|France": {
+    "lat": 43.3672,
+    "lng": -0.5888
+  },
+  "Parnu|Estonia": {
+    "lat": 58.3871,
+    "lng": 24.5028
+  },
+  "Pataias|Portugal": {
+    "lat": 39.6885,
+    "lng": -9.0159
+  },
+  "Paysandu|Uruguay": {
+    "lat": -32.3217,
+    "lng": -58.0892
+  },
+  "Petit-Couronne|France": {
+    "lat": 49.3818,
+    "lng": 1.0333
+  },
+  "Pipeiras|Brazil": {
+    "lat": -21.8132,
+    "lng": -41.1408
+  },
+  "Port Augusta|Australia": {
+    "lat": -32.4909,
+    "lng": 137.764
+  },
+  "Portland|Australia": {
+    "lat": -38.3456,
+    "lng": 141.6042
+  },
+  "Porto|Portugal": {
+    "lat": 41.1502,
+    "lng": -8.6103
+  },
+  "Puertollano, Ciudad Real|Spain": {
+    "lat": 38.6852,
+    "lng": -4.1112
+  },
+  "Pune|India": {
+    "lat": 18.5214,
+    "lng": 73.8545
+  },
+  "Punta Arenas|Chile": {
+    "lat": -53.1626,
+    "lng": -70.9078
+  },
+  "Puyang|China": {
+    "lat": 35.7631,
+    "lng": 115.0234
+  },
+  "Qian Gorlos County, Songyuan|China": {
+    "lat": 45.1119,
+    "lng": 124.8507
+  },
+  "Qian Gorlos, Songyuan|China": {
+    "lat": 44.8517,
+    "lng": 124.6303
+  },
+  "Qitai County|China": {
+    "lat": 44.4254,
+    "lng": 89.8779
+  },
+  "Qujing|China": {
+    "lat": 25.4936,
+    "lng": 103.7943
+  },
+  "Ranua|Finland": {
+    "lat": 65.9277,
+    "lng": 26.5131
+  },
+  "Rapides Parish|United States": {
+    "lat": 31.172,
+    "lng": -92.5526
+  },
+  "Rayagada|India": {
+    "lat": 19.4427,
+    "lng": 83.5873
+  },
+  "Roches-Roussillon|France": {
+    "lat": 45.3555,
+    "lng": 4.7954
+  },
+  "Rogerville|France": {
+    "lat": 49.5033,
+    "lng": 0.2632
+  },
+  "Rosholt|United States": {
+    "lat": 44.6286,
+    "lng": -89.3088
+  },
+  "Ruichang, Jiujiang|China": {
+    "lat": 29.6218,
+    "lng": 115.4615
+  },
+  "Ruichang|China": {
+    "lat": 29.6218,
+    "lng": 115.4615
+  },
+  "Saillat-sur-Vienne|France": {
+    "lat": 45.8707,
+    "lng": 0.8153
+  },
+  "Saint Crépin Ibouvillers|France": {
+    "lat": 49.2616,
+    "lng": 2.07
+  },
+  "Sannazzaro De Burgondi|Italy": {
+    "lat": 45.1023,
+    "lng": 8.9063
+  },
+  "Sanshui District, Foshan|China": {
+    "lat": 23.172,
+    "lng": 112.8848
+  },
+  "Shache County|China": {
+    "lat": 38.3446,
+    "lng": 77.034
+  },
+  "Shanghai|China": {
+    "lat": 31.2313,
+    "lng": 121.47
+  },
+  "Shuangliao, Siping|China": {
+    "lat": 43.5147,
+    "lng": 123.5003
+  },
+  "Shuangliao|China": {
+    "lat": 43.5147,
+    "lng": 123.5003
+  },
+  "Shuangyashan|China": {
+    "lat": 46.6738,
+    "lng": 131.1331
+  },
+  "Sines|Portugal": {
+    "lat": 37.9565,
+    "lng": -8.869
+  },
+  "Siziwang Banner, Ulanqab|China": {
+    "lat": 42.2783,
+    "lng": 111.6324
+  },
+  "Skive|Denmark": {
+    "lat": 56.6459,
+    "lng": 8.9327
+  },
+  "Songyuan|China": {
+    "lat": 45.1387,
+    "lng": 124.8171
+  },
+  "St. James|United States": {
+    "lat": 39.5732,
+    "lng": -77.7494
+  },
+  "Stenungsund|Sweden": {
+    "lat": 58.0833,
+    "lng": 11.9167
+  },
+  "Stovstrup|Denmark": {
+    "lat": 55.5685,
+    "lng": 9.6927
+  },
+  "Suape|Brazil": {
+    "lat": -8.3539,
+    "lng": -34.9567
+  },
+  "Suixi County, Zhanjiang|China": {
+    "lat": 21.2894,
+    "lng": 110.0089
+  },
+  "Sundsvall|Sweden": {
+    "lat": 62.3908,
+    "lng": 17.3071
+  },
+  "Tabernas|Spain": {
+    "lat": 37.0499,
+    "lng": -2.3914
+  },
+  "Taebaek|Korea, South": {
+    "lat": 37.16,
+    "lng": 128.99
+  },
+  "Tambor|Uruguay": {
+    "lat": -34.8874,
+    "lng": -56.2952
+  },
+  "Tanjung Langsat|Malaysia": {
+    "lat": 1.4719,
+    "lng": 104.011
+  },
+  "Taonan, Baicheng|China": {
+    "lat": 45.4467,
+    "lng": 122.4936
+  },
+  "Tartas|France": {
+    "lat": 43.8323,
+    "lng": -0.8096
+  },
+  "Texas city|United States": {
+    "lat": 29.396,
+    "lng": -94.9175
+  },
+  "Timika|Indonesia": {
+    "lat": -4.5481,
+    "lng": 136.8899
+  },
+  "Tjeldbergodden|Norway": {
+    "lat": 63.4126,
+    "lng": 8.6819
+  },
+  "Tongyu County, Baicheng|China": {
+    "lat": 44.7847,
+    "lng": 122.7604
+  },
+  "Tongyu, Baicheng|China": {
+    "lat": 44.7847,
+    "lng": 122.7604
+  },
+  "Topolobampo|Mexico": {
+    "lat": 25.6014,
+    "lng": -109.0543
+  },
+  "Tornio|Finland": {
+    "lat": 65.8458,
+    "lng": 24.1464
+  },
+  "Toulouse|France": {
+    "lat": 43.6045,
+    "lng": 1.4442
+  },
+  "Tumbler Ridge|Canada": {
+    "lat": 55.1262,
+    "lng": -120.9981
+  },
+  "Tumed Right Banner, Baotou|China": {
+    "lat": 40.5679,
+    "lng": 110.5183
+  },
+  "Uckange|France": {
+    "lat": 49.3008,
+    "lng": 6.1589
+  },
+  "Ulanhot|China": {
+    "lat": 46.0698,
+    "lng": 122.0873
+  },
+  "Umeå|Sweden": {
+    "lat": 63.8257,
+    "lng": 20.2631
+  },
+  "Urad Middle Banner, Bayannur|China": {
+    "lat": 41.7211,
+    "lng": 108.391
+  },
+  "Urad Rear Banner, Bayannur|China": {
+    "lat": 41.4782,
+    "lng": 106.4696
+  },
+  "Vaal SEZ|South Africa": {
+    "lat": -26.7,
+    "lng": 27.81
+  },
+  "Vagari|Estonia": {
+    "lat": 58.7304,
+    "lng": 26.2175
+  },
+  "Vallvik|Sweden": {
+    "lat": 61.1844,
+    "lng": 17.1763
+  },
+  "Varennes|Canada": {
+    "lat": 45.6835,
+    "lng": -73.4363
+  },
+  "Vegreville|Canada": {
+    "lat": 53.5,
+    "lng": -112.05
+  },
+  "Victoria|United States": {
+    "lat": 28.8026,
+    "lng": -96.9766
+  },
+  "Villadangos del Páramo|Spain": {
+    "lat": 42.5173,
+    "lng": -5.7668
+  },
+  "Vindhyachal|India": {
+    "lat": 23.035,
+    "lng": 77.888
+  },
+  "West Coast New Area, Qingdao|China": {
+    "lat": 35.9454,
+    "lng": 120.167
+  },
+  "West Texas|United States": {
+    "lat": 26.1717,
+    "lng": -98.1628
+  },
+  "Westbury|Canada": {
+    "lat": 45.4939,
+    "lng": -71.6235
+  },
+  "Wukeshu Town, Yushu City, Changchun City|China": {
+    "lat": 44.82,
+    "lng": 126.53
+  },
+  "Wusu, Tacheng|China": {
+    "lat": 44.4172,
+    "lng": 84.7111
+  },
+  "Xiangcheng, Xuchang|China": {
+    "lat": 33.8939,
+    "lng": 113.5556
+  },
+  "Xing'an League|China": {
+    "lat": 39.8052,
+    "lng": 109.9978
+  },
+  "Yancheng|China": {
+    "lat": 33.3496,
+    "lng": 120.1577
+  },
+  "Yicheng|China": {
+    "lat": 35.6972,
+    "lng": 111.834
+  },
+  "Yining|China": {
+    "lat": 43.9052,
+    "lng": 81.2748
+  },
+  "Yuanbaoshan District, Chifeng|China": {
+    "lat": 42.2256,
+    "lng": 119.219
+  },
+  "Yuanbaoshan, Chifeng|China": {
+    "lat": 42.2256,
+    "lng": 119.219
+  },
+  "Yulin|China": {
+    "lat": 22.4199,
+    "lng": 110.2143
+  },
+  "Yushe County, Jin Zhong|China": {
+    "lat": 37.141,
+    "lng": 112.9266
+  },
+  "Yushu|China": {
+    "lat": 44.82,
+    "lng": 126.53
+  },
+  "Zaozhuang|China": {
+    "lat": 34.8109,
+    "lng": 117.3179
+  },
+  "Zhangye|China": {
+    "lat": 39.1218,
+    "lng": 99.9249
+  },
+  "Zhanjiang|China": {
+    "lat": 21.2737,
+    "lng": 110.3548
+  },
+  "Zhenyuan County|China": {
+    "lat": 23.9299,
+    "lng": 100.9376
+  },
+  "Zhungeer, Ordos|China": {
+    "lat": 39.8518,
+    "lng": 111.2577
+  },
+  "Øyer|Norway": {
+    "lat": 61.3274,
+    "lng": 10.504
+  }
+}

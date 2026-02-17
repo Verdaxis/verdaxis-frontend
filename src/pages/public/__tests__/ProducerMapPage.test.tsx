@@ -13,6 +13,27 @@ vi.mock('react-leaflet', () => ({
 // Mock leaflet CSS import
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 
+// Mock producerProjects with a small representative subset to avoid JSDOM timeout
+// when rendering 274 markers. Covers all 3 fuel types and all 4 statuses.
+vi.mock('../../../data/producerProjects', () => {
+  const projects = [
+    { id: 'proj-001', name: 'George Olah', company: 'CRI', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Operational', capacityKtpa: 10, codYear: 2012, lat: 63.84, lng: -22.43, country: 'Iceland', city: 'Grindavik' },
+    { id: 'proj-002', name: 'Ecoplanta', company: 'Repsol', fuelType: 'Biomethanol', pathway: 'Residual waste', status: 'Under Construction', capacityKtpa: 240, codYear: 2029, lat: 41.19, lng: 1.21, country: 'Spain', city: 'El Morell' },
+    { id: 'proj-003', name: 'Project AIR', company: 'Perstorp', fuelType: 'Biomethanol', pathway: 'Biomethane', status: 'Engineering', capacityKtpa: 200, codYear: 2029, lat: 58.08, lng: 11.92, country: 'Sweden', city: 'Stenungsund' },
+    { id: 'proj-004', name: 'Shunli CO2-to-methanol', company: 'Henan Shuncheng', fuelType: 'Low-Carbon Methanol', pathway: 'CO2 + H2', status: 'Operational', capacityKtpa: 110, codYear: 2022, lat: 35.99, lng: 114.51, country: 'China', city: 'Anyang' },
+    { id: 'proj-005', name: 'Carbon Iceland', company: 'Carbon Iceland', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 300, codYear: 2029, lat: 64.36, lng: -21.78, country: 'Iceland', city: 'Grundartangi' },
+    { id: 'proj-006', name: 'Triskelion', company: 'Forestal del Atlantico', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Engineering', capacityKtpa: 57, codYear: 2028, lat: 43.46, lng: -8.26, country: 'Spain', city: 'Mugardos' },
+  ];
+  return {
+    producerProjects: projects,
+    fuelTypeColors: {
+      'E-Methanol': '#5DADE2',
+      'Biomethanol': '#4CAF50',
+      'Low-Carbon Methanol': '#FF9800',
+    },
+  };
+});
+
 import { ProducerMapPage } from '../ProducerMapPage';
 import { producerProjects } from '../../../data/producerProjects';
 
@@ -29,7 +50,7 @@ describe('ProducerMapPage', () => {
     renderWithRouter(<ProducerMapPage />);
     expect(screen.getByText('Producer & Project Map')).toBeTruthy();
     expect(
-      screen.getByText(/explore low-carbon fuel production facilities worldwide/i)
+      screen.getByText(/explore methanol production projects worldwide/i)
     ).toBeTruthy();
     // Stats should show project count and country count
     expect(screen.getByText(new RegExp(`${producerProjects.length} projects`))).toBeTruthy();
@@ -44,12 +65,9 @@ describe('ProducerMapPage', () => {
   it('renders filter sidebar with fuel type checkboxes', () => {
     renderWithRouter(<ProducerMapPage />);
     // Each fuel type appears in both the checkbox filter and legend sections
-    expect(screen.getAllByText('Methanol').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Ethanol').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('SAF').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Ammonia').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Biofuel').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Biomethane').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('E-Methanol').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Biomethanol').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Low-Carbon Methanol').length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders map container', () => {
@@ -69,7 +87,8 @@ describe('ProducerMapPage', () => {
     expect(screen.getAllByText('All').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Operational').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Under Construction').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Planned').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Engineering').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Pre-Feasibility').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders showing count', () => {
@@ -107,10 +126,10 @@ describe('ProducerMapPage - Future Production tab', () => {
   it('shows future project count badge on tab', () => {
     renderWithRouter(<ProducerMapPage />);
     const futureProjectsList = producerProjects.filter(
-      (p) => p.status === 'Under Construction' || p.status === 'Planned'
+      (p) => p.status !== 'Operational'
     );
-    // The badge shows the count number
-    expect(screen.getByText(String(futureProjectsList.length))).toBeTruthy();
+    // The badge shows the count number (may appear in multiple places)
+    expect(screen.getAllByText(String(futureProjectsList.length)).length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows express interest buttons for future projects', () => {
