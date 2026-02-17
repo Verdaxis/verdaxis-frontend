@@ -296,7 +296,7 @@ export const MarketTerminal: React.FC = () => {
                 s => s.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase())
                   && s.region.toLowerCase().includes(selectedPort.toLowerCase())
             );
-            const last = matchingSummary?.last_price ?? sim.last;
+            const last = matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : sim.last;
             const change = matchingSummary?.price_change_pct
                 ? Number(matchingSummary.price_change_pct)
                 : sim.change;
