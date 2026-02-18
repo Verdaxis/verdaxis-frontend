@@ -17,6 +17,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **AI Copilot:** Google Gemini (`@google/genai`) with tool-calling for fleet/procurement queries
 - **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
+- **Linting:** No ESLint configuration present. Consider adding one for consistency.
 
 ## Architecture / Directory Structure
 
@@ -97,6 +98,9 @@ src/
     notifications/
       NotificationBell.tsx  # Header bell icon with unread badge
       NotificationList.tsx  # Dropdown notification list
+
+    fleet/
+      VesselDetailModal.tsx  # Detail modal for individual vessel info
 
     ui/
       Tooltip.tsx           # Reusable tooltip component
@@ -233,4 +237,5 @@ Production API URL is set in `.env.production` (committed to git). Vite automati
 - **Never commit `dist/` to git.** It's in `.gitignore`. If it gets force-added, run `git rm -r --cached dist/` to untrack it.
 - **Vite proxy also handles `/authentik` routes** -- rewrites to the Authentik identity server on port 9000. This is configured in `vite.config.ts` but only applies to local dev.
 - **In-app navigation is state-based, not URL-based.** The `/app` route renders all authenticated views. Changing pages updates `currentPage` state, not the URL. Do not add new react-router routes for authenticated pages -- add new `Page` type values and handle them in `Dashboard.renderContent()`.
-- **Gemini API key** is injected at build time via `define` in `vite.config.ts` from the `GEMINI_API_KEY` env var. If the key is missing, the Copilot gracefully degrades with a "features disabled" message.
+- **Gemini API key** is injected at build time via `define` in `vite.config.ts` from the `GEMINI_API_KEY` env var. If the key is missing, the Copilot gracefully degrades with a "features disabled" message. **Security note:** This injects the key into the client-side bundle where it can be extracted. Prefer proxying through the backend.
+- **Vestigial auth dependencies:** `@auth0/auth0-react`, `oidc-client-ts`, and `react-oidc-context` are still in `package.json` but are not used since Authentik was deprecated in favor of custom JWT auth. These should be removed to reduce bundle size and attack surface.
