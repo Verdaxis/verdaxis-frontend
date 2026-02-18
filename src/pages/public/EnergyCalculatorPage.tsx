@@ -388,11 +388,11 @@ export const EnergyCalculatorPage: React.FC = () => {
   };
 
   const resultA = useMemo(
-    () => calculateVoyage(inputs.fuelA_energyDensity, inputs),
+    () => calculateVoyage(inputs.fuelA_energyDensity, inputs.fuelA_price, inputs.fuelA_dailyConsumption, inputs),
     [inputs]
   );
   const resultB = useMemo(
-    () => calculateVoyage(inputs.fuelB_energyDensity, inputs),
+    () => calculateVoyage(inputs.fuelB_energyDensity, inputs.fuelB_price, inputs.fuelB_dailyConsumption, inputs),
     [inputs]
   );
 
@@ -457,7 +457,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             gap: 20,
           }}
         >
-          {/* Voyage Parameters */}
+          {/* Fuel A Parameters */}
           <div style={card}>
             <h3
               style={{
@@ -471,7 +471,97 @@ export const EnergyCalculatorPage: React.FC = () => {
                 borderBottom: '2px solid #E2E8F0',
               }}
             >
-              Voyage Parameters
+              Fuel A
+            </h3>
+            <SliderInput
+              label="Energy Density"
+              value={inputs.fuelA_energyDensity}
+              onChange={(v) => update('fuelA_energyDensity', v)}
+              min={15}
+              max={50}
+              step={0.1}
+              unit="MJ/kg"
+            />
+            <SliderInput
+              label="Daily Consumption"
+              value={inputs.fuelA_dailyConsumption}
+              onChange={(v) => update('fuelA_dailyConsumption', v)}
+              min={10}
+              max={100}
+              step={1}
+              unit="t/day"
+            />
+            <SliderInput
+              label="Fuel Price"
+              value={inputs.fuelA_price}
+              onChange={(v) => update('fuelA_price', v)}
+              min={200}
+              max={1500}
+              step={10}
+              unit="$/mt"
+            />
+          </div>
+
+          {/* Fuel B Parameters */}
+          <div style={card}>
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                marginBottom: 20,
+                paddingBottom: 12,
+                borderBottom: '2px solid #E2E8F0',
+              }}
+            >
+              Fuel B
+            </h3>
+            <SliderInput
+              label="Energy Density"
+              value={inputs.fuelB_energyDensity}
+              onChange={(v) => update('fuelB_energyDensity', v)}
+              min={15}
+              max={50}
+              step={0.1}
+              unit="MJ/kg"
+            />
+            <SliderInput
+              label="Daily Consumption"
+              value={inputs.fuelB_dailyConsumption}
+              onChange={(v) => update('fuelB_dailyConsumption', v)}
+              min={10}
+              max={100}
+              step={1}
+              unit="t/day"
+            />
+            <SliderInput
+              label="Fuel Price"
+              value={inputs.fuelB_price}
+              onChange={(v) => update('fuelB_price', v)}
+              min={200}
+              max={1500}
+              step={10}
+              unit="$/mt"
+            />
+          </div>
+
+          {/* Voyage & Regulatory Parameters */}
+          <div style={card}>
+            <h3
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: '#0F172A',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+                marginBottom: 20,
+                paddingBottom: 12,
+                borderBottom: '2px solid #E2E8F0',
+              }}
+            >
+              Voyage & Regulatory
             </h3>
             <SliderInput
               label="Voyage Days"
@@ -482,78 +572,6 @@ export const EnergyCalculatorPage: React.FC = () => {
               step={1}
               unit="days"
             />
-            <SliderInput
-              label="Daily Consumption"
-              value={inputs.dailyConsumption}
-              onChange={(v) => update('dailyConsumption', v)}
-              min={10}
-              max={100}
-              step={1}
-              unit="t/day"
-            />
-            <SliderInput
-              label="Fuel Price"
-              value={inputs.fuelPrice}
-              onChange={(v) => update('fuelPrice', v)}
-              min={200}
-              max={1500}
-              step={10}
-              unit="$/mt"
-            />
-          </div>
-
-          {/* Fuel Comparison */}
-          <div style={card}>
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: '#0F172A',
-                textTransform: 'uppercase',
-                letterSpacing: 1,
-                marginBottom: 20,
-                paddingBottom: 12,
-                borderBottom: '2px solid #E2E8F0',
-              }}
-            >
-              Fuel Comparison
-            </h3>
-            <SliderInput
-              label="Fuel A Energy Density"
-              value={inputs.fuelA_energyDensity}
-              onChange={(v) => update('fuelA_energyDensity', v)}
-              min={15}
-              max={50}
-              step={0.1}
-              unit="MJ/kg"
-            />
-            <SliderInput
-              label="Fuel B Energy Density"
-              value={inputs.fuelB_energyDensity}
-              onChange={(v) => update('fuelB_energyDensity', v)}
-              min={15}
-              max={50}
-              step={0.1}
-              unit="MJ/kg"
-            />
-          </div>
-
-          {/* Regulatory Parameters */}
-          <div style={card}>
-            <h3
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: '#0F172A',
-                textTransform: 'uppercase',
-                letterSpacing: 1,
-                marginBottom: 20,
-                paddingBottom: 12,
-                borderBottom: '2px solid #E2E8F0',
-              }}
-            >
-              Regulatory Parameters
-            </h3>
             <SliderInput
               label={`EUA Price`}
               value={inputs.euaPrice}

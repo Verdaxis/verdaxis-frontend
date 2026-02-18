@@ -1,22 +1,26 @@
 export interface CalculatorInputs {
-  fuelA_energyDensity: number;  // MJ/kg
-  fuelB_energyDensity: number;  // MJ/kg
-  fuelPrice: number;             // $/mt
+  fuelA_energyDensity: number;      // MJ/kg
+  fuelB_energyDensity: number;      // MJ/kg
+  fuelA_price: number;              // $/mt
+  fuelB_price: number;              // $/mt
+  fuelA_dailyConsumption: number;   // t/day at reference energy
+  fuelB_dailyConsumption: number;   // t/day at reference energy
   voyageDays: number;
-  dailyConsumption: number;      // t/day at reference energy
-  euaPrice: number;              // EUR/tCO2
-  etsCoverage: number;           // fraction (0.5 = 50%)
-  fueleuThreshold: number;       // gCO2e/MJ
+  euaPrice: number;                 // EUR/tCO2
+  etsCoverage: number;              // fraction (0.5 = 50%)
+  fueleuThreshold: number;          // gCO2e/MJ
   eurToUsd: number;
-  emissionFactor: number;        // tCO2/t fuel
+  emissionFactor: number;           // tCO2/t fuel
 }
 
 export const defaultInputs: CalculatorInputs = {
   fuelA_energyDensity: 40.4,
   fuelB_energyDensity: 43.3,
-  fuelPrice: 450,
+  fuelA_price: 450,
+  fuelB_price: 480,
+  fuelA_dailyConsumption: 35,
+  fuelB_dailyConsumption: 33,
   voyageDays: 25,
-  dailyConsumption: 35,
   euaPrice: 75,
   etsCoverage: 0.50,
   fueleuThreshold: 89.34,
@@ -39,11 +43,16 @@ export interface VoyageResult {
   totalCostUsd: number;
 }
 
-export function calculateVoyage(energyDensity: number, inputs: CalculatorInputs): VoyageResult {
+export function calculateVoyage(
+  energyDensity: number,
+  fuelPrice: number,
+  dailyConsumption: number,
+  inputs: CalculatorInputs,
+): VoyageResult {
   // Reference energy needed for voyage (based on ~41 MJ/kg reference)
   // Total energy = daily consumption * voyage days * reference energy density
   // Same ship needs same ENERGY, not same MASS
-  const referenceEnergyMJ = inputs.dailyConsumption * 1000 * inputs.voyageDays * 41.0; // ~41 MJ/kg reference
+  const referenceEnergyMJ = dailyConsumption * 1000 * inputs.voyageDays * 41.0; // ~41 MJ/kg reference
   const totalEnergyGJ = referenceEnergyMJ / 1000;
 
   // Fuel required = total energy / fuel energy density
@@ -73,7 +82,7 @@ export function calculateVoyage(energyDensity: number, inputs: CalculatorInputs)
   const ciiProxy = co2T / (totalEnergyGJ * 0.01);
 
   // Costs
-  const fuelCostUsd = fuelBurnT * inputs.fuelPrice;
+  const fuelCostUsd = fuelBurnT * fuelPrice;
   const totalCostUsd = fuelCostUsd + (etsCostEur * inputs.eurToUsd) + (fueleuPenaltyEur * inputs.eurToUsd);
 
   return {
