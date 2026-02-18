@@ -48,7 +48,7 @@ describe('EnergyCalculatorPage', () => {
   it('calculates correctly for default inputs', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     // The results should display the savings summary
-    expect(screen.getByText(/net difference/i)).toBeTruthy();
+    expect(screen.getByText(/net savings per voyage/i)).toBeTruthy();
     // Apply for Pilot CTA
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
