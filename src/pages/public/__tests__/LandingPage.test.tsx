@@ -1,6 +1,59 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import React from 'react';
+
+// Mock GSAP and ScrollTrigger
+vi.mock('gsap', () => ({
+  default: {
+    to: vi.fn(),
+    from: vi.fn(),
+    fromTo: vi.fn(),
+    set: vi.fn(),
+    registerPlugin: vi.fn(),
+    context: vi.fn(() => ({ revert: vi.fn(), kill: vi.fn() })),
+    matchMedia: vi.fn(() => ({
+      add: vi.fn(),
+      revert: vi.fn(),
+      kill: vi.fn(),
+    })),
+    timeline: vi.fn(() => ({
+      to: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      fromTo: vi.fn().mockReturnThis(),
+      kill: vi.fn(),
+    })),
+  },
+}));
+
+vi.mock('gsap/ScrollTrigger', () => ({
+  ScrollTrigger: {
+    create: vi.fn(),
+    refresh: vi.fn(),
+    getAll: vi.fn(() => []),
+    killAll: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    batch: vi.fn(),
+  },
+}));
+
+vi.mock('lenis', () => ({ default: vi.fn() }));
+
+// Mock motion/react to render plain elements
+vi.mock('motion/react', () => ({
+  motion: new Proxy({}, {
+    get: (_target: any, prop: string) => {
+      return React.forwardRef((props: any, ref: any) => {
+        const { initial, animate, exit, whileInView, whileHover, whileTap, variants, transition, viewport, ...rest } = props;
+        return React.createElement(prop, { ...rest, ref });
+      });
+    },
+  }),
+  useInView: () => true,
+  AnimatePresence: ({ children }: any) => children,
+}));
+
 import { LandingPage } from '../LandingPage';
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/' } = {}) => {
