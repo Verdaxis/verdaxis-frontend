@@ -1,5 +1,7 @@
 # Verdaxis Frontend - Claude Code Instructions
 
+Read ARCHITECTURE.md before exploring the codebase.
+
 ## Project Overview
 
 Verdaxis is a maritime alternative fuel procurement platform. The frontend is a React SPA serving two roles: a **public marketing site** (landing pages, education, tools) and an **authenticated dashboard** for buyers and suppliers to trade fuel, manage fleets, track compliance, and monitor markets.
@@ -18,139 +20,6 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
 - **Linting:** No ESLint configuration present. Consider adding one for consistency.
-
-## Architecture / Directory Structure
-
-```
-src/
-  index.tsx              # ReactDOM entry point
-  App.tsx                # All route definitions, auth guards, Dashboard component
-  types.ts               # Shared TypeScript interfaces (Port, Vessel, Order, Trade, etc.)
-  utils.ts               # Leaflet icon helpers, heading calculation, formatting utils
-  data.ts                # Static/mock seed data (ports, suppliers, courses, traces)
-  index.css              # Tailwind base styles
-  vite-env.d.ts          # Vite client type augmentation
-
-  context/
-    AuthContext.tsx       # JWT auth state, login/logout, /auth/me polling
-    ThemeContext.tsx      # Light/dark/system theme with localStorage persistence
-    CopilotContext.tsx    # Shares page-level context with the AI copilot
-    NotificationContext.tsx # Notification polling (30s interval), read/unread state
-
-  services/
-    config.ts            # API_URL from VITE_API_URL env var
-    api.ts               # Central API client (fetch-based, Bearer token auth)
-    ai.ts                # Re-exports from ai-engine/
-    ai-engine/
-      config.ts          # Gemini API key + client init
-      chat.ts            # chatWithCopilot() -- Gemini chat with tool use
-      tools.ts           # Tool definitions for Gemini (list_ports, search_vessels, etc.)
-      generators.ts      # AI content generators
-      cache.ts           # Response caching for AI calls
-
-  components/
-    Layout.tsx           # App shell: sidebar + header + main content + copilot overlay
-    layout/
-      Sidebar.tsx        # Navigation sidebar (different items for BUYER vs SUPPLIER)
-      Header.tsx         # Top bar with view-mode switch, notifications, user menu
-
-    # --- Buyer views ---
-    BuyerMap.tsx          # Leaflet intelligence map with port markers and vessel tracking
-    BuyerDashboard.tsx    # Order overview, active trades, quick actions
-    Marketplace.tsx       # Browse/filter supplier listings, place orders
-    MarketTerminal.tsx    # Bloomberg-style price terminal (bid/ask, charts, trades)
-    Fleet.tsx             # Vessel list with compliance status and voyage info
-    Stats.tsx             # Buyer analytics and trade history
-    Training.tsx          # Crew training courses for alternative fuels
-    Compliance.tsx        # EU ETS / FuelEU compliance dashboard
-    Settings.tsx          # User/org settings (shared by both roles)
-
-    # --- Supplier views ---
-    SupplierDashboard.tsx       # Incoming orders, revenue overview
-    SupplierQuotes.tsx          # Manage direct order quotes/offers
-    SupplierInventory.tsx       # Fuel inventory by port
-    SupplierListingConsole.tsx  # Create/manage marketplace listings
-    SupplierStats.tsx           # Supplier-specific stats
-    SupplierAnalytics.tsx       # Revenue and performance analytics
-    SupplierDemandFeed.tsx      # Live demand signals from buyers
-
-    buyer/
-      CreateBidModal.tsx  # Modal for creating buy-side orderbook entries
-    supplier/
-      CreateListingModal.tsx  # Modal for creating supplier listings
-      CreateQuoteModal.tsx    # Modal for submitting quotes on direct orders
-
-    ai/
-      Copilot.tsx         # Floating AI chat panel (Gemini-powered)
-
-    map/
-      IntelligencePanel.tsx  # Side panel with port intelligence data
-      VesselMarkers.tsx      # Vessel position markers with heading arrows
-      MapLegend.tsx          # Map legend overlay
-      MarketWatchTicker.tsx  # Scrolling market ticker on map view
-
-    compliance/
-      ComplianceDashboard.tsx  # Compliance overview and scoring
-      ComplianceTracing.tsx    # Supply chain traceability view
-      ComplianceLedgerModal.tsx # Detailed compliance event ledger
-      ComplianceDataInput.tsx   # Manual compliance data entry
-
-    notifications/
-      NotificationBell.tsx  # Header bell icon with unread badge
-      NotificationList.tsx  # Dropdown notification list
-
-    fleet/
-      VesselDetailModal.tsx  # Detail modal for individual vessel info
-
-    ui/
-      Tooltip.tsx           # Reusable tooltip component
-      MarkdownRenderer.tsx  # Renders markdown (used by Copilot responses)
-      ConfirmModal.tsx      # Generic confirmation dialog
-
-    public/
-      PublicLayout.tsx      # Public page shell (nav + footer + smooth scroll)
-      PublicNav.tsx          # Public site navigation bar
-      PublicFooter.tsx       # Public site footer
-      HeroSection.tsx       # Landing page hero
-      PriceTicker.tsx       # Animated price ticker for public pages
-      PilotApplicationForm.tsx # Pilot program signup form
-      DataOcean.tsx         # Animated background visual
-      motionUtils.tsx       # Shared animation presets for public pages
-
-  pages/
-    LoginPage.tsx           # Email/password login
-    RegisterPage.tsx        # User registration
-    OnboardingPage.tsx      # Post-registration role selection + profile setup
-    CreateOrganizationPage.tsx # Organization creation/join flow
-    public/
-      LandingPage.tsx       # Marketing homepage
-      HowItWorksPage.tsx    # Platform explainer
-      FuelCoveragePage.tsx  # Supported fuel types
-      ComplianceInfoPage.tsx # Regulatory info (EU ETS, FuelEU)
-      EducationPage.tsx     # Article listing
-      EducationArticlePage.tsx # Individual article (dynamic :slug route)
-      EnergyCalculatorPage.tsx # Interactive energy calculator tool
-      ProducerMapPage.tsx   # Global producer project map
-      GovernancePage.tsx    # Platform governance info
-      RoadmapPage.tsx       # Product roadmap
-      PilotPage.tsx         # Pilot program landing
-      ProducerUseCasePage.tsx  # Use case: producers
-      BuyerUseCasePage.tsx     # Use case: buyers
-      TraderUseCasePage.tsx    # Use case: traders
-      FinancierUseCasePage.tsx # Use case: financiers
-      PartnerShowcasePage.tsx  # Partner logos/showcase
-      PartnerLandingPage.tsx   # Partner onboarding page
-
-  data/
-    producerProjects.ts    # Static producer project dataset (locations, capacities)
-    fuelPrices.ts          # Reference fuel price data
-    calculatorDefaults.ts  # Defaults for energy calculator
-    educationArticles.ts   # Education article content/metadata
-
-  tests/
-    setup.ts               # Vitest setup (jsdom polyfills for matchMedia, ResizeObserver, etc.)
-    *.test.ts              # Unit tests (utils, producer-map, matchmaking, pricing, etc.)
-```
 
 ## Routing
 
@@ -182,6 +51,7 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 - **Context usage:** Use `useAuth()`, `useTheme()`, `useCopilotContext()`, `useNotifications()` hooks, never access contexts directly.
 - **File organization:** Top-level components in `src/components/` for major views. Subdirectories for related groups (layout, map, compliance, ui, public, buyer, supplier, ai, fleet, notifications).
 - **No CSS modules or styled-components.** All styling is Tailwind. Global styles are minimal and live in `src/index.css`.
+- After completing work, update ARCHITECTURE.md if file structure or key relationships changed.
 
 ## Testing
 

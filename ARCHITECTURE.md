@@ -1,0 +1,166 @@
+# Architecture
+
+## Tech Stack
+
+React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, Gemini AI (@google/genai), react-router-dom v7, Vitest
+
+## File Map
+
+```
+src/
+  index.tsx                        # ReactDOM entry, mounts <App /> into #root
+  App.tsx                          # Route definitions, auth guards, Dashboard state machine
+  types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
+  utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
+  data.ts                          # Static/mock seed data (ports, suppliers, courses)
+  index.css                        # Tailwind base + global styles
+
+  context/
+    AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
+    ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
+    CopilotContext.tsx             # Shares page-level context with AI copilot
+    NotificationContext.tsx        # 30s polling for notifications, read/unread state
+
+  services/
+    config.ts                      # API_URL from VITE_API_URL env var
+    api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    ai.ts                          # Re-exports from ai-engine/
+    ai-engine/
+      config.ts                    # Gemini API key + GoogleGenAI client init
+      chat.ts                      # chatWithCopilot() -- multi-turn tool-calling chat loop
+      tools.ts                     # Gemini FunctionDeclarations + executor map
+      generators.ts                # AI content: market narratives, arbitrage, risk, web search
+      cache.ts                     # In-memory 5-min TTL cache for AI responses
+
+  components/
+    Layout.tsx                     # App shell: sidebar + header + copilot overlay
+    layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
+    # Buyer views
+    BuyerMap.tsx                   # Leaflet intelligence map with port/vessel markers
+    BuyerDashboard.tsx             # Order overview, active trades, quick actions
+    Marketplace.tsx                # Browse/filter listings, place orders
+    MarketTerminal.tsx             # Bloomberg-style price terminal (bid/ask, charts)
+    Fleet.tsx                      # Vessel list with compliance and voyage info
+    Stats.tsx                      # Buyer analytics and trade history
+    Training.tsx                   # Crew training courses
+    Compliance.tsx                 # EU ETS / FuelEU compliance dashboard
+    Settings.tsx                   # User/org settings (shared by both roles)
+    # Supplier views
+    SupplierDashboard.tsx          # Incoming orders, revenue overview
+    SupplierQuotes.tsx             # Manage quote offers
+    SupplierInventory.tsx          # Fuel inventory by port
+    SupplierListingConsole.tsx     # Create/manage marketplace listings
+    SupplierStats.tsx              # Supplier-specific stats
+    SupplierAnalytics.tsx          # Revenue and performance analytics
+    SupplierDemandFeed.tsx         # Live demand signals from buyers
+    # Modals
+    buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
+    supplier/{CreateListingModal,CreateQuoteModal}.tsx
+    # Feature groups
+    ai/Copilot.tsx                 # Floating AI chat panel (Gemini-powered)
+    map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
+    compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
+    notifications/{NotificationBell,NotificationList}.tsx
+    fleet/VesselDetailModal.tsx
+    ui/{Tooltip,MarkdownRenderer,ConfirmModal}.tsx
+    # Public site
+    public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
+    public/{PublicNav,PublicFooter,HeroSection,PriceTicker,PilotApplicationForm}.tsx
+    public/{DataOcean,motionUtils}.tsx  # Animated background (GSAP); motion presets
+
+  pages/
+    LoginPage.tsx                  # Email/password login
+    RegisterPage.tsx               # User registration
+    OnboardingPage.tsx             # Post-registration role selection + profile setup
+    CreateOrganizationPage.tsx     # Organization creation/join flow
+    public/                        # 15 marketing pages (landing, education, use cases, etc.)
+
+  data/
+    producerProjects.ts            # Static producer project dataset (locations, capacities)
+    fuelPrices.ts                  # Reference fuel price data
+    calculatorDefaults.ts          # Defaults for energy calculator
+    educationArticles.ts           # Education article content/metadata
+
+  tests/
+    setup.ts                       # Vitest jsdom polyfills (matchMedia, ResizeObserver, etc.)
+    *.test.ts                      # Unit tests (utils, pricing, matchmaking, map, etc.)
+
+scripts/
+  deploy.sh                       # Production deploy script
+  start-frontend.sh               # Start dev/preview server
+  seed_listings.sh                 # Seed marketplace data
+  geocode_projects.py             # Geocode producer project locations
+
+database/schema.txt                # Backend DB schema reference
+docs/verdaxis-branding.yaml        # Brand guidelines
+.github/workflows/frontend-ci.yml # CI: test on PR, deploy on main push
+```
+
+## Dependency Flow
+
+```
+index.html --> index.tsx --> App.tsx
+                               |
+                 +-------------+-------------+
+                 |             |             |
+            ThemeProvider AuthProvider CopilotProvider
+                               |
+                      NotificationProvider
+                               |
+                         BrowserRouter
+                        /      |      \
+                  /login  PublicLayout  /app (ProtectedRoute)
+                             |              |
+                        public pages   RequireOrganization --> RequireProfile
+                                            |
+                                        Dashboard
+                                       /    |    \
+                                Layout viewMode currentPage (state)
+                               / |  \
+                        Sidebar Header Copilot --> ai-engine/chat.ts
+                                                   /           \
+                                             tools.ts     generators.ts
+                                                |              |
+                                             api.ts      Gemini API
+                                                |
+                                        Backend REST API
+```
+
+## Key Patterns
+
+**State-based in-app navigation:** The `/app` route renders a `Dashboard` component that uses
+`currentPage` state (not URL routes) to switch between views. The `Page` type enum
+(`MAP | MARKETPLACE | FLEET | TERMINAL | ...`) drives `renderContent()`. New authenticated
+views should add a `Page` value, not a new react-router route.
+
+**Dual-role view mode:** `viewMode` (`BUYER | SUPPLIER`) determines which sidebar items and
+page components render. Supplier users default to `SUPPLIER`; buyers to `BUYER`. The header
+provides a toggle to switch.
+
+**API data transform:** Backend returns snake_case with numbers-as-strings. `api.ts`
+transforms to camelCase frontend interfaces and wraps numeric fields with `Number()`.
+
+**AI copilot architecture:** Gemini chat with multi-turn tool calling. `tools.ts` defines
+FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat loop in
+`chat.ts` handles up to 5 tool-call rounds. All AI responses are cached for 5 minutes.
+
+**Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
+Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+## Entry Points
+
+- **App bootstrap:** `index.html` -> `src/index.tsx` -> `src/App.tsx`
+- **API client:** `src/services/api.ts` (all backend communication)
+- **AI engine:** `src/services/ai-engine/chat.ts` (copilot entry)
+- **Route definitions:** `src/App.tsx` (auth, public, and protected routes)
+- **Type system:** `src/types.ts` (all shared interfaces and type unions)
+
+## Run Commands
+
+```bash
+npm run dev          # Vite dev server on :5173 (proxies /api to backend)
+npm run build        # Production build to dist/
+npm run preview      # Preview production build
+npm run test         # Vitest single run
+npm run test:watch   # Vitest watch mode
+```
