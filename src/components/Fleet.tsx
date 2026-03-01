@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Vessel } from '../types';
-import { AlertTriangle, CheckCircle2, Ship, Loader2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Ship, Loader2, X } from 'lucide-react';
 import { VesselDetailModal } from './fleet/VesselDetailModal';
 import { api } from '../services/api';
 
@@ -44,6 +44,7 @@ export const Fleet: React.FC = () => {
     const [vessels, setVessels] = useState<Vessel[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedVessel, setSelectedVessel] = useState<Vessel | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
         if (!loading && vessels.length > 0) {
@@ -86,13 +87,23 @@ export const Fleet: React.FC = () => {
                     <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Fleet Management</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-2">Real-time telemetry and compliance status for your global fleet.</p>
                 </div>
-                <button className="bg-[#5DADE2] text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-[#4FA3D9] transition-colors flex items-center space-x-2">
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-[#5DADE2] text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-[#4FA3D9] transition-colors flex items-center space-x-2"
+                >
                     <Ship size={18} />
                     <span>Add Vessel</span>
                 </button>
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                {vessels.length === 0 ? (
+                    <div className="text-center py-16">
+                        <Ship className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
+                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No vessels in your fleet</h3>
+                        <p className="text-slate-400 dark:text-slate-500 mt-1">Add your first vessel to start tracking compliance.</p>
+                    </div>
+                ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -149,6 +160,7 @@ export const Fleet: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
+                )}
             </div>
 
             {/* Vessel Detail Modal */}
@@ -157,6 +169,73 @@ export const Fleet: React.FC = () => {
                     vessel={selectedVessel} 
                     onClose={() => setSelectedVessel(null)} 
                 />
+            )}
+
+            {/* Add Vessel Modal */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Add New Vessel</h3>
+                            <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vessel Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. MV Pacific Voyager"
+                                    className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">IMO Number</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 9876543"
+                                    className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vessel Type</label>
+                                <select className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white">
+                                    <option value="">Select type...</option>
+                                    <option value="Bulk Carrier">Bulk Carrier</option>
+                                    <option value="Container Ship">Container Ship</option>
+                                    <option value="Tanker">Tanker</option>
+                                    <option value="General Cargo">General Cargo</option>
+                                    <option value="RoRo">RoRo</option>
+                                </select>
+                            </div>
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                                    Vessel management is under active development. Adding vessels will be fully functional in an upcoming release.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-3 rounded-b-2xl">
+                            <button
+                                type="button"
+                                onClick={() => setIsAddModalOpen(false)}
+                                className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <div className="flex flex-col items-end">
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="px-4 py-2 bg-[#5DADE2] text-white font-bold rounded-lg shadow-sm text-sm opacity-50 cursor-not-allowed"
+                                >
+                                    Save Vessel
+                                </button>
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 text-center">Vessel registration coming soon</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

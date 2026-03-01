@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { CopilotProvider } from './context/CopilotContext';
 import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/LoginPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import RegisterPage from './pages/RegisterPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import CreateOrganizationPage from './pages/CreateOrganizationPage';
@@ -44,6 +45,9 @@ import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
 import { ProducerMapPage } from './pages/public/ProducerMapPage';
 import { PartnerShowcasePage } from './pages/public/PartnerShowcasePage';
 import { PartnerLandingPage } from './pages/public/PartnerLandingPage';
+import { PrivacyPage } from './pages/public/PrivacyPage';
+import { TermsPage } from './pages/public/TermsPage';
+import { NotFoundPage } from './pages/public/NotFoundPage';
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -209,13 +213,16 @@ const Dashboard: React.FC = () => {
       currentPage={currentPage}
       onNavigate={handleNavigate}
     >
-      {renderContent()}
+      <ErrorBoundary>
+        {renderContent()}
+      </ErrorBoundary>
     </Layout>
   );
 };
 
 const App: React.FC = () => {
   return (
+    <ErrorBoundary>
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
@@ -267,14 +274,18 @@ const App: React.FC = () => {
                         </ProtectedRoute>
                     } />
 
+                    <Route path="/privacy" element={<PublicLayout><PrivacyPage /></PublicLayout>} />
+                    <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
+
                     {/* Fallback */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="*" element={<PublicLayout><NotFoundPage /></PublicLayout>} />
                 </Routes>
             </BrowserRouter>
         </CopilotProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 

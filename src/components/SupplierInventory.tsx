@@ -289,6 +289,12 @@ export const SupplierInventory: React.FC = () => {
                         <Loader2 className="animate-spin text-slate-400" size={32} />
                         <span className="ml-3 text-slate-500">Loading inventory...</span>
                     </div>
+                ) : inventory.length === 0 ? (
+                    <div className="text-center py-16">
+                        <Box className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
+                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No products in inventory</h3>
+                        <p className="text-slate-400 dark:text-slate-500 mt-1">Add your first product to start managing stock levels.</p>
+                    </div>
                 ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">

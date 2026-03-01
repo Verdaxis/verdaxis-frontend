@@ -1,4 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
+// AI engine configuration
+// All AI calls go through the backend proxy /api/ai/chat
+// No client-side API keys — the backend holds the Gemini key securely
 
-export const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-export const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+export const AI_ENABLED = true;
+export const AI_ENDPOINT = '/ai/chat';

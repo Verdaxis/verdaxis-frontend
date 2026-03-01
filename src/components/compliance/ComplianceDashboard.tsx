@@ -14,7 +14,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     <div className="flex justify-between items-start mb-6">
                         <div>
                             <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">EU ETS Exposure</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Period: 2024 YTD</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Period: {new Date().getFullYear()} YTD</p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[#5DADE2] dark:text-blue-400">
                             <PieChart size={20} />

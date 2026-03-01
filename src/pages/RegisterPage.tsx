@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, Mail, Lock, User, AlertCircle, Briefcase } from 'lucide-react';
+import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2 } from 'lucide-react';
 import { API_URL } from '../services/config';
+
+const PASSWORD_RULES = [
+  { label: 'At least 8 characters', test: (pw: string) => pw.length >= 8 },
+  { label: 'Contains uppercase letter', test: (pw: string) => /[A-Z]/.test(pw) },
+  { label: 'Contains a number', test: (pw: string) => /\d/.test(pw) },
+];
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -12,12 +18,26 @@ const RegisterPage: React.FC = () => {
     last_name: '',
     role: 'BUYER' // Default
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const allRulesPass = PASSWORD_RULES.every(rule => rule.test(formData.password));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const failedRule = PASSWORD_RULES.find(rule => !rule.test(formData.password));
+    if (failedRule) {
+      setError(`Password requirement not met: ${failedRule.label.toLowerCase()}.`);
+      return;
+    }
+    if (formData.password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -156,11 +176,42 @@ const RegisterPage: React.FC = () => {
                 />
                 <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
               </div>
+              {formData.password && (
+                <div className="mt-2 space-y-1">
+                  {PASSWORD_RULES.map(rule => {
+                    const passes = rule.test(formData.password);
+                    return (
+                      <div key={rule.label} className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 size={14} className={passes ? 'text-emerald-400' : 'text-slate-600'} />
+                        <span className={passes ? 'text-emerald-400' : 'text-slate-500'}>{rule.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">Confirm Password</label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+                  placeholder="••••••••"
+                />
+                <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
+              </div>
+              {confirmPassword && confirmPassword !== formData.password && (
+                <p className="mt-1.5 text-xs text-red-400">Passwords do not match</p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !allRulesPass || formData.password !== confirmPassword}
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
             >
               {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Create Account'}

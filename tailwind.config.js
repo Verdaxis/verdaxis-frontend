@@ -2,19 +2,25 @@
 export default {
   content: [
     "./index.html",
-    "./components/**/*.{js,ts,jsx,tsx}",
-    "./pages/**/*.{js,ts,jsx,tsx}",
-    "./App.tsx",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        verdaxis: '#0ea5e9', // Sky 500 - inferred from codebase
-        'verdaxis-dark': '#0284c7', // Sky 600
-        'verdaxis-light': '#38bdf8', // Sky 400
-      }
+        verdaxis: {
+          DEFAULT: '#5DADE2',
+          dark: 'var(--text-primary)',
+          green: '#4CAF50',
+          light: 'var(--bg-primary)',
+          bg: 'var(--bg-primary)',
+          card: 'var(--bg-card)',
+          text: 'var(--text-primary)',
+          border: 'var(--border-color)',
+          input: 'var(--input-bg)',
+          'text-muted': 'var(--text-secondary)',
+        },
+      },
     },
   },
   plugins: [],

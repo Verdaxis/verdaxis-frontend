@@ -11,25 +11,25 @@
 ## Security
 
 - **Date:** 2026-02-18
-- **Trigger:** Gemini API key baked into client-side bundle via vite.config.ts define block
-- **Rule:** Never expose API keys in client-side code. Proxy through backend or use server-side routes.
-- **Why:** Anyone can extract the key from the production JS bundle. Billing and quota implications.
+- **Trigger:** Gemini API key baked into client-side bundle via vite.config.ts define block.
+- **Rule:** Never expose API keys in client-side code; proxy through a backend route instead.
+- **Why:** Keys are extractable from the production JS bundle with billing and quota risk.
 
 - **Date:** 2026-02-18
-- **Trigger:** .env.bak with Authentik credentials found untracked in project root
-- **Rule:** Add *.bak to .gitignore. Never leave credential backup files in the working directory.
-- **Why:** Risk of accidental commit exposing infrastructure credentials.
+- **Trigger:** .env.bak with Authentik credentials found untracked in project root.
+- **Rule:** Add *.bak to .gitignore and never leave credential backup files in the working directory.
+- **Why:** Untracked backup files can be accidentally committed, exposing infrastructure credentials.
 
 ## Testing
 
 - **Date:** 2026-02-18
-- **Trigger:** LandingPage test times out due to heavy animation libraries (GSAP, Lenis, Motion)
-- **Rule:** Mock animation libraries in test setup when testing components with heavy animations.
-- **Why:** jsdom cannot efficiently process animation libraries, causing timeouts.
+- **Trigger:** LandingPage test timed out due to GSAP, Lenis, and Motion animation libraries.
+- **Rule:** Mock heavy animation libraries in test setup files.
+- **Why:** jsdom cannot efficiently process animation libraries, causing test timeouts.
 
 ## Dependencies
 
 - **Date:** 2026-02-18
-- **Trigger:** Suspected unused deps: @auth0/auth0-react, oidc-client-ts, react-oidc-context, @studio-freight/lenis
-- **Rule:** After removing a feature (e.g., Authentik auth), also remove its dependencies from package.json.
+- **Trigger:** Orphaned deps (@auth0/auth0-react, oidc-client-ts, react-oidc-context, @studio-freight/lenis) left after removing Authentik auth.
+- **Rule:** When removing a feature, also remove its dependencies from package.json.
 - **Why:** Unused dependencies increase bundle size, attack surface, and maintenance burden.

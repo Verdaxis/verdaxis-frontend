@@ -571,7 +571,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 message={confirmState.message}
                 variant={confirmState.variant}
                 confirmText="Close"
-                cancelText={undefined}
+                cancelText=""
             />
         </div>
     );

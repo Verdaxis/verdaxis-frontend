@@ -8,59 +8,6 @@
       href="https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/verdaxis_logo_no_words.png"
     />
     <title>Verdaxis Intelligence</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              verdaxis: {
-                DEFAULT: "#5DADE2", // Brand Blue
-                dark: "var(--text-primary)", // Mapped to primary text color (Slate 700 / Slate 50)
-                green: "#4CAF50", // Success Green
-                light: "var(--bg-primary)", // Mapped to primary background (Slate 50 / Slate 900)
-                // New semantic colors
-                bg: "var(--bg-primary)",
-                card: "var(--bg-card)",
-                text: "var(--text-primary)",
-                border: "var(--border-color)",
-                input: "var(--input-bg)",
-                "text-muted": "var(--text-secondary)",
-              },
-            },
-          },
-        },
-      };
-    </script>
-    <style type="text/tailwindcss">
-      @layer components {
-        /* Common Card Style */
-        .v-card {
-          @apply bg-verdaxis-card rounded-xl shadow-sm border border-verdaxis-border transition-colors duration-200;
-        }
-
-        /* Brand Heading */
-        .v-heading {
-          @apply font-['Montserrat'] font-bold text-verdaxis-text transition-colors duration-200;
-        }
-
-        /* Form Label */
-        .v-label {
-          @apply block text-xs font-bold text-verdaxis-text-muted uppercase tracking-wider mb-2 transition-colors duration-200;
-        }
-
-        /* Standard Input */
-        .v-input {
-          @apply w-full px-4 py-3 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-2 focus:ring-[#5DADE2] focus:outline-none font-medium text-verdaxis-text transition-colors duration-200;
-        }
-
-        /* Primary Button */
-        .v-btn-primary {
-          @apply bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2;
-        }
-      }
-    </style>
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"

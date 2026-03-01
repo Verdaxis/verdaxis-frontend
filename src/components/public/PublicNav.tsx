@@ -41,7 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Roadmap', to: '/roadmap' },
 ];
 
-const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string }> = ({ items, pathname }) => (
+const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string; onClose: () => void }> = ({ items, pathname, onClose }) => (
   <div
     style={{
       position: 'absolute',
@@ -60,6 +60,7 @@ const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string }> = ({ i
       <Link
         key={item.to}
         to={item.to}
+        onClick={onClose}
         style={{
           display: 'block',
           padding: '10px 20px',
@@ -221,7 +222,7 @@ export const PublicNav: React.FC = () => {
                 </button>
               )}
               {item.dropdown && openDropdown === item.label && (
-                <DropdownMenu items={item.dropdown} pathname={pathname} />
+                <DropdownMenu items={item.dropdown} pathname={pathname} onClose={() => setOpenDropdown(null)} />
               )}
             </div>
           ))}

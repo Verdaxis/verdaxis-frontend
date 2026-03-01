@@ -39,15 +39,21 @@ const LoginPage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        login(data.access_token);
+        await login(data.access_token, data.refresh_token);
         navigate('/app');
       } else {
-        const errData = await res.json();
-        setError(errData.detail || 'Login failed');
+        if (res.status === 401) {
+          setError('Invalid email or password.');
+        } else if (res.status >= 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          const errData = await res.json().catch(() => null);
+          setError(errData?.detail || 'Login failed');
+        }
       }
     } catch (err) {
       console.error(err);
-      setError('An error occurred. Please try again.');
+      setError('Unable to connect to server. Please check your connection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -124,7 +130,7 @@ const LoginPage: React.FC = () => {
           <div className="mt-6 text-center text-sm text-slate-500">
             Don't have an account?{' '}
             <Link to="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-              Request Access
+              Create Account
             </Link>
           </div>
         </div>

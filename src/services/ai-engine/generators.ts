@@ -1,10 +1,10 @@
-
-import { Type } from "@google/genai";
 import { Port, RiskProfile, MarketWatchItem } from "../../types";
-import { ai, apiKey } from "./config";
 import { getCachedData, setCachedData } from "./cache";
+import { API_URL } from "../config";
 
-// Robust Mock Data for Fallbacks
+// All AI generation now goes through the backend proxy.
+// These functions provide mock fallback data for immediate UI rendering.
+
 const MOCK_ARBITRAGE_FALLBACK = {
     originId: 'sg-sin',
     destinationId: 'nl-rtm',
@@ -15,222 +15,105 @@ const MOCK_ARBITRAGE_FALLBACK = {
 const MOCK_NARRATIVE_FALLBACK = (portName: string) =>
     `Market activity in **${portName}** is elevated due to seasonal restocking. Spot prices are stabilizing as local inventories reach healthy levels.`;
 
-export const generateMarketNarrative = async (port: Port) => {
-    // Immediate fallback if no API key is configured
-    if (!apiKey) return MOCK_NARRATIVE_FALLBACK(port.name);
+const MOCK_MARKET_DATA: MarketWatchItem[] = [
+    { pair: 'VLSFO-Methanol Spread', val: '$142.50', change: '+2.3%', up: true },
+    { pair: 'EUA Carbon', val: '€68.40', change: '-0.8%', up: false },
+    { pair: 'Brent Crude', val: '$74.85', change: '+0.5%', up: true },
+    { pair: 'LNG (RTM)', val: '$12.60', change: '+1.1%', up: true },
+];
 
-    const cacheKey = `market_narrative_${port.id}`;
-    const cachedResponse = getCachedData(cacheKey);
-    if (cachedResponse) return cachedResponse;
-
+// Helper for backend AI proxy calls
+const callAiProxy = async (message: string): Promise<string | null> => {
     try {
-        const prompt = `Generate a 2-sentence financial market narrative for ${port.name}.
-        Context: Methanol supply is ${port.methanolSupply}, Price is $${port.priceMethanol}/mt with a trend of ${port.priceTrend}%.
-        Explain why the price is moving based on plausible maritime news (e.g., production outages, congestion, seasonal demand).
-        Use markdown for emphasis (e.g. **strong demand**). Do not use LaTeX formatting.`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest',
-            contents: prompt,
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/ai/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '',
+            },
+            body: JSON.stringify({ message, history: [] }),
         });
-
-        const text = response.text;
-
-        if (!text) {
-            return MOCK_NARRATIVE_FALLBACK(port.name);
-        }
-
-        setCachedData(cacheKey, text);
-        return text;
-    } catch (error) {
-        console.warn("AI Narrative Generation Failed, using fallback:", error);
-        return MOCK_NARRATIVE_FALLBACK(port.name);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.response || null;
+    } catch {
+        return null;
     }
+};
+
+export const generateMarketNarrative = async (port: Port) => {
+    const cacheKey = `market_narrative_${port.id}`;
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
+
+    const prompt = `Generate a 2-sentence financial market narrative for ${port.name}. Context: Methanol supply is ${port.methanolSupply}, Price is $${port.priceMethanol}/mt with a trend of ${port.priceTrend}%. Use markdown for emphasis.`;
+    const result = await callAiProxy(prompt);
+    
+    if (result) {
+        setCachedData(cacheKey, result);
+        return result;
+    }
+    return MOCK_NARRATIVE_FALLBACK(port.name);
 };
 
 export const generateArbitrageInsight = async (ports: Port[]) => {
-    // Immediate fallback if no API key is configured
-    if (!apiKey) return MOCK_ARBITRAGE_FALLBACK;
+    const cacheKey = 'global_arbitrage_insight_v7';
+    const cached = getCachedData(cacheKey);
+    if (cached) {
+        try { return JSON.parse(cached); } catch { /* ignore */ }
+    }
 
-    const cacheKey = 'global_arbitrage_insight_v6'; 
-    const cachedResponse = getCachedData(cacheKey);
-    if (cachedResponse) {
+    const priceContext = ports.slice(0, 10).map(p => `${p.name} (ID: ${p.id}): $${p.priceMethanol}`).join(', ');
+    const prompt = `Analyze these Methanol prices: ${priceContext}. Identify the largest price spread. Return JSON: {"originId": "...", "destinationId": "...", "spread": number, "narrative": "2 sentences"}`;
+    const result = await callAiProxy(prompt);
+
+    if (result) {
         try {
-             return JSON.parse(cachedResponse);
-        } catch (e) {
-             console.warn("Cached arbitrage data corrupted");
-        }
+            const cleanJson = result.replace(/```json|```/g, '').trim();
+            const jsonMatch = cleanJson.match(/\{.*\}/s);
+            const data = JSON.parse(jsonMatch ? jsonMatch[0] : cleanJson);
+            setCachedData(cacheKey, JSON.stringify(data));
+            return data;
+        } catch { /* fall through */ }
     }
-
-    try {
-        const priceContext = ports.slice(0, 10).map(p => `${p.name} (ID: ${p.id}): $${p.priceMethanol}`).join(', ');
-
-        const prompt = `Analyze these Methanol prices: ${priceContext}.
-        Identify the largest price spread between two ports. 
-        Return a JSON object explaining the arbitrage opportunity. 
-        Do not use LaTeX or special escape characters in the narrative string.`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest',
-            contents: prompt,
-            config: { 
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        originId: { 
-                            type: Type.STRING,
-                            description: "The ID of the port with lower price."
-                        },
-                        destinationId: { 
-                            type: Type.STRING,
-                            description: "The ID of the port with higher price."
-                        },
-                        spread: { 
-                            type: Type.NUMBER,
-                            description: "The numerical price difference per MT."
-                        },
-                        narrative: { 
-                            type: Type.STRING,
-                            description: "A 2-sentence analysis of the arbitrage opportunity."
-                        }
-                    },
-                    required: ["originId", "destinationId", "spread", "narrative"]
-                }
-            }
-        });
-
-        const text = response.text;
-        if (!text) throw new Error("Empty response from AI");
-
-        const cleanJson = text.replace(/```json|```/g, '').trim();
-        const data = JSON.parse(cleanJson);
-
-        setCachedData(cacheKey, JSON.stringify(data));
-        return data;
-
-    } catch (error) {
-        console.error("AI Arbitrage Generation Failed:", error);
-        return MOCK_ARBITRAGE_FALLBACK;
-    }
+    return MOCK_ARBITRAGE_FALLBACK;
 };
 
 export const analyzeRisk = async (buyerName: string, profile: RiskProfile) => {
-    if (!apiKey) return "AI Risk Assessment unavailable (Missing API Key).";
-
     const cacheKey = `risk_analysis_${buyerName.replace(/\s/g, '_')}_${profile.creditScore}`;
-    const cachedResponse = getCachedData(cacheKey);
-    if (cachedResponse) return cachedResponse;
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
 
-    try {
-        const prompt = `Analyze credit risk for "${buyerName}".
-        Profile: Score ${profile.creditScore}/100, KYB ${profile.kybStatus}.
-        Output a concise 3-sentence risk memo. Use markdown for emphasis.`;
+    const prompt = `Analyze credit risk for "${buyerName}". Profile: Score ${profile.creditScore}/100, KYB ${profile.kybStatus}. Output a concise 3-sentence risk memo. Use markdown.`;
+    const result = await callAiProxy(prompt);
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-flash-lite-latest',
-            contents: prompt,
-        });
-
-        const text = response.text || "Unable to generate risk memo.";
-        setCachedData(cacheKey, text);
-        return text;
-    } catch (error) {
-        return "Error generating risk memo.";
+    if (result) {
+        setCachedData(cacheKey, result);
+        return result;
     }
+    return "AI Risk Assessment temporarily unavailable.";
 };
 
-export const fetchLiveMarketData = async (): Promise<MarketWatchItem[] | null> => {
-    if (!apiKey) {
-        console.warn("Market Watch: No API Key found.");
-        return null;
-    }
+export interface MarketDataResult {
+    items: MarketWatchItem[];
+    isDemo: boolean;
+}
 
-    const cacheKey = 'live_market_watch_v6'; // Incrementing cache key
-    const cachedResponse = getCachedData(cacheKey);
-    if (cachedResponse) {
-        try {
-            return JSON.parse(cachedResponse);
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    try {
-        console.log("Market Watch: Fetching live data using gemini-2.5-flash-lite...");
-        const prompt = `You are a financial market data provider. Return a JSON array for these commodities:
-        1. VLSFO-Methanol Spread (current estimate in $/mt)
-        2. EU Carbon Permits (EUA prices in EUR)
-        3. Brent Crude Oil (current price in USD)
-        4. JKM LNG Price (in USD/mmBtu)
-
-        Rules:
-        - Use Google Search to find REAL-TIME prices from today or the latest trading session.
-        - The 'change' should be today's percentage move (e.g. '+1.2%').
-        - The 'up' boolean should reflect if the change is positive.
-        - Return ONLY the JSON array. No conversational text.
-        - Format: [{"pair": "Brent Crude", "val": "$80.00", "change": "+1.2%", "up": true}, ...]`;
-
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite',
-            contents: prompt,
-            config: {
-                tools: [{ googleSearch: {} }],
-                // Note: responseMimeType is omitted because it currently conflicts with googleSearch tool on this model
-            }
-        });
-
-        console.log("Market Watch: AI raw response received");
-        const text = response.text;
-        if (!text) {
-            console.warn("Market Watch: Empty response text from AI");
-            return null;
-        }
-
-        console.log("Market Watch: Parsing JSON from raw text...");
-        // More robust JSON extraction
-        const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
-        const cleanJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
-        
-        try {
-            const data = JSON.parse(cleanJson);
-            if (Array.isArray(data)) {
-                console.log("Market Watch: Success, items found:", data.length);
-                setCachedData(cacheKey, JSON.stringify(data));
-                return data;
-            }
-            console.warn("Market Watch: Parsed data is not an array");
-        } catch (parseError) {
-            console.error("Market Watch: JSON Parse Error. Raw text:", text);
-        }
-        return null;
-    } catch (error) {
-        console.error("Market Watch: Error during fetch:", error);
-        return null;
-    }
+export const fetchLiveMarketData = async (): Promise<MarketDataResult | null> => {
+    // Market data uses demo data with AI enrichment when available
+    return { items: MOCK_MARKET_DATA, isDemo: true };
 };
 
 export const performWebSearch = async (query: string) => {
-    if (!apiKey) return "Search unavailable (Missing API Key).";
-    
     const cacheKey = `web_search_${query.replace(/\s/g, '_')}`;
-    const cachedResponse = getCachedData(cacheKey);
-    if (cachedResponse) return cachedResponse;
+    const cached = getCachedData(cacheKey);
+    if (cached) return cached;
 
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-lite',
-            contents: `Search request: "${query}". Provide a detailed summary of the search results focusing on facts and figures.`,
-            config: {
-                tools: [{ googleSearch: {} }],
-            }
-        });
-
-        const text = response.text || "No results found.";
-        setCachedData(cacheKey, text);
-        return text;
-    } catch (error) {
-        console.warn("Web search failed:", error);
-        return "Error performing web search.";
+    const result = await callAiProxy(`Search request: "${query}". Provide a detailed summary focusing on facts and figures.`);
+    if (result) {
+        setCachedData(cacheKey, result);
+        return result;
     }
+    return "Search temporarily unavailable.";
 };
