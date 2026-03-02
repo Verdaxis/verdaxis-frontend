@@ -169,6 +169,20 @@ export const MyTrades: React.FC = () => {
         const isLoadingThis = actionLoadingId === trade.id;
 
         if (trade.status === 'PENDING_CONFIRMATION') {
+            // Only the counterparty (non-initiator) can confirm/decline
+            const isCounterparty =
+                (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
+                (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
+
+            if (!isCounterparty) {
+                return (
+                    <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
+                        <Clock size={12} />
+                        Awaiting counterparty
+                    </span>
+                );
+            }
+
             return (
                 <div className="flex items-center gap-2">
                     <button
@@ -209,7 +223,16 @@ export const MyTrades: React.FC = () => {
         }
 
         if (trade.status === 'DELIVERED') {
-            // Only seller can mark as paid (or buyer depending on business logic)
+            // Only seller can mark as paid
+            if (userSide !== 'SELLER') {
+                return (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 italic flex items-center gap-1">
+                        <Clock size={12} />
+                        Awaiting payment confirmation
+                    </span>
+                );
+            }
+
             return (
                 <button
                     onClick={() => handlePay(trade.id)}

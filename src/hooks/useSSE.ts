@@ -5,7 +5,7 @@ type SSEHandler = (event: string, data: any) => void;
 
 /**
  * Hook for subscribing to Server-Sent Events streams.
- * Auto-reconnects on disconnection with exponential backoff.
+ * Auto-reconnects on disconnection with exponential backoff + jitter.
  * Returns connection status for UI indicators.
  */
 export function useSSE(channel: 'prices' | 'orderbook' | 'trades', onEvent: SSEHandler, enabled = true) {
@@ -14,6 +14,7 @@ export function useSSE(channel: 'prices' | 'orderbook' | 'trades', onEvent: SSEH
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handlerRef = useRef(onEvent);
     handlerRef.current = onEvent;
+    const backoffRef = useRef(1000); // Start at 1 second
 
     const connect = useCallback(() => {
         if (!enabled) return;
@@ -30,6 +31,7 @@ export function useSSE(channel: 'prices' | 'orderbook' | 'trades', onEvent: SSEH
 
         source.onopen = () => {
             setIsConnected(true);
+            backoffRef.current = 1000; // Reset on successful connection
         };
 
         for (const type of eventTypes) {
@@ -47,7 +49,11 @@ export function useSSE(channel: 'prices' | 'orderbook' | 'trades', onEvent: SSEH
             source.close();
             sourceRef.current = null;
             setIsConnected(false);
-            reconnectTimeoutRef.current = setTimeout(connect, 5000);
+
+            // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s, 30s cap
+            const delay = backoffRef.current + Math.random() * 1000;
+            reconnectTimeoutRef.current = setTimeout(connect, delay);
+            backoffRef.current = Math.min(backoffRef.current * 2, 30000);
         };
     }, [channel, enabled]);
 

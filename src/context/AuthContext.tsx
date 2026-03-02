@@ -186,8 +186,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [scheduleRefresh, clearTokens]);
 
+    // Capture tokens from OAuth redirect URL params
     useEffect(() => {
-        checkAuth();
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('token');
+        const urlRefresh = params.get('refresh');
+        if (urlToken) {
+            // Clean URL params
+            window.history.replaceState({}, '', window.location.pathname);
+            login(urlToken, urlRefresh || undefined);
+        } else {
+            checkAuth();
+        }
     }, []);
 
     const value = {

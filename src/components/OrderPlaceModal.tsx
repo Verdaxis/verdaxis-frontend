@@ -101,7 +101,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     };
 
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
-    const sideColor = side === 'BID' ? 'emerald' : 'blue';
 
     const selectClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const inputClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
@@ -149,8 +148,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </>
                         ) : (
                             <>
-                                <div className={`mx-auto w-16 h-16 rounded-full bg-${sideColor}-100 dark:bg-${sideColor}-900/30 flex items-center justify-center mb-4`}>
-                                    <CheckCircle2 size={32} className={`text-${sideColor}-500`} />
+                                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${side === 'BID' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                                    <CheckCircle2 size={32} className={side === 'BID' ? 'text-emerald-500' : 'text-blue-500'} />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{sideLabel} Placed Successfully</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
