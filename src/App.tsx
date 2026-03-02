@@ -7,6 +7,8 @@ import { CopilotProvider } from './context/CopilotContext';
 import { NotificationProvider } from './context/NotificationContext';
 import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider } from './components/Toast';
+import { TradeNotifier } from './components/TradeNotifier';
 import RegisterPage from './pages/RegisterPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import CreateOrganizationPage from './pages/CreateOrganizationPage';
@@ -225,6 +227,7 @@ const App: React.FC = () => {
     <ErrorBoundary>
     <ThemeProvider>
       <AuthProvider>
+        <ToastProvider>
         <NotificationProvider>
         <CopilotProvider>
             <BrowserRouter>
@@ -283,6 +286,8 @@ const App: React.FC = () => {
             </BrowserRouter>
         </CopilotProvider>
         </NotificationProvider>
+        <TradeNotifier />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
     </ErrorBoundary>
