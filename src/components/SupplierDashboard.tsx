@@ -166,8 +166,8 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
     });
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
-            <div className="mb-8 flex justify-between items-end">
+        <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
                     <h1 className="text-3xl v-heading">Command Center</h1>
                     <p className="text-slate-500 mt-1">Port of Rotterdam Hub • ID: SUP-882</p>
@@ -182,7 +182,7 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
                 <div className="v-card p-6 relative overflow-hidden group cursor-pointer" onClick={() => onNavigate('QUOTES')}>
                     <div className="absolute top-0 right-0 w-20 h-20 bg-red-100 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
                     <div className="relative z-10">

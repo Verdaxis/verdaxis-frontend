@@ -241,7 +241,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                 <Ship size={48} className="text-slate-300 dark:text-slate-600 mb-4" />
                 <p className="text-slate-600 dark:text-slate-300 font-bold text-lg mb-1">No Vessels Found</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md text-center">
-                    No vessels are registered in your fleet. Add vessels to start monitoring compliance.
+                    Add vessels to your fleet to see compliance scores, EU ETS exposure, and FuelEU performance data.
+                    Navigate to My Fleet to register your vessels.
                 </p>
             </div>
         );

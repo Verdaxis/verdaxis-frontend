@@ -170,8 +170,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
@@ -203,7 +203,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
                     <div className="p-6 space-y-6">
                         {/* Fuel Type & Region */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Fuel Type</label>
                                 <select
@@ -227,7 +227,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </div>
 
                         {/* Quantity & Price */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Quantity (MT)</label>
                                 <input
@@ -267,7 +267,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </div>
 
                         {/* Delivery Window (optional) */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Delivery Start <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
                                 <input

@@ -395,12 +395,12 @@ export const MarketTerminal: React.FC = () => {
     }, [allOrders]);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-auto lg:overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
 
             {/* Top Section: Header & Chart */}
-            <div className="h-64 border-b border-slate-200 dark:border-[#222] flex">
+            <div className="h-auto lg:h-64 border-b border-slate-200 dark:border-[#222] flex flex-col lg:flex-row">
                 {/* Product Header with Selectors */}
-                <div className="w-80 p-6 border-r border-slate-200 dark:border-[#222] flex flex-col justify-between bg-white dark:bg-[#0a0a0a]">
+                <div className="w-full lg:w-80 p-4 lg:p-6 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-[#222] flex flex-col justify-between bg-white dark:bg-[#0a0a0a]">
                     <div>
                         <div className="flex items-center space-x-2 text-slate-400 dark:text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
                             <Zap size={12} className="text-verdaxis" />
@@ -483,7 +483,7 @@ export const MarketTerminal: React.FC = () => {
                 </div>
 
                 {/* Price Curve Chart */}
-                <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808]">
+                <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808] min-h-[200px] lg:min-h-0">
                     <div className="flex justify-between items-start mb-2 px-2">
                         <div>
                             <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">Forward Curve</div>
@@ -521,9 +521,9 @@ export const MarketTerminal: React.FC = () => {
             </div>
 
             {/* The Market Grid */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-white dark:bg-[#050505] relative">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-white dark:bg-[#050505] relative">
                 {/* Grid Header */}
-                <div className="flex items-center bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] uppercase font-bold text-slate-500 dark:text-[#555] py-2 select-none">
+                <div className="flex items-center bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] uppercase font-bold text-slate-500 dark:text-[#555] py-2 select-none min-w-[640px]">
                     <div className="w-32 px-4">Period</div>
                     <div className="w-24 text-right px-4">Bid Qty</div>
                     <div className="w-24 text-right px-4 text-emerald-700">Bid</div>
@@ -535,7 +535,7 @@ export const MarketTerminal: React.FC = () => {
                 </div>
 
                 {/* Grid Rows */}
-                <div className="overflow-y-auto flex-1 font-mono">
+                <div className="overflow-y-auto flex-1 font-mono min-w-[640px]">
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
                             <Loader2 size={24} className="animate-spin text-emerald-500" />
