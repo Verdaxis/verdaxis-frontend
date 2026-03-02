@@ -22,6 +22,7 @@ import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useSSE } from '../hooks/useSSE';
+import { OrderbookDepth } from './trading/OrderbookDepth';
 
 // --- Types ---
 interface TerminalRow {
@@ -265,6 +266,16 @@ export const MarketTerminal: React.FC = () => {
 
     const filteredAsks = useMemo(() => filteredOrders.filter(o => o.side === 'ASK'), [filteredOrders]);
     const filteredBids = useMemo(() => filteredOrders.filter(o => o.side === 'BID'), [filteredOrders]);
+
+    // Mapped bids/asks for OrderbookDepth
+    const depthBids = useMemo(() => filteredBids.map(o => ({
+        price: Number(o.price_per_mt_usd),
+        quantity: Number(o.remaining_quantity_mt || o.quantity_mt),
+    })), [filteredBids]);
+    const depthAsks = useMemo(() => filteredAsks.map(o => ({
+        price: Number(o.price_per_mt_usd),
+        quantity: Number(o.remaining_quantity_mt || o.quantity_mt),
+    })), [filteredAsks]);
 
     // Build terminal rows: merge real orderbook data (bids + asks) with simulated activity
     const terminalData: TerminalRow[] = useMemo(() => {
@@ -610,6 +621,16 @@ export const MarketTerminal: React.FC = () => {
                             );
                         })
                     )}
+                </div>
+
+                {/* Orderbook Depth Chart */}
+                <div className="px-3 py-2 border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
+                    <OrderbookDepth
+                        bids={depthBids}
+                        asks={depthAsks}
+                        fuelType={selectedFuel}
+                        region={selectedPort}
+                    />
                 </div>
 
                 {/* Trade Activity Feed */}

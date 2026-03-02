@@ -15,7 +15,8 @@ import {
     MonitorDot,
     TrendingUp,
     Megaphone,
-    ArrowLeftRight
+    ArrowLeftRight,
+    ShieldCheck
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -28,6 +29,7 @@ interface SidebarProps {
     onToggleCollapse: () => void;
     isMobileOpen: boolean;
     onMobileClose: () => void;
+    userRole?: string | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -37,7 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isCollapsed,
     onToggleCollapse,
     isMobileOpen,
-    onMobileClose
+    onMobileClose,
+    userRole
 }) => {
     const [logoError, setLogoError] = useState(false);
 
@@ -128,7 +131,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-[#2A3344]">
+            <div className="p-4 border-t border-[#2A3344] space-y-1">
+                {userRole === 'ADMIN' && (
+                    <Tooltip content={isCollapsed ? 'Platform Admin' : ''} position="right">
+                        <button
+                            onClick={() => handleNavigate('ADMIN')}
+                            className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
+                                currentPage === 'ADMIN'
+                                ? 'bg-amber-500 text-white shadow-lg'
+                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
+                            } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
+                        >
+                            <ShieldCheck size={20} className={`flex-shrink-0 ${currentPage === 'ADMIN' ? 'text-white' : 'text-amber-400 group-hover:text-white'}`} />
+                            {!isCollapsed && <span className="truncate font-medium">Platform Admin</span>}
+                        </button>
+                    </Tooltip>
+                )}
                 <Tooltip content={isCollapsed ? 'System Settings' : ''} position="right">
                     <button 
                         onClick={() => handleNavigate('SETTINGS')}

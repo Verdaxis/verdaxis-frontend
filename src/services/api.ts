@@ -459,4 +459,23 @@ export const api = {
             });
         },
     },
+
+    admin: {
+        overview: async () => {
+            return fetchApi('/admin/analytics/overview', { headers: getHeaders() });
+        },
+        daily: async (days: number = 30) => {
+            return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });
+        },
+        auditLogs: async (params?: { action?: string; limit?: number }) => {
+            const searchParams = new URLSearchParams();
+            if (params?.action) searchParams.append('action', params.action);
+            if (params?.limit) searchParams.append('limit', String(params.limit));
+            const query = searchParams.toString();
+            return fetchApi(`/admin/audit-logs${query ? `?${query}` : ''}`, { headers: getHeaders() });
+        },
+        commissionSummary: async () => {
+            return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
+        },
+    },
 };

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { ViewMode, Page } from '../types';
+import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
 import { Copilot } from './ai/Copilot';
@@ -20,6 +21,7 @@ export const Layout: React.FC<LayoutProps> = ({
     currentPage,
     onNavigate
 }) => {
+    const { user } = useAuth();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -41,6 +43,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 isMobileOpen={isMobileSidebarOpen}
                 onMobileClose={() => setIsMobileSidebarOpen(false)}
+                userRole={user?.role}
             />
 
             {/* Main Content */}
