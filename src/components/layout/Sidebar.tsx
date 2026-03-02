@@ -14,7 +14,8 @@ import {
     BarChart3,
     MonitorDot,
     TrendingUp,
-    Megaphone
+    Megaphone,
+    ArrowLeftRight
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'FLEET', label: 'My Fleet', icon: Ship },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
+        { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
         { id: 'COMPLIANCE', label: 'Compliance', icon: FileText },
         { id: 'TRAINING', label: 'Crew Training', icon: GraduationCap },
     ] : [
@@ -55,6 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'DEMAND_FEED', label: 'Buyer Demand Feed', icon: Megaphone },
         { id: 'INVENTORY', label: 'Inventory', icon: Box },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
+        { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
         { id: 'ANALYTICS', label: 'Analytics', icon: TrendingUp },
     ];
 

@@ -1,13 +1,43 @@
 import React from 'react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
-import { Check, X, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText } from 'lucide-react';
+import { Check, X, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText, TrendingUp, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { Notification } from '../../types';
 
 interface NotificationListProps {
     onClose: () => void;
+}
+
+/**
+ * Format a date string into a human-readable relative time.
+ */
+function timeAgo(dateStr: string): string {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diffMs = now - then;
+
+    if (diffMs < 0) return 'just now';
+
+    const seconds = Math.floor(diffMs / 1000);
+    if (seconds < 60) return 'just now';
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+
+    if (days < 30) {
+        const weeks = Math.floor(days / 7);
+        return `${weeks}w ago`;
+    }
+
+    return new Date(dateStr).toLocaleDateString();
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) => {
@@ -22,8 +52,6 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
         
         // Handle context navigation
         if (notification.type === 'ORDER_UPDATE' || notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
-            // Navigate to Dashboard where orders are visible
-            // Both Buyer and Supplier use 'DASHBOARD' page currently for main order lists
             navigate('/', { 
                 state: { 
                     targetPage: 'DASHBOARD',
@@ -36,7 +64,11 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
     };
 
     const getIcon = (type: string, title: string) => {
+        // SSE trade event icons
+        if (title.includes('Auto-Matched')) return <Zap size={16} className="text-amber-400" />;
         if (title.includes('Payment')) return <CreditCard size={16} className="text-emerald-400" />;
+        if (title.includes('Delivered')) return <TrendingUp size={16} className="text-blue-400" />;
+        if (title.includes('Confirmed')) return <Check size={16} className="text-emerald-400" />;
         if (title.includes('Order')) return <FileText size={16} className="text-blue-400" />;
         
         switch (type) {
@@ -72,7 +104,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                 </button>
             </div>
             
-            <div className="overflow-y-auto flex-1 p-2 space-y-2">
+            <div className="overflow-y-auto flex-1 p-2 space-y-1">
                 {notifications.map((notification) => (
                     <div 
                         key={notification.id}
@@ -86,7 +118,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                         )}
                     >
                         <div className="flex gap-3">
-                            <div className="mt-1 shrink-0">
+                            <div className="mt-0.5 shrink-0 w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
                                 {getIcon(notification.type, notification.title)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -95,16 +127,16 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                                         {notification.title}
                                     </h4>
                                     <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                                        {new Date(notification.created_at).toLocaleDateString()}
+                                        {timeAgo(notification.created_at)}
                                     </span>
                                 </div>
-                                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                                <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
                                     {notification.message}
                                 </p>
                             </div>
                             {!notification.is_read && (
                                 <div className="shrink-0 self-center">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                                 </div>
                             )}
                         </div>

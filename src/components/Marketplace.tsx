@@ -4,7 +4,7 @@ import { Port, AvailabilityWindow, OrderBookOrder } from '../types';
 import { PORTS } from '../data';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
-import { CreateBidModal, BidFormData } from './buyer/CreateBidModal';
+import { OrderPlaceModal } from './OrderPlaceModal';
 
 import { formatTierLabel } from '../utils';
 
@@ -145,43 +145,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (filterVerifiedOnly ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
 
-    // Bid modal state
-    const [isBidModalOpen, setIsBidModalOpen] = useState(false);
-    const [isSubmittingBid, setIsSubmittingBid] = useState(false);
-
-    const handleCreateBid = async (data: BidFormData) => {
-        setIsSubmittingBid(true);
-        try {
-            await api.orderbook.create({
-                side: 'BID',
-                fuel_type: data.fuel_type,
-                fuel_grade: data.fuel_grade,
-                region: data.region,
-                quantity_mt: data.quantity_mt,
-                price_per_mt_usd: data.price_per_mt_usd,
-                availability_window: data.availability_window,
-            });
-            setIsBidModalOpen(false);
-            setConfirmState({
-                isOpen: true,
-                type: 'SUCCESS',
-                title: 'Bid Placed Successfully',
-                message: 'Your bid is now live and visible to suppliers in the Buyer Demand Feed.',
-                variant: 'success'
-            });
-        } catch (error: any) {
-            console.error("Failed to place bid:", error);
-            setConfirmState({
-                isOpen: true,
-                type: 'ERROR',
-                title: 'Bid Failed',
-                message: 'Failed to place bid: ' + error.message,
-                variant: 'danger'
-            });
-        } finally {
-            setIsSubmittingBid(false);
-        }
-    };
+    // Order placement modal state
+    const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     // Initial load
     useEffect(() => {
@@ -372,11 +337,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </h2>
                     <div className="flex items-center gap-4">
                         <button
-                            onClick={() => setIsBidModalOpen(true)}
+                            onClick={() => setOrderModalSide('BID')}
                             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
                         >
                             <Plus size={16} />
                             <span>Place Bid</span>
+                        </button>
+                        <button
+                            onClick={() => setOrderModalSide('ASK')}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
+                        >
+                            <Plus size={16} />
+                            <span>Place Ask</span>
                         </button>
                         <button
                             onClick={() => handleSearch()}
@@ -555,13 +527,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {isBidModalOpen && (
-                <CreateBidModal
-                    onSubmit={handleCreateBid}
-                    onCancel={() => setIsBidModalOpen(false)}
-                    isLoading={isSubmittingBid}
-                />
-            )}
+            <OrderPlaceModal
+                isOpen={orderModalSide !== null}
+                onClose={() => { setOrderModalSide(null); handleSearch(); }}
+                side={orderModalSide || 'BID'}
+                prefillFuelType={fuelType !== 'All' ? fuelType : undefined}
+                prefillRegion={portInput || undefined}
+            />
 
             <ConfirmModal
                 isOpen={confirmState.isOpen}

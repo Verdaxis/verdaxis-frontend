@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Notification } from '../types';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -9,6 +9,7 @@ interface NotificationContextType {
     fetchNotifications: () => Promise<void>;
     markAsRead: (id: string) => Promise<void>;
     markAllAsRead: () => Promise<void>;
+    addNotification: (notification: Notification) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -50,6 +51,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         }
     };
 
+    const addNotification = useCallback((notification: Notification) => {
+        setNotifications(prev => [notification, ...prev]);
+        if (!notification.is_read) {
+            setUnreadCount(prev => prev + 1);
+        }
+    }, []);
+
     // Polling every 30 seconds
     useEffect(() => {
         if (user) {
@@ -60,7 +68,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     }, [user]);
 
     return (
-        <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead }}>
+        <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification }}>
             {children}
         </NotificationContext.Provider>
     );

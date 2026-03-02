@@ -23,6 +23,7 @@ import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
+import { MyTrades } from './components/MyTrades';
 import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
@@ -181,6 +182,8 @@ const Dashboard: React.FC = () => {
                 return <SupplierAnalytics />;
             case 'DEMAND_FEED':
                 return <SupplierDemandFeed />;
+            case 'TRADES':
+                return <MyTrades />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
@@ -203,6 +206,8 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'STATS':
          return <Stats />;
+      case 'TRADES':
+         return <MyTrades />;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
     }
@@ -285,8 +290,8 @@ const App: React.FC = () => {
                 </Routes>
             </BrowserRouter>
         </CopilotProvider>
-        </NotificationProvider>
         <TradeNotifier />
+        </NotificationProvider>
         </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
