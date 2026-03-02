@@ -15,11 +15,12 @@ const MOCK_ARBITRAGE_FALLBACK = {
 const MOCK_NARRATIVE_FALLBACK = (portName: string) =>
     `Market activity in **${portName}** is elevated due to seasonal restocking. Spot prices are stabilizing as local inventories reach healthy levels.`;
 
-const MOCK_MARKET_DATA: MarketWatchItem[] = [
-    { pair: 'VLSFO-Methanol Spread', val: '$142.50', change: '+2.3%', up: true },
-    { pair: 'EUA Carbon', val: '€68.40', change: '-0.8%', up: false },
-    { pair: 'Brent Crude', val: '$74.85', change: '+0.5%', up: true },
-    { pair: 'LNG (RTM)', val: '$12.60', change: '+1.1%', up: true },
+// Reference prices (used when no trade data available)
+const REFERENCE_MARKET_DATA: MarketWatchItem[] = [
+    { pair: 'VLSFO-Methanol Spread', val: '$142.50', change: 'Ref', up: true },
+    { pair: 'EUA Carbon', val: '\u20ac68.40', change: 'Ref', up: false },
+    { pair: 'Brent Crude', val: '$74.85', change: 'Ref', up: true },
+    { pair: 'LNG (RTM)', val: '$12.60', change: 'Ref', up: true },
 ];
 
 // Helper for backend AI proxy calls
@@ -101,8 +102,36 @@ export interface MarketDataResult {
 }
 
 export const fetchLiveMarketData = async (): Promise<MarketDataResult | null> => {
-    // Market data uses demo data with AI enrichment when available
-    return { items: MOCK_MARKET_DATA, isDemo: true };
+    // Three-tier pricing: LIVE (real trades) > DELAYED (old trades) > REFERENCE (benchmarks)
+    try {
+        const res = await fetch(`${API_URL}/prices?hours=168`); // 7-day lookback
+        if (!res.ok) throw new Error(`Prices API ${res.status}`);
+        const data = await res.json();
+        const summaries = data.summaries || [];
+
+        if (summaries.length > 0) {
+            const items: MarketWatchItem[] = summaries.slice(0, 4).map((s: any) => {
+                const price = Number(s.last_price || s.avg_price_24h || 0);
+                const changePct = s.price_change_pct != null ? Number(s.price_change_pct) : 0;
+                return {
+                    pair: `${s.fuel_type} (${s.region})`,
+                    val: `$${price.toFixed(2)}`,
+                    change: changePct !== 0 ? `${changePct > 0 ? "+" : ""}${changePct.toFixed(1)}%` : `${s.trade_count_24h || 0} trades`,
+                    up: changePct >= 0,
+                };
+            });
+            // Pad with reference data if fewer than 4 summaries
+            while (items.length < 4) {
+                items.push(REFERENCE_MARKET_DATA[items.length] || REFERENCE_MARKET_DATA[0]);
+            }
+            return { items, isDemo: false };
+        }
+    } catch (err) {
+        console.warn("Price discovery unavailable, using reference data:", err);
+    }
+
+    // Fallback: reference benchmark prices
+    return { items: REFERENCE_MARKET_DATA, isDemo: true };
 };
 
 export const performWebSearch = async (query: string) => {
