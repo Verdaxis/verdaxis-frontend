@@ -52,7 +52,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     const addNotification = useCallback((notification: Notification) => {
-        setNotifications(prev => [notification, ...prev]);
+        setNotifications(prev => [notification, ...prev].slice(0, 100));
         if (!notification.is_read) {
             setUnreadCount(prev => prev + 1);
         }
