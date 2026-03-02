@@ -21,6 +21,7 @@ import {
 import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
+import { useSSE } from '../hooks/useSSE';
 
 // --- Types ---
 interface TerminalRow {
@@ -129,27 +130,25 @@ const generateSimulatedRow = (
     };
 };
 
-// Generate a simulated trade event
-const generateTradeEvent = (port: string, tick: number, idx: number, basePrice: number): TradeEvent => {
-    const periodIdx = Math.floor(seededRandom(tick * 41 + idx * 67) * PERIOD_CONFIG.length);
-    const period = PERIOD_CONFIG[periodIdx].period;
-    const forwardPremium = periodIdx * 2.5;
-    const price = basePrice + forwardPremium + (seededRandom(tick * 47 + idx * 71) - 0.5) * 10;
-    const qty = Math.round((100 + seededRandom(tick * 53 + idx * 79) * 900) / 50) * 50;
-    const side = seededRandom(tick * 59 + idx * 83) > 0.5 ? 'BUY' : 'SELL';
+// Convert an SSE trade event into the TradeEvent shape used by the feed UI
+let tradeIdCounter = 0;
+const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     const now = new Date();
-    now.setSeconds(now.getSeconds() - Math.floor(seededRandom(tick * 61 + idx) * 60));
     const time = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const id = data.id || data.trade_id || `sse-${++tradeIdCounter}`;
+    const qty = Number(data.quantity) || 0;
+    const price = Number(data.price) || 0;
+    const fuel = data.fuel_type || '';
+    const region = data.region || '';
 
-    return {
-        id: `${tick}-${idx}`,
-        time,
-        qty,
-        price: Math.round(price * 100) / 100,
-        port,
-        period,
-        side,
-    };
+    // Determine side: auto-matched trades don't include side, default to BUY
+    // trade_created events come from explicit order creation
+    const side: 'BUY' | 'SELL' = eventType === 'trade_auto_matched' ? 'BUY' : (data.side === 'SELL' ? 'SELL' : 'BUY');
+
+    // Best-effort period label from fuel_type (the backend doesn't send availability_window in trade events)
+    const period = fuel || 'SPOT';
+
+    return { id, time, qty, price, port: region, period, side };
 };
 
 export const MarketTerminal: React.FC = () => {
@@ -166,7 +165,7 @@ export const MarketTerminal: React.FC = () => {
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Simulation tick counter (drives price movement)
+    // Simulation tick counter (drives simulated row data for periods without real orders)
     const [tick, setTick] = useState(0);
     const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
     const tradeScrollRef = useRef<HTMLDivElement>(null);
@@ -176,8 +175,8 @@ export const MarketTerminal: React.FC = () => {
         api.ports.list().then(setPorts).catch(console.error);
     }, []);
 
-    // Fetch orders from the orderbook (one-way sync)
-    const fetchOrders = async () => {
+    // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
+    const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
             const data = await api.orderbook.list();
@@ -187,13 +186,33 @@ export const MarketTerminal: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
+    // Initial fetch on mount (no polling — SSE handles updates)
     useEffect(() => {
         fetchOrders();
-        const interval = setInterval(fetchOrders, 30000);
-        return () => clearInterval(interval);
+    }, [fetchOrders]);
+
+    // --- SSE: Orderbook updates (replaces 30s polling) ---
+    const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
+        // Any orderbook change: refetch the full orderbook
+        fetchOrders();
+    }, [fetchOrders]);
+
+    const { isConnected: orderbookConnected } = useSSE('orderbook', handleOrderbookEvent);
+
+    // --- SSE: Trade events (replaces tick-based simulation) ---
+    const handleTradeEvent = useCallback((event: string, data: any) => {
+        if (event === 'trade_created' || event === 'trade_auto_matched' || event === 'trade_confirmed') {
+            const trade = sseTradeToEvent(event, data);
+            setTradeEvents(prev => [trade, ...prev].slice(0, 50));
+        }
     }, []);
+
+    const { isConnected: tradesConnected } = useSSE('trades', handleTradeEvent);
+
+    // Combined SSE connection status
+    const sseConnected = orderbookConnected || tradesConnected;
 
     // Fetch real price summaries from price discovery API
     const [priceSummaries, setPriceSummaries] = useState<PriceSummary[]>([]);
@@ -215,7 +234,7 @@ export const MarketTerminal: React.FC = () => {
         return () => clearInterval(interval);
     }, [selectedFuel, selectedPort]);
 
-    // Simulation tick: update every 6 seconds
+    // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
     useEffect(() => {
         const interval = setInterval(() => {
             setTick(t => t + 1);
@@ -223,21 +242,10 @@ export const MarketTerminal: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Generate trade events on tick
+    // Derived base price for simulated rows
     const basePrice = FUEL_BASE_PRICES[selectedFuel] || 540;
     const regionMod = REGION_MODIFIERS[selectedPort] || 0;
     const effectiveBase = basePrice + regionMod;
-
-    useEffect(() => {
-        if (tick === 0) return;
-        // Generate 1-3 new trades per tick
-        const count = 1 + Math.floor(seededRandom(tick * 97) * 3);
-        const newTrades: TradeEvent[] = [];
-        for (let i = 0; i < count; i++) {
-            newTrades.push(generateTradeEvent(selectedPort, tick, i, effectiveBase));
-        }
-        setTradeEvents(prev => [...newTrades, ...prev].slice(0, 50));
-    }, [tick, selectedPort, effectiveBase]);
 
     // Auto-scroll trade feed
     useEffect(() => {
@@ -386,6 +394,10 @@ export const MarketTerminal: React.FC = () => {
                         <div className="flex items-center space-x-2 text-slate-400 dark:text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
                             <Zap size={12} className="text-verdaxis" />
                             <span>Market Terminal</span>
+                            <div
+                                className={`w-1.5 h-1.5 rounded-full ${sseConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                title={sseConnected ? 'Live: connected' : 'Disconnected'}
+                            />
                         </div>
 
                         {/* Fuel Type Selector */}
@@ -605,7 +617,7 @@ export const MarketTerminal: React.FC = () => {
                     <div className="flex items-center px-4 py-1.5 border-b border-slate-100 dark:border-[#181818]">
                         <Activity size={12} className="text-emerald-500 mr-2" />
                         <span className="text-[10px] font-bold text-slate-500 dark:text-[#666] uppercase tracking-widest">Trade Activity</span>
-                        <div className="ml-2 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <div className={`ml-2 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
                     </div>
                     <div ref={tradeScrollRef} className="h-24 overflow-y-auto px-2 py-1">
                         {tradeEvents.length === 0 ? (
