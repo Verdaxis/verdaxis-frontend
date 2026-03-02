@@ -120,6 +120,29 @@ export const api = {
         }
     },
 
+    compliance: {
+        fleet: async () => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/fleet`, { headers: getHeaders() });
+            return handleResponse(res);
+        },
+        vesselScore: async (vesselId: string) => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/vessels/${vesselId}/score`, { headers: getHeaders() });
+            return handleResponse(res);
+        },
+        scenario: async (vesselId: string, fuelMix: Record<string, string>, year: number = 2026) => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/scenario`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ vessel_id: vesselId, fuel_mix: fuelMix, year }),
+            });
+            return handleResponse(res);
+        },
+        fuels: async () => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/fuels`);
+            return handleResponse(res);
+        },
+    },
+
     suppliers: {
         list: async (query?: string): Promise<Supplier[]> => {
              // Backend currently doesn't expose a public supplier list endpoint (privacy).

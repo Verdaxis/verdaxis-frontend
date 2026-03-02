@@ -5,6 +5,14 @@ import { AlertTriangle, CheckCircle2, Ship, Loader2, X } from 'lucide-react';
 import { VesselDetailModal } from './fleet/VesselDetailModal';
 import { api } from '../services/api';
 
+interface ComplianceScore {
+    vessel_id: string;
+    overall_score: number;
+    status: string;
+    traffic_light: string;
+    recommendations: string[];
+}
+
 const StatusBadge: React.FC<{ status: Vessel['complianceEUETS'] }> = ({ status }) => {
     const styles = {
         'Compliant': 'bg-green-100 text-green-700 border-green-200',
@@ -37,6 +45,22 @@ const CIIBadge: React.FC<{ grade: Vessel['ciiGrade'] }> = ({ grade }) => {
     );
 };
 
+const ComplianceScoreBadge: React.FC<{ score?: ComplianceScore }> = ({ score }) => {
+    if (!score) return <span className="text-xs text-slate-400">--</span>;
+    const colors = {
+        GREEN: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+        AMBER: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+        RED: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+    };
+    const light = score.traffic_light as keyof typeof colors;
+    return (
+        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${colors[light] || colors.AMBER}`}>
+            <span className="text-base">{score.overall_score}</span>
+            <span className="text-[10px] opacity-70">/ 100</span>
+        </div>
+    );
+};
+
 import { useCopilotContext } from '../context/CopilotContext';
 
 export const Fleet: React.FC = () => {
@@ -45,6 +69,7 @@ export const Fleet: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selectedVessel, setSelectedVessel] = useState<Vessel | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [complianceScores, setComplianceScores] = useState<Record<string, ComplianceScore>>({});
 
     useEffect(() => {
         if (!loading && vessels.length > 0) {
@@ -69,7 +94,20 @@ export const Fleet: React.FC = () => {
                 setLoading(false);
             }
         };
+        const fetchCompliance = async () => {
+            try {
+                const data = await api.compliance.fleet();
+                const scores: Record<string, ComplianceScore> = {};
+                for (const v of data.vessels || []) {
+                    scores[v.vessel_id] = v;
+                }
+                setComplianceScores(scores);
+            } catch (e) {
+                console.warn("Compliance scores unavailable", e);
+            }
+        };
         fetchVessels();
+        fetchCompliance();
     }, []);
 
     if (loading) {
@@ -113,6 +151,7 @@ export const Fleet: React.FC = () => {
                                 <th className="px-6 py-4">CII Grade</th>
                                 <th className="px-6 py-4">EU ETS Status</th>
                                 <th className="px-6 py-4">FuelEU Status</th>
+                                <th className="px-6 py-4">Score</th>
                                 <th className="px-6 py-4">Next Dry Dock</th>
                                 <th className="px-6 py-4 text-right">Action</th>
                             </tr>
@@ -143,6 +182,9 @@ export const Fleet: React.FC = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <StatusBadge status={vessel.complianceFuelEU} />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <ComplianceScoreBadge score={complianceScores[vessel.id]} />
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 font-medium">
                                         {vessel.nextDryDock}
