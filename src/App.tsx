@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CopilotProvider } from './context/CopilotContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { TutorialProvider } from './context/TutorialContext';
+import { GuidedTutorial } from './components/GuidedTutorial';
 import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
@@ -12,6 +14,8 @@ import { TradeNotifier } from './components/TradeNotifier';
 import RegisterPage from './pages/RegisterPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import CreateOrganizationPage from './pages/CreateOrganizationPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import KycPage from './pages/KycPage';
 import { Layout } from './components/Layout';
 import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard } from './components/BuyerDashboard';
@@ -81,7 +85,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 // Guard: Forces user to onboarding if profile is incomplete
 const RequireProfile = ({ children }: { children: React.ReactElement }) => {
     const { user, isLoading } = useAuth();
-    
+
     if (isLoading) return null;
 
     // If user exists (valid auth) but has no role, send to onboarding
@@ -96,7 +100,7 @@ const RequireProfile = ({ children }: { children: React.ReactElement }) => {
 // Guard: Forces user to create/join organization
 const RequireOrganization = ({ children }: { children: React.ReactElement }) => {
     const { user, isLoading } = useAuth();
-    
+
     if (isLoading) return null;
 
     if (user && !user.organization_id) {
@@ -136,8 +140,6 @@ const Dashboard: React.FC = () => {
         }
         if (state.openOrderId) {
             setOpenOrderId(state.openOrderId);
-            // Clear state after consuming? keeping it in state might re-trigger if location doesn't change
-            // For now, let's rely on the prop change
         }
       }
   }, [location]);
@@ -219,12 +221,13 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Layout 
-      viewMode={viewMode} 
-      onSwitchView={handleSwitchView} 
+    <Layout
+      viewMode={viewMode}
+      onSwitchView={handleSwitchView}
       currentPage={currentPage}
       onNavigate={handleNavigate}
     >
+      <GuidedTutorial viewMode={viewMode} />
       <ErrorBoundary>
         {renderContent()}
       </ErrorBoundary>
@@ -240,12 +243,14 @@ const App: React.FC = () => {
         <ToastProvider>
         <NotificationProvider>
         <CopilotProvider>
+            <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                     {/* Public routes */}
                     <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
@@ -277,6 +282,12 @@ const App: React.FC = () => {
 
                     <Route path="/create-organization" element={<CreateOrganizationPage />} />
 
+                    <Route path="/kyc" element={
+                        <ProtectedRoute>
+                            <KycPage />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/app" element={
                         <ProtectedRoute>
                             <RequireOrganization>
@@ -294,6 +305,7 @@ const App: React.FC = () => {
                     <Route path="*" element={<PublicLayout><NotFoundPage /></PublicLayout>} />
                 </Routes>
             </BrowserRouter>
+        </TutorialProvider>
         </CopilotProvider>
         <TradeNotifier />
         </NotificationProvider>

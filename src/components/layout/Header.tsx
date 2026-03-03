@@ -8,11 +8,13 @@ import {
     CheckCircle2,
     UserCircle,
     ChevronDown,
-    LogOut
+    LogOut,
+    Compass
 } from 'lucide-react';
 import { ViewMode } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 import { useAuth } from '../../context/AuthContext';
+import { useTutorial } from '../../context/TutorialContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 
 interface HeaderProps {
@@ -23,6 +25,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar }) => {
     const { user, logout } = useAuth();
+    const { start: startTutorial } = useTutorial();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     return (
@@ -46,8 +49,20 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
             </div>
 
             <div className="flex items-center space-x-3 md:space-x-6 ml-4">
+                {/* Platform Tour Button */}
+                <Tooltip content="Platform Tour" position="bottom">
+                    <button
+                        onClick={startTutorial}
+                        data-tour="tour-button"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-verdaxis dark:text-slate-400 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-verdaxis dark:hover:border-blue-500 transition-all duration-200"
+                    >
+                        <Compass size={14} />
+                        <span className="hidden md:inline">Tour</span>
+                    </button>
+                </Tooltip>
+
                 {/* Notifications Dropdown */}
-                <div className="relative">
+                <div className="relative" data-tour="notification-bell">
                     <Tooltip content="View Notifications" position="bottom">
                         <NotificationBell />
                     </Tooltip>

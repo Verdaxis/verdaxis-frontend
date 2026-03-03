@@ -117,6 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {sidebarItems.map((item) => (
                     <Tooltip key={item.id} content={isCollapsed ? item.label : ''} position="right">
                         <button
+                            data-tour={`nav-${item.id}`}
                             onClick={() => handleNavigate(item.id as Page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentPage === item.id 

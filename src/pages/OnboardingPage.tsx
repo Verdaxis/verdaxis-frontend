@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { User, Briefcase, LayoutDashboard } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { scheduleTutorial } from '../context/TutorialContext';
 
 export const OnboardingPage: React.FC = () => {
     const { token, login } = useAuth(); // We might need a method to refresh user profile
@@ -44,8 +45,8 @@ export const OnboardingPage: React.FC = () => {
                 throw new Error(errData.detail || 'Failed to update profile');
             }
             
-            // Force reload or re-fetch profile?
-            // Ideally AuthContext should expose a `refreshUser` or we just reload window
+            // Schedule tutorial auto-start for new users after redirect
+            scheduleTutorial();
             window.location.href = '/app'; 
             
         } catch (err: any) {

@@ -11,6 +11,8 @@ export interface User {
   role: UserRole | null;
   organization_id?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  email_verified?: boolean;
+  kyc_status?: string;
 }
 
 interface AuthContextType {

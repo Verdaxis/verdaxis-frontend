@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Loader2, Mail, Lock, AlertCircle, Info } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
+
+type ErrorKind = 'generic' | 'unverified' | 'pending';
+
+interface LoginError {
+  kind: ErrorKind;
+  message: string;
+}
 
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<LoginError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
@@ -21,7 +28,7 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setLoginError(null);
     setIsSubmitting(true);
 
     try {
@@ -43,20 +50,61 @@ const LoginPage: React.FC = () => {
         navigate('/app');
       } else {
         if (res.status === 401) {
-          setError('Invalid email or password.');
+          setLoginError({ kind: 'generic', message: 'Invalid email or password.' });
+        } else if (res.status === 403) {
+          const errData = await res.json().catch(() => null);
+          const detail: string = errData?.detail ?? '';
+          if (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')) {
+            setLoginError({
+              kind: 'unverified',
+              message: 'Please verify your email first. Check your inbox for the verification link.',
+            });
+          } else if (
+            detail.toLowerCase().includes('pending') ||
+            detail.toLowerCase().includes('review')
+          ) {
+            setLoginError({
+              kind: 'pending',
+              message: "Your account is under review. We'll notify you when approved.",
+            });
+          } else {
+            setLoginError({ kind: 'generic', message: detail || 'Access denied.' });
+          }
         } else if (res.status >= 500) {
-          setError('Server error. Please try again later.');
+          setLoginError({ kind: 'generic', message: 'Server error. Please try again later.' });
         } else {
           const errData = await res.json().catch(() => null);
-          setError(errData?.detail || 'Login failed');
+          setLoginError({ kind: 'generic', message: errData?.detail || 'Login failed' });
         }
       }
     } catch (err) {
       console.error(err);
-      setError('Unable to connect to server. Please check your connection.');
+      setLoginError({ kind: 'generic', message: 'Unable to connect to server. Please check your connection.' });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const renderError = () => {
+    if (!loginError) return null;
+
+    const isInfo = loginError.kind === 'unverified' || loginError.kind === 'pending';
+
+    if (isInfo) {
+      return (
+        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3 text-amber-400">
+          <Info size={20} className="shrink-0 mt-0.5" />
+          <span className="text-sm">{loginError.message}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
+        <AlertCircle size={20} />
+        <span className="text-sm">{loginError.message}</span>
+      </div>
+    );
   };
 
   return (
@@ -80,12 +128,7 @@ const LoginPage: React.FC = () => {
             Sign In
           </h2>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
-              <AlertCircle size={20} />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
+          {renderError()}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
