@@ -5,7 +5,7 @@ import { Loader2, Mail, Lock, AlertCircle, Info } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
 
-type ErrorKind = 'generic' | 'unverified' | 'pending';
+type ErrorKind = 'generic' | 'unverified';
 
 interface LoginError {
   kind: ErrorKind;
@@ -59,14 +59,6 @@ const LoginPage: React.FC = () => {
               kind: 'unverified',
               message: 'Please verify your email first. Check your inbox for the verification link.',
             });
-          } else if (
-            detail.toLowerCase().includes('pending') ||
-            detail.toLowerCase().includes('review')
-          ) {
-            setLoginError({
-              kind: 'pending',
-              message: "Your account is under review. We'll notify you when approved.",
-            });
           } else {
             setLoginError({ kind: 'generic', message: detail || 'Access denied.' });
           }
@@ -88,7 +80,7 @@ const LoginPage: React.FC = () => {
   const renderError = () => {
     if (!loginError) return null;
 
-    const isInfo = loginError.kind === 'unverified' || loginError.kind === 'pending';
+    const isInfo = loginError.kind === 'unverified';
 
     if (isInfo) {
       return (

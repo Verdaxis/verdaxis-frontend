@@ -159,12 +159,12 @@ const RegisterPage: React.FC = () => {
                 Didn't receive it? Check your spam folder, or resend below.
               </p>
 
-              {/* Resend button with cooldown */}
-              <div className="pt-1">
+              {/* Resend button with visual countdown */}
+              <div className="pt-2 flex flex-col items-center gap-2">
                 <button
                   onClick={handleResend}
                   disabled={resendCooldown > 0 || resendStatus === 'sending'}
-                  className="flex items-center gap-2 mx-auto text-sm text-emerald-400 hover:text-emerald-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-sm text-slate-300 hover:text-white hover:border-slate-500 disabled:text-slate-600 disabled:border-slate-800 disabled:cursor-not-allowed transition-all"
                 >
                   {resendStatus === 'sending' ? (
                     <Loader2 size={14} className="animate-spin" />
@@ -175,13 +175,16 @@ const RegisterPage: React.FC = () => {
                     ? 'Sent!'
                     : resendStatus === 'error'
                     ? 'Failed — try again'
-                    : resendCooldown > 0
-                    ? `Resend in ${resendCooldown}s`
                     : 'Resend verification email'}
                 </button>
+                {resendCooldown > 0 && (
+                  <p className="text-slate-600 text-xs tabular-nums">
+                    You can resend in <span className="text-slate-400 font-semibold">{resendCooldown}s</span>
+                  </p>
+                )}
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <Link to="/login" className="text-emerald-400 text-sm hover:underline">
                   Back to Sign In
                 </Link>
