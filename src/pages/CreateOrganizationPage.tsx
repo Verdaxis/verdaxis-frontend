@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X } from 'lucide-react';
+import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 
@@ -146,6 +146,51 @@ const CreateOrganizationPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, []);
+
+  const startCooldown = () => {
+    setResendCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resendStatus === 'sending' || !registeredEmail) return;
+    setResendStatus('sending');
+    try {
+      const res = await fetch(`${API_URL}/auth/resend-verification-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+      if (res.ok) {
+        setResendStatus('sent');
+        startCooldown();
+        setTimeout(() => setResendStatus('idle'), 3000);
+      } else {
+        setResendStatus('error');
+        setTimeout(() => setResendStatus('idle'), 3000);
+      }
+    } catch {
+      setResendStatus('error');
+      setTimeout(() => setResendStatus('idle'), 3000);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,6 +212,7 @@ const CreateOrganizationPage: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setRegisteredEmail(data.email || '');
+        startCooldown();
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Failed to create organization');
@@ -205,7 +251,35 @@ const CreateOrganizationPage: React.FC = () => {
                 <strong className="text-white">{registeredEmail}</strong>.
                 Click it to activate your account.
               </p>
-              <div className="pt-2">
+              <p className="text-slate-500 text-sm">
+                Didn't receive it? Check your spam folder, or resend below.
+              </p>
+
+              <div className="pt-2 flex flex-col items-center gap-2">
+                <button
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || resendStatus === 'sending'}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-sm text-slate-300 hover:text-white hover:border-slate-500 disabled:text-slate-600 disabled:border-slate-800 disabled:cursor-not-allowed transition-all"
+                >
+                  {resendStatus === 'sending' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={14} className={resendStatus === 'sent' ? 'text-emerald-400' : ''} />
+                  )}
+                  {resendStatus === 'sent'
+                    ? 'Sent!'
+                    : resendStatus === 'error'
+                    ? 'Failed — try again'
+                    : 'Resend verification email'}
+                </button>
+                {resendCooldown > 0 && (
+                  <p className="text-slate-600 text-xs tabular-nums">
+                    You can resend in <span className="text-slate-400 font-semibold">{resendCooldown}s</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-1">
                 <Link to="/login" className="text-emerald-400 text-sm hover:underline">
                   Back to Sign In
                 </Link>
