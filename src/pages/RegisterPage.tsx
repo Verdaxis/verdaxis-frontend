@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
+
+const RESEND_COOLDOWN = 60; // seconds
 
 const PASSWORD_RULES = [
   { label: 'At least 8 characters', test: (pw: string) => pw.length >= 8 },
@@ -10,6 +12,7 @@ const PASSWORD_RULES = [
 ];
 
 const RegisterPage: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,6 +24,53 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [registered, setRegistered] = useState(false);
+
+  // Resend state
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, []);
+
+  const startCooldown = () => {
+    setResendCooldown(RESEND_COOLDOWN);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown(prev => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || resendStatus === 'sending') return;
+    setResendStatus('sending');
+    try {
+      const res = await fetch(`${API_URL}/auth/resend-verification-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      if (res.ok) {
+        setResendStatus('sent');
+        startCooldown();
+        setTimeout(() => setResendStatus('idle'), 3000);
+      } else {
+        setResendStatus('error');
+        setTimeout(() => setResendStatus('idle'), 3000);
+      }
+    } catch {
+      setResendStatus('error');
+      setTimeout(() => setResendStatus('idle'), 3000);
+    }
+  };
 
   const allRulesPass = PASSWORD_RULES.every(rule => rule.test(formData.password));
 
@@ -50,7 +100,17 @@ const RegisterPage: React.FC = () => {
       });
 
       if (res.ok) {
-        setRegistered(true);
+        const data = await res.json();
+        if (data.status === 'requires_org') {
+          // Email domain has no org — go to org creation flow
+          navigate('/create-organization', {
+            state: { registration_token: data.registration_token }
+          });
+        } else {
+          // status === 'created' — user created, verification email sent
+          setRegistered(true);
+          startCooldown();
+        }
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Registration failed');
@@ -96,8 +156,31 @@ const RegisterPage: React.FC = () => {
                 Click it to activate your account.
               </p>
               <p className="text-slate-500 text-sm">
-                Contact support if you don't receive it within 5 minutes.
+                Didn't receive it? Check your spam folder, or resend below.
               </p>
+
+              {/* Resend button with cooldown */}
+              <div className="pt-1">
+                <button
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || resendStatus === 'sending'}
+                  className="flex items-center gap-2 mx-auto text-sm text-emerald-400 hover:text-emerald-300 disabled:text-slate-600 disabled:cursor-not-allowed transition-colors"
+                >
+                  {resendStatus === 'sending' ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <RefreshCw size={14} className={resendStatus === 'sent' ? 'text-emerald-400' : ''} />
+                  )}
+                  {resendStatus === 'sent'
+                    ? 'Sent!'
+                    : resendStatus === 'error'
+                    ? 'Failed — try again'
+                    : resendCooldown > 0
+                    ? `Resend in ${resendCooldown}s`
+                    : 'Resend verification email'}
+                </button>
+              </div>
+
               <div className="pt-2">
                 <Link to="/login" className="text-emerald-400 text-sm hover:underline">
                   Back to Sign In

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, Building2, Globe, FileText, AlertCircle } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Loader2, Building2, Globe, FileText, AlertCircle, Mail } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +30,7 @@ const CreateOrganizationPage: React.FC = () => {
   
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +52,8 @@ const CreateOrganizationPage: React.FC = () => {
       });
 
       if (res.ok) {
-        // User created successfully. Redirect to Login.
-        navigate('/login');
+        const data = await res.json();
+        setRegisteredEmail(data.email || payload.registration_token);
       } else {
         const errData = await res.json();
         setError(errData.detail || 'Failed to create organization');
@@ -86,6 +87,25 @@ const CreateOrganizationPage: React.FC = () => {
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+          {registeredEmail ? (
+            <div className="text-center space-y-4 py-4">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">
+                <Mail size={32} className="text-blue-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Check your inbox</h2>
+              <p className="text-slate-400">
+                Organization created! We sent a verification link to{' '}
+                <strong className="text-white">{registeredEmail}</strong>.
+                Click it to activate your account.
+              </p>
+              <div className="pt-2">
+                <Link to="/login" className="text-emerald-400 text-sm hover:underline">
+                  Back to Sign In
+                </Link>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="mb-6">
               <p className="text-sm text-slate-400 bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex gap-2">
                   <Building2 size={16} className="text-blue-400 shrink-0 mt-0.5" />
@@ -174,6 +194,8 @@ const CreateOrganizationPage: React.FC = () => {
               {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Create Organization'}
             </button>
           </form>
+          </>
+          )}
         </div>
       </div>
     </div>
