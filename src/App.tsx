@@ -267,7 +267,8 @@ const App: React.FC = () => {
                     <Route path="/education/:slug" element={<PublicLayout><EducationArticlePage /></PublicLayout>} />
                     <Route path="/roadmap" element={<PublicLayout><RoadmapPage /></PublicLayout>} />
                     <Route path="/tools/energy-calculator" element={<PublicLayout><EnergyCalculatorPage /></PublicLayout>} />
-                    <Route path="/map/producers" element={<PublicLayout><ProducerMapPage /></PublicLayout>} />
+                    {/* /map/producers hidden — page preserved, route disabled */}
+                    <Route path="/map/producers" element={<Navigate to="/" replace />} />
                     <Route path="/partners-preview" element={<PartnerShowcasePage />} />
                     <Route path="/partners-landing" element={<PublicLayout><PartnerLandingPage /></PublicLayout>} />
 
