@@ -49,6 +49,7 @@ import { FinancierUseCasePage } from './pages/public/FinancierUseCasePage';
 import { GovernancePage } from './pages/public/GovernancePage';
 import { PilotPage } from './pages/public/PilotPage';
 import { EducationPage } from './pages/public/EducationPage';
+import { PartnersPage } from './pages/public/PartnersPage';
 import { EducationArticlePage } from './pages/public/EducationArticlePage';
 import { RoadmapPage } from './pages/public/RoadmapPage';
 import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
@@ -268,7 +269,8 @@ const App: React.FC = () => {
                     <Route path="/for-financiers" element={<PublicLayout><FinancierUseCasePage /></PublicLayout>} />
                     <Route path="/governance" element={<PublicLayout><GovernancePage /></PublicLayout>} />
                     <Route path="/pilot" element={<PublicLayout><PilotPage /></PublicLayout>} />
-                    <Route path="/education" element={<PublicLayout><EducationPage /></PublicLayout>} />
+                    <Route path="/partners" element={<PublicLayout><PartnersPage /></PublicLayout>} />
+                    <Route path="/education" element={<Navigate to="/partners" replace />} />
                     <Route path="/education/:slug" element={<PublicLayout><EducationArticlePage /></PublicLayout>} />
                     <Route path="/roadmap" element={<PublicLayout><RoadmapPage /></PublicLayout>} />
                     <Route path="/tools/energy-calculator" element={<PublicLayout><EnergyCalculatorPage /></PublicLayout>} />

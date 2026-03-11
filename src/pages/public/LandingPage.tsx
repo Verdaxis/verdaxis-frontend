@@ -39,7 +39,7 @@ const whyCards = [
   {
     icon: Zap,
     title: 'Low Friction',
-    body: 'Streamlined digital trading reduces back-office overhead, accelerates contract negotiation, and cuts settlement times.',
+    body: 'Streamlined digital trading enables simple, error-free transactions \u2014 accelerating contract negotiation and cutting settlement times.',
   },
   {
     icon: ArrowLeftRight,

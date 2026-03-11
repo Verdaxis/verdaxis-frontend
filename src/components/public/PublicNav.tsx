@@ -37,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: 'Compliance', to: '/compliance' },
-  { label: 'Education', to: '/education' },
+  { label: 'Partners', to: '/partners' },
   {
     label: 'Tools',
     dropdown: [
@@ -45,7 +45,6 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'Producer Map', to: '/map/producers' },
     ],
   },
-  { label: 'Roadmap', to: '/roadmap' },
 ];
 
 const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string; onClose: () => void }> = ({ items, pathname, onClose }) => (
