@@ -3,13 +3,20 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   Factory,
-  ClipboardCheck,
+  Users,
+  BarChart3,
   ShieldCheck,
-  ArrowLeftRight,
-  FileCheck,
+  Brain,
+  TrendingUp,
+  ArrowRight,
+  Handshake,
+  Eye,
+  Zap,
+  LineChart,
+  Globe,
   Package,
-  Ban,
   Link as LinkIcon,
+  Shield,
 } from 'lucide-react';
 import {
   Reveal,
@@ -25,42 +32,28 @@ import {
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
-const flowSteps = [
-  {
-    number: 1,
-    icon: Factory,
-    title: 'Fuel is Produced',
-    description:
-      'Physical low-carbon fuel is produced at a verified facility. Feedstock, pathway, and carbon intensity are documented at source.',
-  },
-  {
-    number: 2,
-    icon: ClipboardCheck,
-    title: 'Fuel + Attributes Registered',
-    description:
-      'The fuel and its environmental attributes are registered on Verdaxis. CI score, feedstock pathway, geography, and certifications are locked to the physical batch.',
-  },
-  {
-    number: 3,
-    icon: ShieldCheck,
-    title: 'Attributes Verified & Locked',
-    description:
-      'Third-party verification confirms the claimed attributes. Once verified, attributes cannot be modified or duplicated \u2014 preventing double-counting.',
-  },
-  {
-    number: 4,
-    icon: ArrowLeftRight,
-    title: 'Trades Occur',
-    description:
-      'Buyers and sellers are matched through the Verdaxis marketplace. Bilateral deals progress toward structured exchange as liquidity builds.',
-  },
-  {
-    number: 5,
-    icon: FileCheck,
-    title: 'Claims Flow with Audit Trail',
-    description:
-      'Environmental claims follow the fuel downstream. Every transfer, every claim, every retirement is recorded with full traceability.',
-  },
+const sellerBenefits = [
+  { icon: Users, text: 'Direct access to qualified buyers' },
+  { icon: TrendingUp, text: 'Reduced customer acquisition costs' },
+  { icon: Handshake, text: 'Lower friction for contract negotiation' },
+  { icon: Eye, text: 'Market visibility and deal flow analytics' },
+  { icon: Factory, text: 'Ability to pre-market future production' },
+];
+
+const platformCapabilities = [
+  { icon: BarChart3, text: 'Real-time aggregation and matching delivering liquidity in the market' },
+  { icon: TrendingUp, text: 'Drives price discovery in the market' },
+  { icon: ShieldCheck, text: 'Verified sustainability data and reporting' },
+  { icon: Shield, text: 'Integrated risk management tools' },
+  { icon: Brain, text: 'AI-powered market intelligence and forecasting' },
+];
+
+const buyerBenefits = [
+  { icon: Globe, text: 'Access to a unified market of verified sustainable fuel suppliers' },
+  { icon: Eye, text: 'Transparent, reliable pricing via exchange' },
+  { icon: Zap, text: 'One-stop access to all sustainable fuel types' },
+  { icon: LineChart, text: 'Transparency and price discovery' },
+  { icon: Handshake, text: 'Access to hedging tools (SWAPs)' },
 ];
 
 const principles = [
@@ -68,22 +61,23 @@ const principles = [
     icon: Package,
     title: 'Physical-First Logic',
     description:
-      'Every attribute on Verdaxis is tied to a physical fuel batch. There are no decoupled paper credits or synthetic environmental instruments.',
+      'Every listing on Verdaxis is tied to a physical fuel batch. No decoupled paper credits or synthetic instruments \u2014 real fuel, real trades.',
   },
   {
-    icon: Ban,
-    title: 'No Decoupled Paper Credits',
+    icon: Shield,
+    title: 'End-to-End Integrity',
     description:
-      'Unlike voluntary carbon markets, Verdaxis does not allow environmental claims to be separated from the underlying fuel. This eliminates the risk of phantom credits.',
+      'From production through bunkering to final consumption, the chain of custody is maintained. Sustainability data travels with the fuel at every stage.',
   },
   {
     icon: LinkIcon,
-    title: 'Chain-of-Custody Preserved',
+    title: 'Singapore-Hosted, Global Reach',
     description:
-      'From production through bunkering to final consumption, the chain-of-custody is maintained. Downstream users can trace claims back to the original producer.',
+      'Backed by SGX and MPA Singapore, Verdaxis provides price discovery for any point in the world while maintaining the highest standards of market integrity.',
   },
 ];
 
+/* kept in code for deck use */
 const comparisonRows = [
   { label: 'Attribute tracking', traditional: 'Paper-based, manual', verdaxis: 'Digital, automated' },
   { label: 'Double-counting risk', traditional: 'High', verdaxis: 'Eliminated' },
@@ -120,205 +114,129 @@ const sectionSubtitle: React.CSSProperties = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  Flow Step Component                                                */
+/*  Three-Column Platform Benefits                                     */
 /* ------------------------------------------------------------------ */
 
-/* ------------------------------------------------------------------ */
-/*  Flow Step Components — connected horizontal pipeline (desktop)      */
-/*  and vertical timeline (mobile)                                      */
-/* ------------------------------------------------------------------ */
-
-const FlowStepCard: React.FC<{
-  step: (typeof flowSteps)[number];
-  index: number;
-}> = ({ step, index }) => {
-  const { number, icon: Icon, title, description } = step;
-
-  return (
-    <Reveal delay={index * 0.12}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, position: 'relative' }}>
-        {/* Number badge */}
-        <motion.div
-          whileHover={{ scale: 1.1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+const BenefitColumn: React.FC<{
+  title: string;
+  subtitle: string;
+  items: { icon: React.FC<any>; text: string }[];
+  accentColor: string;
+  delay: number;
+  isCenter?: boolean;
+}> = ({ title, subtitle, items, accentColor, delay, isCenter }) => (
+  <Reveal delay={delay}>
+    <div
+      style={{
+        background: isCenter
+          ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)'
+          : '#FFFFFF',
+        border: isCenter ? 'none' : '1px solid #E2E8F0',
+        borderRadius: 16,
+        padding: 32,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        ...(isCenter
+          ? { boxShadow: '0 8px 32px rgba(15,23,42,0.2)' }
+          : {}),
+      }}
+    >
+      <div style={{ marginBottom: 24 }}>
+        <h3
           style={{
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-            color: '#FFFFFF',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            fontSize: 20,
             fontWeight: 700,
-            fontSize: 18,
-            marginBottom: 20,
-            boxShadow: '0 4px 16px rgba(93,173,226,0.25)',
-            position: 'relative',
-            zIndex: 2,
+            fontFamily: '"DM Serif Display", serif',
+            color: isCenter ? '#F8FAFC' : '#0F172A',
+            marginBottom: 4,
           }}
         >
-          {number}
-        </motion.div>
-
-        {/* Card */}
-        <HoverCard
+          {title}
+        </h3>
+        <p
           style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 14,
-            padding: 24,
-            textAlign: 'center',
-            width: '100%',
-            maxWidth: 220,
+            fontSize: 13,
+            color: '#94A3B8',
+            margin: 0,
           }}
         >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, rgba(93,173,226,0.1), rgba(76,175,80,0.1))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 14px',
-            }}
-          >
-            <Icon size={20} color="#5DADE2" />
-          </div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: '0 0 8px', lineHeight: 1.3 }}>{title}</h3>
-          <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
-        </HoverCard>
+          {subtitle}
+        </p>
       </div>
-    </Reveal>
-  );
-};
 
-/** SVG connecting line between step badges on desktop */
-const FlowConnector: React.FC = () => (
-  <div style={{
-    position: 'absolute',
-    top: 24,
-    left: '10%',
-    right: '10%',
-    height: 2,
-    zIndex: 1,
-  }}>
-    <svg width="100%" height="2" preserveAspectRatio="none" style={{ display: 'block' }}>
-      <defs>
-        <linearGradient id="flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#5DADE2" stopOpacity="0.4" />
-          <stop offset="50%" stopColor="#4CAF50" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#5DADE2" stopOpacity="0.4" />
-        </linearGradient>
-      </defs>
-      <line x1="0" y1="1" x2="100%" y2="1" stroke="url(#flow-grad)" strokeWidth="2" strokeDasharray="6 4" />
-    </svg>
-    {/* Animated pulse traveling along the line */}
-    <div className="flow-pulse" style={{
-      position: 'absolute',
-      top: -3,
-      width: 8,
-      height: 8,
-      borderRadius: '50%',
-      background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-      boxShadow: '0 0 10px rgba(93,173,226,0.5)',
-    }} />
-  </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
+        {items.map(({ icon: Icon, text }, i) => (
+          <motion.div
+            key={text}
+            initial={{ opacity: 0, x: isCenter ? 0 : -10 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: delay + i * 0.08, duration: 0.4 }}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}
+          >
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: isCenter
+                  ? `${accentColor}20`
+                  : `${accentColor}12`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                marginTop: 1,
+              }}
+            >
+              <Icon size={16} color={accentColor} />
+            </div>
+            <p
+              style={{
+                fontSize: 14,
+                color: isCenter ? '#CBD5E1' : '#475569',
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              {text}
+            </p>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  </Reveal>
 );
 
-const MobileFlowStep: React.FC<{
-  step: (typeof flowSteps)[number];
-  isLast: boolean;
-  index: number;
-}> = ({ step, isLast, index }) => {
-  const { number, icon: Icon, title, description } = step;
+/* ------------------------------------------------------------------ */
+/*  Arrow Connector Between Columns                                    */
+/* ------------------------------------------------------------------ */
 
-  return (
-    <Reveal delay={index * 0.12}>
-      <div style={{ display: 'flex', alignItems: 'stretch', gap: 16 }}>
-        {/* Timeline column */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: 15,
-              flexShrink: 0,
-              boxShadow: '0 3px 12px rgba(93,173,226,0.25)',
-            }}
-          >
-            {number}
-          </motion.div>
-          {!isLast && (
-            <div style={{
-              width: 2,
-              flex: 1,
-              minHeight: 20,
-              background: 'linear-gradient(180deg, #5DADE2 0%, #4CAF50 100%)',
-              opacity: 0.3,
-              borderRadius: 1,
-            }} />
-          )}
-        </div>
-
-        {/* Content card */}
-        <HoverCard
-          style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 12,
-            padding: 20,
-            flex: 1,
-            marginBottom: isLast ? 0 : 8,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'linear-gradient(135deg, rgba(93,173,226,0.1), rgba(76,175,80,0.1))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <Icon size={16} color="#5DADE2" />
-            </div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>{title}</h3>
-          </div>
-          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: 0 }}>{description}</p>
-        </HoverCard>
-      </div>
-    </Reveal>
-  );
-};
+const ColumnArrow: React.FC = () => (
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0 4px',
+    }}
+    className="hiw-column-arrow"
+  >
+    <motion.div
+      animate={{ x: [0, 6, 0] }}
+      transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      <ArrowRight size={24} color="#CBD5E1" />
+    </motion.div>
+  </div>
+);
 
 /* ================================================================== */
 /*  HowItWorksPage                                                     */
 /* ================================================================== */
 
 export const HowItWorksPage: React.FC = () => {
-  const [isMobile, setIsMobile] = React.useState(false);
-
-  React.useEffect(() => {
-    const checkWidth = () => setIsMobile(window.innerWidth < 768);
-    checkWidth();
-    window.addEventListener('resize', checkWidth);
-    return () => window.removeEventListener('resize', checkWidth);
-  }, []);
-
   return (
     <div>
       {/* ---- Section 1: Hero ---- */}
@@ -375,14 +293,15 @@ export const HowItWorksPage: React.FC = () => {
                 margin: '0 auto',
               }}
             >
-              From physical fuel production to verified downstream claims &mdash; every step traceable,
-              every attribute locked.
+              Verdaxis connects sustainable fuel producers with buyers and traders through
+              a transparent exchange &mdash; delivering liquidity, price discovery, and
+              verified sustainability data.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* ---- Section 2: 5-Step Visual Flow ---- */}
+      {/* ---- Section 2: Three-Column Platform Benefits ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
         <CircuitLines
           color="rgba(93,173,226,0.06)"
@@ -395,57 +314,67 @@ export const HowItWorksPage: React.FC = () => {
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <Reveal>
-            <h2 style={sectionTitle}>The Verdaxis Flow</h2>
+            <h2 style={sectionTitle}>Benefits of the Verdaxis Platform</h2>
           </Reveal>
           <Reveal delay={0.08}>
             <p style={sectionSubtitle}>
-              Five steps from fuel production to verifiable downstream claims.
+              A two-sided marketplace connecting sustainable fuel supply with global demand.
             </p>
           </Reveal>
 
-          {isMobile ? (
-            <div style={{ maxWidth: 480, margin: '0 auto' }}>
-              {flowSteps.map((step, idx) => (
-                <MobileFlowStep
-                  key={step.number}
-                  step={step}
-                  isLast={idx === flowSteps.length - 1}
-                  index={idx}
-                />
-              ))}
-            </div>
-          ) : (
-            <div style={{ position: 'relative', maxWidth: 1100, margin: '0 auto' }}>
-              {/* Connecting line behind the badges */}
-              <FlowConnector />
-              {/* Step cards in a horizontal row */}
-              <div style={{
-                display: 'flex',
-                gap: 20,
-                justifyContent: 'center',
-                position: 'relative',
-                zIndex: 2,
-              }}>
-                {flowSteps.map((step, idx) => (
-                  <FlowStepCard key={step.number} step={step} index={idx} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Animated pulse keyframes */}
-          <style>{`
-            @keyframes flowPulseTravel {
-              0% { left: 0%; opacity: 0; }
-              10% { opacity: 1; }
-              90% { opacity: 1; }
-              100% { left: 100%; opacity: 0; }
-            }
-            .flow-pulse {
-              animation: flowPulseTravel 4s ease-in-out infinite;
-            }
-          `}</style>
+          {/* Three columns with arrows */}
+          <div
+            className="hiw-benefits-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr auto 1.1fr auto 1fr',
+              gap: 0,
+              maxWidth: 1100,
+              margin: '0 auto',
+              alignItems: 'stretch',
+            }}
+          >
+            <BenefitColumn
+              title="Sellers"
+              subtitle="Producers & Traders"
+              items={sellerBenefits}
+              accentColor="#4CAF50"
+              delay={0}
+            />
+            <ColumnArrow />
+            <BenefitColumn
+              title="Verdaxis Platform"
+              subtitle="The Exchange"
+              items={platformCapabilities}
+              accentColor="#5DADE2"
+              delay={0.15}
+              isCenter
+            />
+            <ColumnArrow />
+            <BenefitColumn
+              title="Buyers"
+              subtitle="Owners & Charterers"
+              items={buyerBenefits}
+              accentColor="#5DADE2"
+              delay={0.3}
+            />
+          </div>
         </div>
+
+        {/* Responsive: stack on mobile */}
+        <style>{`
+          @media (max-width: 900px) {
+            .hiw-benefits-grid {
+              grid-template-columns: 1fr !important;
+              gap: 20px !important;
+              max-width: 480px !important;
+            }
+            .hiw-column-arrow {
+              transform: rotate(90deg);
+              padding: 8px 0 !important;
+            }
+          }
+        `}</style>
       </section>
 
       {/* ---- Section 3: Key Principles ---- */}
@@ -455,7 +384,7 @@ export const HowItWorksPage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.08}>
           <p style={sectionSubtitle}>
-            The design choices that make Verdaxis different from existing environmental credit systems.
+            The design choices that make Verdaxis a trusted and transparent marketplace.
           </p>
         </Reveal>
 
