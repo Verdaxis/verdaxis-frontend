@@ -114,23 +114,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 {/* Context Aware Content */}
                 {selectedPort && selectedPort.details ? (
                     <>
-                        {/* AI Narrative Section */}
-                        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-4 relative overflow-hidden">
-                            <div className="flex items-center space-x-2 mb-2">
-                                <Sparkles size={14} className="text-indigo-500 dark:text-indigo-400 animate-pulse" />
-                                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Verdaxis AI Narrative</span>
-                            </div>
-                            {isAiLoading ? (
-                                <div className="space-y-2">
-                                    <div className="h-2 bg-indigo-200 rounded w-3/4 animate-pulse"></div>
-                                    <div className="h-2 bg-indigo-200 rounded w-1/2 animate-pulse"></div>
-                                </div>
-                            ) : (
-                                <div className="text-xs font-medium text-indigo-900 dark:text-indigo-300 leading-relaxed">
-                                    <MarkdownRenderer content={aiNarrative || "Analyzing market conditions..."} />
-                                </div>
-                            )}
-                        </div>
+                        {/* AI Narrative — hidden until AI integration is live */}
 
                         {/* Market Price & Trend */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
@@ -155,25 +139,31 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             </div>
                         </div>
 
-                        {/* Port Specific Data */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                                    <Anchor size={10} /> Congestion
-                                </div>
-                                <div className={`text-sm font-bold ${selectedPort.details.congestionLevel === 'High' ? 'text-red-500' : 'text-green-600'}`}>
-                                    {selectedPort.details.congestionLevel}
-                                </div>
-                                <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.avgWaitingTime}h wait avg</div>
+                        {/* Port Specific Data — auto-hidden when no real data */}
+                        {(selectedPort.details.avgWaitingTime > 0 || selectedPort.details.activeBarges > 0) && (
+                            <div className="grid grid-cols-2 gap-3">
+                                {selectedPort.details.avgWaitingTime > 0 && (
+                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
+                                            <Anchor size={10} /> Congestion
+                                        </div>
+                                        <div className={`text-sm font-bold ${selectedPort.details.congestionLevel === 'High' ? 'text-red-500' : 'text-green-600'}`}>
+                                            {selectedPort.details.congestionLevel}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.avgWaitingTime}h wait avg</div>
+                                    </div>
+                                )}
+                                {selectedPort.details.activeBarges > 0 && (
+                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
+                                            <Ship size={10} /> Supply
+                                        </div>
+                                        <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{selectedPort.details.forecastSupply}</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.activeBarges} active barges</div>
+                                    </div>
+                                )}
                             </div>
-                            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
-                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                                    <Ship size={10} /> Supply
-                                </div>
-                                <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{selectedPort.details.forecastSupply}</div>
-                                <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.activeBarges} active barges</div>
-                            </div>
-                        </div>
+                        )}
 
                         {/* Future Compliance & Projects */}
                         {selectedPort.details.upcomingProjects && (
