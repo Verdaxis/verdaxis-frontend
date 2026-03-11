@@ -28,34 +28,34 @@ const ACCENT = '#4CAF50';
 const valueProps = [
   {
     icon: Zap,
-    title: 'Faster Offtake',
+    title: 'Maximum Market Reach',
     description:
-      'Connect directly with qualified fuel buyers through the Verdaxis marketplace. No intermediary delays, no opaque negotiations.',
+      'List your production once and get it in front of the largest pool of qualified fuel buyers on the market. More eyeballs means more competitive bids and faster deal flow.',
   },
   {
     icon: TrendingUp,
-    title: 'Premium Discovery',
+    title: 'Lower Customer Acquisition Cost',
     description:
-      'Low-CI fuels command a premium. Verdaxis makes this premium visible and verifiable, so you capture the full value of your production quality.',
+      'Stop spending on trade shows, cold outreach, and broker commissions. Verdaxis brings motivated buyers directly to your listings — dramatically cutting the cost of finding your next offtake partner.',
   },
   {
     icon: BarChart3,
-    title: 'Scope 3 Monetisation',
+    title: 'Deal Flow Analytics & Market Visibility',
     description:
-      'Your fuel reduces downstream Scope 3 emissions for buyers. Verdaxis quantifies this value, helping you price it into your offtake agreements.',
+      'See how your listings perform: views, bid activity, and price benchmarks across the market. Know where you stand and price with confidence.',
   },
   {
     icon: Calendar,
-    title: 'Forward Selling',
+    title: 'Pre-Market Future Production',
     description:
-      'Lock in future sales at agreed prices. Forward contracts on Verdaxis give you revenue certainty and bankable offtake for financing.',
+      'Sell forward before the first barrel is produced. List upcoming production capacity today to secure committed buyers and give your project bankable revenue certainty.',
   },
 ];
 
 const howItWorksSteps = [
-  'Register your facility and fuel production on Verdaxis',
-  'Attributes are verified by accredited third parties',
-  'Receive bids from qualified buyers and negotiate offtake',
+  'List your production — current inventory or future capacity — on the Verdaxis marketplace',
+  'Qualified buyers discover your listings and submit bids directly, with no intermediary friction',
+  'Negotiate terms, agree price, and close deals faster with built-in contract tooling',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -156,8 +156,8 @@ export const ProducerUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Reach verified buyers, discover premium pricing for low-CI fuels,
-            and simplify compliance documentation.
+            Put your fuel production in front of the largest pool of qualified buyers.
+            More reach, lower acquisition costs, and faster deal flow — all in one marketplace.
           </p>
         </motion.div>
       </section>
@@ -179,7 +179,7 @@ export const ProducerUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            Capture the full value of your low-carbon fuel production.
+            The exchange built around your need for reach, visibility, and lower friction — from first listing to signed contract.
           </p>
         </Reveal>
         <StaggerGrid
@@ -243,7 +243,7 @@ export const ProducerUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            Three steps from registration to revenue.
+            Three steps from listing to closed deal.
           </p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -316,7 +316,7 @@ export const ProducerUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to reach new buyers?
+              Ready to grow your buyer network?
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -328,8 +328,8 @@ export const ProducerUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and start connecting with
-              verified fuel buyers today.
+              Join the Verdaxis pilot programme and get your production in front of
+              the market's most active fuel buyers today.
             </p>
           </Reveal>
           <Reveal delay={0.2}>

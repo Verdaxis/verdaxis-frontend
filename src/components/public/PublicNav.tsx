@@ -28,7 +28,14 @@ const NAV_ITEMS: NavItem[] = [
       { label: 'For Financiers', to: '/for-financiers' },
     ],
   },
-  { label: 'Fuels', to: '/fuels' },
+  {
+    label: 'Fuels',
+    dropdown: [
+      { label: 'Maritime', to: '/fuels/maritime' },
+      { label: 'Aviation', to: '/fuels/aviation' },
+      { label: 'Land & Power', to: '/fuels/land' },
+    ],
+  },
   { label: 'Compliance', to: '/compliance' },
   { label: 'Education', to: '/education' },
   {

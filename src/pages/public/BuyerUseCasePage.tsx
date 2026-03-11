@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Ship,
   Zap,
-  ShieldCheck,
-  FileCheck,
-  ClipboardCheck,
+  Globe,
+  BarChart2,
+  Layers,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -26,35 +27,41 @@ const ACCENT = '#5DADE2';
 
 const valueProps = [
   {
+    icon: Globe,
+    title: 'Unified Market Access',
+    description:
+      'Connect to a curated network of verified sustainable fuel suppliers in one place. No more fragmented bilateral negotiations — Verdaxis brings the entire market to you so you can compare, evaluate, and transact efficiently.',
+  },
+  {
     icon: Zap,
-    title: 'Energy-Adjusted Pricing',
+    title: 'Transparent, Reliable Pricing',
     description:
-      'Stop comparing fuels by $/tonne alone. Verdaxis shows the true cost including energy content (MJ/kg), so you know what you\u2019re actually buying. A 7% spread in energy density can mean $50-70k difference on a single voyage.',
+      'See live and reference prices across all sustainable fuel types with full price discovery. Verdaxis shows you what the market is clearing at — not just what a single counterparty quotes — so you always negotiate from a position of knowledge.',
   },
   {
-    icon: ShieldCheck,
-    title: 'Verified Scope 3 Reductions',
+    icon: Layers,
+    title: 'All Sustainable Fuel Types',
     description:
-      'Every fuel purchase on Verdaxis comes with verified CI data and chain-of-custody. Your Scope 3 claims are audit-ready from day one.',
+      'One-stop access to bio-LNG, bio-MGO, green methanol, green ammonia, e-fuels, and more. Compare fuel options side by side on price, availability, and energy content — all within a single trading interface.',
   },
   {
-    icon: FileCheck,
-    title: 'FuelEU & ETS Compliance',
+    icon: BarChart2,
+    title: 'Speed & Execution Efficiency',
     description:
-      'Know your compliance position before you buy. Verdaxis calculates FuelEU Maritime intensity, EU ETS exposure, and CII impact for each fuel option.',
+      'Post your requirements once and receive matched offers fast. Verdaxis\'s matching engine surfaces the best available supply against your volume, port, and delivery window — cutting procurement time from days to hours.',
   },
   {
-    icon: ClipboardCheck,
-    title: 'MC Declaration Ready',
+    icon: ArrowLeftRight,
+    title: 'Hedging & Price Risk Tools',
     description:
-      'Take your fuel purchases all the way to the Maritime Declaration. Verdaxis provides the documentation chain needed for FuelEU Maritime reporting.',
+      'Manage price volatility with access to SWAP instruments directly on the platform. Lock in future fuel costs, hedge exposure to sustainable fuel price swings, and plan procurement budgets with confidence.',
   },
 ];
 
 const howItWorksSteps = [
-  'Post your fuel requirements \u2014 type, volume, port, delivery window',
-  'Review matched offers with CI, energy content, and compliance impact',
-  'Complete the trade with full traceability for compliance reporting',
+  'Post your fuel requirements — type, volume, port, and delivery window',
+  'Review matched offers with transparent pricing and full fuel-type coverage',
+  'Execute the trade and optionally hedge your price exposure with SWAPs',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -135,7 +142,7 @@ export const BuyerUseCasePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            For Fuel Buyers & Operators
+            For Owners & Charterers
           </h1>
           <p
             style={{
@@ -146,8 +153,9 @@ export const BuyerUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Source verified low-carbon fuels with full compliance traceability
-            &mdash; from energy-adjusted pricing to MC declaration.
+            Access a unified market of verified sustainable fuel suppliers &mdash;
+            with transparent pricing, full fuel-type coverage, and the hedging tools
+            to manage price risk.
           </p>
         </motion.div>
       </section>
@@ -168,7 +176,7 @@ export const BuyerUseCasePage: React.FC = () => {
         <Reveal>
           <h2 style={sectionTitle}>Why Buyers Choose Verdaxis</h2>
           <p style={sectionSubtitle}>
-            Full visibility on what you are buying and how it impacts your compliance position.
+            The market, the prices, and the tools — all in one place.
           </p>
         </Reveal>
         <StaggerGrid
@@ -230,7 +238,7 @@ export const BuyerUseCasePage: React.FC = () => {
         <Reveal>
           <h2 style={sectionTitle}>How It Works For You</h2>
           <p style={sectionSubtitle}>
-            From fuel requirement to compliance-ready trade in three steps.
+            From fuel requirement to executed trade in three steps.
           </p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -304,7 +312,7 @@ export const BuyerUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to source with confidence?
+              Ready to access the market?
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -316,8 +324,8 @@ export const BuyerUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and start sourcing verified
-              low-carbon fuels with full compliance traceability.
+              Join the Verdaxis pilot programme and start sourcing sustainable fuels
+              with transparent pricing, broad supplier coverage, and built-in hedging tools.
             </p>
           </Reveal>
           <Reveal delay={0.2}>

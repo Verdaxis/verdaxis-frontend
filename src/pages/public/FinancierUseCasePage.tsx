@@ -4,9 +4,9 @@ import { motion } from 'motion/react';
 import {
   Landmark,
   Database,
-  Search,
+  TrendingUp,
   Calculator,
-  DollarSign,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Reveal,
@@ -27,34 +27,34 @@ const ACCENT = '#9333EA';
 const valueProps = [
   {
     icon: Database,
-    title: 'Bankable Data',
+    title: 'Verified Sustainability Data',
     description:
-      'Every transaction on Verdaxis generates verified, timestamped data. Production volumes, CI scores, offtake history \u2014 all available for due diligence.',
+      'Every data point on Verdaxis is independently verified and timestamped. Production volumes, CI scores, and compliance certifications — audit-ready from day one.',
   },
   {
-    icon: Search,
-    title: 'Traceable Claims',
+    icon: ShieldCheck,
+    title: 'Integrated Risk Management',
     description:
-      'Follow any environmental claim back to its source. Verdaxis provides end-to-end traceability from producer to final consumer retirement.',
+      'Built-in risk tools flag counterparty exposure, compliance gaps, and regulatory drift before they affect your portfolio — all from a single dashboard.',
   },
   {
     icon: Calculator,
     title: 'Reduced Diligence Cost',
     description:
-      'Standard data formats, verified counterparties, and immutable audit trails reduce the time and cost of environmental due diligence.',
+      'Platform-verified counterparties, standardised data formats, and immutable audit trails cut the time and cost of sustainability due diligence significantly.',
   },
   {
-    icon: DollarSign,
-    title: 'Green Financing Opportunities',
+    icon: TrendingUp,
+    title: 'Market Intelligence & Forecasting',
     description:
-      'Connect with producers seeking pre-production financing or inventory financing, backed by verified offtake agreements and platform trade history.',
+      'Access forward price curves, supply/demand signals, and regulatory trend analysis to inform investment decisions and stress-test green finance structures.',
   },
 ];
 
 const howItWorksSteps = [
-  'Access verified production and trade data for due diligence',
-  'Review standardised compliance reporting and audit trails',
-  'Connect with qualified producers seeking green financing',
+  'Access bankable, auditable sustainability data across all platform participants',
+  'Run integrated risk assessments and review standardised compliance reporting',
+  'Apply market intelligence and forecasting to structure and price green finance deals',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -161,8 +161,8 @@ export const FinancierUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Bankable data, traceable claims, reduced diligence cost. Verdaxis
-            provides the transparency green finance demands.
+            Verified data. Integrated risk management. Reduced diligence cost.
+            Verdaxis gives green finance the intelligence it needs.
           </p>
         </motion.div>
       </section>
@@ -190,7 +190,7 @@ export const FinancierUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            The data infrastructure that makes green finance auditable.
+            Verified data, integrated risk tools, and market forecasting — the investment intelligence green finance requires.
           </p>
         </Reveal>
         <StaggerGrid
@@ -255,7 +255,7 @@ export const FinancierUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            From data access to financing in three steps.
+            From verified data to confident investment decisions in three steps.
           </p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -333,7 +333,7 @@ export const FinancierUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready for transparent green finance?
+              Ready to invest with verified intelligence?
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -345,8 +345,8 @@ export const FinancierUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and access verified data
-              for environmental due diligence and green financing.
+              Join the Verdaxis pilot programme and access bankable sustainability data,
+              integrated risk management, and market forecasting — all in one platform.
             </p>
           </Reveal>
           <Reveal delay={0.2}>

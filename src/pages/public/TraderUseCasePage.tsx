@@ -4,7 +4,6 @@ import { motion } from 'motion/react';
 import {
   ArrowLeftRight,
   Droplets,
-  FileText,
   BarChart3,
   Settings,
 } from 'lucide-react';
@@ -27,34 +26,34 @@ const ACCENT = '#F59E0B';
 const valueProps = [
   {
     icon: Droplets,
-    title: 'Liquidity Access',
+    title: 'Deep Liquidity Pool',
     description:
-      'Low-carbon fuels are scarce and fragmented. Verdaxis aggregates supply and demand across regions, creating the liquidity pool the market needs.',
+      'Verdaxis aggregates bids and asks across regions and counterparties in real time, giving traders the depth and immediacy they need to execute at scale.',
   },
   {
-    icon: FileText,
-    title: 'Standardised Structures',
+    icon: ArrowLeftRight,
+    title: 'Hedging Tools & Swaps',
     description:
-      'No more bespoke term sheets for every deal. Verdaxis provides standardised contract templates, attribute definitions, and settlement workflows.',
+      'Access paper trading instruments — swaps and forwards — alongside physical contracts. Manage exposure and lock in margins with standardised, exchange-grade structures.',
   },
   {
     icon: BarChart3,
-    title: 'Price Discovery',
+    title: 'Price Discovery & Market Intelligence',
     description:
-      'Contribute to \u2014 and benefit from \u2014 transparent price formation. Verdaxis-derived pricing feeds inform the market, including assessment agencies.',
+      'Transparent price formation driven by live order flow. Market intelligence and forecasting tools help you anticipate moves and inform strategy ahead of the curve.',
   },
   {
     icon: Settings,
-    title: 'Reduced Back-Office',
+    title: 'Integrated Risk Management',
     description:
-      'Automated trade confirmation, attribute transfer, and commission tracking. Less manual reconciliation, faster settlement.',
+      'Monitor open positions, margin exposure, and settlement obligations in one place. Automated workflows reduce manual reconciliation and counterparty risk.',
   },
 ];
 
 const howItWorksSteps = [
-  'Access the orderbook \u2014 see live bids and asks across fuel types',
-  'Execute trades with standardised terms and automated settlement',
-  'Track positions, commissions, and compliance attributes in real-time',
+  'Access the live orderbook \u2014 real-time bids, asks, and depth across fuel types and regions',
+  'Execute spot trades, swaps, or forwards with standardised terms and verified sustainability data',
+  'Monitor positions, risk exposure, and market intelligence \u2014 all in a single dashboard',
 ];
 
 /* ------------------------------------------------------------------ */
@@ -163,8 +162,8 @@ export const TraderUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Access liquidity for scarce low-carbon molecules. Standardised deal
-            structures. Transparent price discovery.
+            Deep liquidity. Hedging tools and swaps. Real-time price discovery
+            and market intelligence — built for professional fuel traders.
           </p>
         </motion.div>
       </section>
@@ -186,7 +185,7 @@ export const TraderUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            The infrastructure the low-carbon fuel trading market has been missing.
+            Exchange-grade tools — liquidity, hedging, risk management, and market data — in one integrated platform.
           </p>
         </Reveal>
         <StaggerGrid
@@ -251,7 +250,7 @@ export const TraderUseCasePage: React.FC = () => {
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
-            From orderbook to settlement in three steps.
+            From orderbook to settled position in three steps.
           </p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
@@ -329,7 +328,7 @@ export const TraderUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to trade with transparency?
+              Ready to access real liquidity?
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -341,8 +340,8 @@ export const TraderUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and access standardised
-              low-carbon fuel trading infrastructure.
+              Join the Verdaxis pilot programme and trade with institutional liquidity,
+              hedging tools, and live market intelligence from day one.
             </p>
           </Reveal>
           <Reveal delay={0.2}>

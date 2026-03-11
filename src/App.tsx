@@ -260,6 +260,7 @@ const App: React.FC = () => {
                     <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
                     <Route path="/how-it-works" element={<PublicLayout><HowItWorksPage /></PublicLayout>} />
                     <Route path="/fuels" element={<PublicLayout><FuelCoveragePage /></PublicLayout>} />
+                    <Route path="/fuels/:sector" element={<PublicLayout><FuelCoveragePage /></PublicLayout>} />
                     <Route path="/compliance" element={<PublicLayout><ComplianceInfoPage /></PublicLayout>} />
                     <Route path="/for-producers" element={<PublicLayout><ProducerUseCasePage /></PublicLayout>} />
                     <Route path="/for-buyers" element={<PublicLayout><BuyerUseCasePage /></PublicLayout>} />

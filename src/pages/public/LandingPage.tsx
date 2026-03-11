@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  AlertTriangle,
-  Layers,
-  ShieldAlert,
-  TrendingDown,
+  TrendingUp,
+  Eye,
+  Zap,
+  ArrowLeftRight,
   Factory,
   Ship,
-  ArrowLeftRight,
   Landmark,
   ChevronRight,
   ArrowRight,
@@ -28,24 +27,24 @@ gsap.registerPlugin(ScrollTrigger);
 
 const whyCards = [
   {
-    icon: AlertTriangle,
-    title: 'Scarce Molecules',
-    body: 'Low-carbon fuel supply is limited. Every molecule needs verified provenance and transparent pricing.',
+    icon: TrendingUp,
+    title: 'Price Discovery',
+    body: 'Real-time aggregation of supply and demand drives transparent, market-driven pricing for sustainable marine fuels.',
   },
   {
-    icon: Layers,
-    title: 'Fragmented Standards',
-    body: 'RED III, 45Z, RenovaBio, FuelEU Maritime, IMO NZF \u2014 different rules, different metrics, one platform.',
+    icon: Eye,
+    title: 'Transparency',
+    body: 'Verified sustainability data, CI scores, and full chain-of-custody for every fuel batch on the platform.',
   },
   {
-    icon: ShieldAlert,
-    title: 'Double-Counting Risk',
-    body: 'Without chain-of-custody integrity, the same environmental attribute can be claimed multiple times.',
+    icon: Zap,
+    title: 'Low Friction',
+    body: 'Streamlined digital trading reduces back-office overhead, accelerates contract negotiation, and cuts settlement times.',
   },
   {
-    icon: TrendingDown,
-    title: 'Scope 3 Pressure',
-    body: 'End-users face increasing pressure to prove real emissions reductions, not just purchase certificates.',
+    icon: ArrowLeftRight,
+    title: 'Market Access',
+    body: 'Connects fuel producers, buyers, and traders on a unified marketplace with broad availability across all sustainable fuel types.',
   },
 ];
 
@@ -53,20 +52,20 @@ const howSteps = [
   {
     num: '01',
     icon: ClipboardCheck,
-    title: 'Register & Verify',
-    body: 'Producers register fuel batches with feedstock pathway, CI score, and certifications. Third-party verification locks the attributes.',
+    title: 'List & Verify',
+    body: 'Producers register fuel supply, CI score, and certifications.',
   },
   {
     num: '02',
     icon: ShieldCheck,
-    title: 'Trade with Integrity',
-    body: 'Buyers and traders discover fuel on the marketplace with energy-adjusted pricing, compliance scoring, and full chain-of-custody.',
+    title: 'Discover & Trade',
+    body: 'Access a unified market of verified sustainable fuel suppliers with real-time pricing and compliance data.',
   },
   {
     num: '03',
     icon: BarChart3,
-    title: 'Claim with Confidence',
-    body: 'Downstream claims are traceable to source. Every environmental attribute is locked, auditable, and impossible to double-count.',
+    title: 'Manage & Optimise',
+    body: 'Integrated risk management, market intelligence, and hedging tools including swaps and forwards.',
   },
 ];
 
@@ -75,25 +74,25 @@ const roleCards = [
     icon: Factory,
     title: 'Fuel Producers',
     path: '/for-producers',
-    bullets: ['Faster offtake', 'Premium discovery', 'Compliance-ready sales'],
+    bullets: ['Direct access to qualified buyers', 'Market reach and visibility', 'Lower friction for contract negotiation'],
   },
   {
     icon: Ship,
     title: 'Fuel Buyers',
     path: '/for-buyers',
-    bullets: ['Verified Scope 3 reductions', 'Energy-adjusted pricing', 'Reduced compliance risk'],
+    bullets: ['One-stop access to all sustainable fuel types', 'Transparent, reliable pricing', 'Efficiency and speed'],
   },
   {
     icon: ArrowLeftRight,
     title: 'Traders',
     path: '/for-traders',
-    bullets: ['Liquidity access', 'Standardised deals', 'Reduced back-office friction'],
+    bullets: ['Liquidity access', 'Access to hedging tools and swaps', 'Market intelligence and forecasting'],
   },
   {
     icon: Landmark,
     title: 'Financiers',
     path: '/for-financiers',
-    bullets: ['Bankable data', 'Traceable claims', 'Reduced diligence cost'],
+    bullets: ['Verified sustainability data', 'Integrated risk management', 'Reduced diligence cost'],
   },
 ];
 
@@ -279,7 +278,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                The Problem
+                The Platform
               </p>
               <h2
                 style={{
@@ -290,7 +289,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Why Verdaxis Exists
+                Why Verdaxis
               </h2>
               <p
                 style={{
@@ -301,8 +300,8 @@ export const LandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                The transition to low-carbon fuels is hindered by fragmented markets,
-                inconsistent data, and compliance uncertainty.
+                A unified exchange for sustainable marine fuels — bringing price discovery,
+                transparency, and liquidity to a fragmented market.
               </p>
             </div>
           </RevealSection>
@@ -424,7 +423,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 28,
               }}
             >
-              Three steps from fuel production to verifiable downstream claims.
+              Three steps from listing to trading on the Verdaxis exchange.
             </p>
             <Link
               to="/how-it-works"

@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Droplets,
   Wheat,
@@ -10,7 +10,9 @@ import {
   Globe,
   FlaskConical,
   Award,
-  BookOpen,
+  Anchor,
+  Truck,
+  Fuel,
 } from 'lucide-react';
 import {
   Reveal,
@@ -38,6 +40,7 @@ interface FuelType {
   keyMarkets: string;
   note: string;
   comingSoon?: boolean;
+  sectors: ('maritime' | 'aviation' | 'land')[];
 }
 
 interface Attribute {
@@ -46,25 +49,29 @@ interface Attribute {
   icon: React.FC<{ size?: number; color?: string }>;
 }
 
+type Sector = 'maritime' | 'aviation' | 'land';
+
 /* ------------------------------------------------------------------ */
 /*  Data                                                                */
 /* ------------------------------------------------------------------ */
 
 const fuelTypes: FuelType[] = [
+  /* ── Maritime fuels ── */
   {
     name: 'Methanol',
     icon: Droplets,
     accent: '#5DADE2',
     accentBg: 'rgba(93, 173, 226, 0.1)',
     pathways: [
-      'Fossil (grey)',
       'Bio-methanol (waste/biomass)',
       'E-methanol (green H\u2082 + CO\u2082)',
+      'Fossil (grey)',
     ],
     ciRange: '3\u201394 gCO\u2082e/MJ',
     energyDensity: '19.9 MJ/kg',
     keyMarkets: 'Maritime bunkering, chemical feedstock',
     note: '\u223C2M mt expected production in 2026. Key producers: CRI (Iceland), GoldWind (China), MGC (Japan)',
+    sectors: ['maritime', 'aviation'],
   },
   {
     name: 'Ethanol',
@@ -80,37 +87,87 @@ const fuelTypes: FuelType[] = [
     energyDensity: '26.8 MJ/kg',
     keyMarkets: 'Road transport blending, SAF feedstock, maritime',
     note: 'Production could match methanol volumes. Cross-pollination with SAF pathways.',
+    sectors: ['maritime', 'aviation', 'land'],
   },
+  {
+    name: 'Bio-LNG',
+    icon: Fuel,
+    accent: '#26A69A',
+    accentBg: 'rgba(38, 166, 154, 0.1)',
+    pathways: [
+      'Anaerobic digestion (biogas)',
+      'Gasification (woody biomass)',
+      'Landfill gas upgrading',
+    ],
+    ciRange: '10\u201340 gCO\u2082e/MJ',
+    energyDensity: '49.0 MJ/kg',
+    keyMarkets: 'Maritime bunkering, LNG-fuelled vessels',
+    note: 'Drop-in for the growing LNG-fuelled fleet. 700+ LNG-capable vessels in service or on order.',
+    sectors: ['maritime'],
+  },
+  {
+    name: 'Bio-MGO / FAME Blends',
+    icon: Droplets,
+    accent: '#7CB342',
+    accentBg: 'rgba(124, 179, 66, 0.1)',
+    pathways: [
+      'UCOME (used cooking oil methyl ester)',
+      'FAME B20\u2013B100 blends',
+      'HVO (hydrotreated vegetable oil)',
+    ],
+    ciRange: '15\u201355 gCO\u2082e/MJ',
+    energyDensity: '37.0 MJ/kg',
+    keyMarkets: 'Maritime bunkering, drop-in blending',
+    note: 'Lowest-barrier entry for existing fleet. UCOME widely available at major bunkering hubs.',
+    sectors: ['maritime'],
+  },
+  {
+    name: 'Ammonia',
+    icon: Atom,
+    accent: '#9C27B0',
+    accentBg: 'rgba(156, 39, 176, 0.1)',
+    pathways: [
+      'Green ammonia (electrolysis)',
+      'Blue ammonia (SMR + CCS)',
+    ],
+    ciRange: '0.5\u201330 gCO\u2082e/MJ',
+    energyDensity: '18.6 MJ/kg',
+    keyMarkets: 'Maritime (next-gen engines), power generation, industrial heat',
+    note: 'MAN and W\u00e4rtsil\u00e4 ammonia engines in development. First commercial vessels expected 2026\u20132028. Also a key vector for clean power generation.',
+    comingSoon: true,
+    sectors: ['maritime', 'land'],
+  },
+  /* ── Aviation fuels ── */
   {
     name: 'Sustainable Aviation Fuel (SAF)',
     icon: Plane,
     accent: '#FF9800',
     accentBg: 'rgba(255, 152, 0, 0.1)',
     pathways: [
-      'HEFA (used cooking oil)',
-      'Fischer-Tropsch',
+      'HEFA (used cooking oil / tallow)',
+      'Fischer-Tropsch (gasification)',
       'Alcohol-to-Jet (AtJ)',
     ],
     ciRange: '12\u201350 gCO\u2082e/MJ',
     energyDensity: '44.0 MJ/kg',
-    keyMarkets: 'Aviation, blending mandates',
-    note: 'Feedstock cross-pollination with ethanol and methanol pathways',
+    keyMarkets: 'Aviation, blending mandates (EU ReFuelEU)',
+    note: 'Global SAF mandates accelerating: EU 2% (2025), 6% (2030), 70% (2050). CORSIA Phase 1 starts 2027.',
+    sectors: ['aviation'],
   },
   {
-    name: 'Hydrogen Derivatives',
-    icon: Atom,
-    accent: '#9C27B0',
-    accentBg: 'rgba(156, 39, 176, 0.1)',
+    name: 'UCOME',
+    icon: Droplets,
+    accent: '#8D6E63',
+    accentBg: 'rgba(141, 110, 99, 0.1)',
     pathways: [
-      'Green ammonia (electrolysis)',
-      'Blue ammonia (CCS)',
-      'Green hydrogen',
+      'Used cooking oil collection & processing',
+      'Waste grease transesterification',
     ],
-    ciRange: '0.5\u201330 gCO\u2082e/MJ',
-    energyDensity: 'Varies (ammonia: 18.6 MJ/kg)',
-    keyMarkets: 'Maritime (future), power generation, fertilizer',
-    note: 'Roadmap \u2014 available as platform coverage expands',
-    comingSoon: true,
+    ciRange: '10\u201325 gCO\u2082e/MJ',
+    energyDensity: '37.5 MJ/kg',
+    keyMarkets: 'SAF feedstock (HEFA pathway), biodiesel, maritime',
+    note: 'The dominant SAF feedstock today. Supply chain integrity critical \u2014 UCO fraud risk drives need for verified provenance.',
+    sectors: ['aviation', 'maritime'],
   },
 ];
 
@@ -128,9 +185,9 @@ const attributes: Attribute[] = [
     icon: Zap,
   },
   {
-    title: 'Geography',
+    title: 'Geography & Price Discovery',
     description:
-      'Where the fuel is produced and where it will be consumed. Affects regulatory applicability (RED III for EU, 45Z for US, RenovaBio for Brazil) and logistics costs.',
+      'Verdaxis is headquartered in Singapore but enables price discovery for any point in the world. Physical trades can take place at any port or delivery location globally.',
     icon: Globe,
   },
   {
@@ -139,13 +196,43 @@ const attributes: Attribute[] = [
       'Third-party certifications that verify fuel claims. Supported schemes: ISCC EU, ISCC PLUS, RSB, RenovaBio, RED III compliance.',
     icon: Award,
   },
-  {
-    title: 'Book & Claim vs Physical',
-    description:
-      'Verdaxis clearly separates physical delivery from book-and-claim mechanisms. Physical trades maintain chain-of-custody. Book-and-claim is supported but distinctly labeled to prevent confusion.',
-    icon: BookOpen,
-  },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Sector configuration                                                */
+/* ------------------------------------------------------------------ */
+
+const sectorConfig: Record<Sector, {
+  label: string;
+  icon: React.FC<{ size?: number; color?: string }>;
+  color: string;
+  headline: string;
+  subtitle: string;
+}> = {
+  maritime: {
+    label: 'Maritime',
+    icon: Anchor,
+    color: '#5DADE2',
+    headline: 'Maritime Fuels',
+    subtitle: 'Low-carbon bunker fuels for the global fleet \u2014 from drop-in biofuel blends to next-generation ammonia and e-methanol.',
+  },
+  aviation: {
+    label: 'Aviation',
+    icon: Plane,
+    color: '#FF9800',
+    headline: 'Aviation Fuels',
+    subtitle: 'Sustainable Aviation Fuel (SAF) and its feedstock pathways \u2014 meeting ReFuelEU, CORSIA, and Scope 3 mandates.',
+  },
+  land: {
+    label: 'Land',
+    icon: Truck,
+    color: '#4CAF50',
+    headline: 'Land & Power',
+    subtitle: 'Ethanol for road transport and ammonia for clean power generation \u2014 the bridge fuels for terrestrial decarbonisation.',
+  },
+};
+
+const sectors: Sector[] = ['maritime', 'aviation', 'land'];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                         */
@@ -185,6 +272,10 @@ const responsiveStyles = `
     .attribute-grid {
       grid-template-columns: 1fr !important;
     }
+    .sector-tabs {
+      flex-direction: column !important;
+      gap: 8px !important;
+    }
   }
 `;
 
@@ -206,7 +297,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         borderTop: `3px solid ${accent}`,
       }}
     >
-      {/* Coming Soon badge */}
       {comingSoon && (
         <div
           style={{
@@ -227,7 +317,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         </div>
       )}
 
-      {/* Header: icon + name */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <div
           style={{
@@ -246,7 +335,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', margin: 0 }}>{name}</h3>
       </div>
 
-      {/* Pathways */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
           Pathways
@@ -271,7 +359,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         </div>
       </div>
 
-      {/* Stats row */}
       <div
         style={{
           display: 'grid',
@@ -294,7 +381,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         </div>
       </div>
 
-      {/* Key Markets */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
           Key Markets
@@ -302,7 +388,6 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         <div style={{ fontSize: 14, color: '#0F172A', lineHeight: 1.5 }}>{keyMarkets}</div>
       </div>
 
-      {/* Note */}
       <div
         style={{
           background: '#F8FAFC',
@@ -357,16 +442,81 @@ const AttributeCard: React.FC<{ attribute: Attribute }> = ({ attribute }) => {
   );
 };
 
+/* ------------------------------------------------------------------ */
+/*  SectorTab Component                                                 */
+/* ------------------------------------------------------------------ */
+
+const SectorTab: React.FC<{
+  sector: Sector;
+  isActive: boolean;
+  onClick: () => void;
+}> = ({ sector, isActive, onClick }) => {
+  const config = sectorConfig[sector];
+  const Icon = config.icon;
+
+  return (
+    <motion.button
+      onClick={onClick}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.97 }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '14px 28px',
+        borderRadius: 12,
+        border: isActive ? `2px solid ${config.color}` : '2px solid rgba(248,250,252,0.15)',
+        background: isActive ? `${config.color}20` : 'rgba(248,250,252,0.05)',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <Icon
+        size={20}
+        color={isActive ? config.color : '#94A3B8'}
+      />
+      <span
+        style={{
+          fontSize: 15,
+          fontWeight: isActive ? 700 : 500,
+          color: isActive ? config.color : '#94A3B8',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        {config.label}
+      </span>
+    </motion.button>
+  );
+};
+
 /* ================================================================== */
 /*  FuelCoveragePage                                                    */
 /* ================================================================== */
 
 export const FuelCoveragePage: React.FC = () => {
+  const { sector: urlSector } = useParams<{ sector?: string }>();
+  const navigate = useNavigate();
+
+  const activeSector: Sector =
+    urlSector && sectors.includes(urlSector as Sector)
+      ? (urlSector as Sector)
+      : 'maritime';
+
+  const config = sectorConfig[activeSector];
+  const filteredFuels = fuelTypes.filter((f) => f.sectors.includes(activeSector));
+
+  const handleSectorChange = (sector: Sector) => {
+    navigate(`/fuels/${sector}`, { replace: true });
+  };
+
   return (
     <div>
       <style>{responsiveStyles}</style>
 
-      {/* ---- Section 1: Hero ---- */}
+      {/* ---- Section 1: Hero with sector tabs ---- */}
       <section
         style={{
           background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
@@ -377,7 +527,7 @@ export const FuelCoveragePage: React.FC = () => {
         }}
       >
         <GradientOrb
-          color="rgba(93,173,226,0.08)"
+          color={`${config.color}14`}
           size={500}
           style={{ top: -200, left: -150 }}
         />
@@ -391,7 +541,7 @@ export const FuelCoveragePage: React.FC = () => {
           style={{ top: 30, right: 40 }}
         />
         <LeafDecor
-          color="rgba(93,173,226,0.04)"
+          color={`${config.color}08`}
           style={{ width: 220, height: 220, bottom: -60, left: 20 }}
         />
 
@@ -411,7 +561,7 @@ export const FuelCoveragePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Fuel & Attribute Coverage
+            Fuel Coverage
           </h1>
           <p
             style={{
@@ -419,52 +569,80 @@ export const FuelCoveragePage: React.FC = () => {
               color: '#94A3B8',
               lineHeight: 1.7,
               maxWidth: 620,
-              margin: '0 auto',
+              margin: '0 auto 40px',
             }}
           >
-            Verdaxis supports a growing range of low-carbon fuels and their verified environmental
-            attributes. Here's what can be registered, traded, and tracked on the platform.
+            Verdaxis supports sustainable fuels across maritime, aviation, and land transport.
+            Explore fuel types, pathways, and environmental attributes by sector.
           </p>
+
+          {/* Sector tabs */}
+          <div
+            className="sector-tabs"
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            {sectors.map((s) => (
+              <SectorTab
+                key={s}
+                sector={s}
+                isActive={activeSector === s}
+                onClick={() => handleSectorChange(s)}
+              />
+            ))}
+          </div>
         </motion.div>
       </section>
 
-      {/* ---- Section 2: Fuel Types Grid ---- */}
+      {/* ---- Section 2: Sector intro + Fuel Types Grid ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
         <DotGrid
           color="rgba(15,23,42,0.03)"
           style={{ top: 20, left: 30 }}
         />
 
-        <Reveal>
-          <h2 style={sectionTitle}>Supported Fuel Types</h2>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Each fuel type has distinct pathways, carbon intensity profiles, and market applications.
-          </p>
-        </Reveal>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeSector}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Reveal>
+              <h2 style={{ ...sectionTitle, color: config.color }}>{config.headline}</h2>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <p style={sectionSubtitle}>{config.subtitle}</p>
+            </Reveal>
 
-        <StaggerGrid
-          className="fuel-grid"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 24,
-            maxWidth: 1100,
-            margin: '0 auto',
-          }}
-        >
-          {fuelTypes.map((fuel) => (
-            <StaggerItem key={fuel.name}>
-              <HoverCard>
-                <FuelCard fuel={fuel} />
-              </HoverCard>
-            </StaggerItem>
-          ))}
-        </StaggerGrid>
+            <StaggerGrid
+              className="fuel-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: filteredFuels.length <= 2 ? 'repeat(auto-fit, minmax(340px, 1fr))' : 'repeat(2, 1fr)',
+                gap: 24,
+                maxWidth: 1100,
+                margin: '0 auto',
+              }}
+            >
+              {filteredFuels.map((fuel) => (
+                <StaggerItem key={fuel.name}>
+                  <HoverCard>
+                    <FuelCard fuel={fuel} />
+                  </HoverCard>
+                </StaggerItem>
+              ))}
+            </StaggerGrid>
+          </motion.div>
+        </AnimatePresence>
       </section>
 
-      {/* ---- Section 3: Attributes Supported ---- */}
+      {/* ---- Section 3: Key Attributes ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF', position: 'relative', overflow: 'hidden' }}>
         <LeafDecor
           color="rgba(76,175,80,0.04)"
@@ -472,7 +650,7 @@ export const FuelCoveragePage: React.FC = () => {
         />
 
         <Reveal>
-          <h2 style={sectionTitle}>Attributes Tracked</h2>
+          <h2 style={sectionTitle}>Key Attributes</h2>
         </Reveal>
         <Reveal delay={0.1}>
           <p style={sectionSubtitle}>
