@@ -166,8 +166,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             </MapTooltip>
                             <Popup
                                 className="verdaxis-popup"
-                                maxWidth={300}
-                                minWidth={260}
+                                maxWidth={240}
+                                minWidth={220}
                                 autoPanPadding={[100, 100]}
                                 eventHandlers={{
                                     add: (e: any) => {
@@ -179,41 +179,74 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                     }
                                 }}
                             >
-                                <div className="min-w-[240px]">
-                                    <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-700">
-                                        <h3 className="font-['Montserrat'] font-bold text-lg text-white">{port.name || 'Unknown Port'}</h3>
-                                        <span className="text-xs font-bold bg-slate-800 px-2 py-1 rounded text-slate-300 border border-slate-700">{port.country || 'Global'}</span>
+                                <div className="w-[220px]">
+                                    {/* Port name — prominent */}
+                                    <div className="mb-3 pb-2 border-b border-slate-200 dark:border-slate-700">
+                                        <h3 className="font-['Montserrat'] font-bold text-xl text-slate-900 dark:text-white leading-tight">{port.name || 'Unknown Port'}</h3>
+                                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{port.country || 'Global'}</span>
                                     </div>
 
-                                    <div className="space-y-3 mb-4">
-                                        {/* Avails & Spot Price */}
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                                <div className="text-[10px] text-slate-400 font-bold uppercase">Spot Price</div>
-                                                <div className="text-base font-bold text-white">${port.priceMethanol}</div>
+                                    {/* Price & Availability */}
+                                    <div className="space-y-2 mb-3">
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Spot</span>
+                                            <span className="text-lg font-bold text-slate-900 dark:text-white">${port.priceMethanol}</span>
+                                        </div>
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Availability</span>
+                                            <span className={`text-sm font-bold ${port.methanolSupply === 'High' ? 'text-emerald-600 dark:text-emerald-400' : port.methanolSupply === 'Medium' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {port.methanolSupply}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Platts & Swap */}
+                                    {port.details && (
+                                        <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5 mb-3">
+                                            <div className="flex justify-between text-xs">
+                                                <span className="font-semibold" style={{ color: '#E8373E' }}>Platts</span>
+                                                <span className="font-bold text-slate-800 dark:text-slate-100">${port.details.plattsPrice?.toFixed(2) || '--'}</span>
                                             </div>
-                                            <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
-                                                <div className="text-[10px] text-slate-400 font-bold uppercase">Availability</div>
-                                                <div className={`text-base font-bold ${port.methanolSupply === 'High' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                                    {port.methanolSupply}
-                                                </div>
+                                            <div className="flex justify-between text-xs">
+                                                <span className="text-slate-500 dark:text-slate-400 font-semibold">Swap</span>
+                                                <span className="font-bold text-slate-800 dark:text-slate-100">${port.details.swapPrice?.toFixed(2) || '--'}</span>
                                             </div>
                                         </div>
+                                    )}
 
-                                        {/* Financials */}
-                                        {port.details && (
-                                            <div className="bg-slate-800/80 p-2 rounded border border-slate-700 space-y-1">
-                                                <div className="flex justify-between text-xs">
-                                                    <span className="text-slate-400">Platts:</span>
-                                                    <span className="font-bold text-slate-100">${port.details.plattsPrice?.toFixed(2) || '--'}</span>
+                                    {/* Last 3 Trades */}
+                                    {(() => {
+                                        const portListings = listings
+                                            .filter(l => l.region === port.country || l.region === port.name)
+                                            .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                                            .slice(0, 3);
+                                        if (portListings.length === 0 && port.details?.lastDone) {
+                                            return (
+                                                <div className="mb-3">
+                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Recent Activity</div>
+                                                    <div className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1.5 border border-slate-200 dark:border-slate-700">
+                                                        {port.details.lastDone}
+                                                    </div>
                                                 </div>
-                                                <div className="flex justify-between text-xs">
-                                                    <span className="text-slate-400">Swap:</span>
-                                                    <span className="font-bold text-slate-100">${port.details.swapPrice?.toFixed(2) || '--'}</span>
+                                            );
+                                        }
+                                        if (portListings.length > 0) {
+                                            return (
+                                                <div className="mb-3">
+                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Recent Trades</div>
+                                                    <div className="space-y-1">
+                                                        {portListings.map((l, i) => (
+                                                            <div key={i} className="flex justify-between text-[11px] bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1 border border-slate-200 dark:border-slate-700">
+                                                                <span className="text-slate-600 dark:text-slate-300 font-medium">{Number(l.quantity_mt).toLocaleString()} MT</span>
+                                                                <span className="font-bold text-slate-800 dark:text-slate-100">${Number(l.price_per_mt_usd).toFixed(0)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
 
                                     <button
                                         onClick={(e) => {
@@ -224,9 +257,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                                 onPortSelect(port);
                                             }
                                         }}
-                                        className="w-full bg-verdaxis text-white text-sm font-bold py-2.5 rounded shadow-sm hover:bg-sky-400 transition-colors flex items-center justify-center gap-2"
+                                        className="w-full bg-verdaxis text-white text-sm font-bold py-2.5 rounded-lg shadow-sm hover:bg-sky-400 transition-colors flex items-center justify-center gap-2"
                                     >
-                                        <span>Click to Order</span>
+                                        <span>View Marketplace</span>
                                         <ArrowRight size={14} />
                                     </button>
                                 </div>
@@ -315,10 +348,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             </div>
                         </div>
 
-                        {/* Bottom Row: Market Watch Ticker */}
-                        <div className="pointer-events-auto w-full">
+                        {/* Market Watch Ticker — hidden until Platts data integration */}
+                        {/* <div className="pointer-events-auto w-full">
                              <MarketWatchTicker isPanelOpen={isPanelOpen} onOpenPanel={() => setIsPanelOpen(true)} />
-                        </div>
+                        </div> */}
                     </div>
                 )}
 
