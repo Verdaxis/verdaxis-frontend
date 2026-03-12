@@ -330,3 +330,44 @@ export interface DemandSignal {
 }
 
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN';
+
+// ============== Data Products Types ==============
+export interface ForwardCurvePoint {
+    availability_window: string;
+    mid_price: number | null;
+    best_bid: number | null;
+    best_ask: number | null;
+    spread: number | null;
+    volume_mt: number;
+    order_count: number;
+}
+
+export interface ForwardCurveResponse {
+    product_id: string;
+    product_name: string;
+    curve: ForwardCurvePoint[];
+    generated_at: string;
+}
+
+export interface PriceAlert {
+    id: string;
+    product_id: string;
+    delivery_point_id?: string;
+    direction: 'above' | 'below';
+    threshold_usd: number;
+    is_active: boolean;
+    triggered_at?: string;
+}
+
+export interface Subscription {
+    id: string;
+    org_id: string;
+    tier: 'free' | 'standard' | 'enterprise';
+    is_active: boolean;
+}
+
+export interface ActivityEvent {
+    event: string;
+    data: Record<string, unknown>;
+    timestamp: string;
+}

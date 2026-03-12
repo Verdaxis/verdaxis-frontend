@@ -506,4 +506,50 @@ export const api = {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
         },
     },
+
+    curves: {
+        forward: async (params: { product_id: string; delivery_point_id?: string }): Promise<import('../types').ForwardCurveResponse> => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('product_id', params.product_id);
+            if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
+            return fetchApi(`/curves/forward?${searchParams.toString()}`);
+        },
+        exportCsvUrl: (product_id: string): string => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('product_id', product_id);
+            searchParams.append('format', 'csv');
+            return `${API_URL}/curves/forward/export?${searchParams.toString()}`;
+        },
+    },
+
+    alerts: {
+        list: async (): Promise<import('../types').PriceAlert[]> => {
+            return fetchApi('/alerts', { headers: getHeaders() });
+        },
+        create: async (data: {
+            product_id: string;
+            delivery_point_id?: string;
+            direction: 'above' | 'below';
+            threshold_usd: number;
+        }): Promise<import('../types').PriceAlert> => {
+            return fetchApi('/alerts', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(data),
+            });
+        },
+        delete: async (alertId: string): Promise<void> => {
+            const res = await fetchWithTimeout(`${API_URL}/alerts/${alertId}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+            });
+            if (!res.ok) throw new Error(await res.text() || 'Failed to delete alert');
+        },
+    },
+
+    subscriptions: {
+        me: async (): Promise<import('../types').Subscription> => {
+            return fetchApi('/subscriptions/me', { headers: getHeaders() });
+        },
+    },
 };

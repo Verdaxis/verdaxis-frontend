@@ -17,13 +17,17 @@ import {
     Activity,
     Loader2,
     ChevronDown,
-    EyeOff
+    EyeOff,
+    Bell,
 } from 'lucide-react';
 import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
+import { ForwardCurve } from './ForwardCurve';
+import { ActivityFeed } from './ActivityFeed';
+import { PriceAlertManager } from './PriceAlertManager';
 
 // --- Types ---
 interface TerminalRow {
@@ -167,6 +171,9 @@ export const MarketTerminal: React.FC = () => {
     // Orders from API (orderbook sync)
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Alert panel state
+    const [alertPanelOpen, setAlertPanelOpen] = useState(false);
 
     // Simulation tick counter (drives simulated row data for periods without real orders)
     const [tick, setTick] = useState(0);
@@ -422,6 +429,7 @@ export const MarketTerminal: React.FC = () => {
     }, [allOrders]);
 
     return (
+        <>
         <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-auto lg:overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
 
             {/* Top Section: Header & Chart */}
@@ -436,6 +444,23 @@ export const MarketTerminal: React.FC = () => {
                                 className={`w-1.5 h-1.5 rounded-full ${sseConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}
                                 title={sseConnected ? 'Live: connected' : 'Disconnected'}
                             />
+                            <button
+                                onClick={e => { e.stopPropagation(); setAlertPanelOpen(true); }}
+                                title="Price Alerts"
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,176,32,0.25)',
+                                    borderRadius: 4,
+                                    color: '#FFB020',
+                                    cursor: 'pointer',
+                                    padding: '2px 5px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    marginLeft: 4,
+                                }}
+                            >
+                                <Bell size={11} />
+                            </button>
                         </div>
 
                         {/* Fuel Type Selector */}
@@ -685,6 +710,18 @@ export const MarketTerminal: React.FC = () => {
                     />
                 </div>
 
+                {/* Forward Curve & Activity Feed */}
+                <div className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0 }}>
+                        <div style={{ padding: '12px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                            <ForwardCurve />
+                        </div>
+                        <div style={{ padding: '12px' }}>
+                            <ActivityFeed />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Trade Activity Feed */}
                 <div className="border-t border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#0a0a0a]">
                     <div className="flex items-center px-4 py-1.5 border-b border-slate-100 dark:border-[#181818]">
@@ -718,5 +755,12 @@ export const MarketTerminal: React.FC = () => {
                 </div>
             </div>
         </div>
+
+            {/* Price Alert Manager Panel */}
+            <PriceAlertManager
+                isOpen={alertPanelOpen}
+                onClose={() => setAlertPanelOpen(false)}
+            />
+        </>
     );
 };
