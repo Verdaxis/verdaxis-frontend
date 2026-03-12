@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2, CheckCircle2, Zap, AlertTriangle } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff } from 'lucide-react';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -19,6 +19,7 @@ interface OrderFormData {
     delivery_window_end: string;
     expiry_type: 'GTC' | 'date';
     expiry_date: string;
+    is_anonymous: boolean;
 }
 
 const FUEL_TYPES = ['Methanol', 'LNG', 'Ammonia', 'Biofuel', 'LSMGO'];
@@ -51,6 +52,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         delivery_window_end: '',
         expiry_type: 'GTC',
         expiry_date: '',
+        is_anonymous: false,
     });
 
     const [modalState, setModalState] = useState<ModalState>('form');
@@ -80,6 +82,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 quantity_mt: formData.quantity_mt,
                 price_per_mt_usd: formData.price_per_mt_usd,
                 availability_window: formData.availability_window,
+                is_anonymous: formData.is_anonymous,
             };
             if (formData.delivery_window_start) {
                 payload.delivery_window_start = formData.delivery_window_start;
@@ -362,6 +365,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             )}
                         </div>
+
+                        {/* Anonymous toggle */}
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                            <div className="relative">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.is_anonymous}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-violet-500 transition-colors" />
+                                <div className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                            </div>
+                            <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
+                            <div>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Anonymous Order</span>
+                                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                                    Your identity will be hidden from the counterparty on matched trades
+                                </p>
+                            </div>
+                        </label>
 
                         {/* Estimated total */}
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (

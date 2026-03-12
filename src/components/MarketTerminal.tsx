@@ -16,7 +16,8 @@ import {
     TrendingUp,
     Activity,
     Loader2,
-    ChevronDown
+    ChevronDown,
+    EyeOff
 } from 'lucide-react';
 import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
@@ -46,6 +47,7 @@ interface TradeEvent {
     port: string;
     period: string;
     side: 'BUY' | 'SELL';
+    is_anonymous?: boolean;
 }
 
 // Map availability windows to terminal periods
@@ -705,6 +707,9 @@ export const MarketTerminal: React.FC = () => {
                                     </span>
                                     <span className="text-slate-400 dark:text-[#666] mx-1">@</span>
                                     <span className="text-slate-900 dark:text-white font-bold">${trade.price.toFixed(2)}</span>
+                                    {trade.is_anonymous && (
+                                        <EyeOff size={9} className="text-violet-400 dark:text-violet-500 ml-1.5 shrink-0" title="Anonymous trade" />
+                                    )}
                                     <span className="text-slate-400 dark:text-[#555] ml-auto">{trade.period}</span>
                                 </div>
                             ))
