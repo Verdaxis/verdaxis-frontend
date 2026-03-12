@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       // SECURITY: No API keys in define{} — all AI calls go through backend /api/ai/chat
+      build: {
+        // SECURITY: Disable source maps in production to prevent source code exposure
+        sourcemap: false,
+      },
       resolve: {
         alias: {
           '@': path.resolve(__dirname, './src'),
