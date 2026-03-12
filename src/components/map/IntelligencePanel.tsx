@@ -46,23 +46,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 setIsAiLoading(false);
             });
         } else {
-            // Fetch Global Arbitrage Insight
-            if (ports.length > 0) {
-                setIsArbitrageLoading(true);
-                generateArbitrageInsight(ports).then(data => {
-                    if (data) {
-                        setArbitrageData({
-                            narrative: data.narrative,
-                            spread: data.spread
-                        });
-
-                        if (onArbitrageUpdate) {
-                            onArbitrageUpdate(data.originId, data.destinationId, data.spread, data.narrative);
-                        }
-                    }
-                    setIsArbitrageLoading(false);
-                });
-            }
+            // Arbitrage Insight hidden — pending real data integration
         }
     }, [selectedPort?.id, ports.length]);
 
@@ -217,32 +201,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 ) : (
                     /* Global Default View */
                     <>
-                        {/* AI Insight Card */}
-                        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg p-4 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 -mt-2 -mr-2 w-12 h-12 bg-indigo-100 dark:bg-indigo-800 rounded-full opacity-50 blur-xl"></div>
-                            <div className="flex items-start space-x-3 relative z-10">
-                                <div className="bg-indigo-500 text-white p-1.5 rounded-md shadow-sm mt-1">
-                                    <Info size={16} />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Arbitrage Opportunity (AI)</h4>
-                                    </div>
-                                    
-                                    {isArbitrageLoading ? (
-                                         <div className="space-y-2 mt-2">
-                                            <div className="h-2 bg-indigo-200 dark:bg-indigo-800 rounded w-3/4 animate-pulse"></div>
-                                            <div className="h-2 bg-indigo-200 dark:bg-indigo-800 rounded w-1/2 animate-pulse"></div>
-                                            <div className="h-2 bg-indigo-200 dark:bg-indigo-800 rounded w-5/6 animate-pulse"></div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed mt-1 font-medium">
-                                            <MarkdownRenderer content={arbitrageData?.narrative || "Analyzing market data..."} />
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                        {/* Arbitrage Opportunity hidden — pending real data integration */}
 
                         {/* Forward Curves */}
                         <div>

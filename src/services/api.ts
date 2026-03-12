@@ -364,6 +364,14 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/prices${query ? `?${query}` : ''}`);
         },
+        getReference: async (params?: { fuel_type?: string; region?: string; visibility?: 'internal' | 'external' }): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+            const searchParams = new URLSearchParams();
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.visibility) searchParams.append('visibility', params.visibility);
+            const query = searchParams.toString();
+            return fetchApi(`/prices/reference${query ? `?${query}` : ''}`);
+        },
     },
 
     trades: {

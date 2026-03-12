@@ -7,93 +7,72 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 
 import { formatTierLabel } from '../utils';
+import { OrderBook } from './OrderBook';
 
 interface MarketplaceProps {
     initialPort: Port | null;
 }
 
-const ListingCard: React.FC<{
-    listing: OrderBookOrder;
-    onBuy: (listing: OrderBookOrder) => void;
-}> = ({ listing, onBuy }) => {
+// Returns row color classes based on fuel type
+function getFuelRowClasses(fuelType: string): string {
+    const ft = fuelType.toLowerCase();
+    if (ft === 'methanol') return 'border-l-2 border-l-violet-400 bg-violet-50 dark:bg-violet-950/20';
+    if (ft === 'biofuel') return 'border-l-2 border-l-green-400 bg-green-50 dark:bg-green-950/20';
+    if (ft === 'lng') return 'border-l-2 border-l-sky-400 bg-sky-50 dark:bg-sky-950/20';
+    if (ft === 'ammonia' || ft === 'ammonia (green)') return 'border-l-2 border-l-teal-400 bg-teal-50 dark:bg-teal-950/20';
+    if (ft === 'lsmgo') return 'border-l-2 border-l-amber-400 bg-amber-50 dark:bg-amber-950/20';
+    // ethanol / default
+    return 'border-l-2 border-l-slate-400 bg-white dark:bg-slate-800';
+}
+
+// Returns the sticky-cell bg class (must match row bg for correct overlap)
+function getFuelStickyBg(fuelType: string): string {
+    const ft = fuelType.toLowerCase();
+    if (ft === 'methanol') return 'bg-violet-50 dark:bg-violet-950/20';
+    if (ft === 'biofuel') return 'bg-green-50 dark:bg-green-950/20';
+    if (ft === 'lng') return 'bg-sky-50 dark:bg-sky-950/20';
+    if (ft === 'ammonia' || ft === 'ammonia (green)') return 'bg-teal-50 dark:bg-teal-950/20';
+    if (ft === 'lsmgo') return 'bg-amber-50 dark:bg-amber-950/20';
+    return 'bg-white dark:bg-slate-800';
+}
+
+// Fuel type badge color
+function getFuelBadgeClasses(fuelType: string): string {
+    const ft = fuelType.toLowerCase();
+    if (ft === 'methanol') return 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300';
+    if (ft === 'biofuel') return 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300';
+    if (ft === 'lng') return 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300';
+    if (ft === 'ammonia' || ft === 'ammonia (green)') return 'bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300';
+    if (ft === 'lsmgo') return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300';
+    return 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+}
+
+function formatExpiry(listing: OrderBookOrder): React.ReactNode {
+    const expiryDate = (listing as any).expiry_date;
+    if (!expiryDate) {
+        return (
+            <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                GTC
+            </span>
+        );
+    }
+    const formatted = new Date(expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
     return (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-            {listing.is_verdaxis_verified && (
-                <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded-bl-lg flex items-center gap-1">
-                    <Shield size={10} /> Verified
-                </div>
-            )}
-            
-            <div className="flex flex-col md:flex-row justify-between gap-6">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 font-bold border border-slate-200 dark:border-transparent">
-                            {formatTierLabel(listing.tier_label)}
-                        </span>
-                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
-                            {listing.fuel_grade}
-                        </span>
-                        <span className="text-slate-400 text-xs flex items-center gap-1">
-                            <MapPin size={12} /> {listing.region}
-                        </span>
-                    </div>
-                    
-                    <div className="mb-1">
-                        <span className="inline-block px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-sm font-bold rounded-lg border border-blue-100 dark:border-blue-800">
-                            {listing.fuel_type}
-                        </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-4 text-sm text-slate-500 mt-3">
-                        <div className="flex items-center gap-1.5">
-                            <Calendar size={14} className="text-slate-400" />
-                            <span>{listing.availability_window}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <Ship size={14} className="text-slate-400" />
-                            <span>{listing.quantity_mt.toLocaleString()} MT available</span>
-                        </div>
-                    </div>
-                    
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {listing.certifications.map(cert => (
-                            <span key={cert} className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
-                                {cert}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-                
-                <div className="flex flex-col items-end justify-between min-w-[140px]">
-                    <div className="text-right">
-                        <div className="text-sm text-slate-500">Price</div>
-                        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            ${listing.price_per_mt_usd}
-                        </div>
-                        <div className="text-xs text-slate-400">per MT</div>
-                    </div>
-                    
-                    <button 
-                        onClick={() => onBuy(listing)}
-                        className="mt-4 w-full py-2.5 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm transition-colors text-sm flex items-center justify-center gap-2"
-                    >
-                        <span>Buy Now</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+        <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono whitespace-nowrap">
+            {formatted}
+        </span>
     );
-};
+}
 
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [portInput, setPortInput] = useState(initialPort?.name || '');
     const [fuelType, setFuelType] = useState('Methanol');
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>('');
-    
+
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
-    
+
     // Autocomplete state
     const [suggestions, setSuggestions] = useState<Port[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -172,10 +151,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const handleSearch = async (e?: React.FormEvent, isSilent = false) => {
         if (e) e.preventDefault();
-        
+
         setIsSearching(true);
         if (!isSilent) setLoading(true);
-        
+
         try {
             const data = await api.orderbook.listAsks({
                 region: portInput || undefined,
@@ -210,7 +189,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const handleConfirmBuy = async () => {
         if (!selectedListing) return;
-        
+
         setIsSubmitting(true);
         try {
             await api.trades.initiate({ order_id: selectedListing.id, quantity_mt: buyQuantity || selectedListing.quantity_mt });
@@ -250,8 +229,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         <label className="v-label">Port Location</label>
                         <div className="relative">
                             <Ship className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={portInput}
                                 onChange={(e) => handleInputChange(e.target.value)}
                                 className="v-input pl-10"
@@ -259,12 +238,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 autoComplete="off"
                             />
                         </div>
-                        
+
                         {/* Autocomplete Dropdown */}
                         {showSuggestions && suggestions.length > 0 && (
                             <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 mt-1 z-30 overflow-hidden">
                                 {suggestions.map(port => (
-                                    <div 
+                                    <div
                                         key={port.id}
                                         className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center space-x-2 transition-colors"
                                         onClick={(e) => {
@@ -279,10 +258,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             </div>
                         )}
                     </div>
-                    
+
                     <div>
                         <label className="v-label">Fuel Type</label>
-                        <select 
+                        <select
                             value={fuelType}
                             onChange={(e) => setFuelType(e.target.value)}
                             className="v-input appearance-none"
@@ -313,7 +292,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <option value="Forward 2028">Forward 2028</option>
                         </select>
                     </div>
-                    <button 
+                    <button
                         type="submit"
                         className="v-btn-primary w-full"
                     >
@@ -424,26 +403,123 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {loading ? (
-                        <div className="col-span-full flex items-center justify-center py-20">
-                             <Loader2 size={32} className="animate-spin text-verdaxis" />
-                        </div>
-                    ) : filteredListings.length > 0 ? (
-                        filteredListings.map((listing) => (
-                            <ListingCard
-                                key={listing.id}
-                                listing={listing}
-                                onBuy={handleBuyClick}
-                            />
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center py-16 v-card border-dashed">
-                            <Ship className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-500">No listings found</h3>
-                            <p className="text-slate-400 mt-1">Try allowing "Spot" availability or searching for major hubs.</p>
-                        </div>
-                    )}
+                {/* Live Orderbook */}
+                <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+
+                {/* Listings Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <table className="w-full border-collapse text-sm">
+                        <thead className="sticky top-0 z-20 bg-slate-100 dark:bg-slate-800">
+                            <tr>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 sticky left-0 z-30 bg-slate-100 dark:bg-slate-800 whitespace-nowrap min-w-[180px]">
+                                    Fuel &amp; Region
+                                </th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Grade</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Volume (MT)</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Price/MT</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Window</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Expiry</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Cert</th>
+                                <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 whitespace-nowrap">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={8} className="py-20 text-center">
+                                        <Loader2 size={32} className="animate-spin text-verdaxis mx-auto" />
+                                    </td>
+                                </tr>
+                            ) : filteredListings.length > 0 ? (
+                                filteredListings.map((listing) => {
+                                    const rowClasses = getFuelRowClasses(listing.fuel_type);
+                                    const stickyBg = getFuelStickyBg(listing.fuel_type);
+                                    const badgeClasses = getFuelBadgeClasses(listing.fuel_type);
+                                    return (
+                                        <tr
+                                            key={listing.id}
+                                            className={`h-10 hover:opacity-90 transition-opacity cursor-pointer border-b border-slate-200/50 dark:border-slate-700/50 ${rowClasses}`}
+                                        >
+                                            {/* Fuel & Region — sticky first column */}
+                                            <td className={`px-4 py-2 sticky left-0 z-10 ${stickyBg} whitespace-nowrap`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
+                                                        {listing.fuel_type}
+                                                    </span>
+                                                    {listing.is_verdaxis_verified && (
+                                                        <Shield size={12} className="text-emerald-500 flex-shrink-0" />
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <MapPin size={10} className="text-slate-400 flex-shrink-0" />
+                                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{listing.region}</span>
+                                                </div>
+                                            </td>
+
+                                            {/* Grade */}
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
+                                                    {listing.fuel_grade}
+                                                </span>
+                                            </td>
+
+                                            {/* Volume */}
+                                            <td className="px-4 py-2 whitespace-nowrap font-mono text-slate-700 dark:text-slate-200 text-xs">
+                                                {listing.quantity_mt.toLocaleString()}
+                                            </td>
+
+                                            {/* Price/MT */}
+                                            <td className="px-4 py-2 whitespace-nowrap font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                                                ${listing.price_per_mt_usd}
+                                            </td>
+
+                                            {/* Window */}
+                                            <td className="px-4 py-2 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
+                                                {listing.availability_window}
+                                            </td>
+
+                                            {/* Expiry */}
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                {formatExpiry(listing)}
+                                            </td>
+
+                                            {/* Cert */}
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {listing.certifications.map(cert => (
+                                                        <span
+                                                            key={cert}
+                                                            className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1 py-0.5 rounded"
+                                                        >
+                                                            {cert}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+
+                                            {/* Action */}
+                                            <td className="px-4 py-2 whitespace-nowrap">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleBuyClick(listing); }}
+                                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md transition-colors whitespace-nowrap"
+                                                >
+                                                    Inquire
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan={8} className="py-16 text-center">
+                                        <Ship className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                                        <h3 className="text-lg font-bold text-slate-500">No listings found</h3>
+                                        <p className="text-slate-400 mt-1">Try allowing "Spot" availability or searching for major hubs.</p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -457,7 +533,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <p className="text-sm text-slate-500 dark:text-slate-400">Buying from {selectedListing.tier_label}</p>
                             </div>
                         </div>
-                        
+
                         <div className="p-6 space-y-6">
                             <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                 <div className="flex justify-between items-center mb-2">
@@ -473,12 +549,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     <span className="font-bold text-slate-800 dark:text-slate-200">{selectedListing.region}</span>
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantity (MT)</label>
                                 <div className="relative">
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         value={buyQuantity}
                                         onChange={(e) => setBuyQuantity(Number(e.target.value))}
                                         max={selectedListing.quantity_mt}
@@ -491,8 +567,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Requested Delivery Date</label>
-                                <input 
-                                    type="date" 
+                                <input
+                                    type="date"
                                     value={buyDate}
                                     onChange={(e) => setBuyDate(e.target.value)}
                                     className="w-full p-3 border border-slate-200 dark:border-slate-600 rounded-lg text-sm font-medium bg-transparent dark:text-white"
@@ -508,13 +584,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
 
                         <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
-                            <button 
+                            <button
                                 onClick={() => setSelectedListing(null)}
                                 className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                             >
                                 Cancel
                             </button>
-                            <button 
+                            <button
                                 onClick={handleConfirmBuy}
                                 disabled={isSubmitting || buyQuantity <= 0 || !buyDate}
                                 className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
