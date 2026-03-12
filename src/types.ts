@@ -122,6 +122,26 @@ export interface MarketWatchItem {
 
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
+// ============== Catalog Types ==============
+export interface Product {
+    id: string;
+    name: string;
+    fuel_type: string;
+    fuel_grade: string;
+    unit: string;
+    min_lot_size: number;
+    spec_description?: string;
+    is_active: boolean;
+}
+
+export interface DeliveryPoint {
+    id: string;
+    name: string;
+    region: string;
+    timezone?: string;
+    is_active: boolean;
+}
+
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Forward 2028';
@@ -137,6 +157,12 @@ export interface OrderBookOrder {
     id: string;
     organization_id?: string; // Only in "my" view
     side: OrderSide;
+    // Product/DeliveryPoint FK fields (new model)
+    product_id?: string;
+    product_name?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
+    // Denormalized fields from product/delivery_point (always present in API responses)
     fuel_type: string;
     fuel_grade: FuelGrade;
     region: string;
@@ -180,7 +206,11 @@ export interface Trade {
     delivered_at?: string;
     paid_at?: string;
     created_at: string;
-    // Denormalized from order
+    // Denormalized from order product/delivery_point
+    product_id?: string;
+    product_name?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
     fuel_type: string;
     fuel_grade?: FuelGrade;
     region: string;

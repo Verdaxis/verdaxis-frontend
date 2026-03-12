@@ -371,11 +371,11 @@ export const MyTrades: React.FC = () => {
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 <span className="inline-block px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded border border-blue-100 dark:border-blue-800">
-                                                    {trade.fuel_type}
+                                                    {trade.product_name || trade.fuel_type}
                                                 </span>
                                             </td>
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">
-                                                {trade.region}
+                                                {trade.delivery_point_name || trade.region}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 <span className={`inline-flex items-center gap-1 text-xs font-bold ${

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff, ChevronDown } from 'lucide-react';
+import { Product, DeliveryPoint } from '../types';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -10,8 +11,8 @@ interface OrderPlaceModalProps {
 }
 
 interface OrderFormData {
-    fuel_type: string;
-    region: string;
+    product_id: string;
+    delivery_point_id: string;
     quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: string;
@@ -22,7 +23,6 @@ interface OrderFormData {
     is_anonymous: boolean;
 }
 
-const FUEL_TYPES = ['Methanol', 'LNG', 'Ammonia', 'Biofuel', 'LSMGO'];
 const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 const QUANTITY_PRESETS = [
     { label: '500 MT', value: 500 },
@@ -42,9 +42,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillFuelType,
     prefillRegion,
 }) => {
+    const [products, setProducts] = useState<Product[]>([]);
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+
     const [formData, setFormData] = useState<OrderFormData>({
-        fuel_type: prefillFuelType || FUEL_TYPES[0],
-        region: prefillRegion || '',
+        product_id: '',
+        delivery_point_id: '',
         quantity_mt: 0,
         price_per_mt_usd: 0,
         availability_window: AVAILABILITY_WINDOWS[0],
@@ -59,13 +63,55 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
 
+    // Fetch products and delivery points on mount
+    useEffect(() => {
+        if (!isOpen) return;
+        setCatalogLoading(true);
+        Promise.all([
+            api.catalog.products().catch(() => [] as Product[]),
+            api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
+        ]).then(([prods, dps]) => {
+            const activeProds = prods.filter(p => p.is_active);
+            const activeDps = dps.filter(d => d.is_active);
+            setProducts(activeProds);
+            setDeliveryPoints(activeDps);
+
+            // Auto-select first product, or match prefillFuelType
+            if (activeProds.length > 0 && !formData.product_id) {
+                let match = activeProds[0];
+                if (prefillFuelType) {
+                    const found = activeProds.find(p =>
+                        p.fuel_type.toLowerCase() === prefillFuelType.toLowerCase() ||
+                        p.name.toLowerCase().includes(prefillFuelType.toLowerCase())
+                    );
+                    if (found) match = found;
+                }
+                setFormData(prev => ({ ...prev, product_id: match.id }));
+            }
+
+            // Auto-select delivery point matching prefillRegion
+            if (activeDps.length > 0 && !formData.delivery_point_id && prefillRegion) {
+                const found = activeDps.find(d =>
+                    d.region.toLowerCase().includes(prefillRegion.toLowerCase()) ||
+                    d.name.toLowerCase().includes(prefillRegion.toLowerCase())
+                );
+                if (found) {
+                    setFormData(prev => ({ ...prev, delivery_point_id: found.id }));
+                }
+            }
+        }).finally(() => setCatalogLoading(false));
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
-    const handleChange = (field: keyof OrderFormData, value: string | number) => {
+    const selectedProduct = products.find(p => p.id === formData.product_id);
+    const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
+
+    const handleChange = (field: keyof OrderFormData, value: string | number | boolean) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const isValid = formData.region.trim() !== '' && formData.quantity_mt > 0 && formData.price_per_mt_usd > 0;
+    const isValid = formData.product_id !== '' && formData.quantity_mt > 0 && formData.price_per_mt_usd > 0;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,25 +123,26 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         try {
             const payload: Record<string, any> = {
                 side,
-                fuel_type: formData.fuel_type,
-                region: formData.region.trim(),
+                product_id: formData.product_id,
                 quantity_mt: formData.quantity_mt,
                 price_per_mt_usd: formData.price_per_mt_usd,
                 availability_window: formData.availability_window,
                 is_anonymous: formData.is_anonymous,
             };
+            if (formData.delivery_point_id) {
+                payload.delivery_point_id = formData.delivery_point_id;
+            }
             if (formData.delivery_window_start) {
                 payload.delivery_window_start = formData.delivery_window_start;
             }
             if (formData.delivery_window_end) {
                 payload.delivery_window_end = formData.delivery_window_end;
             }
-
             if (formData.expiry_type === 'date' && formData.expiry_date) {
                 payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
             }
 
-            const result = await api.orderbook.create(payload);
+            const result = await api.orderbook.create(payload as any);
 
             // Check if auto-matched: the backend returns trades array when auto-matching occurs
             if (result.trades && result.trades.length > 0) {
@@ -170,7 +217,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{sideLabel} Placed Successfully</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                                    Your {sideLabel.toLowerCase()} for {formData.quantity_mt.toLocaleString()} MT of {formData.fuel_type} at ${formData.price_per_mt_usd}/MT is now live on the orderbook.
+                                    Your {sideLabel.toLowerCase()} for {formData.quantity_mt.toLocaleString()} MT of {selectedProduct?.name || 'product'} at ${formData.price_per_mt_usd}/MT is now live on the orderbook.
                                 </p>
                             </>
                         )}
@@ -219,29 +266,89 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
                     <div className="p-6 space-y-6">
-                        {/* Fuel Type & Region */}
+
+                        {/* Product & Delivery Point */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>Fuel Type</label>
-                                <select
-                                    value={formData.fuel_type}
-                                    onChange={(e) => handleChange('fuel_type', e.target.value)}
-                                    className={selectClass}
-                                >
-                                    {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                                </select>
+                                <label className={labelClass}>Product</label>
+                                {catalogLoading ? (
+                                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
+                                        <Loader2 size={14} className="animate-spin text-slate-400" />
+                                        <span className="text-sm text-slate-400">Loading products...</span>
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={formData.product_id}
+                                        onChange={(e) => handleChange('product_id', e.target.value)}
+                                        className={selectClass}
+                                        required
+                                    >
+                                        <option value="">Select product...</option>
+                                        {products.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             <div>
-                                <label className={labelClass}>Region / Port</label>
-                                <input
-                                    type="text"
-                                    value={formData.region}
-                                    onChange={(e) => handleChange('region', e.target.value)}
-                                    placeholder="e.g. Singapore, ARA, Houston"
-                                    className={inputClass}
-                                />
+                                <label className={labelClass}>
+                                    Delivery Point
+                                    <span className="text-slate-400 normal-case font-normal ml-1">(optional)</span>
+                                </label>
+                                {catalogLoading ? (
+                                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
+                                        <Loader2 size={14} className="animate-spin text-slate-400" />
+                                        <span className="text-sm text-slate-400">Loading...</span>
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={formData.delivery_point_id}
+                                        onChange={(e) => handleChange('delivery_point_id', e.target.value)}
+                                        className={selectClass}
+                                    >
+                                        <option value="">Any location</option>
+                                        {deliveryPoints.map(d => (
+                                            <option key={d.id} value={d.id}>{d.name} ({d.region})</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                         </div>
+
+                        {/* Product details panel (shown when product selected) */}
+                        {selectedProduct && (
+                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
+                                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+                                    <div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Fuel Type</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_type}</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Grade</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_grade}</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Unit</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.unit}</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Min Lot</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.min_lot_size.toLocaleString()} MT</div>
+                                    </div>
+                                    {selectedDeliveryPoint && (
+                                        <div>
+                                            <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Region</span>
+                                            <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedDeliveryPoint.region}</div>
+                                        </div>
+                                    )}
+                                </div>
+                                {selectedProduct.spec_description && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
+                                        {selectedProduct.spec_description}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Quantity & Price */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -270,8 +377,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     type="number"
                                     value={formData.quantity_mt || ''}
                                     onChange={(e) => handleChange('quantity_mt', parseFloat(e.target.value) || 0)}
-                                    placeholder="e.g. 2000"
-                                    min={0}
+                                    placeholder={selectedProduct ? `Min ${selectedProduct.min_lot_size.toLocaleString()} MT` : 'e.g. 2000'}
+                                    min={selectedProduct?.min_lot_size || 0}
                                     step={1}
                                     className={inputClass}
                                 />

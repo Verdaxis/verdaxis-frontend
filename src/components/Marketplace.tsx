@@ -444,7 +444,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             <td className={`px-4 py-2 sticky left-0 z-10 ${stickyBg} whitespace-nowrap`}>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
-                                                        {listing.fuel_type}
+                                                        {listing.product_name || listing.fuel_type}
                                                     </span>
                                                     {listing.is_verdaxis_verified && (
                                                         <Shield size={12} className="text-emerald-500 flex-shrink-0" />
@@ -452,7 +452,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-0.5">
                                                     <MapPin size={10} className="text-slate-400 flex-shrink-0" />
-                                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{listing.region}</span>
+                                                    <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{listing.delivery_point_name || listing.region}</span>
                                                 </div>
                                             </td>
 
@@ -538,7 +538,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Product</span>
-                                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedListing.fuel_type} ({selectedListing.fuel_grade})</span>
+                                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedListing.product_name || selectedListing.fuel_type} ({selectedListing.fuel_grade})</span>
                                 </div>
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Price</span>
@@ -546,7 +546,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Location</span>
-                                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedListing.region}</span>
+                                    <span className="font-bold text-slate-800 dark:text-slate-200">{selectedListing.delivery_point_name || selectedListing.region}</span>
                                 </div>
                             </div>
 

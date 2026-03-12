@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
 import { API_URL } from './config';
 
 // Helper to get auth header
@@ -287,6 +287,15 @@ export const api = {
         }
     },
 
+    catalog: {
+        products: async (): Promise<Product[]> => {
+            return fetchApi('/catalog/products', { headers: getHeaders() });
+        },
+        deliveryPoints: async (): Promise<DeliveryPoint[]> => {
+            return fetchApi('/catalog/delivery-points', { headers: getHeaders() });
+        },
+    },
+
     orderbook: {
         listWithCI: async (params?: { region?: string; fuel_type?: string; side?: string }) => {
             const searchParams = new URLSearchParams();
@@ -324,7 +333,18 @@ export const api = {
         myOrders: async () => {
             return fetchApi('/orderbook/my', { headers: getHeaders() });
         },
-        create: async (data: any) => {
+        create: async (data: {
+            side: string;
+            product_id: string;
+            delivery_point_id?: string;
+            quantity_mt: number;
+            price_per_mt_usd: number;
+            availability_window: string;
+            is_anonymous?: boolean;
+            delivery_window_start?: string;
+            delivery_window_end?: string;
+            expires_at?: string;
+        }) => {
             return fetchApi('/orderbook', {
                 method: 'POST',
                 headers: getHeaders(),
