@@ -167,6 +167,7 @@ export interface Trade {
     buyer_name: string;
     seller_name: string;
     initiated_by: Initiator;
+    is_anonymous: boolean;
     quantity_mt: number;
     price_per_mt_usd: number;
     status: TradeStatus;

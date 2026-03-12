@@ -151,7 +151,7 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     // Best-effort period label from fuel_type (the backend doesn't send availability_window in trade events)
     const period = fuel || 'SPOT';
 
-    return { id, time, qty, price, port: region, period, side };
+    return { id, time, qty, price, port: region, period, side, is_anonymous: data.is_anonymous ?? false };
 };
 
 export const MarketTerminal: React.FC = () => {

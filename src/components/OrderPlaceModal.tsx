@@ -91,9 +91,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 payload.delivery_window_end = formData.delivery_window_end;
             }
 
-            payload.expiry_type = formData.expiry_type;
             if (formData.expiry_type === 'date' && formData.expiry_date) {
-                payload.expiry_date = formData.expiry_date;
+                payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
             }
 
             const result = await api.orderbook.create(payload);
