@@ -17,10 +17,18 @@ interface OrderFormData {
     availability_window: string;
     delivery_window_start: string;
     delivery_window_end: string;
+    expiry_type: 'GTC' | 'date';
+    expiry_date: string;
 }
 
 const FUEL_TYPES = ['Methanol', 'LNG', 'Ammonia', 'Biofuel', 'LSMGO'];
 const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
+const QUANTITY_PRESETS = [
+    { label: '500 MT', value: 500 },
+    { label: '1,000 MT', value: 1_000 },
+    { label: '2,500 MT', value: 2_500 },
+    { label: '5,000 MT', value: 5_000 },
+];
 
 import { api } from '../services/api';
 
@@ -41,6 +49,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         availability_window: AVAILABILITY_WINDOWS[0],
         delivery_window_start: '',
         delivery_window_end: '',
+        expiry_type: 'GTC',
+        expiry_date: '',
     });
 
     const [modalState, setModalState] = useState<ModalState>('form');
@@ -76,6 +86,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             }
             if (formData.delivery_window_end) {
                 payload.delivery_window_end = formData.delivery_window_end;
+            }
+
+            payload.expiry_type = formData.expiry_type;
+            if (formData.expiry_type === 'date' && formData.expiry_date) {
+                payload.expiry_date = formData.expiry_date;
             }
 
             const result = await api.orderbook.create(payload);
@@ -230,6 +245,25 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Quantity (MT)</label>
+                                {/* Quantity Presets */}
+                                <div className="flex gap-2 flex-wrap mb-2">
+                                    {QUANTITY_PRESETS.map(preset => (
+                                        <button
+                                            key={preset.value}
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, quantity_mt: preset.value }))}
+                                            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors
+                                                ${formData.quantity_mt === preset.value
+                                                    ? (side === 'BID'
+                                                        ? 'bg-emerald-500 text-white border-emerald-500'
+                                                        : 'bg-[#5DADE2] text-white border-[#5DADE2]')
+                                                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-400'
+                                                }`}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
+                                </div>
                                 <input
                                     type="number"
                                     value={formData.quantity_mt || ''}
@@ -286,6 +320,47 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     className={inputClass}
                                 />
                             </div>
+                        </div>
+
+                        {/* Order Expiry */}
+                        <div>
+                            <label className={labelClass}>Order Expiry</label>
+                            <div className="flex gap-2 mb-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleChange('expiry_type', 'GTC')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex-1 ${
+                                        formData.expiry_type === 'GTC'
+                                            ? side === 'BID'
+                                                ? 'bg-emerald-500 text-white border border-emerald-500'
+                                                : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
+                                            : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
+                                    }`}
+                                >
+                                    GTC (Good till Cancelled)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleChange('expiry_type', 'date')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex-1 ${
+                                        formData.expiry_type === 'date'
+                                            ? side === 'BID'
+                                                ? 'bg-emerald-500 text-white border border-emerald-500'
+                                                : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
+                                            : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
+                                    }`}
+                                >
+                                    Good-till-Date
+                                </button>
+                            </div>
+                            {formData.expiry_type === 'date' && (
+                                <input
+                                    type="date"
+                                    value={formData.expiry_date}
+                                    onChange={(e) => handleChange('expiry_date', e.target.value)}
+                                    className={inputClass}
+                                />
+                            )}
                         </div>
 
                         {/* Estimated total */}
