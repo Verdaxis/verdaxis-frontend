@@ -445,6 +445,7 @@ export const MarketTerminal: React.FC = () => {
                                 title={sseConnected ? 'Live: connected' : 'Disconnected'}
                             />
                             <button
+                                data-tour="terminal-price-alerts"
                                 onClick={e => { e.stopPropagation(); setAlertPanelOpen(true); }}
                                 title="Price Alerts"
                                 style={{
@@ -574,7 +575,7 @@ export const MarketTerminal: React.FC = () => {
 
             {/* VWAP Reference Strip */}
             {vwapData && (
-                <div className="flex items-center gap-4 px-4 py-2 bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] overflow-x-auto">
+                <div data-tour="terminal-vwap" className="flex items-center gap-4 px-4 py-2 bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] overflow-x-auto">
                     <div className="flex items-center gap-1.5 text-slate-500 dark:text-[#666] uppercase font-bold tracking-widest whitespace-nowrap">
                         <TrendingUp size={10} className="text-emerald-500" />
                         VWAP
@@ -713,10 +714,10 @@ export const MarketTerminal: React.FC = () => {
                 {/* Forward Curve & Activity Feed */}
                 <div className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0 }}>
-                        <div style={{ padding: '12px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div data-tour="terminal-forward-curve" style={{ padding: '12px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
                             <ForwardCurve />
                         </div>
-                        <div style={{ padding: '12px' }}>
+                        <div data-tour="terminal-activity-feed" style={{ padding: '12px' }}>
                             <ActivityFeed />
                         </div>
                     </div>
