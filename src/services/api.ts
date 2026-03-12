@@ -42,6 +42,14 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     return handleResponse(res);
 };
 
+// Paginated response shape from backend
+export interface PaginatedResult<T> {
+    items: T[];
+    total: number;
+    skip: number;
+    limit: number;
+}
+
 export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
@@ -108,12 +116,6 @@ export const api = {
             });
         },
         updateStatus: async (id: string, status: 'At Sea' | 'In Port'): Promise<Vessel> => {
-           // Backend doesn't have status update yet, mock for now or implement?
-           // The backend definition of Vessel doesn't actually have a status update endpoint.
-           // We'll return mock or error. For demo continuity, let's keep it mocked or throw unimplemented.
-           // However, to avoid breaking the UI, we might need to fake it or implement it on backend.
-           // Backend Vessel model has filtering by org.
-           // Let's assume for now read-only for vessels from backend, or simple error.
            console.warn("Vessel status update not strictly implemented in backend yet");
            const res = await fetchWithTimeout(`${API_URL}/vessels/${id}`, { headers: getHeaders() });
            return handleResponse(res);
@@ -145,12 +147,7 @@ export const api = {
 
     suppliers: {
         list: async (query?: string): Promise<Supplier[]> => {
-             // Backend currently doesn't expose a public supplier list endpoint (privacy).
-             // However, for the "Marketplace" filters we might need it? 
-             // Or maybe we use the listings to derive suppliers.
-             // The original app mocked this.
-             // We'll return an empty list or mock list to prevent crash, as our new backend relies on ANONYMOUS listings until interaction.
-             return []; 
+             return [];
         }
     },
 
@@ -158,9 +155,7 @@ export const api = {
         list: async (): Promise<InventoryItem[]> => {
             const res = await fetchWithTimeout(`${API_URL}/inventory`, { headers: getHeaders() });
             const data = await handleResponse(res);
-            // Transform backend data to frontend InventoryItem interface
             return data.map((item: any) => {
-                // Determine status based on stock levels
                 let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
                 const currentStock = Number(item.current_stock_mt);
                 if (currentStock <= 0) {
@@ -168,12 +163,12 @@ export const api = {
                 } else if (currentStock < 500) {
                     status = 'Low Stock';
                 }
-                
+
                 return {
                     id: item.id,
                     productName: item.product_name || item.fuel_type,
                     portId: item.port_id,
-                    portName: item.port_id?.split('-')[1]?.toUpperCase() || item.port_id, // Extract readable port name
+                    portName: item.port_id?.split('-')[1]?.toUpperCase() || item.port_id,
                     currentStock: currentStock,
                     incomingStock: Number(item.incoming_stock_mt) || 0,
                     pricePerMt: Number(item.price_per_mt_usd) || 0,
@@ -207,10 +202,9 @@ export const api = {
             }
         },
         add: async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
-            // Transform frontend format to backend format
             const payload = {
                 port_id: item.portId,
-                fuel_type: item.productName, // Use product name as fuel type
+                fuel_type: item.productName,
                 product_name: item.productName,
                 current_stock_mt: item.currentStock,
                 incoming_stock_mt: item.incomingStock,
@@ -222,7 +216,6 @@ export const api = {
                 body: JSON.stringify(payload)
             });
             const data = await handleResponse(res);
-            // Transform response back to frontend format
             let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
             const currentStock = Number(data.current_stock_mt);
             if (currentStock <= 0) {
@@ -271,11 +264,10 @@ export const api = {
 
     training: {
         list: async (): Promise<Course[]> => {
-             // Mock training data
              return [
-                 { 
-                     id: '1', 
-                     title: 'Methanol Safety', 
+                 {
+                     id: '1',
+                     title: 'Methanol Safety',
                      duration: '2h',
                      description: 'Basics of methanol bunkering safety',
                      category: 'Safety',
@@ -314,21 +306,45 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
+        // Backward-compatible: returns array (extracts .items from paginated response)
         listBids: async (params?: { region?: string; fuel_type?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.availability) searchParams.append('availability', params.availability);
-            const query = searchParams.toString();
-            return fetchApi(`/orderbook/bids${query ? `?${query}` : ''}`);
+            searchParams.append('limit', '100');
+            const res = await fetchApi(`/orderbook/bids?${searchParams.toString()}`);
+            return res.items ?? res;
         },
+        // Paginated: returns { items, total, skip, limit }
+        listBidsPaged: async (params?: { region?: string; fuel_type?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.availability) searchParams.append('availability', params.availability);
+            searchParams.append('skip', String(params?.skip ?? 0));
+            searchParams.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
+        },
+        // Backward-compatible: returns array
         listAsks: async (params?: { region?: string; fuel_type?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.availability) searchParams.append('availability', params.availability);
-            const query = searchParams.toString();
-            return fetchApi(`/orderbook/asks${query ? `?${query}` : ''}`);
+            searchParams.append('limit', '100');
+            const res = await fetchApi(`/orderbook/asks?${searchParams.toString()}`);
+            return res.items ?? res;
+        },
+        // Paginated: returns { items, total, skip, limit }
+        listAsksPaged: async (params?: { region?: string; fuel_type?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+            const searchParams = new URLSearchParams();
+            if (params?.region) searchParams.append('region', params.region);
+            if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.availability) searchParams.append('availability', params.availability);
+            searchParams.append('skip', String(params?.skip ?? 0));
+            searchParams.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/orderbook/asks?${searchParams.toString()}`);
         },
         myOrders: async () => {
             return fetchApi('/orderbook/my', { headers: getHeaders() });
@@ -402,8 +418,17 @@ export const api = {
                 body: JSON.stringify(data),
             });
         },
+        // Backward-compatible: returns array
         myTrades: async () => {
-            return fetchApi('/trades/my', { headers: getHeaders() });
+            const res = await fetchApi('/trades/my', { headers: getHeaders() });
+            return res.items ?? res;
+        },
+        // Paginated: returns { items, total, skip, limit }
+        myTradesPaged: async (params?: { skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('skip', String(params?.skip ?? 0));
+            searchParams.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/trades/my?${searchParams.toString()}`, { headers: getHeaders() });
         },
         confirm: async (tradeId: string) => {
             return fetchApi(`/trades/${tradeId}/confirm`, {

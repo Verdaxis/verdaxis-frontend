@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Filter, Ship, Loader2, MapPin, Shield, DollarSign, Calendar, Info, CheckCircle2, RefreshCw, Plus, ChevronDown, X } from 'lucide-react';
 import { Port, AvailabilityWindow, OrderBookOrder } from '../types';
 import { PORTS } from '../data';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
+import { Pagination } from './ui/Pagination';
 
 import { formatTierLabel } from '../utils';
 import { OrderBook } from './OrderBook';
@@ -64,12 +65,16 @@ function formatExpiry(listing: OrderBookOrder): React.ReactNode {
     );
 }
 
+const PAGE_SIZE = 20;
+
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [portInput, setPortInput] = useState(initialPort?.name || '');
     const [fuelType, setFuelType] = useState('Methanol');
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>('');
 
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
+    const [totalListings, setTotalListings] = useState(0);
+    const [currentSkip, setCurrentSkip] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
 
@@ -127,6 +132,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // Order placement modal state
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
+    const handleSearch = useCallback(async (e?: React.FormEvent, isSilent = false, skip = 0) => {
+        if (e) e.preventDefault();
+
+        setIsSearching(true);
+        if (!isSilent) setLoading(true);
+
+        try {
+            const data = await api.orderbook.listAsksPaged({
+                region: portInput || undefined,
+                fuel_type: fuelType === 'All' ? undefined : fuelType,
+                availability: availability || undefined,
+                skip,
+                limit: PAGE_SIZE,
+            });
+            setListings(data.items);
+            setTotalListings(data.total);
+            setCurrentSkip(data.skip);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+            setIsSearching(false);
+        }
+    }, [portInput, fuelType, availability]);
+
     // Initial load
     useEffect(() => {
         handleSearch();
@@ -149,34 +179,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setShowSuggestions(false);
     };
 
-    const handleSearch = async (e?: React.FormEvent, isSilent = false) => {
-        if (e) e.preventDefault();
-
-        setIsSearching(true);
-        if (!isSilent) setLoading(true);
-
-        try {
-            const data = await api.orderbook.listAsks({
-                region: portInput || undefined,
-                fuel_type: fuelType === 'All' ? undefined : fuelType,
-                availability: availability || undefined
-            });
-            setListings(data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-            setIsSearching(false);
-        }
-    };
-
     // Auto-refresh polling (60 seconds)
     useEffect(() => {
         const interval = setInterval(() => {
-            handleSearch(undefined, true);
+            handleSearch(undefined, true, currentSkip);
         }, 60000);
         return () => clearInterval(interval);
-    }, [portInput, fuelType, availability]);
+    }, [handleSearch, currentSkip]);
+
+    const handlePageChange = (newSkip: number) => {
+        handleSearch(undefined, false, newSkip);
+    };
+
+    // Reset to page 1 when filters change
+    const handleSearchFromPage1 = (e?: React.FormEvent) => {
+        handleSearch(e, false, 0);
+    };
 
     const handleBuyClick = (listing: OrderBookOrder) => {
         setSelectedListing(listing);
@@ -224,7 +242,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* Search Bar */}
             <div className="v-card p-4 lg:p-6 mb-8 relative z-20">
-                <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <form onSubmit={handleSearchFromPage1} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div className="relative">
                         <label className="v-label">Port Location</label>
                         <div className="relative">
@@ -312,7 +330,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             <div className="animate-in slide-in-from-bottom-4 duration-500">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                     <h2 className="text-lg lg:text-xl v-heading">
-                        {loading ? 'Searching Listings...' : `Available Listings ${portInput ? `matching "${portInput}"` : ''}`}
+                        {loading ? 'Searching Listings...' : `${totalListings.toLocaleString()} Available Listings ${portInput ? `matching "${portInput}"` : ''}`}
                     </h2>
                     <div className="flex items-center gap-4">
                         <button
@@ -330,7 +348,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <span>Place Ask</span>
                         </button>
                         <button
-                            onClick={() => handleSearch()}
+                            onClick={() => handleSearch(undefined, false, currentSkip)}
                             className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                         >
                             <RefreshCw size={16} className={isSearching ? 'animate-spin' : ''} />
@@ -520,6 +538,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             )}
                         </tbody>
                     </table>
+                    {/* Pagination */}
+                    {!loading && totalListings > 0 && (
+                        <div className="border-t border-slate-200 dark:border-slate-700 px-4">
+                            <Pagination
+                                total={totalListings}
+                                skip={currentSkip}
+                                limit={PAGE_SIZE}
+                                onPageChange={handlePageChange}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -605,7 +634,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); handleSearch(); }}
+                onClose={() => { setOrderModalSide(null); handleSearch(undefined, false, currentSkip); }}
                 side={orderModalSide || 'BID'}
                 prefillFuelType={fuelType !== 'All' ? fuelType : undefined}
                 prefillRegion={portInput || undefined}
