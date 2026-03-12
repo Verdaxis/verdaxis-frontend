@@ -23,7 +23,6 @@ import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard } from './components/BuyerDashboard';
 import { SupplierDashboard } from './components/SupplierDashboard';
 import { SupplierQuotes } from './components/SupplierQuotes';
-import { SupplierInventory } from './components/SupplierInventory';
 import { Fleet } from './components/Fleet';
 import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
@@ -184,8 +183,6 @@ const Dashboard: React.FC = () => {
                 return <SupplierQuotes />;
             case 'TERMINAL':
                 return <MarketTerminal />;
-            case 'INVENTORY':
-                return <SupplierInventory />;
             case 'STATS':
                 return <SupplierStats />;
             case 'ANALYTICS':
