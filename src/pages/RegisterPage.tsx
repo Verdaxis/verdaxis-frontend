@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
 
@@ -13,6 +13,8 @@ const PASSWORD_RULES = [
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get('ref');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -96,7 +98,7 @@ const RegisterPage: React.FC = () => {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, ...(referralCode ? { referral_code: referralCode } : {}) }),
       });
 
       if (res.ok) {

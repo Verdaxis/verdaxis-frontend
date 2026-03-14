@@ -12,6 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import RegisterPage from './pages/RegisterPage';
+import { InvitePage } from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -250,6 +251,7 @@ const App: React.FC = () => {
                     {/* Auth routes */}
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
+                    <Route path="/invite/:code" element={<InvitePage />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />

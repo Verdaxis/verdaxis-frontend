@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { ViewMode } from '../types';
-import { User, Bell, Shield, CreditCard, Sun, Moon, Monitor, Lock, Check, AlertCircle, Key, Eye, EyeOff } from 'lucide-react';
+import { User, Bell, Shield, CreditCard, Sun, Moon, Monitor, Lock, Check, AlertCircle, Key, Eye, EyeOff, Share2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { ReferralsTab } from './ReferralsTab';
 import { API_URL } from '../services/config';
 
 interface SettingsProps {
@@ -16,7 +17,7 @@ interface ThemeOptionProps {
     onClick: () => void;
 }
 
-type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing';
+type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'referrals';
 
 const ThemeOption: React.FC<ThemeOptionProps> = ({ label, icon, active, onClick }) => (
     <button
@@ -55,6 +56,7 @@ const tabConfig: { key: SettingsTab; label: string; icon: React.ReactNode }[] = 
     { key: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
     { key: 'security', label: 'Security', icon: <Shield size={18} /> },
     { key: 'billing', label: 'Billing', icon: <CreditCard size={18} /> },
+    { key: 'referrals', label: 'Referrals', icon: <Share2 size={18} /> },
 ];
 
 export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
@@ -255,6 +257,8 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'referrals' && <ReferralsTab />}
                 </div>
             </div>
         </div>
