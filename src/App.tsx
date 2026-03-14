@@ -252,6 +252,7 @@ const App: React.FC = () => {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/invite/:code" element={<InvitePage />} />
+                    <Route path="/invite" element={<Navigate to="/register" replace />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
