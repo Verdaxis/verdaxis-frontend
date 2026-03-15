@@ -690,9 +690,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* Listings tab: full table with sticky thead */}
             {marketTab === 'listings' && !error && (
-                <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
+                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">
                                     <tr>
