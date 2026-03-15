@@ -34,7 +34,6 @@ import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
-import { SupplierDemandFeed } from './components/SupplierDemandFeed';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
@@ -188,8 +187,9 @@ const Dashboard: React.FC = () => {
                 return <SupplierStats />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
+            case 'MARKETPLACE':
             case 'DEMAND_FEED':
-                return <SupplierDemandFeed />;
+                return <Marketplace initialPort={selectedPort} />;
             case 'TRADES':
                 return <MyTrades />;
             default:

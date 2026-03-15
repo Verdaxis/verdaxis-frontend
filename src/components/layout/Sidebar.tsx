@@ -13,7 +13,6 @@ import {
     BarChart3,
     MonitorDot,
     TrendingUp,
-    Megaphone,
     ArrowLeftRight,
     ShieldCheck
 } from 'lucide-react';
@@ -54,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'TRAINING', label: 'Crew Training', icon: GraduationCap },
     ] : [
         { id: 'DASHBOARD', label: 'Command Center', icon: LayoutDashboard },
-        { id: 'DEMAND_FEED', label: 'Marketplace', icon: Megaphone },
+        { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
         { id: 'QUOTES', label: 'Quotes & Orders', icon: ShoppingCart },
         { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
