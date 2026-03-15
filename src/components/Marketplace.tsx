@@ -410,9 +410,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-hidden" onClick={() => setShowSuggestions(false)}>
+        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden" onClick={() => setShowSuggestions(false)}>
             {/* Header */}
-            <div className="flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0">
+            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                         <div>
@@ -655,9 +655,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* PINNED: OrderBook + TradeTape side by side (when Orderbook tab active) */}
+            {/* Context bar: pinned on desktop (md+), scrolls on mobile */}
             {marketTab === 'orderbook' && (
-                <div className="flex-shrink-0 px-4 lg:px-10 pb-3">
+                <div className="md:flex-shrink-0 px-4 lg:px-10 pb-3">
                     <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4">
                         <div className="md:w-3/5">
                             <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
@@ -671,7 +671,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* When RFQ tab active, show RFQPanel */}
             {marketTab === 'rfq' && (
-                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
+                <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
                     </div>
@@ -680,7 +680,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* SCROLLABLE: Listings table (only when orderbook tab) */}
             {marketTab === 'orderbook' && !error && (
-                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
+                <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
