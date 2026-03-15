@@ -599,24 +599,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </span>
                     </div>
 
-                    {/* Tab Switcher: Orderbook vs RFQ */}
-                    <div className="flex items-center gap-1 mb-3 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+                    {/* Tab Switcher: Orderbook vs RFQ — fluid sliding indicator */}
+                    <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
+                        {/* Sliding glass indicator */}
+                        <div
+                            className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
+                            style={{
+                                left: marketTab === 'orderbook' ? '2px' : 'calc(50%)',
+                                width: 'calc(50% - 2px)',
+                            }}
+                        />
                         <button
                             onClick={() => setMarketTab('orderbook')}
-                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
                                 marketTab === 'orderbook'
-                                    ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    ? 'text-slate-900 dark:text-white'
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
                             Orderbook
                         </button>
                         <button
                             onClick={() => setMarketTab('rfq')}
-                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
                                 marketTab === 'rfq'
-                                    ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    ? 'text-slate-900 dark:text-white'
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
                             RFQ
@@ -663,7 +671,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* When RFQ tab active, show RFQPanel */}
             {marketTab === 'rfq' && (
-                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
+                <div className="flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
                     </div>
@@ -672,9 +680,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* SCROLLABLE: Listings table (only when orderbook tab) */}
             {marketTab === 'orderbook' && !error && (
-                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
+                <div className="flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">
                                     <tr>

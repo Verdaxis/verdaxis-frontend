@@ -81,7 +81,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
 
     if (loading) {
         return (
-            <div className="v-glass p-6 mb-6 flex items-center justify-center gap-3 text-slate-400">
+            <div className="v-glass p-6 mb-0 flex items-center justify-center gap-3 text-slate-400">
                 <Loader2 size={20} className="animate-spin" />
                 <span className="text-sm font-medium">Loading orderbook…</span>
             </div>
@@ -90,14 +90,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
 
     if (error) {
         return (
-            <div className="v-glass p-4 mb-6 text-center text-sm text-red-500 dark:text-red-400">
+            <div className="v-glass p-4 mb-0 text-center text-sm text-red-500 dark:text-red-400">
                 {error}
             </div>
         );
     }
 
     return (
-        <div className="v-glass mb-6 overflow-hidden">
+        <div className="v-glass mb-0 overflow-hidden max-h-[280px] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
@@ -120,7 +120,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
             </div>
 
             {/* Two-column grid */}
-            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
+            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700 flex-1 overflow-y-auto">
                 {/* === BIDS === */}
                 <div>
                     {/* Column header */}
