@@ -96,7 +96,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
     }
 
     return (
-        <div className="v-glass mb-0 overflow-hidden">
+        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
             {/* Header bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
                     No recent trades
                 </div>
             ) : (
-                <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                <div className="divide-y divide-slate-100 dark:divide-slate-700/50 flex-1 overflow-y-auto">
                     {trades.map(t => (
                         <div key={t.id} className="flex items-center justify-between px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                             <div className="flex items-center gap-2 min-w-0">

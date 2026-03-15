@@ -134,20 +134,41 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 <div className="lg:col-span-1">
-                    <div className="v-card overflow-hidden">
-                        <nav className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible">
+                    <div className="v-card overflow-hidden p-2">
+                        <div className="relative flex flex-row lg:flex-col bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40">
+                            {/* Sliding glass indicator */}
+                            <div
+                                className="absolute rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out hidden lg:block"
+                                style={{
+                                    top: `calc(${tabConfig.findIndex(t => t.key === activeTab) * (100 / tabConfig.length)}% + 2px)`,
+                                    height: `calc(${100 / tabConfig.length}% - 4px)`,
+                                    left: '2px',
+                                    right: '2px',
+                                }}
+                            />
+                            {/* Horizontal sliding indicator (mobile) */}
+                            <div
+                                className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out lg:hidden"
+                                style={{
+                                    left: `calc(${tabConfig.findIndex(t => t.key === activeTab) * (100 / tabConfig.length)}% + 2px)`,
+                                    width: `calc(${100 / tabConfig.length}% - 4px)`,
+                                }}
+                            />
                             {tabConfig.map((tab) => (
-                                <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                                    className={`flex-shrink-0 flex items-center space-x-3 px-4 lg:px-6 py-3 lg:py-4 text-sm transition-colors ${
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTab(tab.key)}
+                                    className={`relative z-10 flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200 ${
                                         activeTab === tab.key
-                                            ? 'bg-slate-50 dark:bg-slate-700 text-[#334155] dark:text-white border-b-4 lg:border-b-0 lg:border-l-4 border-[#5DADE2] font-bold'
-                                            : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700 font-medium border-b-4 lg:border-b-0 border-transparent'
-                                    }`}>
+                                            ? 'text-slate-900 dark:text-white'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                                    }`}
+                                >
                                     {tab.icon}
-                                    <span>{tab.label}</span>
+                                    <span className="hidden sm:inline">{tab.label}</span>
                                 </button>
                             ))}
-                        </nav>
+                        </div>
                     </div>
                 </div>
                 <div className="lg:col-span-2 space-y-6">

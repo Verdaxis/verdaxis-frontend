@@ -122,7 +122,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'orderbook' | 'rfq'>('orderbook');
+    const [marketTab, setMarketTab] = useState<'market' | 'listings' | 'rfq'>('market');
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -599,25 +599,35 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </span>
                     </div>
 
-                    {/* Tab Switcher: Orderbook vs RFQ — fluid sliding indicator */}
+                    {/* Tab Switcher: Market | Listings | RFQ — fluid sliding indicator */}
                     <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
                         {/* Sliding glass indicator */}
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
-                                left: marketTab === 'orderbook' ? '2px' : 'calc(50%)',
-                                width: 'calc(50% - 2px)',
+                                left: marketTab === 'market' ? '2px' : marketTab === 'listings' ? 'calc(33.33%)' : 'calc(66.66%)',
+                                width: 'calc(33.33% - 2px)',
                             }}
                         />
                         <button
-                            onClick={() => setMarketTab('orderbook')}
+                            onClick={() => setMarketTab('market')}
                             className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
-                                marketTab === 'orderbook'
+                                marketTab === 'market'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            Orderbook
+                            Market
+                        </button>
+                        <button
+                            onClick={() => setMarketTab('listings')}
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
+                                marketTab === 'listings'
+                                    ? 'text-slate-900 dark:text-white'
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            Listings
                         </button>
                         <button
                             onClick={() => setMarketTab('rfq')}
@@ -655,14 +665,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* Context bar: pinned on desktop (md+), scrolls on mobile */}
-            {marketTab === 'orderbook' && (
-                <div className="md:flex-shrink-0 px-4 lg:px-10 pb-3">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4">
-                        <div className="md:w-3/5">
+            {/* Market tab: OrderBook + TradeTape side by side, full height */}
+            {marketTab === 'market' && (
+                <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
+                    <div className="max-w-7xl mx-auto h-full flex flex-col md:flex-row gap-4">
+                        <div className="md:w-3/5 md:h-full">
                             <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
                         </div>
-                        <div className="md:w-2/5">
+                        <div className="md:w-2/5 md:h-full">
                             <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
                         </div>
                     </div>
@@ -678,8 +688,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* SCROLLABLE: Listings table (only when orderbook tab) */}
-            {marketTab === 'orderbook' && !error && (
+            {/* Listings tab: full table with sticky thead */}
+            {marketTab === 'listings' && !error && (
                 <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
