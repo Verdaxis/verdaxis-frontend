@@ -183,7 +183,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         }
     }, [config, portInput, fuelType, availability]);
 
-    // Initial load handled by fuelType useEffect above
+    // Fetch on mount + whenever filters change (fuelType, portInput, availability, role)
+    // fetchData is a useCallback with these in its dep array, so it gets a new ref on change
+    useEffect(() => {
+        fetchData(false, 0);
+    }, [fetchData]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 60s auto-refresh (silent)
     useEffect(() => {
@@ -592,8 +596,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </span>
                     </div>
 
-                    {/* OrderBook */}
-                    <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
                 </div>
             </div>
 
@@ -622,6 +624,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {!error && (
                 <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
+                        {/* OrderBook — inside scroll container so header doesn't consume all viewport height */}
+                        <div className="mb-4">
+                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                        </div>
                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">
