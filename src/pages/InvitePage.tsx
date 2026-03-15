@@ -29,7 +29,7 @@ export const InvitePage = () => {
   }, [code]);
 
   const handleJoin = () => {
-    navigate(data?.valid ? `/register?ref=${code}` : '/register');
+    navigate(code ? `/register?ref=${code}` : '/register');
   };
 
   if (loading) {

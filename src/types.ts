@@ -314,21 +314,6 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-
-// ============== Demand Signal Types ==============
-export type UrgencyLevel = 'HIGH' | 'MEDIUM' | 'LOW';
-
-export interface DemandSignal {
-    fuel_type: string;
-    region: string;
-    volume_mt: number;
-    max_price_per_mt: number;
-    urgency: UrgencyLevel;
-    bid_count: number;
-    earliest_delivery: string;
-    created_at: string;
-}
-
 export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN';
 
 // ============== Data Products Types ==============

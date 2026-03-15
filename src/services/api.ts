@@ -486,7 +486,7 @@ export const api = {
     },
 
     demand: {
-        signals: async (params?: { fuel_type?: string; region?: string }): Promise<import('../types').DemandSignal[]> => {
+        signals: async (params?: { fuel_type?: string; region?: string }): Promise<any[]> => {
             const searchParams = new URLSearchParams();
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
