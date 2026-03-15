@@ -403,7 +403,7 @@ export interface TradeTapeEntry {
 }
 
 export interface TradeTapeResponse {
-    trades: TradeTapeEntry[];
+    items: TradeTapeEntry[];
     market_hours: boolean;
     total: number;
 }

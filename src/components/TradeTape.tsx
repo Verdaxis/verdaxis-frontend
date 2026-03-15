@@ -66,7 +66,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
                 limit: 10,
             });
             // Handle both response shapes
-            const items: TradeTapeEntry[] = data.trades ?? data.items ?? data;
+            const items: TradeTapeEntry[] = data.items ?? [];
             setTrades(Array.isArray(items) ? items : []);
             setMarketOpen(data.market_hours ?? false);
             setTotal(data.total ?? items.length ?? 0);

@@ -79,7 +79,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
         try {
             await api.rfq.cancel(rfqId);
             await fetchRFQs(true);
-        } catch { /* toast in future */ }
+        } catch (err) { console.error('Action failed:', err); }
         setActionLoading(null);
     };
 
@@ -88,7 +88,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
         try {
             await api.rfq.accept(rfqId, quoteId);
             await fetchRFQs(true);
-        } catch { /* toast in future */ }
+        } catch (err) { console.error('Action failed:', err); }
         setActionLoading(null);
     };
 
@@ -256,7 +256,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
 
                                     {/* Actions */}
                                     <div className="flex gap-2 pt-1">
-                                        {isOwn && rfq.status === 'OPEN' && (
+                                        {isOwn && (rfq.status === 'OPEN' || rfq.status === 'QUOTED') && (
                                             <button
                                                 onClick={() => handleCancel(rfq.id)}
                                                 disabled={actionLoading === rfq.id}
@@ -266,7 +266,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
                                                 Cancel RFQ
                                             </button>
                                         )}
-                                        {!isOwn && rfq.status === 'OPEN' && role === 'SUPPLIER' && (
+                                        {!isOwn && (rfq.status === 'OPEN' || rfq.status === 'QUOTED') && role === 'SUPPLIER' && (
                                             <button
                                                 onClick={() => setQuoteTarget(rfq)}
                                                 className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors"
