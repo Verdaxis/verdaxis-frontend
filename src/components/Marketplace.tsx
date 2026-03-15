@@ -121,7 +121,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
     const [tradeQuantity, setTradeQuantity] = useState(0);
-    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'success' | 'error'>('idle');
+    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
 
     // ─── Order placement modal ────────────────────────────────────
@@ -183,10 +183,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         }
     }, [config, portInput, fuelType, availability]);
 
-    // Initial load
-    useEffect(() => {
-        fetchData(false, 0);
-    }, []);
+    // Initial load handled by fuelType useEffect above
 
     // 60s auto-refresh (silent)
     useEffect(() => {
@@ -241,14 +238,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const handleFuelChipClick = (ft: string) => {
         setFuelType(ft);
-        // Trigger search on chip change
-        setTimeout(() => fetchData(false, 0), 0);
     };
+
+    // Re-fetch when fuelType changes (fixes stale closure from chip click)
+    useEffect(() => {
+        fetchData(false, 0);
+    }, [fuelType]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
         setSelectedOrder(order);
-        setTradeQuantity(order.quantity_mt);
+        setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
     };
@@ -260,8 +260,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     };
 
     const confirmTrade = async () => {
-        if (!selectedOrder) return;
-        setTradeState('idle'); // prevent double-click
+        if (!selectedOrder || tradeState === 'submitting') return;
+        setTradeState('submitting');
         try {
             await api.trades.initiate({
                 order_id: selectedOrder.id,
@@ -759,14 +759,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                 type="number"
                                                 value={tradeQuantity}
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
-                                                max={selectedOrder.quantity_mt}
+                                                max={selectedOrder.remaining_quantity_mt}
                                                 min={1}
                                                 className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
-                                            Max available: {selectedOrder.quantity_mt.toLocaleString()} MT
+                                            Max available: {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
                                             {tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
                                                     Total: ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
@@ -786,11 +786,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     </button>
                                     <button
                                         onClick={confirmTrade}
-                                        disabled={tradeQuantity <= 0}
+                                        disabled={tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <CheckCircle2 size={18} />
-                                        <span>Confirm</span>
+                                        {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                        <span>{tradeState === 'submitting' ? 'Submitting...' : 'Confirm'}</span>
                                     </button>
                                 </div>
                             </>

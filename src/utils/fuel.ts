@@ -82,7 +82,7 @@ export function getStatusConfig(status: string): StatusConfig {
 
 // ─── Expiry Formatter ──────────────────────────────────────────
 export function formatExpiry(order: OrderBookOrder): React.ReactNode {
-  const expiryDate = (order as any).expiry_date;
+  const expiryDate = order.expires_at;
   if (!expiryDate) {
     return React.createElement('span', {
       className: 'text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono'

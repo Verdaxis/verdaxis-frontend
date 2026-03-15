@@ -168,7 +168,7 @@ const SUPPLIER_STEPS: Step[] = [
         placement: 'right',
     },
     {
-        target: '[data-tour="nav-DEMAND_FEED"]',
+        target: '[data-tour="nav-MARKETPLACE"]',
         content: (
             <div>
                 <h3 style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>Marketplace</h3>
@@ -284,7 +284,7 @@ const BUYER_NAV_MAP: Record<number, string> = {
 const SUPPLIER_NAV_MAP: Record<number, string> = {
     1: 'nav-DASHBOARD',
     2: 'nav-QUOTES',
-    3: 'nav-DEMAND_FEED',
+    3: 'nav-MARKETPLACE',
     4: 'nav-TERMINAL',
     // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
     8: 'nav-INVENTORY',
