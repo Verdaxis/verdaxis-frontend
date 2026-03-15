@@ -438,7 +438,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
 
                     {/* Filter Bar */}
-                    <div className="v-card p-4 mb-4 relative z-20">
+                    <div className="v-glass p-4 mb-4 relative z-20">
                         <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3 items-end">
                             {/* Port autocomplete */}
                             <div className="relative flex-1 min-w-0">
@@ -578,8 +578,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     onClick={() => handleFuelChipClick(ft)}
                                     className={`rounded-full px-3 py-1.5 text-sm font-medium cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                                         isActive
-                                            ? 'bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 shadow-sm'
-                                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/50'
+                                            : 'bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/60'
                                     }`}
                                 >
                                     {ft}{count > 0 ? ` (${count})` : ''}
@@ -597,6 +597,30 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <span className="text-[10px] text-slate-400">LIVE &middot; 60s</span>
                             </span>
                         </span>
+                    </div>
+
+                    {/* Tab Switcher: Orderbook vs RFQ */}
+                    <div className="flex items-center gap-1 mb-3 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+                        <button
+                            onClick={() => setMarketTab('orderbook')}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                                marketTab === 'orderbook'
+                                    ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            Orderbook
+                        </button>
+                        <button
+                            onClick={() => setMarketTab('rfq')}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                                marketTab === 'rfq'
+                                    ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            RFQ
+                        </button>
                     </div>
 
                 </div>
@@ -623,46 +647,33 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* Scrollable table container */}
-            {!error && (
+            {/* PINNED: OrderBook + TradeTape side by side (when Orderbook tab active) */}
+            {marketTab === 'orderbook' && (
+                <div className="flex-shrink-0 px-4 lg:px-10 pb-3">
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-4">
+                        <div className="md:w-3/5">
+                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                        </div>
+                        <div className="md:w-2/5">
+                            <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* When RFQ tab active, show RFQPanel */}
+            {marketTab === 'rfq' && (
                 <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        {/* Tab Switcher: Orderbook vs RFQ */}
-                        <div className="flex items-center gap-1 mb-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
-                            <button
-                                onClick={() => setMarketTab('orderbook')}
-                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                                    marketTab === 'orderbook'
-                                        ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                }`}
-                            >
-                                Orderbook
-                            </button>
-                            <button
-                                onClick={() => setMarketTab('rfq')}
-                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
-                                    marketTab === 'rfq'
-                                        ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                                }`}
-                            >
-                                RFQ
-                            </button>
-                        </div>
+                        <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
+                    </div>
+                </div>
+            )}
 
-                        {marketTab === 'orderbook' ? (
-                            <>
-                                <div className="mb-4">
-                                    <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
-                                </div>
-                                <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
-                            </>
-                        ) : (
-                            <div className="mb-4">
-                                <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
-                            </div>
-                        )}
+            {/* SCROLLABLE: Listings table (only when orderbook tab) */}
+            {marketTab === 'orderbook' && !error && (
+                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
+                    <div className="max-w-7xl mx-auto">
                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">

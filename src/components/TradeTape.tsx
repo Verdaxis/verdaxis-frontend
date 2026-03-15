@@ -88,7 +88,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
 
     if (loading) {
         return (
-            <div className="v-card px-4 py-2 mb-4 flex items-center gap-2 text-slate-400 text-xs">
+            <div className="v-glass px-4 py-2 mb-4 flex items-center gap-2 text-slate-400 text-xs">
                 <Loader2 size={14} className="animate-spin" />
                 Loading trade tape...
             </div>
@@ -96,7 +96,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
     }
 
     return (
-        <div className="v-card mb-4 overflow-hidden">
+        <div className="v-glass mb-4 overflow-hidden">
             {/* Header bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2">
