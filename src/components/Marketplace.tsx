@@ -694,13 +694,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <div className="max-w-7xl mx-auto">
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
-                                <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">
+                                <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                     <tr>
                                         {config.columns.map((col) => (
                                             <th
                                                 key={col}
                                                 className={`text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
-                                                    col === 'fuel' ? 'sticky left-0 z-30 bg-slate-100 dark:bg-slate-800 min-w-[180px]' : ''
+                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' : ''
                                                 }`}
                                             >
                                                 {COLUMN_HEADERS[col]}
