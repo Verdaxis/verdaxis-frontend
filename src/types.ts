@@ -314,7 +314,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN';
+export type Page = 'MAP' | 'MARKETPLACE' | 'FLEET' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'STATS' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -355,4 +355,74 @@ export interface ActivityEvent {
     event: string;
     data: Record<string, unknown>;
     timestamp: string;
+}
+
+// ============== RFQ Types ==============
+export type RFQStatus = 'OPEN' | 'QUOTED' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED';
+export type RFQQuoteStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN';
+
+export interface RFQQuote {
+    id: string;
+    seller_org_id: string;
+    seller_org_name?: string;
+    price_per_mt_usd: number;
+    notes?: string;
+    status: RFQQuoteStatus;
+    created_at: string;
+}
+
+export interface RFQ {
+    id: string;
+    buyer_org_id: string;
+    buyer_org_name?: string;
+    product_id: string;
+    product_name?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
+    quantity_mt: number;
+    target_price_per_mt?: number;
+    availability_window: string;
+    notes?: string;
+    is_anonymous: boolean;
+    status: RFQStatus;
+    expires_at: string;
+    created_at: string;
+    quote_count: number;
+    quotes: RFQQuote[];
+}
+
+// ============== Trade Tape Types ==============
+export interface TradeTapeEntry {
+    id: string;
+    fuel_type: string;
+    fuel_grade?: string;
+    region: string;
+    quantity_mt: number;
+    price_per_mt_usd: number;
+    confirmed_at: string;
+}
+
+export interface TradeTapeResponse {
+    trades: TradeTapeEntry[];
+    market_hours: boolean;
+    total: number;
+}
+
+// ============== Watchlist Types ==============
+export interface WatchlistEntry {
+    id: string;
+    product_id: string;
+    product_name?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
+    best_bid?: number;
+    best_ask?: number;
+    created_at: string;
+}
+
+export interface Watchlist {
+    id: string;
+    name: string;
+    entries: WatchlistEntry[];
+    created_at: string;
 }

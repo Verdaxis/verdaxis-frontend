@@ -14,7 +14,8 @@ import {
     MonitorDot,
     TrendingUp,
     ArrowLeftRight,
-    ShieldCheck
+    ShieldCheck,
+    Star
 } from 'lucide-react';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
@@ -49,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'FLEET', label: 'My Fleet', icon: Ship },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
         { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
+        { id: 'WATCHLISTS', label: 'Watchlists', icon: Star },
         { id: 'COMPLIANCE', label: 'Compliance', icon: FileText },
         { id: 'TRAINING', label: 'Crew Training', icon: GraduationCap },
     ] : [
@@ -58,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
         { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
         { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
+        { id: 'WATCHLISTS', label: 'Watchlists', icon: Star },
         { id: 'ANALYTICS', label: 'Analytics', icon: TrendingUp },
     ];
 

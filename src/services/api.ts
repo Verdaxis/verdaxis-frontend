@@ -577,4 +577,52 @@ export const api = {
             return fetchApi('/subscriptions/me', { headers: getHeaders() });
         },
     },
+
+    rfq: {
+        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; is_anonymous?: boolean; expires_in_hours?: number }) => {
+            return fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        },
+        list: async (params?: { status?: string; skip?: number; limit?: number }) => {
+            const sp = new URLSearchParams();
+            if (params?.status) sp.append('status', params.status);
+            sp.append('skip', String(params?.skip ?? 0));
+            sp.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() });
+        },
+        get: async (id: string) => fetchApi(`/rfq/${id}`, { headers: getHeaders() }),
+        quote: async (rfqId: string, data: { price_per_mt_usd: number; notes?: string }) => {
+            return fetchApi(`/rfq/${rfqId}/quote`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        },
+        accept: async (rfqId: string, quoteId: string) => {
+            return fetchApi(`/rfq/${rfqId}/accept/${quoteId}`, { method: 'POST', headers: getHeaders() });
+        },
+        cancel: async (rfqId: string) => {
+            return fetchApi(`/rfq/${rfqId}/cancel`, { method: 'POST', headers: getHeaders() });
+        },
+    },
+
+    tradeTape: {
+        list: async (params?: { fuel_type?: string; region?: string; limit?: number; skip?: number }) => {
+            const sp = new URLSearchParams();
+            if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
+            if (params?.region) sp.append('region', params.region);
+            sp.append('limit', String(params?.limit ?? 20));
+            sp.append('skip', String(params?.skip ?? 0));
+            return fetchApi(`/trade-tape?${sp.toString()}`);
+        },
+    },
+
+    watchlists: {
+        list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
+        create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
+        addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
+            return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        },
+        removeEntry: async (watchlistId: string, entryId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}/entries/${entryId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+        delete: async (watchlistId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+    },
 };

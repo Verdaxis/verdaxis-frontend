@@ -21,6 +21,8 @@ import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow } from '../types';
 import { PORTS } from '../data';
 import { OrderBook } from './OrderBook';
+import { TradeTape } from './TradeTape';
+import { RFQPanel } from './RFQPanel';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
 import {
@@ -120,6 +122,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
+    const [marketTab, setMarketTab] = useState<'orderbook' | 'rfq'>('orderbook');
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -624,10 +627,42 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {!error && (
                 <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        {/* OrderBook — inside scroll container so header doesn't consume all viewport height */}
-                        <div className="mb-4">
-                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                        {/* Tab Switcher: Orderbook vs RFQ */}
+                        <div className="flex items-center gap-1 mb-4 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+                            <button
+                                onClick={() => setMarketTab('orderbook')}
+                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                                    marketTab === 'orderbook'
+                                        ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                Orderbook
+                            </button>
+                            <button
+                                onClick={() => setMarketTab('rfq')}
+                                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${
+                                    marketTab === 'rfq'
+                                        ? 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                RFQ
+                            </button>
                         </div>
+
+                        {marketTab === 'orderbook' ? (
+                            <>
+                                <div className="mb-4">
+                                    <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                                </div>
+                                <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                            </>
+                        ) : (
+                            <div className="mb-4">
+                                <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
+                            </div>
+                        )}
                         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">

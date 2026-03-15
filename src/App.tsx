@@ -35,6 +35,7 @@ import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { WatchlistPage } from './components/WatchlistPage';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
 import { LandingPage } from './pages/public/LandingPage';
@@ -192,6 +193,8 @@ const Dashboard: React.FC = () => {
                 return <Marketplace initialPort={selectedPort} />;
             case 'TRADES':
                 return <MyTrades />;
+            case 'WATCHLISTS':
+                return <WatchlistPage />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
@@ -216,6 +219,8 @@ const Dashboard: React.FC = () => {
          return <Stats />;
       case 'TRADES':
          return <MyTrades />;
+      case 'WATCHLISTS':
+         return <WatchlistPage />;
       default:
         return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
     }
