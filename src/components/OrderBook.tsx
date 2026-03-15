@@ -97,9 +97,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
     }
 
     return (
-        <div className="v-glass mb-0 overflow-hidden max-h-[280px] flex flex-col">
+        <div className="v-glass mb-0 overflow-hidden max-h-[200px] md:max-h-[260px] lg:max-h-[300px] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
                     Live Orderbook
                     {fuelType && fuelType !== 'All' && (

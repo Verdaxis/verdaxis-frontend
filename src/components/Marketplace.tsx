@@ -578,7 +578,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     onClick={() => handleFuelChipClick(ft)}
                                     className={`rounded-full px-3 py-1.5 text-sm font-medium cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                                         isActive
-                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/50'
+                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md border border-white/30 dark:border-slate-600/50'
                                             : 'bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/60'
                                     }`}
                                 >
@@ -671,7 +671,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* When RFQ tab active, show RFQPanel */}
             {marketTab === 'rfq' && (
-                <div className="flex-1 overflow-auto px-4 lg:px-10 pb-6">
+                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
                     </div>
@@ -680,9 +680,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* SCROLLABLE: Listings table (only when orderbook tab) */}
             {marketTab === 'orderbook' && !error && (
-                <div className="flex-1 overflow-auto px-4 lg:px-10 pb-6">
+                <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800">
                                     <tr>
