@@ -33,6 +33,7 @@ import {
     formatExpiry,
     formatDeliveryWindow,
 } from '../utils/fuel';
+import { useNamespace } from '../hooks/useNamespace';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -45,25 +46,25 @@ interface RoleConfigEntry {
         skip?: number;
         limit?: number;
     }) => Promise<PaginatedResult<any>>;
-    subtitle: string;
-    primaryAction: { label: string; side: 'BID' | 'ASK' };
-    counterAction: { label: string };
+    subtitleKey: string;
+    primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
+    counterAction: { labelKey: string };
     columns: ColumnId[];
 }
 
-const ROLE_CONFIG: Record<string, RoleConfigEntry> = {
+const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
     BUYER: {
         fetchOrders: api.orderbook.listAsksPaged,
-        subtitle: 'Find and secure compliant marine fuels',
-        primaryAction: { label: 'Place Bid', side: 'BID' as const },
-        counterAction: { label: 'Inquire' },
+        subtitleKey: 'marketplace.subtitle.buyer',
+        primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
+        counterAction: { labelKey: 'marketplace.btn.inquire' },
         columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
         fetchOrders: api.orderbook.listBidsPaged,
-        subtitle: 'Browse open fuel requests and submit offers',
-        primaryAction: { label: 'Place Ask', side: 'ASK' as const },
-        counterAction: { label: 'Hit Bid' },
+        subtitleKey: 'marketplace.subtitle.supplier',
+        primaryAction: { labelKey: 'marketplace.btn.placeAsk', side: 'ASK' as const },
+        counterAction: { labelKey: 'marketplace.btn.hitBid' },
         columns: ['fuel', 'volume', 'price', 'window', 'status', 'action'],
     },
 };
@@ -73,19 +74,6 @@ const FUEL_TYPES = ['All', 'Methanol', 'Biofuel', 'LNG', 'Ammonia', 'LSMGO'];
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
 
-// ─── Column header labels ─────────────────────────────────────────
-const COLUMN_HEADERS: Record<ColumnId, string> = {
-    fuel: 'Fuel & Region',
-    grade: 'Grade',
-    volume: 'Volume (MT)',
-    price: 'Price/MT',
-    window: 'Window',
-    expiry: 'Expiry',
-    cert: 'Cert',
-    status: 'Status',
-    action: 'Action',
-};
-
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
@@ -94,8 +82,22 @@ interface MarketplaceProps {
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const { user } = useAuth();
     const { setPageContext } = useCopilotContext();
+    const { t, ready } = useNamespace('trading');
     const role = user?.role ?? 'BUYER';
-    const config = ROLE_CONFIG[role] ?? ROLE_CONFIG.BUYER;
+    const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
+
+    // ─── Column header labels (inside component to access t()) ────
+    const COLUMN_HEADERS: Record<ColumnId, string> = {
+        fuel: t('marketplace.col.fuel'),
+        grade: t('marketplace.col.grade'),
+        volume: t('marketplace.col.volume'),
+        price: t('marketplace.col.price'),
+        window: t('marketplace.col.window'),
+        expiry: t('marketplace.col.expiry'),
+        cert: t('marketplace.col.cert'),
+        status: t('marketplace.col.status'),
+        action: t('marketplace.col.action'),
+    };
 
     // ─── Data state ───────────────────────────────────────────────
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
@@ -129,6 +131,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
+    const [orderModalPrefillPrice, setOrderModalPrefillPrice] = useState<number | undefined>(undefined);
+
+    const handleOrderBookPriceClick = useCallback((side: 'BID' | 'ASK', price: number, clickedFuelType?: string) => {
+        setOrderModalSide(side);
+        setOrderModalPrefillPrice(price);
+    }, []);
 
     // ─── Fuel counts for chips ────────────────────────────────────
     const fuelCounts = useMemo(() => {
@@ -167,7 +175,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setError(null);
 
         try {
-            const data = await config.fetchOrders({
+            const data = await configBase.fetchOrders({
                 region: portInput || undefined,
                 fuel_type: fuelType === 'All' ? undefined : fuelType,
                 availability: availability || undefined,
@@ -184,10 +192,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [config, portInput, fuelType, availability]);
+    }, [configBase, portInput, fuelType, availability]);
 
     // Fetch on mount + whenever filters change (fuelType, portInput, availability, role)
-    // fetchData is a useCallback with these in its dep array, so it gets a new ref on change
     useEffect(() => {
         fetchData(false, 0);
     }, [fetchData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,10 +218,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 region_filter: portInput || 'Any',
                 availability_filter: availability || 'Any',
                 page_skip: currentSkip,
-                summary: config.subtitle,
+                summary: t(configBase.subtitleKey),
             });
         }
-    }, [listings, loading, fuelType, portInput, availability, currentSkip, role, totalCount, config.subtitle, setPageContext]);
+    }, [listings, loading, fuelType, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
 
     // ─── Port autocomplete handlers ───────────────────────────────
     const handlePortInput = (text: string) => {
@@ -285,6 +292,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setTradeState('error');
         }
     };
+
+    if (!ready) return null;
 
     // ─── Column renderer ──────────────────────────────────────────
     const renderCell = (col: ColumnId, order: OrderBookOrder): React.ReactNode => {
@@ -378,11 +387,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                 className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                             >
-                                {config.counterAction.label}
+                                {t(configBase.counterAction.labelKey)}
                             </button>
                         ) : (
                             <span className="text-xs text-slate-400 font-medium">
-                                {order.status === 'FILLED' ? 'Filled' : order.status === 'PARTIALLY_FILLED' ? 'Partial' : 'Closed'}
+                                {order.status === 'FILLED'
+                                    ? t('marketplace.status.filled')
+                                    : order.status === 'PARTIALLY_FILLED'
+                                        ? t('marketplace.status.partial')
+                                        : t('marketplace.status.closed')}
                             </span>
                         )}
                     </td>
@@ -398,7 +411,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         <>
             {[...Array(4)].map((_, i) => (
                 <tr key={i} className="border-b border-slate-200/50 dark:border-slate-700/50">
-                    {config.columns.map((col, ci) => (
+                    {configBase.columns.map((col, ci) => (
                         <td key={ci} className="px-4 py-3">
                             <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 w-full" />
                         </td>
@@ -416,23 +429,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                         <div>
-                            <h1 className="text-2xl lg:text-3xl v-heading">Marketplace</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{config.subtitle}</p>
+                            <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
+                            <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => setOrderModalSide(config.primaryAction.side)}
+                                onClick={() => setOrderModalSide(configBase.primaryAction.side)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
                                 <Plus size={16} />
-                                <span>{config.primaryAction.label}</span>
+                                <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
                             <button
                                 onClick={() => fetchData(false, currentSkip)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                                <span className="hidden sm:inline">Refresh</span>
+                                <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
                             </button>
                         </div>
                     </div>
@@ -442,7 +455,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3 items-end">
                             {/* Port autocomplete */}
                             <div className="relative flex-1 min-w-0">
-                                <label className="v-label">Port</label>
+                                <label className="v-label">{t('marketplace.filter.port')}</label>
                                 <div className="relative">
                                     <Ship className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
@@ -472,7 +485,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
                             {/* Delivery Window */}
                             <div className="w-full lg:w-44">
-                                <label className="v-label">Window</label>
+                                <label className="v-label">{t('marketplace.filter.window')}</label>
                                 <select
                                     value={availability}
                                     onChange={(e) => setAvailability(e.target.value as any)}
@@ -493,7 +506,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="flex gap-2">
                                 <button type="submit" className="v-btn-primary whitespace-nowrap">
                                     <Search size={18} />
-                                    <span>Search</span>
+                                    <span>{t('marketplace.btn.search')}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -517,29 +530,29 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         {showFilters && (
                             <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-200">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Grade</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.grade')}</label>
                                     <select
                                         value={filterGrade}
                                         onChange={(e) => setFilterGrade(e.target.value)}
                                         className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
                                     >
-                                        <option value="All">All Grades</option>
+                                        <option value="All">{t('marketplace.filter.allGrades')}</option>
                                         <option value="Conventional">Conventional</option>
                                         <option value="Green">Green</option>
                                         <option value="Bio">Bio</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Sort By</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.sortBy')}</label>
                                     <select
                                         value={sortBy}
                                         onChange={(e) => setSortBy(e.target.value as any)}
                                         className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
                                     >
-                                        <option value="price_asc">Price: Low → High</option>
-                                        <option value="price_desc">Price: High → Low</option>
-                                        <option value="quantity_desc">Largest Quantity</option>
-                                        <option value="newest">Newest First</option>
+                                        <option value="price_asc">{t('marketplace.sort.priceAsc')}</option>
+                                        <option value="price_desc">{t('marketplace.sort.priceDesc')}</option>
+                                        <option value="quantity_desc">{t('marketplace.sort.largestQty')}</option>
+                                        <option value="newest">{t('marketplace.sort.newest')}</option>
                                     </select>
                                 </div>
                                 <div className="flex items-end">
@@ -551,7 +564,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                                         />
                                         <span className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                            <Shield size={14} className="text-emerald-500" /> Verified Only
+                                            <Shield size={14} className="text-emerald-500" /> {t('marketplace.filter.verifiedOnly')}
                                         </span>
                                     </label>
                                 </div>
@@ -560,7 +573,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         onClick={() => { setFilterGrade('All'); setFilterVerifiedOnly(false); setSortBy('price_asc'); }}
                                         className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
                                     >
-                                        <X size={12} /> Clear
+                                        <X size={12} /> {t('marketplace.btn.clear')}
                                     </button>
                                 )}
                             </div>
@@ -617,7 +630,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            Market
+                            {t('marketplace.tab.market')}
                         </button>
                         <button
                             onClick={() => setMarketTab('listings')}
@@ -627,7 +640,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            Listings
+                            {t('marketplace.tab.listings')}
                         </button>
                         <button
                             onClick={() => setMarketTab('rfq')}
@@ -637,7 +650,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            RFQ
+                            {t('marketplace.tab.rfq')}
                         </button>
                     </div>
 
@@ -652,13 +665,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                 <AlertCircle size={32} className="text-red-500" />
                             </div>
-                            <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">Failed to Load Listings</p>
+                            <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">{t('marketplace.error.title')}</p>
                             <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 max-w-md">{error}</p>
                             <button
                                 onClick={() => fetchData(false, 0)}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                             >
-                                Try Again
+                                {t('marketplace.btn.tryAgain')}
                             </button>
                         </div>
                     </div>
@@ -670,7 +683,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto h-full flex flex-col md:flex-row gap-4">
                         <div className="md:w-3/5 md:h-full">
-                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} />
                         </div>
                         <div className="md:w-2/5 md:h-full">
                             <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
@@ -696,7 +709,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <table className="w-full border-collapse text-sm">
                                 <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                     <tr>
-                                        {config.columns.map((col) => (
+                                        {configBase.columns.map((col) => (
                                             <th
                                                 key={col}
                                                 className={`text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
@@ -717,18 +730,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                 key={order.id}
                                                 className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)}`}
                                             >
-                                                {config.columns.map(col => renderCell(col, order))}
+                                                {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={config.columns.length} className="py-16 text-center">
+                                            <td colSpan={configBase.columns.length} className="py-16 text-center">
                                                 <Ship className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-                                                <h3 className="text-lg font-bold text-slate-500">No listings found</h3>
+                                                <h3 className="text-lg font-bold text-slate-500">{t('marketplace.empty.title')}</h3>
                                                 <p className="text-slate-400 mt-1 text-sm max-w-md mx-auto">
                                                     {role === 'BUYER'
-                                                        ? 'Try broadening your filters or searching major hubs.'
-                                                        : 'No open buyer requests right now. Check back soon or place an ask.'}
+                                                        ? t('marketplace.empty.buyer')
+                                                        : t('marketplace.empty.supplier')}
                                                 </p>
                                             </td>
                                         </tr>
@@ -760,11 +773,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <div className="p-4 bg-emerald-500/10 rounded-full mb-4">
                                     <CheckCircle2 size={28} className="text-emerald-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Trade Initiated</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeInitiated')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     {role === 'BUYER'
-                                        ? 'Your order request has been sent. The supplier will review it shortly.'
-                                        : 'You have successfully hit the bid. The buyer will be notified.'}
+                                        ? t('marketplace.modal.tradeInitiated.buyer')
+                                        : t('marketplace.modal.tradeInitiated.supplier')}
                                 </p>
                             </div>
                         ) : tradeState === 'error' ? (
@@ -772,13 +785,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                     <AlertCircle size={28} className="text-red-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Trade Failed</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
                                 <button
                                     onClick={closeTradeModal}
                                     className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors"
                                 >
-                                    Close
+                                    {t('marketplace.btn.cancel')}
                                 </button>
                             </div>
                         ) : (
@@ -787,7 +800,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                                     <div>
                                         <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">
-                                            {config.counterAction.label}
+                                            {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
                                             {selectedOrder.fuel_type} &middot; {selectedOrder.region}
@@ -802,19 +815,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     {/* Order summary */}
                                     <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Product</span>
+                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">
                                                 {selectedOrder.product_name || selectedOrder.fuel_type} ({selectedOrder.fuel_grade})
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Price</span>
+                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">
                                                 ${selectedOrder.price_per_mt_usd.toLocaleString()} / MT
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Location</span>
+                                            <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.location')}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">
                                                 {selectedOrder.delivery_point_name || selectedOrder.region}
                                             </span>
@@ -823,7 +836,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
                                     {/* Quantity input */}
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantity (MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
@@ -836,10 +849,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
-                                            Max available: {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
+                                            {t('marketplace.modal.maxAvailable')} {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
                                             {tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
-                                                    Total: ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
+                                                    {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
                                                 </span>
                                             )}
                                         </p>
@@ -852,7 +865,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         onClick={closeTradeModal}
                                         className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                                     >
-                                        Cancel
+                                        {t('marketplace.btn.cancel')}
                                     </button>
                                     <button
                                         onClick={confirmTrade}
@@ -860,7 +873,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                        <span>{tradeState === 'submitting' ? 'Submitting...' : 'Confirm'}</span>
+                                        <span>{tradeState === 'submitting' ? t('marketplace.btn.submitting') : t('marketplace.btn.confirm')}</span>
                                     </button>
                                 </div>
                             </>
@@ -872,10 +885,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
-                side={orderModalSide || config.primaryAction.side}
+                onClose={() => { setOrderModalSide(null); setOrderModalPrefillPrice(undefined); fetchData(true, currentSkip); }}
+                side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={fuelType !== 'All' ? fuelType : undefined}
                 prefillRegion={portInput || undefined}
+                prefillPrice={orderModalPrefillPrice}
             />
         </div>
     );

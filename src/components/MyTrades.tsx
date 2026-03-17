@@ -19,17 +19,9 @@ import { Trade, TradeStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
+import { useNamespace } from '../hooks/useNamespace';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
-
-const STATUS_CONFIG: Record<TradeStatus, { label: string; color: string; bgColor: string; borderColor: string }> = {
-    PENDING_CONFIRMATION: { label: 'Pending', color: 'text-amber-700 dark:text-amber-400', bgColor: 'bg-amber-100 dark:bg-amber-900/30', borderColor: 'border-amber-200 dark:border-amber-800' },
-    CONFIRMED: { label: 'Confirmed', color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-800' },
-    DELIVERED: { label: 'Delivered', color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-800' },
-    PAID: { label: 'Paid', color: 'text-emerald-700 dark:text-emerald-400', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', borderColor: 'border-emerald-200 dark:border-emerald-800' },
-    CANCELLED: { label: 'Cancelled', color: 'text-slate-500 dark:text-slate-400', bgColor: 'bg-slate-100 dark:bg-slate-800', borderColor: 'border-slate-200 dark:border-slate-700' },
-    DECLINED: { label: 'Declined', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30', borderColor: 'border-red-200 dark:border-red-800' },
-};
 
 const ACTIVE_STATUSES: TradeStatus[] = ['PENDING_CONFIRMATION', 'CONFIRMED', 'DELIVERED'];
 const COMPLETED_STATUSES: TradeStatus[] = ['PAID', 'CANCELLED', 'DECLINED'];
@@ -37,6 +29,7 @@ const COMPLETED_STATUSES: TradeStatus[] = ['PAID', 'CANCELLED', 'DECLINED'];
 export const MyTrades: React.FC = () => {
     const { user, isAuthenticated } = useAuth();
     const { addToast } = useToast();
+    const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -97,10 +90,10 @@ export const MyTrades: React.FC = () => {
         setActionLoadingId(tradeId);
         try {
             await api.trades.confirm(tradeId);
-            addToast({ type: 'success', title: 'Trade Confirmed', message: 'The trade has been confirmed.' });
+            addToast({ type: 'success', title: t('myTrades.toast.confirmed.title'), message: t('myTrades.toast.confirmed.message') });
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Confirm Failed', message: err.message || 'Could not confirm trade.' });
+            addToast({ type: 'warning', title: t('myTrades.toast.confirmFailed.title'), message: err.message || t('myTrades.toast.confirmFailed.message') });
         } finally {
             setActionLoadingId(null);
         }
@@ -110,10 +103,10 @@ export const MyTrades: React.FC = () => {
         setActionLoadingId(tradeId);
         try {
             await api.trades.decline(tradeId);
-            addToast({ type: 'info', title: 'Trade Declined', message: 'The trade has been declined.' });
+            addToast({ type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Decline Failed', message: err.message || 'Could not decline trade.' });
+            addToast({ type: 'warning', title: t('myTrades.toast.declineFailed.title'), message: err.message || t('myTrades.toast.declineFailed.message') });
         } finally {
             setActionLoadingId(null);
         }
@@ -127,11 +120,11 @@ export const MyTrades: React.FC = () => {
                 final_quantity_mt: deliverQuantity,
                 final_price_per_mt: deliverPrice,
             });
-            addToast({ type: 'success', title: 'Trade Delivered', message: 'Delivery has been recorded.' });
+            addToast({ type: 'success', title: t('myTrades.toast.delivered.title'), message: t('myTrades.toast.delivered.message') });
             setDeliverTradeId(null);
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Delivery Failed', message: err.message || 'Could not record delivery.' });
+            addToast({ type: 'warning', title: t('myTrades.toast.deliveryFailed.title'), message: err.message || t('myTrades.toast.deliveryFailed.message') });
         } finally {
             setActionLoadingId(null);
         }
@@ -141,26 +134,38 @@ export const MyTrades: React.FC = () => {
         setActionLoadingId(tradeId);
         try {
             await api.trades.pay(tradeId);
-            addToast({ type: 'success', title: 'Payment Recorded', message: 'The trade has been marked as paid.' });
+            addToast({ type: 'success', title: t('myTrades.toast.paid.title'), message: t('myTrades.toast.paid.message') });
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Payment Failed', message: err.message || 'Could not record payment.' });
+            addToast({ type: 'warning', title: t('myTrades.toast.payFailed.title'), message: err.message || t('myTrades.toast.payFailed.message') });
         } finally {
             setActionLoadingId(null);
         }
     };
 
     // Filtering
-    const filteredTrades = trades.filter(t => {
-        if (filterTab === 'ACTIVE') return ACTIVE_STATUSES.includes(t.status);
-        if (filterTab === 'COMPLETED') return COMPLETED_STATUSES.includes(t.status);
+    const filteredTrades = trades.filter(tr => {
+        if (filterTab === 'ACTIVE') return ACTIVE_STATUSES.includes(tr.status);
+        if (filterTab === 'COMPLETED') return COMPLETED_STATUSES.includes(tr.status);
         return true;
     });
 
     const activeCounts = {
         ALL: trades.length,
-        ACTIVE: trades.filter(t => ACTIVE_STATUSES.includes(t.status)).length,
-        COMPLETED: trades.filter(t => COMPLETED_STATUSES.includes(t.status)).length,
+        ACTIVE: trades.filter(tr => ACTIVE_STATUSES.includes(tr.status)).length,
+        COMPLETED: trades.filter(tr => COMPLETED_STATUSES.includes(tr.status)).length,
+    };
+
+    if (!ready) return null;
+
+    // STATUS_CONFIG lives inside the component to access t()
+    const STATUS_CONFIG: Record<TradeStatus, { label: string; color: string; bgColor: string; borderColor: string }> = {
+        PENDING_CONFIRMATION: { label: t('myTrades.status.pending'), color: 'text-amber-700 dark:text-amber-400', bgColor: 'bg-amber-100 dark:bg-amber-900/30', borderColor: 'border-amber-200 dark:border-amber-800' },
+        CONFIRMED: { label: t('myTrades.status.confirmed'), color: 'text-blue-700 dark:text-blue-400', bgColor: 'bg-blue-100 dark:bg-blue-900/30', borderColor: 'border-blue-200 dark:border-blue-800' },
+        DELIVERED: { label: t('myTrades.status.delivered'), color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30', borderColor: 'border-green-200 dark:border-green-800' },
+        PAID: { label: t('myTrades.status.paid'), color: 'text-emerald-700 dark:text-emerald-400', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', borderColor: 'border-emerald-200 dark:border-emerald-800' },
+        CANCELLED: { label: t('myTrades.status.cancelled'), color: 'text-slate-500 dark:text-slate-400', bgColor: 'bg-slate-100 dark:bg-slate-800', borderColor: 'border-slate-200 dark:border-slate-700' },
+        DECLINED: { label: t('myTrades.status.declined'), color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30', borderColor: 'border-red-200 dark:border-red-800' },
     };
 
     // Render actions based on trade status and user role
@@ -178,7 +183,7 @@ export const MyTrades: React.FC = () => {
                 return (
                     <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                         <Clock size={12} />
-                        Awaiting counterparty
+                        {t('myTrades.awaiting.counterparty')}
                     </span>
                 );
             }
@@ -191,7 +196,7 @@ export const MyTrades: React.FC = () => {
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                        Confirm
+                        {t('myTrades.btn.confirm')}
                     </button>
                     <button
                         onClick={() => handleDecline(trade.id)}
@@ -199,7 +204,7 @@ export const MyTrades: React.FC = () => {
                         className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
-                        Decline
+                        {t('myTrades.btn.decline')}
                     </button>
                 </div>
             );
@@ -217,7 +222,7 @@ export const MyTrades: React.FC = () => {
                     className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                 >
                     {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <Truck size={12} />}
-                    Mark Delivered
+                    {t('myTrades.btn.deliver')}
                 </button>
             );
         }
@@ -228,7 +233,7 @@ export const MyTrades: React.FC = () => {
                 return (
                     <span className="text-xs text-blue-600 dark:text-blue-400 italic flex items-center gap-1">
                         <Clock size={12} />
-                        Awaiting payment confirmation
+                        {t('myTrades.awaiting.payment')}
                     </span>
                 );
             }
@@ -240,13 +245,13 @@ export const MyTrades: React.FC = () => {
                     className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
                 >
                     {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <DollarSign size={12} />}
-                    Mark Paid
+                    {t('myTrades.btn.pay')}
                 </button>
             );
         }
 
         // PAID, DECLINED, CANCELLED — no actions
-        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">No actions</span>;
+        return <span className="text-xs text-slate-400 dark:text-slate-500 italic">{t('myTrades.noActions')}</span>;
     };
 
     // Loading state
@@ -254,12 +259,12 @@ export const MyTrades: React.FC = () => {
         return (
             <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
                 <div className="mb-6 lg:mb-8">
-                    <h1 className="text-2xl lg:text-3xl v-heading">My Trades</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">Manage and track all your trades.</p>
+                    <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
                 </div>
                 <div className="flex items-center justify-center py-24">
                     <Loader2 className="animate-spin text-slate-400" size={32} />
-                    <span className="ml-3 text-slate-500 dark:text-slate-400">Loading trades...</span>
+                    <span className="ml-3 text-slate-500 dark:text-slate-400">{t('myTrades.loading')}</span>
                 </div>
             </div>
         );
@@ -270,20 +275,20 @@ export const MyTrades: React.FC = () => {
         return (
             <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
                 <div className="mb-6 lg:mb-8">
-                    <h1 className="text-2xl lg:text-3xl v-heading">My Trades</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">Manage and track all your trades.</p>
+                    <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
                 </div>
                 <div className="v-card p-12 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
                         <AlertTriangle size={28} className="text-red-500" />
                     </div>
-                    <h2 className="text-lg font-bold text-slate-700 dark:text-white mb-2">Unable to load trades</h2>
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-white mb-2">{t('myTrades.error.title')}</h2>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">{error}</p>
                     <button
                         onClick={() => fetchTrades()}
                         className="mt-4 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white font-bold text-sm rounded-lg transition-colors"
                     >
-                        Try Again
+                        {t('myTrades.btn.tryAgain')}
                     </button>
                 </div>
             </div>
@@ -295,8 +300,8 @@ export const MyTrades: React.FC = () => {
             {/* Header */}
             <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div>
-                    <h1 className="text-2xl lg:text-3xl v-heading">My Trades</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">Manage and track all your trades in one place.</p>
+                    <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle.full')}</p>
                 </div>
                 <button
                     onClick={() => fetchTrades(true)}
@@ -304,7 +309,7 @@ export const MyTrades: React.FC = () => {
                     className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#5DADE2] transition-colors"
                 >
                     <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                    Refresh
+                    {t('myTrades.btn.refresh')}
                 </button>
             </div>
 
@@ -320,7 +325,7 @@ export const MyTrades: React.FC = () => {
                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                         }`}
                     >
-                        {tab === 'ALL' ? 'All' : tab === 'ACTIVE' ? 'Active' : 'Completed'}
+                        {tab === 'ALL' ? t('myTrades.tab.all') : tab === 'ACTIVE' ? t('myTrades.tab.active') : t('myTrades.tab.completed')}
                         <span className="ml-1.5 text-xs opacity-60">({activeCounts[tab]})</span>
                     </button>
                 ))}
@@ -330,11 +335,13 @@ export const MyTrades: React.FC = () => {
             {filteredTrades.length === 0 ? (
                 <div className="v-card p-12 text-center border-dashed">
                     <Package className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No trades found</h3>
+                    <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">{t('myTrades.empty.title')}</h3>
                     <p className="text-slate-400 dark:text-slate-500 mt-1 text-sm">
                         {filterTab === 'ALL'
-                            ? 'Place an order on the Marketplace to get started.'
-                            : `No ${filterTab.toLowerCase()} trades at the moment.`}
+                            ? t('myTrades.empty.all')
+                            : filterTab === 'ACTIVE'
+                                ? t('myTrades.empty.active')
+                                : t('myTrades.empty.completed')}
                     </p>
                 </div>
             ) : (
@@ -344,15 +351,15 @@ export const MyTrades: React.FC = () => {
                         <table className="w-full text-left">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
-                                    <th className="px-4 lg:px-6 py-4">Date</th>
-                                    <th className="px-4 lg:px-6 py-4">Fuel</th>
-                                    <th className="px-4 lg:px-6 py-4">Region</th>
-                                    <th className="px-4 lg:px-6 py-4">Side</th>
-                                    <th className="px-4 lg:px-6 py-4 text-right">Qty (MT)</th>
-                                    <th className="px-4 lg:px-6 py-4 text-right">Price</th>
-                                    <th className="px-4 lg:px-6 py-4 text-right">Total</th>
-                                    <th className="px-4 lg:px-6 py-4">Status</th>
-                                    <th className="px-4 lg:px-6 py-4">Actions</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.date')}</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.fuel')}</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.region')}</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.side')}</th>
+                                    <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.qty')}</th>
+                                    <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.price')}</th>
+                                    <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.total')}</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.status')}</th>
+                                    <th className="px-4 lg:px-6 py-4">{t('myTrades.col.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
@@ -417,8 +424,8 @@ export const MyTrades: React.FC = () => {
                     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50 dark:bg-slate-800">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Montserrat']">Record Delivery</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Enter the final delivery details</p>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Montserrat']">{t('myTrades.deliver.title')}</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{t('myTrades.deliver.subtitle')}</p>
                             </div>
                             <button onClick={() => setDeliverTradeId(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                                 <X size={20} />
@@ -426,7 +433,7 @@ export const MyTrades: React.FC = () => {
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Final Quantity (MT)</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('myTrades.deliver.finalQty')}</label>
                                 <input
                                     type="number"
                                     value={deliverQuantity || ''}
@@ -437,7 +444,7 @@ export const MyTrades: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Final Price ($/MT)</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('myTrades.deliver.finalPrice')}</label>
                                 <input
                                     type="number"
                                     value={deliverPrice || ''}
@@ -450,7 +457,7 @@ export const MyTrades: React.FC = () => {
                             {deliverQuantity > 0 && deliverPrice > 0 && (
                                 <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-slate-500 dark:text-slate-400">Final Total</span>
+                                        <span className="text-slate-500 dark:text-slate-400">{t('myTrades.deliver.finalTotal')}</span>
                                         <span className="font-bold text-slate-800 dark:text-white">
                                             ${(deliverQuantity * deliverPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
@@ -463,7 +470,7 @@ export const MyTrades: React.FC = () => {
                                 onClick={() => setDeliverTradeId(null)}
                                 className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors text-sm"
                             >
-                                Cancel
+                                {t('myTrades.btn.cancel')}
                             </button>
                             <button
                                 onClick={handleDeliverSubmit}
@@ -475,7 +482,7 @@ export const MyTrades: React.FC = () => {
                                 ) : (
                                     <Truck size={16} />
                                 )}
-                                Confirm Delivery
+                                {t('myTrades.btn.confirmDelivery')}
                             </button>
                         </div>
                     </div>

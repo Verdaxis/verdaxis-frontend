@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface OrderBookProps {
     fuelType?: string;
     region?: string;
+    onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
 }
 
 interface OrderBookRow extends OrderBookOrder {
@@ -23,7 +25,8 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceClick }) => {
+    const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
     const [loading, setLoading] = useState(true);
@@ -79,11 +82,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
         return allQtys.length > 0 ? Math.max(...allQtys) : 1;
     }, [bids, asks]);
 
+    if (!ready) return null;
+
     if (loading) {
         return (
             <div className="v-glass p-6 mb-0 flex items-center justify-center gap-3 text-slate-400">
                 <Loader2 size={20} className="animate-spin" />
-                <span className="text-sm font-medium">Loading orderbook…</span>
+                <span className="text-sm font-medium">{t('orderBook.loading')}</span>
             </div>
         );
     }
@@ -101,7 +106,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
-                    Live Orderbook
+                    {t('orderBook.title')}
                     {fuelType && fuelType !== 'All' && (
                         <span className="ml-2 text-xs font-semibold text-slate-400 normal-case">
                             — {fuelType}
@@ -115,7 +120,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                 </h3>
                 <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] text-slate-400 font-medium">LIVE · 10s</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{t('orderBook.live')}</span>
                 </div>
             </div>
 
@@ -126,20 +131,20 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                     {/* Column header */}
                     <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-slate-700">
                         <TrendingUp size={14} className="text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Bids</span>
-                        <span className="ml-auto text-[10px] text-slate-400 font-medium">Buy Pressure</span>
+                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('orderBook.bids')}</span>
+                        <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.buyPressure')}</span>
                     </div>
 
                     {/* Column sub-header */}
                     <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Price / MT</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">Qty (MT)</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
                     </div>
 
                     {/* Rows */}
                     {bids.length === 0 ? (
                         <div className="px-4 py-8 text-center text-xs text-slate-400">
-                            No bids
+                            {t('orderBook.noBids')}
                         </div>
                     ) : (
                         bids.map((bid) => {
@@ -148,9 +153,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                             return (
                                 <div
                                     key={bid.id}
-                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors ${
+                                    onClick={() => onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType)}
+                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer ${
                                         isCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                     }`}
+                                    title={t('orderBook.clickToSell')}
                                 >
                                     {/* Depth bar behind row */}
                                     <div
@@ -190,20 +197,20 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                     {/* Column header */}
                     <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 dark:bg-red-950/20 border-b border-slate-200 dark:border-slate-700">
                         <TrendingDown size={14} className="text-red-500" />
-                        <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Asks</span>
-                        <span className="ml-auto text-[10px] text-slate-400 font-medium">Sell Offers</span>
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">{t('orderBook.asks')}</span>
+                        <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.sellOffers')}</span>
                     </div>
 
                     {/* Column sub-header */}
                     <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">Price / MT</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">Qty (MT)</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
                     </div>
 
                     {/* Rows */}
                     {asks.length === 0 ? (
                         <div className="px-4 py-8 text-center text-xs text-slate-400">
-                            No asks
+                            {t('orderBook.noAsks')}
                         </div>
                     ) : (
                         asks.map((ask) => {
@@ -212,9 +219,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                             return (
                                 <div
                                     key={ask.id}
-                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors ${
+                                    onClick={() => onPriceClick?.('BID', ask.price_per_mt_usd, fuelType)}
+                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors cursor-pointer ${
                                         isCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                     }`}
+                                    title={t('orderBook.clickToBuy')}
                                 >
                                     {/* Depth bar behind row */}
                                     <div
@@ -258,12 +267,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region }) => {
                 const spreadPct = bestBid > 0 ? (spread / bestBid) * 100 : 0;
                 return (
                     <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
-                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Spread</span>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
                         <span className={`text-xs font-mono font-bold ${spread <= 0 ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
                             {spread <= 0 ? (
                                 <span className="flex items-center gap-1">
                                     <Zap size={10} className="text-amber-500" />
-                                    CROSSED
+                                    {t('orderBook.crossed')}
                                 </span>
                             ) : (
                                 `${formatPrice(spread)} (${spreadPct.toFixed(2)}%)`

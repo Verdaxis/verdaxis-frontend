@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff, ChevronDown } from 'lucide-react';
 import { Product, DeliveryPoint } from '../types';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -8,6 +9,7 @@ interface OrderPlaceModalProps {
     side: 'BID' | 'ASK';
     prefillFuelType?: string;
     prefillRegion?: string;
+    prefillPrice?: number;
 }
 
 interface OrderFormData {
@@ -41,7 +43,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     side,
     prefillFuelType,
     prefillRegion,
+    prefillPrice,
 }) => {
+    const { t, ready } = useNamespace('trading');
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -102,7 +106,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         }).finally(() => setCatalogLoading(false));
     }, [isOpen]);
 
-    if (!isOpen) return null;
+    // Apply prefillPrice when modal opens with a price from orderbook click
+    useEffect(() => {
+        if (isOpen && prefillPrice && prefillPrice > 0) {
+            setFormData(prev => ({ ...prev, price_per_mt_usd: prefillPrice }));
+        }
+    }, [isOpen, prefillPrice]);
+
+    if (!isOpen || !ready) return null;
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
@@ -181,7 +192,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
                                     <AlertTriangle size={32} className="text-red-500" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Order Failed</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
                             </>
                         ) : modalState === 'auto_matched' ? (
@@ -189,22 +200,22 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className="mx-auto w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-4">
                                     <Zap size={32} className="text-violet-500" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Order Auto-Matched!</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.autoMatched.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-                                    Your {sideLabel.toLowerCase()} was instantly matched with a counterparty.
+                                    {t('orderPlaceModal.autoMatched.body', { side: sideLabel.toLowerCase() })}
                                 </p>
                                 {matchResult?.trades?.map((trade: any, i: number) => (
                                     <div key={i} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left mb-2">
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-500 dark:text-slate-400">Quantity</span>
+                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.quantity')}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">{trade.quantity_mt?.toLocaleString()} MT</span>
                                         </div>
                                         <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-500 dark:text-slate-400">Price</span>
+                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.price')}</span>
                                             <span className="font-bold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}/MT</span>
                                         </div>
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500 dark:text-slate-400">Status</span>
+                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.status')}</span>
                                             <span className="font-bold text-blue-600 dark:text-blue-400">{trade.status}</span>
                                         </div>
                                     </div>
@@ -215,9 +226,16 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${side === 'BID' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
                                     <CheckCircle2 size={32} className={side === 'BID' ? 'text-emerald-500' : 'text-blue-500'} />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{sideLabel} Placed Successfully</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                                    {t('orderPlaceModal.success.title', { side: sideLabel })}
+                                </h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                                    Your {sideLabel.toLowerCase()} for {formData.quantity_mt.toLocaleString()} MT of {selectedProduct?.name || 'product'} at ${formData.price_per_mt_usd}/MT is now live on the orderbook.
+                                    {t('orderPlaceModal.success.body', {
+                                        side: sideLabel.toLowerCase(),
+                                        qty: formData.quantity_mt.toLocaleString(),
+                                        product: selectedProduct?.name || 'product',
+                                        price: formData.price_per_mt_usd,
+                                    })}
                                 </p>
                             </>
                         )}
@@ -225,7 +243,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             onClick={handleClose}
                             className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
                         >
-                            Close
+                            {t('orderPlaceModal.btn.close')}
                         </button>
                     </div>
                 </div>
@@ -241,7 +259,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div>
                         <div className="flex items-center gap-3">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
-                                Place {sideLabel}
+                                {t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
                             <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                                 side === 'BID'
@@ -252,7 +270,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </span>
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                            {side === 'BID' ? 'Submit a request to buy fuel at your target price' : 'Offer fuel for sale on the marketplace'}
+                            {side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
                         </p>
                     </div>
                     <button
@@ -270,11 +288,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {/* Product & Delivery Point */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>Product</label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
                                 {catalogLoading ? (
                                     <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
                                         <Loader2 size={14} className="animate-spin text-slate-400" />
-                                        <span className="text-sm text-slate-400">Loading products...</span>
+                                        <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.products')}</span>
                                     </div>
                                 ) : (
                                     <select
@@ -283,7 +301,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         className={selectClass}
                                         required
                                     >
-                                        <option value="">Select product...</option>
+                                        <option value="">{t('orderPlaceModal.select.product')}</option>
                                         {products.map(p => (
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
@@ -292,13 +310,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </div>
                             <div>
                                 <label className={labelClass}>
-                                    Delivery Point
-                                    <span className="text-slate-400 normal-case font-normal ml-1">(optional)</span>
+                                    {t('orderPlaceModal.label.deliveryPoint')}
+                                    <span className="text-slate-400 normal-case font-normal ml-1">{t('orderPlaceModal.label.deliveryPointOptional')}</span>
                                 </label>
                                 {catalogLoading ? (
                                     <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
                                         <Loader2 size={14} className="animate-spin text-slate-400" />
-                                        <span className="text-sm text-slate-400">Loading...</span>
+                                        <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.generic')}</span>
                                     </div>
                                 ) : (
                                     <select
@@ -306,7 +324,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         onChange={(e) => handleChange('delivery_point_id', e.target.value)}
                                         className={selectClass}
                                     >
-                                        <option value="">Any location</option>
+                                        <option value="">{t('orderPlaceModal.select.anyLocation')}</option>
                                         {deliveryPoints.map(d => (
                                             <option key={d.id} value={d.id}>{d.name} ({d.region})</option>
                                         ))}
@@ -320,24 +338,24 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
                                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Fuel Type</span>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.fuelType')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_type}</div>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Grade</span>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.grade')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_grade}</div>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Unit</span>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.unit')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.unit}</div>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Min Lot</span>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.minLot')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.min_lot_size.toLocaleString()} MT</div>
                                     </div>
                                     {selectedDeliveryPoint && (
                                         <div>
-                                            <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Region</span>
+                                            <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.region')}</span>
                                             <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedDeliveryPoint.region}</div>
                                         </div>
                                     )}
@@ -353,7 +371,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {/* Quantity & Price */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>Quantity (MT)</label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.quantity')}</label>
                                 {/* Quantity Presets */}
                                 <div className="flex gap-2 flex-wrap mb-2">
                                     {QUANTITY_PRESETS.map(preset => (
@@ -384,7 +402,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>Price ($/MT)</label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.price')}</label>
                                 <input
                                     type="number"
                                     value={formData.price_per_mt_usd || ''}
@@ -399,7 +417,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         {/* Availability Window */}
                         <div>
-                            <label className={labelClass}>Availability Window</label>
+                            <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
                             <select
                                 value={formData.availability_window}
                                 onChange={(e) => handleChange('availability_window', e.target.value)}
@@ -412,7 +430,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {/* Delivery Window (optional) */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>Delivery Start <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.deliveryStart')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
                                 <input
                                     type="date"
                                     value={formData.delivery_window_start}
@@ -421,7 +439,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>Delivery End <span className="text-slate-400 normal-case font-normal">(optional)</span></label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.deliveryEnd')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
                                 <input
                                     type="date"
                                     value={formData.delivery_window_end}
@@ -433,7 +451,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         {/* Order Expiry */}
                         <div>
-                            <label className={labelClass}>Order Expiry</label>
+                            <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
                             <div className="flex gap-2 mb-3">
                                 <button
                                     type="button"
@@ -446,7 +464,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
                                     }`}
                                 >
-                                    GTC (Good till Cancelled)
+                                    {t('orderPlaceModal.expiry.gtc')}
                                 </button>
                                 <button
                                     type="button"
@@ -459,7 +477,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
                                     }`}
                                 >
-                                    Good-till-Date
+                                    {t('orderPlaceModal.expiry.date')}
                                 </button>
                             </div>
                             {formData.expiry_type === 'date' && (
@@ -486,9 +504,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </div>
                             <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
                             <div>
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Anonymous Order</span>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('orderPlaceModal.label.anonymous')}</span>
                                 <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                    Your identity will be hidden from the counterparty on matched trades
+                                    {t('orderPlaceModal.anonymous.description')}
                                 </p>
                             </div>
                         </label>
@@ -497,7 +515,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (
                             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">Estimated Total</span>
+                                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('orderPlaceModal.label.estimatedTotal')}</span>
                                     <span className="text-xl font-bold text-slate-800 dark:text-white">
                                         ${(formData.quantity_mt * formData.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
@@ -511,9 +529,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {/* Info */}
                         <div className="rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-900/20 p-3">
                             <p className="text-xs text-blue-700 dark:text-blue-300">
-                                {side === 'BID'
-                                    ? 'Your bid will be live on the orderbook. If a matching ask exists, the trade will be auto-matched instantly.'
-                                    : 'Your ask will be live on the orderbook. If a matching bid exists, the trade will be auto-matched instantly.'}
+                                {side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
                             </p>
                         </div>
                     </div>
@@ -525,7 +541,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             onClick={handleClose}
                             className="flex-1 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors"
                         >
-                            Cancel
+                            {t('orderPlaceModal.btn.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -541,10 +557,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             {modalState === 'submitting' ? (
                                 <>
                                     <Loader2 className="animate-spin" size={18} />
-                                    Placing {sideLabel}...
+                                    {t('orderPlaceModal.btn.placing', { side: sideLabel })}
                                 </>
                             ) : (
-                                `Place ${sideLabel}`
+                                t('orderPlaceModal.btn.place', { side: sideLabel })
                             )}
                         </button>
                     </div>

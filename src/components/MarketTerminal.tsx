@@ -28,6 +28,7 @@ import { OrderbookDepth } from './trading/OrderbookDepth';
 import { ForwardCurve } from './ForwardCurve';
 import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
+import { useNamespace } from '../hooks/useNamespace';
 
 // --- Types ---
 interface TerminalRow {
@@ -160,6 +161,7 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
 
 export const MarketTerminal: React.FC = () => {
     const { setPageContext } = useCopilotContext();
+    const { t } = useNamespace('trading');
 
     // Port & Fuel selectors
     const [ports, setPorts] = useState<Port[]>([]);
@@ -439,7 +441,7 @@ export const MarketTerminal: React.FC = () => {
                     <div>
                         <div className="flex items-center space-x-2 text-slate-400 dark:text-[#666] text-[10px] uppercase tracking-[0.2em] mb-1 font-bold">
                             <Zap size={12} className="text-verdaxis" />
-                            <span>Market Terminal</span>
+                            {t('terminal.title')}
                             <div
                                 className={`w-1.5 h-1.5 rounded-full ${sseConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}
                                 title={sseConnected ? 'Live: connected' : 'Disconnected'}
@@ -519,17 +521,17 @@ export const MarketTerminal: React.FC = () => {
 
                     <div className="space-y-3">
                         <div className="flex justify-between items-end">
-                            <span className="text-xs text-slate-400 dark:text-[#888] font-bold">BEST OFFER</span>
+                            <span className="text-xs text-slate-400 dark:text-[#888] font-bold">{t('terminal.label.bestOffer')}</span>
                             <div className="text-right">
                                 {spotPrice ? (
                                     <span className="text-2xl font-bold text-slate-800 dark:text-white">${spotPrice.toFixed(2)}</span>
                                 ) : (
-                                    <span className="text-lg font-bold text-slate-400 dark:text-[#555]">No offers</span>
+                                    <span className="text-lg font-bold text-slate-400 dark:text-[#555]">{t('terminal.label.noOffers')}</span>
                                 )}
                             </div>
                         </div>
                         <div className="text-[10px] text-slate-500 dark:text-[#555] flex justify-between uppercase font-bold tracking-wider">
-                            <span>Listings: <span className="text-emerald-500">{totalListings}</span></span>
+                            <span>{t('terminal.label.listings')} <span className="text-emerald-500">{totalListings}</span></span>
                             <span>Vol: {totalVolume > 0 ? `${(totalVolume / 1000).toFixed(1)}k MT` : '--'}</span>
                         </div>
                     </div>
@@ -539,7 +541,7 @@ export const MarketTerminal: React.FC = () => {
                 <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808] min-h-[200px] lg:min-h-0">
                     <div className="flex justify-between items-start mb-2 px-2">
                         <div>
-                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">Forward Curve</div>
+                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
                             <div className="text-xs text-slate-600 dark:text-[#444]">{selectedFuel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
                         </div>
                         <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
@@ -578,18 +580,18 @@ export const MarketTerminal: React.FC = () => {
                 <div data-tour="terminal-vwap" className="flex items-center gap-4 px-4 py-2 bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] overflow-x-auto">
                     <div className="flex items-center gap-1.5 text-slate-500 dark:text-[#666] uppercase font-bold tracking-widest whitespace-nowrap">
                         <TrendingUp size={10} className="text-emerald-500" />
-                        VWAP
+                        {t('terminal.label.vwap')}
                     </div>
                     <div className="flex items-center gap-1 whitespace-nowrap">
-                        <span className="text-slate-400 dark:text-[#555] font-bold">Price:</span>
+                        <span className="text-slate-400 dark:text-[#555] font-bold">{t('terminal.label.vwapPrice')}</span>
                         <span className="text-emerald-500 font-bold">${Number(vwapData.vwap_usd).toFixed(2)}</span>
                     </div>
                     <div className="flex items-center gap-1 whitespace-nowrap">
-                        <span className="text-slate-400 dark:text-[#555] font-bold">Vol:</span>
+                        <span className="text-slate-400 dark:text-[#555] font-bold">{t('terminal.label.vwapVol')}</span>
                         <span className="text-slate-700 dark:text-[#ccc] font-bold">{Number(vwapData.total_volume_mt).toLocaleString()} MT</span>
                     </div>
                     <div className="flex items-center gap-1 whitespace-nowrap">
-                        <span className="text-slate-400 dark:text-[#555] font-bold">Trades:</span>
+                        <span className="text-slate-400 dark:text-[#555] font-bold">{t('terminal.label.vwapTrades')}</span>
                         <span className="text-slate-700 dark:text-[#ccc] font-bold">{vwapData.trade_count}</span>
                     </div>
                     <div className="ml-auto px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider whitespace-nowrap">
@@ -602,14 +604,14 @@ export const MarketTerminal: React.FC = () => {
             <div className="flex-1 overflow-x-auto overflow-y-hidden flex flex-col bg-white dark:bg-[#050505] relative">
                 {/* Grid Header */}
                 <div className="flex items-center bg-slate-100 dark:bg-[#0a0a0a] border-b border-slate-200 dark:border-[#222] text-[10px] uppercase font-bold text-slate-500 dark:text-[#555] py-2 select-none min-w-[640px]">
-                    <div className="w-32 px-4">Period</div>
-                    <div className="w-24 text-right px-4">Bid Qty</div>
-                    <div className="w-24 text-right px-4 text-emerald-700">Bid</div>
-                    <div className="w-24 text-right px-4 text-rose-700">Ask</div>
-                    <div className="w-24 text-right px-4">Ask Qty</div>
-                    <div className="w-24 text-right px-4">Last</div>
-                    <div className="w-24 text-right px-4">Chg</div>
-                    <div className="flex-1 text-right px-4"># Offers</div>
+                    <div className="w-32 px-4">{t('terminal.col.period')}</div>
+                    <div className="w-24 text-right px-4">{t('terminal.col.bidQty')}</div>
+                    <div className="w-24 text-right px-4 text-emerald-700">{t('terminal.col.bid')}</div>
+                    <div className="w-24 text-right px-4 text-rose-700">{t('terminal.col.ask')}</div>
+                    <div className="w-24 text-right px-4">{t('terminal.col.askQty')}</div>
+                    <div className="w-24 text-right px-4">{t('terminal.col.last')}</div>
+                    <div className="w-24 text-right px-4">{t('terminal.col.chg')}</div>
+                    <div className="flex-1 text-right px-4">{t('terminal.col.offers')}</div>
                 </div>
 
                 {/* Grid Rows */}
@@ -727,12 +729,12 @@ export const MarketTerminal: React.FC = () => {
                 <div className="border-t border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#0a0a0a]">
                     <div className="flex items-center px-4 py-1.5 border-b border-slate-100 dark:border-[#181818]">
                         <Activity size={12} className="text-emerald-500 mr-2" />
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-[#666] uppercase tracking-widest">Trade Activity</span>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-[#666] uppercase tracking-widest">{t('terminal.activity.title')}</span>
                         <div className={`ml-2 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
                     </div>
                     <div ref={tradeScrollRef} className="h-24 overflow-y-auto px-2 py-1">
                         {tradeEvents.length === 0 ? (
-                            <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">Waiting for activity...</div>
+                            <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.activity.waiting')}</div>
                         ) : (
                             tradeEvents.map((trade) => (
                                 <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">

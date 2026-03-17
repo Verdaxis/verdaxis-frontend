@@ -5,8 +5,10 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import type { Watchlist, WatchlistEntry, Product, DeliveryPoint } from '../types';
+import { useNamespace } from '../hooks/useNamespace';
 
 export const WatchlistPage: React.FC = () => {
+    const { t, ready } = useNamespace('trading');
     const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -50,12 +52,12 @@ export const WatchlistPage: React.FC = () => {
         setActionLoading(null);
     };
 
-    if (loading) {
+    if (!ready || loading) {
         return (
             <div className="h-full flex items-center justify-center">
                 <div className="flex items-center gap-3 text-slate-400">
                     <Loader2 size={24} className="animate-spin" />
-                    <span className="font-medium">Loading watchlists...</span>
+                    <span className="font-medium">{ready ? t('watchlist.loading') : '...'}</span>
                 </div>
             </div>
         );
@@ -70,16 +72,16 @@ export const WatchlistPage: React.FC = () => {
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading flex items-center gap-3">
                                 <Star size={28} className="text-amber-500" />
-                                Watchlists
+                                {t('watchlist.title')}
                             </h1>
-                            <p className="text-slate-500 mt-1 text-sm">Track products and delivery points you're interested in.</p>
+                            <p className="text-slate-500 mt-1 text-sm">{t('watchlist.subtitle')}</p>
                         </div>
                         <button
                             onClick={() => setShowCreateModal(true)}
                             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
                         >
                             <Plus size={16} />
-                            New Watchlist
+                            {t('watchlist.btn.new')}
                         </button>
                     </div>
                 </div>
@@ -97,21 +99,22 @@ export const WatchlistPage: React.FC = () => {
                     {watchlists.length === 0 ? (
                         <div className="v-card p-12 text-center">
                             <Star size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No watchlists yet</h3>
+                            <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('watchlist.empty.title')}</h3>
                             <p className="text-sm text-slate-400 max-w-md mx-auto mb-6">
-                                Create your first watchlist to track products you're interested in.
+                                {t('watchlist.empty.body')}
                             </p>
                             <button
                                 onClick={() => setShowCreateModal(true)}
                                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors"
                             >
                                 <Plus size={16} />
-                                Create Watchlist
+                                {t('watchlist.btn.create')}
                             </button>
                         </div>
                     ) : (
                         watchlists.map(wl => {
                             const isExpanded = expandedId === wl.id;
+                            const entryCount = wl.entries?.length ?? 0;
                             return (
                                 <div key={wl.id} className="v-card overflow-hidden">
                                     {/* Watchlist header */}
@@ -126,7 +129,7 @@ export const WatchlistPage: React.FC = () => {
                                                     {wl.name}
                                                 </span>
                                                 <span className="text-[10px] text-slate-400">
-                                                    {wl.entries?.length ?? 0} item{(wl.entries?.length ?? 0) !== 1 ? 's' : ''}
+                                                    {entryCount} {entryCount !== 1 ? t('watchlist.item.count_other', { count: entryCount }).replace(/^\d+ /, '') : t('watchlist.item.count_one', { count: entryCount }).replace(/^\d+ /, '')}
                                                 </span>
                                             </div>
                                             {isExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
@@ -135,7 +138,7 @@ export const WatchlistPage: React.FC = () => {
                                             <button
                                                 onClick={() => setShowAddEntryModal(wl.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-500 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                                                title="Add entry"
+                                                title={t('watchlist.btn.addEntry')}
                                             >
                                                 <Plus size={16} />
                                             </button>
@@ -156,7 +159,7 @@ export const WatchlistPage: React.FC = () => {
                                             {(!wl.entries || wl.entries.length === 0) ? (
                                                 <div className="px-4 py-6 text-center text-xs text-slate-400">
                                                     <Package size={20} className="mx-auto mb-2 text-slate-300" />
-                                                    No entries yet. Add products to track.
+                                                    {t('watchlist.entries.empty')}
                                                 </div>
                                             ) : (
                                                 <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -176,7 +179,7 @@ export const WatchlistPage: React.FC = () => {
                                                             <div className="flex items-center gap-4 flex-shrink-0">
                                                                 {entry.best_bid != null && (
                                                                     <div className="text-right">
-                                                                        <span className="text-[9px] text-slate-400 uppercase block">Bid</span>
+                                                                        <span className="text-[9px] text-slate-400 uppercase block">{t('watchlist.entry.bid')}</span>
                                                                         <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
                                                                             ${entry.best_bid.toLocaleString()}
                                                                         </span>
@@ -184,14 +187,14 @@ export const WatchlistPage: React.FC = () => {
                                                                 )}
                                                                 {entry.best_ask != null && (
                                                                     <div className="text-right">
-                                                                        <span className="text-[9px] text-slate-400 uppercase block">Ask</span>
+                                                                        <span className="text-[9px] text-slate-400 uppercase block">{t('watchlist.entry.ask')}</span>
                                                                         <span className="text-xs font-mono font-bold text-red-500 dark:text-red-400">
                                                                             ${entry.best_ask.toLocaleString()}
                                                                         </span>
                                                                     </div>
                                                                 )}
                                                                 {entry.best_bid == null && entry.best_ask == null && (
-                                                                    <span className="text-xs text-slate-400">No quotes</span>
+                                                                    <span className="text-xs text-slate-400">{t('watchlist.entry.noQuotes')}</span>
                                                                 )}
                                                                 <button
                                                                     onClick={() => handleRemoveEntry(wl.id, entry.id)}
@@ -236,6 +239,7 @@ export const WatchlistPage: React.FC = () => {
 
 // ─── Create Watchlist Modal ───────────────────────────────────
 const CreateWatchlistModal: React.FC<{ onClose: () => void; onCreated: () => void }> = ({ onClose, onCreated }) => {
+    const { t, ready } = useNamespace('trading');
     const [name, setName] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -254,16 +258,18 @@ const CreateWatchlistModal: React.FC<{ onClose: () => void; onCreated: () => voi
         setSubmitting(false);
     };
 
+    if (!ready) return null;
+
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">New Watchlist</h3>
+                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">{t('watchlist.modal.newTitle')}</h3>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={20} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="v-label">Name</label>
+                        <label className="v-label">{t('watchlist.modal.name')}</label>
                         <input
                             type="text"
                             value={name}
@@ -277,7 +283,7 @@ const CreateWatchlistModal: React.FC<{ onClose: () => void; onCreated: () => voi
                     {error && <p className="text-sm text-red-500">{error}</p>}
                     <button type="submit" disabled={submitting || !name.trim()} className="w-full v-btn-primary disabled:opacity-50">
                         {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                        Create
+                        {t('watchlist.btn.create.short')}
                     </button>
                 </form>
             </div>
@@ -287,6 +293,7 @@ const CreateWatchlistModal: React.FC<{ onClose: () => void; onCreated: () => voi
 
 // ─── Add Entry Modal ──────────────────────────────────────────
 const AddEntryModal: React.FC<{ watchlistId: string; onClose: () => void; onAdded: () => void }> = ({ watchlistId, onClose, onAdded }) => {
+    const { t, ready } = useNamespace('trading');
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(true);
@@ -325,35 +332,40 @@ const AddEntryModal: React.FC<{ watchlistId: string; onClose: () => void; onAdde
         setSubmitting(false);
     };
 
+    if (!ready) return null;
+
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">Add to Watchlist</h3>
+                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">{t('watchlist.modal.addTitle')}</h3>
                     <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={20} /></button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {catalogLoading ? (
-                        <div className="flex items-center justify-center py-6 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" />Loading catalog...</div>
+                        <div className="flex items-center justify-center py-6 text-slate-400">
+                            <Loader2 size={20} className="animate-spin mr-2" />
+                            {t('watchlist.modal.loadingCatalog')}
+                        </div>
                     ) : (
                         <>
                             <div>
-                                <label className="v-label">Product</label>
+                                <label className="v-label">{t('watchlist.modal.product')}</label>
                                 <select value={productId} onChange={e => setProductId(e.target.value)} className="v-input">
                                     {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.fuel_type})</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="v-label">Delivery Point (optional)</label>
+                                <label className="v-label">{t('watchlist.modal.deliveryPoint')}</label>
                                 <select value={deliveryPointId} onChange={e => setDeliveryPointId(e.target.value)} className="v-input">
-                                    <option value="">Any</option>
+                                    <option value="">{t('watchlist.modal.anyDelivery')}</option>
                                     {deliveryPoints.map(d => <option key={d.id} value={d.id}>{d.name} ({d.region})</option>)}
                                 </select>
                             </div>
                             {error && <p className="text-sm text-red-500">{error}</p>}
                             <button type="submit" disabled={submitting || !productId} className="w-full v-btn-primary disabled:opacity-50">
                                 {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                                Add Entry
+                                {t('watchlist.btn.addEntry')}
                             </button>
                         </>
                     )}
