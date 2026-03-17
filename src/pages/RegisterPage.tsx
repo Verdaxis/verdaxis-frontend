@@ -2,19 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { useNamespace } from '../hooks/useNamespace';
 
 const RESEND_COOLDOWN = 60; // seconds
-
-const PASSWORD_RULES = [
-  { label: 'At least 8 characters', test: (pw: string) => pw.length >= 8 },
-  { label: 'Contains uppercase letter', test: (pw: string) => /[A-Z]/.test(pw) },
-  { label: 'Contains a number', test: (pw: string) => /\d/.test(pw) },
-];
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get('ref');
+  const { t, ready } = useNamespace('auth');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -37,6 +33,16 @@ const RegisterPage: React.FC = () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
+
+  if (!ready) return null;
+
+  const PASSWORD_RULES = [
+    { label: t('register.passwordRule.minLength'), test: (pw: string) => pw.length >= 8 },
+    { label: t('register.passwordRule.uppercase'), test: (pw: string) => /[A-Z]/.test(pw) },
+    { label: t('register.passwordRule.number'), test: (pw: string) => /\d/.test(pw) },
+  ];
+
+  const allRulesPass = PASSWORD_RULES.every(rule => rule.test(formData.password));
 
   const startCooldown = () => {
     setResendCooldown(RESEND_COOLDOWN);
@@ -74,19 +80,17 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  const allRulesPass = PASSWORD_RULES.every(rule => rule.test(formData.password));
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     const failedRule = PASSWORD_RULES.find(rule => !rule.test(formData.password));
     if (failedRule) {
-      setError(`Password requirement not met: ${failedRule.label.toLowerCase()}.`);
+      setError(t('register.error.requirementNotMet', { rule: failedRule.label.toLowerCase() }));
       return;
     }
     if (formData.password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('register.error.passwordMismatch'));
       return;
     }
 
@@ -115,11 +119,11 @@ const RegisterPage: React.FC = () => {
         }
       } else {
         const errData = await res.json();
-        setError(errData.detail || 'Registration failed');
+        setError(errData.detail || t('register.error.failed'));
       }
     } catch (err) {
       console.error(err);
-      setError('An error occurred. Please try again.');
+      setError(t('register.error.generic'));
     } finally {
       setIsSubmitting(false);
     }
@@ -142,7 +146,7 @@ const RegisterPage: React.FC = () => {
       <div className="w-full max-w-lg p-8 relative z-10">
         <div className="text-center mb-10">
            <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
-           <p className="text-slate-400">Create Account</p>
+           <p className="text-slate-400">{t('register.subtitle')}</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
@@ -151,14 +155,14 @@ const RegisterPage: React.FC = () => {
               <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">
                 <Mail size={32} className="text-blue-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Check your inbox</h2>
+              <h2 className="text-2xl font-bold text-white">{t('register.success.title')}</h2>
               <p className="text-slate-400">
-                We sent a verification link to{' '}
+                {t('register.success.sentTo')}{' '}
                 <strong className="text-white">{formData.email}</strong>.
-                Click it to activate your account.
+                {' '}{t('register.success.clickToActivate')}
               </p>
               <p className="text-slate-500 text-sm">
-                Didn't receive it? Check your spam folder, or resend below.
+                {t('register.success.notReceived')}
               </p>
 
               {/* Resend button with visual countdown */}
@@ -174,21 +178,21 @@ const RegisterPage: React.FC = () => {
                     <RefreshCw size={14} className={resendStatus === 'sent' ? 'text-emerald-400' : ''} />
                   )}
                   {resendStatus === 'sent'
-                    ? 'Sent!'
+                    ? t('register.resend.sent')
                     : resendStatus === 'error'
-                    ? 'Failed — try again'
-                    : 'Resend verification email'}
+                    ? t('register.resend.error')
+                    : t('register.resend.button')}
                 </button>
                 {resendCooldown > 0 && (
                   <p className="text-slate-600 text-xs tabular-nums">
-                    You can resend in <span className="text-slate-400 font-semibold">{resendCooldown}s</span>
+                    {t('register.resend.cooldown')} <span className="text-slate-400 font-semibold">{resendCooldown}s</span>
                   </p>
                 )}
               </div>
 
               <div className="pt-1">
                 <Link to="/login" className="text-emerald-400 text-sm hover:underline">
-                  Back to Sign In
+                  {t('register.backToSignIn')}
                 </Link>
               </div>
             </div>
@@ -204,7 +208,7 @@ const RegisterPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1.5">First Name</label>
+                        <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.firstName')}</label>
                         <div className="relative">
                             <input
                             type="text"
@@ -213,13 +217,13 @@ const RegisterPage: React.FC = () => {
                             value={formData.first_name}
                             onChange={handleChange}
                             className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                            placeholder="John"
+                            placeholder={t('register.firstNamePlaceholder')}
                             />
                             <User className="absolute left-3 top-3 text-slate-500" size={18} />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1.5">Last Name</label>
+                        <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.lastName')}</label>
                         <div className="relative">
                             <input
                             type="text"
@@ -228,7 +232,7 @@ const RegisterPage: React.FC = () => {
                             value={formData.last_name}
                             onChange={handleChange}
                             className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                            placeholder="Doe"
+                            placeholder={t('register.lastNamePlaceholder')}
                             />
                             <User className="absolute left-3 top-3 text-slate-500" size={18} />
                         </div>
@@ -236,7 +240,7 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Role</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.role')}</label>
                   <div className="relative">
                     <select
                       name="role"
@@ -244,15 +248,15 @@ const RegisterPage: React.FC = () => {
                       onChange={handleChange}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all appearance-none"
                     >
-                        <option value="BUYER">Buyer (Fuel Procurement)</option>
-                        <option value="SUPPLIER">Supplier (Fuel Sales)</option>
+                        <option value="BUYER">{t('register.roleBuyer')}</option>
+                        <option value="SUPPLIER">{t('register.roleSupplier')}</option>
                     </select>
                     <Briefcase className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Email Address</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.email')}</label>
                   <div className="relative">
                     <input
                       type="email"
@@ -261,14 +265,14 @@ const RegisterPage: React.FC = () => {
                       value={formData.email}
                       onChange={handleChange}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                      placeholder="name@company.com"
+                      placeholder={t('register.emailPlaceholder')}
                     />
                     <Mail className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Password</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.password')}</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -277,7 +281,7 @@ const RegisterPage: React.FC = () => {
                       value={formData.password}
                       onChange={handleChange}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                      placeholder="••••••••"
+                      placeholder={t('register.passwordPlaceholder')}
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
@@ -297,7 +301,7 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Confirm Password</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.confirmPassword')}</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -305,12 +309,12 @@ const RegisterPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                      placeholder="••••••••"
+                      placeholder={t('register.confirmPasswordPlaceholder')}
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                   {confirmPassword && confirmPassword !== formData.password && (
-                    <p className="mt-1.5 text-xs text-red-400">Passwords do not match</p>
+                    <p className="mt-1.5 text-xs text-red-400">{t('register.passwordMismatch')}</p>
                   )}
                 </div>
 
@@ -319,14 +323,14 @@ const RegisterPage: React.FC = () => {
                   disabled={isSubmitting || !allRulesPass || formData.password !== confirmPassword}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Create Account'}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('register.submit')}
                 </button>
               </form>
 
               <div className="mt-6 text-center text-sm text-slate-500">
-                Already have an account?{' '}
+                {t('register.hasAccount')}{' '}
                 <Link to="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-                  Sign In
+                  {t('register.signIn')}
                 </Link>
               </div>
             </>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Upload, FileText, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../services/config';
+import { useNamespace } from '../hooks/useNamespace';
 
 type SubmitState = 'idle' | 'submitting' | 'approved' | 'rejected' | 'error';
 
@@ -13,12 +14,15 @@ const KycPage: React.FC = () => {
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [rejectionMessage, setRejectionMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const { t, ready } = useNamespace('auth');
+
+  if (!ready) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!passportFile || !companyDocFile) {
-      setErrorMessage('Please upload both documents before submitting.');
+      setErrorMessage(t('kyc.error.missingDocuments'));
       return;
     }
 
@@ -43,7 +47,7 @@ const KycPage: React.FC = () => {
         if (data.kyc_status === 'APPROVED') {
           setSubmitState('approved');
         } else if (data.kyc_status === 'REJECTED') {
-          setRejectionMessage(data.message || 'Your documents could not be verified.');
+          setRejectionMessage(data.message || t('kyc.rejected.defaultMessage'));
           setSubmitState('rejected');
         } else {
           // PENDING or any other status — treat as pending confirmation
@@ -51,11 +55,11 @@ const KycPage: React.FC = () => {
         }
       } else {
         const errData = await res.json().catch(() => null);
-        setErrorMessage(errData?.detail || 'Submission failed. Please try again.');
+        setErrorMessage(errData?.detail || t('kyc.error.failed'));
         setSubmitState('error');
       }
     } catch {
-      setErrorMessage('Unable to connect to server. Please check your connection.');
+      setErrorMessage(t('kyc.error.connectionFailed'));
       setSubmitState('error');
     }
   };
@@ -78,7 +82,7 @@ const KycPage: React.FC = () => {
       <div className="w-full max-w-lg p-8 relative z-10">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
-          <p className="text-slate-400">Identity Verification</p>
+          <p className="text-slate-400">{t('kyc.subtitle')}</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
@@ -88,16 +92,16 @@ const KycPage: React.FC = () => {
               <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 size={36} className="text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Account Approved!</h2>
+              <h2 className="text-2xl font-bold text-white">{t('kyc.approved.title')}</h2>
               <p className="text-slate-400">
-                Your account is approved. Welcome to Verdaxis.
+                {t('kyc.approved.message')}
               </p>
               <div className="pt-2">
                 <Link
                   to="/app"
                   className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-6 py-2.5 rounded-lg transition-all"
                 >
-                  Enter the Platform
+                  {t('kyc.approved.enterPlatform')}
                 </Link>
               </div>
             </div>
@@ -109,14 +113,14 @@ const KycPage: React.FC = () => {
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto">
                 <XCircle size={36} className="text-red-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Verification Failed</h2>
+              <h2 className="text-2xl font-bold text-white">{t('kyc.rejected.title')}</h2>
               <p className="text-slate-400">{rejectionMessage}</p>
               <div className="pt-2">
                 <button
                   onClick={handleReset}
                   className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-6 py-2.5 rounded-lg transition-all"
                 >
-                  Try Again
+                  {t('kyc.rejected.tryAgain')}
                 </button>
               </div>
             </div>
@@ -126,8 +130,8 @@ const KycPage: React.FC = () => {
           {submitState === 'submitting' && (
             <div className="text-center space-y-4 py-8">
               <Loader2 size={48} className="animate-spin text-emerald-400 mx-auto" />
-              <h2 className="text-xl font-semibold text-white">Verifying Documents</h2>
-              <p className="text-slate-400">This takes about 30 seconds...</p>
+              <h2 className="text-xl font-semibold text-white">{t('kyc.submitting.title')}</h2>
+              <p className="text-slate-400">{t('kyc.submitting.message')}</p>
             </div>
           )}
 
@@ -135,9 +139,9 @@ const KycPage: React.FC = () => {
           {(submitState === 'idle' || submitState === 'error') && (
             <>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-white mb-1">KYC Verification</h2>
+                <h2 className="text-xl font-semibold text-white mb-1">{t('kyc.formTitle')}</h2>
                 <p className="text-slate-400 text-sm">
-                  Upload the required documents to verify your identity and activate your account.
+                  {t('kyc.formDescription')}
                 </p>
               </div>
 
@@ -152,7 +156,7 @@ const KycPage: React.FC = () => {
                 {/* Passport / Government ID */}
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                    Passport or Government ID
+                    {t('kyc.passportLabel')}
                   </label>
                   <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
                     {passportFile ? (
@@ -163,7 +167,7 @@ const KycPage: React.FC = () => {
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-slate-500">
                         <Upload size={24} />
-                        <span className="text-sm">Click to upload (PDF, JPG, PNG)</span>
+                        <span className="text-sm">{t('kyc.passportUpload')}</span>
                       </div>
                     )}
                     <input
@@ -178,7 +182,7 @@ const KycPage: React.FC = () => {
                 {/* Company Registration Document */}
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                    Company Registration Document
+                    {t('kyc.companyDocLabel')}
                   </label>
                   <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
                     {companyDocFile ? (
@@ -189,7 +193,7 @@ const KycPage: React.FC = () => {
                     ) : (
                       <div className="flex flex-col items-center gap-2 text-slate-500">
                         <Upload size={24} />
-                        <span className="text-sm">Click to upload (PDF, JPG, PNG)</span>
+                        <span className="text-sm">{t('kyc.companyDocUpload')}</span>
                       </div>
                     )}
                     <input
@@ -206,7 +210,7 @@ const KycPage: React.FC = () => {
                   disabled={!passportFile || !companyDocFile}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                 >
-                  Submit for Verification
+                  {t('kyc.submit')}
                 </button>
               </form>
             </>

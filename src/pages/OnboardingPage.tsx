@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { User, Briefcase, LayoutDashboard } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { scheduleTutorial } from '../context/TutorialContext';
+import { useNamespace } from '../hooks/useNamespace';
 
 export const OnboardingPage: React.FC = () => {
     const { token, login } = useAuth(); // We might need a method to refresh user profile
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t, ready } = useNamespace('auth');
 
     const [formData, setFormData] = useState({
         first_name: '',
@@ -17,13 +19,15 @@ export const OnboardingPage: React.FC = () => {
         role: '' // 'BUYER' | 'SUPPLIER'
     });
 
+    if (!ready) return null;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsLoading(true);
 
         if (!formData.role) {
-            setError("Please select a role.");
+            setError(t('onboarding.error.selectRole'));
             setIsLoading(false);
             return;
         }
@@ -42,7 +46,7 @@ export const OnboardingPage: React.FC = () => {
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.detail || 'Failed to update profile');
+                throw new Error(errData.detail || t('onboarding.error.failed'));
             }
             
             // Schedule tutorial auto-start for new users after redirect
@@ -51,7 +55,7 @@ export const OnboardingPage: React.FC = () => {
             
         } catch (err: any) {
             console.error("Onboarding error:", err);
-            setError(err.message || "An unexpected error occurred.");
+            setError(err.message || t('onboarding.error.generic'));
         } finally {
             setIsLoading(false);
         }
@@ -61,8 +65,8 @@ export const OnboardingPage: React.FC = () => {
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-slate-800 rounded-xl shadow-2xl p-8 border border-slate-700">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Welcome to Verdaxis</h1>
-                    <p className="text-slate-400">Please complete your profile to continue.</p>
+                    <h1 className="text-3xl font-bold text-white mb-2">{t('onboarding.title')}</h1>
+                    <p className="text-slate-400">{t('onboarding.subtitle')}</p>
                 </div>
 
                 {error && (
@@ -74,23 +78,23 @@ export const OnboardingPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">First Name</label>
+                            <label className="text-sm font-medium text-slate-300">{t('onboarding.firstName')}</label>
                             <input
                                 type="text"
                                 required
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="John"
+                                placeholder={t('onboarding.firstNamePlaceholder')}
                                 value={formData.first_name}
                                 onChange={e => setFormData({...formData, first_name: e.target.value})}
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Last Name</label>
+                            <label className="text-sm font-medium text-slate-300">{t('onboarding.lastName')}</label>
                             <input
                                 type="text"
                                 required
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                                placeholder="Doe"
+                                placeholder={t('onboarding.lastNamePlaceholder')}
                                 value={formData.last_name}
                                 onChange={e => setFormData({...formData, last_name: e.target.value})}
                             />
@@ -98,7 +102,7 @@ export const OnboardingPage: React.FC = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <label className="text-sm font-medium text-slate-300">Select your role</label>
+                        <label className="text-sm font-medium text-slate-300">{t('onboarding.selectRole')}</label>
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 type="button"
@@ -110,7 +114,7 @@ export const OnboardingPage: React.FC = () => {
                                 }`}
                             >
                                 <LayoutDashboard size={24} />
-                                <span className="font-medium">Buyer</span>
+                                <span className="font-medium">{t('onboarding.roleBuyer')}</span>
                             </button>
                             <button
                                 type="button"
@@ -122,7 +126,7 @@ export const OnboardingPage: React.FC = () => {
                                 }`}
                             >
                                 <Briefcase size={24} />
-                                <span className="font-medium">Supplier</span>
+                                <span className="font-medium">{t('onboarding.roleSupplier')}</span>
                             </button>
                         </div>
                     </div>
@@ -132,7 +136,7 @@ export const OnboardingPage: React.FC = () => {
                         disabled={isLoading}
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-8"
                     >
-                        {isLoading ? 'Creating Profile...' : 'Complete Setup'}
+                        {isLoading ? t('onboarding.submitting') : t('onboarding.submit')}
                     </button>
                 </form>
             </div>

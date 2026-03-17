@@ -2,22 +2,26 @@ import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, Lock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { API_URL } from '../services/config';
-
-const PASSWORD_RULES = [
-  { label: 'At least 8 characters', test: (pw: string) => pw.length >= 8 },
-  { label: 'Contains uppercase letter', test: (pw: string) => /[A-Z]/.test(pw) },
-  { label: 'Contains a number', test: (pw: string) => /\d/.test(pw) },
-];
+import { useNamespace } from '../hooks/useNamespace';
 
 const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const { t, ready } = useNamespace('auth');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  if (!ready) return null;
+
+  const PASSWORD_RULES = [
+    { label: t('resetPassword.passwordRule.minLength'), test: (pw: string) => pw.length >= 8 },
+    { label: t('resetPassword.passwordRule.uppercase'), test: (pw: string) => /[A-Z]/.test(pw) },
+    { label: t('resetPassword.passwordRule.number'), test: (pw: string) => /\d/.test(pw) },
+  ];
 
   const allRulesPass = PASSWORD_RULES.every(rule => rule.test(password));
 
@@ -26,17 +30,17 @@ const ResetPasswordPage: React.FC = () => {
     setError(null);
 
     if (!token) {
-      setError('Missing reset token. Please use the link from your email.');
+      setError(t('resetPassword.error.missingToken'));
       return;
     }
 
     const failedRule = PASSWORD_RULES.find(rule => !rule.test(password));
     if (failedRule) {
-      setError(`Password requirement not met: ${failedRule.label.toLowerCase()}.`);
+      setError(t('resetPassword.error.requirementNotMet', { rule: failedRule.label.toLowerCase() }));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('resetPassword.error.passwordMismatch'));
       return;
     }
 
@@ -53,10 +57,10 @@ const ResetPasswordPage: React.FC = () => {
         setSuccess(true);
       } else {
         const errData = await res.json().catch(() => null);
-        setError(errData?.detail || 'Failed to reset password. The link may have expired.');
+        setError(errData?.detail || t('resetPassword.error.failed'));
       }
     } catch {
-      setError('Unable to connect to server. Please check your connection.');
+      setError(t('resetPassword.error.connectionFailed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -69,12 +73,12 @@ const ResetPasswordPage: React.FC = () => {
         <div className="w-full max-w-md p-8 relative z-10">
           <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl text-center space-y-4">
             <AlertCircle size={48} className="text-red-400 mx-auto" />
-            <h2 className="text-xl font-bold text-white">Invalid Reset Link</h2>
+            <h2 className="text-xl font-bold text-white">{t('resetPassword.invalid.title')}</h2>
             <p className="text-slate-400 text-sm">
-              This password reset link is invalid or missing. Please request a new one.
+              {t('resetPassword.invalid.message')}
             </p>
             <Link to="/forgot-password" className="text-emerald-400 text-sm hover:underline inline-block mt-2">
-              Request New Reset Link
+              {t('resetPassword.invalid.requestNew')}
             </Link>
           </div>
         </div>
@@ -91,7 +95,7 @@ const ResetPasswordPage: React.FC = () => {
       <div className="w-full max-w-md p-8 relative z-10">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
-          <p className="text-slate-400">Set New Password</p>
+          <p className="text-slate-400">{t('resetPassword.subtitle')}</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
@@ -100,16 +104,16 @@ const ResetPasswordPage: React.FC = () => {
               <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 size={32} className="text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Password Updated</h2>
+              <h2 className="text-2xl font-bold text-white">{t('resetPassword.success.title')}</h2>
               <p className="text-slate-400">
-                Your password has been successfully reset. You can now sign in with your new password.
+                {t('resetPassword.success.message')}
               </p>
               <div className="pt-4">
                 <Link
                   to="/login"
                   className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 px-6 rounded-lg transition-all"
                 >
-                  Sign In
+                  {t('resetPassword.success.signIn')}
                 </Link>
               </div>
             </div>
@@ -124,7 +128,7 @@ const ResetPasswordPage: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">New Password</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.newPassword')}</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -132,7 +136,7 @@ const ResetPasswordPage: React.FC = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                      placeholder="••••••••"
+                      placeholder={t('resetPassword.newPasswordPlaceholder')}
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
@@ -152,7 +156,7 @@ const ResetPasswordPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Confirm Password</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('resetPassword.confirmPassword')}</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -160,12 +164,12 @@ const ResetPasswordPage: React.FC = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                      placeholder="••••••••"
+                      placeholder={t('resetPassword.confirmPasswordPlaceholder')}
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                   {confirmPassword && confirmPassword !== password && (
-                    <p className="mt-1.5 text-xs text-red-400">Passwords do not match</p>
+                    <p className="mt-1.5 text-xs text-red-400">{t('resetPassword.passwordMismatch')}</p>
                   )}
                 </div>
 
@@ -174,14 +178,14 @@ const ResetPasswordPage: React.FC = () => {
                   disabled={isSubmitting || !allRulesPass || password !== confirmPassword}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Reset Password'}
+                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('resetPassword.submit')}
                 </button>
               </form>
 
               <div className="mt-6 text-center text-sm text-slate-500">
                 <Link to="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center justify-center gap-1">
                   <ArrowLeft size={14} />
-                  Back to Sign In
+                  {t('resetPassword.backToSignIn')}
                 </Link>
               </div>
             </>

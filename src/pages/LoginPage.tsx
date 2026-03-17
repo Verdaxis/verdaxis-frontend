@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Mail, Lock, AlertCircle, Info } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
+import { useNamespace } from '../hooks/useNamespace';
 
 type ErrorKind = 'generic' | 'unverified';
 
@@ -19,12 +20,15 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<LoginError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t, ready } = useNamespace('auth');
 
   React.useEffect(() => {
     if (isAuthenticated) {
       navigate('/app');
     }
   }, [isAuthenticated, navigate]);
+
+  if (!ready) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,28 +54,28 @@ const LoginPage: React.FC = () => {
         navigate('/app');
       } else {
         if (res.status === 401) {
-          setLoginError({ kind: 'generic', message: 'Invalid email or password.' });
+          setLoginError({ kind: 'generic', message: t('login.error.invalidCredentials') });
         } else if (res.status === 403) {
           const errData = await res.json().catch(() => null);
           const detail: string = errData?.detail ?? '';
           if (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')) {
             setLoginError({
               kind: 'unverified',
-              message: 'Please verify your email first. Check your inbox for the verification link.',
+              message: t('login.error.unverified'),
             });
           } else {
-            setLoginError({ kind: 'generic', message: detail || 'Access denied.' });
+            setLoginError({ kind: 'generic', message: detail || t('login.error.accessDenied') });
           }
         } else if (res.status >= 500) {
-          setLoginError({ kind: 'generic', message: 'Server error. Please try again later.' });
+          setLoginError({ kind: 'generic', message: t('login.error.server') });
         } else {
           const errData = await res.json().catch(() => null);
-          setLoginError({ kind: 'generic', message: errData?.detail || 'Login failed' });
+          setLoginError({ kind: 'generic', message: errData?.detail || t('login.error.loginFailed') });
         }
       }
     } catch (err) {
       console.error(err);
-      setLoginError({ kind: 'generic', message: 'Unable to connect to server. Please check your connection.' });
+      setLoginError({ kind: 'generic', message: t('login.error.connectionFailed') });
     } finally {
       setIsSubmitting(false);
     }
@@ -112,19 +116,19 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md p-8 relative z-10 pointer-events-auto">
         <div className="text-center mb-10">
            <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
-           <p className="text-slate-400">Intelligence Cockpit</p>
+           <p className="text-slate-400">{t('login.subtitle')}</p>
         </div>
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-            Sign In
+            {t('login.title')}
           </h2>
 
           {renderError()}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Email Address</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('login.emailLabel')}</label>
               <div className="relative">
                 <input
                   type="email"
@@ -132,7 +136,7 @@ const LoginPage: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                  placeholder="name@company.com"
+                  placeholder={t('login.emailPlaceholder')}
                 />
                 <Mail className="absolute left-3 top-3 text-slate-500" size={18} />
               </div>
@@ -140,9 +144,9 @@ const LoginPage: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-slate-400">Password</label>
+                <label className="block text-sm font-medium text-slate-400">{t('login.passwordLabel')}</label>
                 <Link to="/forgot-password" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
-                  Forgot password?
+                  {t('login.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
@@ -152,7 +156,7 @@ const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
-                  placeholder="••••••••"
+                  placeholder={t('login.passwordPlaceholder')}
                 />
                 <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
               </div>
@@ -163,14 +167,14 @@ const LoginPage: React.FC = () => {
               disabled={isSubmitting}
               className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
             >
-              {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
+              {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('login.submit')}
             </button>
           </form>
 
           {/* OAuth Divider */}
           <div className="mt-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-slate-700/50"></div>
-            <span className="text-xs text-slate-500 font-medium">or continue with</span>
+            <span className="text-xs text-slate-500 font-medium">{t('login.orContinueWith')}</span>
             <div className="flex-1 h-px bg-slate-700/50"></div>
           </div>
 
@@ -181,21 +185,21 @@ const LoginPage: React.FC = () => {
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-slate-700/50 rounded-lg text-sm text-slate-300 font-medium transition-all"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-              Google
+              {t('login.withGoogle')}
             </a>
             <a
               href={`${API_URL.replace('/api', '')}/oauth/microsoft/login`}
               className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-slate-700/50 rounded-lg text-sm text-slate-300 font-medium transition-all"
             >
               <svg className="w-4 h-4" viewBox="0 0 21 21"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-              Microsoft
+              {t('login.withMicrosoft')}
             </a>
           </div>
 
           <div className="mt-6 text-center text-sm text-slate-500">
-            Don't have an account?{' '}
+            {t('login.noAccount')}{' '}
             <Link to="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-              Create Account
+              {t('login.createAccount')}
             </Link>
           </div>
         </div>
