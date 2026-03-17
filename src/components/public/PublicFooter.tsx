@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useLocalePath } from '../../hooks/useLocalePath';
 
 const DARK = '#0F172A';
@@ -46,27 +47,27 @@ const FooterColumn: React.FC<{ title: string; links: { label: string; to: string
 );
 
 export const PublicFooter: React.FC = () => {
-  const currentYear = new Date().getFullYear();
+  const { t } = useTranslation();
   const lp = useLocalePath();
 
   const PLATFORM_LINKS = [
-    { label: 'How It Works', to: lp('/how-it-works') },
-    { label: 'Fuels', to: lp('/fuels') },
-    { label: 'Compliance', to: lp('/compliance') },
-    { label: 'Education', to: lp('/education') },
-    { label: 'Roadmap', to: lp('/roadmap') },
+    { label: t('nav.howItWorks'), to: lp('/how-it-works') },
+    { label: t('nav.fuels'), to: lp('/fuels') },
+    { label: t('nav.compliance'), to: lp('/compliance') },
+    { label: t('nav.education'), to: lp('/education') },
+    { label: t('nav.roadmap'), to: lp('/roadmap') },
   ];
 
   const SOLUTIONS_LINKS = [
-    { label: 'For Producers', to: lp('/for-producers') },
-    { label: 'For Buyers', to: lp('/for-buyers') },
-    { label: 'For Traders', to: lp('/for-traders') },
-    { label: 'For Financiers', to: lp('/for-financiers') },
+    { label: t('nav.forProducers'), to: lp('/for-producers') },
+    { label: t('nav.forBuyers'), to: lp('/for-buyers') },
+    { label: t('nav.forTraders'), to: lp('/for-traders') },
+    { label: t('nav.forFinanciers'), to: lp('/for-financiers') },
   ];
 
   const TOOLS_LINKS = [
-    { label: 'Energy Calculator', to: lp('/tools/energy-calculator') },
-    { label: 'Producer Map', to: lp('/map/producers') },
+    { label: t('nav.energyCalculator'), to: lp('/tools/energy-calculator') },
+    { label: t('nav.producerMap'), to: lp('/map/producers') },
   ];
 
   return (
@@ -113,13 +114,13 @@ export const PublicFooter: React.FC = () => {
             </span>
           </Link>
           <p style={{ fontSize: 14, lineHeight: 1.7, color: '#94A3B8', maxWidth: 280 }}>
-            The trusted marketplace for verified sustainable marine fuels. Connecting producers, buyers, traders, and financiers across the global maritime energy transition.
+            {t('footer.tagline')}
           </p>
         </div>
 
-        <FooterColumn title="Platform" links={PLATFORM_LINKS} />
-        <FooterColumn title="Solutions" links={SOLUTIONS_LINKS} />
-        <FooterColumn title="Tools" links={TOOLS_LINKS} />
+        <FooterColumn title={t('footer.platform')} links={PLATFORM_LINKS} />
+        <FooterColumn title={t('footer.solutions')} links={SOLUTIONS_LINKS} />
+        <FooterColumn title={t('footer.tools')} links={TOOLS_LINKS} />
       </div>
 
       {/* Bottom Bar */}
@@ -137,7 +138,7 @@ export const PublicFooter: React.FC = () => {
         }}
       >
         <span style={{ fontSize: 13, color: '#64748B' }}>
-          &copy; {currentYear} Verdaxis. All rights reserved.
+          {t('footer.copyright', { year: new Date().getFullYear() })}
         </span>
         <div style={{ display: 'flex', gap: 24 }}>
           <Link
@@ -146,7 +147,7 @@ export const PublicFooter: React.FC = () => {
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
           >
-            Governance
+            {t('nav.governance')}
           </Link>
           <Link
             to={lp('/privacy')}
@@ -154,7 +155,7 @@ export const PublicFooter: React.FC = () => {
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
           >
-            Privacy Policy
+            {t('nav.privacy')}
           </Link>
           <Link
             to={lp('/terms')}
@@ -162,7 +163,7 @@ export const PublicFooter: React.FC = () => {
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
           >
-            Terms of Service
+            {t('nav.terms')}
           </Link>
         </div>
       </div>

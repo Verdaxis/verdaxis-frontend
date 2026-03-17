@@ -17,6 +17,7 @@ import {
     ShieldCheck,
     Star
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 
@@ -42,26 +43,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     userRole
 }) => {
     const [logoError, setLogoError] = useState(false);
+    const { t } = useTranslation();
 
     const sidebarItems = viewMode === 'BUYER' ? [
-        { id: 'MAP', label: 'Intelligence Map', icon: MapIcon },
-        { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
-        { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
-        { id: 'FLEET', label: 'My Fleet', icon: Ship },
-        { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
-        { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
-        { id: 'WATCHLISTS', label: 'Watchlists', icon: Star },
-        { id: 'COMPLIANCE', label: 'Compliance', icon: FileText },
-        { id: 'TRAINING', label: 'Crew Training', icon: GraduationCap },
+        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
+        { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
+        { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
+        { id: 'FLEET', label: t('sidebar.myFleet'), icon: Ship },
+        { id: 'STATS', label: t('sidebar.stats'), icon: BarChart3 },
+        { id: 'TRADES', label: t('sidebar.myTrades'), icon: ArrowLeftRight },
+        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
+        { id: 'COMPLIANCE', label: t('sidebar.compliance'), icon: FileText },
+        { id: 'TRAINING', label: t('sidebar.training'), icon: GraduationCap },
     ] : [
-        { id: 'DASHBOARD', label: 'Command Center', icon: LayoutDashboard },
-        { id: 'MARKETPLACE', label: 'Marketplace', icon: ShoppingCart },
-        { id: 'QUOTES', label: 'Quotes & Orders', icon: ShoppingCart },
-        { id: 'TERMINAL', label: 'Market Terminal', icon: MonitorDot },
-        { id: 'STATS', label: 'Stats & History', icon: BarChart3 },
-        { id: 'TRADES', label: 'My Trades', icon: ArrowLeftRight },
-        { id: 'WATCHLISTS', label: 'Watchlists', icon: Star },
-        { id: 'ANALYTICS', label: 'Analytics', icon: TrendingUp },
+        { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
+        { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
+        { id: 'QUOTES', label: t('sidebar.quotes'), icon: ShoppingCart },
+        { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
+        { id: 'STATS', label: t('sidebar.stats'), icon: BarChart3 },
+        { id: 'TRADES', label: t('sidebar.myTrades'), icon: ArrowLeftRight },
+        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
+        { id: 'ANALYTICS', label: t('sidebar.analytics'), icon: TrendingUp },
     ];
 
     const handleNavigate = (page: Page) => {
@@ -105,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                 )}
             </div>
-            
+
             {!isCollapsed && (
                 <div className="px-6 mt-6 mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold truncate flex items-center justify-between">
                     <span>{viewMode} CONSOLE</span>
@@ -120,8 +122,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             data-tour={`nav-${item.id}`}
                             onClick={() => handleNavigate(item.id as Page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
-                                currentPage === item.id 
-                                ? 'bg-verdaxis text-white shadow-lg' 
+                                currentPage === item.id
+                                ? 'bg-verdaxis text-white shadow-lg'
                                 : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
@@ -134,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <div className="p-4 border-t border-[#2A3344] space-y-1">
                 {userRole === 'ADMIN' && (
-                    <Tooltip content={isCollapsed ? 'Platform Admin' : ''} position="right">
+                    <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
                         <button
                             onClick={() => handleNavigate('ADMIN')}
                             className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
@@ -144,27 +146,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
                             <ShieldCheck size={20} className={`flex-shrink-0 ${currentPage === 'ADMIN' ? 'text-white' : 'text-amber-400 group-hover:text-white'}`} />
-                            {!isCollapsed && <span className="truncate font-medium">Platform Admin</span>}
+                            {!isCollapsed && <span className="truncate font-medium">{t('sidebar.admin')}</span>}
                         </button>
                     </Tooltip>
                 )}
-                <Tooltip content={isCollapsed ? 'System Settings' : ''} position="right">
-                    <button 
+                <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
+                    <button
                         onClick={() => handleNavigate('SETTINGS')}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
-                            currentPage === 'SETTINGS' 
+                            currentPage === 'SETTINGS'
                             ? 'bg-verdaxis text-white shadow-lg'
                             : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                         } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                     >
                         <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-                        {!isCollapsed && <span className="truncate">Settings</span>}
+                        {!isCollapsed && <span className="truncate">{t('sidebar.settings')}</span>}
                     </button>
                 </Tooltip>
-                
+
                 {/* Desktop Expand Button */}
                 {isCollapsed && (
-                        <button 
+                    <button
                         onClick={onToggleCollapse}
                         className="mt-4 w-full flex justify-center text-slate-400 hover:text-white hidden md:flex transition-colors"
                     >

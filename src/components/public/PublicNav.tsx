@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from '../LanguageSelector';
+import { type SupportedLang } from '../../i18n';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 const BLUE = '#5DADE2';
 const GREEN = '#4CAF50';
@@ -12,40 +16,10 @@ interface DropdownItem {
 }
 
 interface NavItem {
-  label: string;
+  labelKey: string;
   to?: string;
   dropdown?: DropdownItem[];
 }
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'How It Works', to: '/how-it-works' },
-  {
-    label: 'Solutions',
-    dropdown: [
-      { label: 'For Producers', to: '/for-producers' },
-      { label: 'For Buyers', to: '/for-buyers' },
-      { label: 'For Traders', to: '/for-traders' },
-      { label: 'For Financiers', to: '/for-financiers' },
-    ],
-  },
-  {
-    label: 'Fuels',
-    dropdown: [
-      { label: 'Maritime', to: '/fuels/maritime' },
-      { label: 'Aviation', to: '/fuels/aviation' },
-      { label: 'Land & Power', to: '/fuels/land' },
-    ],
-  },
-  { label: 'Compliance', to: '/compliance' },
-  { label: 'Partners', to: '/partners' },
-  {
-    label: 'Tools',
-    dropdown: [
-      { label: 'Energy Calculator', to: '/tools/energy-calculator' },
-      { label: 'Producer Map', to: '/map/producers' },
-    ],
-  },
-];
 
 const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string; onClose: () => void }> = ({ items, pathname, onClose }) => (
   <div
@@ -91,8 +65,47 @@ const DropdownMenu: React.FC<{ items: DropdownItem[]; pathname: string; onClose:
 
 export const PublicNav: React.FC = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
+  const { t } = useTranslation();
+  const lp = useLocalePath();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const handleLanguageChange = (newLang: SupportedLang) => {
+    const rest = pathname.replace(/^\/[a-z]{2}/, '');
+    navigate(`/${newLang}${rest || '/'}`);
+  };
+
+  const NAV_ITEMS: NavItem[] = [
+    { labelKey: 'nav.howItWorks', to: lp('/how-it-works') },
+    {
+      labelKey: 'nav.solutions',
+      dropdown: [
+        { label: t('nav.forProducers'), to: lp('/for-producers') },
+        { label: t('nav.forBuyers'), to: lp('/for-buyers') },
+        { label: t('nav.forTraders'), to: lp('/for-traders') },
+        { label: t('nav.forFinanciers'), to: lp('/for-financiers') },
+      ],
+    },
+    {
+      labelKey: 'nav.fuels',
+      dropdown: [
+        { label: t('nav.maritime'), to: lp('/fuels/maritime') },
+        { label: t('nav.aviation'), to: lp('/fuels/aviation') },
+        { label: t('nav.landPower'), to: lp('/fuels/land') },
+      ],
+    },
+    { labelKey: 'nav.compliance', to: lp('/compliance') },
+    { labelKey: 'nav.partners', to: lp('/partners') },
+    {
+      labelKey: 'nav.tools',
+      dropdown: [
+        { label: t('nav.energyCalculator'), to: lp('/tools/energy-calculator') },
+        { label: t('nav.producerMap'), to: lp('/map/producers') },
+      ],
+    },
+  ];
 
   const isActive = (item: NavItem): boolean => {
     if (item.to) return pathname === item.to;
@@ -124,7 +137,7 @@ export const PublicNav: React.FC = () => {
         }}
       >
         {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+        <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <div
             style={{
               width: 32,
@@ -166,9 +179,9 @@ export const PublicNav: React.FC = () => {
         >
           {NAV_ITEMS.map((item) => (
             <div
-              key={item.label}
+              key={item.labelKey}
               style={{ position: 'relative' }}
-              onMouseEnter={() => item.dropdown && setOpenDropdown(item.label)}
+              onMouseEnter={() => item.dropdown && setOpenDropdown(item.labelKey)}
               onMouseLeave={() => item.dropdown && setOpenDropdown(null)}
             >
               {item.to ? (
@@ -195,7 +208,7 @@ export const PublicNav: React.FC = () => {
                     (e.currentTarget as HTMLElement).style.background = 'transparent';
                   }}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               ) : (
                 <button
@@ -223,11 +236,11 @@ export const PublicNav: React.FC = () => {
                     (e.currentTarget as HTMLElement).style.background = 'transparent';
                   }}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                   <ChevronDown size={14} />
                 </button>
               )}
-              {item.dropdown && openDropdown === item.label && (
+              {item.dropdown && openDropdown === item.labelKey && (
                 <DropdownMenu items={item.dropdown} pathname={pathname} onClose={() => setOpenDropdown(null)} />
               )}
             </div>
@@ -236,8 +249,9 @@ export const PublicNav: React.FC = () => {
 
         {/* Desktop CTAs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} className="public-nav-ctas">
+          <LanguageSelector onLanguageChange={handleLanguageChange} variant="light" />
           <Link
-            to="/pilot"
+            to={lp('/pilot')}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -257,7 +271,7 @@ export const PublicNav: React.FC = () => {
               (e.currentTarget as HTMLElement).style.color = DARK;
             }}
           >
-            Apply for Pilot
+            {t('btn.applyPilot')}
           </Link>
           <a
             href="https://app.verdaxis.exchange/login"
@@ -279,7 +293,7 @@ export const PublicNav: React.FC = () => {
               (e.currentTarget as HTMLElement).style.opacity = '1';
             }}
           >
-            Sign In
+            {t('btn.signIn')}
           </a>
         </div>
 
@@ -312,7 +326,7 @@ export const PublicNav: React.FC = () => {
           }}
         >
           {NAV_ITEMS.map((item) => (
-            <div key={item.label}>
+            <div key={item.labelKey}>
               {item.to ? (
                 <Link
                   to={item.to}
@@ -327,12 +341,12 @@ export const PublicNav: React.FC = () => {
                     borderBottom: '1px solid #F1F5F9',
                   }}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               ) : (
                 <div>
                   <button
-                    onClick={() => setOpenDropdown(openDropdown === item.label ? null : item.label)}
+                    onClick={() => setOpenDropdown(openDropdown === item.labelKey ? null : item.labelKey)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -349,16 +363,16 @@ export const PublicNav: React.FC = () => {
                       fontFamily: 'inherit',
                     }}
                   >
-                    {item.label}
+                    {t(item.labelKey)}
                     <ChevronDown
                       size={16}
                       style={{
-                        transform: openDropdown === item.label ? 'rotate(180deg)' : 'rotate(0)',
+                        transform: openDropdown === item.labelKey ? 'rotate(180deg)' : 'rotate(0)',
                         transition: 'transform 0.2s',
                       }}
                     />
                   </button>
-                  {openDropdown === item.label && item.dropdown && (
+                  {openDropdown === item.labelKey && item.dropdown && (
                     <div style={{ paddingLeft: 16 }}>
                       {item.dropdown.map((sub) => (
                         <Link
@@ -386,8 +400,11 @@ export const PublicNav: React.FC = () => {
 
           {/* Mobile CTAs */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid #E2E8F0' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <LanguageSelector onLanguageChange={handleLanguageChange} variant="light" />
+            </div>
             <Link
-              to="/pilot"
+              to={lp('/pilot')}
               onClick={() => setMobileOpen(false)}
               style={{
                 padding: '12px 0',
@@ -400,7 +417,7 @@ export const PublicNav: React.FC = () => {
                 textDecoration: 'none',
               }}
             >
-              Apply for Pilot
+              {t('btn.applyPilot')}
             </Link>
             <a
               href="https://app.verdaxis.exchange/login"
@@ -418,7 +435,7 @@ export const PublicNav: React.FC = () => {
                 display: 'block',
               }}
             >
-              Sign In
+              {t('btn.signIn')}
             </a>
           </div>
         </div>
