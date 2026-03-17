@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "i18n:check": "npx tsx scripts/check-translations.ts"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",
