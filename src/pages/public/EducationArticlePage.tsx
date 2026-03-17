@@ -4,6 +4,7 @@ import { ArrowLeft, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { educationArticles } from '../../data/educationArticles';
 import { Reveal, GradientOrb, HoverButton } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -21,7 +22,10 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 export const EducationArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
+  const { t, ready } = useNamespace('public');
   const article = educationArticles.find((a) => a.slug === slug);
+
+  if (!ready) return null;
 
   /* ---- Not found ---- */
   if (!article) {
@@ -42,10 +46,10 @@ export const EducationArticlePage: React.FC = () => {
             marginBottom: 16,
           }}
         >
-          Article not found
+          {t('educationArticle.notFound.title')}
         </h1>
         <p style={{ fontSize: 16, color: '#64748B', marginBottom: 24 }}>
-          The article you are looking for does not exist or has been moved.
+          {t('educationArticle.notFound.description')}
         </p>
         <HoverButton>
           <Link
@@ -61,7 +65,7 @@ export const EducationArticlePage: React.FC = () => {
             }}
           >
             <ArrowLeft size={16} />
-            Back to Education
+            {t('educationArticle.backToEducation')}
           </Link>
         </HoverButton>
       </div>
@@ -117,7 +121,7 @@ export const EducationArticlePage: React.FC = () => {
               }}
             >
               <ArrowLeft size={16} />
-              Back to Education
+              {t('educationArticle.backToEducation')}
             </Link>
           </HoverButton>
 
@@ -174,7 +178,7 @@ export const EducationArticlePage: React.FC = () => {
             }}
           >
             <Clock size={15} />
-            {article.readTime} min read
+            {article.readTime} {t('educationArticle.minRead')}
           </motion.span>
         </motion.div>
       </section>
@@ -225,7 +229,7 @@ export const EducationArticlePage: React.FC = () => {
                   }}
                 >
                   <ArrowLeft size={16} />
-                  Back to Education
+                  {t('educationArticle.backToEducation')}
                 </Link>
               </HoverButton>
             </div>

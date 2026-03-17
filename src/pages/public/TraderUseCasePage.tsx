@@ -16,45 +16,13 @@ import {
   DotGrid,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
 const ACCENT = '#F59E0B';
-
-const valueProps = [
-  {
-    icon: Droplets,
-    title: 'Deep Liquidity Pool',
-    description:
-      'Verdaxis aggregates bids and asks across regions and counterparties in real time, giving traders the depth and immediacy they need to execute at scale.',
-  },
-  {
-    icon: ArrowLeftRight,
-    title: 'Hedging Tools & Swaps',
-    description:
-      'Access paper trading instruments — swaps and forwards — alongside physical contracts. Manage exposure and lock in margins with standardised, exchange-grade structures.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Price Discovery & Market Intelligence',
-    description:
-      'Transparent price formation driven by live order flow. Market intelligence and forecasting tools help you anticipate moves and inform strategy ahead of the curve.',
-  },
-  {
-    icon: Settings,
-    title: 'Integrated Risk Management',
-    description:
-      'Monitor open positions, margin exposure, and settlement obligations in one place. Automated workflows reduce manual reconciliation and counterparty risk.',
-  },
-];
-
-const howItWorksSteps = [
-  'Access the live orderbook \u2014 real-time bids, asks, and depth across fuel types and regions',
-  'Execute spot trades, swaps, or forwards with standardised terms and verified sustainability data',
-  'Monitor positions, risk exposure, and market intelligence \u2014 all in a single dashboard',
-];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -96,6 +64,38 @@ const responsiveCSS = `
 /* ================================================================== */
 
 export const TraderUseCasePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const valueProps = [
+    {
+      icon: Droplets,
+      title: t('trader.valueProps.items.0.title'),
+      description: t('trader.valueProps.items.0.description'),
+    },
+    {
+      icon: ArrowLeftRight,
+      title: t('trader.valueProps.items.1.title'),
+      description: t('trader.valueProps.items.1.description'),
+    },
+    {
+      icon: BarChart3,
+      title: t('trader.valueProps.items.2.title'),
+      description: t('trader.valueProps.items.2.description'),
+    },
+    {
+      icon: Settings,
+      title: t('trader.valueProps.items.3.title'),
+      description: t('trader.valueProps.items.3.description'),
+    },
+  ];
+
+  const howItWorksSteps = [
+    t('trader.howItWorks.steps.0'),
+    t('trader.howItWorks.steps.1'),
+    t('trader.howItWorks.steps.2'),
+  ];
+
   return (
     <div>
       <style>{responsiveCSS}</style>
@@ -151,7 +151,7 @@ export const TraderUseCasePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            For Traders & Aggregators
+            {t('trader.hero.title')}
           </h1>
           <p
             style={{
@@ -162,8 +162,7 @@ export const TraderUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Deep liquidity. Hedging tools and swaps. Real-time price discovery
-            and market intelligence — built for professional fuel traders.
+            {t('trader.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -181,12 +180,10 @@ export const TraderUseCasePage: React.FC = () => {
         <DotGrid style={{ bottom: 24, left: 32 }} />
 
         <Reveal>
-          <h2 style={sectionTitle}>Why Traders Choose Verdaxis</h2>
+          <h2 style={sectionTitle}>{t('trader.valueProps.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Exchange-grade tools — liquidity, hedging, risk management, and market data — in one integrated platform.
-          </p>
+          <p style={sectionSubtitle}>{t('trader.valueProps.subtitle')}</p>
         </Reveal>
         <StaggerGrid
           className="trader-value-grid"
@@ -246,12 +243,10 @@ export const TraderUseCasePage: React.FC = () => {
       {/* ---- How It Works For You ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>How It Works For You</h2>
+          <h2 style={sectionTitle}>{t('trader.howItWorks.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            From orderbook to settled position in three steps.
-          </p>
+          <p style={sectionSubtitle}>{t('trader.howItWorks.subtitle')}</p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {howItWorksSteps.map((step, idx) => (
@@ -328,7 +323,7 @@ export const TraderUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to access real liquidity?
+              {t('trader.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -340,8 +335,7 @@ export const TraderUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and trade with institutional liquidity,
-              hedging tools, and live market intelligence from day one.
+              {t('trader.cta.subtitle')}
             </p>
           </Reveal>
           <Reveal delay={0.2}>
@@ -359,7 +353,7 @@ export const TraderUseCasePage: React.FC = () => {
                   textDecoration: 'none',
                 }}
               >
-                Apply for Pilot
+                {t('trader.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

@@ -20,90 +20,9 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
+import { useNamespace } from '../../hooks/useNamespace';
 
 gsap.registerPlugin(ScrollTrigger);
-
-/* ── Data ── */
-
-const whyCards = [
-  {
-    icon: TrendingUp,
-    title: 'Price Discovery',
-    body: 'Real-time aggregation of supply and demand drives transparent, market-driven pricing for sustainable marine fuels.',
-  },
-  {
-    icon: Eye,
-    title: 'Transparency',
-    body: 'Verified sustainability data, CI scores, and full chain-of-custody for every fuel batch on the platform.',
-  },
-  {
-    icon: Zap,
-    title: 'Low Friction',
-    body: 'Streamlined digital trading enables simple, error-free transactions \u2014 accelerating contract negotiation and cutting settlement times.',
-  },
-  {
-    icon: ArrowLeftRight,
-    title: 'Market Access',
-    body: 'Connects fuel producers, buyers, and traders on a unified marketplace with broad availability across all sustainable fuel types.',
-  },
-];
-
-const howSteps = [
-  {
-    num: '01',
-    icon: ClipboardCheck,
-    title: 'List & Verify',
-    body: 'Producers register fuel supply, CI score, and certifications.',
-  },
-  {
-    num: '02',
-    icon: ShieldCheck,
-    title: 'Discover & Trade',
-    body: 'Access a unified market of verified sustainable fuel suppliers with real-time pricing and compliance data.',
-  },
-  {
-    num: '03',
-    icon: BarChart3,
-    title: 'Manage & Optimise',
-    body: 'Integrated risk management, market intelligence, and hedging tools including swaps and forwards.',
-  },
-];
-
-const roleCards = [
-  {
-    icon: Factory,
-    title: 'Fuel Producers',
-    path: '/for-producers',
-    bullets: ['Direct access to qualified buyers', 'Market reach and visibility', 'Lower friction for contract negotiation'],
-  },
-  {
-    icon: Ship,
-    title: 'Fuel Buyers',
-    path: '/for-buyers',
-    bullets: ['One-stop access to all sustainable fuel types', 'Transparent, reliable pricing', 'Efficiency and speed'],
-  },
-  {
-    icon: ArrowLeftRight,
-    title: 'Traders',
-    path: '/for-traders',
-    bullets: ['Liquidity access', 'Access to hedging tools and swaps', 'Market intelligence and forecasting'],
-  },
-  {
-    icon: Landmark,
-    title: 'Financiers',
-    path: '/for-financiers',
-    bullets: ['Verified sustainability data', 'Integrated risk management', 'Reduced diligence cost'],
-  },
-];
-
-const stats = [
-  { value: 10, suffix: '+', label: 'Fuel Pathways' },
-  { value: 6, suffix: '', label: 'Regulatory Frameworks' },
-  { value: 100, suffix: '%', label: 'Chain-of-Custody' },
-  { value: 0, suffix: '', label: 'Double-Counting' },
-];
-
-const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
 
 /* ── Animated counter component ── */
 const AnimatedStat: React.FC<{ value: number; suffix: string; label: string }> = ({ value, suffix, label }) => {
@@ -182,9 +101,9 @@ const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = (
 /* ── Main Component ── */
 
 export const LandingPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const howSectionRef = useRef<HTMLElement>(null);
 
-  // GSAP: Horizontal scroll for "How It Works" on desktop
   useEffect(() => {
     const section = howSectionRef.current;
     if (!section) return;
@@ -211,6 +130,73 @@ export const LandingPage: React.FC = () => {
 
     return () => mm.revert();
   }, []);
+
+  if (!ready) return null;
+
+  const whyCards = [
+    { icon: TrendingUp, title: t('landing.why.items.0.title'), body: t('landing.why.items.0.body') },
+    { icon: Eye, title: t('landing.why.items.1.title'), body: t('landing.why.items.1.body') },
+    { icon: Zap, title: t('landing.why.items.2.title'), body: t('landing.why.items.2.body') },
+    { icon: ArrowLeftRight, title: t('landing.why.items.3.title'), body: t('landing.why.items.3.body') },
+  ];
+
+  const howSteps = [
+    { num: '01', icon: ClipboardCheck, title: t('landing.how.steps.0.title'), body: t('landing.how.steps.0.body') },
+    { num: '02', icon: ShieldCheck, title: t('landing.how.steps.1.title'), body: t('landing.how.steps.1.body') },
+    { num: '03', icon: BarChart3, title: t('landing.how.steps.2.title'), body: t('landing.how.steps.2.body') },
+  ];
+
+  const roleCards = [
+    {
+      icon: Factory,
+      title: t('landing.roles.items.0.title'),
+      path: '/for-producers',
+      bullets: [
+        t('landing.roles.items.0.bullets.0'),
+        t('landing.roles.items.0.bullets.1'),
+        t('landing.roles.items.0.bullets.2'),
+      ],
+    },
+    {
+      icon: Ship,
+      title: t('landing.roles.items.1.title'),
+      path: '/for-buyers',
+      bullets: [
+        t('landing.roles.items.1.bullets.0'),
+        t('landing.roles.items.1.bullets.1'),
+        t('landing.roles.items.1.bullets.2'),
+      ],
+    },
+    {
+      icon: ArrowLeftRight,
+      title: t('landing.roles.items.2.title'),
+      path: '/for-traders',
+      bullets: [
+        t('landing.roles.items.2.bullets.0'),
+        t('landing.roles.items.2.bullets.1'),
+        t('landing.roles.items.2.bullets.2'),
+      ],
+    },
+    {
+      icon: Landmark,
+      title: t('landing.roles.items.3.title'),
+      path: '/for-financiers',
+      bullets: [
+        t('landing.roles.items.3.bullets.0'),
+        t('landing.roles.items.3.bullets.1'),
+        t('landing.roles.items.3.bullets.2'),
+      ],
+    },
+  ];
+
+  const stats = [
+    { value: 10, suffix: '+', label: t('landing.stats.items.0') },
+    { value: 6, suffix: '', label: t('landing.stats.items.1') },
+    { value: 100, suffix: '%', label: t('landing.stats.items.2') },
+    { value: 0, suffix: '', label: t('landing.stats.items.3') },
+  ];
+
+  const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -252,7 +238,6 @@ export const LandingPage: React.FC = () => {
           position: 'relative',
         }}
       >
-        {/* Accent line */}
         <div
           style={{
             position: 'absolute',
@@ -278,7 +263,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                The Platform
+                {t('landing.why.eyebrow')}
               </p>
               <h2
                 style={{
@@ -289,7 +274,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Why Verdaxis
+                {t('landing.why.title')}
               </h2>
               <p
                 style={{
@@ -300,8 +285,7 @@ export const LandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                A unified exchange for sustainable marine fuels — bringing price discovery,
-                transparency, and liquidity to a fragmented market.
+                {t('landing.why.subtitle')}
               </p>
             </div>
           </RevealSection>
@@ -399,7 +383,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 12,
               }}
             >
-              The Solution
+              {t('landing.how.eyebrow')}
             </p>
             <h2
               style={{
@@ -411,9 +395,7 @@ export const LandingPage: React.FC = () => {
                 lineHeight: 1.15,
               }}
             >
-              How Verdaxis
-              <br />
-              Works
+              {t('landing.how.title')}
             </h2>
             <p
               style={{
@@ -423,7 +405,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 28,
               }}
             >
-              Three steps from listing to trading on the Verdaxis exchange.
+              {t('landing.how.subtitle')}
             </p>
             <Link
               to="/how-it-works"
@@ -437,7 +419,7 @@ export const LandingPage: React.FC = () => {
                 textDecoration: 'none',
               }}
             >
-              See full process <ArrowRight size={16} />
+              {t('landing.how.seeFullProcess')} <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -461,7 +443,6 @@ export const LandingPage: React.FC = () => {
                   height: '100%',
                 }}
               >
-                {/* Step circle */}
                 <div
                   style={{
                     width: 56,
@@ -486,7 +467,7 @@ export const LandingPage: React.FC = () => {
                     marginBottom: 10,
                   }}
                 >
-                  STEP {num}
+                  {t('landing.how.stepLabel')} {num}
                 </div>
                 <h3
                   style={{
@@ -511,10 +492,10 @@ export const LandingPage: React.FC = () => {
         <div className="how-mobile-fallback" style={{ display: 'none', padding: '80px 24px' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <p style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#5DADE2', marginBottom: 12 }}>
-              The Solution
+              {t('landing.how.eyebrow')}
             </p>
             <h2 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 34, fontWeight: 400, color: '#0F172A', marginBottom: 16 }}>
-              How Verdaxis Works
+              {t('landing.how.title')}
             </h2>
           </div>
           <div style={{ maxWidth: 500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -525,7 +506,7 @@ export const LandingPage: React.FC = () => {
                     <Icon size={20} color="#4CAF50" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>STEP {num}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{t('landing.how.stepLabel')} {num}</div>
                     <h3 style={{ fontFamily: '"Montserrat", sans-serif', fontSize: 17, fontWeight: 700, color: '#0F172A' }}>{title}</h3>
                   </div>
                 </div>
@@ -534,7 +515,7 @@ export const LandingPage: React.FC = () => {
             ))}
             <div style={{ textAlign: 'center', marginTop: 8 }}>
               <Link to="/how-it-works" style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                See full process <ArrowRight size={16} />
+                {t('landing.how.seeFullProcess')} <ArrowRight size={16} />
               </Link>
             </div>
           </div>
@@ -562,7 +543,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                For Every Role
+                {t('landing.roles.eyebrow')}
               </p>
               <h2
                 style={{
@@ -573,7 +554,7 @@ export const LandingPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Built for Every Participant
+                {t('landing.roles.title')}
               </h2>
               <p
                 style={{
@@ -584,8 +565,7 @@ export const LandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                Whether you produce, buy, trade, or finance low-carbon fuels,
-                Verdaxis gives you the tools and trust layer you need.
+                {t('landing.roles.subtitle')}
               </p>
             </div>
           </RevealSection>
@@ -673,7 +653,7 @@ export const LandingPage: React.FC = () => {
                       textDecoration: 'none',
                     }}
                   >
-                    Learn more <ChevronRight size={16} />
+                    {t('landing.roles.learnMore')} <ChevronRight size={16} />
                   </Link>
                 </motion.div>
               </RevealSection>
@@ -703,7 +683,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 28,
               }}
             >
-              Built for global compliance frameworks
+              {t('landing.frameworks.label')}
             </p>
           </RevealSection>
           <RevealSection delay={0.15}>
@@ -749,7 +729,6 @@ export const LandingPage: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        {/* Background glow */}
         <div
           className="float-slow"
           style={{
@@ -776,7 +755,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Join the Pilot
+              {t('landing.cta.eyebrow')}
             </p>
           </RevealSection>
           <RevealSection delay={0.1}>
@@ -789,7 +768,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 20,
               }}
             >
-              Ready to define the market?
+              {t('landing.cta.title')}
             </h2>
           </RevealSection>
           <RevealSection delay={0.2}>
@@ -801,9 +780,7 @@ export const LandingPage: React.FC = () => {
                 marginBottom: 40,
               }}
             >
-              Verdaxis is onboarding a limited cohort of pilot participants
-              {' \u2014 '}producers, buyers, traders, and financiers who want to shape
-              the standard for low-carbon fuel commerce.
+              {t('landing.cta.subtitle')}
             </p>
           </RevealSection>
           <RevealSection delay={0.3}>
@@ -832,7 +809,7 @@ export const LandingPage: React.FC = () => {
                     gap: 8,
                   }}
                 >
-                  Apply for Pilot
+                  {t('landing.cta.applyButton')}
                   <ArrowRight size={16} />
                 </Link>
               </motion.div>
@@ -852,7 +829,7 @@ export const LandingPage: React.FC = () => {
                     display: 'inline-block',
                   }}
                 >
-                  Register Interest
+                  {t('landing.cta.registerButton')}
                 </a>
               </motion.div>
             </div>

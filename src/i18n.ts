@@ -36,4 +36,45 @@ i18n.on('languageChanged', (lng) => {
   localStorage.setItem('verdaxis-lang', lng);
 });
 
+const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
+  en: {
+    public: () => import('./locales/en/public.json'),
+    auth: () => import('./locales/en/auth.json'),
+    trading: () => import('./locales/en/trading.json'),
+    compliance: () => import('./locales/en/compliance.json'),
+    dashboard: () => import('./locales/en/dashboard.json'),
+    fleet: () => import('./locales/en/fleet.json'),
+    ai: () => import('./locales/en/ai.json'),
+    education: () => import('./locales/en/education.json'),
+    admin: () => import('./locales/en/admin.json'),
+    settings: () => import('./locales/en/settings.json'),
+    tutorial: () => import('./locales/en/tutorial.json'),
+  },
+  zh: {
+    public: () => import('./locales/zh/public.json'),
+    auth: () => import('./locales/zh/auth.json'),
+    trading: () => import('./locales/zh/trading.json'),
+    compliance: () => import('./locales/zh/compliance.json'),
+    dashboard: () => import('./locales/zh/dashboard.json'),
+    fleet: () => import('./locales/zh/fleet.json'),
+    ai: () => import('./locales/zh/ai.json'),
+    education: () => import('./locales/zh/education.json'),
+    admin: () => import('./locales/zh/admin.json'),
+    settings: () => import('./locales/zh/settings.json'),
+    tutorial: () => import('./locales/zh/tutorial.json'),
+  },
+};
+
+export async function loadNamespace(ns: string): Promise<void> {
+  for (const lang of SUPPORTED_LANGS) {
+    if (!i18n.hasResourceBundle(lang, ns)) {
+      const loader = lazyNamespaces[lang]?.[ns];
+      if (loader) {
+        const mod = await loader();
+        i18n.addResourceBundle(lang, ns, mod.default || mod, true, true);
+      }
+    }
+  }
+}
+
 export default i18n;

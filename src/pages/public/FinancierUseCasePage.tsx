@@ -17,45 +17,13 @@ import {
   DotGrid,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
 const ACCENT = '#9333EA';
-
-const valueProps = [
-  {
-    icon: Database,
-    title: 'Verified Sustainability Data',
-    description:
-      'Every data point on Verdaxis is independently verified and timestamped. Production volumes, CI scores, and compliance certifications — audit-ready from day one.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Integrated Risk Management',
-    description:
-      'Built-in risk tools flag counterparty exposure, compliance gaps, and regulatory drift before they affect your portfolio — all from a single dashboard.',
-  },
-  {
-    icon: Calculator,
-    title: 'Reduced Diligence Cost',
-    description:
-      'Platform-verified counterparties, standardised data formats, and immutable audit trails cut the time and cost of sustainability due diligence significantly.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Market Intelligence & Forecasting',
-    description:
-      'Access forward price curves, supply/demand signals, and regulatory trend analysis to inform investment decisions and stress-test green finance structures.',
-  },
-];
-
-const howItWorksSteps = [
-  'Access bankable, auditable sustainability data across all platform participants',
-  'Run integrated risk assessments and review standardised compliance reporting',
-  'Apply market intelligence and forecasting to structure and price green finance deals',
-];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -88,6 +56,38 @@ const sectionSubtitle: React.CSSProperties = {
 /* ================================================================== */
 
 export const FinancierUseCasePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const valueProps = [
+    {
+      icon: Database,
+      title: t('financier.valueProps.items.0.title'),
+      description: t('financier.valueProps.items.0.description'),
+    },
+    {
+      icon: ShieldCheck,
+      title: t('financier.valueProps.items.1.title'),
+      description: t('financier.valueProps.items.1.description'),
+    },
+    {
+      icon: Calculator,
+      title: t('financier.valueProps.items.2.title'),
+      description: t('financier.valueProps.items.2.description'),
+    },
+    {
+      icon: TrendingUp,
+      title: t('financier.valueProps.items.3.title'),
+      description: t('financier.valueProps.items.3.description'),
+    },
+  ];
+
+  const howItWorksSteps = [
+    t('financier.howItWorks.steps.0'),
+    t('financier.howItWorks.steps.1'),
+    t('financier.howItWorks.steps.2'),
+  ];
+
   return (
     <div>
       {/* ---- Responsive override ---- */}
@@ -150,7 +150,7 @@ export const FinancierUseCasePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            For Financiers & Auditors
+            {t('financier.hero.title')}
           </h1>
           <p
             style={{
@@ -161,8 +161,7 @@ export const FinancierUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Verified data. Integrated risk management. Reduced diligence cost.
-            Verdaxis gives green finance the intelligence it needs.
+            {t('financier.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -186,12 +185,10 @@ export const FinancierUseCasePage: React.FC = () => {
         />
 
         <Reveal>
-          <h2 style={sectionTitle}>Why Financiers Choose Verdaxis</h2>
+          <h2 style={sectionTitle}>{t('financier.valueProps.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Verified data, integrated risk tools, and market forecasting — the investment intelligence green finance requires.
-          </p>
+          <p style={sectionSubtitle}>{t('financier.valueProps.subtitle')}</p>
         </Reveal>
         <StaggerGrid
           className="financier-grid"
@@ -251,12 +248,10 @@ export const FinancierUseCasePage: React.FC = () => {
       {/* ---- How It Works For You ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>How It Works For You</h2>
+          <h2 style={sectionTitle}>{t('financier.howItWorks.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            From verified data to confident investment decisions in three steps.
-          </p>
+          <p style={sectionSubtitle}>{t('financier.howItWorks.subtitle')}</p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {howItWorksSteps.map((step, idx) => (
@@ -333,7 +328,7 @@ export const FinancierUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to invest with verified intelligence?
+              {t('financier.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -345,8 +340,7 @@ export const FinancierUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and access bankable sustainability data,
-              integrated risk management, and market forecasting — all in one platform.
+              {t('financier.cta.subtitle')}
             </p>
           </Reveal>
           <Reveal delay={0.2}>
@@ -364,7 +358,7 @@ export const FinancierUseCasePage: React.FC = () => {
                   textDecoration: 'none',
                 }}
               >
-                Apply for Pilot
+                {t('financier.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

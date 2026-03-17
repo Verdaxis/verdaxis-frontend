@@ -12,12 +12,11 @@ import {
   HoverButton,
   CircuitLines,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
-
-const categories = ['All', 'Fundamentals', 'Compliance', 'Market'] as const;
 
 const categoryColors: Record<string, { bg: string; text: string }> = {
   Fundamentals: { bg: 'rgba(93,173,226,0.12)', text: '#5DADE2' },
@@ -37,7 +36,7 @@ const sectionPadding: React.CSSProperties = {
 /*  InsightCard (rebranded ArticleCard)                                */
 /* ------------------------------------------------------------------ */
 
-const InsightCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
+const InsightCard: React.FC<{ article: EducationArticle; readMoreLabel: string; minReadLabel: string }> = ({ article, readMoreLabel, minReadLabel }) => {
   const colors = categoryColors[article.category] ?? { bg: '#F1F5F9', text: '#64748B' };
 
   return (
@@ -110,7 +109,7 @@ const InsightCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
           }}
         >
           <Clock size={14} />
-          {article.readTime} min read
+          {article.readTime} {minReadLabel}
         </span>
 
         <Link
@@ -125,7 +124,7 @@ const InsightCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
             textDecoration: 'none',
           }}
         >
-          Read more
+          {readMoreLabel}
           <ArrowRight size={16} />
         </Link>
       </div>
@@ -138,12 +137,32 @@ const InsightCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
 /* ================================================================== */
 
 export const PartnersPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
+  if (!ready) return null;
+
+  const categories = [
+    t('partners.categories.all'),
+    t('partners.categories.fundamentals'),
+    t('partners.categories.compliance'),
+    t('partners.categories.market'),
+  ];
+
+  // Map translated label back to English key for filtering
+  const categoryKeyMap: Record<string, string> = {
+    [t('partners.categories.all')]: 'All',
+    [t('partners.categories.fundamentals')]: 'Fundamentals',
+    [t('partners.categories.compliance')]: 'Compliance',
+    [t('partners.categories.market')]: 'Market',
+  };
+
+  const activeCategoryKey = categoryKeyMap[activeCategory] ?? 'All';
+
   const filtered =
-    activeCategory === 'All'
+    activeCategoryKey === 'All'
       ? educationArticles
-      : educationArticles.filter((a) => a.category === activeCategory);
+      : educationArticles.filter((a) => a.category === activeCategoryKey);
 
   return (
     <div>
@@ -197,7 +216,7 @@ export const PartnersPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Our Partners
+            {t('partners.hero.title')}
           </h1>
           <p
             style={{
@@ -208,8 +227,7 @@ export const PartnersPage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Verdaxis works alongside leading industry bodies, pricing agencies, and technology
-            partners to build the world&rsquo;s most trusted sustainable fuel exchange.
+            {t('partners.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -253,7 +271,7 @@ export const PartnersPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                Partner Network
+                {t('partners.network.title')}
               </h2>
               <p
                 style={{
@@ -264,8 +282,7 @@ export const PartnersPage: React.FC = () => {
                   margin: '0 auto 24px',
                 }}
               >
-                We are building a network of industry leaders across pricing, regulation,
-                analytics, and sustainability. Partner profiles and logos will be showcased here soon.
+                {t('partners.network.subtitle')}
               </p>
               <span
                 style={{
@@ -278,7 +295,7 @@ export const PartnersPage: React.FC = () => {
                   borderRadius: 8,
                 }}
               >
-                Coming Soon
+                {t('partners.network.comingSoon')}
               </span>
             </div>
           </Reveal>
@@ -299,7 +316,7 @@ export const PartnersPage: React.FC = () => {
                 marginBottom: 12,
               }}
             >
-              Insights &amp; Resources
+              {t('partners.insights.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -313,7 +330,7 @@ export const PartnersPage: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              Market intelligence and explainers from the Verdaxis partner ecosystem.
+              {t('partners.insights.subtitle')}
             </p>
           </Reveal>
 
@@ -363,7 +380,11 @@ export const PartnersPage: React.FC = () => {
           >
             {filtered.map((article) => (
               <StaggerItem key={article.slug}>
-                <InsightCard article={article} />
+                <InsightCard
+                  article={article}
+                  readMoreLabel={t('partners.insights.readMore')}
+                  minReadLabel={t('partners.insights.minRead')}
+                />
               </StaggerItem>
             ))}
           </StaggerGrid>

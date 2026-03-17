@@ -18,45 +18,13 @@ import {
   LeafDecor,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
 const ACCENT = '#4CAF50';
-
-const valueProps = [
-  {
-    icon: Zap,
-    title: 'Maximum Market Reach',
-    description:
-      'List your production once and get it in front of the largest pool of qualified fuel buyers on the market. More eyeballs means more competitive bids and faster deal flow.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Lower Customer Acquisition Cost',
-    description:
-      'Stop spending on trade shows, cold outreach, and broker commissions. Verdaxis brings motivated buyers directly to your listings — dramatically cutting the cost of finding your next offtake partner.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Deal Flow Analytics & Market Visibility',
-    description:
-      'See how your listings perform: views, bid activity, and price benchmarks across the market. Know where you stand and price with confidence.',
-  },
-  {
-    icon: Calendar,
-    title: 'Pre-Market Future Production',
-    description:
-      'Sell forward before the first barrel is produced. List upcoming production capacity today to secure committed buyers and give your project bankable revenue certainty.',
-  },
-];
-
-const howItWorksSteps = [
-  'List your production — current inventory or future capacity — on the Verdaxis marketplace',
-  'Qualified buyers discover your listings and submit bids directly, with no intermediary friction',
-  'Negotiate terms, agree price, and close deals faster with built-in contract tooling',
-];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -89,6 +57,38 @@ const sectionSubtitle: React.CSSProperties = {
 /* ================================================================== */
 
 export const ProducerUseCasePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const valueProps = [
+    {
+      icon: Zap,
+      title: t('producer.valueProps.items.0.title'),
+      description: t('producer.valueProps.items.0.description'),
+    },
+    {
+      icon: TrendingUp,
+      title: t('producer.valueProps.items.1.title'),
+      description: t('producer.valueProps.items.1.description'),
+    },
+    {
+      icon: BarChart3,
+      title: t('producer.valueProps.items.2.title'),
+      description: t('producer.valueProps.items.2.description'),
+    },
+    {
+      icon: Calendar,
+      title: t('producer.valueProps.items.3.title'),
+      description: t('producer.valueProps.items.3.description'),
+    },
+  ];
+
+  const howItWorksSteps = [
+    t('producer.howItWorks.steps.0'),
+    t('producer.howItWorks.steps.1'),
+    t('producer.howItWorks.steps.2'),
+  ];
+
   return (
     <div>
       {/* ---- Responsive style override ---- */}
@@ -145,7 +145,7 @@ export const ProducerUseCasePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            For Fuel Producers
+            {t('producer.hero.title')}
           </h1>
           <p
             style={{
@@ -156,8 +156,7 @@ export const ProducerUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Put your fuel production in front of the largest pool of qualified buyers.
-            More reach, lower acquisition costs, and faster deal flow — all in one marketplace.
+            {t('producer.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -175,12 +174,10 @@ export const ProducerUseCasePage: React.FC = () => {
           style={{ top: 24, right: 24 }}
         />
         <Reveal>
-          <h2 style={sectionTitle}>Why Producers Choose Verdaxis</h2>
+          <h2 style={sectionTitle}>{t('producer.valueProps.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            The exchange built around your need for reach, visibility, and lower friction — from first listing to signed contract.
-          </p>
+          <p style={sectionSubtitle}>{t('producer.valueProps.subtitle')}</p>
         </Reveal>
         <StaggerGrid
           className="producer-grid"
@@ -239,12 +236,10 @@ export const ProducerUseCasePage: React.FC = () => {
       {/* ---- How It Works For You ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>How It Works For You</h2>
+          <h2 style={sectionTitle}>{t('producer.howItWorks.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Three steps from listing to closed deal.
-          </p>
+          <p style={sectionSubtitle}>{t('producer.howItWorks.subtitle')}</p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {howItWorksSteps.map((step, idx) => (
@@ -316,7 +311,7 @@ export const ProducerUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to grow your buyer network?
+              {t('producer.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -328,8 +323,7 @@ export const ProducerUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and get your production in front of
-              the market's most active fuel buyers today.
+              {t('producer.cta.subtitle')}
             </p>
           </Reveal>
           <Reveal delay={0.2}>
@@ -347,7 +341,7 @@ export const ProducerUseCasePage: React.FC = () => {
                   textDecoration: 'none',
                 }}
               >
-                Apply for Pilot
+                {t('producer.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

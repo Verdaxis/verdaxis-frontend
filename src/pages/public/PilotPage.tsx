@@ -20,53 +20,7 @@ import {
   DotGrid,
   HoverButton,
 } from '../../components/public/motionUtils';
-
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
-
-const enabledFeatures = [
-  'Read-only market data and price discovery',
-  'Bilateral matchmaking between verified participants',
-  'Energy value calculator with compliance modelling',
-  'Producer map with project data',
-  'Compliance documentation and traceability',
-];
-
-const notYetLiveFeatures = [
-  'Live bids and offers (exchange orderbook)',
-  'Automated trade settlement',
-  'Futures and forward contracts',
-  'Green financing module',
-  'API access for programmatic trading',
-];
-
-const qualificationCards = [
-  {
-    icon: Factory,
-    title: 'Fuel Producers',
-    description:
-      'Operational or near-COD facilities producing low-carbon fuels (methanol, ethanol, SAF). Third-party certification preferred.',
-  },
-  {
-    icon: Ship,
-    title: 'Fuel Buyers / Operators',
-    description:
-      'Shipping lines, fleet operators, or industrial buyers with active low-carbon fuel procurement needs. Compliance teams welcome.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Traders / Aggregators',
-    description:
-      'Established trading houses with existing positions in low-carbon fuels or environmental commodities.',
-  },
-  {
-    icon: Handshake,
-    title: 'Strategic Partners',
-    description:
-      'Top-tier shippers or producers willing to co-develop the platform. Influence how it looks and functions.',
-  },
-];
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -112,10 +66,6 @@ const iconBox: React.CSSProperties = {
   marginBottom: 20,
 };
 
-/* ------------------------------------------------------------------ */
-/*  Responsive style tag                                               */
-/* ------------------------------------------------------------------ */
-
 const responsiveStyles = `
   @media (max-width: 640px) {
     .pilot-grid-2col {
@@ -129,6 +79,48 @@ const responsiveStyles = `
 /* ================================================================== */
 
 export const PilotPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const enabledFeatures = [
+    t('pilot.features.enabled.items.0'),
+    t('pilot.features.enabled.items.1'),
+    t('pilot.features.enabled.items.2'),
+    t('pilot.features.enabled.items.3'),
+    t('pilot.features.enabled.items.4'),
+  ];
+
+  const notYetLiveFeatures = [
+    t('pilot.features.notYetLive.items.0'),
+    t('pilot.features.notYetLive.items.1'),
+    t('pilot.features.notYetLive.items.2'),
+    t('pilot.features.notYetLive.items.3'),
+    t('pilot.features.notYetLive.items.4'),
+  ];
+
+  const qualificationCards = [
+    {
+      icon: Factory,
+      title: t('pilot.qualifies.cards.0.title'),
+      description: t('pilot.qualifies.cards.0.description'),
+    },
+    {
+      icon: Ship,
+      title: t('pilot.qualifies.cards.1.title'),
+      description: t('pilot.qualifies.cards.1.description'),
+    },
+    {
+      icon: TrendingUp,
+      title: t('pilot.qualifies.cards.2.title'),
+      description: t('pilot.qualifies.cards.2.description'),
+    },
+    {
+      icon: Handshake,
+      title: t('pilot.qualifies.cards.3.title'),
+      description: t('pilot.qualifies.cards.3.description'),
+    },
+  ];
+
   return (
     <div>
       <style>{responsiveStyles}</style>
@@ -174,7 +166,7 @@ export const PilotPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Pilot Programme
+            {t('pilot.hero.title')}
           </h1>
           <p
             style={{
@@ -185,8 +177,7 @@ export const PilotPage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            We are deliberately onboarding select producers, buyers, and traders to ensure a
-            professional, error-free launch. Quality over quantity.
+            {t('pilot.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -194,12 +185,10 @@ export const PilotPage: React.FC = () => {
       {/* ---- Section 2: What the Pilot Includes ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>What the Pilot Includes</h2>
+          <h2 style={sectionTitle}>{t('pilot.features.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            A focused rollout to validate the platform with real participants and real needs.
-          </p>
+          <p style={sectionSubtitle}>{t('pilot.features.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -229,7 +218,7 @@ export const PilotPage: React.FC = () => {
                   marginBottom: 24,
                 }}
               >
-                What's Enabled
+                {t('pilot.features.enabled.title')}
               </h3>
               {enabledFeatures.map((feature) => (
                 <div
@@ -272,7 +261,7 @@ export const PilotPage: React.FC = () => {
                   marginBottom: 24,
                 }}
               >
-                What's Not Yet Live
+                {t('pilot.features.notYetLive.title')}
               </h3>
               {notYetLiveFeatures.map((feature) => (
                 <div
@@ -302,13 +291,10 @@ export const PilotPage: React.FC = () => {
       {/* ---- Section 3: Who Qualifies ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>Who Qualifies</h2>
+          <h2 style={sectionTitle}>{t('pilot.qualifies.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            We are selectively onboarding participants who can contribute to and benefit from the
-            pilot.
-          </p>
+          <p style={sectionSubtitle}>{t('pilot.qualifies.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -368,12 +354,10 @@ export const PilotPage: React.FC = () => {
       {/* ---- Section 4: Application Form ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>Apply for the Pilot</h2>
+          <h2 style={sectionTitle}>{t('pilot.apply.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Fill in the form below and our team will review your application within 48 hours.
-          </p>
+          <p style={sectionSubtitle}>{t('pilot.apply.subtitle')}</p>
         </Reveal>
 
         <Reveal delay={0.2}>
@@ -410,7 +394,7 @@ export const PilotPage: React.FC = () => {
             </div>
           </Reveal>
           <Reveal delay={0.1}>
-            <h2 style={{ ...sectionTitle, marginBottom: 24 }}>Pilot Phase: Q1-Q2 2026</h2>
+            <h2 style={{ ...sectionTitle, marginBottom: 24 }}>{t('pilot.timeline.title')}</h2>
           </Reveal>
 
           <Reveal delay={0.2}>
@@ -437,8 +421,7 @@ export const PilotPage: React.FC = () => {
                   style={{ flexShrink: 0, marginTop: 2 }}
                 />
                 <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.6, margin: 0 }}>
-                  Limited onboarding — we are working with select participants to ensure platform
-                  quality
+                  {t('pilot.timeline.points.0')}
                 </p>
               </div>
               <div
@@ -454,7 +437,7 @@ export const PilotPage: React.FC = () => {
                   style={{ flexShrink: 0, marginTop: 2 }}
                 />
                 <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.6, margin: 0 }}>
-                  Full launch follows successful pilot validation
+                  {t('pilot.timeline.points.1')}
                 </p>
               </div>
             </div>
@@ -481,7 +464,7 @@ export const PilotPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Have questions before applying?
+              {t('pilot.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -503,7 +486,7 @@ export const PilotPage: React.FC = () => {
                 }}
               >
                 <Mail size={18} />
-                Speak to the Team
+                {t('pilot.cta.button')}
               </a>
             </HoverButton>
           </Reveal>

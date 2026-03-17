@@ -10,9 +10,10 @@ import {
   GradientOrb,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
-/*  Data                                                               */
+/*  Data types                                                         */
 /* ------------------------------------------------------------------ */
 
 interface Phase {
@@ -23,94 +24,6 @@ interface Phase {
   features: string[];
   isCurrent: boolean;
 }
-
-const phases: Phase[] = [
-  {
-    number: 1,
-    label: 'Phase 1',
-    title: 'Registry & Verification',
-    description:
-      'Establishing the foundation: fuel registration, attribute verification, and participant onboarding.',
-    features: [
-      'Fuel + attribute registration with CI scoring',
-      'Third-party verification integration',
-      'Producer and buyer onboarding',
-      'Public website with education resources',
-      'Energy value calculator',
-      'Producer project map',
-    ],
-    isCurrent: true,
-  },
-  {
-    number: 2,
-    label: 'Phase 2',
-    title: 'Matching & Structured Offtake',
-    description:
-      'Connecting participants: bilateral matchmaking with verified data and compliance-aware pricing.',
-    features: [
-      'Bilateral matchmaking between verified participants',
-      'CI-adjusted pricing display',
-      'Real price discovery from platform activity',
-      'Enhanced producer map with live data',
-      'Supplier demand signals',
-      'Regional fuel availability mapping',
-    ],
-    isCurrent: false,
-  },
-  {
-    number: 3,
-    label: 'Phase 3',
-    title: 'Live Bids & Offers',
-    description:
-      'Opening the market: live orderbook exchange with transparent price formation.',
-    features: [
-      'Live orderbook with bids and asks',
-      'Real-time price discovery',
-      'Forward contracts and structured offtake',
-      'Assessment agency data feeds (Platts)',
-      'Scope 3 monetisation tools',
-      'Automated compliance reporting',
-    ],
-    isCurrent: false,
-  },
-  {
-    number: 4,
-    label: 'Phase 4',
-    title: 'Compliance Automation & Reporting',
-    description:
-      'Full integration: automated regulatory reporting, green financing, and complete exchange capabilities.',
-    features: [
-      'FuelEU Maritime declaration automation',
-      'EU ETS surrender calculations',
-      'Green financing module',
-      'Partner APIs for programmatic access',
-      'Multi-fuel cross-pollination tools',
-      'Full exchange with settlement and clearing',
-    ],
-    isCurrent: false,
-  },
-];
-
-const designPrinciples = [
-  {
-    icon: Shield,
-    title: 'Integrity First',
-    description:
-      "Each feature is tested with real participants before expanding. We don't launch features until they're production-ready.",
-  },
-  {
-    icon: TrendingUp,
-    title: 'Deliberate Scaling',
-    description:
-      'We add participants and volume gradually. A platform that works perfectly for 10 users is better than one that crashes for 1,000.',
-  },
-  {
-    icon: Scale,
-    title: 'Regulatory Alignment',
-    description:
-      'Every feature is designed with compliance in mind. We build within regulatory frameworks, not around them.',
-  },
-];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -157,119 +70,10 @@ const pulseKeyframes = `
 `;
 
 /* ------------------------------------------------------------------ */
-/*  PhaseCard sub-component                                            */
-/* ------------------------------------------------------------------ */
-
-const PhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, index }) => {
-  const isLeft = index % 2 === 0;
-
-  /* --- Marker styles --- */
-  const markerBase: React.CSSProperties = {
-    width: 44,
-    height: 44,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 18,
-    fontWeight: 800,
-    flexShrink: 0,
-    position: 'relative',
-    zIndex: 2,
-  };
-
-  const activeMarker: React.CSSProperties = {
-    ...markerBase,
-    background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-    color: '#FFFFFF',
-    animation: 'roadmap-pulse 2s ease-in-out infinite',
-  };
-
-  const inactiveMarker: React.CSSProperties = {
-    ...markerBase,
-    background: '#FFFFFF',
-    border: '3px solid #CBD5E1',
-    color: '#94A3B8',
-  };
-
-  /* --- Card styles --- */
-  const cardStyle: React.CSSProperties = {
-    ...card,
-    flex: 1,
-    maxWidth: 460,
-    borderLeft: phase.isCurrent ? '4px solid #5DADE2' : '1px solid #E2E8F0',
-  };
-
-  return (
-    <Reveal delay={index * 0.12}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 0,
-          position: 'relative',
-          marginBottom: index < phases.length - 1 ? 0 : 0,
-        }}
-      >
-        {/* Desktop layout: alternate left/right */}
-        {/* Left side content (even indices) */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            paddingRight: 24,
-          }}
-          className="roadmap-left-col"
-        >
-          {isLeft && (
-            <div style={cardStyle}>
-              <PhaseCardContent phase={phase} />
-            </div>
-          )}
-        </div>
-
-        {/* Center timeline marker */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            flexShrink: 0,
-            width: 44,
-          }}
-        >
-          <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
-            {phase.number}
-          </div>
-        </div>
-
-        {/* Right side content (odd indices) */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            justifyContent: 'flex-start',
-            paddingLeft: 24,
-          }}
-          className="roadmap-right-col"
-        >
-          {!isLeft && (
-            <div style={cardStyle}>
-              <PhaseCardContent phase={phase} />
-            </div>
-          )}
-        </div>
-      </div>
-    </Reveal>
-  );
-};
-
-/* ------------------------------------------------------------------ */
 /*  PhaseCardContent sub-component                                     */
 /* ------------------------------------------------------------------ */
 
-const PhaseCardContent: React.FC<{ phase: Phase }> = ({ phase }) => (
+const PhaseCardContent: React.FC<{ phase: Phase; currentLabel: string }> = ({ phase, currentLabel }) => (
   <>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
       <span
@@ -295,7 +99,7 @@ const PhaseCardContent: React.FC<{ phase: Phase }> = ({ phase }) => (
             letterSpacing: 0.5,
           }}
         >
-          CURRENT
+          {currentLabel}
         </span>
       )}
     </div>
@@ -354,10 +158,123 @@ const PhaseCardContent: React.FC<{ phase: Phase }> = ({ phase }) => (
 );
 
 /* ------------------------------------------------------------------ */
-/*  Mobile PhaseCard (stacked right of the line)                       */
+/*  PhaseCard sub-component                                            */
 /* ------------------------------------------------------------------ */
 
-const MobilePhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, index }) => {
+const PhaseCard: React.FC<{ phase: Phase; index: number; totalPhases: number; currentLabel: string }> = ({
+  phase,
+  index,
+  totalPhases,
+  currentLabel,
+}) => {
+  const isLeft = index % 2 === 0;
+
+  const markerBase: React.CSSProperties = {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 18,
+    fontWeight: 800,
+    flexShrink: 0,
+    position: 'relative',
+    zIndex: 2,
+  };
+
+  const activeMarker: React.CSSProperties = {
+    ...markerBase,
+    background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+    color: '#FFFFFF',
+    animation: 'roadmap-pulse 2s ease-in-out infinite',
+  };
+
+  const inactiveMarker: React.CSSProperties = {
+    ...markerBase,
+    background: '#FFFFFF',
+    border: '3px solid #CBD5E1',
+    color: '#94A3B8',
+  };
+
+  const cardStyle: React.CSSProperties = {
+    ...card,
+    flex: 1,
+    maxWidth: 460,
+    borderLeft: phase.isCurrent ? '4px solid #5DADE2' : '1px solid #E2E8F0',
+  };
+
+  return (
+    <Reveal delay={index * 0.12}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 0,
+          position: 'relative',
+          marginBottom: index < totalPhases - 1 ? 0 : 0,
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            paddingRight: 24,
+          }}
+          className="roadmap-left-col"
+        >
+          {isLeft && (
+            <div style={cardStyle}>
+              <PhaseCardContent phase={phase} currentLabel={currentLabel} />
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            flexShrink: 0,
+            width: 44,
+          }}
+        >
+          <div style={phase.isCurrent ? activeMarker : inactiveMarker}>
+            {phase.number}
+          </div>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            justifyContent: 'flex-start',
+            paddingLeft: 24,
+          }}
+          className="roadmap-right-col"
+        >
+          {!isLeft && (
+            <div style={cardStyle}>
+              <PhaseCardContent phase={phase} currentLabel={currentLabel} />
+            </div>
+          )}
+        </div>
+      </div>
+    </Reveal>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Mobile PhaseCard                                                   */
+/* ------------------------------------------------------------------ */
+
+const MobilePhaseCard: React.FC<{ phase: Phase; index: number; totalPhases: number; currentLabel: string }> = ({
+  phase,
+  index,
+  totalPhases,
+  currentLabel,
+}) => {
   const markerBase: React.CSSProperties = {
     width: 36,
     height: 36,
@@ -400,10 +317,9 @@ const MobilePhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, ind
           alignItems: 'flex-start',
           gap: 16,
           position: 'relative',
-          paddingBottom: index < phases.length - 1 ? 0 : 0,
+          paddingBottom: index < totalPhases - 1 ? 0 : 0,
         }}
       >
-        {/* Timeline marker */}
         <div
           style={{
             display: 'flex',
@@ -418,9 +334,8 @@ const MobilePhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, ind
           </div>
         </div>
 
-        {/* Card content */}
         <div style={cardStyle}>
-          <PhaseCardContent phase={phase} />
+          <PhaseCardContent phase={phase} currentLabel={currentLabel} />
         </div>
       </div>
     </Reveal>
@@ -432,6 +347,92 @@ const MobilePhaseCard: React.FC<{ phase: Phase; index: number }> = ({ phase, ind
 /* ================================================================== */
 
 export const RoadmapPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const currentLabel = t('roadmap.currentLabel');
+
+  const phases: Phase[] = [
+    {
+      number: 1,
+      label: t('roadmap.phases.0.label'),
+      title: t('roadmap.phases.0.title'),
+      description: t('roadmap.phases.0.description'),
+      features: [
+        t('roadmap.phases.0.features.0'),
+        t('roadmap.phases.0.features.1'),
+        t('roadmap.phases.0.features.2'),
+        t('roadmap.phases.0.features.3'),
+        t('roadmap.phases.0.features.4'),
+        t('roadmap.phases.0.features.5'),
+      ],
+      isCurrent: true,
+    },
+    {
+      number: 2,
+      label: t('roadmap.phases.1.label'),
+      title: t('roadmap.phases.1.title'),
+      description: t('roadmap.phases.1.description'),
+      features: [
+        t('roadmap.phases.1.features.0'),
+        t('roadmap.phases.1.features.1'),
+        t('roadmap.phases.1.features.2'),
+        t('roadmap.phases.1.features.3'),
+        t('roadmap.phases.1.features.4'),
+        t('roadmap.phases.1.features.5'),
+      ],
+      isCurrent: false,
+    },
+    {
+      number: 3,
+      label: t('roadmap.phases.2.label'),
+      title: t('roadmap.phases.2.title'),
+      description: t('roadmap.phases.2.description'),
+      features: [
+        t('roadmap.phases.2.features.0'),
+        t('roadmap.phases.2.features.1'),
+        t('roadmap.phases.2.features.2'),
+        t('roadmap.phases.2.features.3'),
+        t('roadmap.phases.2.features.4'),
+        t('roadmap.phases.2.features.5'),
+      ],
+      isCurrent: false,
+    },
+    {
+      number: 4,
+      label: t('roadmap.phases.3.label'),
+      title: t('roadmap.phases.3.title'),
+      description: t('roadmap.phases.3.description'),
+      features: [
+        t('roadmap.phases.3.features.0'),
+        t('roadmap.phases.3.features.1'),
+        t('roadmap.phases.3.features.2'),
+        t('roadmap.phases.3.features.3'),
+        t('roadmap.phases.3.features.4'),
+        t('roadmap.phases.3.features.5'),
+      ],
+      isCurrent: false,
+    },
+  ];
+
+  const designPrinciples = [
+    {
+      icon: Shield,
+      title: t('roadmap.principles.items.0.title'),
+      description: t('roadmap.principles.items.0.description'),
+    },
+    {
+      icon: TrendingUp,
+      title: t('roadmap.principles.items.1.title'),
+      description: t('roadmap.principles.items.1.description'),
+    },
+    {
+      icon: Scale,
+      title: t('roadmap.principles.items.2.title'),
+      description: t('roadmap.principles.items.2.description'),
+    },
+  ];
+
   return (
     <div>
       {/* Inject pulse animation keyframes */}
@@ -474,7 +475,7 @@ export const RoadmapPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Platform Roadmap
+            {t('roadmap.hero.title')}
           </h1>
           <p
             style={{
@@ -485,9 +486,7 @@ export const RoadmapPage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Verdaxis is being built in deliberate phases. Each phase builds on the last,
-            expanding capability while maintaining integrity. No dates — just sequence and
-            commitment.
+            {t('roadmap.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -497,7 +496,6 @@ export const RoadmapPage: React.FC = () => {
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           {/* ---- Desktop Timeline ---- */}
           <div className="roadmap-desktop" style={{ position: 'relative' }}>
-            {/* Vertical connecting line */}
             <div
               style={{
                 position: 'absolute',
@@ -513,14 +511,19 @@ export const RoadmapPage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
               {phases.map((phase, index) => (
-                <PhaseCard key={phase.number} phase={phase} index={index} />
+                <PhaseCard
+                  key={phase.number}
+                  phase={phase}
+                  index={index}
+                  totalPhases={phases.length}
+                  currentLabel={currentLabel}
+                />
               ))}
             </div>
           </div>
 
           {/* ---- Mobile Timeline ---- */}
           <div className="roadmap-mobile" style={{ position: 'relative', display: 'none' }}>
-            {/* Vertical connecting line */}
             <div
               style={{
                 position: 'absolute',
@@ -535,7 +538,13 @@ export const RoadmapPage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
               {phases.map((phase, index) => (
-                <MobilePhaseCard key={phase.number} phase={phase} index={index} />
+                <MobilePhaseCard
+                  key={phase.number}
+                  phase={phase}
+                  index={index}
+                  totalPhases={phases.length}
+                  currentLabel={currentLabel}
+                />
               ))}
             </div>
           </div>
@@ -545,12 +554,10 @@ export const RoadmapPage: React.FC = () => {
       {/* ---- Section 3: Design Principles ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>How We Build</h2>
+          <h2 style={sectionTitle}>{t('roadmap.principles.title')}</h2>
         </Reveal>
         <Reveal delay={0.08}>
-          <p style={sectionSubtitle}>
-            Three principles guide every feature decision on the Verdaxis platform.
-          </p>
+          <p style={sectionSubtitle}>{t('roadmap.principles.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -626,7 +633,7 @@ export const RoadmapPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Want to be part of the journey?
+              {t('roadmap.cta.title')}
             </h2>
           </Reveal>
           <HoverButton>
@@ -646,7 +653,7 @@ export const RoadmapPage: React.FC = () => {
                 marginTop: 12,
               }}
             >
-              Apply for Pilot
+              {t('roadmap.cta.button')}
               <ArrowRight size={18} />
             </Link>
           </HoverButton>

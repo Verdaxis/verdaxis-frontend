@@ -10,6 +10,7 @@ import {
   type ProjectStatus,
   type ProducerProject,
 } from '../../data/producerProjects';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -52,19 +53,225 @@ const uniqueCountries = new Set(producerProjects.map((p) => p.country)).size;
 const totalCapacityKtpa = producerProjects.reduce((sum, p) => sum + p.capacityKtpa, 0);
 const totalCapacityFormatted = formatCapacityShort(totalCapacityKtpa);
 
-// Future production stats
-const futureProjects = producerProjects.filter(
-  (p) => p.status !== 'Operational'
-);
+const futureProjects = producerProjects.filter((p) => p.status !== 'Operational');
 const futureCapacity = futureProjects.reduce((sum, p) => sum + p.capacityKtpa, 0);
 
 type TabId = 'map' | 'futures';
 
 /* ------------------------------------------------------------------ */
-/*  Component                                                          */
+/*  FutureProjectCard                                                  */
 /* ------------------------------------------------------------------ */
 
+const FutureProjectCard: React.FC<{
+  project: ProducerProject;
+  labels: { imminent: string; capacity: string; expectedCod: string; location: string; pathway: string; expressInterest: string };
+}> = ({ project, labels }) => {
+  const fuelColor = fuelTypeColors[project.fuelType];
+  const statusColor = statusColors[project.status];
+  const isImminent = project.codYear <= new Date().getFullYear() + 1;
+
+  return (
+    <div
+      style={{
+        background: '#FFFFFF',
+        border: `1px solid ${isImminent ? '#FFE082' : '#E2E8F0'}`,
+        borderRadius: 12,
+        padding: 24,
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'box-shadow 0.2s, transform 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
+        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+      }}
+    >
+      {isImminent && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            background: '#FF9800',
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '3px 10px',
+            borderRadius: '0 12px 0 8px',
+            letterSpacing: '0.05em',
+          }}
+        >
+          {labels.imminent}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '3px 10px',
+            borderRadius: 6,
+            background: `${fuelColor}12`,
+            border: `1px solid ${fuelColor}30`,
+            fontSize: 12,
+            fontWeight: 600,
+            color: fuelColor,
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: fuelColor }} />
+          {project.fuelType}
+        </span>
+        <span
+          style={{
+            padding: '3px 10px',
+            borderRadius: 6,
+            background: `${statusColor}15`,
+            border: `1px solid ${statusColor}30`,
+            fontSize: 12,
+            fontWeight: 600,
+            color: statusColor,
+          }}
+        >
+          {project.status}
+        </span>
+      </div>
+
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', marginBottom: 4, lineHeight: 1.3 }}>
+        {project.name}
+      </h3>
+      <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
+        {project.company}
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
+        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <Factory size={12} color="#5DADE2" />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.capacity}</span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
+            {formatCapacity(project.capacityKtpa)} <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>ktpa</span>
+          </div>
+        </div>
+        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <Calendar size={12} color="#FF9800" />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.expectedCod}</span>
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>Q1 {project.codYear}</div>
+        </div>
+        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <MapPin size={12} color="#4CAF50" />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.location}</span>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+            {project.city ? `${project.city}, ${project.country}` : project.country}
+          </div>
+        </div>
+        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <Zap size={12} color="#9C27B0" />
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.pathway}</span>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', lineHeight: 1.3 }}>
+            {project.pathway.length > 30 ? project.pathway.slice(0, 30) + '...' : project.pathway}
+          </div>
+        </div>
+      </div>
+
+      <a
+        href={`mailto:info@verdaxis.exchange?subject=Off-take Interest: ${encodeURIComponent(project.name)}&body=${encodeURIComponent(`I am interested in discussing off-take arrangements for the ${project.name} project (${project.fuelType}, ${formatCapacity(project.capacityKtpa)} ktpa, COD ${project.codYear}).`)}`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          width: '100%',
+          padding: '10px 16px',
+          background: '#0F172A',
+          color: '#fff',
+          borderRadius: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: 'none',
+          transition: 'background 0.2s',
+          border: 'none',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1E293B'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#0F172A'; }}
+      >
+        <Mail size={14} />
+        {labels.expressInterest}
+      </a>
+    </div>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Project Marker Sub-component                                       */
+/* ------------------------------------------------------------------ */
+
+const ProjectMarker: React.FC<{
+  project: ProducerProject;
+  popupLabels: { capacity: string; cod: string; city: string; country: string };
+}> = ({ project, popupLabels }) => {
+  const color = fuelTypeColors[project.fuelType];
+  const radius = getMarkerRadius(project.capacityKtpa);
+
+  return (
+    <CircleMarker
+      center={[project.lat, project.lng]}
+      radius={radius}
+      pathOptions={{ color, fillColor: color, fillOpacity: 0.7, weight: 2 }}
+    >
+      <Popup>
+        <div style={{ minWidth: 220, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{project.name}</div>
+          <div style={{ color: '#64748B', marginBottom: 6 }}>{project.company}</div>
+          <div style={{ marginBottom: 4 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, marginRight: 6 }} />
+            {project.fuelType} &mdash; {project.pathway}
+          </div>
+          <div style={{ marginBottom: 6 }}>
+            <span
+              style={{
+                display: 'inline-block',
+                padding: '2px 8px',
+                borderRadius: 12,
+                fontSize: 11,
+                fontWeight: 600,
+                background: statusColors[project.status] + '22',
+                color: statusColors[project.status],
+                border: `1px solid ${statusColors[project.status]}44`,
+              }}
+            >
+              {project.status}
+            </span>
+          </div>
+          <div><strong>{popupLabels.capacity}:</strong> {formatCapacity(project.capacityKtpa)} ktpa</div>
+          <div><strong>{popupLabels.cod}:</strong> {project.codYear}</div>
+          {project.city && <div><strong>{popupLabels.city}:</strong> {project.city}</div>}
+          <div><strong>{popupLabels.country}:</strong> {project.country}</div>
+        </div>
+      </Popup>
+    </CircleMarker>
+  );
+};
+
+/* ================================================================== */
+/*  ProducerMapPage                                                    */
+/* ================================================================== */
+
 export const ProducerMapPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const [activeTab, setActiveTab] = useState<TabId>('map');
   const [search, setSearch] = useState('');
   const [selectedFuelTypes, setSelectedFuelTypes] = useState<Set<FuelType>>(new Set(ALL_FUEL_TYPES));
@@ -100,7 +307,6 @@ export const ProducerMapPage: React.FC = () => {
       });
   }, [futuresSearch, futuresFuelFilter, futuresSortBy]);
 
-  // Group futures by COD year for timeline display
   const futuresByYear = useMemo(() => {
     const grouped: Record<number, ProducerProject[]> = {};
     filteredFutures.forEach((p) => {
@@ -115,13 +321,27 @@ export const ProducerMapPage: React.FC = () => {
   const toggleFuelType = (ft: FuelType) => {
     setSelectedFuelTypes((prev) => {
       const next = new Set(prev);
-      if (next.has(ft)) {
-        next.delete(ft);
-      } else {
-        next.add(ft);
-      }
+      if (next.has(ft)) { next.delete(ft); } else { next.add(ft); }
       return next;
     });
+  };
+
+  if (!ready) return null;
+
+  const cardLabels = {
+    imminent: t('producerMap.futures.imminent'),
+    capacity: t('producerMap.futures.capacity'),
+    expectedCod: t('producerMap.futures.expectedCod'),
+    location: t('producerMap.futures.location'),
+    pathway: t('producerMap.futures.pathway'),
+    expressInterest: t('producerMap.futures.expressInterest'),
+  };
+
+  const popupLabels = {
+    capacity: t('producerMap.popup.capacity'),
+    cod: t('producerMap.popup.cod'),
+    city: t('producerMap.popup.city'),
+    country: t('producerMap.popup.country'),
   };
 
   return (
@@ -135,44 +355,27 @@ export const ProducerMapPage: React.FC = () => {
           textAlign: 'center',
         }}
       >
-        <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>Producer & Project Map</h1>
+        <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>{t('producerMap.header.title')}</h1>
         <p style={{ fontSize: 16, color: '#94A3B8', marginTop: 12, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
-          Explore methanol production projects worldwide. Filter by fuel type, project status,
-          and timeline.
+          {t('producerMap.header.subtitle')}
         </p>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 32,
-            marginTop: 20,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 20, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
-            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalProjects}</strong> projects
+            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalProjects}</strong> {t('producerMap.header.projects')}
           </span>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
-            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{uniqueCountries}</strong> countries
+            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{uniqueCountries}</strong> {t('producerMap.header.countries')}
           </span>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
-            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalCapacityFormatted}</strong> ktpa total
-            capacity
+            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalCapacityFormatted}</strong> {t('producerMap.header.ktpaCapacity')}
           </span>
         </div>
 
         {/* Tab Bar */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: 4,
-            marginTop: 28,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginTop: 28 }}>
           {([
-            { id: 'map' as TabId, label: 'Project Map', icon: <MapPin size={15} /> },
-            { id: 'futures' as TabId, label: 'Future Production', icon: <Calendar size={15} /> },
+            { id: 'map' as TabId, label: t('producerMap.tabs.projectMap'), icon: <MapPin size={15} /> },
+            { id: 'futures' as TabId, label: t('producerMap.tabs.futureProduction'), icon: <Calendar size={15} /> },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -235,13 +438,10 @@ export const ProducerMapPage: React.FC = () => {
             >
               {/* Search */}
               <div style={{ position: 'relative', marginBottom: 20 }}>
-                <Search
-                  size={16}
-                  style={{ position: 'absolute', left: 10, top: 10, color: '#94A3B8' }}
-                />
+                <Search size={16} style={{ position: 'absolute', left: 10, top: 10, color: '#94A3B8' }} />
                 <input
                   type="text"
-                  placeholder="Search by name or company"
+                  placeholder={t('producerMap.sidebar.searchPlaceholder')}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{
@@ -259,36 +459,12 @@ export const ProducerMapPage: React.FC = () => {
               {/* Fuel Type Checkboxes */}
               <div style={{ marginBottom: 20 }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Fuel Type
+                  {t('producerMap.sidebar.fuelType')}
                 </h4>
                 {ALL_FUEL_TYPES.map((ft) => (
-                  <label
-                    key={ft}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginBottom: 6,
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: '#334155',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFuelTypes.has(ft)}
-                      onChange={() => toggleFuelType(ft)}
-                      style={{ accentColor: fuelTypeColors[ft] }}
-                    />
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: fuelTypeColors[ft],
-                      }}
-                    />
+                  <label key={ft} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14, color: '#334155' }}>
+                    <input type="checkbox" checked={selectedFuelTypes.has(ft)} onChange={() => toggleFuelType(ft)} style={{ accentColor: fuelTypeColors[ft] }} />
+                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: fuelTypeColors[ft] }} />
                     {ft}
                   </label>
                 ))}
@@ -297,7 +473,7 @@ export const ProducerMapPage: React.FC = () => {
               {/* Status Filter */}
               <div style={{ marginBottom: 20 }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Status
+                  {t('producerMap.sidebar.status')}
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {ALL_STATUSES.map((s) => (
@@ -324,39 +500,19 @@ export const ProducerMapPage: React.FC = () => {
               {/* COD Year Range */}
               <div style={{ marginBottom: 20 }}>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  COD Year Range
+                  {t('producerMap.sidebar.codYearRange')}
                 </h4>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <input
-                    type="number"
-                    min={minCodYear}
-                    max={maxCodYear}
-                    value={codMin}
+                    type="number" min={minCodYear} max={maxCodYear} value={codMin}
                     onChange={(e) => setCodMin(Number(e.target.value))}
-                    style={{
-                      width: 72,
-                      padding: '6px 8px',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: 4,
-                      fontSize: 13,
-                      textAlign: 'center',
-                    }}
+                    style={{ width: 72, padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: 4, fontSize: 13, textAlign: 'center' }}
                   />
-                  <span style={{ color: '#94A3B8', fontSize: 13 }}>to</span>
+                  <span style={{ color: '#94A3B8', fontSize: 13 }}>{t('producerMap.sidebar.to')}</span>
                   <input
-                    type="number"
-                    min={minCodYear}
-                    max={maxCodYear}
-                    value={codMax}
+                    type="number" min={minCodYear} max={maxCodYear} value={codMax}
                     onChange={(e) => setCodMax(Number(e.target.value))}
-                    style={{
-                      width: 72,
-                      padding: '6px 8px',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: 4,
-                      fontSize: 13,
-                      textAlign: 'center',
-                    }}
+                    style={{ width: 72, padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: 4, fontSize: 13, textAlign: 'center' }}
                   />
                 </div>
               </div>
@@ -373,30 +529,22 @@ export const ProducerMapPage: React.FC = () => {
                   marginBottom: 20,
                 }}
               >
-                Showing {filteredProjects.length} of {producerProjects.length} projects
+                {t('producerMap.sidebar.showing')} {filteredProjects.length} {t('producerMap.sidebar.of')} {producerProjects.length} {t('producerMap.header.projects')}
               </div>
 
               {/* Legend */}
               <div>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Legend
+                  {t('producerMap.sidebar.legend')}
                 </h4>
                 {ALL_FUEL_TYPES.map((ft) => (
                   <div key={ft} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13, color: '#475569' }}>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: fuelTypeColors[ft],
-                      }}
-                    />
+                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: fuelTypeColors[ft] }} />
                     {ft}
                   </div>
                 ))}
                 <div style={{ marginTop: 10, fontSize: 12, color: '#94A3B8' }}>
-                  Marker size indicates capacity (small &lt;50, medium 50-500, large &gt;500 ktpa)
+                  {t('producerMap.sidebar.markerSizeNote')}
                 </div>
               </div>
             </aside>
@@ -414,7 +562,7 @@ export const ProducerMapPage: React.FC = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 {filteredProjects.map((project) => (
-                  <ProjectMarker key={project.id} project={project} />
+                  <ProjectMarker key={project.id} project={project} popupLabels={popupLabels} />
                 ))}
               </MapContainer>
             </div>
@@ -424,43 +572,35 @@ export const ProducerMapPage: React.FC = () => {
         /* ---- Future Production Marketplace ---- */
         <section style={{ background: '#F8FAFC', minHeight: 600 }}>
           {/* Futures Header */}
-          <div
-            style={{
-              background: '#FFFFFF',
-              borderBottom: '1px solid #E2E8F0',
-              padding: '24px 32px',
-            }}
-          >
+          <div style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0', padding: '24px 32px' }}>
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
                 <div>
                   <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0F172A', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Calendar size={20} color="#FF9800" />
-                    Future Production Marketplace
+                    {t('producerMap.futures.title')}
                   </h2>
                   <p style={{ fontSize: 14, color: '#64748B', marginTop: 6 }}>
-                    Upcoming production capacity available for off-take agreements. Contact producers directly to secure future supply.
+                    {t('producerMap.futures.subtitle')}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {/* Summary chips */}
                   <div style={{ padding: '6px 14px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#E65100' }}>
-                    {futureProjects.length} upcoming projects
+                    {futureProjects.length} {t('producerMap.futures.upcomingProjects')}
                   </div>
                   <div style={{ padding: '6px 14px', background: '#E8F5E9', border: '1px solid #A5D6A7', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#2E7D32' }}>
-                    {formatCapacityShort(futureCapacity)} ktpa pipeline
+                    {formatCapacityShort(futureCapacity)} {t('producerMap.futures.ktpaPipeline')}
                   </div>
                 </div>
               </div>
 
               {/* Filters row */}
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                {/* Search */}
                 <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: 320 }}>
                   <Search size={15} style={{ position: 'absolute', left: 10, top: 9, color: '#94A3B8' }} />
                   <input
                     type="text"
-                    placeholder="Search projects, companies, countries..."
+                    placeholder={t('producerMap.futures.searchPlaceholder')}
                     value={futuresSearch}
                     onChange={(e) => setFuturesSearch(e.target.value)}
                     style={{
@@ -475,48 +615,28 @@ export const ProducerMapPage: React.FC = () => {
                   />
                 </div>
 
-                {/* Fuel filter */}
                 <select
                   value={futuresFuelFilter}
                   onChange={(e) => setFuturesFuelFilter(e.target.value as FuelType | 'All')}
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    color: '#334155',
-                    background: '#fff',
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
+                  style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 6, fontSize: 13, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
                 >
-                  <option value="All">All Fuel Types</option>
+                  <option value="All">{t('producerMap.futures.allFuelTypes')}</option>
                   {ALL_FUEL_TYPES.map((ft) => (
                     <option key={ft} value={ft}>{ft}</option>
                   ))}
                 </select>
 
-                {/* Sort */}
                 <select
                   value={futuresSortBy}
                   onChange={(e) => setFuturesSortBy(e.target.value as 'codYear' | 'capacity')}
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    color: '#334155',
-                    background: '#fff',
-                    cursor: 'pointer',
-                    outline: 'none',
-                  }}
+                  style={{ padding: '8px 12px', border: '1px solid #CBD5E1', borderRadius: 6, fontSize: 13, color: '#334155', background: '#fff', cursor: 'pointer', outline: 'none' }}
                 >
-                  <option value="codYear">Sort by Timeline</option>
-                  <option value="capacity">Sort by Capacity</option>
+                  <option value="codYear">{t('producerMap.futures.sortByTimeline')}</option>
+                  <option value="capacity">{t('producerMap.futures.sortByCapacity')}</option>
                 </select>
 
                 <div style={{ fontSize: 13, color: '#64748B', fontWeight: 500, marginLeft: 'auto' }}>
-                  Showing {filteredFutures.length} of {futureProjects.length} future projects
+                  {t('producerMap.futures.showingOf')} {filteredFutures.length} {t('producerMap.sidebar.of')} {futureProjects.length} {t('producerMap.futures.futureProjects')}
                 </div>
               </div>
             </div>
@@ -527,13 +647,12 @@ export const ProducerMapPage: React.FC = () => {
             {futuresByYear.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '80px 24px', color: '#94A3B8' }}>
                 <Calendar size={48} style={{ marginBottom: 16, opacity: 0.4 }} />
-                <p style={{ fontSize: 16, fontWeight: 600 }}>No future projects match your filters</p>
-                <p style={{ fontSize: 14 }}>Try adjusting your search or fuel type filter</p>
+                <p style={{ fontSize: 16, fontWeight: 600 }}>{t('producerMap.futures.noResults')}</p>
+                <p style={{ fontSize: 14 }}>{t('producerMap.futures.tryAdjusting')}</p>
               </div>
             ) : (
               futuresByYear.map(({ year, projects }) => (
                 <div key={year} style={{ marginBottom: 40 }}>
-                  {/* Year header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                     <div
                       style={{
@@ -550,7 +669,7 @@ export const ProducerMapPage: React.FC = () => {
                       }}
                     >
                       <Clock size={16} />
-                      {year <= new Date().getFullYear() ? `${year} (Imminent)` : year}
+                      {year <= new Date().getFullYear() ? `${year} (${t('producerMap.futures.imminent')})` : year}
                     </div>
                     <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
                     <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>
@@ -559,17 +678,12 @@ export const ProducerMapPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {/* Project cards */}
                   <div
                     className="futures-card-grid"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-                      gap: 16,
-                    }}
+                    style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}
                   >
                     {projects.map((project) => (
-                      <FutureProjectCard key={project.id} project={project} />
+                      <FutureProjectCard key={project.id} project={project} labels={cardLabels} />
                     ))}
                   </div>
                 </div>
@@ -589,14 +703,10 @@ export const ProducerMapPage: React.FC = () => {
         }}
       >
         <h2 style={{ fontSize: 24, fontWeight: 700, color: '#0F172A', marginBottom: 12 }}>
-          {activeTab === 'futures'
-            ? 'Have future production to offer?'
-            : 'Want to list your project on the map?'}
+          {activeTab === 'futures' ? t('producerMap.cta.titleFutures') : t('producerMap.cta.titleMap')}
         </h2>
         <p style={{ fontSize: 16, color: '#64748B', marginBottom: 24, maxWidth: 480, marginLeft: 'auto', marginRight: 'auto' }}>
-          {activeTab === 'futures'
-            ? 'List your upcoming production capacity on the Verdaxis marketplace to connect with buyers and secure off-take agreements before COD.'
-            : 'Join our pilot programme to showcase your low-carbon fuel production facility to buyers, traders, and financiers worldwide.'}
+          {activeTab === 'futures' ? t('producerMap.cta.subtitleFutures') : t('producerMap.cta.subtitleMap')}
         </p>
         <Link
           to="/pilot"
@@ -613,7 +723,7 @@ export const ProducerMapPage: React.FC = () => {
             textDecoration: 'none',
           }}
         >
-          {activeTab === 'futures' ? 'List Your Production' : 'Apply for Pilot'}
+          {activeTab === 'futures' ? t('producerMap.cta.buttonFutures') : t('producerMap.cta.buttonMap')}
           <ArrowRight size={18} />
         </Link>
       </section>
@@ -627,238 +737,5 @@ export const ProducerMapPage: React.FC = () => {
         }
       `}</style>
     </div>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/*  Future Project Card                                                */
-/* ------------------------------------------------------------------ */
-
-const FutureProjectCard: React.FC<{ project: ProducerProject }> = ({ project }) => {
-  const fuelColor = fuelTypeColors[project.fuelType];
-  const statusColor = statusColors[project.status];
-  const isImminent = project.codYear <= new Date().getFullYear() + 1;
-
-  return (
-    <div
-      style={{
-        background: '#FFFFFF',
-        border: `1px solid ${isImminent ? '#FFE082' : '#E2E8F0'}`,
-        borderRadius: 12,
-        padding: 24,
-        position: 'relative',
-        overflow: 'hidden',
-        transition: 'box-shadow 0.2s, transform 0.2s',
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-      }}
-    >
-      {/* Imminent badge */}
-      {isImminent && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            background: '#FF9800',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 700,
-            padding: '3px 10px',
-            borderRadius: '0 12px 0 8px',
-            letterSpacing: '0.05em',
-          }}
-        >
-          IMMINENT
-        </div>
-      )}
-
-      {/* Top row: fuel type + status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '3px 10px',
-            borderRadius: 6,
-            background: `${fuelColor}12`,
-            border: `1px solid ${fuelColor}30`,
-            fontSize: 12,
-            fontWeight: 600,
-            color: fuelColor,
-          }}
-        >
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: fuelColor }} />
-          {project.fuelType}
-        </span>
-        <span
-          style={{
-            padding: '3px 10px',
-            borderRadius: 6,
-            background: `${statusColor}15`,
-            border: `1px solid ${statusColor}30`,
-            fontSize: 12,
-            fontWeight: 600,
-            color: statusColor,
-          }}
-        >
-          {project.status}
-        </span>
-      </div>
-
-      {/* Project name & company */}
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', marginBottom: 4, lineHeight: 1.3 }}>
-        {project.name}
-      </h3>
-      <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
-        {project.company}
-      </p>
-
-      {/* Key metrics grid */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: 10,
-          marginBottom: 16,
-        }}
-      >
-        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <Factory size={12} color="#5DADE2" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capacity</span>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
-            {formatCapacity(project.capacityKtpa)} <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 500 }}>ktpa</span>
-          </div>
-        </div>
-        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <Calendar size={12} color="#FF9800" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expected COD</span>
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
-            Q1 {project.codYear}
-          </div>
-        </div>
-        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <MapPin size={12} color="#4CAF50" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location</span>
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
-            {project.city ? `${project.city}, ${project.country}` : project.country}
-          </div>
-        </div>
-        <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <Zap size={12} color="#9C27B0" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pathway</span>
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', lineHeight: 1.3 }}>
-            {project.pathway.length > 30 ? project.pathway.slice(0, 30) + '...' : project.pathway}
-          </div>
-        </div>
-      </div>
-
-      {/* Express Interest CTA */}
-      <a
-        href={`mailto:info@verdaxis.exchange?subject=Off-take Interest: ${encodeURIComponent(project.name)}&body=${encodeURIComponent(`I am interested in discussing off-take arrangements for the ${project.name} project (${project.fuelType}, ${formatCapacity(project.capacityKtpa)} ktpa, COD ${project.codYear}).`)}`}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          width: '100%',
-          padding: '10px 16px',
-          background: '#0F172A',
-          color: '#fff',
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 600,
-          textDecoration: 'none',
-          transition: 'background 0.2s',
-          border: 'none',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#1E293B'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#0F172A'; }}
-      >
-        <Mail size={14} />
-        Express Interest
-      </a>
-    </div>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/*  Project Marker Sub-component                                       */
-/* ------------------------------------------------------------------ */
-
-const ProjectMarker: React.FC<{ project: ProducerProject }> = ({ project }) => {
-  const color = fuelTypeColors[project.fuelType];
-  const radius = getMarkerRadius(project.capacityKtpa);
-
-  return (
-    <CircleMarker
-      center={[project.lat, project.lng]}
-      radius={radius}
-      pathOptions={{
-        color,
-        fillColor: color,
-        fillOpacity: 0.7,
-        weight: 2,
-      }}
-    >
-      <Popup>
-        <div style={{ minWidth: 220, fontSize: 13, lineHeight: 1.6 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{project.name}</div>
-          <div style={{ color: '#64748B', marginBottom: 6 }}>{project.company}</div>
-
-          <div style={{ marginBottom: 4 }}>
-            <span
-              style={{
-                display: 'inline-block',
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: color,
-                marginRight: 6,
-              }}
-            />
-            {project.fuelType} &mdash; {project.pathway}
-          </div>
-
-          <div style={{ marginBottom: 6 }}>
-            <span
-              style={{
-                display: 'inline-block',
-                padding: '2px 8px',
-                borderRadius: 12,
-                fontSize: 11,
-                fontWeight: 600,
-                background: statusColors[project.status] + '22',
-                color: statusColors[project.status],
-                border: `1px solid ${statusColors[project.status]}44`,
-              }}
-            >
-              {project.status}
-            </span>
-          </div>
-
-          <div><strong>Capacity:</strong> {formatCapacity(project.capacityKtpa)} ktpa</div>
-          <div><strong>COD:</strong> {project.codYear}</div>
-          {project.city && <div><strong>City:</strong> {project.city}</div>}
-          <div><strong>Country:</strong> {project.country}</div>
-        </div>
-      </Popup>
-    </CircleMarker>
   );
 };

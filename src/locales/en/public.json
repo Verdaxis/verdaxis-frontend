@@ -188,6 +188,12 @@
         "1": "Every transaction is recorded, timestamped, and auditable",
         "2": "Verified sustainability data travels with the fuel at every stage",
         "3": "Platform-enforced integrity eliminates gaps in the supply chain"
+      },
+      "chainLabels": {
+        "producer": "Producer",
+        "verdaxis": "Verdaxis",
+        "vessel": "Vessel",
+        "tank": "Tank"
       }
     },
     "cta": {
@@ -644,19 +650,35 @@
       "cards": {
         "0": {
           "title": "Fuel Producers",
-          "bullets": { "0": "Faster offtake", "1": "Premium discovery", "2": "Compliance-ready sales" }
+          "bullets": {
+            "0": "Faster offtake",
+            "1": "Premium discovery",
+            "2": "Compliance-ready sales"
+          }
         },
         "1": {
           "title": "Fuel Buyers",
-          "bullets": { "0": "Verified Scope 3 reductions", "1": "Energy-adjusted pricing", "2": "Reduced compliance risk" }
+          "bullets": {
+            "0": "Verified Scope 3 reductions",
+            "1": "Energy-adjusted pricing",
+            "2": "Reduced compliance risk"
+          }
         },
         "2": {
           "title": "Traders",
-          "bullets": { "0": "Liquidity access", "1": "Standardised deals", "2": "Reduced back-office friction" }
+          "bullets": {
+            "0": "Liquidity access",
+            "1": "Standardised deals",
+            "2": "Reduced back-office friction"
+          }
         },
         "3": {
           "title": "Financiers",
-          "bullets": { "0": "Bankable data", "1": "Traceable claims", "2": "Reduced diligence cost" }
+          "bullets": {
+            "0": "Bankable data",
+            "1": "Traceable claims",
+            "2": "Reduced diligence cost"
+          }
         }
       }
     },
@@ -910,10 +932,22 @@
       "title": "Advisory Board",
       "subtitle": "Verdaxis is assembling an advisory board of independent industry experts to guide platform governance.",
       "members": {
-        "0": { "role": "Maritime Regulation Expert", "status": "To be announced" },
-        "1": { "role": "Carbon Markets Specialist", "status": "To be announced" },
-        "2": { "role": "Fuel Production Advisor", "status": "To be announced" },
-        "3": { "role": "Financial Compliance Advisor", "status": "To be announced" }
+        "0": {
+          "role": "Maritime Regulation Expert",
+          "status": "To be announced"
+        },
+        "1": {
+          "role": "Carbon Markets Specialist",
+          "status": "To be announced"
+        },
+        "2": {
+          "role": "Fuel Production Advisor",
+          "status": "To be announced"
+        },
+        "3": {
+          "role": "Financial Compliance Advisor",
+          "status": "To be announced"
+        }
       },
       "interestedText": "Interested in joining our advisory board?",
       "contactUs": "Contact us"

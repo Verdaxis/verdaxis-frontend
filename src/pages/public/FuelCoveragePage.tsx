@@ -24,6 +24,7 @@ import {
   LeafDecor,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -52,21 +53,16 @@ interface Attribute {
 type Sector = 'maritime' | 'aviation' | 'land';
 
 /* ------------------------------------------------------------------ */
-/*  Data                                                                */
+/*  Data — technical values stay hardcoded; display labels translated  */
 /* ------------------------------------------------------------------ */
 
 const fuelTypes: FuelType[] = [
-  /* ── Maritime fuels ── */
   {
     name: 'Methanol',
     icon: Droplets,
     accent: '#5DADE2',
     accentBg: 'rgba(93, 173, 226, 0.1)',
-    pathways: [
-      'Bio-methanol (waste/biomass)',
-      'E-methanol (green H\u2082 + CO\u2082)',
-      'Fossil (grey)',
-    ],
+    pathways: ['Bio-methanol (waste/biomass)', 'E-methanol (green H\u2082 + CO\u2082)', 'Fossil (grey)'],
     ciRange: '3\u201394 gCO\u2082e/MJ',
     energyDensity: '19.9 MJ/kg',
     keyMarkets: 'Maritime bunkering, chemical feedstock',
@@ -78,11 +74,7 @@ const fuelTypes: FuelType[] = [
     icon: Wheat,
     accent: '#4CAF50',
     accentBg: 'rgba(76, 175, 80, 0.1)',
-    pathways: [
-      '1G (sugarcane/corn)',
-      '2G (cellulosic/bagasse)',
-      'Waste-based',
-    ],
+    pathways: ['1G (sugarcane/corn)', '2G (cellulosic/bagasse)', 'Waste-based'],
     ciRange: '8\u201365 gCO\u2082e/MJ',
     energyDensity: '26.8 MJ/kg',
     keyMarkets: 'Road transport blending, SAF feedstock, maritime',
@@ -94,11 +86,7 @@ const fuelTypes: FuelType[] = [
     icon: Fuel,
     accent: '#26A69A',
     accentBg: 'rgba(38, 166, 154, 0.1)',
-    pathways: [
-      'Anaerobic digestion (biogas)',
-      'Gasification (woody biomass)',
-      'Landfill gas upgrading',
-    ],
+    pathways: ['Anaerobic digestion (biogas)', 'Gasification (woody biomass)', 'Landfill gas upgrading'],
     ciRange: '10\u201340 gCO\u2082e/MJ',
     energyDensity: '49.0 MJ/kg',
     keyMarkets: 'Maritime bunkering, LNG-fuelled vessels',
@@ -110,11 +98,7 @@ const fuelTypes: FuelType[] = [
     icon: Droplets,
     accent: '#7CB342',
     accentBg: 'rgba(124, 179, 66, 0.1)',
-    pathways: [
-      'UCOME (used cooking oil methyl ester)',
-      'FAME B20\u2013B100 blends',
-      'HVO (hydrotreated vegetable oil)',
-    ],
+    pathways: ['UCOME (used cooking oil methyl ester)', 'FAME B20\u2013B100 blends', 'HVO (hydrotreated vegetable oil)'],
     ciRange: '15\u201355 gCO\u2082e/MJ',
     energyDensity: '37.0 MJ/kg',
     keyMarkets: 'Maritime bunkering, drop-in blending',
@@ -126,28 +110,20 @@ const fuelTypes: FuelType[] = [
     icon: Atom,
     accent: '#9C27B0',
     accentBg: 'rgba(156, 39, 176, 0.1)',
-    pathways: [
-      'Green ammonia (electrolysis)',
-      'Blue ammonia (SMR + CCS)',
-    ],
+    pathways: ['Green ammonia (electrolysis)', 'Blue ammonia (SMR + CCS)'],
     ciRange: '0.5\u201330 gCO\u2082e/MJ',
     energyDensity: '18.6 MJ/kg',
     keyMarkets: 'Maritime (next-gen engines), power generation, industrial heat',
-    note: 'MAN and W\u00e4rtsil\u00e4 ammonia engines in development. First commercial vessels expected 2026\u20132028. Also a key vector for clean power generation.',
+    note: 'MAN and W\u00e4rtsil\u00e4 ammonia engines in development. First commercial vessels expected 2026\u20132028.',
     comingSoon: true,
     sectors: ['maritime', 'land'],
   },
-  /* ── Aviation fuels ── */
   {
     name: 'Sustainable Aviation Fuel (SAF)',
     icon: Plane,
     accent: '#FF9800',
     accentBg: 'rgba(255, 152, 0, 0.1)',
-    pathways: [
-      'HEFA (used cooking oil / tallow)',
-      'Fischer-Tropsch (gasification)',
-      'Alcohol-to-Jet (AtJ)',
-    ],
+    pathways: ['HEFA (used cooking oil / tallow)', 'Fischer-Tropsch (gasification)', 'Alcohol-to-Jet (AtJ)'],
     ciRange: '12\u201350 gCO\u2082e/MJ',
     energyDensity: '44.0 MJ/kg',
     keyMarkets: 'Aviation, blending mandates (EU ReFuelEU)',
@@ -159,10 +135,7 @@ const fuelTypes: FuelType[] = [
     icon: Droplets,
     accent: '#8D6E63',
     accentBg: 'rgba(141, 110, 99, 0.1)',
-    pathways: [
-      'Used cooking oil collection & processing',
-      'Waste grease transesterification',
-    ],
+    pathways: ['Used cooking oil collection & processing', 'Waste grease transesterification'],
     ciRange: '10\u201325 gCO\u2082e/MJ',
     energyDensity: '37.5 MJ/kg',
     keyMarkets: 'SAF feedstock (HEFA pathway), biodiesel, maritime',
@@ -171,76 +144,13 @@ const fuelTypes: FuelType[] = [
   },
 ];
 
-const attributes: Attribute[] = [
-  {
-    title: 'Carbon Intensity (CI)',
-    description:
-      'Measured in gCO\u2082e/MJ. The primary metric for comparing the environmental impact of different fuels and pathways. Lower CI = lower lifecycle emissions.',
-    icon: FlaskConical,
-  },
-  {
-    title: 'Feedstock Pathway',
-    description:
-      'The production route from raw material to finished fuel. Determines CI, regulatory eligibility, and premium potential. Examples: waste cooking oil, sugarcane bagasse, green hydrogen + CO\u2082.',
-    icon: Zap,
-  },
-  {
-    title: 'Geography & Price Discovery',
-    description:
-      'Verdaxis is headquartered in Singapore but enables price discovery for any point in the world. Physical trades can take place at any port or delivery location globally.',
-    icon: Globe,
-  },
-  {
-    title: 'Certification Scheme',
-    description:
-      'Third-party certifications that verify fuel claims. Supported schemes: ISCC EU, ISCC PLUS, RSB, RenovaBio, RED III compliance.',
-    icon: Award,
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/*  Sector configuration                                                */
-/* ------------------------------------------------------------------ */
-
-const sectorConfig: Record<Sector, {
-  label: string;
-  icon: React.FC<{ size?: number; color?: string }>;
-  color: string;
-  headline: string;
-  subtitle: string;
-}> = {
-  maritime: {
-    label: 'Maritime',
-    icon: Anchor,
-    color: '#5DADE2',
-    headline: 'Maritime Fuels',
-    subtitle: 'Low-carbon bunker fuels for the global fleet \u2014 from drop-in biofuel blends to next-generation ammonia and e-methanol.',
-  },
-  aviation: {
-    label: 'Aviation',
-    icon: Plane,
-    color: '#FF9800',
-    headline: 'Aviation Fuels',
-    subtitle: 'Sustainable Aviation Fuel (SAF) and its feedstock pathways \u2014 meeting ReFuelEU, CORSIA, and Scope 3 mandates.',
-  },
-  land: {
-    label: 'Land',
-    icon: Truck,
-    color: '#4CAF50',
-    headline: 'Land & Power',
-    subtitle: 'Ethanol for road transport and ammonia for clean power generation \u2014 the bridge fuels for terrestrial decarbonisation.',
-  },
-};
-
 const sectors: Sector[] = ['maritime', 'aviation', 'land'];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                         */
 /* ------------------------------------------------------------------ */
 
-const sectionPadding: React.CSSProperties = {
-  padding: '72px 24px',
-};
+const sectionPadding: React.CSSProperties = { padding: '72px 24px' };
 
 const sectionTitle: React.CSSProperties = {
   fontSize: 32,
@@ -283,7 +193,12 @@ const responsiveStyles = `
 /*  FuelCard Component                                                  */
 /* ------------------------------------------------------------------ */
 
-const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
+interface FuelCardProps {
+  fuel: FuelType;
+  labels: { comingSoon: string; pathways: string; ciRange: string; energyDensity: string; keyMarkets: string };
+}
+
+const FuelCard: React.FC<FuelCardProps> = ({ fuel, labels }) => {
   const { name, icon: Icon, accent, accentBg, pathways, ciRange, energyDensity, keyMarkets, note, comingSoon } = fuel;
 
   return (
@@ -313,7 +228,7 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
             letterSpacing: 0.5,
           }}
         >
-          Coming Soon
+          {labels.comingSoon}
         </div>
       )}
 
@@ -337,7 +252,7 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-          Pathways
+          {labels.pathways}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {pathways.map((pathway) => (
@@ -359,23 +274,16 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-            CI Range
+            {labels.ciRange}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>{ciRange}</div>
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-            Energy Density
+            {labels.energyDensity}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>{energyDensity}</div>
         </div>
@@ -383,19 +291,12 @@ const FuelCard: React.FC<{ fuel: FuelType }> = ({ fuel }) => {
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-          Key Markets
+          {labels.keyMarkets}
         </div>
         <div style={{ fontSize: 14, color: '#0F172A', lineHeight: 1.5 }}>{keyMarkets}</div>
       </div>
 
-      <div
-        style={{
-          background: '#F8FAFC',
-          borderRadius: 8,
-          padding: '12px 14px',
-          borderLeft: `3px solid ${accent}`,
-        }}
-      >
+      <div style={{ background: '#F8FAFC', borderRadius: 8, padding: '12px 14px', borderLeft: `3px solid ${accent}` }}>
         <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, margin: 0, fontStyle: 'italic' }}>
           {note}
         </p>
@@ -412,14 +313,7 @@ const AttributeCard: React.FC<{ attribute: Attribute }> = ({ attribute }) => {
   const { title, description, icon: Icon } = attribute;
 
   return (
-    <div
-      style={{
-        background: '#FFFFFF',
-        border: '1px solid #E2E8F0',
-        borderRadius: 12,
-        padding: 24,
-      }}
-    >
+    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12, padding: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div
           style={{
@@ -446,12 +340,19 @@ const AttributeCard: React.FC<{ attribute: Attribute }> = ({ attribute }) => {
 /*  SectorTab Component                                                 */
 /* ------------------------------------------------------------------ */
 
+interface SectorConfig {
+  label: string;
+  icon: React.FC<{ size?: number; color?: string }>;
+  color: string;
+  headline: string;
+  subtitle: string;
+}
+
 const SectorTab: React.FC<{
-  sector: Sector;
+  config: SectorConfig;
   isActive: boolean;
   onClick: () => void;
-}> = ({ sector, isActive, onClick }) => {
-  const config = sectorConfig[sector];
+}> = ({ config, isActive, onClick }) => {
   const Icon = config.icon;
 
   return (
@@ -473,10 +374,7 @@ const SectorTab: React.FC<{
         overflow: 'hidden',
       }}
     >
-      <Icon
-        size={20}
-        color={isActive ? config.color : '#94A3B8'}
-      />
+      <Icon size={20} color={isActive ? config.color : '#94A3B8'} />
       <span
         style={{
           fontSize: 15,
@@ -497,6 +395,7 @@ const SectorTab: React.FC<{
 /* ================================================================== */
 
 export const FuelCoveragePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const { sector: urlSector } = useParams<{ sector?: string }>();
   const navigate = useNavigate();
 
@@ -505,7 +404,48 @@ export const FuelCoveragePage: React.FC = () => {
       ? (urlSector as Sector)
       : 'maritime';
 
-  const config = sectorConfig[activeSector];
+  if (!ready) return null;
+
+  const sectorConfigs: Record<Sector, SectorConfig> = {
+    maritime: {
+      label: t('fuelCoverage.sectors.maritime.label'),
+      icon: Anchor,
+      color: '#5DADE2',
+      headline: t('fuelCoverage.sectors.maritime.headline'),
+      subtitle: t('fuelCoverage.sectors.maritime.subtitle'),
+    },
+    aviation: {
+      label: t('fuelCoverage.sectors.aviation.label'),
+      icon: Plane,
+      color: '#FF9800',
+      headline: t('fuelCoverage.sectors.aviation.headline'),
+      subtitle: t('fuelCoverage.sectors.aviation.subtitle'),
+    },
+    land: {
+      label: t('fuelCoverage.sectors.land.label'),
+      icon: Truck,
+      color: '#4CAF50',
+      headline: t('fuelCoverage.sectors.land.headline'),
+      subtitle: t('fuelCoverage.sectors.land.subtitle'),
+    },
+  };
+
+  const fuelCardLabels = {
+    comingSoon: t('fuelCoverage.fuelCard.comingSoon'),
+    pathways: t('fuelCoverage.fuelCard.pathways'),
+    ciRange: t('fuelCoverage.fuelCard.ciRange'),
+    energyDensity: t('fuelCoverage.fuelCard.energyDensity'),
+    keyMarkets: t('fuelCoverage.fuelCard.keyMarkets'),
+  };
+
+  const attributes: Attribute[] = [
+    { title: t('fuelCoverage.attributes.items.0.title'), description: t('fuelCoverage.attributes.items.0.description'), icon: FlaskConical },
+    { title: t('fuelCoverage.attributes.items.1.title'), description: t('fuelCoverage.attributes.items.1.description'), icon: Zap },
+    { title: t('fuelCoverage.attributes.items.2.title'), description: t('fuelCoverage.attributes.items.2.description'), icon: Globe },
+    { title: t('fuelCoverage.attributes.items.3.title'), description: t('fuelCoverage.attributes.items.3.description'), icon: Award },
+  ];
+
+  const config = sectorConfigs[activeSector];
   const filteredFuels = fuelTypes.filter((f) => f.sectors.includes(activeSector));
 
   const handleSectorChange = (sector: Sector) => {
@@ -526,24 +466,10 @@ export const FuelCoveragePage: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        <GradientOrb
-          color={`${config.color}14`}
-          size={500}
-          style={{ top: -200, left: -150 }}
-        />
-        <GradientOrb
-          color="rgba(76,175,80,0.06)"
-          size={400}
-          style={{ bottom: -180, right: -100 }}
-        />
-        <DotGrid
-          color="rgba(248,250,252,0.05)"
-          style={{ top: 30, right: 40 }}
-        />
-        <LeafDecor
-          color={`${config.color}08`}
-          style={{ width: 220, height: 220, bottom: -60, left: 20 }}
-        />
+        <GradientOrb color={`${config.color}14`} size={500} style={{ top: -200, left: -150 }} />
+        <GradientOrb color="rgba(76,175,80,0.06)" size={400} style={{ bottom: -180, right: -100 }} />
+        <DotGrid color="rgba(248,250,252,0.05)" style={{ top: 30, right: 40 }} />
+        <LeafDecor color={`${config.color}08`} style={{ width: 220, height: 220, bottom: -60, left: 20 }} />
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -561,7 +487,7 @@ export const FuelCoveragePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Fuel Coverage
+            {t('fuelCoverage.hero.title')}
           </h1>
           <p
             style={{
@@ -572,8 +498,7 @@ export const FuelCoveragePage: React.FC = () => {
               margin: '0 auto 40px',
             }}
           >
-            Verdaxis supports sustainable fuels across maritime, aviation, and land transport.
-            Explore fuel types, pathways, and environmental attributes by sector.
+            {t('fuelCoverage.hero.subtitle')}
           </p>
 
           {/* Sector tabs */}
@@ -589,7 +514,7 @@ export const FuelCoveragePage: React.FC = () => {
             {sectors.map((s) => (
               <SectorTab
                 key={s}
-                sector={s}
+                config={sectorConfigs[s]}
                 isActive={activeSector === s}
                 onClick={() => handleSectorChange(s)}
               />
@@ -600,10 +525,7 @@ export const FuelCoveragePage: React.FC = () => {
 
       {/* ---- Section 2: Sector intro + Fuel Types Grid ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC', position: 'relative', overflow: 'hidden' }}>
-        <DotGrid
-          color="rgba(15,23,42,0.03)"
-          style={{ top: 20, left: 30 }}
-        />
+        <DotGrid color="rgba(15,23,42,0.03)" style={{ top: 20, left: 30 }} />
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -633,7 +555,7 @@ export const FuelCoveragePage: React.FC = () => {
               {filteredFuels.map((fuel) => (
                 <StaggerItem key={fuel.name}>
                   <HoverCard>
-                    <FuelCard fuel={fuel} />
+                    <FuelCard fuel={fuel} labels={fuelCardLabels} />
                   </HoverCard>
                 </StaggerItem>
               ))}
@@ -644,18 +566,13 @@ export const FuelCoveragePage: React.FC = () => {
 
       {/* ---- Section 3: Key Attributes ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF', position: 'relative', overflow: 'hidden' }}>
-        <LeafDecor
-          color="rgba(76,175,80,0.04)"
-          style={{ width: 180, height: 180, top: -40, right: -30 }}
-        />
+        <LeafDecor color="rgba(76,175,80,0.04)" style={{ width: 180, height: 180, top: -40, right: -30 }} />
 
         <Reveal>
-          <h2 style={sectionTitle}>Key Attributes</h2>
+          <h2 style={sectionTitle}>{t('fuelCoverage.attributes.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Every fuel registered on Verdaxis carries verified environmental data across these dimensions.
-          </p>
+          <p style={sectionSubtitle}>{t('fuelCoverage.attributes.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -688,20 +605,9 @@ export const FuelCoveragePage: React.FC = () => {
           overflow: 'hidden',
         }}
       >
-        <GradientOrb
-          color="rgba(93,173,226,0.06)"
-          size={350}
-          style={{ top: -120, right: -80 }}
-        />
-        <GradientOrb
-          color="rgba(76,175,80,0.05)"
-          size={300}
-          style={{ bottom: -100, left: -60 }}
-        />
-        <DotGrid
-          color="rgba(248,250,252,0.04)"
-          style={{ bottom: 20, left: 40 }}
-        />
+        <GradientOrb color="rgba(93,173,226,0.06)" size={350} style={{ top: -120, right: -80 }} />
+        <GradientOrb color="rgba(76,175,80,0.05)" size={300} style={{ bottom: -100, left: -60 }} />
+        <DotGrid color="rgba(248,250,252,0.04)" style={{ bottom: 20, left: 40 }} />
 
         <div style={{ maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <Reveal>
@@ -714,7 +620,7 @@ export const FuelCoveragePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              See how these fuels are produced around the world
+              {t('fuelCoverage.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.15}>
@@ -733,7 +639,7 @@ export const FuelCoveragePage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                Explore Producer Map
+                {t('fuelCoverage.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

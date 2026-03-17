@@ -11,6 +11,7 @@ import {
   GradientOrb,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -36,7 +37,11 @@ const sectionPadding: React.CSSProperties = {
 /*  ArticleCard                                                        */
 /* ------------------------------------------------------------------ */
 
-const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
+const ArticleCard: React.FC<{ article: EducationArticle; readArticleLabel: string; minReadLabel: string }> = ({
+  article,
+  readArticleLabel,
+  minReadLabel,
+}) => {
   const colors = categoryColors[article.category] ?? { bg: '#F1F5F9', text: '#64748B' };
 
   return (
@@ -113,7 +118,7 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
           }}
         >
           <Clock size={14} />
-          {article.readTime} min read
+          {article.readTime} {minReadLabel}
         </span>
 
         {/* Read article link */}
@@ -129,7 +134,7 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
             textDecoration: 'none',
           }}
         >
-          Read article
+          {readArticleLabel}
           <ArrowRight size={16} />
         </Link>
       </div>
@@ -142,12 +147,15 @@ const ArticleCard: React.FC<{ article: EducationArticle }> = ({ article }) => {
 /* ================================================================== */
 
 export const EducationPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
   const filtered =
     activeCategory === 'All'
       ? educationArticles
       : educationArticles.filter((a) => a.category === activeCategory);
+
+  if (!ready) return null;
 
   return (
     <div>
@@ -196,7 +204,7 @@ export const EducationPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Education &amp; Resources
+            {t('education.hero.title')}
           </h1>
           <p
             style={{
@@ -207,7 +215,7 @@ export const EducationPage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Short explainers on the concepts that matter most in low-carbon fuel markets.
+            {t('education.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -227,7 +235,7 @@ export const EducationPage: React.FC = () => {
                 marginBottom: 12,
               }}
             >
-              Browse Articles
+              {t('education.browse.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -241,7 +249,7 @@ export const EducationPage: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              Filter by topic to find the explainers most relevant to you.
+              {t('education.browse.subtitle')}
             </p>
           </Reveal>
 
@@ -291,7 +299,11 @@ export const EducationPage: React.FC = () => {
           >
             {filtered.map((article) => (
               <StaggerItem key={article.slug}>
-                <ArticleCard article={article} />
+                <ArticleCard
+                  article={article}
+                  readArticleLabel={t('education.readArticle')}
+                  minReadLabel={t('education.minRead')}
+                />
               </StaggerItem>
             ))}
           </StaggerGrid>

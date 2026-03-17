@@ -7,9 +7,10 @@ import {
   defaultInputs,
   calculateVoyage,
 } from '../../data/calculatorDefaults';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
-/*  Inline SVG Icons (no emoji, pure vector graphics)                  */
+/*  Inline SVG Icons                                                   */
 /* ------------------------------------------------------------------ */
 
 const DropletIcon: React.FC<{ color?: string }> = ({ color = '#5DADE2' }) => (
@@ -89,9 +90,7 @@ const DotGridBg: React.FC = () => (
 /*  Shared inline-style helpers                                        */
 /* ------------------------------------------------------------------ */
 
-const sectionPadding: React.CSSProperties = {
-  padding: '72px 24px',
-};
+const sectionPadding: React.CSSProperties = { padding: '72px 24px' };
 
 const card: React.CSSProperties = {
   background: '#FFFFFF',
@@ -134,14 +133,7 @@ interface SliderInputProps {
 const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, max, step, unit, accentColor }) => {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 6,
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
         <label
           style={{
             fontSize: 13,
@@ -349,15 +341,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
         {mainValue}
       </div>
       {subLines.map((line, i) => (
-        <div
-          key={i}
-          style={{
-            fontSize: 12,
-            color: '#64748B',
-            lineHeight: 1.5,
-            fontFamily: "'Lato', sans-serif",
-          }}
-        >
+        <div key={i} style={{ fontSize: 12, color: '#64748B', lineHeight: 1.5, fontFamily: "'Lato', sans-serif" }}>
           {line}
         </div>
       ))}
@@ -366,7 +350,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
 };
 
 /* ------------------------------------------------------------------ */
-/*  CostComparisonBar — visual proportional bar for A vs B             */
+/*  CostComparisonBar                                                  */
 /* ------------------------------------------------------------------ */
 
 interface CostComparisonBarProps {
@@ -384,15 +368,7 @@ const CostComparisonBar: React.FC<CostComparisonBarProps> = ({ costA, costB, lab
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto 40px', padding: '0 0' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 10,
-          fontFamily: "'Montserrat', sans-serif",
-        }}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 10, fontFamily: "'Montserrat', sans-serif" }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, minWidth: 56 }}>
           {labelA}
         </span>
@@ -401,9 +377,7 @@ const CostComparisonBar: React.FC<CostComparisonBarProps> = ({ costA, costB, lab
             style={{
               width: `${pctA}%`,
               height: '100%',
-              background: aIsCheaper
-                ? 'linear-gradient(90deg, #4CAF50, #66BB6A)'
-                : 'linear-gradient(90deg, #EF4444, #F87171)',
+              background: aIsCheaper ? 'linear-gradient(90deg, #4CAF50, #66BB6A)' : 'linear-gradient(90deg, #EF4444, #F87171)',
               borderRadius: 6,
               transition: 'width 0.5s ease',
               display: 'flex',
@@ -418,14 +392,7 @@ const CostComparisonBar: React.FC<CostComparisonBarProps> = ({ costA, costB, lab
           </div>
         </div>
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          fontFamily: "'Montserrat', sans-serif",
-        }}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: "'Montserrat', sans-serif" }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, minWidth: 56 }}>
           {labelB}
         </span>
@@ -434,9 +401,7 @@ const CostComparisonBar: React.FC<CostComparisonBarProps> = ({ costA, costB, lab
             style={{
               width: `${pctB}%`,
               height: '100%',
-              background: !aIsCheaper
-                ? 'linear-gradient(90deg, #4CAF50, #66BB6A)'
-                : 'linear-gradient(90deg, #EF4444, #F87171)',
+              background: !aIsCheaper ? 'linear-gradient(90deg, #4CAF50, #66BB6A)' : 'linear-gradient(90deg, #EF4444, #F87171)',
               borderRadius: 6,
               transition: 'width 0.5s ease',
               display: 'flex',
@@ -465,29 +430,26 @@ interface FuelResultRowProps {
   inputs: CalculatorInputs;
   isCheaper: boolean;
   accentColor: string;
+  metricLabels: {
+    fuelBurn: string;
+    co2Emissions: string;
+    euEtsCost: string;
+    fuelEu: string;
+    ciiProxy: string;
+    totalCost: string;
+    lowerCost: string;
+    compliant: string;
+    penalty: string;
+  };
 }
 
-const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, isCheaper, accentColor }) => {
+const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, isCheaper, accentColor, metricLabels }) => {
   const costHighlight = isCheaper ? 'green' : 'red';
 
   return (
     <div style={{ marginBottom: 32 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginBottom: 14,
-        }}
-      >
-        <div
-          style={{
-            width: 4,
-            height: 24,
-            borderRadius: 2,
-            background: accentColor,
-          }}
-        />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ width: 4, height: 24, borderRadius: 2, background: accentColor }} />
         <DropletIcon color={accentColor} />
         <span
           style={{
@@ -515,33 +477,29 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
-            Lower Cost
+            {metricLabels.lowerCost}
           </span>
         )}
       </div>
       <div
         className="calc-metric-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-        }}
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}
       >
         <MetricCard
           icon={<Flame size={14} color="#5DADE2" />}
-          title="Fuel Burn"
+          title={metricLabels.fuelBurn}
           mainValue={`${fmtNumber(result.fuelBurnT)} t`}
           subLines={[`Eff: ${result.effTperDay} t/d`]}
         />
         <MetricCard
           icon={<Wind size={14} color="#5DADE2" />}
-          title={`CO\u2082 Emissions`}
+          title={metricLabels.co2Emissions}
           mainValue={`${fmtNumber(result.co2T)} t`}
           subLines={[`EF: ${inputs.emissionFactor}`]}
         />
         <MetricCard
           icon={<DollarSign size={14} color="#5DADE2" />}
-          title="EU ETS Cost"
+          title={metricLabels.euEtsCost}
           mainValue={fmtEur(result.etsCostEur)}
           subLines={[
             `Coverage: ${Math.round(inputs.etsCoverage * 100)}%`,
@@ -550,39 +508,27 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
         />
         <MetricCard
           icon={
-            result.fueleuCompliant ? (
-              <ShieldCheck size={14} color="#4CAF50" />
-            ) : (
-              <AlertTriangle size={14} color="#EF4444" />
-            )
-          }
-          title="FuelEU"
-          mainValue={
             result.fueleuCompliant
-              ? fmtEur(0)
-              : fmtEur(result.fueleuPenaltyEur)
+              ? <ShieldCheck size={14} color="#4CAF50" />
+              : <AlertTriangle size={14} color="#EF4444" />
           }
-          subLines={[
-            `Int: ${result.fueleuIntensity}`,
-            `vs ${inputs.fueleuThreshold}`,
-          ]}
-          badge={result.fueleuCompliant ? 'Compliant' : 'Penalty'}
+          title={metricLabels.fuelEu}
+          mainValue={result.fueleuCompliant ? fmtEur(0) : fmtEur(result.fueleuPenaltyEur)}
+          subLines={[`Int: ${result.fueleuIntensity}`, `vs ${inputs.fueleuThreshold}`]}
+          badge={result.fueleuCompliant ? metricLabels.compliant : metricLabels.penalty}
           badgeColor={result.fueleuCompliant ? '#4CAF50' : '#EF4444'}
         />
         <MetricCard
           icon={<TrendingDown size={14} color="#5DADE2" />}
-          title="CII Proxy"
+          title={metricLabels.ciiProxy}
           mainValue={String(result.ciiProxy)}
           subLines={[isCheaper ? 'Better \u2191' : 'Worse \u2193']}
         />
         <MetricCard
           icon={<DollarSign size={14} color={isCheaper ? '#4CAF50' : '#EF4444'} />}
-          title="Total Cost"
+          title={metricLabels.totalCost}
           mainValue={fmtUsd(result.totalCostUsd)}
-          subLines={[
-            `Fuel: ${fmtUsd(result.fuelCostUsd)}`,
-            '+ETS+FuelEU',
-          ]}
+          subLines={[`Fuel: ${fmtUsd(result.fuelCostUsd)}`, '+ETS+FuelEU']}
           highlight={costHighlight}
         />
       </div>
@@ -591,7 +537,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
 };
 
 /* ------------------------------------------------------------------ */
-/*  DeltaCard — enhanced savings card with proportional bar            */
+/*  DeltaCard                                                          */
 /* ------------------------------------------------------------------ */
 
 interface DeltaCardProps {
@@ -640,14 +586,7 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
       >
         +{formatter(Math.abs(value))}
       </div>
-      <div
-        style={{
-          height: 4,
-          background: '#F1F5F9',
-          borderRadius: 2,
-          overflow: 'hidden',
-        }}
-      >
+      <div style={{ height: 4, background: '#F1F5F9', borderRadius: 2, overflow: 'hidden' }}>
         <div
           style={{
             width: `${pct}%`,
@@ -667,6 +606,7 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
 /* ================================================================== */
 
 export const EnergyCalculatorPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const [inputs, setInputs] = useState<CalculatorInputs>({ ...defaultInputs });
 
   const update = <K extends keyof CalculatorInputs>(key: K, value: CalculatorInputs[K]) => {
@@ -687,13 +627,26 @@ export const EnergyCalculatorPage: React.FC = () => {
   const etsDiff = resultA.etsCostEur - resultB.etsCostEur;
   const fueleuDiff = resultA.fueleuPenaltyEur - resultB.fueleuPenaltyEur;
 
-  // Per-tonne effective value difference
   const totalFuelBurned = (resultA.fuelBurnT + resultB.fuelBurnT) / 2;
   const perTonneLow = totalFuelBurned > 0 ? Math.round(Math.abs(diff) / totalFuelBurned * 0.8) : 0;
   const perTonneHigh = totalFuelBurned > 0 ? Math.round(Math.abs(diff) / totalFuelBurned * 1.2) : 0;
 
   const aIsCheaper = resultA.totalCostUsd <= resultB.totalCostUsd;
   const maxDelta = Math.max(Math.abs(fuelDiff), Math.abs(etsDiff * inputs.eurToUsd), Math.abs(fueleuDiff * inputs.eurToUsd), 1);
+
+  if (!ready) return null;
+
+  const metricLabels = {
+    fuelBurn: t('energyCalculator.metrics.fuelBurn'),
+    co2Emissions: t('energyCalculator.metrics.co2Emissions'),
+    euEtsCost: t('energyCalculator.metrics.euEtsCost'),
+    fuelEu: t('energyCalculator.metrics.fuelEu'),
+    ciiProxy: t('energyCalculator.metrics.ciiProxy'),
+    totalCost: t('energyCalculator.metrics.totalCost'),
+    lowerCost: t('energyCalculator.metrics.lowerCost'),
+    compliant: t('energyCalculator.metrics.compliant'),
+    penalty: t('energyCalculator.metrics.penalty'),
+  };
 
   return (
     <div>
@@ -723,7 +676,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
-            Energy Calculator
+            {t('energyCalculator.hero.title')}
           </h1>
           <p
             style={{
@@ -735,8 +688,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               fontFamily: "'Lato', sans-serif",
             }}
           >
-            Compare fuels by energy content, not just price per tonne. See the real economic
-            difference including EU ETS exposure, FuelEU Maritime compliance, and total voyage cost.
+            {t('energyCalculator.hero.subtitle')}
           </p>
         </div>
       </section>
@@ -759,11 +711,7 @@ export const EnergyCalculatorPage: React.FC = () => {
           {/* Fuel A Parameters */}
           <div
             className="calc-input-card"
-            style={{
-              ...card,
-              borderTop: '3px solid #5DADE2',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
-            }}
+            style={{ ...card, borderTop: '3px solid #5DADE2', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)' }}
           >
             <h3
               style={{
@@ -782,48 +730,17 @@ export const EnergyCalculatorPage: React.FC = () => {
               }}
             >
               <DropletIcon color="#5DADE2" />
-              Fuel A
+              {t('energyCalculator.fuelA')}
             </h3>
-            <SliderInput
-              label="Energy Density"
-              value={inputs.fuelA_energyDensity}
-              onChange={(v) => update('fuelA_energyDensity', v)}
-              min={15}
-              max={50}
-              step={0.1}
-              unit="MJ/kg"
-              accentColor="#5DADE2"
-            />
-            <SliderInput
-              label="Daily Consumption"
-              value={inputs.fuelA_dailyConsumption}
-              onChange={(v) => update('fuelA_dailyConsumption', v)}
-              min={10}
-              max={100}
-              step={1}
-              unit="t/day"
-              accentColor="#5DADE2"
-            />
-            <SliderInput
-              label="Fuel Price"
-              value={inputs.fuelA_price}
-              onChange={(v) => update('fuelA_price', v)}
-              min={200}
-              max={1500}
-              step={10}
-              unit="$/mt"
-              accentColor="#5DADE2"
-            />
+            <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelA_energyDensity} onChange={(v) => update('fuelA_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#5DADE2" />
+            <SliderInput label={t('energyCalculator.labels.dailyConsumption')} value={inputs.fuelA_dailyConsumption} onChange={(v) => update('fuelA_dailyConsumption', v)} min={10} max={100} step={1} unit="t/day" accentColor="#5DADE2" />
+            <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelA_price} onChange={(v) => update('fuelA_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#5DADE2" />
           </div>
 
           {/* Fuel B Parameters */}
           <div
             className="calc-input-card"
-            style={{
-              ...card,
-              borderTop: '3px solid #4CAF50',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
-            }}
+            style={{ ...card, borderTop: '3px solid #4CAF50', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)' }}
           >
             <h3
               style={{
@@ -842,48 +759,17 @@ export const EnergyCalculatorPage: React.FC = () => {
               }}
             >
               <DropletIcon color="#4CAF50" />
-              Fuel B
+              {t('energyCalculator.fuelB')}
             </h3>
-            <SliderInput
-              label="Energy Density"
-              value={inputs.fuelB_energyDensity}
-              onChange={(v) => update('fuelB_energyDensity', v)}
-              min={15}
-              max={50}
-              step={0.1}
-              unit="MJ/kg"
-              accentColor="#4CAF50"
-            />
-            <SliderInput
-              label="Daily Consumption"
-              value={inputs.fuelB_dailyConsumption}
-              onChange={(v) => update('fuelB_dailyConsumption', v)}
-              min={10}
-              max={100}
-              step={1}
-              unit="t/day"
-              accentColor="#4CAF50"
-            />
-            <SliderInput
-              label="Fuel Price"
-              value={inputs.fuelB_price}
-              onChange={(v) => update('fuelB_price', v)}
-              min={200}
-              max={1500}
-              step={10}
-              unit="$/mt"
-              accentColor="#4CAF50"
-            />
+            <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelB_energyDensity} onChange={(v) => update('fuelB_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#4CAF50" />
+            <SliderInput label={t('energyCalculator.labels.dailyConsumption')} value={inputs.fuelB_dailyConsumption} onChange={(v) => update('fuelB_dailyConsumption', v)} min={10} max={100} step={1} unit="t/day" accentColor="#4CAF50" />
+            <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelB_price} onChange={(v) => update('fuelB_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#4CAF50" />
           </div>
 
           {/* Voyage & Regulatory Parameters */}
           <div
             className="calc-input-card"
-            style={{
-              ...card,
-              borderTop: '3px solid #64748B',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)',
-            }}
+            style={{ ...card, borderTop: '3px solid #64748B', boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04)' }}
           >
             <h3
               style={{
@@ -902,30 +788,12 @@ export const EnergyCalculatorPage: React.FC = () => {
               }}
             >
               <CompassIcon color="#64748B" />
-              Voyage & Regulatory
+              {t('energyCalculator.voyageRegulatory')}
             </h3>
-            <SliderInput
-              label="Voyage Days"
-              value={inputs.voyageDays}
-              onChange={(v) => update('voyageDays', v)}
-              min={1}
-              max={60}
-              step={1}
-              unit="days"
-              accentColor="#64748B"
-            />
-            <SliderInput
-              label={`EUA Price`}
-              value={inputs.euaPrice}
-              onChange={(v) => update('euaPrice', v)}
-              min={20}
-              max={200}
-              step={1}
-              unit={`\u20AC/tCO\u2082`}
-              accentColor="#64748B"
-            />
+            <SliderInput label={t('energyCalculator.labels.voyageDays')} value={inputs.voyageDays} onChange={(v) => update('voyageDays', v)} min={1} max={60} step={1} unit="days" accentColor="#64748B" />
+            <SliderInput label={t('energyCalculator.labels.euaPrice')} value={inputs.euaPrice} onChange={(v) => update('euaPrice', v)} min={20} max={200} step={1} unit={`\u20AC/tCO\u2082`} accentColor="#64748B" />
             <DropdownInput
-              label="EU ETS Coverage"
+              label={t('energyCalculator.labels.euEtsCoverage')}
               value={inputs.etsCoverage}
               onChange={(v) => update('etsCoverage', v)}
               options={[
@@ -935,26 +803,8 @@ export const EnergyCalculatorPage: React.FC = () => {
                 { label: '100%', value: 1.0 },
               ]}
             />
-            <SliderInput
-              label={`FuelEU Threshold`}
-              value={inputs.fueleuThreshold}
-              onChange={(v) => update('fueleuThreshold', v)}
-              min={50}
-              max={100}
-              step={0.01}
-              unit={`gCO\u2082e/MJ`}
-              accentColor="#64748B"
-            />
-            <SliderInput
-              label="EUR/USD Rate"
-              value={inputs.eurToUsd}
-              onChange={(v) => update('eurToUsd', v)}
-              min={0.8}
-              max={1.5}
-              step={0.01}
-              unit=""
-              accentColor="#64748B"
-            />
+            <SliderInput label={t('energyCalculator.labels.fueleuThreshold')} value={inputs.fueleuThreshold} onChange={(v) => update('fueleuThreshold', v)} min={50} max={100} step={0.01} unit={`gCO\u2082e/MJ`} accentColor="#64748B" />
+            <SliderInput label={t('energyCalculator.labels.eurUsdRate')} value={inputs.eurToUsd} onChange={(v) => update('eurToUsd', v)} min={0.8} max={1.5} step={0.01} unit="" accentColor="#64748B" />
           </div>
         </div>
       </section>
@@ -962,15 +812,7 @@ export const EnergyCalculatorPage: React.FC = () => {
       {/* ---- Section 2b: Visual Cost Comparison Bar ---- */}
       <section style={{ padding: '40px 24px 0', background: '#F8FAFC' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 20,
-              fontFamily: "'Montserrat', sans-serif",
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, fontFamily: "'Montserrat', sans-serif" }}>
             <AnchorIcon color="#334155" />
             <h3
               style={{
@@ -981,15 +823,15 @@ export const EnergyCalculatorPage: React.FC = () => {
                 letterSpacing: 1,
               }}
             >
-              Total Voyage Cost Comparison
+              {t('energyCalculator.totalVoyageCostComparison')}
             </h3>
           </div>
         </div>
         <CostComparisonBar
           costA={resultA.totalCostUsd}
           costB={resultB.totalCostUsd}
-          labelA="Fuel A"
-          labelB="Fuel B"
+          labelA={t('energyCalculator.fuelA')}
+          labelB={t('energyCalculator.fuelB')}
         />
       </section>
 
@@ -997,11 +839,12 @@ export const EnergyCalculatorPage: React.FC = () => {
       <section style={{ padding: '32px 24px 72px', background: '#F8FAFC' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <FuelResultRow
-            label="Fuel A"
+            label={t('energyCalculator.fuelA')}
             result={resultA}
             inputs={inputs}
             isCheaper={aIsCheaper}
             accentColor="#5DADE2"
+            metricLabels={metricLabels}
           />
           <div
             style={{
@@ -1011,11 +854,12 @@ export const EnergyCalculatorPage: React.FC = () => {
             }}
           />
           <FuelResultRow
-            label="Fuel B"
+            label={t('energyCalculator.fuelB')}
             result={resultB}
             inputs={inputs}
             isCheaper={!aIsCheaper}
             accentColor="#4CAF50"
+            metricLabels={metricLabels}
           />
         </div>
       </section>
@@ -1041,7 +885,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
-            Net Savings Per Voyage
+            {t('energyCalculator.savings.eyebrow')}
           </p>
           <h2
             style={{
@@ -1066,10 +910,10 @@ export const EnergyCalculatorPage: React.FC = () => {
             }}
           >
             {diff > 0
-              ? 'Fuel B saves this amount compared to Fuel A'
+              ? t('energyCalculator.savings.fuelBSaves')
               : diff < 0
-                ? 'Fuel A saves this amount compared to Fuel B'
-                : 'Both fuels are equal in total voyage cost'}
+                ? t('energyCalculator.savings.fuelASaves')
+                : t('energyCalculator.savings.equal')}
           </p>
 
           <div
@@ -1081,9 +925,9 @@ export const EnergyCalculatorPage: React.FC = () => {
               marginBottom: 32,
             }}
           >
-            <DeltaCard label="Fuel Cost Delta" value={fuelDiff} formatter={fmtUsd} maxValue={maxDelta} />
-            <DeltaCard label="ETS Cost Delta" value={etsDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
-            <DeltaCard label="FuelEU Penalty Delta" value={fueleuDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
+            <DeltaCard label={t('energyCalculator.savings.fuelCostDelta')} value={fuelDiff} formatter={fmtUsd} maxValue={maxDelta} />
+            <DeltaCard label={t('energyCalculator.savings.etsCostDelta')} value={etsDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
+            <DeltaCard label={t('energyCalculator.savings.fueleuPenaltyDelta')} value={fueleuDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
           </div>
 
           <div
@@ -1095,14 +939,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               padding: '10px 24px',
             }}
           >
-            <p
-              style={{
-                fontSize: 14,
-                color: '#64748B',
-                lineHeight: 1.6,
-                fontFamily: "'Lato', sans-serif",
-              }}
-            >
+            <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, fontFamily: "'Lato', sans-serif" }}>
               {'\u2248'} ${perTonneLow}{'\u2013'}${perTonneHigh} per tonne in effective value based on energy alone
             </p>
           </div>
@@ -1131,7 +968,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
-            Want to see energy-adjusted prices from real suppliers?
+            {t('energyCalculator.cta.title')}
           </h2>
           <p
             style={{
@@ -1142,8 +979,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               fontFamily: "'Lato', sans-serif",
             }}
           >
-            Join the Verdaxis pilot to access verified energy density data, CI scoring, and
-            compliance-aware pricing from vetted fuel producers.
+            {t('energyCalculator.cta.subtitle')}
           </p>
           <Link
             to="/pilot"
@@ -1164,7 +1000,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
             }}
           >
-            Apply for Pilot
+            {t('energyCalculator.cta.button')}
             <ArrowRight size={18} />
           </Link>
         </div>

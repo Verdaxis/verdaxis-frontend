@@ -27,65 +27,7 @@ import {
   CircuitLines,
   HoverButton,
 } from '../../components/public/motionUtils';
-
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
-
-const sellerBenefits = [
-  { icon: Users, text: 'Direct access to qualified buyers' },
-  { icon: TrendingUp, text: 'Reduced customer acquisition costs' },
-  { icon: Handshake, text: 'Lower friction for contract negotiation' },
-  { icon: Eye, text: 'Market visibility and deal flow analytics' },
-  { icon: Factory, text: 'Ability to pre-market future production' },
-];
-
-const platformCapabilities = [
-  { icon: BarChart3, text: 'Real-time aggregation and matching delivering liquidity in the market' },
-  { icon: TrendingUp, text: 'Drives price discovery in the market' },
-  { icon: ShieldCheck, text: 'Verified sustainability data and reporting' },
-  { icon: Shield, text: 'Integrated risk management tools' },
-  { icon: Brain, text: 'AI-powered market intelligence and forecasting' },
-];
-
-const buyerBenefits = [
-  { icon: Globe, text: 'Access to a unified market of verified sustainable fuel suppliers' },
-  { icon: Eye, text: 'Transparent, reliable pricing via exchange' },
-  { icon: Zap, text: 'One-stop access to all sustainable fuel types' },
-  { icon: LineChart, text: 'Transparency and price discovery' },
-  { icon: Handshake, text: 'Access to hedging tools (SWAPs)' },
-];
-
-const principles = [
-  {
-    icon: Package,
-    title: 'Physical-First Logic',
-    description:
-      'Every listing on Verdaxis is tied to a physical fuel batch. No decoupled paper credits or synthetic instruments \u2014 real fuel, real trades.',
-  },
-  {
-    icon: Shield,
-    title: 'End-to-End Integrity',
-    description:
-      'From production through bunkering to final consumption, the chain of custody is maintained. Sustainability data travels with the fuel at every stage.',
-  },
-  {
-    icon: LinkIcon,
-    title: 'Singapore-Hosted, Global Reach',
-    description:
-      'Backed by SGX and MPA Singapore, Verdaxis provides price discovery for any point in the world while maintaining the highest standards of market integrity.',
-  },
-];
-
-/* kept in code for deck use */
-const comparisonRows = [
-  { label: 'Attribute tracking', traditional: 'Paper-based, manual', verdaxis: 'Digital, automated' },
-  { label: 'Double-counting risk', traditional: 'High', verdaxis: 'Eliminated' },
-  { label: 'Verification', traditional: 'Periodic, delayed', verdaxis: 'Real-time, locked' },
-  { label: 'Price discovery', traditional: 'Opaque, bilateral', verdaxis: 'Transparent, market-based' },
-  { label: 'Compliance reporting', traditional: 'Manual assembly', verdaxis: 'Auto-generated' },
-  { label: 'Audit trail', traditional: 'Fragmented', verdaxis: 'End-to-end' },
-];
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -237,6 +179,51 @@ const ColumnArrow: React.FC = () => (
 /* ================================================================== */
 
 export const HowItWorksPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const sellerBenefits = [
+    { icon: Users, text: t('howItWorks.benefits.sellers.items.0') },
+    { icon: TrendingUp, text: t('howItWorks.benefits.sellers.items.1') },
+    { icon: Handshake, text: t('howItWorks.benefits.sellers.items.2') },
+    { icon: Eye, text: t('howItWorks.benefits.sellers.items.3') },
+    { icon: Factory, text: t('howItWorks.benefits.sellers.items.4') },
+  ];
+
+  const platformCapabilities = [
+    { icon: BarChart3, text: t('howItWorks.benefits.platform.items.0') },
+    { icon: TrendingUp, text: t('howItWorks.benefits.platform.items.1') },
+    { icon: ShieldCheck, text: t('howItWorks.benefits.platform.items.2') },
+    { icon: Shield, text: t('howItWorks.benefits.platform.items.3') },
+    { icon: Brain, text: t('howItWorks.benefits.platform.items.4') },
+  ];
+
+  const buyerBenefits = [
+    { icon: Globe, text: t('howItWorks.benefits.buyers.items.0') },
+    { icon: Eye, text: t('howItWorks.benefits.buyers.items.1') },
+    { icon: Zap, text: t('howItWorks.benefits.buyers.items.2') },
+    { icon: LineChart, text: t('howItWorks.benefits.buyers.items.3') },
+    { icon: Handshake, text: t('howItWorks.benefits.buyers.items.4') },
+  ];
+
+  const principles = [
+    {
+      icon: Package,
+      title: t('howItWorks.principles.items.0.title'),
+      description: t('howItWorks.principles.items.0.description'),
+    },
+    {
+      icon: Shield,
+      title: t('howItWorks.principles.items.1.title'),
+      description: t('howItWorks.principles.items.1.description'),
+    },
+    {
+      icon: LinkIcon,
+      title: t('howItWorks.principles.items.2.title'),
+      description: t('howItWorks.principles.items.2.description'),
+    },
+  ];
+
   return (
     <div>
       {/* ---- Section 1: Hero ---- */}
@@ -276,7 +263,7 @@ export const HowItWorksPage: React.FC = () => {
                 lineHeight: 1.2,
               }}
             >
-              How Verdaxis Works
+              {t('howItWorks.hero.title')}
             </h1>
           </motion.div>
           <motion.div
@@ -293,9 +280,7 @@ export const HowItWorksPage: React.FC = () => {
                 margin: '0 auto',
               }}
             >
-              Verdaxis connects sustainable fuel producers with buyers and traders through
-              a transparent exchange &mdash; delivering liquidity, price discovery, and
-              verified sustainability data.
+              {t('howItWorks.hero.subtitle')}
             </p>
           </motion.div>
         </div>
@@ -314,11 +299,11 @@ export const HowItWorksPage: React.FC = () => {
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <Reveal>
-            <h2 style={sectionTitle}>Benefits of the Verdaxis Platform</h2>
+            <h2 style={sectionTitle}>{t('howItWorks.benefits.title')}</h2>
           </Reveal>
           <Reveal delay={0.08}>
             <p style={sectionSubtitle}>
-              A two-sided marketplace connecting sustainable fuel supply with global demand.
+              {t('howItWorks.benefits.subtitle')}
             </p>
           </Reveal>
 
@@ -335,16 +320,16 @@ export const HowItWorksPage: React.FC = () => {
             }}
           >
             <BenefitColumn
-              title="Sellers"
-              subtitle="Producers & Traders"
+              title={t('howItWorks.benefits.sellers.title')}
+              subtitle={t('howItWorks.benefits.sellers.subtitle')}
               items={sellerBenefits}
               accentColor="#4CAF50"
               delay={0}
             />
             <ColumnArrow />
             <BenefitColumn
-              title="Verdaxis Platform"
-              subtitle="The Exchange"
+              title={t('howItWorks.benefits.platform.title')}
+              subtitle={t('howItWorks.benefits.platform.subtitle')}
               items={platformCapabilities}
               accentColor="#5DADE2"
               delay={0.15}
@@ -352,8 +337,8 @@ export const HowItWorksPage: React.FC = () => {
             />
             <ColumnArrow />
             <BenefitColumn
-              title="Buyers"
-              subtitle="Owners & Charterers"
+              title={t('howItWorks.benefits.buyers.title')}
+              subtitle={t('howItWorks.benefits.buyers.subtitle')}
               items={buyerBenefits}
               accentColor="#5DADE2"
               delay={0.3}
@@ -380,11 +365,11 @@ export const HowItWorksPage: React.FC = () => {
       {/* ---- Section 3: Key Principles ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>Key Principles</h2>
+          <h2 style={sectionTitle}>{t('howItWorks.principles.title')}</h2>
         </Reveal>
         <Reveal delay={0.08}>
           <p style={sectionSubtitle}>
-            The design choices that make Verdaxis a trusted and transparent marketplace.
+            {t('howItWorks.principles.subtitle')}
           </p>
         </Reveal>
 
@@ -441,9 +426,6 @@ export const HowItWorksPage: React.FC = () => {
         </StaggerGrid>
       </section>
 
-      {/* ---- Section 4: Verdaxis vs Traditional (REMOVED FROM PAGE — kept in code for deck use) ---- */}
-      {/* See git history or comparisonRows data above for the comparison table content */}
-
       {/* ---- Section 5: CTA ---- */}
       <section
         style={{
@@ -471,7 +453,7 @@ export const HowItWorksPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              See what fuels are supported on the platform
+              {t('howItWorks.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -490,7 +472,7 @@ export const HowItWorksPage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                Explore Fuel Coverage
+                {t('howItWorks.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

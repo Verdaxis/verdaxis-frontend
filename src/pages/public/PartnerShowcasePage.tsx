@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ── Partner Data ── */
 
@@ -70,7 +71,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ child
 
 /* ── Partner Card ── */
 
-const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, index }) => {
+const PartnerCard: React.FC<{ partner: Partner; index: number; verifiedBadgeLabel: string }> = ({ partner, index, verifiedBadgeLabel }) => {
   return (
     <Reveal delay={index * 0.12}>
       <motion.div
@@ -213,7 +214,7 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
                 letterSpacing: '0.04em',
               }}
             >
-              VERDAXIS VERIFIED PARTNER
+              {verifiedBadgeLabel}
             </span>
           </div>
         </div>
@@ -225,6 +226,9 @@ const PartnerCard: React.FC<{ partner: Partner; index: number }> = ({ partner, i
 /* ── Main Page ── */
 
 export const PartnerShowcasePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
   return (
     <div
       style={{
@@ -263,7 +267,7 @@ export const PartnerShowcasePage: React.FC = () => {
             V
           </div>
           <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: '#0F172A' }}>
-            Verdaxis
+            {t('partnerShowcase.topBar.brandName')}
           </span>
         </div>
         <div
@@ -275,7 +279,7 @@ export const PartnerShowcasePage: React.FC = () => {
             textTransform: 'uppercase',
           }}
         >
-          Partner Network {'\u2014'} Preview
+          {t('partnerShowcase.topBar.label')}
         </div>
       </div>
 
@@ -313,7 +317,7 @@ export const PartnerShowcasePage: React.FC = () => {
               }}
             />
             <span style={{ fontSize: 12, fontWeight: 600, color: '#5DADE2', letterSpacing: '0.06em' }}>
-              STRATEGIC ECOSYSTEM
+              {t('partnerShowcase.hero.ecosystemLabel')}
             </span>
           </div>
         </Reveal>
@@ -330,7 +334,7 @@ export const PartnerShowcasePage: React.FC = () => {
               color: '#0F172A',
             }}
           >
-            Trusted by the{' '}
+            {t('partnerShowcase.hero.title1')}{' '}
             <span
               style={{
                 background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
@@ -339,10 +343,10 @@ export const PartnerShowcasePage: React.FC = () => {
                 backgroundClip: 'text',
               }}
             >
-              institutions
+              {t('partnerShowcase.hero.title2')}
             </span>
             <br />
-            that shape the market
+            {t('partnerShowcase.hero.title3')}
           </h1>
         </Reveal>
 
@@ -356,9 +360,7 @@ export const PartnerShowcasePage: React.FC = () => {
               margin: '0 auto 40px',
             }}
           >
-            Verdaxis partners with global pricing agencies, maritime regulators,
-            technology providers, and industry standards bodies to build the most
-            trusted exchange for low-carbon fuels.
+            {t('partnerShowcase.hero.subtitle')}
           </p>
         </Reveal>
 
@@ -388,7 +390,12 @@ export const PartnerShowcasePage: React.FC = () => {
           className="partner-grid"
         >
           {partners.map((p, i) => (
-            <PartnerCard key={p.name} partner={p} index={i} />
+            <PartnerCard
+              key={p.name}
+              partner={p}
+              index={i}
+              verifiedBadgeLabel={t('partnerShowcase.partnerCard.verifiedBadge')}
+            />
           ))}
         </div>
       </section>
@@ -413,7 +420,7 @@ export const PartnerShowcasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Member Representation
+              {t('partnerShowcase.memberRepresentation.eyebrow')}
             </p>
             <h2
               style={{
@@ -424,7 +431,7 @@ export const PartnerShowcasePage: React.FC = () => {
                 color: '#0F172A',
               }}
             >
-              How institute members appear on the platform
+              {t('partnerShowcase.memberRepresentation.title')}
             </h2>
             <p
               style={{
@@ -435,9 +442,7 @@ export const PartnerShowcasePage: React.FC = () => {
                 margin: '0 auto 48px',
               }}
             >
-              Members of partner institutions receive a verified trust badge on their
-              marketplace listings, establishing credibility without compromising the
-              Verdaxis brand identity.
+              {t('partnerShowcase.memberRepresentation.subtitle')}
             </p>
           </Reveal>
 
@@ -465,13 +470,13 @@ export const PartnerShowcasePage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Example Marketplace Listing
+                {t('partnerShowcase.memberRepresentation.exampleListing')}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#0F172A' }}>Green Methanol {'\u2014'} Rotterdam</h3>
-                  <p style={{ fontSize: 14, color: '#64748B' }}>OCI Global &middot; 5,000 MT &middot; Spot</p>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#0F172A' }}>{t('partnerShowcase.memberRepresentation.listingTitle')}</h3>
+                  <p style={{ fontSize: 14, color: '#64748B' }}>{t('partnerShowcase.memberRepresentation.listingMeta')}</p>
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#5DADE2' }}>$485<span style={{ fontSize: 13, color: '#94A3B8' }}>/MT</span></div>
               </div>
@@ -500,7 +505,7 @@ export const PartnerShowcasePage: React.FC = () => {
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                     <path d="M5 8L7 10L11 6" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#4CAF50' }}>Verdaxis Verified</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#4CAF50' }}>{t('partnerShowcase.memberRepresentation.verifiedBadge')}</span>
                 </div>
 
                 <div
@@ -518,7 +523,7 @@ export const PartnerShowcasePage: React.FC = () => {
                     <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="#0078D4" strokeWidth="1.2" />
                     <text x="8" y="10.5" textAnchor="middle" fontWeight="800" fontSize="6" fill="#0078D4">MI</text>
                   </svg>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0078D4' }}>MI Member</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#0078D4' }}>{t('partnerShowcase.memberRepresentation.miMember')}</span>
                 </div>
 
                 <div
@@ -532,7 +537,7 @@ export const PartnerShowcasePage: React.FC = () => {
                     border: '1px solid rgba(232,55,62,0.15)',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#E8373E' }}>Platts-Indexed</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#E8373E' }}>{t('partnerShowcase.memberRepresentation.plattsIndexed')}</span>
                 </div>
 
                 <div
@@ -560,10 +565,10 @@ export const PartnerShowcasePage: React.FC = () => {
                 }}
               >
                 {[
-                  { label: 'CI Score', value: '14.2 gCO\u2082e/MJ' },
-                  { label: 'Energy', value: '19.9 MJ/kg' },
-                  { label: 'FuelEU', value: 'Compliant' },
-                  { label: 'Pathway', value: 'e-Methanol' },
+                  { label: t('partnerShowcase.memberRepresentation.labels.ciScore'), value: '14.2 gCO\u2082e/MJ' },
+                  { label: t('partnerShowcase.memberRepresentation.labels.energy'), value: '19.9 MJ/kg' },
+                  { label: t('partnerShowcase.memberRepresentation.labels.fuelEu'), value: t('partnerShowcase.memberRepresentation.labels.compliant') },
+                  { label: t('partnerShowcase.memberRepresentation.labels.pathway'), value: 'e-Methanol' },
                 ].map((item) => (
                   <div key={item.label}>
                     <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
@@ -616,8 +621,7 @@ export const PartnerShowcasePage: React.FC = () => {
         }}
       >
         <p style={{ fontSize: 12, color: '#94A3B8' }}>
-          This is a confidential preview page for internal use and partner discussions.
-          Not published on the public Verdaxis website.
+          {t('partnerShowcase.footer.confidentialNote')}
         </p>
         <p style={{ fontSize: 11, color: '#CBD5E1', marginTop: 8 }}>
           &copy; {new Date().getFullYear()} Verdaxis. All rights reserved.

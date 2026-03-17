@@ -21,6 +21,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
+import { useNamespace } from '../../hooks/useNamespace';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -55,86 +56,6 @@ const partners = [
     color: '#00897B',
     website: 'https://genasolutions.com',
   },
-];
-
-/* ── Landing page data (mirrored from LandingPage) ── */
-
-const whyCards = [
-  {
-    icon: AlertTriangle,
-    title: 'Scarce Molecules',
-    body: 'Low-carbon fuel supply is limited. Every molecule needs verified provenance and transparent pricing.',
-  },
-  {
-    icon: Layers,
-    title: 'Fragmented Standards',
-    body: 'RED III, 45Z, RenovaBio, FuelEU Maritime, IMO NZF \u2014 different rules, different metrics, one platform.',
-  },
-  {
-    icon: ShieldAlert,
-    title: 'Double-Counting Risk',
-    body: 'Without chain-of-custody integrity, the same environmental attribute can be claimed multiple times.',
-  },
-  {
-    icon: TrendingDown,
-    title: 'Scope 3 Pressure',
-    body: 'End-users face increasing pressure to prove real emissions reductions, not just purchase certificates.',
-  },
-];
-
-const howSteps = [
-  {
-    num: '01',
-    icon: ClipboardCheck,
-    title: 'Register & Verify',
-    body: 'Producers register fuel batches with feedstock pathway, CI score, and certifications. Third-party verification locks the attributes.',
-  },
-  {
-    num: '02',
-    icon: ShieldCheck,
-    title: 'Trade with Integrity',
-    body: 'Buyers and traders discover fuel on the marketplace with energy-adjusted pricing, compliance scoring, and full chain-of-custody.',
-  },
-  {
-    num: '03',
-    icon: BarChart3,
-    title: 'Claim with Confidence',
-    body: 'Downstream claims are traceable to source. Every environmental attribute is locked, auditable, and impossible to double-count.',
-  },
-];
-
-const roleCards = [
-  {
-    icon: Factory,
-    title: 'Fuel Producers',
-    path: '/for-producers',
-    bullets: ['Faster offtake', 'Premium discovery', 'Compliance-ready sales'],
-  },
-  {
-    icon: Ship,
-    title: 'Fuel Buyers',
-    path: '/for-buyers',
-    bullets: ['Verified Scope 3 reductions', 'Energy-adjusted pricing', 'Reduced compliance risk'],
-  },
-  {
-    icon: ArrowLeftRight,
-    title: 'Traders',
-    path: '/for-traders',
-    bullets: ['Liquidity access', 'Standardised deals', 'Reduced back-office friction'],
-  },
-  {
-    icon: Landmark,
-    title: 'Financiers',
-    path: '/for-financiers',
-    bullets: ['Bankable data', 'Traceable claims', 'Reduced diligence cost'],
-  },
-];
-
-const stats = [
-  { value: 10, suffix: '+', label: 'Fuel Pathways' },
-  { value: 6, suffix: '', label: 'Regulatory Frameworks' },
-  { value: 100, suffix: '%', label: 'Chain-of-Custody' },
-  { value: 0, suffix: '', label: 'Double-Counting' },
 ];
 
 const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
@@ -218,6 +139,7 @@ const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = (
 /* ════════════════════════════════════════════════════════════════════ */
 
 export const PartnerLandingPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const howSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -246,6 +168,71 @@ export const PartnerLandingPage: React.FC = () => {
 
     return () => mm.revert();
   }, []);
+
+  if (!ready) return null;
+
+  const whyCards = [
+    { icon: AlertTriangle, title: t('partnerLanding.why.cards.0.title'), body: t('partnerLanding.why.cards.0.body') },
+    { icon: Layers,        title: t('partnerLanding.why.cards.1.title'), body: t('partnerLanding.why.cards.1.body') },
+    { icon: ShieldAlert,   title: t('partnerLanding.why.cards.2.title'), body: t('partnerLanding.why.cards.2.body') },
+    { icon: TrendingDown,  title: t('partnerLanding.why.cards.3.title'), body: t('partnerLanding.why.cards.3.body') },
+  ];
+
+  const howSteps = [
+    { num: '01', icon: ClipboardCheck, title: t('partnerLanding.how.steps.0.title'), body: t('partnerLanding.how.steps.0.body') },
+    { num: '02', icon: ShieldCheck,    title: t('partnerLanding.how.steps.1.title'), body: t('partnerLanding.how.steps.1.body') },
+    { num: '03', icon: BarChart3,      title: t('partnerLanding.how.steps.2.title'), body: t('partnerLanding.how.steps.2.body') },
+  ];
+
+  const roleCards = [
+    {
+      icon: Factory,
+      title: t('partnerLanding.roles.cards.0.title'),
+      path: '/for-producers',
+      bullets: [
+        t('partnerLanding.roles.cards.0.bullets.0'),
+        t('partnerLanding.roles.cards.0.bullets.1'),
+        t('partnerLanding.roles.cards.0.bullets.2'),
+      ],
+    },
+    {
+      icon: Ship,
+      title: t('partnerLanding.roles.cards.1.title'),
+      path: '/for-buyers',
+      bullets: [
+        t('partnerLanding.roles.cards.1.bullets.0'),
+        t('partnerLanding.roles.cards.1.bullets.1'),
+        t('partnerLanding.roles.cards.1.bullets.2'),
+      ],
+    },
+    {
+      icon: ArrowLeftRight,
+      title: t('partnerLanding.roles.cards.2.title'),
+      path: '/for-traders',
+      bullets: [
+        t('partnerLanding.roles.cards.2.bullets.0'),
+        t('partnerLanding.roles.cards.2.bullets.1'),
+        t('partnerLanding.roles.cards.2.bullets.2'),
+      ],
+    },
+    {
+      icon: Landmark,
+      title: t('partnerLanding.roles.cards.3.title'),
+      path: '/for-financiers',
+      bullets: [
+        t('partnerLanding.roles.cards.3.bullets.0'),
+        t('partnerLanding.roles.cards.3.bullets.1'),
+        t('partnerLanding.roles.cards.3.bullets.2'),
+      ],
+    },
+  ];
+
+  const stats = [
+    { value: 10,  suffix: '+', label: t('landing.stats.fuelPathways') },
+    { value: 6,   suffix: '',  label: t('landing.stats.regulatoryFrameworks') },
+    { value: 100, suffix: '%', label: t('landing.stats.chainOfCustody') },
+    { value: 0,   suffix: '',  label: t('landing.stats.doubleCounting') },
+  ];
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -316,7 +303,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 14,
                 }}
               >
-                Trusted by leading institutions
+                {t('partnerLanding.partners.eyebrow')}
               </p>
               <h2
                 style={{
@@ -327,7 +314,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                Built with the market, not just for it
+                {t('partnerLanding.partners.title')}
               </h2>
               <p
                 style={{
@@ -338,8 +325,7 @@ export const PartnerLandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                Verdaxis partners with global pricing agencies, maritime regulators,
-                technology providers, and industry standards bodies.
+                {t('partnerLanding.partners.subtitle')}
               </p>
             </div>
           </RevealSection>
@@ -464,7 +450,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                The Problem
+                {t('partnerLanding.why.eyebrow')}
               </p>
               <h2
                 style={{
@@ -475,7 +461,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Why Verdaxis Exists
+                {t('partnerLanding.why.title')}
               </h2>
               <p
                 style={{
@@ -486,8 +472,7 @@ export const PartnerLandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                The transition to low-carbon fuels is hindered by fragmented markets,
-                inconsistent data, and compliance uncertainty.
+                {t('partnerLanding.why.subtitle')}
               </p>
             </div>
           </RevealSection>
@@ -584,7 +569,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 12,
               }}
             >
-              The Solution
+              {t('partnerLanding.how.eyebrow')}
             </p>
             <h2
               style={{
@@ -594,11 +579,10 @@ export const PartnerLandingPage: React.FC = () => {
                 color: '#0F172A',
                 marginBottom: 16,
                 lineHeight: 1.15,
+                whiteSpace: 'pre-line',
               }}
             >
-              How Verdaxis
-              <br />
-              Works
+              {t('partnerLanding.how.title')}
             </h2>
             <p
               style={{
@@ -608,7 +592,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 28,
               }}
             >
-              Three steps from fuel production to verifiable downstream claims.
+              {t('partnerLanding.how.subtitle')}
             </p>
             <Link
               to="/how-it-works"
@@ -622,7 +606,7 @@ export const PartnerLandingPage: React.FC = () => {
                 textDecoration: 'none',
               }}
             >
-              See full process <ArrowRight size={16} />
+              {t('partnerLanding.how.seeFullProcess')} <ArrowRight size={16} />
             </Link>
           </div>
 
@@ -694,10 +678,10 @@ export const PartnerLandingPage: React.FC = () => {
         <div className="how-mobile-fallback" style={{ display: 'none', padding: '80px 24px' }}>
           <div style={{ textAlign: 'center', marginBottom: 48 }}>
             <p style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#5DADE2', marginBottom: 12 }}>
-              The Solution
+              {t('partnerLanding.how.eyebrow')}
             </p>
             <h2 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 34, fontWeight: 400, color: '#0F172A', marginBottom: 16 }}>
-              How Verdaxis Works
+              {t('partnerLanding.how.mobileTitle')}
             </h2>
           </div>
           <div style={{ maxWidth: 500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -717,7 +701,7 @@ export const PartnerLandingPage: React.FC = () => {
             ))}
             <div style={{ textAlign: 'center', marginTop: 8 }}>
               <Link to="/how-it-works" style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                See full process <ArrowRight size={16} />
+                {t('partnerLanding.how.seeFullProcess')} <ArrowRight size={16} />
               </Link>
             </div>
           </div>
@@ -745,7 +729,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 12,
                 }}
               >
-                For Every Role
+                {t('partnerLanding.roles.eyebrow')}
               </p>
               <h2
                 style={{
@@ -756,7 +740,7 @@ export const PartnerLandingPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                Built for Every Participant
+                {t('partnerLanding.roles.title')}
               </h2>
               <p
                 style={{
@@ -767,8 +751,7 @@ export const PartnerLandingPage: React.FC = () => {
                   lineHeight: 1.7,
                 }}
               >
-                Whether you produce, buy, trade, or finance low-carbon fuels,
-                Verdaxis gives you the tools and trust layer you need.
+                {t('partnerLanding.roles.subtitle')}
               </p>
             </div>
           </RevealSection>
@@ -856,7 +839,7 @@ export const PartnerLandingPage: React.FC = () => {
                       textDecoration: 'none',
                     }}
                   >
-                    Learn more <ChevronRight size={16} />
+                    {t('partnerLanding.roles.learnMore')} <ChevronRight size={16} />
                   </Link>
                 </motion.div>
               </RevealSection>
@@ -886,7 +869,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 28,
               }}
             >
-              Built for global compliance frameworks
+              {t('partnerLanding.frameworks.label')}
             </p>
           </RevealSection>
           <RevealSection delay={0.15}>
@@ -958,7 +941,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Join the Pilot
+              {t('partnerLanding.cta.eyebrow')}
             </p>
           </RevealSection>
           <RevealSection delay={0.1}>
@@ -971,7 +954,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 20,
               }}
             >
-              Ready to define the market?
+              {t('partnerLanding.cta.title')}
             </h2>
           </RevealSection>
           <RevealSection delay={0.2}>
@@ -983,9 +966,7 @@ export const PartnerLandingPage: React.FC = () => {
                 marginBottom: 40,
               }}
             >
-              Verdaxis is onboarding a limited cohort of pilot participants
-              {' \u2014 '}producers, buyers, traders, and financiers who want to shape
-              the standard for low-carbon fuel commerce.
+              {t('partnerLanding.cta.subtitle')}
             </p>
           </RevealSection>
           <RevealSection delay={0.3}>
@@ -1014,7 +995,7 @@ export const PartnerLandingPage: React.FC = () => {
                     gap: 8,
                   }}
                 >
-                  Apply for Pilot
+                  {t('partnerLanding.cta.applyButton')}
                   <ArrowRight size={16} />
                 </Link>
               </motion.div>
@@ -1034,7 +1015,7 @@ export const PartnerLandingPage: React.FC = () => {
                     display: 'inline-block',
                   }}
                 >
-                  Register Interest
+                  {t('partnerLanding.cta.registerButton')}
                 </a>
               </motion.div>
             </div>

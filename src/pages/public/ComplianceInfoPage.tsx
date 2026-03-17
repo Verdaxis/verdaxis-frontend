@@ -16,17 +16,7 @@ import {
   CircuitLines,
   HoverButton,
 } from '../../components/public/motionUtils';
-
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
-
-const stewardshipPoints = [
-  'End-to-end visibility from the point of production to the bunker tank',
-  'Every transaction is recorded, timestamped, and auditable',
-  'Verified sustainability data travels with the fuel at every stage',
-  'Platform-enforced integrity eliminates gaps in the supply chain',
-];
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Shared styles                                                      */
@@ -41,6 +31,16 @@ const sectionPadding: React.CSSProperties = {
 /* ================================================================== */
 
 export const ComplianceInfoPage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const stewardshipPoints = [
+    t('compliance.stewardship.points.0'),
+    t('compliance.stewardship.points.1'),
+    t('compliance.stewardship.points.2'),
+    t('compliance.stewardship.points.3'),
+  ];
+
   return (
     <div>
       {/* ---- Hero ---- */}
@@ -88,7 +88,7 @@ export const ComplianceInfoPage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Compliance &amp; Integrity
+            {t('compliance.hero.title')}
           </h1>
           <p
             style={{
@@ -99,8 +99,7 @@ export const ComplianceInfoPage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Verdaxis is the steward of the sustainable fuel supply chain &mdash; providing
-            end-to-end integrity from the producer to the tank.
+            {t('compliance.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -135,7 +134,7 @@ export const ComplianceInfoPage: React.FC = () => {
                   marginBottom: 16,
                 }}
               >
-                The Steward of High-Integrity Supply
+                {t('compliance.stewardship.title')}
               </h2>
               <p
                 style={{
@@ -146,9 +145,7 @@ export const ComplianceInfoPage: React.FC = () => {
                   margin: '0 auto',
                 }}
               >
-                Only Verdaxis can safely facilitate the entire journey of sustainable fuel &mdash;
-                from the moment it is produced to the moment it reaches the tank. Our platform
-                is the single source of truth for every participant in the chain.
+                {t('compliance.stewardship.subtitle')}
               </p>
             </div>
           </Reveal>
@@ -166,13 +163,13 @@ export const ComplianceInfoPage: React.FC = () => {
               }}
             >
               {[
-                { icon: Factory, label: 'Producer', color: '#4CAF50' },
+                { icon: Factory, label: t('compliance.stewardship.chainLabels.producer'), color: '#4CAF50' },
                 { icon: null, label: null, color: null },
-                { icon: Shield, label: 'Verdaxis', color: '#5DADE2' },
+                { icon: Shield, label: t('compliance.stewardship.chainLabels.verdaxis'), color: '#5DADE2' },
                 { icon: null, label: null, color: null },
-                { icon: Ship, label: 'Vessel', color: '#4CAF50' },
+                { icon: Ship, label: t('compliance.stewardship.chainLabels.vessel'), color: '#4CAF50' },
                 { icon: null, label: null, color: null },
-                { icon: Anchor, label: 'Tank', color: '#4CAF50' },
+                { icon: Anchor, label: t('compliance.stewardship.chainLabels.tank'), color: '#4CAF50' },
               ].map((item, i) =>
                 item.icon ? (
                   <div key={i} style={{ textAlign: 'center', minWidth: 80 }}>
@@ -181,10 +178,10 @@ export const ComplianceInfoPage: React.FC = () => {
                         width: 56,
                         height: 56,
                         borderRadius: 14,
-                        background: item.label === 'Verdaxis'
+                        background: item.label === t('compliance.stewardship.chainLabels.verdaxis')
                           ? 'linear-gradient(135deg, #5DADE2, #4CAF50)'
                           : `${item.color}14`,
-                        border: item.label === 'Verdaxis' ? 'none' : `2px solid ${item.color}30`,
+                        border: item.label === t('compliance.stewardship.chainLabels.verdaxis') ? 'none' : `2px solid ${item.color}30`,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -193,14 +190,14 @@ export const ComplianceInfoPage: React.FC = () => {
                     >
                       <item.icon
                         size={24}
-                        color={item.label === 'Verdaxis' ? '#FFFFFF' : item.color}
+                        color={item.label === t('compliance.stewardship.chainLabels.verdaxis') ? '#FFFFFF' : item.color}
                       />
                     </div>
                     <span
                       style={{
                         fontSize: 13,
-                        fontWeight: item.label === 'Verdaxis' ? 700 : 500,
-                        color: item.label === 'Verdaxis' ? '#0F172A' : '#64748B',
+                        fontWeight: item.label === t('compliance.stewardship.chainLabels.verdaxis') ? 700 : 500,
+                        color: item.label === t('compliance.stewardship.chainLabels.verdaxis') ? '#0F172A' : '#64748B',
                       }}
                     >
                       {item.label}
@@ -284,7 +281,7 @@ export const ComplianceInfoPage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              See how the platform works end-to-end
+              {t('compliance.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -303,7 +300,7 @@ export const ComplianceInfoPage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                How It Works
+                {t('compliance.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

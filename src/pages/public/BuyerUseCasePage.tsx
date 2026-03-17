@@ -18,51 +18,13 @@ import {
   DotGrid,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 
 const ACCENT = '#5DADE2';
-
-const valueProps = [
-  {
-    icon: Globe,
-    title: 'Unified Market Access',
-    description:
-      'Connect to a curated network of verified sustainable fuel suppliers in one place. No more fragmented bilateral negotiations — Verdaxis brings the entire market to you so you can compare, evaluate, and transact efficiently.',
-  },
-  {
-    icon: Zap,
-    title: 'Transparent, Reliable Pricing',
-    description:
-      'See live and reference prices across all sustainable fuel types with full price discovery. Verdaxis shows you what the market is clearing at — not just what a single counterparty quotes — so you always negotiate from a position of knowledge.',
-  },
-  {
-    icon: Layers,
-    title: 'All Sustainable Fuel Types',
-    description:
-      'One-stop access to bio-LNG, bio-MGO, green methanol, green ammonia, e-fuels, and more. Compare fuel options side by side on price, availability, and energy content — all within a single trading interface.',
-  },
-  {
-    icon: BarChart2,
-    title: 'Speed & Execution Efficiency',
-    description:
-      'Post your requirements once and receive matched offers fast. Verdaxis\'s matching engine surfaces the best available supply against your volume, port, and delivery window — cutting procurement time from days to hours.',
-  },
-  {
-    icon: ArrowLeftRight,
-    title: 'Hedging & Price Risk Tools',
-    description:
-      'Manage price volatility with access to SWAP instruments directly on the platform. Lock in future fuel costs, hedge exposure to sustainable fuel price swings, and plan procurement budgets with confidence.',
-  },
-];
-
-const howItWorksSteps = [
-  'Post your fuel requirements — type, volume, port, and delivery window',
-  'Review matched offers with transparent pricing and full fuel-type coverage',
-  'Execute the trade and optionally hedge your price exposure with SWAPs',
-];
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -95,6 +57,43 @@ const sectionSubtitle: React.CSSProperties = {
 /* ================================================================== */
 
 export const BuyerUseCasePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const valueProps = [
+    {
+      icon: Globe,
+      title: t('buyer.valueProps.items.0.title'),
+      description: t('buyer.valueProps.items.0.description'),
+    },
+    {
+      icon: Zap,
+      title: t('buyer.valueProps.items.1.title'),
+      description: t('buyer.valueProps.items.1.description'),
+    },
+    {
+      icon: Layers,
+      title: t('buyer.valueProps.items.2.title'),
+      description: t('buyer.valueProps.items.2.description'),
+    },
+    {
+      icon: BarChart2,
+      title: t('buyer.valueProps.items.3.title'),
+      description: t('buyer.valueProps.items.3.description'),
+    },
+    {
+      icon: ArrowLeftRight,
+      title: t('buyer.valueProps.items.4.title'),
+      description: t('buyer.valueProps.items.4.description'),
+    },
+  ];
+
+  const howItWorksSteps = [
+    t('buyer.howItWorks.steps.0'),
+    t('buyer.howItWorks.steps.1'),
+    t('buyer.howItWorks.steps.2'),
+  ];
+
   return (
     <div>
       {/* ---- Hero ---- */}
@@ -142,7 +141,7 @@ export const BuyerUseCasePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            For Owners & Charterers
+            {t('buyer.hero.title')}
           </h1>
           <p
             style={{
@@ -153,9 +152,7 @@ export const BuyerUseCasePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Access a unified market of verified sustainable fuel suppliers &mdash;
-            with transparent pricing, full fuel-type coverage, and the hedging tools
-            to manage price risk.
+            {t('buyer.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -174,10 +171,8 @@ export const BuyerUseCasePage: React.FC = () => {
           color="rgba(15,23,42,0.04)"
         />
         <Reveal>
-          <h2 style={sectionTitle}>Why Buyers Choose Verdaxis</h2>
-          <p style={sectionSubtitle}>
-            The market, the prices, and the tools — all in one place.
-          </p>
+          <h2 style={sectionTitle}>{t('buyer.valueProps.title')}</h2>
+          <p style={sectionSubtitle}>{t('buyer.valueProps.subtitle')}</p>
         </Reveal>
         <StaggerGrid
           style={{
@@ -236,10 +231,8 @@ export const BuyerUseCasePage: React.FC = () => {
       {/* ---- How It Works For You ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>How It Works For You</h2>
-          <p style={sectionSubtitle}>
-            From fuel requirement to executed trade in three steps.
-          </p>
+          <h2 style={sectionTitle}>{t('buyer.howItWorks.title')}</h2>
+          <p style={sectionSubtitle}>{t('buyer.howItWorks.subtitle')}</p>
         </Reveal>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {howItWorksSteps.map((step, idx) => (
@@ -312,7 +305,7 @@ export const BuyerUseCasePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Ready to access the market?
+              {t('buyer.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -324,8 +317,7 @@ export const BuyerUseCasePage: React.FC = () => {
                 marginBottom: 32,
               }}
             >
-              Join the Verdaxis pilot programme and start sourcing sustainable fuels
-              with transparent pricing, broad supplier coverage, and built-in hedging tools.
+              {t('buyer.cta.subtitle')}
             </p>
           </Reveal>
           <Reveal delay={0.2}>
@@ -343,7 +335,7 @@ export const BuyerUseCasePage: React.FC = () => {
                   textDecoration: 'none',
                 }}
               >
-                Apply for Pilot
+                {t('buyer.cta.button')}
               </Link>
             </HoverButton>
           </Reveal>

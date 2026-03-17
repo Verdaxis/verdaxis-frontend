@@ -1,34 +1,39 @@
 import React, { useEffect } from 'react';
+import { useNamespace } from '../../hooks/useNamespace';
 
 export const TermsPage: React.FC = () => {
+    const { t, ready } = useNamespace('public');
+
     useEffect(() => {
         document.title = 'Terms of Service — Verdaxis';
     }, []);
 
+    if (!ready) return null;
+
     return (
         <div className="max-w-[800px] mx-auto px-6 py-16">
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">Terms of Service</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">{t('terms.title')}</h1>
             <p className="text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-                Last updated: February 2026
+                {t('terms.lastUpdated')}
             </p>
             <div className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">1. Acceptance of Terms</h2>
-                <p>By accessing Verdaxis Exchange, you agree to be bound by these Terms of Service. If you do not agree, do not use the platform.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.0.heading')}</h2>
+                <p>{t('terms.sections.0.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">2. Platform Description</h2>
-                <p>Verdaxis Exchange is a compliance-first marketplace for low-carbon marine fuels. The platform facilitates transactions between fuel suppliers and shipping companies.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.1.heading')}</h2>
+                <p>{t('terms.sections.1.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">3. Account Responsibilities</h2>
-                <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account. Notify us immediately of any unauthorized use.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.2.heading')}</h2>
+                <p>{t('terms.sections.2.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">4. Trading Rules</h2>
-                <p>All trades executed on the platform are subject to our trading rules and settlement procedures. Bids and offers are binding once confirmed.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.3.heading')}</h2>
+                <p>{t('terms.sections.3.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">5. Limitation of Liability</h2>
-                <p>Verdaxis Exchange is provided "as is". We are not liable for trading losses, data interruptions, or third-party service failures beyond our reasonable control.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.4.heading')}</h2>
+                <p>{t('terms.sections.4.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">6. Contact</h2>
-                <p>For questions about these terms, email legal@verdaxis.exchange.</p>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.5.heading')}</h2>
+                <p>{t('terms.sections.5.body')}</p>
             </div>
         </div>
     );

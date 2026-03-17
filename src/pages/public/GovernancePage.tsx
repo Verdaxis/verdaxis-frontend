@@ -22,73 +22,7 @@ import {
   DotGrid,
   HoverButton,
 } from '../../components/public/motionUtils';
-
-/* ------------------------------------------------------------------ */
-/*  Data                                                               */
-/* ------------------------------------------------------------------ */
-
-const guidingPrinciples = [
-  {
-    icon: Shield,
-    title: 'Trust Before Liquidity',
-    description:
-      'The platform must earn credibility before scaling volume. We prioritise verified participants, auditable processes, and regulatory alignment over rapid growth.',
-  },
-  {
-    icon: Scale,
-    title: 'Rules Before Prices',
-    description:
-      'Market rules, compliance standards, and attribute definitions are established before trading begins. This ensures every participant operates under the same framework.',
-  },
-  {
-    icon: Eye,
-    title: 'Independence & Neutrality',
-    description:
-      'Verdaxis operates as a neutral infrastructure provider. Platform interests are structurally separated from participant interests.',
-  },
-];
-
-const structuralRoles = [
-  {
-    icon: Server,
-    title: 'Platform Operator',
-    description:
-      'Verdaxis as the technology and registry provider. Responsible for platform integrity, rule enforcement, and data security. Does not take proprietary trading positions.',
-  },
-  {
-    icon: Users,
-    title: 'Market Participants',
-    description:
-      'Producers, buyers, traders, and financiers who use the platform. Subject to platform rules, KYC requirements, and compliance standards.',
-  },
-  {
-    icon: BadgeCheck,
-    title: 'Verification Bodies',
-    description:
-      'Independent third-party certifiers who verify environmental attributes. Accredited by recognised standards bodies. Not affiliated with Verdaxis.',
-  },
-];
-
-const dataNeutralityStatements = [
-  'Verdaxis treats all participant data with equal confidentiality and does not use individual trading data to advantage any party.',
-  'Aggregated, anonymised market data may be published for price discovery purposes.',
-  'Individual trade data is never shared with competitors or used for proprietary analysis.',
-  'Participants retain ownership of their data and can export it at any time.',
-];
-
-const conflictOfInterestPoints = [
-  'If Verdaxis, its affiliates, or its principals engage in fuel trading activity, this is fully disclosed to all participants.',
-  'Any affiliated trading activity is subject to the same rules as all other participants \u2014 no preferential access, no information advantage.',
-  'An independent oversight function monitors for potential conflicts.',
-  'Participants can report concerns through a confidential channel.',
-];
-
-const advisoryBoardMembers = [
-  { role: 'Maritime Regulation Expert', status: 'To be announced' },
-  { role: 'Carbon Markets Specialist', status: 'To be announced' },
-  { role: 'Fuel Production Advisor', status: 'To be announced' },
-  { role: 'Financial Compliance Advisor', status: 'To be announced' },
-];
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Responsive CSS                                                     */
@@ -104,7 +38,6 @@ const responsiveCSS = `
 }
 `;
 
-/* Inject responsive styles once */
 if (typeof document !== 'undefined' && !document.getElementById(responsiveStyleId)) {
   const style = document.createElement('style');
   style.id = responsiveStyleId;
@@ -162,6 +95,66 @@ const card: React.CSSProperties = {
 /* ================================================================== */
 
 export const GovernancePage: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  if (!ready) return null;
+
+  const guidingPrinciples = [
+    {
+      icon: Shield,
+      title: t('governance.principles.items.0.title'),
+      description: t('governance.principles.items.0.description'),
+    },
+    {
+      icon: Scale,
+      title: t('governance.principles.items.1.title'),
+      description: t('governance.principles.items.1.description'),
+    },
+    {
+      icon: Eye,
+      title: t('governance.principles.items.2.title'),
+      description: t('governance.principles.items.2.description'),
+    },
+  ];
+
+  const structuralRoles = [
+    {
+      icon: Server,
+      title: t('governance.roles.items.0.title'),
+      description: t('governance.roles.items.0.description'),
+    },
+    {
+      icon: Users,
+      title: t('governance.roles.items.1.title'),
+      description: t('governance.roles.items.1.description'),
+    },
+    {
+      icon: BadgeCheck,
+      title: t('governance.roles.items.2.title'),
+      description: t('governance.roles.items.2.description'),
+    },
+  ];
+
+  const dataNeutralityStatements = [
+    t('governance.dataNeutrality.statements.0'),
+    t('governance.dataNeutrality.statements.1'),
+    t('governance.dataNeutrality.statements.2'),
+    t('governance.dataNeutrality.statements.3'),
+  ];
+
+  const conflictOfInterestPoints = [
+    t('governance.conflictOfInterest.points.0'),
+    t('governance.conflictOfInterest.points.1'),
+    t('governance.conflictOfInterest.points.2'),
+    t('governance.conflictOfInterest.points.3'),
+  ];
+
+  const advisoryBoardMembers = [
+    { role: t('governance.advisoryBoard.members.0.role'), status: t('governance.advisoryBoard.members.0.status') },
+    { role: t('governance.advisoryBoard.members.1.role'), status: t('governance.advisoryBoard.members.1.status') },
+    { role: t('governance.advisoryBoard.members.2.role'), status: t('governance.advisoryBoard.members.2.status') },
+    { role: t('governance.advisoryBoard.members.3.role'), status: t('governance.advisoryBoard.members.3.status') },
+  ];
+
   return (
     <div>
       {/* ---- Section 1: Hero ---- */}
@@ -202,7 +195,7 @@ export const GovernancePage: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Governance &amp; Trust
+            {t('governance.hero.title')}
           </h1>
           <p
             style={{
@@ -213,8 +206,7 @@ export const GovernancePage: React.FC = () => {
               margin: '0 auto',
             }}
           >
-            Before live trading, governance matters more than UI. Verdaxis is built on transparency,
-            independence, and structural separation of roles.
+            {t('governance.hero.subtitle')}
           </p>
         </motion.div>
       </section>
@@ -222,12 +214,10 @@ export const GovernancePage: React.FC = () => {
       {/* ---- Section 2: Guiding Principles ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>Guiding Principles</h2>
+          <h2 style={sectionTitle}>{t('governance.principles.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Three foundational principles guide every decision at Verdaxis.
-          </p>
+          <p style={sectionSubtitle}>{t('governance.principles.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -275,13 +265,10 @@ export const GovernancePage: React.FC = () => {
       {/* ---- Section 3: Structural Separation ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>Structural Separation of Roles</h2>
+          <h2 style={sectionTitle}>{t('governance.roles.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>
-            Verdaxis maintains clear boundaries between platform operation, market participation, and
-            verification to prevent conflicts of interest.
-          </p>
+          <p style={sectionSubtitle}>{t('governance.roles.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -360,7 +347,7 @@ export const GovernancePage: React.FC = () => {
                 <Eye size={24} color="#5DADE2" />
               </div>
               <h2 style={{ fontSize: 28, fontFamily: '"DM Serif Display", serif', fontWeight: 400, color: '#0F172A', margin: 0 }}>
-                Data Neutrality Statement
+                {t('governance.dataNeutrality.title')}
               </h2>
             </div>
           </Reveal>
@@ -426,7 +413,7 @@ export const GovernancePage: React.FC = () => {
                 <AlertTriangle size={24} color="#F59E0B" />
               </div>
               <h2 style={{ fontSize: 28, fontFamily: '"DM Serif Display", serif', fontWeight: 400, color: '#0F172A', margin: 0 }}>
-                Conflict of Interest Policy
+                {t('governance.conflictOfInterest.title')}
               </h2>
             </div>
           </Reveal>
@@ -470,13 +457,10 @@ export const GovernancePage: React.FC = () => {
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
           <Reveal>
-            <h2 style={sectionTitle}>Advisory Board</h2>
+            <h2 style={sectionTitle}>{t('governance.advisoryBoard.title')}</h2>
           </Reveal>
           <Reveal delay={0.1}>
-            <p style={sectionSubtitle}>
-              Verdaxis is assembling an advisory board of independent industry experts to guide
-              platform governance.
-            </p>
+            <p style={sectionSubtitle}>{t('governance.advisoryBoard.subtitle')}</p>
           </Reveal>
 
           <StaggerGrid
@@ -539,7 +523,7 @@ export const GovernancePage: React.FC = () => {
 
           <Reveal>
             <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.7 }}>
-              Interested in joining our advisory board?{' '}
+              {t('governance.advisoryBoard.joinText')}{' '}
               <a
                 href="mailto:governance@verdaxis.exchange"
                 style={{
@@ -548,7 +532,7 @@ export const GovernancePage: React.FC = () => {
                   textDecoration: 'underline',
                 }}
               >
-                Contact us
+                {t('governance.advisoryBoard.contactLink')}
               </a>
             </p>
           </Reveal>
@@ -583,7 +567,7 @@ export const GovernancePage: React.FC = () => {
                 marginBottom: 16,
               }}
             >
-              Learn about our pilot programme and early access
+              {t('governance.cta.title')}
             </h2>
           </Reveal>
           <Reveal delay={0.1}>
@@ -604,7 +588,7 @@ export const GovernancePage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                Pilot Programme
+                {t('governance.cta.button')}
                 <ArrowRight size={18} />
               </Link>
             </HoverButton>
