@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { ReferralsTab } from './ReferralsTab';
 import { API_URL } from '../services/config';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface SettingsProps {
     viewMode: ViewMode;
@@ -51,17 +52,10 @@ const Toggle: React.FC<ToggleProps> = ({ enabled, onToggle }) => (
     </button>
 );
 
-const tabConfig: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
-    { key: 'profile', label: 'Profile & Team', icon: <User size={18} /> },
-    { key: 'notifications', label: 'Notifications', icon: <Bell size={18} /> },
-    { key: 'security', label: 'Security', icon: <Shield size={18} /> },
-    { key: 'billing', label: 'Billing', icon: <CreditCard size={18} /> },
-    { key: 'referrals', label: 'Referrals', icon: <Share2 size={18} /> },
-];
-
 export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const { theme, setTheme } = useTheme();
     const { user, token, login } = useAuth();
+    const { t, ready } = useNamespace('settings');
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -90,11 +84,11 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         e.preventDefault();
         setPwMessage(null);
         if (newPassword !== confirmPassword) {
-            setPwMessage({ type: 'error', text: 'New passwords do not match.' });
+            setPwMessage({ type: 'error', text: t('security.errorMismatch') });
             return;
         }
         if (newPassword.length < 8) {
-            setPwMessage({ type: 'error', text: 'Password must be at least 8 characters.' });
+            setPwMessage({ type: 'error', text: t('security.errorTooShort') });
             return;
         }
         setPwLoading(true);
@@ -107,16 +101,16 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
             if (res.ok) {
                 const data = await res.json();
                 if (data.access_token) await login(data.access_token, data.refresh_token);
-                setPwMessage({ type: 'success', text: 'Password changed successfully.' });
+                setPwMessage({ type: 'success', text: t('security.successMsg') });
                 setCurrentPassword('');
                 setNewPassword('');
                 setConfirmPassword('');
             } else {
                 const err = await res.json().catch(() => null);
-                setPwMessage({ type: 'error', text: err?.detail || 'Failed to change password.' });
+                setPwMessage({ type: 'error', text: err?.detail || t('security.errorGeneric') });
             }
         } catch {
-            setPwMessage({ type: 'error', text: 'Network error. Please try again.' });
+            setPwMessage({ type: 'error', text: t('security.errorNetwork') });
         } finally {
             setPwLoading(false);
         }
@@ -126,11 +120,21 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+    if (!ready) return null;
+
+    const tabConfig: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
+        { key: 'profile', label: t('tabs.profile'), icon: <User size={18} /> },
+        { key: 'notifications', label: t('tabs.notifications'), icon: <Bell size={18} /> },
+        { key: 'security', label: t('tabs.security'), icon: <Shield size={18} /> },
+        { key: 'billing', label: t('tabs.billing'), icon: <CreditCard size={18} /> },
+        { key: 'referrals', label: t('tabs.referrals'), icon: <Share2 size={18} /> },
+    ];
+
     return (
         <div className="max-w-5xl mx-auto p-4 lg:p-10">
             <div className="mb-6 lg:mb-8">
-                <h1 className="text-2xl lg:text-3xl v-heading">System Settings</h1>
-                <p className="text-slate-500 mt-1 lg:mt-2 text-sm lg:text-base">Manage your profile, notifications, and Verdaxis platform preferences.</p>
+                <h1 className="text-2xl lg:text-3xl v-heading">{t('title')}</h1>
+                <p className="text-slate-500 mt-1 lg:mt-2 text-sm lg:text-base">{t('subtitle')}</p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 <div className="lg:col-span-1">
@@ -174,31 +178,31 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                 <div className="lg:col-span-2 space-y-6">
                     {activeTab === 'profile' && (<>
                         <div className="v-card p-6">
-                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">User Profile</h2>
+                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('profile.title')}</h2>
                             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
                                 <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-300 text-2xl font-bold flex-shrink-0">{initials}</div>
                                 <div className="flex-1 space-y-4 w-full">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div><label className="v-label">First Name</label><input type="text" value={firstName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
-                                        <div><label className="v-label">Last Name</label><input type="text" value={lastName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                        <div><label className="v-label">{t('profile.firstName')}</label><input type="text" value={firstName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                        <div><label className="v-label">{t('profile.lastName')}</label><input type="text" value={lastName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
                                     </div>
-                                    <div><label className="v-label">Email Address</label><input type="email" value={email} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
-                                    {roleLabel && (<div><label className="v-label">Role</label><div className="inline-flex items-center px-3 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-bold">{roleLabel}</div></div>)}
+                                    <div><label className="v-label">{t('profile.email')}</label><input type="email" value={email} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                    {roleLabel && (<div><label className="v-label">{t('profile.role')}</label><div className="inline-flex items-center px-3 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-bold">{roleLabel}</div></div>)}
                                 </div>
                             </div>
                         </div>
                         <div className="v-card p-6">
-                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Preferences</h2>
+                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('preferences.title')}</h2>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">Email Notifications</div><div className="text-xs text-slate-500 dark:text-slate-400">Receive daily digests of fleet compliance</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">Market Alerts</div><div className="text-xs text-slate-500 dark:text-slate-400">Notify on &gt;5% price shifts</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">Currency</div><div className="text-xs text-slate-500 dark:text-slate-400">Display prices in</div></div><select className="p-1 border border-slate-200 dark:border-slate-700 rounded text-sm font-bold text-[#334155] dark:text-slate-200 bg-transparent"><option>USD ($)</option><option>EUR</option><option>CNY</option></select></div>
+                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.emailNotifications')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.emailNotificationsDesc')}</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
+                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.marketAlerts')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.marketAlertsDesc')}</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
+                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.currency')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.currencyDesc')}</div></div><select className="p-1 border border-slate-200 dark:border-slate-700 rounded text-sm font-bold text-[#334155] dark:text-slate-200 bg-transparent"><option>USD ($)</option><option>EUR</option><option>CNY</option></select></div>
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">Appearance</h3>
+                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('preferences.appearance')}</h3>
                                     <div className="grid grid-cols-3 gap-3">
-                                        <ThemeOption label="Light" icon={<Sun size={18} />} active={theme === 'light'} onClick={() => setTheme('light')} />
-                                        <ThemeOption label="Dark" icon={<Moon size={18} />} active={theme === 'dark'} onClick={() => setTheme('dark')} />
-                                        <ThemeOption label="System" icon={<Monitor size={18} />} active={theme === 'system'} onClick={() => setTheme('system')} />
+                                        <ThemeOption label={t('preferences.light')} icon={<Sun size={18} />} active={theme === 'light'} onClick={() => setTheme('light')} />
+                                        <ThemeOption label={t('preferences.dark')} icon={<Moon size={18} />} active={theme === 'dark'} onClick={() => setTheme('dark')} />
+                                        <ThemeOption label={t('preferences.system')} icon={<Monitor size={18} />} active={theme === 'system'} onClick={() => setTheme('system')} />
                                     </div>
                                 </div>
                             </div>
@@ -207,23 +211,23 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
 
                     {activeTab === 'notifications' && (
                         <div className="v-card p-6">
-                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Notification Preferences</h2>
+                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('notifications.title')}</h2>
                             <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">Email Notifications</h3>
+                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('notifications.email.heading')}</h3>
                                     <div className="space-y-3">
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Trade Updates</div><div className="text-xs text-slate-500">New trades, confirmations, deliveries, payments</div></div><Toggle enabled={notifPrefs.email_trade_updates} onToggle={() => toggleNotifPref('email_trade_updates')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Market Alerts</div><div className="text-xs text-slate-500">Price movements, new listings matching your criteria</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Compliance Digest</div><div className="text-xs text-slate-500">Weekly compliance status summary</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">System Announcements</div><div className="text-xs text-slate-500">Platform updates, maintenance, new features</div></div><Toggle enabled={notifPrefs.email_system_announcements} onToggle={() => toggleNotifPref('email_system_announcements')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.email')}</div></div><Toggle enabled={notifPrefs.email_trade_updates} onToggle={() => toggleNotifPref('email_trade_updates')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.email')}</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.complianceDigest')}</div><div className="text-xs text-slate-500">{t('notifications.complianceDigestDesc')}</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.systemAnnouncements')}</div><div className="text-xs text-slate-500">{t('notifications.systemAnnouncementsDesc')}</div></div><Toggle enabled={notifPrefs.email_system_announcements} onToggle={() => toggleNotifPref('email_system_announcements')} /></div>
                                     </div>
                                 </div>
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">In-App Notifications</h3>
+                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('notifications.inapp.heading')}</h3>
                                     <div className="space-y-3">
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Trade Updates</div><div className="text-xs text-slate-500">Real-time trade lifecycle notifications</div></div><Toggle enabled={notifPrefs.inapp_trade_updates} onToggle={() => toggleNotifPref('inapp_trade_updates')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Market Alerts</div><div className="text-xs text-slate-500">Price movements and market activity</div></div><Toggle enabled={notifPrefs.inapp_market_alerts} onToggle={() => toggleNotifPref('inapp_market_alerts')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">Order Matches</div><div className="text-xs text-slate-500">Auto-matched orders and match suggestions</div></div><Toggle enabled={notifPrefs.inapp_order_matches} onToggle={() => toggleNotifPref('inapp_order_matches')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.inapp')}</div></div><Toggle enabled={notifPrefs.inapp_trade_updates} onToggle={() => toggleNotifPref('inapp_trade_updates')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.inapp')}</div></div><Toggle enabled={notifPrefs.inapp_market_alerts} onToggle={() => toggleNotifPref('inapp_market_alerts')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.orderMatches')}</div><div className="text-xs text-slate-500">{t('notifications.orderMatchesDesc')}</div></div><Toggle enabled={notifPrefs.inapp_order_matches} onToggle={() => toggleNotifPref('inapp_order_matches')} /></div>
                                     </div>
                                 </div>
                             </div>
@@ -233,7 +237,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                     {activeTab === 'security' && (
                         <div className="space-y-6">
                             <div className="v-card p-6">
-                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Change Password</h2>
+                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('security.changePassword')}</h2>
                                 <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
                                     {pwMessage && (
                                         <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${pwMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'}`}>
@@ -241,39 +245,39 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                             {pwMessage.text}
                                         </div>
                                     )}
-                                    <div><label className="v-label">Current Password</label><div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder="Enter current password" /><button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
-                                    <div><label className="v-label">New Password</label><div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder="Minimum 8 characters" /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
-                                    <div><label className="v-label">Confirm New Password</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder="Re-enter new password" /></div>
-                                    <button type="submit" disabled={pwLoading} className="flex items-center gap-2 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD0] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"><Lock size={14} />{pwLoading ? 'Changing...' : 'Change Password'}</button>
+                                    <div><label className="v-label">{t('security.currentPassword')}</label><div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.currentPasswordPlaceholder')} /><button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label className="v-label">{t('security.newPassword')}</label><div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.newPasswordPlaceholder')} /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label className="v-label">{t('security.confirmPassword')}</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.confirmPasswordPlaceholder')} /></div>
+                                    <button type="submit" disabled={pwLoading} className="flex items-center gap-2 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD0] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"><Lock size={14} />{pwLoading ? t('security.changingBtn') : t('security.changeBtn')}</button>
                                 </form>
                             </div>
                             <div className="v-card p-6">
-                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">API Access</h2>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Generate API keys for programmatic access to the Verdaxis trading platform.</p>
-                                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"><Key size={18} className="text-slate-400" /><span className="text-sm text-slate-500 dark:text-slate-400">API key management will be available with the Verdaxis Terminal subscription.</span></div>
+                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('security.apiAccess')}</h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{t('security.apiAccessDesc')}</p>
+                                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"><Key size={18} className="text-slate-400" /><span className="text-sm text-slate-500 dark:text-slate-400">{t('security.apiKeyPending')}</span></div>
                             </div>
                             <div className="v-card p-6">
-                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Two-Factor Authentication</h2>
-                                <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"><Shield size={18} className="text-amber-500" /><span className="text-sm text-amber-700 dark:text-amber-400">2FA is recommended for all trading accounts. Coming soon.</span></div>
+                                <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('security.twoFactor')}</h2>
+                                <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800"><Shield size={18} className="text-amber-500" /><span className="text-sm text-amber-700 dark:text-amber-400">{t('security.twoFactorPending')}</span></div>
                             </div>
                         </div>
                     )}
 
                     {activeTab === 'billing' && (
                         <div className="v-card p-6">
-                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">Billing & Subscription</h2>
+                            <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('billing.title')}</h2>
                             <div className="space-y-6">
                                 <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                    <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">Current Plan</h3><span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">PILOT</span></div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-400">You are on the Verdaxis Pilot program. Full marketplace access with 0.5% transaction fees.</p>
+                                    <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{t('billing.currentPlan')}</h3><span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{t('billing.pilotBadge')}</span></div>
+                                    <p className="text-sm text-emerald-700 dark:text-emerald-400">{t('billing.pilotDesc')}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">Available Plans</h3>
+                                    <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('billing.availablePlans')}</h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Compliance Pro</h4><p className="text-xs text-slate-500 mt-1">Full compliance dashboard, automated reporting, FuelEU & EU ETS tracking</p><p className="text-lg font-bold text-[#5DADE2] mt-2">$200<span className="text-xs font-normal text-slate-500">/vessel/month</span></p></div>
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Verdaxis Terminal</h4><p className="text-xs text-slate-500 mt-1">Bloomberg-style data terminal, API access, advanced analytics</p><p className="text-lg font-bold text-[#5DADE2] mt-2">$1,000<span className="text-xs font-normal text-slate-500">/seat/month</span></p></div>
+                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.compliancePro')}</h4><p className="text-xs text-slate-500 mt-1">{t('billing.complianceProDesc')}</p><p className="text-lg font-bold text-[#5DADE2] mt-2">{t('billing.complianceProPrice')}<span className="text-xs font-normal text-slate-500">{t('billing.perVesselMonth')}</span></p></div>
+                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.terminal')}</h4><p className="text-xs text-slate-500 mt-1">{t('billing.terminalDesc')}</p><p className="text-lg font-bold text-[#5DADE2] mt-2">{t('billing.terminalPrice')}<span className="text-xs font-normal text-slate-500">{t('billing.perSeatMonth')}</span></p></div>
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-3">Contact sales@verdaxis.exchange for Enterprise pricing.</p>
+                                    <p className="text-xs text-slate-400 mt-3">{t('billing.enterpriseContact')}</p>
                                 </div>
                             </div>
                         </div>

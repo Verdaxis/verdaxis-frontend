@@ -20,6 +20,8 @@
   "error.generic": "Something went wrong. Please try again.",
   "error.network": "Unable to connect to server. Please check your connection.",
   "error.notFound": "Page not found",
+  "error.boundary.title": "Something went wrong",
+  "error.boundary.retry": "Try Again",
   "nav.home": "Home",
   "nav.howItWorks": "How It Works",
   "nav.solutions": "Solutions",
@@ -67,5 +69,8 @@
   "footer.solutions": "Solutions",
   "footer.tools": "Tools",
   "footer.tagline": "The compliance-first marketplace for verified sustainable marine fuels.",
-  "footer.copyright": "© {{year}} Verdaxis. All rights reserved."
+  "footer.copyright": "© {{year}} Verdaxis. All rights reserved.",
+  "notifications.title": "Notifications",
+  "notifications.empty": "No notifications",
+  "notifications.markAllRead": "Mark all read"
 }

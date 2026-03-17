@@ -20,6 +20,8 @@
   "error.generic": "出了点问题，请重试。",
   "error.network": "无法连接到服务器，请检查您的网络连接。",
   "error.notFound": "页面未找到",
+  "error.boundary.title": "出现了一些问题",
+  "error.boundary.retry": "重试",
   "nav.home": "首页",
   "nav.howItWorks": "运作方式",
   "nav.solutions": "解决方案",
@@ -67,5 +69,8 @@
   "footer.solutions": "解决方案",
   "footer.tools": "工具",
   "footer.tagline": "合规优先的可持续航运燃料认证交易平台。",
-  "footer.copyright": "© {{year}} Verdaxis. 保留所有权利。"
+  "footer.copyright": "© {{year}} Verdaxis. 保留所有权利。",
+  "notifications.title": "通知",
+  "notifications.empty": "暂无通知",
+  "notifications.markAllRead": "全部标为已读"
 }

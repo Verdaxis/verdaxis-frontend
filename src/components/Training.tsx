@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { COURSES } from '../data';
 import { Course } from '../types';
 import { GraduationCap, Clock, CheckCircle2, BookOpen, ArrowLeft, Award } from 'lucide-react';
+import { useNamespace } from '../hooks/useNamespace';
 
 export const Training: React.FC = () => {
+    const { t, ready } = useNamespace('tutorial');
     const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+
+    if (!ready) return null;
 
     if (activeCourse) {
         return (
@@ -14,7 +18,7 @@ export const Training: React.FC = () => {
                     className="flex items-center space-x-2 text-slate-500 hover:text-[#334155] dark:text-slate-400 dark:hover:text-white font-bold mb-6 transition-colors"
                 >
                     <ArrowLeft size={18} />
-                    <span>Back to Training Hub</span>
+                    <span>{t('training.backToHub')}</span>
                 </button>
 
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -37,27 +41,27 @@ export const Training: React.FC = () => {
                             <div className="flex items-center space-x-3">
                                 <Clock className="text-[#5DADE2]" size={24} />
                                 <div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Duration</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">{t('training.duration')}</div>
                                     <div className="font-bold text-[#334155] dark:text-white">{activeCourse.duration}</div>
                                 </div>
                             </div>
                             <div className="flex items-center space-x-3">
                                 <Award className="text-[#4CAF50]" size={24} />
                                 <div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Level</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">{t('training.level')}</div>
                                     <div className="font-bold text-[#334155] dark:text-white">{activeCourse.level}</div>
                                 </div>
                             </div>
                              <div className="flex items-center space-x-3">
                                 <BookOpen className="text-amber-500" size={24} />
                                 <div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Modules</div>
-                                    <div className="font-bold text-[#334155] dark:text-white">{activeCourse.syllabus?.length || 4} Units</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">{t('training.modules')}</div>
+                                    <div className="font-bold text-[#334155] dark:text-white">{t('training.units', { count: activeCourse.syllabus?.length || 4 })}</div>
                                 </div>
                             </div>
                         </div>
 
-                        <h3 className="font-['Montserrat'] font-bold text-xl text-[#334155] dark:text-white mb-4">Course Syllabus</h3>
+                        <h3 className="font-['Montserrat'] font-bold text-xl text-[#334155] dark:text-white mb-4">{t('training.syllabus')}</h3>
                         <div className="space-y-3 mb-8">
                             {activeCourse.syllabus?.map((item, idx) => (
                                 <div key={idx} className="flex items-start space-x-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-700">
@@ -70,7 +74,7 @@ export const Training: React.FC = () => {
                         </div>
 
                         <button className="w-full bg-[#334155] text-white py-4 rounded-xl font-bold text-lg hover:bg-slate-800 shadow-lg transition-all">
-                            Enroll Now
+                            {t('training.enrollNow')}
                         </button>
                     </div>
                 </div>
@@ -81,8 +85,8 @@ export const Training: React.FC = () => {
     return (
         <div className="max-w-7xl mx-auto p-6 lg:p-10">
             <div className="mb-8">
-                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Verdaxis Academy</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-2">Certify your crew for alternative fuels and regulatory compliance.</p>
+                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('training.pageTitle')}</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">{t('training.pageSubtitle')}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -113,7 +117,7 @@ export const Training: React.FC = () => {
                                 onClick={() => setActiveCourse(course)}
                                 className="w-full border border-[#334155] dark:border-slate-500 text-[#334155] dark:text-slate-300 py-2 rounded-lg font-bold hover:bg-[#334155] dark:hover:bg-slate-700 hover:text-white dark:hover:text-white transition-colors"
                             >
-                                View Course
+                                {t('training.viewCourse')}
                             </button>
                         </div>
                     </div>

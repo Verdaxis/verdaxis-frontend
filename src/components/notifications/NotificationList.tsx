@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
-import { Check, X, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText, TrendingUp, Zap } from 'lucide-react';
+import { Check, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText, TrendingUp, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
 import { Notification } from '../../types';
 
@@ -44,13 +45,13 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
     const { notifications, markAsRead, markAllAsRead } = useNotifications();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
 
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.is_read) {
             markAsRead(notification.id);
         }
         
-        // Handle context navigation
         if (notification.type === 'ORDER_UPDATE' || notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
             navigate('/', { 
                 state: { 
@@ -64,7 +65,6 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
     };
 
     const getIcon = (type: string, title: string) => {
-        // SSE trade event icons
         if (title.includes('Auto-Matched')) return <Zap size={16} className="text-amber-400" />;
         if (title.includes('Payment')) return <CreditCard size={16} className="text-emerald-400" />;
         if (title.includes('Delivered')) return <TrendingUp size={16} className="text-blue-400" />;
@@ -85,7 +85,7 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
             <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-4 w-full">
                 <div className="flex flex-col items-center justify-center py-8 text-slate-500">
                     <BellOff size={32} className="mb-2 opacity-50" />
-                    <p className="text-sm">No notifications</p>
+                    <p className="text-sm">{t('notifications.empty')}</p>
                 </div>
             </div>
         );
@@ -94,13 +94,13 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
     return (
         <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-xl w-full flex flex-col max-h-[500px]">
             <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm rounded-t-lg sticky top-0 z-10">
-                <h3 className="font-semibold text-slate-200">Notifications</h3>
+                <h3 className="font-semibold text-slate-200">{t('notifications.title')}</h3>
                 <button 
                     onClick={() => markAllAsRead()}
                     className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
                 >
                     <Check size={12} />
-                    Mark all read
+                    {t('notifications.markAllRead')}
                 </button>
             </div>
             

@@ -2,9 +2,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCopilotContext } from '../../context/CopilotContext';
-import { MessageSquare, X, Send, Sparkles, Bot, Globe } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Globe } from 'lucide-react';
 import { chatWithCopilot } from '../../services/ai';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
+import { useNamespace } from '../../hooks/useNamespace';
 
 
 interface Message {
@@ -20,16 +21,24 @@ interface CopilotProps {
 }
 
 export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
+    const { t, ready } = useNamespace('ai');
     const [isOpen, setIsOpen] = useState(false);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [messages, setMessages] = useState<Message[]>([
-        { id: '1', role: 'model', text: 'Hello. I am the Verdaxis Copilot. How can I assist with your fleet or procurement today?' }
-    ]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
+    const greetingSetRef = useRef(false);
 
     const { pageContext } = useCopilotContext();
+
+    // Set greeting once translations are ready
+    useEffect(() => {
+        if (ready && !greetingSetRef.current) {
+            greetingSetRef.current = true;
+            setMessages([{ id: '1', role: 'model', text: t('copilot.greeting') }]);
+        }
+    }, [ready, t]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,10 +57,8 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
         setInput('');
         setIsLoading(true);
 
-        // Prepare history for API
         const history = messages.map(m => ({ role: m.role, text: m.text }));
         
-        // Prepare context
         let context = `User is currently viewing page: ${currentPage || 'DASHBOARD'} (View Mode: ${viewMode || 'BUYER'}). Path: ${location.pathname}${location.search}`;
 
         if (pageContext) {
@@ -63,16 +70,18 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
             const aiMsg: Message = { 
                 id: (Date.now() + 1).toString(), 
                 role: 'model', 
-                text: response.text || "I couldn't process that request.",
+                text: response.text || t('copilot.errorFallback'),
                 groundingMetadata: response.groundingMetadata
             };
             setMessages(prev => [...prev, aiMsg]);
         } catch (err) {
-            // Error handled in service, generic fallback here
+            // Error handled in service
         } finally {
             setIsLoading(false);
         }
     };
+
+    if (!ready) return null;
 
     return (
         <>
@@ -82,7 +91,7 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
                 className={`fixed bottom-6 right-6 z-[80] p-4 rounded-full shadow-2xl transition-all duration-300 flex items-center justify-center
                     ${isOpen ? 'bg-slate-800 rotate-90' : 'bg-verdaxis hover:bg-sky-400 hover:scale-110'}
                 `}
-                title="GM / Market Inquiries"
+                title={t('copilot.toggleTitle')}
             >
                 {isOpen ? <X size={24} className="text-white" /> : <MessageSquare size={24} className="text-white animate-pulse" />}
             </button>
@@ -98,10 +107,10 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
                         <Bot size={20} className="text-verdaxis" />
                     </div>
                     <div>
-                        <h3 className="font-['Montserrat'] font-bold text-white text-sm">GM / Market Inquiries</h3>
+                        <h3 className="font-['Montserrat'] font-bold text-white text-sm">{t('copilot.title')}</h3>
                         <div className="flex items-center space-x-1.5">
                             <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                            <span className="text-[10px] text-slate-400 font-medium">Online • Gemini Flash</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{t('copilot.status')}</span>
                         </div>
                     </div>
                 </div>
@@ -127,7 +136,7 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
                                 {msg.groundingMetadata?.groundingChunks?.length > 0 && (
                                     <div className="mt-3 pt-2 border-t border-slate-200/50">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 flex items-center gap-1">
-                                            <Globe size={10} /> Sources
+                                            <Globe size={10} /> {t('copilot.sources')}
                                         </div>
                                         <div className="flex flex-wrap gap-1.5">
                                             {msg.groundingMetadata.groundingChunks.map((chunk: any, idx: number) => (
@@ -173,7 +182,7 @@ export const Copilot: React.FC<CopilotProps> = ({ viewMode, currentPage }) => {
                             type="text" 
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            placeholder="Ask about prices, compliance..."
+                            placeholder={t('copilot.inputPlaceholder')}
                             className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-verdaxis focus:outline-none placeholder-slate-400 font-medium text-slate-700 dark:text-white"
                         />
                         <button 

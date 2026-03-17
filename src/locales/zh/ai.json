@@ -1,1 +1,9 @@
-{}
+{
+  "copilot.title": "GM / 市场咨询",
+  "copilot.status": "在线 • Gemini Flash",
+  "copilot.inputPlaceholder": "询问价格、合规等问题...",
+  "copilot.toggleTitle": "GM / 市场咨询",
+  "copilot.sources": "参考来源",
+  "copilot.errorFallback": "无法处理该请求。",
+  "copilot.greeting": "您好，我是 Verdaxis AI 助手。请问有什么关于船队或采购方面的问题需要帮助吗？"
+}

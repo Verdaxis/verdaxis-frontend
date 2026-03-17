@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { educationArticles } from '../../data/educationArticles';
+import { getEducationArticles } from '../../data/educationArticles';
 import { Reveal, GradientOrb, HoverButton } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
 
@@ -23,7 +23,7 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 export const EducationArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t, ready } = useNamespace('public');
-  const article = educationArticles.find((a) => a.slug === slug);
+  const article = getEducationArticles().find((a) => a.slug === slug);
 
   if (!ready) return null;
 

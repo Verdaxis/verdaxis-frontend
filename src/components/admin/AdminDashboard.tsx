@@ -24,6 +24,7 @@ import {
   Legend,
 } from 'recharts';
 import { api } from '../../services/api';
+import { useNamespace } from '../../hooks/useNamespace';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,6 +127,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, subtitle, icon,
 // ---------------------------------------------------------------------------
 
 export const AdminDashboard: React.FC = () => {
+  const { t, ready } = useNamespace('admin');
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -150,7 +152,6 @@ export const AdminDashboard: React.FC = () => {
         if (logs.status === 'fulfilled') setAuditLogs(logs.value);
         if (comm.status === 'fulfilled') setCommission(comm.value);
 
-        // If the main overview call failed, surface the error
         if (ov.status === 'rejected') {
           setError(ov.reason?.message || 'Failed to load overview data');
         }
@@ -163,15 +164,11 @@ export const AdminDashboard: React.FC = () => {
     load();
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Loading / Error states
-  // -------------------------------------------------------------------------
-
-  if (loading) {
+  if (!ready || loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-verdaxis" />
-        <span className="ml-3 text-verdaxis-text-muted font-medium">Loading admin dashboard...</span>
+        <span className="ml-3 text-verdaxis-text-muted font-medium">{ready ? t('loading') : '...'}</span>
       </div>
     );
   }
@@ -185,68 +182,60 @@ export const AdminDashboard: React.FC = () => {
           onClick={() => window.location.reload()}
           className="v-btn-primary text-sm px-4 py-2"
         >
-          Retry
+          {t('error.retry')}
         </button>
       </div>
     );
   }
-
-  // -------------------------------------------------------------------------
-  // Chart data
-  // -------------------------------------------------------------------------
 
   const chartData = daily.map((d) => ({
     ...d,
     label: fmtDate(d.date),
   }));
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
-
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Page header */}
       <div className="flex items-center gap-3">
         <ShieldCheck className="w-7 h-7 text-verdaxis" />
-        <h1 className="v-heading text-2xl">Platform Admin</h1>
+        <h1 className="v-heading text-2xl">{t('page.title')}</h1>
       </div>
 
       {/* Summary cards */}
       {overview && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <SummaryCard
-            title="Total Users"
+            title={t('cards.totalUsers')}
             value={fmt(overview.total_users)}
-            subtitle={`${fmt(overview.active_users_7d)} active (7d)`}
+            subtitle={t('cards.totalUsersSubtitle', { count: fmt(overview.active_users_7d) })}
             icon={<Users size={18} className="text-white" />}
             color="bg-blue-500"
           />
           <SummaryCard
-            title="Active Traders"
+            title={t('cards.activeTraders')}
             value={fmt(overview.active_users_7d)}
-            subtitle={`${fmt(overview.total_organizations)} organizations`}
+            subtitle={t('cards.activeTradersSubtitle', { count: fmt(overview.total_organizations) })}
             icon={<Activity size={18} className="text-white" />}
             color="bg-emerald-500"
           />
           <SummaryCard
-            title="Total Volume"
+            title={t('cards.totalVolume')}
             value={`${fmt(overview.total_volume_mt)} MT`}
-            subtitle={`${fmt(overview.total_trades)} trades (${fmt(overview.confirmed_trades)} confirmed)`}
+            subtitle={t('cards.totalVolumeSubtitle', { trades: fmt(overview.total_trades), confirmed: fmt(overview.confirmed_trades) })}
             icon={<Package size={18} className="text-white" />}
             color="bg-teal-500"
           />
           <SummaryCard
-            title="Platform Revenue"
+            title={t('cards.platformRevenue')}
             value={fmtUsd(overview.total_revenue_usd)}
-            subtitle="From paid commissions"
+            subtitle={t('cards.platformRevenueSubtitle')}
             icon={<DollarSign size={18} className="text-white" />}
             color="bg-amber-500"
           />
           <SummaryCard
-            title="GMV"
+            title={t('cards.gmv')}
             value={fmtUsd(overview.total_gmv_usd)}
-            subtitle={`${fmt(overview.total_orders)} orders (${fmt(overview.open_orders)} open)`}
+            subtitle={t('cards.gmvSubtitle', { orders: fmt(overview.total_orders), open: fmt(overview.open_orders) })}
             icon={<TrendingUp size={18} className="text-white" />}
             color="bg-violet-500"
           />
@@ -256,11 +245,10 @@ export const AdminDashboard: React.FC = () => {
       {/* Charts */}
       {chartData.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Daily Volume Bar Chart */}
           <div className="v-card p-5">
             <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
               <BarChart3 size={18} className="text-emerald-500" />
-              Daily Trading Volume (MT)
+              {t('charts.dailyVolume')}
             </h2>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -276,17 +264,16 @@ export const AdminDashboard: React.FC = () => {
                       color: 'var(--text-primary)',
                     }}
                   />
-                  <Bar dataKey="volume_mt" name="Volume (MT)" fill="#10B981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="volume_mt" name={t('charts.volumeLegend')} fill="#10B981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Daily GMV Line Chart */}
           <div className="v-card p-5">
             <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
               <TrendingUp size={18} className="text-blue-500" />
-              Daily GMV (USD)
+              {t('charts.dailyGmv')}
             </h2>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -301,12 +288,12 @@ export const AdminDashboard: React.FC = () => {
                       borderRadius: '8px',
                       color: 'var(--text-primary)',
                     }}
-                    formatter={(value: number) => [fmtUsd(value), 'GMV']}
+                    formatter={(value: number) => [fmtUsd(value), t('charts.gmvLegend')]}
                   />
                   <Line
                     type="monotone"
                     dataKey="gmv_usd"
-                    name="GMV (USD)"
+                    name={t('charts.gmvLegend')}
                     stroke="#3B82F6"
                     strokeWidth={2}
                     dot={false}
@@ -315,7 +302,7 @@ export const AdminDashboard: React.FC = () => {
                   <Line
                     type="monotone"
                     dataKey="commission_usd"
-                    name="Commission (USD)"
+                    name={t('charts.commissionLegend')}
                     stroke="#F59E0B"
                     strokeWidth={2}
                     dot={false}
@@ -332,20 +319,19 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Bottom row: Audit logs + Commission summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Audit Logs */}
         <div className="lg:col-span-2 v-card p-5">
-          <h2 className="v-heading text-lg mb-4">Recent Activity</h2>
+          <h2 className="v-heading text-lg mb-4">{t('audit.title')}</h2>
           {auditLogs.length === 0 ? (
-            <p className="text-verdaxis-text-muted text-sm">No audit log entries found.</p>
+            <p className="text-verdaxis-text-muted text-sm">{t('audit.empty')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-verdaxis-text-muted text-xs uppercase border-b border-verdaxis-border">
-                    <th className="text-left py-2 pr-4">Time</th>
-                    <th className="text-left py-2 pr-4">Action</th>
-                    <th className="text-left py-2 pr-4">Resource</th>
-                    <th className="text-left py-2">IP</th>
+                    <th className="text-left py-2 pr-4">{t('audit.col.time')}</th>
+                    <th className="text-left py-2 pr-4">{t('audit.col.action')}</th>
+                    <th className="text-left py-2 pr-4">{t('audit.col.resource')}</th>
+                    <th className="text-left py-2">{t('audit.col.ip')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -372,42 +358,41 @@ export const AdminDashboard: React.FC = () => {
           )}
         </div>
 
-        {/* Commission Summary */}
         <div className="v-card p-5">
           <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
             <Banknote size={18} className="text-amber-500" />
-            Commission Summary
+            {t('commission.title')}
           </h2>
           {commission ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-verdaxis-text-muted text-sm">Total Earned</span>
+                <span className="text-verdaxis-text-muted text-sm">{t('commission.totalEarned')}</span>
                 <span className="font-['Montserrat'] font-bold text-verdaxis-text">
                   {fmtUsd(commission.total_amount_usd)}
                 </span>
               </div>
               <hr className="border-verdaxis-border" />
               <div className="flex justify-between items-center">
-                <span className="text-verdaxis-text-muted text-sm">Pending</span>
+                <span className="text-verdaxis-text-muted text-sm">{t('commission.pending')}</span>
                 <span className="text-amber-500 font-semibold">
                   {fmtUsd(commission.total_pending_usd)} ({commission.pending_count})
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-verdaxis-text-muted text-sm">Invoiced</span>
+                <span className="text-verdaxis-text-muted text-sm">{t('commission.invoiced')}</span>
                 <span className="text-blue-500 font-semibold">
                   {fmtUsd(commission.total_invoiced_usd)} ({commission.invoiced_count})
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-verdaxis-text-muted text-sm">Paid</span>
+                <span className="text-verdaxis-text-muted text-sm">{t('commission.paid')}</span>
                 <span className="text-emerald-500 font-semibold">
                   {fmtUsd(commission.total_paid_usd)} ({commission.paid_count})
                 </span>
               </div>
             </div>
           ) : (
-            <p className="text-verdaxis-text-muted text-sm">No commission data available yet.</p>
+            <p className="text-verdaxis-text-muted text-sm">{t('commission.empty')}</p>
           )}
         </div>
       </div>

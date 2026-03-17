@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { BookOpen, Clock, ArrowRight } from 'lucide-react';
-import { educationArticles, type EducationArticle } from '../../data/educationArticles';
+import { getEducationArticles, type EducationArticle } from '../../data/educationArticles';
 import {
   Reveal,
   HoverCard,
@@ -152,8 +152,8 @@ export const EducationPage: React.FC = () => {
 
   const filtered =
     activeCategory === 'All'
-      ? educationArticles
-      : educationArticles.filter((a) => a.category === activeCategory);
+      ? getEducationArticles()
+      : getEducationArticles().filter((a) => a.category === activeCategory);
 
   if (!ready) return null;
 
