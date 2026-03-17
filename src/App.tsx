@@ -38,6 +38,9 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { WatchlistPage } from './components/WatchlistPage';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
+import LanguageRedirect from './components/public/LanguageRedirect';
+import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
+import LegacyRedirect from './components/public/LegacyRedirect';
 import { LandingPage } from './pages/public/LandingPage';
 import { HowItWorksPage } from './pages/public/HowItWorksPage';
 import { FuelCoveragePage } from './pages/public/FuelCoveragePage';
@@ -262,27 +265,55 @@ const App: React.FC = () => {
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-                    {/* Public routes */}
-                    <Route path="/" element={<PublicLayout><LandingPage /></PublicLayout>} />
-                    <Route path="/how-it-works" element={<PublicLayout><HowItWorksPage /></PublicLayout>} />
-                    <Route path="/fuels" element={<PublicLayout><FuelCoveragePage /></PublicLayout>} />
-                    <Route path="/fuels/:sector" element={<PublicLayout><FuelCoveragePage /></PublicLayout>} />
-                    <Route path="/compliance" element={<PublicLayout><ComplianceInfoPage /></PublicLayout>} />
-                    <Route path="/for-producers" element={<PublicLayout><ProducerUseCasePage /></PublicLayout>} />
-                    <Route path="/for-buyers" element={<PublicLayout><BuyerUseCasePage /></PublicLayout>} />
-                    <Route path="/for-traders" element={<PublicLayout><TraderUseCasePage /></PublicLayout>} />
-                    <Route path="/for-financiers" element={<PublicLayout><FinancierUseCasePage /></PublicLayout>} />
-                    <Route path="/governance" element={<PublicLayout><GovernancePage /></PublicLayout>} />
-                    <Route path="/pilot" element={<PublicLayout><PilotPage /></PublicLayout>} />
-                    <Route path="/partners" element={<PublicLayout><PartnersPage /></PublicLayout>} />
-                    <Route path="/education" element={<Navigate to="/partners" replace />} />
-                    <Route path="/education/:slug" element={<PublicLayout><EducationArticlePage /></PublicLayout>} />
-                    <Route path="/roadmap" element={<PublicLayout><RoadmapPage /></PublicLayout>} />
-                    <Route path="/tools/energy-calculator" element={<PublicLayout><EnergyCalculatorPage /></PublicLayout>} />
-                    {/* /map/producers hidden — page preserved, route disabled */}
-                    <Route path="/map/producers" element={<Navigate to="/" replace />} />
+                    {/* Root → detect language → redirect */}
+                    <Route path="/" element={<LanguageRedirect />} />
+
+                    {/* Public pages under /:lang */}
+                    <Route path="/:lang" element={<PublicLanguageWrapper />}>
+                      <Route element={<PublicLayout />}>
+                        <Route index element={<LandingPage />} />
+                        <Route path="how-it-works" element={<HowItWorksPage />} />
+                        <Route path="fuels" element={<FuelCoveragePage />} />
+                        <Route path="fuels/:sector" element={<FuelCoveragePage />} />
+                        <Route path="compliance" element={<ComplianceInfoPage />} />
+                        <Route path="for-producers" element={<ProducerUseCasePage />} />
+                        <Route path="for-buyers" element={<BuyerUseCasePage />} />
+                        <Route path="for-traders" element={<TraderUseCasePage />} />
+                        <Route path="for-financiers" element={<FinancierUseCasePage />} />
+                        <Route path="governance" element={<GovernancePage />} />
+                        <Route path="pilot" element={<PilotPage />} />
+                        <Route path="partners" element={<PartnersPage />} />
+                        <Route path="partners/:slug" element={<PartnerLandingPage />} />
+                        <Route path="education" element={<EducationPage />} />
+                        <Route path="education/:slug" element={<EducationArticlePage />} />
+                        <Route path="roadmap" element={<RoadmapPage />} />
+                        <Route path="tools/energy-calculator" element={<EnergyCalculatorPage />} />
+                        <Route path="map/producers" element={<ProducerMapPage />} />
+                        <Route path="privacy" element={<PrivacyPage />} />
+                        <Route path="terms" element={<TermsPage />} />
+                      </Route>
+                    </Route>
+
+                    {/* Legacy redirects for old un-prefixed URLs */}
+                    <Route path="/how-it-works" element={<LegacyRedirect />} />
+                    <Route path="/fuels/*" element={<LegacyRedirect />} />
+                    <Route path="/compliance" element={<LegacyRedirect />} />
+                    <Route path="/for-producers" element={<LegacyRedirect />} />
+                    <Route path="/for-buyers" element={<LegacyRedirect />} />
+                    <Route path="/for-traders" element={<LegacyRedirect />} />
+                    <Route path="/for-financiers" element={<LegacyRedirect />} />
+                    <Route path="/governance" element={<LegacyRedirect />} />
+                    <Route path="/pilot" element={<LegacyRedirect />} />
+                    <Route path="/partners/*" element={<LegacyRedirect />} />
+                    <Route path="/education/*" element={<LegacyRedirect />} />
+                    <Route path="/roadmap" element={<LegacyRedirect />} />
+                    <Route path="/tools/*" element={<LegacyRedirect />} />
+                    <Route path="/map/*" element={<LegacyRedirect />} />
+                    <Route path="/privacy" element={<LegacyRedirect />} />
+                    <Route path="/terms" element={<LegacyRedirect />} />
+
+                    {/* partners-preview remains unprefixed (special showcase) */}
                     <Route path="/partners-preview" element={<PartnerShowcasePage />} />
-                    <Route path="/partners-landing" element={<PublicLayout><PartnerLandingPage /></PublicLayout>} />
 
                     {/* Authenticated routes */}
                     <Route path="/onboarding" element={
@@ -311,11 +342,8 @@ const App: React.FC = () => {
                         </ProtectedRoute>
                     } />
 
-                    <Route path="/privacy" element={<PublicLayout><PrivacyPage /></PublicLayout>} />
-                    <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
-
                     {/* Fallback */}
-                    <Route path="*" element={<PublicLayout><NotFoundPage /></PublicLayout>} />
+                    <Route path="*" element={<PublicLayout />} />
                 </Routes>
             </BrowserRouter>
         </TutorialProvider>

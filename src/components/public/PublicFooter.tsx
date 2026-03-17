@@ -1,28 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 const DARK = '#0F172A';
 const BLUE = '#5DADE2';
-
-const PLATFORM_LINKS = [
-  { label: 'How It Works', to: '/how-it-works' },
-  { label: 'Fuels', to: '/fuels' },
-  { label: 'Compliance', to: '/compliance' },
-  { label: 'Education', to: '/education' },
-  { label: 'Roadmap', to: '/roadmap' },
-];
-
-const SOLUTIONS_LINKS = [
-  { label: 'For Producers', to: '/for-producers' },
-  { label: 'For Buyers', to: '/for-buyers' },
-  { label: 'For Traders', to: '/for-traders' },
-  { label: 'For Financiers', to: '/for-financiers' },
-];
-
-const TOOLS_LINKS = [
-  { label: 'Energy Calculator', to: '/tools/energy-calculator' },
-  { label: 'Producer Map', to: '/map/producers' },
-];
 
 const FooterColumn: React.FC<{ title: string; links: { label: string; to: string }[] }> = ({ title, links }) => (
   <div>
@@ -66,6 +47,27 @@ const FooterColumn: React.FC<{ title: string; links: { label: string; to: string
 
 export const PublicFooter: React.FC = () => {
   const currentYear = new Date().getFullYear();
+  const lp = useLocalePath();
+
+  const PLATFORM_LINKS = [
+    { label: 'How It Works', to: lp('/how-it-works') },
+    { label: 'Fuels', to: lp('/fuels') },
+    { label: 'Compliance', to: lp('/compliance') },
+    { label: 'Education', to: lp('/education') },
+    { label: 'Roadmap', to: lp('/roadmap') },
+  ];
+
+  const SOLUTIONS_LINKS = [
+    { label: 'For Producers', to: lp('/for-producers') },
+    { label: 'For Buyers', to: lp('/for-buyers') },
+    { label: 'For Traders', to: lp('/for-traders') },
+    { label: 'For Financiers', to: lp('/for-financiers') },
+  ];
+
+  const TOOLS_LINKS = [
+    { label: 'Energy Calculator', to: lp('/tools/energy-calculator') },
+    { label: 'Producer Map', to: lp('/map/producers') },
+  ];
 
   return (
     <footer
@@ -89,7 +91,7 @@ export const PublicFooter: React.FC = () => {
       >
         {/* Brand Column */}
         <div>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 16 }}>
+          <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 16 }}>
             <div
               style={{
                 width: 32,
@@ -139,7 +141,7 @@ export const PublicFooter: React.FC = () => {
         </span>
         <div style={{ display: 'flex', gap: 24 }}>
           <Link
-            to="/governance"
+            to={lp('/governance')}
             style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
@@ -147,7 +149,7 @@ export const PublicFooter: React.FC = () => {
             Governance
           </Link>
           <Link
-            to="/privacy"
+            to={lp('/privacy')}
             style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
@@ -155,7 +157,7 @@ export const PublicFooter: React.FC = () => {
             Privacy Policy
           </Link>
           <Link
-            to="/terms"
+            to={lp('/terms')}
             style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}

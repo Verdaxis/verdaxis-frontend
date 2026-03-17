@@ -1,13 +1,10 @@
 import React, { useEffect, useRef } from 'react';
+import { Outlet } from 'react-router-dom';
 import Lenis from 'lenis';
 import { PublicNav } from './PublicNav';
 import { PublicFooter } from './PublicFooter';
 
-interface PublicLayoutProps {
-  children: React.ReactNode;
-}
-
-export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
+export const PublicLayout: React.FC = () => {
   const lenisRef = useRef<Lenis | null>(null);
 
   // Override body overflow-hidden that the app layout sets + init Lenis
@@ -47,7 +44,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
     >
       <PublicNav />
       <main style={{ flex: 1 }}>
-        {children}
+        <Outlet />
       </main>
       <PublicFooter />
     </div>
