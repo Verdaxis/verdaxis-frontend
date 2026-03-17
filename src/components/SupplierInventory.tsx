@@ -3,8 +3,10 @@ import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X, Loader2, Send
 import { InventoryItem, Port } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
+import { useNamespace } from '../hooks/useNamespace';
 
 export const SupplierInventory: React.FC = () => {
+    const { t, ready } = useNamespace('dashboard');
     const { setPageContext } = useCopilotContext();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -12,12 +14,10 @@ export const SupplierInventory: React.FC = () => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
 
-    // Publish state: track which items are being published and which succeeded
     const [publishingIds, setPublishingIds] = useState<Set<string>>(new Set());
     const [publishedIds, setPublishedIds] = useState<Set<string>>(new Set());
     const [publishError, setPublishError] = useState<string | null>(null);
 
-    // Edit modal state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -26,20 +26,16 @@ export const SupplierInventory: React.FC = () => {
     const [editIncomingStock, setEditIncomingStock] = useState('');
     const [editPrice, setEditPrice] = useState('');
 
-    // Delete confirmation state
     const [deleteConfirmItem, setDeleteConfirmItem] = useState<InventoryItem | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // Ports data for location selector
     const [ports, setPorts] = useState<Port[]>([]);
 
-    // Form state for adding new product
     const [newProductType, setNewProductType] = useState('Methanol');
     const [selectedPortId, setSelectedPortId] = useState('');
     const [newStock, setNewStock] = useState('');
     const [newPrice, setNewPrice] = useState('');
 
-    // Load inventory and ports from API
     useEffect(() => {
         const loadData = async () => {
             try {
@@ -61,11 +57,10 @@ export const SupplierInventory: React.FC = () => {
         loadData();
     }, []);
 
-    // Broadcast Context
     useEffect(() => {
         const totalStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
         const lowStockCount = inventory.filter(i => i.status === 'Low Stock').length;
-        const capacity = 15000; // Assumed max capacity
+        const capacity = 15000;
         const utilization = capacity > 0 ? Math.round((totalStock / capacity) * 100) : 0;
 
         setPageContext({
@@ -97,7 +92,6 @@ export const SupplierInventory: React.FC = () => {
             });
             setInventory([...inventory, newItem]);
             setIsAddModalOpen(false);
-            // Reset form
             setNewProductType('Methanol');
             setSelectedPortId('');
             setNewStock('');
@@ -138,22 +132,14 @@ export const SupplierInventory: React.FC = () => {
 
             const updatedFields: Record<string, any> = {};
             const newName = editProductName.trim();
-            const newStock = parseFloat(editCurrentStock);
+            const newStockVal = parseFloat(editCurrentStock);
             const newIncoming = parseFloat(editIncomingStock);
             const newPriceParsed = parseFloat(editPrice);
 
-            if (newName && newName !== editingItem.productName) {
-                updatedFields.product_name = newName;
-            }
-            if (!isNaN(newStock) && newStock !== editingItem.currentStock) {
-                updatedFields.current_stock_mt = newStock;
-            }
-            if (!isNaN(newIncoming) && newIncoming !== editingItem.incomingStock) {
-                updatedFields.incoming_stock_mt = newIncoming;
-            }
-            if (!isNaN(newPriceParsed) && newPriceParsed !== editingItem.pricePerMt) {
-                updatedFields.price_per_mt_usd = newPriceParsed;
-            }
+            if (newName && newName !== editingItem.productName) updatedFields.product_name = newName;
+            if (!isNaN(newStockVal) && newStockVal !== editingItem.currentStock) updatedFields.current_stock_mt = newStockVal;
+            if (!isNaN(newIncoming) && newIncoming !== editingItem.incomingStock) updatedFields.incoming_stock_mt = newIncoming;
+            if (!isNaN(newPriceParsed) && newPriceParsed !== editingItem.pricePerMt) updatedFields.price_per_mt_usd = newPriceParsed;
 
             if (Object.keys(updatedFields).length === 0) {
                 closeEditModal();
@@ -161,8 +147,6 @@ export const SupplierInventory: React.FC = () => {
             }
 
             await api.inventory.update(editingItem.id, updatedFields);
-
-            // Refresh inventory list from server to get accurate state
             const refreshed = await api.inventory.list();
             setInventory(refreshed);
             closeEditModal();
@@ -180,7 +164,6 @@ export const SupplierInventory: React.FC = () => {
             setPublishingIds(prev => new Set(prev).add(itemId));
             await api.inventory.publish(itemId);
             setPublishedIds(prev => new Set(prev).add(itemId));
-            // Auto-clear the "Listed" feedback after 4 seconds
             setTimeout(() => {
                 setPublishedIds(prev => {
                     const next = new Set(prev);
@@ -216,25 +199,32 @@ export const SupplierInventory: React.FC = () => {
         }
     };
 
-    // Calculate KPIs
     const totalStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
     const lowStockCount = inventory.filter(i => i.status === 'Low Stock').length;
     const capacity = 15000;
     const utilization = capacity > 0 ? Math.round((totalStock / capacity) * 100) : 0;
 
+    if (!ready) {
+        return (
+            <div className="p-6 flex justify-center">
+                <Loader2 size={32} className="animate-spin text-slate-400" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8 flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Inventory Management</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">Monitor stock levels, adjust pricing, and manage replenishment.</p>
+                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('supplierInventory.title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('supplierInventory.subtitle')}</p>
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-[#334155] dark:bg-slate-700 text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center space-x-2"
                 >
                     <Plus size={18} />
-                    <span>Add Product</span>
+                    <span>{t('supplierInventory.addProduct')}</span>
                 </button>
             </div>
 
@@ -244,7 +234,7 @@ export const SupplierInventory: React.FC = () => {
                         <Box size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Total Capacity</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">{t('supplierInventory.kpi.totalCapacity')}</div>
                         <div className="text-xl font-bold text-[#334155] dark:text-white">{capacity.toLocaleString()} MT</div>
                     </div>
                 </div>
@@ -253,7 +243,7 @@ export const SupplierInventory: React.FC = () => {
                         <CheckCircle2 size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Utilization</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">{t('supplierInventory.kpi.utilization')}</div>
                         <div className="text-xl font-bold text-[#334155] dark:text-white">{utilization}%</div>
                     </div>
                 </div>
@@ -262,8 +252,8 @@ export const SupplierInventory: React.FC = () => {
                         <AlertTriangle size={24} />
                     </div>
                     <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">Low Stock Alerts</div>
-                        <div className="text-xl font-bold text-[#334155] dark:text-white">{lowStockCount} Product{lowStockCount !== 1 ? 's' : ''}</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase">{t('supplierInventory.kpi.lowStockAlerts')}</div>
+                        <div className="text-xl font-bold text-[#334155] dark:text-white">{lowStockCount} {lowStockCount !== 1 ? t('supplierInventory.kpi.products') : t('supplierInventory.kpi.product')}</div>
                     </div>
                 </div>
             </div>
@@ -287,26 +277,26 @@ export const SupplierInventory: React.FC = () => {
                 {isLoading ? (
                     <div className="flex items-center justify-center py-16">
                         <Loader2 className="animate-spin text-slate-400" size={32} />
-                        <span className="ml-3 text-slate-500">Loading inventory...</span>
+                        <span className="ml-3 text-slate-500">{t('supplierInventory.loading')}</span>
                     </div>
                 ) : inventory.length === 0 ? (
                     <div className="text-center py-16">
                         <Box className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No products in inventory</h3>
-                        <p className="text-slate-400 dark:text-slate-500 mt-1">Add your first product to start managing stock levels.</p>
+                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">{t('supplierInventory.emptyState.heading')}</h3>
+                        <p className="text-slate-400 dark:text-slate-500 mt-1">{t('supplierInventory.emptyState.body')}</p>
                     </div>
                 ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
                              <tr className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
-                                <th className="px-6 py-4">Product Name</th>
-                                <th className="px-6 py-4">Location</th>
-                                <th className="px-6 py-4">Stock Level (MT)</th>
-                                <th className="px-6 py-4">Incoming</th>
-                                <th className="px-6 py-4">Price / MT</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.productName')}</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.location')}</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.stockLevel')}</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.incoming')}</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.pricePerMt')}</th>
+                                <th className="px-6 py-4">{t('supplierInventory.table.status')}</th>
+                                <th className="px-6 py-4 text-right">{t('supplierInventory.table.actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
@@ -332,7 +322,7 @@ export const SupplierInventory: React.FC = () => {
                                                 title="Edit inventory item"
                                             >
                                                 <Edit2 size={14} />
-                                                <span>Edit</span>
+                                                <span>{t('supplierInventory.table.edit')}</span>
                                             </button>
                                             <button
                                                 onClick={() => handlePublish(item.id)}
@@ -355,10 +345,10 @@ export const SupplierInventory: React.FC = () => {
                                                 )}
                                                 <span>
                                                     {publishingIds.has(item.id)
-                                                        ? 'Publishing...'
+                                                        ? t('supplierInventory.table.publishing')
                                                         : publishedIds.has(item.id)
-                                                        ? 'Listed'
-                                                        : 'Publish'}
+                                                        ? t('supplierInventory.table.listed')
+                                                        : t('supplierInventory.table.publish')}
                                                 </span>
                                             </button>
                                             <button
@@ -367,7 +357,7 @@ export const SupplierInventory: React.FC = () => {
                                                 title="Delete inventory item"
                                             >
                                                 <Trash2 size={14} />
-                                                <span>Delete</span>
+                                                <span>{t('supplierInventory.table.delete')}</span>
                                             </button>
                                         </div>
                                     </td>
@@ -384,7 +374,7 @@ export const SupplierInventory: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
                      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Add New Product</h3>
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('supplierInventory.addModal.title')}</h3>
                             <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={24} />
                             </button>
@@ -392,7 +382,7 @@ export const SupplierInventory: React.FC = () => {
                         <form onSubmit={handleAddProduct}>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Product Type</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.addModal.productType')}</label>
                                     <select
                                         autoFocus
                                         value={newProductType}
@@ -407,14 +397,14 @@ export const SupplierInventory: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Location</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.addModal.location')}</label>
                                     <select
                                         value={selectedPortId}
                                         onChange={(e) => setSelectedPortId(e.target.value)}
                                         required
                                         className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white"
                                     >
-                                        <option value="" disabled>Select a port...</option>
+                                        <option value="" disabled>{t('supplierInventory.addModal.selectPort')}</option>
                                         {ports.map((port) => (
                                             <option key={port.id} value={port.id}>{port.name}</option>
                                         ))}
@@ -422,7 +412,7 @@ export const SupplierInventory: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Initial Stock (MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.addModal.initialStock')}</label>
                                         <input
                                             type="number"
                                             value={newStock}
@@ -432,7 +422,7 @@ export const SupplierInventory: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Price / MT ($)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.addModal.pricePerMt')}</label>
                                         <input
                                             type="number"
                                             value={newPrice}
@@ -449,7 +439,7 @@ export const SupplierInventory: React.FC = () => {
                                     onClick={() => setIsAddModalOpen(false)}
                                     className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 text-sm"
                                 >
-                                    Cancel
+                                    {t('supplierInventory.addModal.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -457,7 +447,7 @@ export const SupplierInventory: React.FC = () => {
                                     className="px-4 py-2 bg-[#334155] hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-bold rounded-lg shadow-sm text-sm disabled:opacity-50 flex items-center space-x-2"
                                 >
                                     {isAdding && <Loader2 className="animate-spin" size={16} />}
-                                    <span>{isAdding ? 'Adding...' : 'Add to Inventory'}</span>
+                                    <span>{isAdding ? t('supplierInventory.addModal.adding') : t('supplierInventory.addModal.addToInventory')}</span>
                                 </button>
                             </div>
                         </form>
@@ -470,14 +460,14 @@ export const SupplierInventory: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Confirm Deletion</h3>
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('supplierInventory.deleteModal.title')}</h3>
                             <button onClick={() => setDeleteConfirmItem(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={24} />
                             </button>
                         </div>
                         <div className="p-6">
                             <p className="text-sm text-slate-600 dark:text-slate-300">
-                                Are you sure you want to remove <span className="font-bold text-[#334155] dark:text-white">{deleteConfirmItem.productName}</span> from inventory? This action cannot be undone.
+                                {t('supplierInventory.deleteModal.messagePrefix')} <span className="font-bold text-[#334155] dark:text-white">{deleteConfirmItem.productName}</span> {t('supplierInventory.deleteModal.messageSuffix')}
                             </p>
                         </div>
                         <div className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex justify-end space-x-3 rounded-b-2xl">
@@ -487,7 +477,7 @@ export const SupplierInventory: React.FC = () => {
                                 disabled={isDeleting}
                                 className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 text-sm disabled:opacity-50"
                             >
-                                Cancel
+                                {t('supplierInventory.deleteModal.cancel')}
                             </button>
                             <button
                                 type="button"
@@ -496,7 +486,7 @@ export const SupplierInventory: React.FC = () => {
                                 className="px-4 py-2 bg-rose-600 hover:bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600 text-white font-bold rounded-lg shadow-sm text-sm disabled:opacity-50 flex items-center space-x-2"
                             >
                                 {isDeleting && <Loader2 className="animate-spin" size={16} />}
-                                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                                <span>{isDeleting ? t('supplierInventory.deleteModal.deleting') : t('supplierInventory.deleteModal.delete')}</span>
                             </button>
                         </div>
                     </div>
@@ -508,7 +498,7 @@ export const SupplierInventory: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
                      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Edit Product</h3>
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('supplierInventory.editModal.title')}</h3>
                             <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={24} />
                             </button>
@@ -516,7 +506,7 @@ export const SupplierInventory: React.FC = () => {
                         <form onSubmit={handleEditProduct}>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Product Name</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.editModal.productName')}</label>
                                     <select
                                         value={editProductName}
                                         onChange={(e) => setEditProductName(e.target.value)}
@@ -530,7 +520,7 @@ export const SupplierInventory: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Location</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.editModal.location')}</label>
                                     <input
                                         type="text"
                                         value={ports.find(p => p.id === editingItem.portId)?.name || editingItem.portName}
@@ -540,7 +530,7 @@ export const SupplierInventory: React.FC = () => {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Current Stock (MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.editModal.currentStock')}</label>
                                         <input
                                             type="number"
                                             step="0.01"
@@ -551,7 +541,7 @@ export const SupplierInventory: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Incoming Stock (MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.editModal.incomingStock')}</label>
                                         <input
                                             type="number"
                                             step="0.01"
@@ -563,7 +553,7 @@ export const SupplierInventory: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Price / MT ($)</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('supplierInventory.editModal.pricePerMt')}</label>
                                     <input
                                         type="number"
                                         step="0.01"
@@ -580,7 +570,7 @@ export const SupplierInventory: React.FC = () => {
                                     onClick={closeEditModal}
                                     className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 text-sm"
                                 >
-                                    Cancel
+                                    {t('supplierInventory.editModal.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -588,7 +578,7 @@ export const SupplierInventory: React.FC = () => {
                                     className="px-4 py-2 bg-[#334155] hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-bold rounded-lg shadow-sm text-sm disabled:opacity-50 flex items-center space-x-2"
                                 >
                                     {isEditing && <Loader2 className="animate-spin" size={16} />}
-                                    <span>{isEditing ? 'Saving...' : 'Save Changes'}</span>
+                                    <span>{isEditing ? t('supplierInventory.editModal.saving') : t('supplierInventory.editModal.saveChanges')}</span>
                                 </button>
                             </div>
                         </form>

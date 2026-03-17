@@ -1,1 +1,9 @@
-{}
+{
+  "title": "合规中心",
+  "subtitle": "监控 EU ETS 敞口、追踪绿色燃料并管理报告。",
+  "tabs": {
+    "dashboard": "仪表板",
+    "fuelTracing": "燃料溯源",
+    "dataInput": "数据输入"
+  }
+}

@@ -3,6 +3,7 @@ import { Loader2, TrendingUp, Anchor, AlertCircle, CheckCircle, Clock } from 'lu
 import { Page, Trade } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface BuyerDashboardProps {
     onNavigate: (page: Page) => void;
@@ -10,6 +11,7 @@ interface BuyerDashboardProps {
 }
 
 export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, openOrderId }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [requests, setRequests] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -65,8 +67,8 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
         setConfirmState({
             isOpen: true,
             type: 'CONFIRM_TRADE',
-            title: 'Confirm Trade',
-            message: 'Are you sure you want to confirm this trade? This will generate a binding confirmation.',
+            title: t('buyerDashboard.modal.confirmTitle'),
+            message: t('buyerDashboard.modal.confirmMessage'),
             tradeId,
             variant: 'info'
         });
@@ -83,16 +85,16 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                  setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
-                    title: 'Trade Confirmed',
-                    message: 'Trade confirmed successfully!',
+                    title: t('buyerDashboard.modal.successTitle'),
+                    message: t('buyerDashboard.modal.successMessage'),
                     variant: 'success'
                 });
             } catch (e: any) {
                  setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
-                    title: 'Action Failed',
-                    message: 'Failed to confirm trade: ' + e.message,
+                    title: t('buyerDashboard.modal.errorTitle'),
+                    message: t('buyerDashboard.modal.errorMessagePrefix') + e.message,
                     variant: 'danger'
                 });
             } finally {
@@ -103,7 +105,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
         }
     };
 
-    if (loading) {
+    if (!ready || loading) {
         return (
             <div className="p-10 flex justify-center">
                 <Loader2 size={40} className="animate-spin text-emerald-500" />
@@ -113,19 +115,19 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-6">Procurement Dashboard</h1>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-6">{t('buyerDashboard.title')}</h1>
             
             <div className="grid grid-cols-1 gap-6">
                 {requests.length === 0 ? (
                     <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                         <Anchor className="mx-auto h-12 w-12 text-slate-400 mb-4" />
-                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">No Active Requests</h3>
-                        <p className="text-slate-500 mt-2">Go to the Map to place an order.</p>
+                        <h3 className="text-lg font-medium text-slate-900 dark:text-white">{t('buyerDashboard.emptyState.heading')}</h3>
+                        <p className="text-slate-500 mt-2">{t('buyerDashboard.emptyState.body')}</p>
                         <button 
                             onClick={() => onNavigate('MAP')}
                             className="mt-6 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors"
                         >
-                            Go to Map
+                            {t('buyerDashboard.emptyState.cta')}
                         </button>
                     </div>
                 ) : (
@@ -143,37 +145,37 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                                         <span className="text-slate-400">•</span>
                                         <span className="text-sm font-medium text-slate-600 dark:text-slate-300">${req.price_per_mt_usd}/MT</span>
                                     </div>
-                                    <div className="text-xs text-slate-500 mt-1">ID: {req.id.slice(0, 8)} • {new Date(req.created_at).toLocaleDateString()} • Seller: {req.seller_name}</div>
+                                    <div className="text-xs text-slate-500 mt-1">{t('buyerDashboard.order.idLabel')}: {req.id.slice(0, 8)} • {new Date(req.created_at).toLocaleDateString()} • {t('buyerDashboard.order.sellerLabel')}: {req.seller_name}</div>
                                 </div>
                                 <div>
                                     {req.status === 'PENDING_CONFIRMATION' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                            <Clock size={14} /> Pending Confirmation
+                                            <Clock size={14} /> {t('buyerDashboard.order.status.pendingConfirmation')}
                                         </span>
                                     )}
                                     {req.status === 'CONFIRMED' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                            <CheckCircle size={14} /> Confirmed
+                                            <CheckCircle size={14} /> {t('buyerDashboard.order.status.confirmed')}
                                         </span>
                                     )}
                                     {req.status === 'DELIVERED' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                            <TrendingUp size={14} /> Delivered
+                                            <TrendingUp size={14} /> {t('buyerDashboard.order.status.delivered')}
                                         </span>
                                     )}
                                     {req.status === 'PAID' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                            <CheckCircle size={14} /> Paid
+                                            <CheckCircle size={14} /> {t('buyerDashboard.order.status.paid')}
                                         </span>
                                     )}
                                     {req.status === 'CANCELLED' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                                            <AlertCircle size={14} /> Cancelled
+                                            <AlertCircle size={14} /> {t('buyerDashboard.order.status.cancelled')}
                                         </span>
                                     )}
                                     {req.status === 'DECLINED' && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                                            <AlertCircle size={14} /> Declined
+                                            <AlertCircle size={14} /> {t('buyerDashboard.order.status.declined')}
                                         </span>
                                     )}
                                 </div>
@@ -183,19 +185,19 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                             <div className="p-6">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     <div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Region</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.region')}</div>
                                         <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{req.region}</div>
                                     </div>
                                     <div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Quantity</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.quantity')}</div>
                                         <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{req.quantity_mt} MT</div>
                                     </div>
                                     <div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Price</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.price')}</div>
                                         <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${req.price_per_mt_usd}/MT</div>
                                     </div>
                                     <div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Total</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.total')}</div>
                                         <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
                                             {req.final_total_usd ? `$${Number(req.final_total_usd).toLocaleString()}` : `$${(req.quantity_mt * req.price_per_mt_usd).toLocaleString()}`}
                                         </div>
@@ -208,7 +210,7 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                                             disabled={processing}
                                             className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold rounded hover:opacity-90 transition-opacity"
                                         >
-                                            Confirm Trade
+                                            {t('buyerDashboard.order.confirmTrade')}
                                         </button>
                                     </div>
                                 )}

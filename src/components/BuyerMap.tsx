@@ -11,6 +11,7 @@ import { api } from '../services/api';
 import { VesselMarkers } from './map/VesselMarkers';
 import { MapLegend } from './map/MapLegend';
 import { useCopilotContext } from '../context/CopilotContext';
+import { useNamespace } from '../hooks/useNamespace';
 
 // Fix: Cast components to any to bypass "Property does not exist" errors on standard props like center, icon, attribution
 const MapContainer = LMapContainer as any;
@@ -28,6 +29,7 @@ interface BuyerMapProps {
 import { useTheme } from '../context/ThemeContext';
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
+    const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
     const { setPageContext } = useCopilotContext();
     const [ports, setPorts] = useState<Port[]>([]);
@@ -108,12 +110,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             .slice(0, 4);
     }, [listings]);
 
-    if (loading) {
+    if (!ready || loading) {
         return (
             <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                 <div className="flex flex-col items-center">
                     <Loader2 size={40} className="text-emerald-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-bold animate-pulse">Loading Intelligence Map...</p>
+                    <p className="text-slate-500 font-bold animate-pulse">{t('buyerMap.loading')}</p>
                 </div>
             </div>
         );
@@ -189,11 +191,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                     {/* Price & Availability */}
                                     <div className="space-y-2 mb-3">
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Spot</span>
+                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('buyerMap.spot')}</span>
                                             <span className="text-lg font-bold text-slate-900 dark:text-white">${port.priceMethanol}</span>
                                         </div>
                                         <div className="flex justify-between items-baseline">
-                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Availability</span>
+                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('buyerMap.availability')}</span>
                                             <span className={`text-sm font-bold ${port.methanolSupply === 'High' ? 'text-emerald-600 dark:text-emerald-400' : port.methanolSupply === 'Medium' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {port.methanolSupply}
                                             </span>
@@ -223,7 +225,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         if (portListings.length === 0 && port.details?.lastDone) {
                                             return (
                                                 <div className="mb-3">
-                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Recent Activity</div>
+                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">{t('buyerMap.recentActivity')}</div>
                                                     <div className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1.5 border border-slate-200 dark:border-slate-700">
                                                         {port.details.lastDone}
                                                     </div>
@@ -233,7 +235,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         if (portListings.length > 0) {
                                             return (
                                                 <div className="mb-3">
-                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">Recent Trades</div>
+                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">{t('buyerMap.recentTrades')}</div>
                                                     <div className="space-y-1">
                                                         {portListings.map((l, i) => (
                                                             <div key={i} className="flex justify-between text-[11px] bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1 border border-slate-200 dark:border-slate-700">
@@ -259,7 +261,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         }}
                                         className="w-full bg-verdaxis text-white text-sm font-bold py-2.5 rounded-lg shadow-sm hover:bg-sky-400 transition-colors flex items-center justify-center gap-2"
                                     >
-                                        <span>View Marketplace</span>
+                                        <span>{t('buyerMap.viewMarketplace')}</span>
                                         <ArrowRight size={14} />
                                     </button>
                                 </div>
@@ -278,7 +280,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             <div className="pointer-events-auto w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-4 hidden lg:block">
                                 <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
                                     <BarChart3 size={16} className="text-emerald-600" />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">Methanol Avails (Top Ports)</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.methanolAvails')}</span>
                                 </div>
                                 <div className="space-y-3">
                                     {availsByRegion.length > 0 ? (
@@ -320,7 +322,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             <div className="pointer-events-auto w-48 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 hidden lg:block ml-auto">
                                 <div className="flex items-center space-x-1.5 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5">
                                     <History size={12} className="text-slate-500 dark:text-slate-400" />
-                                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">Last Done</span>
+                                    <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.lastDone')}</span>
                                 </div>
                                 <div className="space-y-1">
                                     {lastDoneByRegion.length > 0 ? (
@@ -347,11 +349,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                 </div>
                             </div>
                         </div>
-
-                        {/* Market Watch Ticker — hidden until Platts data integration */}
-                        {/* <div className="pointer-events-auto w-full">
-                             <MarketWatchTicker isPanelOpen={isPanelOpen} onOpenPanel={() => setIsPanelOpen(true)} />
-                        </div> */}
                     </div>
                 )}
 
@@ -360,7 +357,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     <button
                         onClick={() => setShowOverlays(!showOverlays)}
                         className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 hover:bg-white dark:hover:bg-slate-800 transition-colors"
-                        title={showOverlays ? 'Hide Overlays' : 'Show Overlays'}
+                        title={showOverlays ? t('buyerMap.overlays') : t('buyerMap.overlays')}
                     >
                         {showOverlays ? (
                             <Eye size={16} className="text-emerald-500" />
@@ -368,7 +365,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             <EyeOff size={16} className="text-slate-400" />
                         )}
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                            {showOverlays ? 'Overlays' : 'Overlays'}
+                            {t('buyerMap.overlays')}
                         </span>
                     </button>
                 </div>
@@ -380,7 +377,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     onClick={() => setIsPanelOpen(true)}
                     className="absolute top-4 right-4 z-[20] bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-500 transition-colors"
                 >
-                    <Tooltip content="Show Insights" position="left">
+                    <Tooltip content={t('buyerMap.showInsights')} position="left">
                          <PanelRightOpen size={24} />
                     </Tooltip>
                 </button>

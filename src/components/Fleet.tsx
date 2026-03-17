@@ -4,6 +4,7 @@ import { Vessel } from '../types';
 import { AlertTriangle, CheckCircle2, Ship, Loader2, X } from 'lucide-react';
 import { VesselDetailModal } from './fleet/VesselDetailModal';
 import { api } from '../services/api';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface ComplianceScore {
     vessel_id: string;
@@ -64,6 +65,7 @@ const ComplianceScoreBadge: React.FC<{ score?: ComplianceScore }> = ({ score }) 
 import { useCopilotContext } from '../context/CopilotContext';
 
 export const Fleet: React.FC = () => {
+    const { t, ready } = useNamespace('fleet');
     const { setPageContext } = useCopilotContext();
     const [vessels, setVessels] = useState<Vessel[]>([]);
     const [loading, setLoading] = useState(true);
@@ -110,7 +112,7 @@ export const Fleet: React.FC = () => {
         fetchCompliance();
     }, []);
 
-    if (loading) {
+    if (!ready || loading) {
         return (
             <div className="p-10 flex justify-center">
                 <Loader2 size={40} className="animate-spin text-verdaxis" />
@@ -122,15 +124,15 @@ export const Fleet: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6 lg:p-10">
             <div className="mb-8 flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Fleet Management</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">Real-time telemetry and compliance status for your global fleet.</p>
+                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('subtitle')}</p>
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
                     className="bg-[#5DADE2] text-white px-4 py-2 rounded-lg font-bold shadow-sm hover:bg-[#4FA3D9] transition-colors flex items-center space-x-2"
                 >
                     <Ship size={18} />
-                    <span>Add Vessel</span>
+                    <span>{t('addVessel')}</span>
                 </button>
             </div>
 
@@ -138,22 +140,22 @@ export const Fleet: React.FC = () => {
                 {vessels.length === 0 ? (
                     <div className="text-center py-16">
                         <Ship className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No vessels in your fleet</h3>
-                        <p className="text-slate-400 dark:text-slate-500 mt-1">Add your first vessel to start tracking compliance.</p>
+                        <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">{t('emptyState.heading')}</h3>
+                        <p className="text-slate-400 dark:text-slate-500 mt-1">{t('emptyState.body')}</p>
                     </div>
                 ) : (
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider border-b border-slate-200 dark:border-slate-700">
-                                <th className="px-6 py-4">Vessel Details</th>
-                                <th className="px-6 py-4">Location & Voyage</th>
-                                <th className="px-6 py-4">CII Grade</th>
-                                <th className="px-6 py-4">EU ETS Status</th>
-                                <th className="px-6 py-4">FuelEU Status</th>
-                                <th className="px-6 py-4">Score</th>
-                                <th className="px-6 py-4">Next Dry Dock</th>
-                                <th className="px-6 py-4 text-right">Action</th>
+                                <th className="px-6 py-4">{t('table.vesselDetails')}</th>
+                                <th className="px-6 py-4">{t('table.locationVoyage')}</th>
+                                <th className="px-6 py-4">{t('table.ciiGrade')}</th>
+                                <th className="px-6 py-4">{t('table.euEtsStatus')}</th>
+                                <th className="px-6 py-4">{t('table.fuelEuStatus')}</th>
+                                <th className="px-6 py-4">{t('table.score')}</th>
+                                <th className="px-6 py-4">{t('table.nextDryDock')}</th>
+                                <th className="px-6 py-4 text-right">{t('table.action')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
@@ -166,7 +168,7 @@ export const Fleet: React.FC = () => {
                                             </div>
                                             <div>
                                                 <div className="font-bold text-[#334155] dark:text-white text-base">{vessel.name}</div>
-                                                <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">IMO: {vessel.imo} • {vessel.vesselType}</div>
+                                                <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{t('table.imoPrefix')} {vessel.imo} • {vessel.vesselType}</div>
                                             </div>
                                         </div>
                                     </td>
@@ -194,7 +196,7 @@ export const Fleet: React.FC = () => {
                                             onClick={() => setSelectedVessel(vessel)}
                                             className="text-[#5DADE2] hover:text-[#4FA3D9] font-bold text-xs"
                                         >
-                                            VIEW DETAILS
+                                            {t('table.viewDetails')}
                                         </button>
                                     </td>
                                 </tr>
@@ -218,42 +220,42 @@ export const Fleet: React.FC = () => {
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onKeyDown={(e) => e.stopPropagation()}>
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Add New Vessel</h3>
+                            <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('addModal.title')}</h3>
                             <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                 <X size={24} />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vessel Name</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('addModal.vesselName')}</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. MV Pacific Voyager"
+                                    placeholder={t('addModal.vesselNamePlaceholder')}
                                     className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">IMO Number</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('addModal.imoNumber')}</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. 9876543"
+                                    placeholder={t('addModal.imoPlaceholder')}
                                     className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white placeholder-slate-400"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Vessel Type</label>
+                                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">{t('addModal.vesselType')}</label>
                                 <select className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white">
-                                    <option value="">Select type...</option>
-                                    <option value="Bulk Carrier">Bulk Carrier</option>
-                                    <option value="Container Ship">Container Ship</option>
-                                    <option value="Tanker">Tanker</option>
-                                    <option value="General Cargo">General Cargo</option>
-                                    <option value="RoRo">RoRo</option>
+                                    <option value="">{t('addModal.selectType')}</option>
+                                    <option value="Bulk Carrier">{t('addModal.types.bulkCarrier')}</option>
+                                    <option value="Container Ship">{t('addModal.types.containerShip')}</option>
+                                    <option value="Tanker">{t('addModal.types.tanker')}</option>
+                                    <option value="General Cargo">{t('addModal.types.generalCargo')}</option>
+                                    <option value="RoRo">{t('addModal.types.roro')}</option>
                                 </select>
                             </div>
                             <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                                 <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                                    Vessel management is under active development. Adding vessels will be fully functional in an upcoming release.
+                                    {t('addModal.comingSoonNotice')}
                                 </p>
                             </div>
                         </div>
@@ -263,7 +265,7 @@ export const Fleet: React.FC = () => {
                                 onClick={() => setIsAddModalOpen(false)}
                                 className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-slate-200 text-sm"
                             >
-                                Cancel
+                                {t('addModal.cancel')}
                             </button>
                             <div className="flex flex-col items-end">
                                 <button
@@ -271,9 +273,9 @@ export const Fleet: React.FC = () => {
                                     disabled
                                     className="px-4 py-2 bg-[#5DADE2] text-white font-bold rounded-lg shadow-sm text-sm opacity-50 cursor-not-allowed"
                                 >
-                                    Save Vessel
+                                    {t('addModal.save')}
                                 </button>
-                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 text-center">Vessel registration coming soon</p>
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 text-center">{t('addModal.comingSoon')}</p>
                             </div>
                         </div>
                     </div>

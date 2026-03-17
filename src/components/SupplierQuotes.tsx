@@ -8,8 +8,10 @@ import { api } from '../services/api';
 import MarkdownRenderer from './ui/MarkdownRenderer';
 import { useCopilotContext } from '../context/CopilotContext';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { useNamespace } from '../hooks/useNamespace';
 
 export const SupplierQuotes: React.FC = () => {
+    const { t, ready } = useNamespace('dashboard');
     const { setPageContext } = useCopilotContext();
     const [orders, setOrders] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +66,6 @@ export const SupplierQuotes: React.FC = () => {
         setLoading(true);
         try {
             const data = await api.trades.myTrades();
-            // Filter by search query if exists
             const filtered = searchQuery
                 ? data.filter((item: Trade) =>
                     item.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -129,7 +130,6 @@ export const SupplierQuotes: React.FC = () => {
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
             else {
-                // For alerts (ERROR/SUCCESS), just close
                 setConfirmState(prev => ({ ...prev, isOpen: false }));
             }
         } catch (error: any) {
@@ -137,11 +137,10 @@ export const SupplierQuotes: React.FC = () => {
             setConfirmState(prev => ({
                 ...prev,
                 type: 'ERROR',
-                title: 'Action Failed',
-                message: error.message || 'An unexpected error occurred.',
+                title: t('supplierQuotes.modal.errorTitle'),
+                message: error.message || t('supplierQuotes.modal.errorFallback'),
                 variant: 'danger',
                 isLoading: false,
-                // Keep orderId so we don't lose context if needed, but important part is changing content
             }));
         } finally {
             if (confirmState.type !== 'ERROR') {
@@ -154,8 +153,8 @@ export const SupplierQuotes: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'ACCEPT',
-            title: 'Accept Order Request',
-            message: 'Are you sure you want to ACCEPT this order request? This will notify the buyer.',
+            title: t('supplierQuotes.modal.acceptTitle'),
+            message: t('supplierQuotes.modal.acceptMessage'),
             orderId: id,
             variant: 'success'
         });
@@ -165,8 +164,8 @@ export const SupplierQuotes: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'DECLINE',
-            title: 'Decline Order Request',
-            message: 'Are you sure you want to DECLINE this order request? This cannot be undone.',
+            title: t('supplierQuotes.modal.declineTitle'),
+            message: t('supplierQuotes.modal.declineMessage'),
             orderId: id,
             variant: 'danger'
         });
@@ -176,8 +175,8 @@ export const SupplierQuotes: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'COMPLETE',
-            title: 'Confirm Delivery',
-            message: 'Confirm delivery (BDN signed)? This will deduce inventory and calculate commission.',
+            title: t('supplierQuotes.modal.deliveryTitle'),
+            message: t('supplierQuotes.modal.deliveryMessage'),
             orderId: id,
             orderData: req,
             variant: 'info'
@@ -188,8 +187,8 @@ export const SupplierQuotes: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'MARK_PAID',
-            title: 'Confirm Payment',
-            message: 'Confirm that payment has been received for this order?',
+            title: t('supplierQuotes.modal.paymentTitle'),
+            message: t('supplierQuotes.modal.paymentMessage'),
             orderId: id,
             variant: 'success'
         });
@@ -197,11 +196,10 @@ export const SupplierQuotes: React.FC = () => {
 
     const toggleExpand = (id: string) => {
         setExpandedOrderId(expandedOrderId === id ? null : id);
-        setAiRiskAnalysis(null); // Reset analysis on toggle
+        setAiRiskAnalysis(null);
     };
 
     const handleGenerateRiskAnalysis = async (req: Trade) => {
-         // Mock risk profile if missing for now
         const riskProfile = { solvencyGrade: 'A', avgPaymentDays: 25, kybStatus: 'Verified' }; 
         
         setIsAnalyzingRisk(true);
@@ -211,11 +209,19 @@ export const SupplierQuotes: React.FC = () => {
         setIsAnalyzingRisk(false);
     };
 
+    if (!ready) {
+        return (
+            <div className="p-6 flex justify-center">
+                <Loader2 size={32} className="animate-spin text-verdaxis" />
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Quotes & Orders</h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-2">Manage incoming Direct Orders, active quotes, and confirmed bunkering orders.</p>
+                <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('supplierQuotes.title')}</h1>
+                <p className="text-slate-500 dark:text-slate-400 mt-2">{t('supplierQuotes.subtitle')}</p>
             </div>
 
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden min-h-[500px]">
@@ -227,7 +233,7 @@ export const SupplierQuotes: React.FC = () => {
                             type="text" 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search by Buyer or Fuel..." 
+                            placeholder={t('supplierQuotes.searchPlaceholder')}
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-[#5DADE2] outline-none transition-all focus:border-[#5DADE2] bg-white dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
                         />
                     </div>
@@ -243,12 +249,12 @@ export const SupplierQuotes: React.FC = () => {
                         <thead>
                              <tr className="bg-slate-50 dark:bg-slate-900 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
                                 <th className="px-6 py-4"></th>
-                                <th className="px-6 py-4">ID</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4">Buyer</th>
-                                <th className="px-6 py-4">Requested Qty</th>
-                                <th className="px-6 py-4">Delivery</th>
-                                <th className="px-6 py-4 text-right">Action</th>
+                                <th className="px-6 py-4">{t('supplierQuotes.table.id')}</th>
+                                <th className="px-6 py-4">{t('supplierQuotes.table.status')}</th>
+                                <th className="px-6 py-4">{t('supplierQuotes.table.buyer')}</th>
+                                <th className="px-6 py-4">{t('supplierQuotes.table.requestedQty')}</th>
+                                <th className="px-6 py-4">{t('supplierQuotes.table.delivery')}</th>
+                                <th className="px-6 py-4 text-right">{t('supplierQuotes.table.action')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
@@ -264,36 +270,36 @@ export const SupplierQuotes: React.FC = () => {
                                         <td className="px-6 py-4">
                                             {req.status === 'PENDING_CONFIRMATION' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400">
-                                                    Action Required
+                                                    {t('supplierQuotes.table.actionRequired')}
                                                 </span>
                                             )}
                                             {req.status === 'CONFIRMED' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
-                                                    Confirmed
+                                                    {t('supplierQuotes.table.confirmed')}
                                                 </span>
                                             )}
                                             {req.status === 'DELIVERED' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400">
-                                                    Delivered
+                                                    {t('supplierQuotes.table.delivered')}
                                                 </span>
                                             )}
                                             {req.status === 'PAID' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
-                                                    Paid
+                                                    {t('supplierQuotes.table.paid')}
                                                 </span>
                                             )}
                                             {req.status === 'DECLINED' && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400">
-                                                    Declined
+                                                    {t('supplierQuotes.table.declined')}
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">{req.buyer_name || 'Anonymous Buyer'}</td>
+                                        <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">{req.buyer_name || t('supplierQuotes.table.anonymous')}</td>
                                         <td className="px-6 py-4 dark:text-slate-300">
                                             {req.quantity_mt?.toLocaleString()} MT
                                             <div className="text-xs text-slate-400">{req.fuel_type} &middot; {req.region}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString() : 'Spot'}</td>
+                                        <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString() : t('supplierQuotes.table.spot')}</td>
                                         <td className="px-6 py-4 text-right">
                                             {req.status === 'PENDING_CONFIRMATION' ? (
                                                 <div className="flex justify-end gap-2">
@@ -319,7 +325,7 @@ export const SupplierQuotes: React.FC = () => {
                                                         className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-colors flex items-center gap-1"
                                                         title="Confirm Delivery (BDN)"
                                                     >
-                                                        <Truck size={12} /> Confirm Delivery
+                                                        <Truck size={12} /> {t('supplierQuotes.table.confirmDelivery')}
                                                     </button>
                                                 </div>
                                             ) : req.status === 'DELIVERED' ? (
@@ -329,12 +335,12 @@ export const SupplierQuotes: React.FC = () => {
                                                         className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 transition-colors flex items-center gap-1"
                                                         title="Mark as Paid"
                                                     >
-                                                        <Banknote size={12} /> Mark Paid
+                                                        <Banknote size={12} /> {t('supplierQuotes.table.markPaid')}
                                                     </button>
                                                 </div>
                                             ) : (
                                                 <span className="text-slate-400 text-xs italic flex items-center gap-1 justify-end">
-                                                    {req.status === 'PAID' ? <><CheckCircle2 size={12}/> Paid</> : 'Closed'}
+                                                    {req.status === 'PAID' ? <><CheckCircle2 size={12}/> {t('supplierQuotes.table.paid')}</> : t('supplierQuotes.table.closed')}
                                                 </span>
                                             )}
                                         </td>
@@ -347,7 +353,7 @@ export const SupplierQuotes: React.FC = () => {
                                                     <div className="flex items-center justify-between mb-4">
                                                         <div className="flex items-center gap-2 text-sm font-bold text-[#334155] dark:text-slate-200 uppercase tracking-wider">
                                                             <Shield size={16} className="text-[#5DADE2]" />
-                                                            Counterparty Risk Analysis
+                                                            {t('supplierQuotes.risk.panelTitle')}
                                                         </div>
                                                         <button 
                                                             onClick={() => handleGenerateRiskAnalysis(req)}
@@ -355,7 +361,7 @@ export const SupplierQuotes: React.FC = () => {
                                                             className="text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-md font-bold border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors flex items-center space-x-2 disabled:opacity-50"
                                                         >
                                                             {isAnalyzingRisk ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12} />}
-                                                            <span>{isAnalyzingRisk ? 'Generating...' : aiRiskAnalysis ? 'Memo Generated' : 'Generate AI Risk Memo'}</span>
+                                                            <span>{isAnalyzingRisk ? t('supplierQuotes.risk.generating') : aiRiskAnalysis ? t('supplierQuotes.risk.memoGenerated') : t('supplierQuotes.risk.generateButton')}</span>
                                                         </button>
                                                     </div>
                                                     
@@ -364,22 +370,22 @@ export const SupplierQuotes: React.FC = () => {
                                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded border border-slate-100 dark:border-slate-600 flex items-center gap-3">
                                                             <Building size={20} className="text-slate-400" />
                                                             <div>
-                                                                <div className="text-xs text-slate-500 uppercase font-bold">Solvency Grade</div>
-                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">A (Excellent)</div>
+                                                                <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierQuotes.risk.solvencyGrade')}</div>
+                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">{t('supplierQuotes.risk.solvencyValue')}</div>
                                                             </div>
                                                         </div>
                                                         <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded border border-slate-100 dark:border-slate-600 flex items-center gap-3">
                                                             <Clock size={20} className="text-slate-400" />
                                                             <div>
-                                                                <div className="text-xs text-slate-500 uppercase font-bold">Avg Pmt Time</div>
-                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">15 Days</div>
+                                                                <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierQuotes.risk.avgPaymentTime')}</div>
+                                                                <div className="font-bold text-[#334155] dark:text-slate-200 text-lg">{t('supplierQuotes.risk.avgPaymentValue')}</div>
                                                             </div>
                                                         </div>
                                                         <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-800 flex items-center gap-3">
                                                             <Shield size={20} className="text-green-500" />
                                                             <div>
-                                                                <div className="text-xs text-green-700 dark:text-green-400 uppercase font-bold">KYB Status</div>
-                                                                <div className="font-bold text-green-700 dark:text-green-400 text-lg">Verified</div>
+                                                                <div className="text-xs text-green-700 dark:text-green-400 uppercase font-bold">{t('supplierQuotes.risk.kybStatus')}</div>
+                                                                <div className="font-bold text-green-700 dark:text-green-400 text-lg">{t('supplierQuotes.risk.kybValue')}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -392,7 +398,7 @@ export const SupplierQuotes: React.FC = () => {
                                                                     <FileText size={16} className="text-indigo-500" />
                                                                 </div>
                                                                 <div className="flex-1">
-                                                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-1">Verdaxis AI Strategic Assessment</h4>
+                                                                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-1">{t('supplierQuotes.risk.aiAssessment')}</h4>
                                                                     {isAnalyzingRisk ? (
                                                                          <div className="space-y-1.5 pt-1">
                                                                             <div className="h-2 bg-indigo-200 rounded w-3/4 animate-pulse"></div>
@@ -417,13 +423,13 @@ export const SupplierQuotes: React.FC = () => {
                     </table>
                     {orders.length === 0 && (
                          <div className="p-8 text-center text-slate-400">
-                            No incoming orders found.
+                            {t('supplierQuotes.noOrders')}
                         </div>
                     )}
                 </div>
                 )}
                  <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
-                    Showing {orders.length} recent records
+                    {t('supplierQuotes.showing', { count: orders.length })}
                 </div>
             </div>
 

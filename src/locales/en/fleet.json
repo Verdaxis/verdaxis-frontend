@@ -1,1 +1,42 @@
-{}
+{
+  "title": "Fleet Management",
+  "subtitle": "Real-time telemetry and compliance status for your global fleet.",
+  "addVessel": "Add Vessel",
+  "loading": "Loading fleet...",
+  "emptyState": {
+    "heading": "No vessels in your fleet",
+    "body": "Add your first vessel to start tracking compliance."
+  },
+  "table": {
+    "vesselDetails": "Vessel Details",
+    "locationVoyage": "Location & Voyage",
+    "ciiGrade": "CII Grade",
+    "euEtsStatus": "EU ETS Status",
+    "fuelEuStatus": "FuelEU Status",
+    "score": "Score",
+    "nextDryDock": "Next Dry Dock",
+    "action": "Action",
+    "imoPrefix": "IMO:",
+    "viewDetails": "VIEW DETAILS"
+  },
+  "addModal": {
+    "title": "Add New Vessel",
+    "vesselName": "Vessel Name",
+    "vesselNamePlaceholder": "e.g. MV Pacific Voyager",
+    "imoNumber": "IMO Number",
+    "imoPlaceholder": "e.g. 9876543",
+    "vesselType": "Vessel Type",
+    "selectType": "Select type...",
+    "types": {
+      "bulkCarrier": "Bulk Carrier",
+      "containerShip": "Container Ship",
+      "tanker": "Tanker",
+      "generalCargo": "General Cargo",
+      "roro": "RoRo"
+    },
+    "comingSoonNotice": "Vessel management is under active development. Adding vessels will be fully functional in an upcoming release.",
+    "cancel": "Cancel",
+    "save": "Save Vessel",
+    "comingSoon": "Vessel registration coming soon"
+  }
+}

@@ -3,19 +3,23 @@ import { ComplianceDashboard } from './compliance/ComplianceDashboard';
 import { ComplianceTracing } from './compliance/ComplianceTracing';
 import { ComplianceDataInput } from './compliance/ComplianceDataInput';
 import { ComplianceLedgerModal } from './compliance/ComplianceLedgerModal';
+import { useNamespace } from '../hooks/useNamespace';
 
 type ComplianceTab = 'DASHBOARD' | 'TRACING' | 'DATA_INPUT';
 
 export const Compliance: React.FC = () => {
+    const { t, ready } = useNamespace('compliance');
     const [activeTab, setActiveTab] = useState<ComplianceTab>('DASHBOARD');
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+
+    if (!ready) return null;
 
     return (
         <div className="max-w-7xl mx-auto p-6 lg:p-10">
             <div className="mb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">Compliance Hub</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-2">Monitor EU ETS exposure, trace green fuels, and manage reporting.</p>
+                    <h1 className="text-3xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('title')}</h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-2">{t('subtitle')}</p>
                 </div>
                 
                 {/* Tab Switcher */}
@@ -24,19 +28,19 @@ export const Compliance: React.FC = () => {
                         onClick={() => setActiveTab('DASHBOARD')}
                         className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'DASHBOARD' ? 'bg-[#334155] dark:bg-slate-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                     >
-                        Dashboard
+                        {t('tabs.dashboard')}
                     </button>
                     <button 
                         onClick={() => setActiveTab('TRACING')}
                         className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'TRACING' ? 'bg-[#334155] dark:bg-slate-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                     >
-                        Fuel Tracing
+                        {t('tabs.fuelTracing')}
                     </button>
                     <button 
                         onClick={() => setActiveTab('DATA_INPUT')}
                         className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'DATA_INPUT' ? 'bg-[#334155] dark:bg-slate-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                     >
-                        Data Input
+                        {t('tabs.dataInput')}
                     </button>
                 </div>
             </div>

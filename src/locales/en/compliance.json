@@ -1,1 +1,9 @@
-{}
+{
+  "title": "Compliance Hub",
+  "subtitle": "Monitor EU ETS exposure, trace green fuels, and manage reporting.",
+  "tabs": {
+    "dashboard": "Dashboard",
+    "fuelTracing": "Fuel Tracing",
+    "dataInput": "Data Input"
+  }
+}

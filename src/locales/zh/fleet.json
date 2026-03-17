@@ -1,1 +1,42 @@
-{}
+{
+  "title": "船队管理",
+  "subtitle": "全球船队的实时遥测和合规状态。",
+  "addVessel": "添加船舶",
+  "loading": "正在加载船队...",
+  "emptyState": {
+    "heading": "您的船队中暂无船舶",
+    "body": "添加第一艘船舶以开始追踪合规状态。"
+  },
+  "table": {
+    "vesselDetails": "船舶详情",
+    "locationVoyage": "位置与航次",
+    "ciiGrade": "CII 评级",
+    "euEtsStatus": "EU ETS 状态",
+    "fuelEuStatus": "FuelEU 状态",
+    "score": "评分",
+    "nextDryDock": "下次干坞",
+    "action": "操作",
+    "imoPrefix": "IMO：",
+    "viewDetails": "查看详情"
+  },
+  "addModal": {
+    "title": "添加新船舶",
+    "vesselName": "船舶名称",
+    "vesselNamePlaceholder": "例如：MV Pacific Voyager",
+    "imoNumber": "IMO 编号",
+    "imoPlaceholder": "例如：9876543",
+    "vesselType": "船舶类型",
+    "selectType": "选择类型...",
+    "types": {
+      "bulkCarrier": "散货船",
+      "containerShip": "集装箱船",
+      "tanker": "油轮",
+      "generalCargo": "杂货船",
+      "roro": "滚装船"
+    },
+    "comingSoonNotice": "船舶管理功能正在积极开发中。添加船舶的完整功能将在即将发布的版本中上线。",
+    "cancel": "取消",
+    "save": "保存船舶",
+    "comingSoon": "船舶注册即将上线"
+  }
+}

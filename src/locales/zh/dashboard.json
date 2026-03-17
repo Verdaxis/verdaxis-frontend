@@ -1,1 +1,391 @@
-{}
+{
+  "buyerDashboard": {
+    "title": "采购控制台",
+    "emptyState": {
+      "heading": "暂无活跃请求",
+      "body": "前往地图页面下订单。",
+      "cta": "前往地图"
+    },
+    "order": {
+      "idLabel": "编号",
+      "sellerLabel": "卖家",
+      "region": "区域",
+      "quantity": "数量",
+      "price": "价格",
+      "total": "总计",
+      "confirmTrade": "确认交易",
+      "status": {
+        "pendingConfirmation": "待确认",
+        "confirmed": "已确认",
+        "delivered": "已交付",
+        "paid": "已付款",
+        "cancelled": "已取消",
+        "declined": "已拒绝"
+      }
+    },
+    "modal": {
+      "confirmTitle": "确认交易",
+      "confirmMessage": "您确定要确认此交易吗？这将生成具有约束力的确认书。",
+      "successTitle": "交易已确认",
+      "successMessage": "交易确认成功！",
+      "errorTitle": "操作失败",
+      "errorMessagePrefix": "确认交易失败："
+    }
+  },
+  "buyerMap": {
+    "loading": "正在加载情报地图...",
+    "methanolAvails": "甲醇供应（主要港口）",
+    "lastDone": "最新成交",
+    "recentActivity": "近期活动",
+    "recentTrades": "近期交易",
+    "spot": "现货",
+    "availability": "供应量",
+    "viewMarketplace": "查看市场",
+    "showInsights": "显示洞察",
+    "overlays": "叠加层"
+  },
+  "supplierDashboard": {
+    "title": "指挥中心",
+    "subtitle": "鹿特丹港枢纽",
+    "updateInventory": "更新库存",
+    "kpi": {
+      "pendingActions": "待处理事项",
+      "highPriority": "高优先级",
+      "volumeSold": "已售量（MT）",
+      "deliveredAndPaid": "已交付 + 已付款",
+      "noDeliveries": "暂无交付记录",
+      "activeOrders": "活跃订单",
+      "potentialValue": "潜在价值"
+    },
+    "tabs": {
+      "incoming": "待处理",
+      "active": "进行中",
+      "history": "历史"
+    },
+    "table": {
+      "orderId": "订单编号",
+      "buyer": "买家",
+      "product": "产品",
+      "delivery": "交付",
+      "status": "状态",
+      "action": "操作",
+      "anonymous": "匿名",
+      "spot": "现货",
+      "actionRequired": "需要操作",
+      "confirmed": "已确认",
+      "acceptOrder": "接受订单",
+      "noOrders": "该分类下暂无订单。"
+    },
+    "modal": {
+      "acceptTitle": "接受订单请求",
+      "acceptMessage": "您确定要接受此订单请求吗？",
+      "errorTitle": "操作失败",
+      "errorMessage": "接受订单时出错"
+    }
+  },
+  "supplierQuotes": {
+    "title": "报价与订单",
+    "subtitle": "管理传入的直接订单、活跃报价及已确认的补油订单。",
+    "searchPlaceholder": "按买家或燃料搜索...",
+    "showing": "显示 {{count}} 条近期记录",
+    "noOrders": "未找到待处理订单。",
+    "table": {
+      "id": "编号",
+      "status": "状态",
+      "buyer": "买家",
+      "requestedQty": "请求数量",
+      "delivery": "交付",
+      "action": "操作",
+      "anonymous": "匿名买家",
+      "spot": "现货",
+      "actionRequired": "需要操作",
+      "confirmed": "已确认",
+      "delivered": "已交付",
+      "paid": "已付款",
+      "declined": "已拒绝",
+      "closed": "已关闭",
+      "confirmDelivery": "确认交付",
+      "markPaid": "标记已付款"
+    },
+    "risk": {
+      "panelTitle": "交易对手风险分析",
+      "generateButton": "生成 AI 风险备忘录",
+      "generating": "生成中...",
+      "memoGenerated": "备忘录已生成",
+      "aiAssessment": "Verdaxis AI 战略评估",
+      "solvencyGrade": "偿付能力评级",
+      "solvencyValue": "A（优秀）",
+      "avgPaymentTime": "平均付款时间",
+      "avgPaymentValue": "15天",
+      "kybStatus": "KYB 状态",
+      "kybValue": "已验证"
+    },
+    "modal": {
+      "acceptTitle": "接受订单请求",
+      "acceptMessage": "您确定要接受此订单请求吗？系统将通知买家。",
+      "declineTitle": "拒绝订单请求",
+      "declineMessage": "您确定要拒绝此订单请求吗？此操作不可撤销。",
+      "deliveryTitle": "确认交付",
+      "deliveryMessage": "确认交付（BDN已签署）？这将扣减库存并计算佣金。",
+      "paymentTitle": "确认付款",
+      "paymentMessage": "确认已收到此订单的付款？",
+      "errorTitle": "操作失败",
+      "errorFallback": "发生意外错误。"
+    }
+  },
+  "supplierInventory": {
+    "title": "库存管理",
+    "subtitle": "监控库存水平、调整定价并管理补货。",
+    "addProduct": "添加产品",
+    "loading": "正在加载库存...",
+    "kpi": {
+      "totalCapacity": "总容量",
+      "utilization": "利用率",
+      "lowStockAlerts": "低库存警报",
+      "product": "种产品",
+      "products": "种产品"
+    },
+    "emptyState": {
+      "heading": "库存中暂无产品",
+      "body": "添加第一个产品以开始管理库存水平。"
+    },
+    "table": {
+      "productName": "产品名称",
+      "location": "位置",
+      "stockLevel": "库存量（MT）",
+      "incoming": "待入库",
+      "pricePerMt": "单价（MT）",
+      "status": "状态",
+      "actions": "操作",
+      "edit": "编辑",
+      "publish": "发布",
+      "publishing": "发布中...",
+      "listed": "已挂牌",
+      "delete": "删除",
+      "deleting": "删除中..."
+    },
+    "addModal": {
+      "title": "添加新产品",
+      "productType": "产品类型",
+      "location": "位置",
+      "selectPort": "选择港口...",
+      "initialStock": "初始库存（MT）",
+      "pricePerMt": "单价（$/MT）",
+      "cancel": "取消",
+      "adding": "添加中...",
+      "addToInventory": "添加至库存"
+    },
+    "deleteModal": {
+      "title": "确认删除",
+      "messagePrefix": "您确定要从库存中移除",
+      "messageSuffix": "吗？此操作不可撤销。",
+      "cancel": "取消",
+      "deleting": "删除中...",
+      "delete": "删除"
+    },
+    "editModal": {
+      "title": "编辑产品",
+      "productName": "产品名称",
+      "location": "位置",
+      "currentStock": "当前库存（MT）",
+      "incomingStock": "待入库存（MT）",
+      "pricePerMt": "单价（$/MT）",
+      "cancel": "取消",
+      "saving": "保存中...",
+      "saveChanges": "保存更改"
+    }
+  },
+  "supplierListingConsole": {
+    "title": "挂牌控制台",
+    "subtitle": "管理燃料挂牌并追踪传入订单。",
+    "createListing": "创建挂牌",
+    "loading": "正在加载挂牌...",
+    "kpi": {
+      "totalListings": "挂牌总数",
+      "active": "活跃",
+      "totalVolume": "总量",
+      "orderMatches": "订单匹配"
+    },
+    "table": {
+      "fuelRegion": "燃料 / 区域",
+      "availability": "可用窗口",
+      "quantity": "数量",
+      "price": "价格",
+      "certifications": "认证",
+      "orderMatches": "订单匹配",
+      "status": "状态",
+      "actions": "操作",
+      "remaining": "剩余",
+      "verified": "已验证",
+      "active": "活跃",
+      "inactive": "非活跃",
+      "partialFill": "部分成交",
+      "filled": "已成交"
+    },
+    "emptyState": {
+      "heading": "暂无挂牌",
+      "body": "创建第一个挂牌以开始接收直接订单"
+    },
+    "marketContext": {
+      "title": "市场背景",
+      "noData": "此组合暂无市场数据",
+      "priceRange": "价格区间：",
+      "avgPrice": "均价：",
+      "activeListings": "活跃挂牌：",
+      "totalAvailable": "总可用量：",
+      "listing": "条挂牌",
+      "listings": "条挂牌",
+      "competitive": "您的价格具有竞争力",
+      "belowMarket": "您的价格低于市场均价 {{pct}}%",
+      "aboveMarket": "您的价格高于市场均价 {{pct}}%"
+    },
+    "editModal": {
+      "title": "编辑挂牌",
+      "fuelType": "燃料类型",
+      "region": "区域",
+      "status": "状态",
+      "quantity": "数量（MT）",
+      "price": "价格（$/MT）",
+      "availabilityWindow": "可用窗口",
+      "certifications": "认证",
+      "certPlaceholder": "输入认证名称并按回车",
+      "cancel": "取消",
+      "saving": "保存中...",
+      "saveChanges": "保存更改"
+    },
+    "modal": {
+      "deleteTitle": "删除挂牌",
+      "deleteMessage": "您确定要删除此挂牌吗？",
+      "creationFailedTitle": "创建失败",
+      "creationFailedMessage": "创建挂牌失败，请重试。",
+      "updateFailedTitle": "更新失败",
+      "deleteFailedTitle": "删除失败"
+    }
+  },
+  "supplierStats": {
+    "title": "统计与历史",
+    "subtitle": "查看销售业绩、收入及订单历史。",
+    "loading": "正在加载订单历史...",
+    "error": {
+      "title": "无法加载统计数据",
+      "body": "加载销售历史时出错，请稍后重试。"
+    },
+    "emptyState": {
+      "title": "暂无销售记录",
+      "body": "买家开始下单后，您的销售统计和收入数据将在此显示。",
+      "step1": "将库存发布为挂牌",
+      "step2": "等待买家下订单",
+      "step3": "追踪收入和销售业绩"
+    },
+    "kpi": {
+      "totalRevenue": "总收入",
+      "completedOrders": "来自 {{count}} 笔已完成订单",
+      "completedOrdersPlural": "来自 {{count}} 笔已完成订单",
+      "volumeSold": "已售量",
+      "deliveredAndPaid": "已交付和已付款订单",
+      "totalOrders": "订单总数",
+      "allIncoming": "所有传入订单"
+    },
+    "table": {
+      "title": "销售历史与市场对比",
+      "date": "日期",
+      "buyer": "买家",
+      "fuelType": "燃料类型",
+      "quantity": "数量",
+      "yourPrice": "您的价格",
+      "marketAvg": "市场均价",
+      "status": "状态"
+    },
+    "status": {
+      "pending": "待确认",
+      "confirmed": "已确认",
+      "delivered": "已交付",
+      "paid": "已付款",
+      "declined": "已拒绝",
+      "cancelled": "已取消"
+    }
+  },
+  "supplierAnalytics": {
+    "title": "收入数据分析",
+    "subtitle": "收入、燃料组合、区域业绩及订单转化的商业智能分析。",
+    "loading": "正在加载数据分析...",
+    "error": {
+      "title": "无法加载数据分析",
+      "body": "加载收入数据时出错，请稍后重试。"
+    },
+    "emptyState": {
+      "title": "暂无数据分析",
+      "body": "一旦订单开始流入平台，收入分析将在此显示。发布库存，吸引买家，追踪您的业绩。"
+    },
+    "kpi": {
+      "totalRevenue": "总收入",
+      "completedOrders": "来自 {{count}} 笔已完成订单",
+      "completedOrdersPlural": "来自 {{count}} 笔已完成订单",
+      "volumeSold": "已售量",
+      "deliveredAndPaid": "已交付和已付款订单",
+      "avgDealSize": "平均成交额",
+      "perCompletedOrder": "每笔完成订单",
+      "conversionRate": "转化率",
+      "ordersCompleted": "{{total}} 笔订单中 {{completed}} 笔已完成"
+    },
+    "charts": {
+      "revenueOverTime": "收入趋势",
+      "revenueOverTimeSubtitle": "已完成订单的月度收入",
+      "revenueByFuel": "按燃料类型划分的收入",
+      "revenueByFuelSubtitle": "已完成订单收入明细",
+      "volumeByRegion": "按区域划分的销售量",
+      "volumeByRegionSubtitle": "各区域累计销售量（MT）",
+      "orderStatusBreakdown": "订单状态分布",
+      "orderStatusSubtitle": "所有传入订单的状态分布",
+      "noCompletedOrders": "暂无已完成订单",
+      "noOrders": "暂无订单"
+    }
+  },
+  "stats": {
+    "title": "统计与历史",
+    "subtitle": "分析您的交易业绩和订单历史。",
+    "loading": "正在加载统计数据...",
+    "error": {
+      "title": "无法加载统计数据",
+      "body": "加载数据时出错，请稍后重试。"
+    },
+    "emptyState": {
+      "title": "开始交易以查看您的统计数据",
+      "body": "完成交易后，您的交易统计、市场业绩数据和订单历史将在此显示。",
+      "step1": "从市场下订单",
+      "step2": "等待订单确认",
+      "step3": "查看您的统计和市场业绩"
+    },
+    "kpi": {
+      "trades": "交易数",
+      "acrossRegions": "遍及 {{count}} 个区域",
+      "acrossRegionsPlural": "遍及 {{count}} 个区域",
+      "volume": "交易量",
+      "totalValue": "总价值",
+      "winRate": "胜率",
+      "winsLosses": "{{wins}}胜 / {{losses}}负（对比市场均价）",
+      "avgPerformance": "平均表现",
+      "belowMarket": "低于市场（节省成本）",
+      "aboveMarket": "高于市场",
+      "fillRate": "成交率",
+      "filledOrders": "{{total}} 笔订单中 {{filled}} 笔已成交"
+    },
+    "chart": {
+      "title": "月度交易活动",
+      "subtitle": "近12个月"
+    },
+    "table": {
+      "title": "交易历史与市场对比",
+      "date": "日期",
+      "id": "编号",
+      "port": "港口",
+      "product": "产品",
+      "myPrice": "我的价格",
+      "marketAvg": "市场均价",
+      "performance": "表现",
+      "lower": "更低",
+      "higher": "更高",
+      "vsDayIndex": "对比日指数"
+    }
+  }
+}

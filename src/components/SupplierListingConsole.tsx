@@ -18,6 +18,7 @@ import {
 import { CreateListingModal, ListingFormData } from './supplier/CreateListingModal';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { useNamespace } from '../hooks/useNamespace';
 
 import { OrderBookOrder, OrderBookStatus, AggregatedOrderbook } from '../types';
 
@@ -36,6 +37,7 @@ export interface AggregatedMarketEntry {
 type SupplierListing = OrderBookOrder;
 
 export const SupplierListingConsole: React.FC = () => {
+    const { t, ready } = useNamespace('dashboard');
     const [listings, setListings] = useState<SupplierListing[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -121,8 +123,8 @@ export const SupplierListingConsole: React.FC = () => {
             setConfirmState({
                 isOpen: true,
                 type: 'ERROR',
-                title: 'Creation Failed',
-                message: 'Failed to create listing. Please try again.',
+                title: t('supplierListingConsole.modal.creationFailedTitle'),
+                message: t('supplierListingConsole.modal.creationFailedMessage'),
                 variant: 'danger'
             });
         } finally {
@@ -146,7 +148,7 @@ export const SupplierListingConsole: React.FC = () => {
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
-                    title: 'Update Failed',
+                    title: t('supplierListingConsole.modal.updateFailedTitle'),
                     message: error instanceof Error ? error.message : 'Failed to update listing status. Please try again.',
                     variant: 'danger'
                 });
@@ -166,7 +168,7 @@ export const SupplierListingConsole: React.FC = () => {
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
-                    title: 'Update Failed',
+                    title: t('supplierListingConsole.modal.updateFailedTitle'),
                     message: error instanceof Error ? error.message : 'Failed to update listing status. Please try again.',
                     variant: 'danger'
                 });
@@ -178,8 +180,8 @@ export const SupplierListingConsole: React.FC = () => {
         setConfirmState({
             isOpen: true,
             type: 'DELETE',
-            title: 'Delete Listing',
-            message: 'Are you sure you want to delete this listing?',
+            title: t('supplierListingConsole.modal.deleteTitle'),
+            message: t('supplierListingConsole.modal.deleteMessage'),
             id,
             variant: 'danger'
         });
@@ -198,7 +200,7 @@ export const SupplierListingConsole: React.FC = () => {
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
-                    title: 'Delete Failed',
+                    title: t('supplierListingConsole.modal.deleteFailedTitle'),
                     message: error instanceof Error ? error.message : 'Failed to delete listing. Please try again.',
                     variant: 'danger'
                 });
@@ -251,7 +253,7 @@ export const SupplierListingConsole: React.FC = () => {
             setConfirmState({
                 isOpen: true,
                 type: 'ERROR',
-                title: 'Update Failed',
+                title: t('supplierListingConsole.modal.updateFailedTitle'),
                 message: error instanceof Error ? error.message : 'Failed to update listing. Please try again.',
                 variant: 'danger',
             });
@@ -293,7 +295,7 @@ export const SupplierListingConsole: React.FC = () => {
                 <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-slate-700/30 p-3">
                     <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                         <BarChart3 size={14} />
-                        <span>No market data available for this combination</span>
+                        <span>{t('supplierListingConsole.marketContext.noData')}</span>
                     </div>
                 </div>
             );
@@ -310,19 +312,19 @@ export const SupplierListingConsole: React.FC = () => {
         if (price > 0 && avg_price > 0) {
             const pctDiff = ((price - avg_price) / avg_price) * 100;
             if (pctDiff <= -3) {
-                competitiveLabel = `Your price is ${Math.abs(pctDiff).toFixed(1)}% below market average`;
+                competitiveLabel = t('supplierListingConsole.marketContext.belowMarket', { pct: Math.abs(pctDiff).toFixed(1) });
                 competitiveColor = 'text-emerald-600 dark:text-emerald-400';
                 indicatorBg = 'bg-emerald-500';
             } else if (pctDiff <= 3) {
-                competitiveLabel = 'Your price is competitive';
+                competitiveLabel = t('supplierListingConsole.marketContext.competitive');
                 competitiveColor = 'text-emerald-600 dark:text-emerald-400';
                 indicatorBg = 'bg-emerald-500';
             } else if (pctDiff <= 10) {
-                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveLabel = t('supplierListingConsole.marketContext.aboveMarket', { pct: pctDiff.toFixed(1) });
                 competitiveColor = 'text-amber-600 dark:text-amber-400';
                 indicatorBg = 'bg-amber-500';
             } else {
-                competitiveLabel = `Your price is ${pctDiff.toFixed(1)}% above market average`;
+                competitiveLabel = t('supplierListingConsole.marketContext.aboveMarket', { pct: pctDiff.toFixed(1) });
                 competitiveColor = 'text-rose-600 dark:text-rose-400';
                 indicatorBg = 'bg-rose-500';
             }
@@ -337,30 +339,30 @@ export const SupplierListingConsole: React.FC = () => {
             <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-emerald-900/20 p-3 space-y-2.5">
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
                     <BarChart3 size={14} className="text-emerald-500 dark:text-emerald-400" />
-                    Market Context
+                    {t('supplierListingConsole.marketContext.title')}
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                     <div className="flex justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Price range:</span>
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.priceRange')}</span>
                         <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
                             ${min_price.toLocaleString()} - ${max_price.toLocaleString()} /MT
                         </span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Avg price:</span>
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.avgPrice')}</span>
                         <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
                             ${avg_price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /MT
                         </span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Active listings:</span>
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.activeListings')}</span>
                         <span className="font-semibold text-slate-700 dark:text-slate-200">
-                            {listing_count} listing{listing_count !== 1 ? 's' : ''}
+                            {listing_count} {listing_count !== 1 ? t('supplierListingConsole.marketContext.listings') : t('supplierListingConsole.marketContext.listing')}
                         </span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Total available:</span>
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.totalAvailable')}</span>
                         <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
                             {total_quantity.toLocaleString()} MT
                         </span>
@@ -398,6 +400,8 @@ export const SupplierListingConsole: React.FC = () => {
         );
     };
 
+    if (!ready) return null;
+
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6 transition-colors duration-200">
             <div className="max-w-7xl mx-auto">
@@ -405,10 +409,10 @@ export const SupplierListingConsole: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                            Listing Console
+                            {t('supplierListingConsole.title')}
                         </h1>
                         <p className="text-slate-600 dark:text-slate-400">
-                            Manage your fuel listings and track incoming orders.
+                            {t('supplierListingConsole.subtitle')}
                         </p>
                     </div>
                     <button
@@ -416,7 +420,7 @@ export const SupplierListingConsole: React.FC = () => {
                         className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-900 font-bold rounded-lg transition-colors shadow-sm"
                     >
                         <Plus size={20} />
-                        Create Listing
+                        {t('supplierListingConsole.createListing')}
                     </button>
                 </div>
 
@@ -430,7 +434,7 @@ export const SupplierListingConsole: React.FC = () => {
                             <div className="text-2xl font-bold text-slate-900 dark:text-slate-200">
                                 {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : listings.length}
                             </div>
-                            <div className="text-xs text-slate-500 uppercase font-bold">Total Listings</div>
+                            <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierListingConsole.kpi.totalListings')}</div>
                         </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center gap-4 shadow-sm dark:shadow-none">
@@ -441,7 +445,7 @@ export const SupplierListingConsole: React.FC = () => {
                             <div className="text-2xl font-bold text-slate-900 dark:text-slate-200">
                                 {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : activeListings}
                             </div>
-                            <div className="text-xs text-slate-500 uppercase font-bold">Active</div>
+                            <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierListingConsole.kpi.active')}</div>
                         </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center gap-4 shadow-sm dark:shadow-none">
@@ -452,7 +456,7 @@ export const SupplierListingConsole: React.FC = () => {
                             <div className="text-2xl font-bold text-slate-900 dark:text-slate-200">
                                 {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : `${totalVolume.toLocaleString()} MT`}
                             </div>
-                            <div className="text-xs text-slate-500 uppercase font-bold">Total Volume</div>
+                            <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierListingConsole.kpi.totalVolume')}</div>
                         </div>
                     </div>
                     <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex items-center gap-4 shadow-sm dark:shadow-none">
@@ -463,7 +467,7 @@ export const SupplierListingConsole: React.FC = () => {
                             <div className="text-2xl font-bold text-slate-900 dark:text-slate-200">
                                 {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : totalMatches}
                             </div>
-                            <div className="text-xs text-slate-500 uppercase font-bold">Order Matches</div>
+                            <div className="text-xs text-slate-500 uppercase font-bold">{t('supplierListingConsole.kpi.orderMatches')}</div>
                         </div>
                     </div>
                 </div>
@@ -473,7 +477,7 @@ export const SupplierListingConsole: React.FC = () => {
                     {isLoading ? (
                         <div className="p-12 flex justify-center items-center text-slate-500 dark:text-slate-400">
                             <Loader2 className="animate-spin mr-2" />
-                            <span>Loading listings...</span>
+                            <span>{t('supplierListingConsole.loading')}</span>
                         </div>
                     ) : (
                         <>
@@ -481,14 +485,14 @@ export const SupplierListingConsole: React.FC = () => {
                                 <table className="w-full">
                                     <thead>
                                         <tr className="border-b border-slate-200 dark:border-slate-700 text-xs uppercase text-slate-500 font-bold bg-slate-50 dark:bg-slate-800/50">
-                                            <th className="px-6 py-4 text-left">Fuel / Region</th>
-                                            <th className="px-6 py-4 text-left">Availability</th>
-                                            <th className="px-6 py-4 text-right">Quantity</th>
-                                            <th className="px-6 py-4 text-right">Price</th>
-                                            <th className="px-6 py-4 text-center">Certifications</th>
-                                            <th className="px-6 py-4 text-center">Order Matches</th>
-                                            <th className="px-6 py-4 text-center">Status</th>
-                                            <th className="px-6 py-4 text-right">Actions</th>
+                                            <th className="px-6 py-4 text-left">{t('supplierListingConsole.table.fuelRegion')}</th>
+                                            <th className="px-6 py-4 text-left">{t('supplierListingConsole.table.availability')}</th>
+                                            <th className="px-6 py-4 text-right">{t('supplierListingConsole.table.quantity')}</th>
+                                            <th className="px-6 py-4 text-right">{t('supplierListingConsole.table.price')}</th>
+                                            <th className="px-6 py-4 text-center">{t('supplierListingConsole.table.certifications')}</th>
+                                            <th className="px-6 py-4 text-center">{t('supplierListingConsole.table.orderMatches')}</th>
+                                            <th className="px-6 py-4 text-center">{t('supplierListingConsole.table.status')}</th>
+                                            <th className="px-6 py-4 text-right">{t('supplierListingConsole.table.actions')}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
@@ -504,7 +508,7 @@ export const SupplierListingConsole: React.FC = () => {
                                                 <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
                                                     {listing.quantity_mt.toLocaleString()} MT
                                                     {listing.remaining_quantity_mt !== undefined && listing.remaining_quantity_mt !== listing.quantity_mt && (
-                                                        <div className="text-xs text-slate-400">({listing.remaining_quantity_mt.toLocaleString()} remaining)</div>
+                                                        <div className="text-xs text-slate-400">({listing.remaining_quantity_mt.toLocaleString()} {t('supplierListingConsole.table.remaining')})</div>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -521,7 +525,7 @@ export const SupplierListingConsole: React.FC = () => {
                                                         {listing.is_verdaxis_verified && (
                                                             <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
                                                                 <Shield size={10} />
-                                                                Verified
+                                                                {t('supplierListingConsole.table.verified')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -543,7 +547,15 @@ export const SupplierListingConsole: React.FC = () => {
                                                             ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30'
                                                             : 'bg-slate-100 dark:bg-slate-600/50 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-500/50'
                                                     }`}>
-                                                        {listing.status === 'OPEN' ? 'Active' : listing.status === 'CANCELLED' ? 'Inactive' : listing.status === 'PARTIALLY_FILLED' ? 'Partial Fill' : listing.status === 'FILLED' ? 'Filled' : listing.status}
+                                                        {listing.status === 'OPEN'
+                                                            ? t('supplierListingConsole.table.active')
+                                                            : listing.status === 'CANCELLED'
+                                                            ? t('supplierListingConsole.table.inactive')
+                                                            : listing.status === 'PARTIALLY_FILLED'
+                                                            ? t('supplierListingConsole.table.partialFill')
+                                                            : listing.status === 'FILLED'
+                                                            ? t('supplierListingConsole.table.filled')
+                                                            : listing.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -580,8 +592,8 @@ export const SupplierListingConsole: React.FC = () => {
                             {listings.length === 0 && (
                                 <div className="p-12 text-center text-slate-500">
                                     <Package size={48} className="mx-auto mb-4 opacity-50" />
-                                    <p className="text-lg">No listings yet</p>
-                                    <p className="text-sm mt-1">Create your first listing to start receiving Direct Orders</p>
+                                    <p className="text-lg">{t('supplierListingConsole.emptyState.heading')}</p>
+                                    <p className="text-sm mt-1">{t('supplierListingConsole.emptyState.body')}</p>
                                 </div>
                             )}
                         </>
@@ -605,7 +617,7 @@ export const SupplierListingConsole: React.FC = () => {
                     <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200">Edit Listing</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200">{t('supplierListingConsole.editModal.title')}</h2>
                             <button
                                 onClick={closeEditModal}
                                 className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
@@ -620,26 +632,26 @@ export const SupplierListingConsole: React.FC = () => {
                                 {/* Read-only Fields */}
                                 <div className="grid grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Fuel Type</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.fuelType')}</label>
                                         <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
                                             {editingListing.fuel_type} ({editingListing.fuel_grade})
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Region</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.region')}</label>
                                         <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
                                             {editingListing.region}
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Status</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.status')}</label>
                                         <select
                                             value={editForm.status}
                                             onChange={(e) => handleEditFormChange('status', e.target.value)}
                                             className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                         >
-                                            <option value="OPEN">Active</option>
-                                            <option value="CANCELLED">Inactive</option>
+                                            <option value="OPEN">{t('supplierListingConsole.table.active')}</option>
+                                            <option value="CANCELLED">{t('supplierListingConsole.table.inactive')}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -647,7 +659,7 @@ export const SupplierListingConsole: React.FC = () => {
                                 {/* Editable Fields */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Quantity (MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.quantity')}</label>
                                         <input
                                             type="number"
                                             value={editForm.quantity_mt || ''}
@@ -657,7 +669,7 @@ export const SupplierListingConsole: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Price ($/MT)</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.price')}</label>
                                         <input
                                             type="number"
                                             value={editForm.price_per_mt_usd || ''}
@@ -676,7 +688,7 @@ export const SupplierListingConsole: React.FC = () => {
                                 />
 
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Availability Window</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.availabilityWindow')}</label>
                                     <select
                                         value={editForm.availability_window}
                                         onChange={(e) => handleEditFormChange('availability_window', e.target.value)}
@@ -690,10 +702,10 @@ export const SupplierListingConsole: React.FC = () => {
 
                                 {/* Certifications */}
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Certifications</label>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.certifications')}</label>
                                     <input
                                         type="text"
-                                        placeholder="Type a certification and press Enter"
+                                        placeholder={t('supplierListingConsole.editModal.certPlaceholder')}
                                         onKeyDown={handleCertificationInputKeyDown}
                                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     />
@@ -728,7 +740,7 @@ export const SupplierListingConsole: React.FC = () => {
                                     disabled={isUpdating}
                                     className="flex-1 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors disabled:opacity-50"
                                 >
-                                    Cancel
+                                    {t('supplierListingConsole.editModal.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -742,10 +754,10 @@ export const SupplierListingConsole: React.FC = () => {
                                     {isUpdating ? (
                                         <>
                                             <Loader2 className="animate-spin" size={18} />
-                                            Saving...
+                                            {t('supplierListingConsole.editModal.saving')}
                                         </>
                                     ) : (
-                                        'Save Changes'
+                                        t('supplierListingConsole.editModal.saveChanges')
                                     )}
                                 </button>
                             </div>
