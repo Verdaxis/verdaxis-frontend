@@ -735,5 +735,62 @@
     "subtitle": "您访问的页面不存在或已移动。",
     "backHome": "返回首页",
     "code": "404"
+  },
+  "hero": {
+    "badge": "现正接受试点申请",
+    "titleLine1": "值得信赖的",
+    "titleLine2": "低碳燃料交易平台",
+    "subtitle": "Verdaxis 是以合规为核心的交易所与注册登记平台，将实物交易与监管完整性融为一体。经核验的来源追溯、透明定价，一站搞定。",
+    "applyPilot": "申请试用",
+    "exploreHowItWorks": "了解运作方式",
+    "trustSignals": {
+      "doubleCounting": "防止双重计算",
+      "imoAligned": "符合IMO和欧盟标准",
+      "physicalFirst": "实物优先逻辑",
+      "ciPricing": "碳强度调整定价"
+    }
+  },
+  "pilotForm": {
+    "companyName": "公司名称",
+    "companyNamePlaceholder": "例：北欧绿色燃料有限公司",
+    "yourName": "您的姓名",
+    "yourNamePlaceholder": "例：张三",
+    "email": "电子邮箱",
+    "emailPlaceholder": "例：zhangsan@company.com",
+    "role": "角色",
+    "rolePlaceholder": "请选择角色...",
+    "fuelTypesLabel": "感兴趣的燃料类型",
+    "estimatedVolume": "预计年交易量（公吨）",
+    "volumePlaceholder": "请选择范围...",
+    "interestLabel": "您对 Verdaxis 有哪些期待？",
+    "interestPlaceholder": "请告诉我们您的需求（选填）",
+    "submit": "提交申请",
+    "roles": {
+      "producer": "生产商",
+      "buyerOperator": "买家/运营商",
+      "traderAggregator": "交易商/聚合商",
+      "financier": "金融机构",
+      "other": "其他"
+    },
+    "fuelTypes": {
+      "methanol": "甲醇",
+      "ethanol": "乙醇",
+      "saf": "可持续航空燃料",
+      "ammonia": "氨",
+      "biofuel": "生物燃料",
+      "other": "其他"
+    },
+    "volumeOptions": {
+      "lt10k": "<10,000",
+      "10kTo50k": "10,000-50,000",
+      "50kTo200k": "50,000-200,000",
+      "200kTo500k": "200,000-500,000",
+      "gt500k": "500,000+"
+    },
+    "success": {
+      "heading": "感谢您！我们将在48小时内与您联系。",
+      "body": "或直接发送邮件至",
+      "email": "pilot@verdaxis.exchange"
+    }
   }
 }

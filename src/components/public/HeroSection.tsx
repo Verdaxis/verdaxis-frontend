@@ -5,17 +5,16 @@ import { motion } from 'motion/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { DataOcean } from './DataOcean';
+import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const trustSignals = [
-  { icon: Shield, label: 'Double-Count Prevention' },
-  { icon: Globe, label: 'IMO & EU Aligned' },
-  { icon: Zap, label: 'Physical-First Logic' },
-  { icon: BarChart3, label: 'CI-Adjusted Pricing' },
-];
+const trustSignalIcons = [Shield, Globe, Zap, BarChart3];
 
 export const HeroSection: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const sectionRef = useRef<HTMLElement>(null);
   const orbGreenRef = useRef<HTMLDivElement>(null);
   const orbBlueRef = useRef<HTMLDivElement>(null);
@@ -63,6 +62,20 @@ export const HeroSection: React.FC = () => {
 
     return () => ctx.revert();
   }, []);
+
+  if (!ready) return null;
+
+  const trustSignalKeys = [
+    'doubleCounting',
+    'imoAligned',
+    'physicalFirst',
+    'ciPricing',
+  ] as const;
+
+  const trustSignals = trustSignalKeys.map((key, i) => ({
+    icon: trustSignalIcons[i],
+    label: t(`hero.trustSignals.${key}`),
+  }));
 
   return (
     <section
@@ -140,7 +153,7 @@ export const HeroSection: React.FC = () => {
               display: 'inline-block',
             }}
           />
-          Now accepting pilot applications
+          {t('hero.badge')}
         </motion.div>
 
         {/* Headline */}
@@ -158,7 +171,7 @@ export const HeroSection: React.FC = () => {
             letterSpacing: '-0.015em',
           }}
         >
-          The trusted exchange
+          {t('hero.titleLine1')}
           <br />
           for{' '}
           <span
@@ -169,7 +182,7 @@ export const HeroSection: React.FC = () => {
               backgroundClip: 'text',
             }}
           >
-            low-carbon fuels
+            {t('hero.titleLine2')}
           </span>
         </motion.h1>
 
@@ -187,9 +200,7 @@ export const HeroSection: React.FC = () => {
             marginBottom: 44,
           }}
         >
-          Verdaxis is the compliance-first exchange and registry where physical
-          trade meets regulatory integrity. Verified provenance, transparent
-          pricing, one platform.
+          {t('hero.subtitle')}
         </motion.p>
 
         {/* CTA Buttons */}
@@ -207,7 +218,7 @@ export const HeroSection: React.FC = () => {
         >
           <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
-              to="/pilot"
+              to={localePath('/pilot')}
               className="cta-primary"
               style={{
                 background: '#0F172A',
@@ -222,13 +233,13 @@ export const HeroSection: React.FC = () => {
                 gap: 8,
               }}
             >
-              Apply for Pilot
+              {t('hero.applyPilot')}
               <ArrowRight size={16} />
             </Link>
           </motion.div>
           <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
-              to="/how-it-works"
+              to={localePath('/how-it-works')}
               className="cta-secondary"
               style={{
                 background: 'transparent',
@@ -244,7 +255,7 @@ export const HeroSection: React.FC = () => {
                 gap: 8,
               }}
             >
-              See How It Works
+              {t('hero.exploreHowItWorks')}
             </Link>
           </motion.div>
         </motion.div>

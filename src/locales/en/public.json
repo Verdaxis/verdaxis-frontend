@@ -1018,5 +1018,62 @@
     "title": "Page Not Found",
     "message": "The page you're looking for doesn't exist or has been moved.",
     "backHome": "Back to Home"
+  },
+  "hero": {
+    "badge": "Now accepting pilot applications",
+    "titleLine1": "The trusted exchange",
+    "titleLine2": "for low-carbon fuels",
+    "subtitle": "Verdaxis is the compliance-first exchange and registry where physical trade meets regulatory integrity. Verified provenance, transparent pricing, one platform.",
+    "applyPilot": "Apply for Pilot",
+    "exploreHowItWorks": "See How It Works",
+    "trustSignals": {
+      "doubleCounting": "Double-Count Prevention",
+      "imoAligned": "IMO & EU Aligned",
+      "physicalFirst": "Physical-First Logic",
+      "ciPricing": "CI-Adjusted Pricing"
+    }
+  },
+  "pilotForm": {
+    "companyName": "Company Name",
+    "companyNamePlaceholder": "e.g. Nordic Green Fuels AS",
+    "yourName": "Your Name",
+    "yourNamePlaceholder": "e.g. Jane Doe",
+    "email": "Email",
+    "emailPlaceholder": "e.g. jane@company.com",
+    "role": "Role",
+    "rolePlaceholder": "Select a role...",
+    "fuelTypesLabel": "Fuel Types of Interest",
+    "estimatedVolume": "Estimated Annual Volume (mt)",
+    "volumePlaceholder": "Select a range...",
+    "interestLabel": "What interests you about Verdaxis?",
+    "interestPlaceholder": "Tell us about your needs (optional)",
+    "submit": "Submit Application",
+    "roles": {
+      "producer": "Producer",
+      "buyerOperator": "Buyer/Operator",
+      "traderAggregator": "Trader/Aggregator",
+      "financier": "Financier",
+      "other": "Other"
+    },
+    "fuelTypes": {
+      "methanol": "Methanol",
+      "ethanol": "Ethanol",
+      "saf": "SAF",
+      "ammonia": "Ammonia",
+      "biofuel": "Biofuel",
+      "other": "Other"
+    },
+    "volumeOptions": {
+      "lt10k": "<10,000",
+      "10kTo50k": "10,000-50,000",
+      "50kTo200k": "50,000-200,000",
+      "200kTo500k": "200,000-500,000",
+      "gt500k": "500,000+"
+    },
+    "success": {
+      "heading": "Thank you! We'll be in touch within 48 hours.",
+      "body": "Or email us directly at",
+      "email": "pilot@verdaxis.exchange"
+    }
   }
 }

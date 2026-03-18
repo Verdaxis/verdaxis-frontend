@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Send, CheckCircle } from 'lucide-react';
+import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -24,16 +25,6 @@ const initialFormData: FormData = {
   estimatedVolume: '',
   interest: '',
 };
-
-const roleOptions = ['Producer', 'Buyer/Operator', 'Trader/Aggregator', 'Financier', 'Other'];
-const fuelTypeOptions = ['Methanol', 'Ethanol', 'SAF', 'Ammonia', 'Biofuel', 'Other'];
-const volumeOptions = [
-  '<10,000',
-  '10,000-50,000',
-  '50,000-200,000',
-  '200,000-500,000',
-  '500,000+',
-];
 
 const STORAGE_KEY = 'verdaxis_pilot_applications';
 
@@ -70,6 +61,7 @@ const fieldGroup: React.CSSProperties = {
 /* ================================================================== */
 
 export const PilotApplicationForm: React.FC = () => {
+  const { t, ready } = useNamespace('public');
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState(false);
@@ -124,6 +116,35 @@ export const PilotApplicationForm: React.FC = () => {
     setSubmitted(true);
   };
 
+  if (!ready) return null;
+
+  /* ---- Option arrays (translated) ---- */
+
+  const roleOptions = [
+    { value: 'Producer', label: t('pilotForm.roles.producer') },
+    { value: 'Buyer/Operator', label: t('pilotForm.roles.buyerOperator') },
+    { value: 'Trader/Aggregator', label: t('pilotForm.roles.traderAggregator') },
+    { value: 'Financier', label: t('pilotForm.roles.financier') },
+    { value: 'Other', label: t('pilotForm.roles.other') },
+  ];
+
+  const fuelTypeOptions = [
+    { value: 'Methanol', label: t('pilotForm.fuelTypes.methanol') },
+    { value: 'Ethanol', label: t('pilotForm.fuelTypes.ethanol') },
+    { value: 'SAF', label: t('pilotForm.fuelTypes.saf') },
+    { value: 'Ammonia', label: t('pilotForm.fuelTypes.ammonia') },
+    { value: 'Biofuel', label: t('pilotForm.fuelTypes.biofuel') },
+    { value: 'Other', label: t('pilotForm.fuelTypes.other') },
+  ];
+
+  const volumeOptions = [
+    { value: '<10,000', label: t('pilotForm.volumeOptions.lt10k') },
+    { value: '10,000-50,000', label: t('pilotForm.volumeOptions.10kTo50k') },
+    { value: '50,000-200,000', label: t('pilotForm.volumeOptions.50kTo200k') },
+    { value: '200,000-500,000', label: t('pilotForm.volumeOptions.200kTo500k') },
+    { value: '500,000+', label: t('pilotForm.volumeOptions.gt500k') },
+  ];
+
   /* ---- Success state ---- */
 
   if (submitted) {
@@ -159,7 +180,7 @@ export const PilotApplicationForm: React.FC = () => {
             marginBottom: 12,
           }}
         >
-          Thank you! We'll be in touch within 48 hours.
+          {t('pilotForm.success.heading')}
         </h3>
         <p
           style={{
@@ -168,12 +189,12 @@ export const PilotApplicationForm: React.FC = () => {
             lineHeight: 1.6,
           }}
         >
-          Or email us directly at{' '}
+          {t('pilotForm.success.body')}{' '}
           <a
             href="mailto:pilot@verdaxis.exchange"
             style={{ color: '#5DADE2', fontWeight: 600, textDecoration: 'underline' }}
           >
-            pilot@verdaxis.exchange
+            {t('pilotForm.success.email')}
           </a>
         </p>
       </div>
@@ -187,7 +208,7 @@ export const PilotApplicationForm: React.FC = () => {
       {/* Company Name */}
       <div style={fieldGroup}>
         <label htmlFor="companyName" style={labelStyle}>
-          Company Name <span style={{ color: '#EF4444' }}>*</span>
+          {t('pilotForm.companyName')} <span style={{ color: '#EF4444' }}>*</span>
         </label>
         <input
           id="companyName"
@@ -195,14 +216,14 @@ export const PilotApplicationForm: React.FC = () => {
           value={formData.companyName}
           onChange={handleText('companyName')}
           style={borderFor('companyName')}
-          placeholder="e.g. Nordic Green Fuels AS"
+          placeholder={t('pilotForm.companyNamePlaceholder')}
         />
       </div>
 
       {/* Your Name */}
       <div style={fieldGroup}>
         <label htmlFor="yourName" style={labelStyle}>
-          Your Name <span style={{ color: '#EF4444' }}>*</span>
+          {t('pilotForm.yourName')} <span style={{ color: '#EF4444' }}>*</span>
         </label>
         <input
           id="yourName"
@@ -210,14 +231,14 @@ export const PilotApplicationForm: React.FC = () => {
           value={formData.yourName}
           onChange={handleText('yourName')}
           style={borderFor('yourName')}
-          placeholder="e.g. Jane Doe"
+          placeholder={t('pilotForm.yourNamePlaceholder')}
         />
       </div>
 
       {/* Email */}
       <div style={fieldGroup}>
         <label htmlFor="email" style={labelStyle}>
-          Email <span style={{ color: '#EF4444' }}>*</span>
+          {t('pilotForm.email')} <span style={{ color: '#EF4444' }}>*</span>
         </label>
         <input
           id="email"
@@ -225,14 +246,14 @@ export const PilotApplicationForm: React.FC = () => {
           value={formData.email}
           onChange={handleText('email')}
           style={borderFor('email')}
-          placeholder="e.g. jane@company.com"
+          placeholder={t('pilotForm.emailPlaceholder')}
         />
       </div>
 
       {/* Role */}
       <div style={fieldGroup}>
         <label htmlFor="role" style={labelStyle}>
-          Role
+          {t('pilotForm.role')}
         </label>
         <select
           id="role"
@@ -240,10 +261,10 @@ export const PilotApplicationForm: React.FC = () => {
           onChange={handleText('role')}
           style={{ ...inputBase, cursor: 'pointer' }}
         >
-          <option value="">Select a role...</option>
+          <option value="">{t('pilotForm.rolePlaceholder')}</option>
           {roleOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
             </option>
           ))}
         </select>
@@ -251,11 +272,11 @@ export const PilotApplicationForm: React.FC = () => {
 
       {/* Fuel Types of Interest */}
       <div style={fieldGroup}>
-        <span style={{ ...labelStyle, marginBottom: 12 }}>Fuel Types of Interest</span>
+        <span style={{ ...labelStyle, marginBottom: 12 }}>{t('pilotForm.fuelTypesLabel')}</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
           {fuelTypeOptions.map((fuel) => (
             <label
-              key={fuel}
+              key={fuel.value}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -267,11 +288,11 @@ export const PilotApplicationForm: React.FC = () => {
             >
               <input
                 type="checkbox"
-                checked={formData.fuelTypes.includes(fuel)}
-                onChange={() => handleCheckbox(fuel)}
+                checked={formData.fuelTypes.includes(fuel.value)}
+                onChange={() => handleCheckbox(fuel.value)}
                 style={{ width: 16, height: 16, accentColor: '#4CAF50', cursor: 'pointer' }}
               />
-              {fuel}
+              {fuel.label}
             </label>
           ))}
         </div>
@@ -280,7 +301,7 @@ export const PilotApplicationForm: React.FC = () => {
       {/* Estimated Annual Volume */}
       <div style={fieldGroup}>
         <label htmlFor="estimatedVolume" style={labelStyle}>
-          Estimated Annual Volume (mt)
+          {t('pilotForm.estimatedVolume')}
         </label>
         <select
           id="estimatedVolume"
@@ -288,10 +309,10 @@ export const PilotApplicationForm: React.FC = () => {
           onChange={handleText('estimatedVolume')}
           style={{ ...inputBase, cursor: 'pointer' }}
         >
-          <option value="">Select a range...</option>
+          <option value="">{t('pilotForm.volumePlaceholder')}</option>
           {volumeOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
             </option>
           ))}
         </select>
@@ -300,7 +321,7 @@ export const PilotApplicationForm: React.FC = () => {
       {/* Interest */}
       <div style={fieldGroup}>
         <label htmlFor="interest" style={labelStyle}>
-          What interests you about Verdaxis?
+          {t('pilotForm.interestLabel')}
         </label>
         <textarea
           id="interest"
@@ -311,7 +332,7 @@ export const PilotApplicationForm: React.FC = () => {
             ...inputBase,
             resize: 'vertical',
           }}
-          placeholder="Tell us about your needs (optional)"
+          placeholder={t('pilotForm.interestPlaceholder')}
         />
       </div>
 
@@ -335,7 +356,7 @@ export const PilotApplicationForm: React.FC = () => {
         }}
       >
         <Send size={18} />
-        Submit Application
+        {t('pilotForm.submit')}
       </button>
     </form>
   );
