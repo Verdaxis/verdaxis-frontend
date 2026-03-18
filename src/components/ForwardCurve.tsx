@@ -13,6 +13,7 @@ import {
 import { Download, RefreshCw, TrendingUp, Lock } from 'lucide-react';
 import { api } from '../services/api';
 import { Product, ForwardCurveResponse, Subscription } from '../types';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface ForwardCurveProps {
     initialProductId?: string;
@@ -20,7 +21,7 @@ interface ForwardCurveProps {
 
 const REFRESH_INTERVAL_MS = 30_000;
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, tFn }: any) => {
     if (!active || !payload || payload.length === 0) return null;
     return (
         <div style={{
@@ -44,13 +45,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             ))}
             {payload[0]?.payload?.spread != null && (
                 <div style={{ marginTop: 4, color: '#888', fontSize: 10 }}>
-                    Spread: ${Number(payload[0].payload.spread).toFixed(2)}
+                    {tFn ? tFn('forwardCurve.spread') : 'Spread:'} ${Number(payload[0].payload.spread).toFixed(2)}
                 </div>
             )}
             {payload[0]?.payload?.volume_mt != null && (
                 <div style={{ color: '#888', fontSize: 10 }}>
-                    Vol: {Number(payload[0].payload.volume_mt).toLocaleString()} MT
-                    {payload[0]?.payload?.order_count != null && ` · ${payload[0].payload.order_count} orders`}
+                    {tFn ? tFn('forwardCurve.vol') : 'Vol:'} {Number(payload[0].payload.volume_mt).toLocaleString()} MT
+                    {payload[0]?.payload?.order_count != null && ` · ${payload[0].payload.order_count} ${tFn ? tFn('forwardCurve.orders') : 'orders'}`}
                 </div>
             )}
         </div>
@@ -58,6 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId || '');
     const [curveData, setCurveData] = useState<ForwardCurveResponse | null>(null);
@@ -123,6 +125,8 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
     const isFree = !subscription || subscription.tier === 'free';
     const chartPoints = curveData?.curve ?? [];
 
+    if (!ready) return null;
+
     return (
         <div style={{
             background: 'var(--ocean, #0A1628)',
@@ -136,7 +140,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <TrendingUp size={14} color="var(--bio, #00D4AA)" />
                     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#888' }}>
-                        Forward Curve
+                        {t('forwardCurve.title')}
                     </span>
                     {lastRefresh && (
                         <span style={{ fontSize: 10, color: '#555' }}>
@@ -169,7 +173,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                     <button
                         onClick={fetchCurve}
                         disabled={loading}
-                        title="Refresh"
+                        title={t('forwardCurve.refresh')}
                         style={{
                             background: 'transparent',
                             border: '1px solid rgba(0,102,255,0.3)',
@@ -203,7 +207,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                         }}
                     >
                         {isFree ? <Lock size={10} /> : <Download size={10} />}
-                        {isFree ? 'Upgrade' : 'Export CSV'}
+                        {isFree ? t('forwardCurve.upgrade') : t('forwardCurve.exportCsv')}
                     </button>
                 </div>
             </div>
@@ -211,11 +215,11 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
             {/* Chart */}
             {loading && chartPoints.length === 0 ? (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>
-                    <span style={{ fontSize: 12 }}>Loading...</span>
+                    <span style={{ fontSize: 12 }}>{t('forwardCurve.loading')}</span>
                 </div>
             ) : chartPoints.length === 0 ? (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555' }}>
-                    <span style={{ fontSize: 12 }}>No forward curve data available</span>
+                    <span style={{ fontSize: 12 }}>{t('forwardCurve.noData')}</span>
                 </div>
             ) : (
                 <ResponsiveContainer width="100%" height={220}>
@@ -240,14 +244,14 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                             domain={['dataMin - 5', 'dataMax + 5']}
                             tickFormatter={(v: number) => `$${v.toFixed(0)}`}
                         />
-                        <RechartsTooltip content={<CustomTooltip />} />
+                        <RechartsTooltip content={<CustomTooltip tFn={t} />} />
                         <Legend
                             iconSize={8}
                             wrapperStyle={{ fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: '#888', paddingTop: 8 }}
                         />
                         <Bar
                             dataKey="best_bid"
-                            name="Best Bid"
+                            name={t('forwardCurve.bestBid')}
                             fill="rgba(0, 212, 170, 0.35)"
                             stroke="var(--bio, #00D4AA)"
                             strokeWidth={1}
@@ -255,7 +259,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                         />
                         <Bar
                             dataKey="best_ask"
-                            name="Best Ask"
+                            name={t('forwardCurve.bestAsk')}
                             fill="rgba(255, 59, 59, 0.25)"
                             stroke="var(--danger, #FF3B3B)"
                             strokeWidth={1}
@@ -264,7 +268,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                         <Line
                             type="monotone"
                             dataKey="mid_price"
-                            name="Mid Price"
+                            name={t('forwardCurve.midPrice')}
                             stroke="var(--sonar, #0066FF)"
                             strokeWidth={2}
                             dot={{ r: 3, fill: 'var(--sonar, #0066FF)', stroke: '#050A14' }}

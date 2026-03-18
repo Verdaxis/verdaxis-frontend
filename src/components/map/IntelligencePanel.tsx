@@ -4,6 +4,7 @@ import { Port, Page, Vessel } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
+import { useNamespace } from '../../hooks/useNamespace';
 
 interface IntelligencePanelProps {
     isOpen: boolean;
@@ -24,6 +25,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     ports,
     onArbitrageUpdate
 }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [aiNarrative, setAiNarrative] = useState<string | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
     
@@ -56,7 +58,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         change: p.priceTrend >= 0 ? `+${p.priceTrend.toFixed(1)}%` : `${p.priceTrend.toFixed(1)}%`,
         up: p.priceTrend >= 0,
         price: `$${p.priceMethanol}`,
-        curve: p.priceTrend >= 0 ? 'Contango' : 'Backwardation',
+        curve: p.priceTrend >= 0 ? t('intelligencePanel.contango') : t('intelligencePanel.backwardation'),
     }));
 
     // Find the most at-risk vessel for fleet alert
@@ -67,6 +69,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     const alertType = atRiskVessel
         ? (atRiskVessel.complianceFuelEU === 'Non-Compliant' || atRiskVessel.complianceFuelEU === 'Warning' ? 'FuelEU' : 'EU ETS')
         : null;
+
+    if (!ready) return null;
 
     return (
         <div className={`
@@ -79,11 +83,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <div className="flex items-center space-x-2 text-[#5DADE2] mb-1">
                         <TrendingUp size={18} />
                         <span className="text-xs font-bold tracking-widest uppercase">
-                            {selectedPort ? 'Port Intelligence' : 'Global Insights'}
+                            {selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
                         </span>
                     </div>
                     <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-slate-100">
-                        {selectedPort ? selectedPort.name : 'Global Overview'}
+                        {selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
                     </h2>
                 </div>
                 <button 
@@ -103,7 +107,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         {/* Market Price & Trend */}
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Market Price</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('intelligencePanel.marketPrice')}</div>
                                 <div className="text-2xl font-['Montserrat'] font-bold text-slate-800 dark:text-slate-100 flex items-center">
                                     ${selectedPort.priceMethanol}
                                     {selectedPort.priceTrend !== undefined && (
@@ -115,7 +119,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 </div>
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">Availability</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('intelligencePanel.availability')}</div>
                                 <div className={`text-xl font-bold flex items-center ${selectedPort.methanolSupply === 'High' ? 'text-emerald-500' : 'text-amber-500'}`}>
                                     {selectedPort.methanolSupply}
                                     <div className={`ml-2 w-3 h-3 rounded-full ${selectedPort.methanolSupply === 'High' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
@@ -129,21 +133,21 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 {selectedPort.details.avgWaitingTime > 0 && (
                                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                                            <Anchor size={10} /> Congestion
+                                            <Anchor size={10} /> {t('intelligencePanel.congestion')}
                                         </div>
                                         <div className={`text-sm font-bold ${selectedPort.details.congestionLevel === 'High' ? 'text-red-500' : 'text-green-600'}`}>
                                             {selectedPort.details.congestionLevel}
                                         </div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.avgWaitingTime}h wait avg</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.waitAvg', { hours: selectedPort.details.avgWaitingTime })}</div>
                                     </div>
                                 )}
                                 {selectedPort.details.activeBarges > 0 && (
                                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                                            <Ship size={10} /> Supply
+                                            <Ship size={10} /> {t('intelligencePanel.supply')}
                                         </div>
                                         <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{selectedPort.details.forecastSupply}</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{selectedPort.details.activeBarges} active barges</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.activeBarges', { count: selectedPort.details.activeBarges })}</div>
                                     </div>
                                 )}
                             </div>
@@ -153,7 +157,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         {selectedPort.details.upcomingProjects && (
                             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
                                 <h3 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                                    <TrendingUp size={10} /> Future Production Pipeline
+                                    <TrendingUp size={10} /> {t('intelligencePanel.futurePipeline')}
                                 </h3>
                                 <div className="space-y-2">
                                     {selectedPort.details.upcomingProjects.map((project, idx) => (
@@ -173,7 +177,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
 
                         {/* Mock Price Chart */}
                         <div className="border border-slate-100 dark:border-slate-700 rounded-lg p-4">
-                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3">Methanol Price (7 Day)</h3>
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3">{t('intelligencePanel.methanolPrice7Day')}</h3>
                             <div className="h-24 flex items-end space-x-1">
                                 {selectedPort.details.priceHistory.map((price, i) => {
                                     const h = (price / 600) * 100; // Normalize roughly
@@ -194,7 +198,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             onClick={() => onPortSelect(selectedPort)}
                             className="w-full bg-[#5DADE2] text-white font-bold py-3 rounded-lg shadow-lg hover:bg-[#4FA3D9] flex items-center justify-center space-x-2 transition-colors"
                         >
-                            <span>View Market & Procure</span>
+                            <span>{t('intelligencePanel.viewMarketProcure')}</span>
                             <ArrowRight size={16} />
                         </button>
                     </>
@@ -206,7 +210,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         {/* Forward Curves */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves (Q4)</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('intelligencePanel.forwardCurvesQ4')}</h3>
                                 <LineChart size={14} className="text-slate-400" />
                             </div>
                             <div className="space-y-3">
@@ -236,26 +240,31 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <div className="p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg mt-auto">
                         <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-500 mb-2">
                             <AlertCircle size={16} />
-                            <span className="text-xs font-bold uppercase">Fleet Alert</span>
+                            <span className="text-xs font-bold uppercase">{t('intelligencePanel.fleetAlert')}</span>
                         </div>
                         <p className="text-xs text-amber-800 dark:text-amber-400">
-                            Vessel <span className="font-bold">{atRiskVessel.name}</span> has {alertType} status: <span className="font-bold">{alertType === 'FuelEU' ? atRiskVessel.complianceFuelEU : atRiskVessel.complianceEUETS}</span>. CII Grade: {atRiskVessel.ciiGrade}.
+                            {t('intelligencePanel.fleetAlertMessage', {
+                                name: atRiskVessel.name,
+                                alertType,
+                                status: alertType === 'FuelEU' ? atRiskVessel.complianceFuelEU : atRiskVessel.complianceEUETS,
+                                grade: atRiskVessel.ciiGrade,
+                            })}
                         </p>
                         <button
                             onClick={() => onNavigate('FLEET')}
                             className="mt-3 w-full text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded py-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
                         >
-                            View Fleet Status
+                            {t('intelligencePanel.viewFleetStatus')}
                         </button>
                     </div>
                 ) : (
                     <div className="p-4 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg mt-auto">
                         <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-500 mb-2">
                             <Ship size={16} />
-                            <span className="text-xs font-bold uppercase">Fleet Status</span>
+                            <span className="text-xs font-bold uppercase">{t('intelligencePanel.fleetStatus')}</span>
                         </div>
                         <p className="text-xs text-emerald-800 dark:text-emerald-400">
-                            All vessels are compliant. No alerts at this time.
+                            {t('intelligencePanel.allVesselsCompliant')}
                         </p>
                     </div>
                 )}

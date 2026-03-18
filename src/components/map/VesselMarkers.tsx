@@ -6,6 +6,7 @@ import { Ship, Anchor, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import { Vessel } from '../../types';
 import { calculateHeading } from '../../utils';
+import { useNamespace } from '../../hooks/useNamespace';
 
 // Fix: Alias imports if strictly needed, but assuming standard react-leaflet approach for now
 // If this file fails to compile with props errors, we might need similar casting as BuyerMap
@@ -50,6 +51,7 @@ const createVesselIcon = (vessel: Vessel) => {
 };
 
 export const VesselMarkers: React.FC = () => {
+    const { t, ready } = useNamespace('dashboard');
     const [vessels, setVessels] = React.useState<Vessel[]>([]);
     const [loading, setLoading] = React.useState(true);
 
@@ -67,7 +69,7 @@ export const VesselMarkers: React.FC = () => {
         fetchVessels();
     }, []);
 
-    if (loading) return null;
+    if (loading || !ready) return null;
 
     return (
         <>
@@ -89,11 +91,11 @@ export const VesselMarkers: React.FC = () => {
                                 </div>
                                 <div className="space-y-1.5 mb-2">
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500">Voyage:</span>
+                                        <span className="text-slate-500">{t('vesselPopup.voyage')}</span>
                                         <span className="text-slate-300 font-medium text-right max-w-[120px] truncate">{vessel.nextVoyage}</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500">CII Grade:</span>
+                                        <span className="text-slate-500">{t('vesselPopup.ciiGrade')}</span>
                                         <span className={`font-bold ${
                                             ['A','B'].includes(vessel.ciiGrade) ? 'text-emerald-400' :
                                             ['C'].includes(vessel.ciiGrade) ? 'text-amber-400' : 'text-red-400'
@@ -104,7 +106,7 @@ export const VesselMarkers: React.FC = () => {
                                     <div className="bg-red-500/10 border border-red-500/20 rounded p-1.5 flex items-start gap-1.5">
                                         <AlertCircle size={12} className="text-red-400 mt-0.5 shrink-0" />
                                         <div className="text-[10px] text-red-300 leading-tight">
-                                            Compliance Warning: {vessel.complianceEUETS !== 'Compliant' ? 'EU ETS' : 'FuelEU'} Risk
+                                            {t('vesselPopup.complianceWarning', { regime: vessel.complianceEUETS !== 'Compliant' ? 'EU ETS' : 'FuelEU' })}
                                         </div>
                                     </div>
                                 )}

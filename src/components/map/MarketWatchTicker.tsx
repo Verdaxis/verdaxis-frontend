@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Activity, RefreshCw, WifiOff, FlaskConical } from 'lucide-react';
 import { MarketWatchItem } from '../../types';
 import { fetchLiveMarketData } from '../../services/ai-engine/generators';
+import { useNamespace } from '../../hooks/useNamespace';
 
 interface MarketWatchTickerProps {
     isPanelOpen: boolean;
@@ -17,6 +18,7 @@ const PLACEHOLDERS: MarketWatchItem[] = [
 ];
 
 export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpen, onOpenPanel }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [items, setItems] = useState<MarketWatchItem[]>(PLACEHOLDERS);
     const [status, setStatus] = useState<'LOADING' | 'LIVE' | 'DEMO' | 'ERROR'>('LOADING');
 
@@ -48,6 +50,8 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         loadLiveMarketData();
     }, []);
 
+    if (!ready) return null;
+
     return (
         <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-lg rounded-lg p-3 flex items-center space-x-6 overflow-x-auto w-full">
             <div className="flex items-center space-x-2 border-r border-slate-200 pr-4 min-w-fit">
@@ -58,12 +62,12 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
 
                 <div>
                     <span className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 whitespace-nowrap block">
-                        Market Watch
+                        {t('marketWatch.title')}
                     </span>
-                    {status === 'LIVE' && <span className="text-[8px] font-bold text-green-600 uppercase tracking-wider">● LIVE FEED</span>}
-                    {status === 'DEMO' && <span className="text-[8px] font-bold text-blue-500 uppercase tracking-wider">● REFERENCE</span>}
-                    {status === 'LOADING' && <span className="text-[8px] font-bold text-verdaxis uppercase tracking-wider">CONNECTING...</span>}
-                    {status === 'ERROR' && <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider">OFFLINE</span>}
+                    {status === 'LIVE' && <span className="text-[8px] font-bold text-green-600 uppercase tracking-wider">● {t('marketWatch.liveFeed')}</span>}
+                    {status === 'DEMO' && <span className="text-[8px] font-bold text-blue-500 uppercase tracking-wider">● {t('marketWatch.reference')}</span>}
+                    {status === 'LOADING' && <span className="text-[8px] font-bold text-verdaxis uppercase tracking-wider">{t('marketWatch.connecting')}</span>}
+                    {status === 'ERROR' && <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider">{t('marketWatch.offline')}</span>}
                 </div>
             </div>
 
@@ -89,7 +93,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                 <button 
                     onClick={loadLiveMarketData}
                     className="mr-4 p-1 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
-                    title="Retry Connection"
+                    title={t('marketWatch.retryConnection')}
                 >
                     <RefreshCw size={14} />
                 </button>
@@ -98,9 +102,9 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
             <button 
                 onClick={onOpenPanel}
                 className="text-xs font-bold text-verdaxis hover:text-verdaxis-dark whitespace-nowrap"
-                title="View Full Analytics"
+                title={t('marketWatch.viewFullAnalytics')}
             >
-                View Full Analytics →
+                {t('marketWatch.viewFullAnalytics')}
             </button>
         </div>
     );

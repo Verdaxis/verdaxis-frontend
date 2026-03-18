@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface FeedEvent {
     id: string;
@@ -48,6 +49,7 @@ const formatRelativeTime = (date: Date): string => {
 let eventCounter = 0;
 
 export const ActivityFeed: React.FC = () => {
+    const { t, ready } = useNamespace('dashboard');
     const [events, setEvents] = useState<FeedEvent[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -130,9 +132,11 @@ export const ActivityFeed: React.FC = () => {
 
     // Update relative timestamps every 30s
     useEffect(() => {
-        const interval = setInterval(() => setTick(t => t + 1), 30_000);
+        const interval = setInterval(() => setTick(tick => tick + 1), 30_000);
         return () => clearInterval(interval);
     }, []);
+
+    if (!ready) return null;
 
     return (
         <div style={{
@@ -155,7 +159,7 @@ export const ActivityFeed: React.FC = () => {
             }}>
                 <Activity size={12} color="var(--bio, #00D4AA)" />
                 <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#888' }}>
-                    Market Activity
+                    {t('activityFeed.title')}
                 </span>
                 <div style={{
                     width: 6,
@@ -166,7 +170,7 @@ export const ActivityFeed: React.FC = () => {
                     ...(isConnected ? { animation: 'pulse 2s infinite' } : {}),
                 }} />
                 <span style={{ marginLeft: 'auto', fontSize: 10, color: '#555' }}>
-                    {events.length > 0 ? `${events.length} events` : ''}
+                    {events.length > 0 ? t('activityFeed.events', { count: events.length }) : ''}
                 </span>
             </div>
 
@@ -196,7 +200,7 @@ export const ActivityFeed: React.FC = () => {
                             background: '#333',
                             animation: 'pulse 2s infinite',
                         }} />
-                        <span style={{ fontSize: 11 }}>No activity yet</span>
+                        <span style={{ fontSize: 11 }}>{t('activityFeed.noActivity')}</span>
                     </div>
                 ) : (
                     events.map((evt) => {

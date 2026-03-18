@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Bell, Trash2, Plus, ArrowUp, ArrowDown, X, Loader2, Lock } from 'lucide-react';
 import { api } from '../services/api';
 import { PriceAlert, Product, Subscription } from '../types';
+import { useNamespace } from '../hooks/useNamespace';
 
 const FREE_TIER_LIMIT = 5;
 
@@ -11,6 +12,7 @@ interface PriceAlertManagerProps {
 }
 
 export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, onClose }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [alerts, setAlerts] = useState<PriceAlert[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -54,7 +56,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
             await api.alerts.delete(alertId);
             setAlerts(prev => prev.filter(a => a.id !== alertId));
         } catch (e: any) {
-            setError(e.message || 'Failed to delete alert');
+            setError(e.message || t('priceAlerts.failedDelete'));
         }
     };
 
@@ -62,7 +64,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
         e.preventDefault();
         const threshold = parseFloat(formThreshold);
         if (!formProductId || isNaN(threshold) || threshold <= 0) {
-            setError('Please fill in all fields with valid values.');
+            setError(t('priceAlerts.fillAllFields'));
             return;
         }
         setSubmitting(true);
@@ -77,13 +79,14 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
             setShowForm(false);
             setFormThreshold('');
         } catch (e: any) {
-            setError(e.message || 'Failed to create alert');
+            setError(e.message || t('priceAlerts.failedCreate'));
         } finally {
             setSubmitting(false);
         }
     };
 
     if (!isOpen) return null;
+    if (!ready) return null;
 
     const tier = subscription?.tier ?? 'free';
     const isAtLimit = tier === 'free' && alerts.length >= FREE_TIER_LIMIT;
@@ -130,7 +133,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                 }}>
                     <Bell size={14} color="var(--amber, #FFB020)" />
                     <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#e5e5e5', flex: 1 }}>
-                        Price Alerts
+                        {t('priceAlerts.title')}
                     </span>
                     <button
                         onClick={onClose}
@@ -149,7 +152,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                         marginBottom: 16,
                     }}>
                         <span style={{ fontSize: 11, color: '#888' }}>
-                            {alerts.length}/{tier === 'free' ? FREE_TIER_LIMIT : '∞'} alerts used
+                            {t('priceAlerts.alertsUsed', { used: alerts.length, limit: tier === 'free' ? FREE_TIER_LIMIT : '∞' })}
                         </span>
                         {tier === 'free' && (
                             <div style={{
@@ -196,10 +199,10 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                         }}>
                             <Lock size={18} color="var(--amber, #FFB020)" style={{ margin: '0 auto 8px' }} />
                             <div style={{ fontSize: 12, color: 'var(--amber, #FFB020)', fontWeight: 700, marginBottom: 4 }}>
-                                Alert limit reached
+                                {t('priceAlerts.limitReached')}
                             </div>
                             <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
-                                Free tier supports up to {FREE_TIER_LIMIT} alerts. Upgrade to Standard or Enterprise for unlimited alerts.
+                                {t('priceAlerts.limitMessage', { limit: FREE_TIER_LIMIT })}
                             </div>
                             <button
                                 onClick={() => window.open('/pricing', '_blank')}
@@ -216,7 +219,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     letterSpacing: '0.05em',
                                 }}
                             >
-                                Upgrade Plan
+                                {t('priceAlerts.upgradePlan')}
                             </button>
                         </div>
                     ) : (
@@ -244,7 +247,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     }}
                                 >
                                     <Plus size={12} />
-                                    Add Alert
+                                    {t('priceAlerts.addAlert')}
                                 </button>
                             ) : (
                                 <form onSubmit={handleCreate} style={{
@@ -255,13 +258,13 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     marginBottom: 16,
                                 }}>
                                     <div style={{ fontSize: 11, color: '#888', fontWeight: 700, marginBottom: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                        New Alert
+                                        {t('priceAlerts.newAlert')}
                                     </div>
 
                                     {/* Product */}
                                     <div style={{ marginBottom: 10 }}>
                                         <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                            Product
+                                            {t('priceAlerts.product')}
                                         </label>
                                         <select
                                             value={formProductId}
@@ -287,7 +290,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     {/* Direction toggle */}
                                     <div style={{ marginBottom: 10 }}>
                                         <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                            Direction
+                                            {t('priceAlerts.direction')}
                                         </label>
                                         <div style={{ display: 'flex', gap: 6 }}>
                                             {(['above', 'below'] as const).map(dir => (
@@ -319,7 +322,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                     }}
                                                 >
                                                     {dir === 'above' ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-                                                    {dir.charAt(0).toUpperCase() + dir.slice(1)}
+                                                    {dir === 'above' ? t('priceAlerts.above') : t('priceAlerts.below')}
                                                 </button>
                                             ))}
                                         </div>
@@ -328,7 +331,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     {/* Threshold */}
                                     <div style={{ marginBottom: 12 }}>
                                         <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                            Threshold (USD/MT)
+                                            {t('priceAlerts.threshold')}
                                         </label>
                                         <input
                                             type="number"
@@ -336,7 +339,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             step="0.01"
                                             value={formThreshold}
                                             onChange={e => setFormThreshold(e.target.value)}
-                                            placeholder="e.g. 540.00"
+                                            placeholder={t('priceAlerts.thresholdPlaceholder')}
                                             required
                                             style={{
                                                 width: '100%',
@@ -369,7 +372,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                 fontFamily: "'IBM Plex Mono', monospace",
                                             }}
                                         >
-                                            Cancel
+                                            {t('priceAlerts.cancel')}
                                         </button>
                                         <button
                                             type="submit"
@@ -393,7 +396,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             }}
                                         >
                                             {submitting && <Loader2 size={11} className="animate-spin" />}
-                                            Set Alert
+                                            {t('priceAlerts.setAlert')}
                                         </button>
                                     </div>
                                 </form>
@@ -408,7 +411,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                         </div>
                     ) : alerts.length === 0 ? (
                         <div style={{ textAlign: 'center', color: '#555', fontSize: 11, padding: '20px 0' }}>
-                            No alerts configured
+                            {t('priceAlerts.noAlerts')}
                         </div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -439,7 +442,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                 {productName(alert.product_id)}
                                             </div>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: dirColor }}>
-                                                {alert.direction === 'above' ? '↑ Above' : '↓ Below'} ${alert.threshold_usd.toFixed(2)}
+                                                {alert.direction === 'above' ? t('priceAlerts.directionAbove') : t('priceAlerts.directionBelow')} ${alert.threshold_usd.toFixed(2)}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                                                 <span style={{
@@ -460,7 +463,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                             ? 'var(--bio, #00D4AA)'
                                                             : '#666',
                                                 }}>
-                                                    {triggered ? 'Triggered' : alert.is_active ? 'Active' : 'Inactive'}
+                                                    {triggered ? t('priceAlerts.statusTriggered') : alert.is_active ? t('priceAlerts.statusActive') : t('priceAlerts.statusInactive')}
                                                 </span>
                                                 {triggered && alert.triggered_at && (
                                                     <span style={{ fontSize: 9, color: '#555' }}>
@@ -471,7 +474,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                         </div>
                                         <button
                                             onClick={() => handleDelete(alert.id)}
-                                            title="Delete alert"
+                                            title={t('priceAlerts.deleteAlert')}
                                             style={{
                                                 background: 'transparent',
                                                 border: 'none',
