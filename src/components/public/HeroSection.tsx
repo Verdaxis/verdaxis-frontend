@@ -173,7 +173,6 @@ export const HeroSection: React.FC = () => {
         >
           {t('hero.titleLine1')}
           <br />
-          for{' '}
           <span
             style={{
               background: 'linear-gradient(135deg, #4CAF50, #5DADE2)',
