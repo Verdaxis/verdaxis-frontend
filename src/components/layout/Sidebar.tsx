@@ -10,13 +10,10 @@ import {
     ChevronsRight,
     FileText,
     Hexagon,
-    BarChart3,
     MonitorDot,
-    TrendingUp,
     ArrowLeftRight,
     ShieldCheck,
     Star,
-    ClipboardList
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
@@ -51,20 +48,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'FLEET', label: t('sidebar.myFleet'), icon: Ship },
-        { id: 'STATS', label: t('sidebar.stats'), icon: BarChart3 },
-        { id: 'TRADES', label: t('sidebar.myTrades'), icon: ArrowLeftRight },
+        { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
         { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'COMPLIANCE', label: t('sidebar.compliance'), icon: FileText },
         { id: 'TRAINING', label: t('sidebar.training'), icon: GraduationCap },
     ] : [
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
-        { id: 'QUOTES', label: t('sidebar.quotes'), icon: ClipboardList },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
-        { id: 'STATS', label: t('sidebar.stats'), icon: BarChart3 },
-        { id: 'TRADES', label: t('sidebar.myTrades'), icon: ArrowLeftRight },
+        { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
         { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
-        { id: 'ANALYTICS', label: t('sidebar.analytics'), icon: TrendingUp },
     ];
 
     const handleNavigate = (page: Page) => {
