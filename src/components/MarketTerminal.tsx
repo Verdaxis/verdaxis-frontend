@@ -340,40 +340,35 @@ export const MarketTerminal: React.FC = () => {
             const realBid = bidPrices.length > 0 ? Math.max(...bidPrices) : null;
             const realBidQty = totalBidQty > 0 ? totalBidQty : null;
 
-            // Simulated data for last/change (and fallback bid if no real bids)
-            const sim = generateSimulatedRow(idx, effectiveBase, realAsk, realAskQty, tick);
-
-            // Use real bid if available, otherwise simulated
-            const bid = realBid ?? sim.bid;
-            const bidQty = realBidQty ?? sim.bidQty;
-
-            // Use real ask if available, otherwise simulated
-            const ask = realAsk ?? Math.round(((bid || sim.bid) + 3 + seededRandom(tick * 37 + idx * 17) * 5) * 100) / 100;
-            const askQty = realAskQty ?? Math.round((150 + seededRandom(tick * 43 + idx * 23) * 600) / 50) * 50;
+            // Only show real orderbook data — no simulation fallback
+            // If no real orders exist for this window, show nulls (rendered as dashes)
+            const hasAnyRealData = realBid !== null || realAsk !== null;
 
             // Use real price discovery data for last/change when available
             const matchingSummary = priceSummaries.find(
                 s => s.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase())
                   && s.region.toLowerCase().includes(selectedPort.toLowerCase())
             );
-            const last = matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : sim.last;
-            const change = matchingSummary?.price_change_pct
+            const last = hasAnyRealData && matchingSummary?.last_price != null
+                ? Number(matchingSummary.last_price)
+                : null;
+            const change = hasAnyRealData && matchingSummary?.price_change_pct
                 ? Number(matchingSummary.price_change_pct)
-                : sim.change;
+                : null;
 
             return {
                 id: String(idx + 1),
                 period: config.period,
                 type: config.type,
-                bidQty: bidQty,
-                bid: bid,
-                ask: ask,
-                askQty: askQty,
+                bidQty: realBidQty,
+                bid: realBid,
+                ask: realAsk,
+                askQty: realAskQty,
                 last: last,
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, tick, effectiveBase, priceSummaries, selectedFuel, selectedPort]);
+    }, [filteredAsks, filteredBids, priceSummaries, selectedFuel, selectedPort]);
 
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
@@ -656,57 +651,67 @@ export const MarketTerminal: React.FC = () => {
                                     </div>
 
                                     {/* Bid Qty */}
-                                    <div className="w-24 text-right px-4 text-[11px] text-slate-600 dark:text-slate-400 opacity-70">
-                                        {row.bidQty?.toLocaleString() || ''}
+                                    <div className={`w-24 text-right px-4 text-[11px] ${
+                                        row.bidQty != null ? 'text-slate-600 dark:text-slate-400 opacity-70' : 'text-slate-300 dark:text-[#333]'
+                                    }`}>
+                                        {row.bidQty != null ? row.bidQty.toLocaleString() : '—'}
                                     </div>
 
                                     {/* BID PRICE */}
                                     <div className="w-24 px-1">
                                         <div className={`w-full text-right px-2 py-0.5 rounded text-[11px] ${
-                                            row.bid
+                                            row.bid != null
                                                 ? 'text-emerald-600 dark:text-emerald-500 font-bold'
-                                                : 'text-slate-300 dark:text-[#222]'
+                                                : 'text-slate-300 dark:text-[#333]'
                                         }`}>
-                                            {row.bid ? row.bid.toFixed(2) : '--'}
+                                            {row.bid != null ? row.bid.toFixed(2) : '—'}
                                         </div>
                                     </div>
 
                                     {/* ASK PRICE */}
                                     <div className="w-24 px-1">
                                         <div className={`w-full text-right px-2 py-0.5 rounded text-[11px] ${
-                                            row.ask
+                                            row.ask != null
                                                 ? `text-rose-600 dark:text-rose-500 font-bold ${real ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`
-                                                : 'text-slate-300 dark:text-[#222]'
+                                                : 'text-slate-300 dark:text-[#333]'
                                         }`}>
-                                            {row.ask ? row.ask.toFixed(2) : '--'}
+                                            {row.ask != null ? row.ask.toFixed(2) : '—'}
                                         </div>
                                     </div>
 
                                     {/* Ask Qty */}
-                                    <div className="w-24 text-right px-4 text-[11px] text-slate-600 dark:text-slate-400 opacity-70">
-                                        {row.askQty ? Math.round(row.askQty).toLocaleString() : ''}
+                                    <div className={`w-24 text-right px-4 text-[11px] ${
+                                        row.askQty != null ? 'text-slate-600 dark:text-slate-400 opacity-70' : 'text-slate-300 dark:text-[#333]'
+                                    }`}>
+                                        {row.askQty != null ? Math.round(row.askQty).toLocaleString() : '—'}
                                     </div>
 
                                     {/* Last Done */}
-                                    <div className="w-24 text-right px-4 font-bold text-xs text-slate-900 dark:text-white">
-                                        {row.last?.toFixed(2) || ''}
+                                    <div className={`w-24 text-right px-4 font-bold text-xs ${
+                                        row.last != null ? 'text-slate-900 dark:text-white' : 'text-slate-300 dark:text-[#333]'
+                                    }`}>
+                                        {row.last != null ? row.last.toFixed(2) : '—'}
                                     </div>
 
                                     {/* Change */}
-                                    <div className={`w-24 text-right px-4 text-[10px] flex justify-end items-center space-x-1 ${row.change && row.change > 0 ? 'text-emerald-600 dark:text-emerald-500' : row.change && row.change < 0 ? 'text-rose-600 dark:text-rose-500' : 'text-slate-300 dark:text-[#222]'}`}>
-                                        {row.change ? (
+                                    <div className={`w-24 text-right px-4 text-[10px] flex justify-end items-center space-x-1 ${row.change != null && row.change > 0 ? 'text-emerald-600 dark:text-emerald-500' : row.change != null && row.change < 0 ? 'text-rose-600 dark:text-rose-500' : 'text-slate-300 dark:text-[#333]'}`}>
+                                        {row.change != null ? (
                                             <>
                                                 {row.change > 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                                                 <span>{Math.abs(row.change).toFixed(2)}</span>
                                             </>
-                                        ) : ''}
+                                        ) : '—'}
                                     </div>
 
                                     {/* Offer Count */}
                                     <div className="flex-1 text-right px-4 text-[10px]">
-                                        {offerCount > 0 && (
+                                        {offerCount > 0 ? (
                                             <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded font-bold">
                                                 {offerCount}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-300 dark:text-[#333] italic text-[9px]">
+                                                No orders
                                             </span>
                                         )}
                                     </div>
@@ -730,7 +735,7 @@ export const MarketTerminal: React.FC = () => {
                 <div className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0 }}>
                         <div data-tour="terminal-forward-curve" style={{ padding: '12px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-                            <ForwardCurve />
+                            <ForwardCurve fuelType={selectedFuel} deliveryPointName={selectedPort} />
                         </div>
                         <div data-tour="terminal-activity-feed" style={{ padding: '12px' }}>
                             <ActivityFeed />

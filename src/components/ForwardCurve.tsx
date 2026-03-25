@@ -17,6 +17,10 @@ import { useNamespace } from '../hooks/useNamespace';
 
 interface ForwardCurveProps {
     initialProductId?: string;
+    /** When set, auto-select the product matching this fuel type and hide the product selector */
+    fuelType?: string;
+    /** When set, pass as delivery_point filter to the forward curve API */
+    deliveryPointName?: string;
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -58,13 +62,14 @@ const CustomTooltip = ({ active, payload, label, tFn }: any) => {
     );
 };
 
-export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) => {
+export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, deliveryPointName }) => {
     const { t, ready } = useNamespace('dashboard');
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string>(initialProductId || '');
     const [curveData, setCurveData] = useState<ForwardCurveResponse | null>(null);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [loading, setLoading] = useState(false);
+    const [deliveryPoints, setDeliveryPoints] = useState<{ id: string; name: string }[]>([]);
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
     // Load products on mount
@@ -79,17 +84,42 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
             })
             .catch(console.error);
 
+        // Load delivery points for filtering
+        api.catalog.deliveryPoints()
+            .then((dps: any[]) => setDeliveryPoints(dps))
+            .catch(console.error);
+
         // Load subscription tier
         api.subscriptions.me()
             .then(setSubscription)
             .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
     }, []);
 
+    // When fuelType prop changes, auto-select the matching product
+    useEffect(() => {
+        if (fuelType && products.length > 0) {
+            const match = products.find(p =>
+                p.fuel_type.toLowerCase() === fuelType.toLowerCase()
+            );
+            if (match && match.id !== selectedProductId) {
+                setSelectedProductId(match.id);
+            }
+        }
+    }, [fuelType, products]);
+
+    // Resolve deliveryPointName to ID
+    const resolvedDpId = deliveryPointName
+        ? deliveryPoints.find(dp => dp.name.toLowerCase() === deliveryPointName.toLowerCase())?.id
+        : undefined;
+
     const fetchCurve = useCallback(async () => {
         if (!selectedProductId) return;
         setLoading(true);
         try {
-            const data = await api.curves.forward({ product_id: selectedProductId });
+            const data = await api.curves.forward({
+                product_id: selectedProductId,
+                delivery_point_id: resolvedDpId,
+            });
             setCurveData(data);
             setLastRefresh(new Date());
         } catch (e) {
@@ -97,7 +127,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
         } finally {
             setLoading(false);
         }
-    }, [selectedProductId]);
+    }, [selectedProductId, resolvedDpId]);
 
     // Fetch on product change
     useEffect(() => {
@@ -150,24 +180,36 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId }) 
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Product selector */}
-                    <select
-                        value={selectedProductId}
-                        onChange={e => setSelectedProductId(e.target.value)}
-                        style={{
-                            background: '#050A14',
-                            border: '1px solid rgba(0,102,255,0.3)',
-                            borderRadius: 4,
-                            color: '#e5e5e5',
+                    {/* Product selector — hidden when controlled by parent via fuelType prop */}
+                    {fuelType ? (
+                        <span style={{
                             fontSize: 11,
-                            padding: '4px 8px',
+                            fontWeight: 700,
+                            color: 'var(--bio, #00D4AA)',
                             fontFamily: "'IBM Plex Mono', monospace",
-                        }}
-                    >
-                        {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
+                        }}>
+                            {products.find(p => p.id === selectedProductId)?.name || fuelType}
+                            {deliveryPointName && <span style={{ color: '#888', fontWeight: 400 }}> — {deliveryPointName}</span>}
+                        </span>
+                    ) : (
+                        <select
+                            value={selectedProductId}
+                            onChange={e => setSelectedProductId(e.target.value)}
+                            style={{
+                                background: '#050A14',
+                                border: '1px solid rgba(0,102,255,0.3)',
+                                borderRadius: 4,
+                                color: '#e5e5e5',
+                                fontSize: 11,
+                                padding: '4px 8px',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                            }}
+                        >
+                            {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    )}
 
                     {/* Refresh button */}
                     <button
