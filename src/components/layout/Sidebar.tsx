@@ -15,7 +15,8 @@ import {
     TrendingUp,
     ArrowLeftRight,
     ShieldCheck,
-    Star
+    Star,
+    ClipboardList
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
@@ -58,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ] : [
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
-        { id: 'QUOTES', label: t('sidebar.quotes'), icon: ShoppingCart },
+        { id: 'QUOTES', label: t('sidebar.quotes'), icon: ClipboardList },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'STATS', label: t('sidebar.stats'), icon: BarChart3 },
         { id: 'TRADES', label: t('sidebar.myTrades'), icon: ArrowLeftRight },
@@ -110,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {!isCollapsed && (
                 <div className="px-6 mt-6 mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold truncate flex items-center justify-between">
-                    <span>{viewMode} CONSOLE</span>
+                    <span>{viewMode === 'BUYER' ? 'Buyer Platform' : 'Supplier Platform'}</span>
                     <div className={`w-2 h-2 rounded-full ${viewMode === 'BUYER' ? 'bg-verdaxis' : 'bg-verdaxis-green'}`}></div>
                 </div>
             )}

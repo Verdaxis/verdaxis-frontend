@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 <div className="relative">
                     <button
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        className="flex items-center space-x-3 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+                        className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
                     >
                         <div className="text-right hidden md:block">
                             <div className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">

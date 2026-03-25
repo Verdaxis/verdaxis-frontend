@@ -211,6 +211,16 @@ export const MyTrades: React.FC = () => {
         }
 
         if (trade.status === 'CONFIRMED') {
+            // Only seller can mark as delivered
+            if (userSide !== 'SELLER') {
+                return (
+                    <span className="text-xs text-blue-600 dark:text-blue-400 italic flex items-center gap-1">
+                        <Clock size={12} />
+                        {t('myTrades.awaiting.delivery')}
+                    </span>
+                );
+            }
+
             return (
                 <button
                     onClick={() => {

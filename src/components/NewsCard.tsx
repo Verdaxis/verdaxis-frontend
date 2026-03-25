@@ -63,7 +63,7 @@ export const NewsCard: React.FC = () => {
                     <Newspaper size={16} className="text-emerald-400" />
                     <h3 className="text-sm font-bold text-white">Maritime News</h3>
                 </div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">AI-curated</span>
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Live Feed</span>
             </div>
 
             {/* Body */}

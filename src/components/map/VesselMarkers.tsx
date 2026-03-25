@@ -40,13 +40,13 @@ const createVesselIcon = (vessel: Vessel) => {
     const heading = calculateHeading(vessel.previousLocation, vessel.location);
 
     // Ship silhouette SVG — cargo ship profile ~16x12
-    const svgMarkup = `<svg viewBox="0 0 24 16" width="16" height="12" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))"><path d="M2 12 L4 8 L8 6 L20 6 L22 8 L22 12 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="${color}" stroke="${color}" stroke-width="0.3"/></svg>`;
+    const svgMarkup = `<svg viewBox="0 0 24 16" width="22" height="16" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))"><path d="M2 14 L5 9 L9 7 L21 7 L23 10 L23 14 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="${color}" stroke="${color}" stroke-width="0.3"/></svg>`;
 
     return divIcon({
         html: svgMarkup,
         className: 'bg-transparent border-0',
-        iconSize: [16, 12],
-        iconAnchor: [8, 6],
+        iconSize: [22, 16],
+        iconAnchor: [11, 8],
     });
 };
 
