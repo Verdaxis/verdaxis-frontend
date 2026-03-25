@@ -232,6 +232,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
                         return (
                             <CircleMarker
+                                className="port-pulse"
                                 key={port.id}
                                 center={[port.location.lat, port.location.lng]}
                                 radius={radius}

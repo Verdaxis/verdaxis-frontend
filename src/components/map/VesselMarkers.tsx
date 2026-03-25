@@ -39,14 +39,14 @@ const createVesselIcon = (vessel: Vessel) => {
     const color = FUEL_CAPABILITY_COLORS[fuelCap] || '#94A3B8';
     const heading = calculateHeading(vessel.previousLocation, vessel.location);
 
-    // Ship silhouette SVG — cargo ship profile ~16x12
-    const svgMarkup = `<svg viewBox="0 0 24 16" width="22" height="16" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))"><path d="M2 14 L5 9 L9 7 L21 7 L23 10 L23 14 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="${color}" stroke="${color}" stroke-width="0.3"/></svg>`;
+    // Chevron arrow pointing up — rotated by heading
+    const svgMarkup = `<svg viewBox="0 0 16 16" width="14" height="14" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6))"><polygon points="8,1 14,13 8,10 2,13" fill="${color}" stroke="rgba(255,255,255,0.3)" stroke-width="0.5"/></svg>`;
 
     return divIcon({
         html: svgMarkup,
         className: 'bg-transparent border-0',
-        iconSize: [22, 16],
-        iconAnchor: [11, 8],
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
     });
 };
 
