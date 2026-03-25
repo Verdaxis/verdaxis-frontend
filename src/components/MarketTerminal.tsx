@@ -344,14 +344,12 @@ export const MarketTerminal: React.FC = () => {
             // If no real orders exist for this window, show nulls (rendered as dashes)
             const hasAnyRealData = realBid !== null || realAsk !== null;
 
-            // Use real price discovery data for last/change when available
-            const matchingSummary = priceSummaries.find(
+                        // Only show last/change on SPOT row (price summaries are not per-period)
+            const matchingSummary = config.type === 'SPOT' ? priceSummaries.find(
                 s => s.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase())
                   && s.region.toLowerCase().includes(selectedPort.toLowerCase())
-            );
-            const last = hasAnyRealData && matchingSummary?.last_price != null
-                ? Number(matchingSummary.last_price)
-                : null;
+            ) : null;
+            const last = hasAnyRealData && matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : null;
             const change = hasAnyRealData && matchingSummary?.price_change_pct
                 ? Number(matchingSummary.price_change_pct)
                 : null;
@@ -572,6 +570,7 @@ export const MarketTerminal: React.FC = () => {
                                 <Line
                                     type="monotone"
                                     dataKey="price"
+                                    connectNulls={true}
                                     stroke="#10b981"
                                     strokeWidth={2}
                                     dot={{ r: 3, fill: '#10b981', stroke: '#000' }}

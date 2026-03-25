@@ -108,7 +108,7 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
                             ${spread.toFixed(2)}
                         </span>
                         <span className="text-slate-500 dark:text-[#444]">
-                            ({spreadPct!.toFixed(2)}%)
+                            ({spreadPct?.toFixed(2) ?? "0.00"}%)
                         </span>
                     </div>
                 )}
