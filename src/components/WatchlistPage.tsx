@@ -7,6 +7,8 @@ import { api } from '../services/api';
 import type { Watchlist, WatchlistEntry, Product, DeliveryPoint } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 
+const DEFAULT_WATCHLIST_NAME = 'Default';
+
 export const WatchlistPage: React.FC = () => {
     const { t, ready } = useNamespace('trading');
     const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
@@ -16,6 +18,7 @@ export const WatchlistPage: React.FC = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showAddEntryModal, setShowAddEntryModal] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [defaultWatchlistId, setDefaultWatchlistId] = useState<string | null>(null);
 
     const fetchWatchlists = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -23,21 +26,50 @@ export const WatchlistPage: React.FC = () => {
         try {
             const data = await api.watchlists.list();
             const items: Watchlist[] = data.items ?? data;
-            setWatchlists(Array.isArray(items) ? items : []);
+            const wlArray = Array.isArray(items) ? items : [];
+            setWatchlists(wlArray);
+
+            // Track the default watchlist ID
+            const defaultWl = wlArray.find(wl => wl.name === DEFAULT_WATCHLIST_NAME);
+            if (defaultWl) {
+                setDefaultWatchlistId(defaultWl.id);
+            }
+
+            return wlArray;
         } catch (err: any) {
             if (!silent) setError(err?.message || 'Failed to load watchlists');
+            return [];
         } finally {
             if (!silent) setLoading(false);
         }
     }, []);
 
-    useEffect(() => { fetchWatchlists(); }, [fetchWatchlists]);
+    // On mount: fetch watchlists, create "Default" if none exists
+    useEffect(() => {
+        let cancelled = false;
+        const init = async () => {
+            const wlArray = await fetchWatchlists();
+            if (cancelled) return;
+            if (wlArray.length === 0) {
+                try {
+                    const created = await api.watchlists.create(DEFAULT_WATCHLIST_NAME);
+                    if (!cancelled) {
+                        setDefaultWatchlistId(created.id);
+                        await fetchWatchlists(true);
+                    }
+                } catch { /* ignore — user may not be authenticated */ }
+            }
+        };
+        init();
+        return () => { cancelled = true; };
+    }, [fetchWatchlists]);
 
     const handleDeleteWatchlist = async (id: string) => {
         if (!confirm('Delete this watchlist?')) return;
         setActionLoading(id);
         try {
             await api.watchlists.delete(id);
+            if (id === defaultWatchlistId) setDefaultWatchlistId(null);
             await fetchWatchlists(true);
         } catch { /* ignore */ }
         setActionLoading(null);
@@ -115,6 +147,7 @@ export const WatchlistPage: React.FC = () => {
                         watchlists.map(wl => {
                             const isExpanded = expandedId === wl.id;
                             const entryCount = wl.entries?.length ?? 0;
+                            const isDefault = wl.id === defaultWatchlistId;
                             return (
                                 <div key={wl.id} className="v-card overflow-hidden">
                                     {/* Watchlist header */}
@@ -127,6 +160,11 @@ export const WatchlistPage: React.FC = () => {
                                             <div className="min-w-0">
                                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate block">
                                                     {wl.name}
+                                                    {isDefault && (
+                                                        <span className="ml-2 text-[10px] font-medium text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                                                            DEFAULT
+                                                        </span>
+                                                    )}
                                                 </span>
                                                 <span className="text-[10px] text-slate-400">
                                                     {entryCount} {entryCount !== 1 ? t('watchlist.item.count_other', { count: entryCount }).replace(/^\d+ /, '') : t('watchlist.item.count_one', { count: entryCount }).replace(/^\d+ /, '')}

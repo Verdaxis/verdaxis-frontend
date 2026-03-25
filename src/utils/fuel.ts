@@ -60,6 +60,20 @@ export function getFuelStickyBg(fuelType: string): string {
   return STICKY_BG[colorFor(fuelType)];
 }
 
+// ─── Watchlist Chip Colors ────────────────────────────────────
+const CHIP_CLASSES: Record<ColorKey, string> = {
+  violet: 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300',
+  green:  'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300',
+  sky:    'border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-300',
+  teal:   'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300',
+  amber:  'border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300',
+  slate:  'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+};
+
+export function getFuelChipClasses(fuelType: string): string {
+  return CHIP_CLASSES[colorFor(fuelType)];
+}
+
 // ─── Status Config ─────────────────────────────────────────────
 export interface StatusConfig {
   label: string;
