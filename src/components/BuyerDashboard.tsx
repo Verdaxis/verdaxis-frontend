@@ -3,6 +3,7 @@ import { Loader2, TrendingUp, Anchor, AlertCircle, CheckCircle, Clock } from 'lu
 import { Page, Trade } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { NewsCard } from './NewsCard';
 import { useNamespace } from '../hooks/useNamespace';
 
 interface BuyerDashboardProps {
@@ -220,7 +221,11 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                 )}
             </div>
 
-            
+            {/* AI News Feed */}
+            <div className="mt-6">
+                <NewsCard />
+            </div>
+
             <ConfirmModal
                 isOpen={confirmState.isOpen}
                 onClose={closeConfirm}

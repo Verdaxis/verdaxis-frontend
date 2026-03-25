@@ -22,6 +22,7 @@ import { Port, OrderBookOrder, AvailabilityWindow } from '../types';
 import { PORTS } from '../data';
 import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
+import { NewsFeed } from './NewsFeed';
 import { RFQPanel } from './RFQPanel';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -711,12 +712,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             </div>
                         </div>
                     ) : (
-                        <div className="max-w-7xl mx-auto h-full flex flex-col md:flex-row gap-4">
-                            <div className="md:w-3/5 md:h-full">
+                        <div className="max-w-[1600px] mx-auto h-full flex flex-col md:flex-row gap-4">
+                            <div className="md:w-[45%] md:h-full">
                                 <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
                             </div>
-                            <div className="md:w-2/5 md:h-full">
+                            <div className="md:w-[30%] md:h-full">
                                 <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                            </div>
+                            <div className="md:w-[25%] md:h-full">
+                                <NewsFeed />
                             </div>
                         </div>
                     )}

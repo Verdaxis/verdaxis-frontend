@@ -625,4 +625,15 @@ export const api = {
             return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
         },
     },
+
+    news: {
+        list: async (params?: { limit?: number; category?: string; min_relevance?: number }): Promise<any[]> => {
+            const searchParams = new URLSearchParams();
+            if (params?.limit) searchParams.append('limit', String(params.limit));
+            if (params?.category) searchParams.append('category', params.category);
+            if (params?.min_relevance) searchParams.append('min_relevance', String(params.min_relevance));
+            const query = searchParams.toString();
+            return fetchApi(`/news${query ? `?${query}` : ''}`);
+        },
+    },
 };
