@@ -949,14 +949,44 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
-                                <div className="p-4 bg-emerald-500/10 rounded-full mb-4">
-                                    <CheckCircle2 size={28} className="text-emerald-500" />
+                                {/* Animated success ring */}
+                                <div className="relative mx-auto w-16 h-16 mb-4">
+                                    <div className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" style={{ animationDuration: '1.5s' }} />
+                                    <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                                        <CheckCircle2 size={28} className="text-white" />
+                                    </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeInitiated')}</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    {role === 'BUYER'
-                                        ? t('marketplace.modal.tradeInitiated.buyer')
-                                        : t('marketplace.modal.tradeInitiated.supplier')}
+                                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1">Trade Executed</h3>
+                                {selectedOrder && (
+                                    <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Product</span>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.product_name || selectedOrder.fuel_type}</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Port</span>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.delivery_point_name || selectedOrder.region}</div>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quantity</span>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeQuantity.toLocaleString()} MT</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Price</span>
+                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${selectedOrder.price_per_mt_usd}/MT</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                                            <span className="text-xs text-slate-400">Total</span>
+                                            <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                                                ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
+                                    Executed at the maker&apos;s listed price. View in Trade History.
                                 </p>
                             </div>
                         ) : tradeState === 'error' ? (

@@ -197,29 +197,60 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
-                                <div className="mx-auto w-16 h-16 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center mb-4">
-                                    <Zap size={32} className="text-violet-500" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.autoMatched.title')}</h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-4">
-                                    {t('orderPlaceModal.autoMatched.body', { side: sideLabel.toLowerCase() })}
-                                </p>
-                                {matchResult?.trades?.map((trade: any, i: number) => (
-                                    <div key={i} className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left mb-2">
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.quantity')}</span>
-                                            <span className="font-bold text-slate-800 dark:text-slate-200">{trade.quantity_mt?.toLocaleString()} MT</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm mb-1">
-                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.price')}</span>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}/MT</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-slate-500 dark:text-slate-400">{t('orderPlaceModal.autoMatched.status')}</span>
-                                            <span className="font-bold text-blue-600 dark:text-blue-400">{trade.status}</span>
-                                        </div>
+                                {/* Animated lightning bolt with pulse ring */}
+                                <div className="relative mx-auto w-20 h-20 mb-5">
+                                    <div className="absolute inset-0 rounded-full bg-violet-500/20 animate-ping" style={{ animationDuration: '1.5s' }} />
+                                    <div className="absolute inset-1 rounded-full bg-violet-500/10 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.3s' }} />
+                                    <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                                        <Zap size={36} className="text-white drop-shadow-lg" fill="white" />
                                     </div>
-                                ))}
+                                </div>
+                                <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">
+                                    Instantly Matched!
+                                </h3>
+                                <p className="text-violet-600 dark:text-violet-400 text-sm font-semibold mb-1">
+                                    Your {sideLabel.toLowerCase()} found a counterparty
+                                </p>
+                                <p className="text-slate-400 dark:text-slate-500 text-xs mb-5">
+                                    Executed at the maker's resting price (best available)
+                                </p>
+                                {matchResult?.trades?.map((trade: any, i: number) => {
+                                    const totalValue = (trade.quantity_mt || 0) * (trade.price_per_mt_usd || 0);
+                                    return (
+                                        <div key={i} className="relative overflow-hidden bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20 border border-violet-200 dark:border-violet-700/50 rounded-xl p-5 text-left mb-3">
+                                            {/* Decorative corner accent */}
+                                            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-violet-200/40 dark:from-violet-600/10 to-transparent rounded-bl-full" />
+                                            <div className="grid grid-cols-2 gap-3 relative">
+                                                <div>
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">Quantity</div>
+                                                    <div className="text-lg font-extrabold text-slate-900 dark:text-white">{trade.quantity_mt?.toLocaleString()} <span className="text-sm font-medium text-slate-400">MT</span></div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">Price</div>
+                                                    <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}<span className="text-sm font-medium">/MT</span></div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 pt-3 border-t border-violet-200/60 dark:border-violet-700/30 flex justify-between items-center">
+                                                <div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500">Total Value</span>
+                                                    <div className="text-base font-bold text-slate-800 dark:text-slate-200">${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700/50">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">CONFIRMED</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 mb-4">
+                                    Trade is confirmed and visible in your Trade History.
+                                    {matchResult?.trades?.length > 0 && matchResult.trades[0].price_per_mt_usd !== formData.price_per_mt_usd && (
+                                        <span className="block mt-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                                            Price improvement: you {side === 'BID' ? 'paid' : 'received'} ${matchResult.trades[0].price_per_mt_usd}/MT instead of your ${formData.price_per_mt_usd}/MT {sideLabel.toLowerCase()}.
+                                        </span>
+                                    )}
+                                </p>
                             </>
                         ) : (
                             <>
