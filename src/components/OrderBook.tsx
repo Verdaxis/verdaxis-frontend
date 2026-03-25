@@ -258,6 +258,17 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
                                                 CROSS
                                             </span>
                                         )}
+                                        {ask.carbon_intensity_gco2_mj != null && (
+                                            <span className={`ml-1.5 inline-flex items-center text-[9px] font-bold px-1 py-0.5 rounded-full ${
+                                                ask.carbon_intensity_gco2_mj > 85
+                                                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+                                                    : ask.carbon_intensity_gco2_mj >= 60
+                                                    ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                                                    : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                                            }`}>
+                                                CI {Math.round(ask.carbon_intensity_gco2_mj)}
+                                            </span>
+                                        )}
                                     </span>
                                     {/* Quantity */}
                                     <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">

@@ -176,6 +176,7 @@ export interface OrderBookOrder {
     delivery_window_end?: string;
     certifications: string[];
     is_verdaxis_verified: boolean;
+    carbon_intensity_gco2_mj?: number | null;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
