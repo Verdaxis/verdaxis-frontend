@@ -67,7 +67,6 @@ export const PublicFooter: React.FC = () => {
 
   const TOOLS_LINKS = [
     { label: t('nav.energyCalculator'), to: lp('/tools/energy-calculator') },
-    { label: t('nav.producerMap'), to: lp('/map/producers') },
   ];
 
   return (

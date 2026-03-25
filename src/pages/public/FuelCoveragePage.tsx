@@ -626,7 +626,7 @@ export const FuelCoveragePage: React.FC = () => {
           <Reveal delay={0.15}>
             <HoverButton>
               <Link
-                to="/map/producers"
+                to="/en/pilot"
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',

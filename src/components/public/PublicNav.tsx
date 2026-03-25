@@ -102,7 +102,6 @@ export const PublicNav: React.FC = () => {
       labelKey: 'nav.tools',
       dropdown: [
         { label: t('nav.energyCalculator'), to: lp('/tools/energy-calculator') },
-        { label: t('nav.producerMap'), to: lp('/map/producers') },
       ],
     },
   ];
