@@ -138,6 +138,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setOrderModalPrefillPrice(price);
     }, []);
 
+    // ─── Instant trade (Buy Now / Sell Now from order book) ─────
+    const [instantTradeLoading, setInstantTradeLoading] = useState<string | null>(null);
+    const handleInstantTrade = useCallback(async (orderId: string, _side: 'BID' | 'ASK', price: number, quantity: number) => {
+        if (instantTradeLoading) return;
+        const action = _side === 'BID' ? 'Buy' : 'Sell';
+        if (!window.confirm(`${action} ${quantity.toLocaleString()} MT at $${price}/MT?`)) return;
+        setInstantTradeLoading(orderId);
+        try {
+            await api.trades.initiate({ order_id: orderId, quantity_mt: quantity });
+            fetchData(true, currentSkip);
+        } catch (err: any) {
+            alert(err?.message || 'Trade failed');
+        } finally {
+            setInstantTradeLoading(null);
+        }
+    }, [instantTradeLoading, currentSkip, fetchData]);
+
     // ─── Fuel counts for chips ────────────────────────────────────
     const fuelCounts = useMemo(() => {
         const counts: Record<string, number> = {};
@@ -681,14 +698,28 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {/* Market tab: OrderBook + TradeTape side by side, full height */}
             {marketTab === 'market' && (
                 <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto h-full flex flex-col md:flex-row gap-4">
-                        <div className="md:w-3/5 md:h-full">
-                            <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} />
+                    {(!portInput && fuelType === 'All') ? (
+                        <div className="max-w-7xl mx-auto h-full flex items-center justify-center">
+                            <div className="text-center p-8">
+                                <div className="text-slate-400 dark:text-slate-500 mb-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">Select a port and fuel type</h3>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 max-w-md">
+                                    The order book shows live bids and asks for a specific fuel at a specific port. Select a port above and filter by fuel type to view the order book.
+                                </p>
+                            </div>
                         </div>
-                        <div className="md:w-2/5 md:h-full">
-                            <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                    ) : (
+                        <div className="max-w-7xl mx-auto h-full flex flex-col md:flex-row gap-4">
+                            <div className="md:w-3/5 md:h-full">
+                                <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
+                            </div>
+                            <div className="md:w-2/5 md:h-full">
+                                <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 

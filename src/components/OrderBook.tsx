@@ -8,6 +8,7 @@ interface OrderBookProps {
     fuelType?: string;
     region?: string;
     onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
+    onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
 
 interface OrderBookRow extends OrderBookOrder {
@@ -25,7 +26,7 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceClick }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -186,6 +187,16 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
                                     <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
                                         {formatQty(bid.remaining_quantity_mt)}
                                     </span>
+                                    {/* Sell Now button */}
+                                    {onInstantTrade && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
+                                            className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                            title={`Sell ${formatQty(bid.remaining_quantity_mt)} MT at ${formatPrice(bid.price_per_mt_usd)}`}
+                                        >
+                                            Sell
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })
@@ -252,6 +263,16 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
                                     <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
                                         {formatQty(ask.remaining_quantity_mt)}
                                     </span>
+                                    {/* Buy Now button */}
+                                    {onInstantTrade && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
+                                            className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                            title={`Buy ${formatQty(ask.remaining_quantity_mt)} MT at ${formatPrice(ask.price_per_mt_usd)}`}
+                                        >
+                                            Buy
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })
