@@ -13,6 +13,7 @@ import {
     Filter,
     AlertCircle,
     CheckCircle2,
+    Newspaper,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -130,6 +131,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
 
+    // ─── News panel toggle ──────────────────────────────────────
+    const [showNews, setShowNews] = useState(false);
+
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
     const [orderModalPrefillPrice, setOrderModalPrefillPrice] = useState<number | undefined>(undefined);
@@ -140,21 +144,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     }, []);
 
     // ─── Instant trade (Buy Now / Sell Now from order book) ─────
-    const [instantTradeLoading, setInstantTradeLoading] = useState<string | null>(null);
-    const handleInstantTrade = useCallback(async (orderId: string, _side: 'BID' | 'ASK', price: number, quantity: number) => {
-        if (instantTradeLoading) return;
-        const action = _side === 'BID' ? 'Buy' : 'Sell';
-        if (!window.confirm(`${action} ${quantity.toLocaleString()} MT at $${price}/MT?`)) return;
-        setInstantTradeLoading(orderId);
-        try {
-            await api.trades.initiate({ order_id: orderId, quantity_mt: quantity });
-            fetchData(true, currentSkip);
-        } catch (err: any) {
-            alert(err?.message || 'Trade failed');
-        } finally {
-            setInstantTradeLoading(null);
-        }
-    }, [instantTradeLoading, currentSkip, fetchData]);
+    // Opens the existing trade confirmation modal pre-filled with order details
+    const handleInstantTrade = useCallback((orderId: string, _side: 'BID' | 'ASK', price: number, quantity: number) => {
+        // Find the matching order from current listings or build a minimal OrderBookOrder
+        const matchedOrder = listings.find(o => o.id === orderId);
+        const order: OrderBookOrder = matchedOrder || {
+            id: orderId,
+            side: _side === 'BID' ? 'ASK' : 'BID', // counter-side: if we're buying, the order is an ask
+            fuel_type: fuelType !== 'All' ? fuelType : '',
+            fuel_grade: 'Conventional' as const,
+            region: portInput || '',
+            quantity_mt: quantity,
+            remaining_quantity_mt: quantity,
+            price_per_mt_usd: price,
+            availability_window: 'Spot' as const,
+            certifications: [],
+            is_verdaxis_verified: false,
+            tier_label: 'INDEPENDENT' as const,
+            status: 'OPEN' as const,
+            created_at: new Date().toISOString(),
+        };
+        setSelectedOrder(order);
+        setTradeQuantity(quantity);
+        setTradeState('confirming');
+        setTradeError('');
+    }, [listings, fuelType, portInput]);
 
     // ─── Fuel counts for chips ────────────────────────────────────
     const fuelCounts = useMemo(() => {
@@ -349,7 +363,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             case 'volume':
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-slate-700 dark:text-slate-200 text-xs">
-                        {order.quantity_mt.toLocaleString()}
+                        {order.remaining_quantity_mt.toLocaleString()}
                     </td>
                 );
             case 'price':
@@ -699,7 +713,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {/* Market tab: OrderBook + TradeTape side by side, full height */}
             {marketTab === 'market' && (
                 <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
-                    {(!portInput && fuelType === 'All') ? (
+                    {(!portInput || fuelType === 'All') ? (
                         <div className="max-w-7xl mx-auto h-full flex items-center justify-center">
                             <div className="text-center p-8">
                                 <div className="text-slate-400 dark:text-slate-500 mb-3">
@@ -712,15 +726,36 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             </div>
                         </div>
                     ) : (
-                        <div className="max-w-[1600px] mx-auto h-full flex flex-col md:flex-row gap-4">
-                            <div className="md:w-[45%] md:h-full">
-                                <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
-                            </div>
-                            <div className="md:w-[30%] md:h-full">
-                                <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
-                            </div>
-                            <div className="md:w-[25%] md:h-full">
-                                <NewsFeed />
+                        <div className="max-w-[1600px] mx-auto h-full flex flex-col">
+                            <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+                                <div className={showNews ? 'md:w-[45%] md:h-full' : 'md:w-[60%] md:h-full'}>
+                                    <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
+                                </div>
+                                <div className={showNews ? 'md:w-[30%] md:h-full' : 'md:w-[40%] md:h-full'}>
+                                    <div className="h-full flex flex-col">
+                                        <div className="flex items-center justify-end mb-2">
+                                            <button
+                                                onClick={() => setShowNews(!showNews)}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                                    showNews
+                                                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                                        : 'bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                                }`}
+                                            >
+                                                <Newspaper size={12} />
+                                                News
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 min-h-0">
+                                            <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={portInput || undefined} />
+                                        </div>
+                                    </div>
+                                </div>
+                                {showNews && (
+                                    <div className="md:w-[25%] md:h-full">
+                                        <NewsFeed />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
