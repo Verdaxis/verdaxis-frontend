@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 // Fix: Alias imports to allow casting to any, solving type definition errors for standard props
-import { MapContainer as LMapContainer, TileLayer as LTileLayer, Marker as LMarker, Popup as LPopup, Tooltip as LTooltip } from 'react-leaflet';
+import { MapContainer as LMapContainer, TileLayer as LTileLayer, Popup as LPopup, Tooltip as LTooltip, CircleMarker as LCircleMarker } from 'react-leaflet';
 import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff } from 'lucide-react';
-import { Port, Page, OrderBookOrder } from '../types';
+import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
-import { createCustomIcon } from '../utils';
 import { api } from '../services/api';
 import { VesselMarkers } from './map/VesselMarkers';
 import { MapLegend } from './map/MapLegend';
@@ -16,9 +15,9 @@ import { useNamespace } from '../hooks/useNamespace';
 // Fix: Cast components to any to bypass "Property does not exist" errors on standard props like center, icon, attribution
 const MapContainer = LMapContainer as any;
 const TileLayer = LTileLayer as any;
-const Marker = LMarker as any;
 const Popup = LPopup as any;
 const MapTooltip = LTooltip as any;
+const CircleMarker = LCircleMarker as any;
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -27,6 +26,71 @@ interface BuyerMapProps {
 }
 
 import { useTheme } from '../context/ThemeContext';
+
+// Aggregate port market data from the orderbook aggregated endpoint
+interface PortMarketData {
+    totalVolume: number;
+    fuelRows: Array<{
+        fuel_type: string;
+        bestBid: number | null;
+        bestAsk: number | null;
+        orderCount: number;
+    }>;
+    avgSpreadPct: number; // Average spread as % of mid-price
+}
+
+const computePortMarketData = (
+    aggregated: AggregatedOrderbook[],
+    portName: string,
+    portCountry: string
+): PortMarketData => {
+    // Match by region (could be port name or country)
+    const portRows = aggregated.filter(
+        a => a.region === portName || a.region === portCountry
+    );
+
+    // Group by fuel_type
+    const byFuel: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
+    portRows.forEach(row => {
+        if (!byFuel[row.fuel_type]) byFuel[row.fuel_type] = { bids: [], asks: [] };
+        if (row.side === 'BID') byFuel[row.fuel_type].bids.push(row);
+        else byFuel[row.fuel_type].asks.push(row);
+    });
+
+    let totalVolume = 0;
+    const spreads: number[] = [];
+    const fuelRows = Object.entries(byFuel).map(([fuel_type, { bids, asks }]) => {
+        const bestBid = bids.length > 0 ? Math.max(...bids.map(b => b.max_price)) : null;
+        const bestAsk = asks.length > 0 ? Math.min(...asks.map(a => a.min_price)) : null;
+        const orderCount = bids.reduce((s, b) => s + b.order_count, 0) + asks.reduce((s, a) => s + a.order_count, 0);
+        totalVolume += bids.reduce((s, b) => s + b.total_quantity, 0) + asks.reduce((s, a) => s + a.total_quantity, 0);
+
+        if (bestBid !== null && bestAsk !== null) {
+            const mid = (bestBid + bestAsk) / 2;
+            if (mid > 0) spreads.push(((bestAsk - bestBid) / mid) * 100);
+        }
+
+        return { fuel_type, bestBid, bestAsk, orderCount };
+    }).filter(r => r.orderCount > 0);
+
+    const avgSpreadPct = spreads.length > 0 ? spreads.reduce((a, b) => a + b, 0) / spreads.length : 999;
+
+    return { totalVolume, fuelRows, avgSpreadPct };
+};
+
+// Port circle radius: proportional to volume, clamped 6-20px
+const getPortRadius = (volume: number, maxVolume: number): number => {
+    if (maxVolume <= 0 || volume <= 0) return 6;
+    const ratio = volume / maxVolume;
+    return Math.round(6 + ratio * 14); // 6..20
+};
+
+// Border color by spread tightness
+const getSpreadColor = (spreadPct: number): string => {
+    if (spreadPct < 5) return '#10B981';  // green
+    if (spreadPct < 15) return '#F59E0B'; // amber
+    return '#EF4444';                      // red
+};
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
@@ -38,17 +102,20 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showOverlays, setShowOverlays] = useState(true);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
+    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
 
-    // Fetch Ports and Listings from Backend
+    // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [portsData, listingsData] = await Promise.all([
+                const [portsData, listingsData, aggData] = await Promise.all([
                     api.ports.list(),
                     api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
+                    api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
                 setPorts(portsData);
                 setListings(listingsData);
+                setAggregatedData(aggData);
                 setPageContext({
                     view: 'Global Intelligence Map',
                     available_ports: portsData.length,
@@ -70,6 +137,20 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         setSelectedPortId(portId);
         setIsPanelOpen(true);
     };
+
+    // Pre-compute market data for each port
+    const portMarketMap = useMemo(() => {
+        const map: Record<string, PortMarketData> = {};
+        ports.forEach(port => {
+            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country);
+        });
+        return map;
+    }, [ports, aggregatedData]);
+
+    // Max volume across all ports (for radius scaling)
+    const maxVolume = useMemo(() => {
+        return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
+    }, [portMarketMap]);
 
     // Aggregate listings by region for Methanol Avails
     const availsByRegion = useMemo(() => {
@@ -144,130 +225,129 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     {/* Fleet Layer */}
                     <VesselMarkers />
 
-                    {ports.map((port) => (
-                        <Marker
-                            key={port.id}
-                            position={[port.location.lat, port.location.lng]}
-                            icon={createCustomIcon(port.methanolSupply)}
-                            eventHandlers={{
-                                click: () => handleMarkerClick(port.id),
-                            }}
-                        >
-                            <MapTooltip direction="top" offset={[0, -30]} opacity={1}>
-                                <div className="text-xs font-bold text-slate-700">
-                                    {port.name} <span className="text-emerald-600 ml-1">${port.priceMethanol}</span>
-                                    {port.details?.lastDone && (
-                                        <div className="text-[10px] text-slate-500 font-normal">Last: {port.details.lastDone}</div>
-                                    )}
-                                    {port.details?.upcomingProjects && port.details.upcomingProjects.length > 0 && (
-                                        <div className="text-[10px] text-indigo-600 font-bold mt-0.5 border-t border-slate-100 pt-0.5">
-                                            Future: {port.details.upcomingProjects[0].capacity} ({port.details.upcomingProjects[0].year})
-                                        </div>
-                                    )}
-                                </div>
-                            </MapTooltip>
-                            <Popup
-                                className="verdaxis-popup"
-                                maxWidth={240}
-                                minWidth={220}
-                                autoPanPadding={[100, 100]}
+                    {ports.map((port) => {
+                        const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], avgSpreadPct: 999 };
+                        const radius = getPortRadius(mkt.totalVolume, maxVolume);
+                        const spreadColor = getSpreadColor(mkt.avgSpreadPct);
+
+                        return (
+                            <CircleMarker
+                                key={port.id}
+                                center={[port.location.lat, port.location.lng]}
+                                radius={radius}
+                                pathOptions={{
+                                    color: spreadColor,
+                                    weight: 2,
+                                    fillColor: isDark ? '#1E293B' : '#FFFFFF',
+                                    fillOpacity: 0.85,
+                                }}
                                 eventHandlers={{
-                                    add: (e: any) => {
-                                        setTimeout(() => {
-                                            if (e.target && e.target.update) {
-                                                e.target.update();
-                                            }
-                                        }, 100);
-                                    }
+                                    click: () => handleMarkerClick(port.id),
                                 }}
                             >
-                                <div className="w-[220px]">
-                                    {/* Port name — prominent */}
-                                    <div className="mb-3 pb-2 border-b border-slate-200 dark:border-slate-700">
-                                        <h3 className="font-['Montserrat'] font-bold text-xl text-slate-900 dark:text-white leading-tight">{port.name || 'Unknown Port'}</h3>
-                                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{port.country || 'Global'}</span>
+                                <MapTooltip direction="top" offset={[0, -radius]} opacity={1}>
+                                    <div className="text-xs font-bold text-slate-700">
+                                        {port.name} <span className="text-emerald-600 ml-1">${port.priceMethanol}</span>
+                                        {mkt.totalVolume > 0 && (
+                                            <div className="text-[10px] text-slate-500 font-normal">
+                                                {Math.round(mkt.totalVolume).toLocaleString()} MT open
+                                            </div>
+                                        )}
                                     </div>
-
-                                    {/* Price & Availability */}
-                                    <div className="space-y-2 mb-3">
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('buyerMap.spot')}</span>
-                                            <span className="text-lg font-bold text-slate-900 dark:text-white">${port.priceMethanol}</span>
-                                        </div>
-                                        <div className="flex justify-between items-baseline">
-                                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{t('buyerMap.availability')}</span>
-                                            <span className={`text-sm font-bold ${port.methanolSupply === 'High' ? 'text-emerald-600 dark:text-emerald-400' : port.methanolSupply === 'Medium' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                {port.methanolSupply}
+                                </MapTooltip>
+                                <Popup
+                                    className="verdaxis-port-popup"
+                                    maxWidth={280}
+                                    minWidth={260}
+                                    autoPanPadding={[100, 100]}
+                                >
+                                    <div className="w-[260px]" style={{
+                                        background: isDark ? '#0F172A' : '#1E293B',
+                                        color: '#F8FAFC',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        fontFamily: "'DM Sans', 'Inter', sans-serif",
+                                    }}>
+                                        {/* Port Header */}
+                                        <h3 style={{
+                                            fontFamily: "'Montserrat', sans-serif",
+                                            fontWeight: 700,
+                                            fontSize: '15px',
+                                            marginBottom: '8px',
+                                            paddingBottom: '6px',
+                                            borderBottom: '1px solid rgba(148,163,184,0.2)',
+                                        }}>
+                                            {port.name || 'Unknown Port'}
+                                            <span style={{ display: 'block', fontSize: '10px', fontWeight: 500, color: '#94A3B8', marginTop: '2px' }}>
+                                                {port.country || 'Global'}
                                             </span>
-                                        </div>
+                                        </h3>
+
+                                        {/* Live Bid/Ask Table */}
+                                        {mkt.fuelRows.length > 0 ? (
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginBottom: '10px' }}>
+                                                <thead>
+                                                    <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.3)' }}>
+                                                        <th style={{ textAlign: 'left', padding: '3px 0', color: '#94A3B8', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase' }}>Fuel Type</th>
+                                                        <th style={{ textAlign: 'right', padding: '3px 4px', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>Bid</th>
+                                                        <th style={{ textAlign: 'right', padding: '3px 4px', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>Ask</th>
+                                                        <th style={{ textAlign: 'right', padding: '3px 0', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>#</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {mkt.fuelRows.map((row, i) => (
+                                                        <tr key={i} style={{ borderBottom: i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none' }}>
+                                                            <td style={{ padding: '4px 0', fontWeight: 600, color: '#E2E8F0' }}>{row.fuel_type}</td>
+                                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: "'IBM Plex Mono', monospace", color: '#10B981', fontWeight: 600 }}>
+                                                                {row.bestBid !== null ? `$${row.bestBid.toFixed(0)}` : '--'}
+                                                            </td>
+                                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: "'IBM Plex Mono', monospace", color: '#EF4444', fontWeight: 600 }}>
+                                                                {row.bestAsk !== null ? `$${row.bestAsk.toFixed(0)}` : '--'}
+                                                            </td>
+                                                            <td style={{ textAlign: 'right', padding: '4px 0', color: '#94A3B8' }}>{row.orderCount}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        ) : (
+                                            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', padding: '8px 0', textAlign: 'center' }}>
+                                                No live orders at this port
+                                            </div>
+                                        )}
+
+                                        {/* Trade CTA Button */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (onOrderClick) {
+                                                    onOrderClick(port);
+                                                } else {
+                                                    onPortSelect(port);
+                                                }
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                background: '#10B981',
+                                                color: '#FFFFFF',
+                                                fontSize: '12px',
+                                                fontWeight: 700,
+                                                padding: '8px 0',
+                                                borderRadius: '6px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '6px',
+                                            }}
+                                        >
+                                            Trade at {port.name} →
+                                        </button>
                                     </div>
-
-                                    {/* Platts & Swap */}
-                                    {port.details && (
-                                        <div className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1.5 mb-3">
-                                            <div className="flex justify-between text-xs">
-                                                <span className="font-semibold" style={{ color: '#E8373E' }}>Platts</span>
-                                                <span className="font-bold text-slate-800 dark:text-slate-100">${port.details.plattsPrice?.toFixed(2) || '--'}</span>
-                                            </div>
-                                            <div className="flex justify-between text-xs">
-                                                <span className="text-slate-500 dark:text-slate-400 font-semibold">Swap</span>
-                                                <span className="font-bold text-slate-800 dark:text-slate-100">${port.details.swapPrice?.toFixed(2) || '--'}</span>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Last 3 Trades */}
-                                    {(() => {
-                                        const portListings = listings
-                                            .filter(l => l.region === port.country || l.region === port.name)
-                                            .sort((a, b) => b.created_at.localeCompare(a.created_at))
-                                            .slice(0, 3);
-                                        if (portListings.length === 0 && port.details?.lastDone) {
-                                            return (
-                                                <div className="mb-3">
-                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">{t('buyerMap.recentActivity')}</div>
-                                                    <div className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1.5 border border-slate-200 dark:border-slate-700">
-                                                        {port.details.lastDone}
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-                                        if (portListings.length > 0) {
-                                            return (
-                                                <div className="mb-3">
-                                                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">{t('buyerMap.recentTrades')}</div>
-                                                    <div className="space-y-1">
-                                                        {portListings.map((l, i) => (
-                                                            <div key={i} className="flex justify-between text-[11px] bg-slate-50 dark:bg-slate-800/60 rounded px-2 py-1 border border-slate-200 dark:border-slate-700">
-                                                                <span className="text-slate-600 dark:text-slate-300 font-medium">{Number(l.quantity_mt).toLocaleString()} MT</span>
-                                                                <span className="font-bold text-slate-800 dark:text-slate-100">${Number(l.price_per_mt_usd).toFixed(0)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })()}
-
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (onOrderClick) {
-                                                onOrderClick(port);
-                                            } else {
-                                                onPortSelect(port);
-                                            }
-                                        }}
-                                        className="w-full bg-verdaxis text-white text-sm font-bold py-2.5 rounded-lg shadow-sm hover:bg-sky-400 transition-colors flex items-center justify-center gap-2"
-                                    >
-                                        <span>{t('buyerMap.viewMarketplace')}</span>
-                                        <ArrowRight size={14} />
-                                    </button>
-                                </div>
-                            </Popup>
-                        </Marker>
-                    ))}
+                                </Popup>
+                            </CircleMarker>
+                        );
+                    })}
                 </MapContainer>
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}

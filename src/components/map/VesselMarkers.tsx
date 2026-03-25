@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { Marker, Popup } from 'react-leaflet';
+import { Marker, Popup, Tooltip as LTooltip } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import { Ship, Anchor, AlertCircle } from 'lucide-react';
 import { api } from '../../services/api';
@@ -8,45 +8,45 @@ import { Vessel } from '../../types';
 import { calculateHeading } from '../../utils';
 import { useNamespace } from '../../hooks/useNamespace';
 
-// Fix: Alias imports if strictly needed, but assuming standard react-leaflet approach for now
-// If this file fails to compile with props errors, we might need similar casting as BuyerMap
+const MapTooltip = LTooltip as any;
+
+// Derive fuel capability from vesselType string
+const getVesselFuelCapability = (vesselType: string): 'dual-fuel' | 'lng' | 'conventional' => {
+    const vt = (vesselType || '').toLowerCase();
+    if (vt.includes('methanol') || vt.includes('dual') || vt.includes('ammonia') || vt.includes('green')) {
+        return 'dual-fuel';
+    }
+    if (vt.includes('lng')) {
+        return 'lng';
+    }
+    return 'conventional';
+};
+
+const FUEL_CAPABILITY_COLORS: Record<string, string> = {
+    'dual-fuel': '#10B981', // Green
+    'lng': '#3B82F6',       // Blue
+    'conventional': '#94A3B8', // Gray
+};
+
+const FUEL_CAPABILITY_LABELS: Record<string, string> = {
+    'dual-fuel': 'Dual-Fuel / Green',
+    'lng': 'LNG',
+    'conventional': 'Conventional',
+};
 
 const createVesselIcon = (vessel: Vessel) => {
-    // Color code by compliance status (Green=Compliant, Amber=Warning, Red=Non)
-    const statusColor = vessel.complianceEUETS === 'Compliant' && vessel.complianceFuelEU === 'Compliant'
-        ? '#3b82f6' // Blue for vessels (brand alignment)
-        : vessel.complianceEUETS === 'Non-Compliant' || vessel.complianceFuelEU === 'Non-Compliant'
-            ? '#ef4444' 
-            : '#f59e0b';
-            
+    const fuelCap = getVesselFuelCapability(vessel.vesselType);
+    const color = FUEL_CAPABILITY_COLORS[fuelCap] || '#94A3B8';
     const heading = calculateHeading(vessel.previousLocation, vessel.location);
 
-    const iconMarkup = renderToStaticMarkup(
-        <div className="relative group">
-             {/* Directional Triangle / Ship Shape */}
-             <div 
-                className="w-0 h-0 transition-transform duration-500"
-                style={{
-                    borderLeft: '10px solid transparent',
-                    borderRight: '10px solid transparent',
-                    borderBottom: `24px solid ${statusColor}`,
-                    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                    transform: `rotate(${heading}deg)`
-                }}
-            />
-            
-            {/* Hover Tooltip Label */}
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-700 pointer-events-none">
-                {vessel.name}
-            </div>
-        </div>
-    );
+    // Ship silhouette SVG — cargo ship profile ~16x12
+    const svgMarkup = `<svg viewBox="0 0 24 16" width="16" height="12" style="transform:rotate(${heading}deg);filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))"><path d="M2 12 L4 8 L8 6 L20 6 L22 8 L22 12 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="${color}" stroke="${color}" stroke-width="0.3"/></svg>`;
 
     return divIcon({
-        html: iconMarkup,
-        className: 'bg-transparent',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],
+        html: svgMarkup,
+        className: 'bg-transparent border-0',
+        iconSize: [16, 12],
+        iconAnchor: [8, 6],
     });
 };
 
@@ -80,6 +80,20 @@ export const VesselMarkers: React.FC = () => {
                         position={[vessel.location.lat, vessel.location.lng]}
                         icon={createVesselIcon(vessel)}
                     >
+                        <MapTooltip direction="top" offset={[0, -8]} opacity={1}>
+                            <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                {vessel.name}
+                                <div className="text-[10px] text-slate-500 font-normal">
+                                    {FUEL_CAPABILITY_LABELS[getVesselFuelCapability(vessel.vesselType)] || vessel.vesselType}
+                                    {vessel.ciiGrade && (
+                                        <span className={`ml-1.5 font-bold ${
+                                            ['A','B'].includes(vessel.ciiGrade) ? 'text-emerald-500' :
+                                            ['C'].includes(vessel.ciiGrade) ? 'text-amber-500' : 'text-red-500'
+                                        }`}>CII {vessel.ciiGrade}</span>
+                                    )}
+                                </div>
+                            </div>
+                        </MapTooltip>
                         <Popup className="verdaxis-popup-vessel" closeButton={false}>
                             <div className="p-1 min-w-[200px]">
                                 <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700">
@@ -100,6 +114,12 @@ export const VesselMarkers: React.FC = () => {
                                             ['A','B'].includes(vessel.ciiGrade) ? 'text-emerald-400' :
                                             ['C'].includes(vessel.ciiGrade) ? 'text-amber-400' : 'text-red-400'
                                         }`}>{vessel.ciiGrade}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-slate-500">Fuel</span>
+                                        <span className="font-medium" style={{ color: FUEL_CAPABILITY_COLORS[getVesselFuelCapability(vessel.vesselType)] }}>
+                                            {FUEL_CAPABILITY_LABELS[getVesselFuelCapability(vessel.vesselType)]}
+                                        </span>
                                     </div>
                                 </div>
                                 {(vessel.complianceEUETS !== 'Compliant' || vessel.complianceFuelEU !== 'Compliant') && (
