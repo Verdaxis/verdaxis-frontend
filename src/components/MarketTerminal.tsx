@@ -378,26 +378,34 @@ export const MarketTerminal: React.FC = () => {
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
         return PERIOD_CONFIG.map((config, idx) => {
-            const periodOrders = filteredOrders.filter(
-                o => o.availability_window === config.window
-            );
-            const prices = periodOrders.map(o => Number(o.price_per_mt_usd));
-            // Use real prices if available, otherwise use simulated mid price
-            const avgPrice = prices.length > 0
-                ? prices.reduce((a, b) => a + b, 0) / prices.length
-                : effectiveBase + idx * 2.5 + (seededRandom(tick * 7 + idx) - 0.5) * 3;
-            const totalQty = periodOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
+            const periodAsksForChart = filteredAsks.filter(o => o.availability_window === config.window);
+            const periodBidsForChart = filteredBids.filter(o => o.availability_window === config.window);
+
+            const askPricesChart = periodAsksForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+            const bidPricesChart = periodBidsForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+
+            // Best bid and best ask for the chart — no simulation fallback, show real data only
+            const bestAsk = askPricesChart.length > 0 ? Math.min(...askPricesChart) : null;
+            const bestBid = bidPricesChart.length > 0 ? Math.max(...bidPricesChart) : null;
+            const midPrice = (bestBid && bestAsk) ? (bestBid + bestAsk) / 2 : bestBid || bestAsk || null;
+
+            const totalQty = [...periodAsksForChart, ...periodBidsForChart]
+                .reduce((s, o) => s + Number(o.remaining_quantity_mt || o.quantity_mt), 0);
 
             return {
                 period: config.period,
-                price: Math.round(avgPrice * 100) / 100,
+                price: midPrice ? Math.round(midPrice * 100) / 100 : null,
+                bestBid: bestBid ? Math.round(bestBid * 100) / 100 : null,
+                bestAsk: bestAsk ? Math.round(bestAsk * 100) / 100 : null,
                 quantity: totalQty || null,
             };
         });
-    }, [filteredOrders, effectiveBase, tick]);
+    }, [filteredAsks, filteredBids]);
 
     // Summary stats
-    const spotPrice = terminalData.find(r => r.type === 'SPOT')?.ask;
+    // Best offer = lowest real ask price across all periods (for the header display)
+    const realAskPrices = filteredAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+    const spotPrice = realAskPrices.length > 0 ? Math.min(...realAskPrices) : terminalData.find(r => r.type === 'SPOT')?.ask;
     const totalListings = filteredOrders.length;
     const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
 
