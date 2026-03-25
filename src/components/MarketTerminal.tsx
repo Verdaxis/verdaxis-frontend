@@ -67,25 +67,28 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
 ];
 
 // Base prices by fuel type for simulation
+// Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
+// These are ARA mid-market prices; region modifiers adjust per port
 const FUEL_BASE_PRICES: Record<string, number> = {
-    'Methanol': 540,
-    'Biofuel': 1200,
-    'LNG': 680,
-    'Ammonia': 450,
-    'Ethanol': 780,
-    'LSMGO': 620,
+    'Methanol': 590,      // Green methanol ARA ~$590 (2x gray premium over ~$292)
+    'Biofuel': 920,       // HVO ARA ~$920 (VLSFO + $150 premium)
+    'LNG': 760,           // LNG bunker ARA ~$760
+    'Ammonia': 670,       // Green ammonia projected ~$670
+    'Ethanol': 930,       // Bioethanol ~$930
+    'LSMGO': 770,         // VLSFO ARA ~$770
 };
 
 // Region price modifiers (spread vs base)
+// Region price modifiers ($/MT vs ARA base)
 const REGION_MODIFIERS: Record<string, number> = {
-    'Singapore': 0,
-    'Rotterdam': 8,
-    'ARA': 10,
-    'Houston': -12,
-    'Fujairah': 5,
-    'Busan': 3,
-    'Shanghai': -5,
-    'Algeciras': 6,
+    'Singapore': 140,     // SG consistently premium over ARA
+    'Rotterdam': 0,       // ~= ARA
+    'ARA': 0,
+    'Houston': 30,
+    'Fujairah': 170,      // Fujairah premium (real: VLSFO $941 vs ARA $757)
+    'Busan': 120,
+    'Shanghai': 100,
+    'Algeciras': 20,
 };
 
 // Available fuel types for the selector
@@ -294,7 +297,9 @@ export const MarketTerminal: React.FC = () => {
     // Filter orders by selected port and fuel, split into asks and bids
     const filteredOrders = useMemo(() => {
         return allOrders.filter(o => {
-            const matchPort = o.region.toLowerCase().includes(selectedPort.toLowerCase());
+            const portLower = selectedPort.toLowerCase();
+            const matchPort = o.region.toLowerCase().includes(portLower)
+                || (o.delivery_point_name || '').toLowerCase().includes(portLower);
             const matchFuel = o.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
             return matchPort && matchFuel;
         });
