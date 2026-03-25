@@ -30,6 +30,7 @@ import { Training } from './components/Training';
 import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { MyTrades } from './components/MyTrades';
+import { TradeHistoryPage } from './components/TradeHistoryPage';
 import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
@@ -188,14 +189,14 @@ const Dashboard: React.FC = () => {
             case 'TERMINAL':
                 return <MarketTerminal />;
             case 'STATS':
-                return <SupplierStats />;
+                return <TradeHistoryPage />;
             case 'ANALYTICS':
-                return <SupplierAnalytics />;
+                return <TradeHistoryPage />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} />;
             case 'TRADES':
-                return <MyTrades />;
+                return <TradeHistoryPage />;
             case 'WATCHLISTS':
                 return <WatchlistPage />;
             default:
@@ -219,9 +220,9 @@ const Dashboard: React.FC = () => {
       case 'TRAINING':
          return <Training />;
       case 'STATS':
-         return <Stats />;
+         return <TradeHistoryPage />;
       case 'TRADES':
-         return <MyTrades />;
+         return <TradeHistoryPage />;
       case 'WATCHLISTS':
          return <WatchlistPage />;
       default:
