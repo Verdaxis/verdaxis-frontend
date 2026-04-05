@@ -1,13 +1,18 @@
 import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
 import { API_URL } from './config';
+import { getAccessToken } from './authToken';
 
 // Helper to get auth header
 const getHeaders = () => {
-    const token = localStorage.getItem('token');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
-    };
+    const token = getAccessToken();
+    return token
+        ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        }
+        : {
+            'Content-Type': 'application/json',
+        };
 };
 
 const handleResponse = async (res: Response) => {

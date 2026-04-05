@@ -16,13 +16,14 @@ src/
   index.css                        # Tailwind base + global styles
 
   context/
-    AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
+    AuthContext.tsx                 # In-memory access-token auth state, cookie refresh bootstrap, login/logout
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
     CopilotContext.tsx             # Shares page-level context with AI copilot
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
 
   services/
     config.ts                      # API_URL from VITE_API_URL env var
+    authToken.ts                   # In-memory access token store shared by auth + API clients
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
     ai.ts                          # Re-exports from ai-engine/
     ai-engine/
@@ -146,6 +147,10 @@ FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat l
 
 **Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
 Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+**Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
+`AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
+while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
 
 ## Entry Points
 

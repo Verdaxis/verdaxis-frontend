@@ -17,64 +17,26 @@ describe('ComplianceInfoPage', () => {
     expect(screen.getByText(/compliance & integrity/i)).toBeTruthy();
   });
 
-  it('renders double-counting prevention section', () => {
+  it('renders stewardship section and integrity points', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/double-counting prevention/i)).toBeTruthy();
-    expect(screen.getByText(/cryptographically locked/i)).toBeTruthy();
-    expect(screen.getByText(/permanently retired/i)).toBeTruthy();
-    expect(screen.getByText(/full audit trail from production to retirement/i)).toBeTruthy();
+    expect(screen.getByText(/the steward of high-integrity supply/i)).toBeTruthy();
+    expect(screen.getByText(/single source of truth for every participant in the chain/i)).toBeTruthy();
+    expect(screen.getByText(/end-to-end visibility from the point of production to the bunker tank/i)).toBeTruthy();
+    expect(screen.getByText(/every transaction is recorded, timestamped, and auditable/i)).toBeTruthy();
+    expect(screen.getByText(/verified sustainability data travels with the fuel at every stage/i)).toBeTruthy();
   });
 
-  it('renders IMO/FuelEU regulatory references', () => {
+  it('renders the chain-of-custody visual', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/international maritime/i)).toBeTruthy();
-    expect(screen.getByText(/fueleu maritime/i)).toBeTruthy();
-    expect(screen.getByText(/89\.34 gCO₂e\/MJ/)).toBeTruthy();
-    expect(screen.getByText(/imo net-zero framework/i)).toBeTruthy();
-    expect(screen.getByText(/cii rating integration/i)).toBeTruthy();
+    expect(screen.getByText('Producer')).toBeTruthy();
+    expect(screen.getByText('Verdaxis')).toBeTruthy();
+    expect(screen.getByText('Vessel')).toBeTruthy();
+    expect(screen.getByText('Tank')).toBeTruthy();
   });
 
-  it('renders EU ETS and CBAM references', () => {
+  it('renders CTA to the process page', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/european union/i)).toBeTruthy();
-    expect(screen.getByText(/eu ets maritime coverage/i)).toBeTruthy();
-    expect(screen.getByText(/cbam interface/i)).toBeTruthy();
-    expect(screen.getByText(/red iii sustainability/i)).toBeTruthy();
-    expect(screen.getByText(/eu taxonomy alignment/i)).toBeTruthy();
-  });
-
-  it('renders national schemes (45Z, RED III, RenovaBio)', () => {
-    renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getAllByText(/national schemes/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/us 45z clean fuel production credit/i)).toBeTruthy();
-    expect(screen.getAllByText(/renovabio/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/uk rtfo/i)).toBeTruthy();
-  });
-
-  it('renders third-party verification section', () => {
-    renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/third-party verification/i)).toBeTruthy();
-    expect(screen.getByText(/does not self-certify/i)).toBeTruthy();
-    expect(screen.getByText(/iscc eu/i)).toBeTruthy();
-    expect(screen.getByText(/iscc plus/i)).toBeTruthy();
-    expect(screen.getByText(/rsb/i)).toBeTruthy();
-    expect(screen.getByText(/never as the certifier/i)).toBeTruthy();
-  });
-
-  it('renders "what Verdaxis does not allow" exclusions', () => {
-    renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/what verdaxis does not allow/i)).toBeTruthy();
-    expect(screen.getByText(/decoupled environmental credits/i)).toBeTruthy();
-    expect(screen.getByText(/self-certified or unverified/i)).toBeTruthy();
-    expect(screen.getByText(/retroactive attribute modification/i)).toBeTruthy();
-    expect(screen.getByText(/non-kyc.d participants/i)).toBeTruthy();
-  });
-
-  it('renders regulators section', () => {
-    renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/for regulators & auditors/i)).toBeTruthy();
-    expect(screen.getByText(/read-only audit access/i)).toBeTruthy();
-    expect(screen.getByText(/tamper-evident record keeping/i)).toBeTruthy();
-    expect(screen.getByText(/regulatory partnership/i)).toBeTruthy();
+    expect(screen.getByText(/see how the platform works end-to-end/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /how it works/i }).getAttribute('href')).toBe('/how-it-works');
   });
 });

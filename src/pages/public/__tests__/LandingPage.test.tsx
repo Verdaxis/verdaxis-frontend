@@ -78,6 +78,7 @@ describe('LandingPage', () => {
     expect(screen.getByText('Fuel Buyers')).toBeTruthy();
     expect(screen.getByText('Traders')).toBeTruthy();
     expect(screen.getByText('Financiers')).toBeTruthy();
+    expect(screen.getByText(/market reach and visibility/i)).toBeTruthy();
   });
 
   it('renders price ticker with fuel data', () => {

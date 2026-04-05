@@ -83,19 +83,19 @@ export const PilotPage: React.FC = () => {
   if (!ready) return null;
 
   const enabledFeatures = [
-    t('pilot.features.enabled.items.0'),
-    t('pilot.features.enabled.items.1'),
-    t('pilot.features.enabled.items.2'),
-    t('pilot.features.enabled.items.3'),
-    t('pilot.features.enabled.items.4'),
+    t('pilot.includes.enabled.features.0'),
+    t('pilot.includes.enabled.features.1'),
+    t('pilot.includes.enabled.features.2'),
+    t('pilot.includes.enabled.features.3'),
+    t('pilot.includes.enabled.features.4'),
   ];
 
   const notYetLiveFeatures = [
-    t('pilot.features.notYetLive.items.0'),
-    t('pilot.features.notYetLive.items.1'),
-    t('pilot.features.notYetLive.items.2'),
-    t('pilot.features.notYetLive.items.3'),
-    t('pilot.features.notYetLive.items.4'),
+    t('pilot.includes.notYetLive.features.0'),
+    t('pilot.includes.notYetLive.features.1'),
+    t('pilot.includes.notYetLive.features.2'),
+    t('pilot.includes.notYetLive.features.3'),
+    t('pilot.includes.notYetLive.features.4'),
   ];
 
   const qualificationCards = [
@@ -185,10 +185,10 @@ export const PilotPage: React.FC = () => {
       {/* ---- Section 2: What the Pilot Includes ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>{t('pilot.features.title')}</h2>
+          <h2 style={sectionTitle}>{t('pilot.includes.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>{t('pilot.features.subtitle')}</p>
+          <p style={sectionSubtitle}>{t('pilot.includes.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -218,7 +218,7 @@ export const PilotPage: React.FC = () => {
                   marginBottom: 24,
                 }}
               >
-                {t('pilot.features.enabled.title')}
+                {t('pilot.includes.enabled.title')}
               </h3>
               {enabledFeatures.map((feature) => (
                 <div
@@ -261,7 +261,7 @@ export const PilotPage: React.FC = () => {
                   marginBottom: 24,
                 }}
               >
-                {t('pilot.features.notYetLive.title')}
+                {t('pilot.includes.notYetLive.title')}
               </h3>
               {notYetLiveFeatures.map((feature) => (
                 <div
@@ -354,10 +354,10 @@ export const PilotPage: React.FC = () => {
       {/* ---- Section 4: Application Form ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
         <Reveal>
-          <h2 style={sectionTitle}>{t('pilot.apply.title')}</h2>
+          <h2 style={sectionTitle}>{t('pilot.applyForm.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>{t('pilot.apply.subtitle')}</p>
+          <p style={sectionSubtitle}>{t('pilot.applyForm.subtitle')}</p>
         </Reveal>
 
         <Reveal delay={0.2}>
@@ -421,7 +421,7 @@ export const PilotPage: React.FC = () => {
                   style={{ flexShrink: 0, marginTop: 2 }}
                 />
                 <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.6, margin: 0 }}>
-                  {t('pilot.timeline.points.0')}
+                  {t('pilot.timeline.point0')}
                 </p>
               </div>
               <div
@@ -437,7 +437,7 @@ export const PilotPage: React.FC = () => {
                   style={{ flexShrink: 0, marginTop: 2 }}
                 />
                 <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.6, margin: 0 }}>
-                  {t('pilot.timeline.points.1')}
+                  {t('pilot.timeline.point1')}
                 </p>
               </div>
             </div>

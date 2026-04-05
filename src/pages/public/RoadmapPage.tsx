@@ -350,7 +350,7 @@ export const RoadmapPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
   if (!ready) return null;
 
-  const currentLabel = t('roadmap.currentLabel');
+  const currentLabel = t('roadmap.phases.current');
 
   const phases: Phase[] = [
     {
@@ -418,18 +418,18 @@ export const RoadmapPage: React.FC = () => {
   const designPrinciples = [
     {
       icon: Shield,
-      title: t('roadmap.principles.items.0.title'),
-      description: t('roadmap.principles.items.0.description'),
+      title: t('roadmap.howWeBuild.principles.0.title'),
+      description: t('roadmap.howWeBuild.principles.0.description'),
     },
     {
       icon: TrendingUp,
-      title: t('roadmap.principles.items.1.title'),
-      description: t('roadmap.principles.items.1.description'),
+      title: t('roadmap.howWeBuild.principles.1.title'),
+      description: t('roadmap.howWeBuild.principles.1.description'),
     },
     {
       icon: Scale,
-      title: t('roadmap.principles.items.2.title'),
-      description: t('roadmap.principles.items.2.description'),
+      title: t('roadmap.howWeBuild.principles.2.title'),
+      description: t('roadmap.howWeBuild.principles.2.description'),
     },
   ];
 
@@ -554,10 +554,10 @@ export const RoadmapPage: React.FC = () => {
       {/* ---- Section 3: Design Principles ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>{t('roadmap.principles.title')}</h2>
+          <h2 style={sectionTitle}>{t('roadmap.howWeBuild.title')}</h2>
         </Reveal>
         <Reveal delay={0.08}>
-          <p style={sectionSubtitle}>{t('roadmap.principles.subtitle')}</p>
+          <p style={sectionSubtitle}>{t('roadmap.howWeBuild.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid

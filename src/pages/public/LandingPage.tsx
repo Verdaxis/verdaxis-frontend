@@ -134,66 +134,66 @@ export const LandingPage: React.FC = () => {
   if (!ready) return null;
 
   const whyCards = [
-    { icon: TrendingUp, title: t('landing.why.items.0.title'), body: t('landing.why.items.0.body') },
-    { icon: Eye, title: t('landing.why.items.1.title'), body: t('landing.why.items.1.body') },
-    { icon: Zap, title: t('landing.why.items.2.title'), body: t('landing.why.items.2.body') },
-    { icon: ArrowLeftRight, title: t('landing.why.items.3.title'), body: t('landing.why.items.3.body') },
+    { icon: TrendingUp, title: t('landing.why.cards.0.title'), body: t('landing.why.cards.0.body') },
+    { icon: Eye, title: t('landing.why.cards.1.title'), body: t('landing.why.cards.1.body') },
+    { icon: Zap, title: t('landing.why.cards.2.title'), body: t('landing.why.cards.2.body') },
+    { icon: ArrowLeftRight, title: t('landing.why.cards.3.title'), body: t('landing.why.cards.3.body') },
   ];
 
   const howSteps = [
-    { num: '01', icon: ClipboardCheck, title: t('landing.how.steps.0.title'), body: t('landing.how.steps.0.body') },
-    { num: '02', icon: ShieldCheck, title: t('landing.how.steps.1.title'), body: t('landing.how.steps.1.body') },
-    { num: '03', icon: BarChart3, title: t('landing.how.steps.2.title'), body: t('landing.how.steps.2.body') },
+    { num: '01', stepLabel: t('landing.how.steps.0.step'), icon: ClipboardCheck, title: t('landing.how.steps.0.title'), body: t('landing.how.steps.0.body') },
+    { num: '02', stepLabel: t('landing.how.steps.1.step'), icon: ShieldCheck, title: t('landing.how.steps.1.title'), body: t('landing.how.steps.1.body') },
+    { num: '03', stepLabel: t('landing.how.steps.2.step'), icon: BarChart3, title: t('landing.how.steps.2.title'), body: t('landing.how.steps.2.body') },
   ];
 
   const roleCards = [
     {
       icon: Factory,
-      title: t('landing.roles.items.0.title'),
+      title: t('landing.roles.cards.0.title'),
       path: '/for-producers',
       bullets: [
-        t('landing.roles.items.0.bullets.0'),
-        t('landing.roles.items.0.bullets.1'),
-        t('landing.roles.items.0.bullets.2'),
+        t('landing.roles.cards.0.bullets.0'),
+        t('landing.roles.cards.0.bullets.1'),
+        t('landing.roles.cards.0.bullets.2'),
       ],
     },
     {
       icon: Ship,
-      title: t('landing.roles.items.1.title'),
+      title: t('landing.roles.cards.1.title'),
       path: '/for-buyers',
       bullets: [
-        t('landing.roles.items.1.bullets.0'),
-        t('landing.roles.items.1.bullets.1'),
-        t('landing.roles.items.1.bullets.2'),
+        t('landing.roles.cards.1.bullets.0'),
+        t('landing.roles.cards.1.bullets.1'),
+        t('landing.roles.cards.1.bullets.2'),
       ],
     },
     {
       icon: ArrowLeftRight,
-      title: t('landing.roles.items.2.title'),
+      title: t('landing.roles.cards.2.title'),
       path: '/for-traders',
       bullets: [
-        t('landing.roles.items.2.bullets.0'),
-        t('landing.roles.items.2.bullets.1'),
-        t('landing.roles.items.2.bullets.2'),
+        t('landing.roles.cards.2.bullets.0'),
+        t('landing.roles.cards.2.bullets.1'),
+        t('landing.roles.cards.2.bullets.2'),
       ],
     },
     {
       icon: Landmark,
-      title: t('landing.roles.items.3.title'),
+      title: t('landing.roles.cards.3.title'),
       path: '/for-financiers',
       bullets: [
-        t('landing.roles.items.3.bullets.0'),
-        t('landing.roles.items.3.bullets.1'),
-        t('landing.roles.items.3.bullets.2'),
+        t('landing.roles.cards.3.bullets.0'),
+        t('landing.roles.cards.3.bullets.1'),
+        t('landing.roles.cards.3.bullets.2'),
       ],
     },
   ];
 
   const stats = [
-    { value: 10, suffix: '+', label: t('landing.stats.items.0') },
-    { value: 6, suffix: '', label: t('landing.stats.items.1') },
-    { value: 100, suffix: '%', label: t('landing.stats.items.2') },
-    { value: 0, suffix: '', label: t('landing.stats.items.3') },
+    { value: 10, suffix: '+', label: t('landing.stats.fuelPathways') },
+    { value: 6, suffix: '', label: t('landing.stats.regulatoryFrameworks') },
+    { value: 100, suffix: '%', label: t('landing.stats.chainOfCustody') },
+    { value: 0, suffix: '', label: t('landing.stats.doubleCounting') },
   ];
 
   const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
@@ -424,7 +424,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Step cards */}
-          {howSteps.map(({ num, icon: Icon, title, body }) => (
+          {howSteps.map(({ num, stepLabel, icon: Icon, title, body }) => (
             <div
               key={num}
               style={{
@@ -467,7 +467,7 @@ export const LandingPage: React.FC = () => {
                     marginBottom: 10,
                   }}
                 >
-                  {t('landing.how.stepLabel')} {num}
+                  {stepLabel} {num}
                 </div>
                 <h3
                   style={{
@@ -499,14 +499,14 @@ export const LandingPage: React.FC = () => {
             </h2>
           </div>
           <div style={{ maxWidth: 500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {howSteps.map(({ num, icon: Icon, title, body }) => (
+            {howSteps.map(({ num, stepLabel, icon: Icon, title, body }) => (
               <div key={num} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14, padding: 28 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(76,175,80,0.08)', border: '2px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon size={20} color="#4CAF50" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{t('landing.how.stepLabel')} {num}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{stepLabel} {num}</div>
                     <h3 style={{ fontFamily: '"Montserrat", sans-serif', fontSize: 17, fontWeight: 700, color: '#0F172A' }}>{title}</h3>
                   </div>
                 </div>
