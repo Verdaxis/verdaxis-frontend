@@ -302,7 +302,7 @@ export const api = {
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.side) searchParams.append('side', params.side);
-            if (params?.availability) searchParams.append('availability', params.availability);
+            if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
@@ -311,7 +311,7 @@ export const api = {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
-            if (params?.availability) searchParams.append('availability', params.availability);
+            if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
             const res = await fetchApi(`/orderbook/bids?${searchParams.toString()}`);
             return res.items ?? res;
@@ -321,7 +321,7 @@ export const api = {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
-            if (params?.availability) searchParams.append('availability', params.availability);
+            if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
@@ -331,7 +331,7 @@ export const api = {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
-            if (params?.availability) searchParams.append('availability', params.availability);
+            if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
             const res = await fetchApi(`/orderbook/asks?${searchParams.toString()}`);
             return res.items ?? res;
@@ -341,7 +341,7 @@ export const api = {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
-            if (params?.availability) searchParams.append('availability', params.availability);
+            if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/orderbook/asks?${searchParams.toString()}`);
@@ -575,6 +575,12 @@ export const api = {
     subscriptions: {
         me: async (): Promise<import('../types').Subscription> => {
             return fetchApi('/subscriptions/me', { headers: getHeaders() });
+        },
+    },
+
+    fleetIntelligence: {
+        get: async (): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
+            return fetchApi('/fleet-intelligence', { headers: getHeaders() });
         },
     },
 

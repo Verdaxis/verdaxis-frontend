@@ -4,7 +4,7 @@ import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
-import { Copilot } from './ai/Copilot';
+// Copilot removed per Gavin feedback
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -58,8 +58,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </main>
                 
-                {/* AI Copilot Overlay */}
-                <Copilot viewMode={viewMode} currentPage={currentPage} />
+                {/* Copilot removed per Gavin feedback */}
             </div>
         </div>
     );

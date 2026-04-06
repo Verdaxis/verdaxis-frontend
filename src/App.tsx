@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { CopilotProvider } from './context/CopilotContext';
+// Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { GuidedTutorial } from './components/GuidedTutorial';
@@ -25,6 +25,7 @@ import { BuyerDashboard } from './components/BuyerDashboard';
 import { SupplierDashboard } from './components/SupplierDashboard';
 import { SupplierQuotes } from './components/SupplierQuotes';
 import { Fleet } from './components/Fleet';
+import { DataAnalytics } from './components/DataAnalytics';
 import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
@@ -187,11 +188,11 @@ const Dashboard: React.FC = () => {
             case 'QUOTES':
                 return <SupplierQuotes />;
             case 'TERMINAL':
-                return <MarketTerminal />;
+                return <MarketTerminal onNavigate={handleNavigate} />;
             case 'STATS':
                 return <TradeHistoryPage />;
             case 'ANALYTICS':
-                return <TradeHistoryPage />;
+                return <SupplierAnalytics />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} />;
@@ -212,9 +213,10 @@ const Dashboard: React.FC = () => {
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
-        return <MarketTerminal />;
+        return <MarketTerminal onNavigate={handleNavigate} />;
       case 'FLEET':
-        return <Fleet />;
+      case 'DATA_ANALYTICS':
+        return <DataAnalytics />;
       case 'COMPLIANCE':
         return <Compliance />;
       case 'TRAINING':
@@ -252,7 +254,6 @@ const App: React.FC = () => {
       <AuthProvider>
         <ToastProvider>
         <NotificationProvider>
-        <CopilotProvider>
             <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
@@ -348,7 +349,6 @@ const App: React.FC = () => {
                 </Routes>
             </BrowserRouter>
         </TutorialProvider>
-        </CopilotProvider>
         <TradeNotifier />
         </NotificationProvider>
         </ToastProvider>

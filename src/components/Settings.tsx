@@ -64,14 +64,20 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const [showNewPw, setShowNewPw] = useState(false);
     const [pwLoading, setPwLoading] = useState(false);
     const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    const [notifPrefs, setNotifPrefs] = useState({
-        email_trade_updates: true,
-        email_market_alerts: true,
-        email_compliance_digest: true,
-        email_system_announcements: true,
-        inapp_trade_updates: true,
-        inapp_market_alerts: true,
-        inapp_order_matches: true,
+    const [notifPrefs, setNotifPrefs] = useState(() => {
+        try {
+            const saved = localStorage.getItem('verdaxis_notif_prefs');
+            if (saved) return JSON.parse(saved);
+        } catch { /* ignore */ }
+        return {
+            email_trade_updates: true,
+            email_market_alerts: true,
+            email_compliance_digest: true,
+            email_system_announcements: true,
+            inapp_trade_updates: true,
+            inapp_market_alerts: true,
+            inapp_order_matches: true,
+        };
     });
 
     const firstName = user?.first_name || '';
@@ -117,7 +123,11 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     };
 
     const toggleNotifPref = (key: keyof typeof notifPrefs) => {
-        setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+        setNotifPrefs((prev: typeof notifPrefs) => {
+            const next = { ...prev, [key]: !prev[key] };
+            localStorage.setItem('verdaxis_notif_prefs', JSON.stringify(next));
+            return next;
+        });
     };
 
     if (!ready) return null;
@@ -267,17 +277,87 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                         <div className="v-card p-6">
                             <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('billing.title')}</h2>
                             <div className="space-y-6">
+                                {/* Current Plan */}
                                 <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                    <div className="flex items-center justify-between mb-2"><h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{t('billing.currentPlan')}</h3><span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{t('billing.pilotBadge')}</span></div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{t('billing.currentPlan')}</h3>
+                                        <span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{t('billing.pilotBadge')}</span>
+                                    </div>
                                     <p className="text-sm text-emerald-700 dark:text-emerald-400">{t('billing.pilotDesc')}</p>
+                                    <p className="text-xs text-emerald-600/70 dark:text-emerald-500/60 mt-1">Free during pilot period (first 6 months). Commission: $2/MT on executed trades.</p>
                                 </div>
+
+                                {/* Subscription Tiers */}
                                 <div>
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('billing.availablePlans')}</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.compliancePro')}</h4><p className="text-xs text-slate-500 mt-1">{t('billing.complianceProDesc')}</p><p className="text-lg font-bold text-[#5DADE2] mt-2">{t('billing.complianceProPrice')}<span className="text-xs font-normal text-slate-500">{t('billing.perVesselMonth')}</span></p></div>
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg"><h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.terminal')}</h4><p className="text-xs text-slate-500 mt-1">{t('billing.terminalDesc')}</p><p className="text-lg font-bold text-[#5DADE2] mt-2">{t('billing.terminalPrice')}<span className="text-xs font-normal text-slate-500">{t('billing.perSeatMonth')}</span></p></div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {/* Pilot (current) */}
+                                        <div className="p-4 border-2 border-emerald-300 dark:border-emerald-700 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/5 relative">
+                                            <span className="absolute -top-2.5 left-3 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">CURRENT</span>
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200 mt-1">Pilot</h4>
+                                            <p className="text-xs text-slate-500 mt-1">Market intelligence, orderbook access, basic compliance tools</p>
+                                            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">Free</p>
+                                            <p className="text-[10px] text-slate-400">+ $2/MT commission on trades</p>
+                                        </div>
+
+                                        {/* Professional */}
+                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5DADE2]/30 transition-colors">
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Professional</h4>
+                                            <p className="text-xs text-slate-500 mt-1">Full terminal access, forward curves to 2030, price alerts, S&D analytics</p>
+                                            <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">/seat/month</span></p>
+                                            <p className="text-[10px] text-slate-400">+ $1.50/MT commission</p>
+                                            <button className="mt-3 w-full py-2 rounded-lg bg-[#5DADE2]/10 text-[#5DADE2] text-xs font-bold hover:bg-[#5DADE2]/20 transition-colors border border-[#5DADE2]/20">
+                                                Upgrade
+                                            </button>
+                                        </div>
+
+                                        {/* Enterprise */}
+                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-amber-500/30 transition-colors">
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Enterprise</h4>
+                                            <p className="text-xs text-slate-500 mt-1">Dedicated account manager, custom API access, OTC brokering, priority matching</p>
+                                            <p className="text-2xl font-bold text-amber-500 mt-3">Custom</p>
+                                            <p className="text-[10px] text-slate-400">Negotiated commission rates</p>
+                                            <button
+                                                onClick={() => window.open('mailto:sales@verdaxis.exchange', '_blank')}
+                                                className="mt-3 w-full py-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors border border-amber-500/20"
+                                            >
+                                                Contact Sales
+                                            </button>
+                                        </div>
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-3">{t('billing.enterpriseContact')}</p>
+                                </div>
+
+                                {/* Commission Schedule */}
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Commission Schedule</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-xs">
+                                            <thead>
+                                                <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                                                    <th className="text-left py-2 pr-4 font-medium">Tier</th>
+                                                    <th className="text-right py-2 px-4 font-medium">Rate</th>
+                                                    <th className="text-right py-2 pl-4 font-medium">Min. Monthly</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-slate-700 dark:text-slate-300">
+                                                <tr className="border-b border-slate-100 dark:border-slate-700/50">
+                                                    <td className="py-2 pr-4">Pilot</td>
+                                                    <td className="py-2 px-4 text-right font-mono">$2.00/MT</td>
+                                                    <td className="py-2 pl-4 text-right font-mono">—</td>
+                                                </tr>
+                                                <tr className="border-b border-slate-100 dark:border-slate-700/50">
+                                                    <td className="py-2 pr-4">Professional</td>
+                                                    <td className="py-2 px-4 text-right font-mono">$1.50/MT</td>
+                                                    <td className="py-2 pl-4 text-right font-mono">$500</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="py-2 pr-4">Enterprise</td>
+                                                    <td className="py-2 px-4 text-right font-mono">Negotiated</td>
+                                                    <td className="py-2 pl-4 text-right font-mono">Custom</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -306,7 +306,7 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
     const [targetPrice, setTargetPrice] = useState<number | ''>('');
     const [availabilityWindow, setAvailabilityWindow] = useState('Spot');
     const [notes, setNotes] = useState('');
-    const [isAnonymous, setIsAnonymous] = useState(false);
+    const [isAnonymous, setIsAnonymous] = useState(true);
     const [expiresInHours, setExpiresInHours] = useState(72);
 
     useEffect(() => {

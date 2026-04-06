@@ -55,7 +55,7 @@ function formatQty(qty: number): string {
 // --- Component ---
 const MAX_LEVELS = 10;
 const ROW_HEIGHT = 18;
-const PRICE_COL_WIDTH = 72;
+const PRICE_COL_WIDTH = 130;
 
 export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
     bids,
@@ -122,9 +122,9 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
                 <div className="px-1 py-1">
                     {/* Column labels */}
                     <div className="flex items-center text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-wider mb-0.5 px-1">
-                        <div className="flex-1 text-left">Bid Qty</div>
+                        <div className="flex-1 text-right pr-1">Vol</div>
                         <div style={{ width: PRICE_COL_WIDTH }} className="text-center">Price</div>
-                        <div className="flex-1 text-right">Ask Qty</div>
+                        <div className="flex-1 text-left pl-1">Vol</div>
                     </div>
 
                     {/* Depth rows */}

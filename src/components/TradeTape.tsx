@@ -6,10 +6,9 @@ import { useNamespace } from '../hooks/useNamespace';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
     methanol: 'bg-violet-500',
+    ethanol: 'bg-orange-500',
     biofuel: 'bg-green-500',
-    lng: 'bg-sky-500',
     ammonia: 'bg-teal-500',
-    lsmgo: 'bg-amber-500',
 };
 
 function getDotColor(fuelType: string): string {
@@ -19,10 +18,9 @@ function getDotColor(fuelType: string): string {
 function shortFuel(fuelType: string): string {
     const map: Record<string, string> = {
         methanol: 'Methanol',
+        ethanol: 'Ethanol',
         biofuel: 'Biofuel',
-        lng: 'LNG',
         ammonia: 'Ammonia',
-        lsmgo: 'LSMGO',
     };
     return map[fuelType.toLowerCase()] ?? fuelType;
 }
@@ -65,7 +63,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, region }) => {
             const data = await api.tradeTape.list({
                 fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
                 region: region || undefined,
-                limit: 10,
+                limit: 20,
             });
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];

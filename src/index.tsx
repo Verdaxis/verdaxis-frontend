@@ -1,3 +1,4 @@
+window.__BUILD_VERSION__ = '1774900383';
 import './i18n';
 import React from 'react';
 import ReactDOM from 'react-dom/client';

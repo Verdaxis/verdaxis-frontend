@@ -20,7 +20,8 @@ export const CopilotProvider: React.FC<{ children: ReactNode }> = ({ children })
 export const useCopilotContext = () => {
     const context = useContext(CopilotContext);
     if (!context) {
-        throw new Error('useCopilotContext must be used within a CopilotProvider');
+        // Return no-op when Copilot is disabled
+        return { pageContext: null, setPageContext: () => {} };
     }
     return context;
 };

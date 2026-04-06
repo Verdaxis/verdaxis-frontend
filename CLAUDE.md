@@ -109,3 +109,14 @@ Production API URL is set in `.env.production` (committed to git). Vite automati
 - **In-app navigation is state-based, not URL-based.** The `/app` route renders all authenticated views. Changing pages updates `currentPage` state, not the URL. Do not add new react-router routes for authenticated pages -- add new `Page` type values and handle them in `Dashboard.renderContent()`.
 - **Gemini API key** is injected at build time via `define` in `vite.config.ts` from the `GEMINI_API_KEY` env var. If the key is missing, the Copilot gracefully degrades with a "features disabled" message. **Security note:** This injects the key into the client-side bundle where it can be extracted. Prefer proxying through the backend.
 - **Vestigial auth dependencies:** `@auth0/auth0-react`, `oidc-client-ts`, and `react-oidc-context` are still in `package.json` but are not used since Authentik was deprecated in favor of custom JWT auth. These should be removed to reduce bundle size and attack surface.
+<!-- codesight-local:start -->
+## Codesight Bootstrap
+
+Before exploring the tree, read:
+1. `.codesight/CODESIGHT.md`
+2. `.codesight/libs.md` if present
+3. `.codesight/graph.md` if the task touches service flow or module relationships
+4. `.codesight/components.md` if the task touches UI components
+
+Only open full source files after checking the generated context.
+<!-- codesight-local:end -->

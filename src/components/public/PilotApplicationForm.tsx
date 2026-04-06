@@ -95,7 +95,7 @@ export const PilotApplicationForm: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
 
@@ -105,13 +105,31 @@ export const PilotApplicationForm: React.FC = () => {
       if (typeof val === 'string' && val.trim() === '') return;
     }
 
-    // Save to localStorage
-    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    existing.push({
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) return;
+
+    const application = {
       ...formData,
       submittedAt: new Date().toISOString(),
-    });
+    };
+
+    // Save to localStorage
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    existing.push(application);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+
+    // Try to send to backend (graceful fallback if endpoint doesn't exist)
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      await fetch(`${apiUrl}/pilot-applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(application),
+      });
+    } catch {
+      // Endpoint may not exist yet — localStorage capture is sufficient for demo
+    }
 
     setSubmitted(true);
   };

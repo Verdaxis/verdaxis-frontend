@@ -60,7 +60,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         delivery_window_end: '',
         expiry_type: 'GTC',
         expiry_date: '',
-        is_anonymous: false,
+        is_anonymous: true,
     });
 
     const [modalState, setModalState] = useState<ModalState>('form');
@@ -177,9 +177,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
 
-    const selectClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
-    const inputClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
-    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2";
+    const selectClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
+    const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
+    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1";
 
     // Success / Auto-matched / Error overlays
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'error') {
@@ -284,9 +284,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-screen sm:max-h-[85vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
+                <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
                         <div className="flex items-center gap-3">
                             <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
@@ -314,7 +314,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
-                    <div className="p-6 space-y-6">
+                    <div className="p-4 space-y-3">
 
                         {/* Product & Delivery Point */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -366,8 +366,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         {/* Product details panel (shown when product selected) */}
                         {selectedProduct && (
-                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
-                                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                                     <div>
                                         <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.fuelType')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_type}</div>
@@ -404,13 +404,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             <div>
                                 <label className={labelClass}>{t('orderPlaceModal.label.quantity')}</label>
                                 {/* Quantity Presets */}
-                                <div className="flex gap-2 flex-wrap mb-2">
+                                <div className="flex gap-2 flex-wrap mb-1">
                                     {QUANTITY_PRESETS.map(preset => (
                                         <button
                                             key={preset.value}
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, quantity_mt: preset.value }))}
-                                            className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors
+                                            className={`text-[11px] px-2 py-1 rounded-md border transition-colors
                                                 ${formData.quantity_mt === preset.value
                                                     ? (side === 'BID'
                                                         ? 'bg-emerald-500 text-white border-emerald-500'
@@ -433,7 +433,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.price')}</label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">(Delivered FOB)</span></label>
                                 <input
                                     type="number"
                                     value={formData.price_per_mt_usd || ''}
@@ -483,11 +483,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {/* Order Expiry */}
                         <div>
                             <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
-                            <div className="flex gap-2 mb-3">
+                            <div className="flex gap-2 mb-2">
                                 <button
                                     type="button"
                                     onClick={() => handleChange('expiry_type', 'GTC')}
-                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex-1 ${
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
                                         formData.expiry_type === 'GTC'
                                             ? side === 'BID'
                                                 ? 'bg-emerald-500 text-white border border-emerald-500'
@@ -500,7 +500,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => handleChange('expiry_type', 'date')}
-                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex-1 ${
+                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
                                         formData.expiry_type === 'date'
                                             ? side === 'BID'
                                                 ? 'bg-emerald-500 text-white border border-emerald-500'
@@ -544,9 +544,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         {/* Estimated total */}
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (
-                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-4">
+                            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('orderPlaceModal.label.estimatedTotal')}</span>
+                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('orderPlaceModal.label.estimatedTotal')}</span>
                                     <span className="text-xl font-bold text-slate-800 dark:text-white">
                                         ${(formData.quantity_mt * formData.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
@@ -558,7 +558,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         )}
 
                         {/* Info */}
-                        <div className="rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-900/20 p-3">
+                        <div className="rounded-md border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-900/20 px-3 py-2">
                             <p className="text-xs text-blue-700 dark:text-blue-300">
                                 {side === 'BID' ? t('orderPlaceModal.info.bid') : t('orderPlaceModal.info.ask')}
                             </p>
@@ -566,18 +566,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0">
+                    <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0">
                         <button
                             type="button"
                             onClick={handleClose}
-                            className="flex-1 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors"
+                            className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors"
                         >
                             {t('orderPlaceModal.btn.cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={!isValid || modalState === 'submitting'}
-                            className={`flex-1 py-3 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                            className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
                                 isValid && modalState !== 'submitting'
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'

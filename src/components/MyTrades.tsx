@@ -13,6 +13,9 @@ import {
     Filter,
     X,
     AlertTriangle,
+    EyeOff,
+    FileText,
+    ShieldAlert,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Trade, TradeStatus } from '../types';
@@ -30,6 +33,7 @@ export const MyTrades: React.FC = () => {
     const { user, isAuthenticated } = useAuth();
     const { addToast } = useToast();
     const { t, ready } = useNamespace('trading');
+    const userRole = user?.role; // 'BUYER' | 'SUPPLIER' | 'ADMIN'
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -168,13 +172,13 @@ export const MyTrades: React.FC = () => {
         DECLINED: { label: t('myTrades.status.declined'), color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30', borderColor: 'border-red-200 dark:border-red-800' },
     };
 
-    // Render actions based on trade status and user role
+    // Render actions based on trade status and user role (E1/E2/E4)
     const renderActions = (trade: Trade) => {
         const userSide = getUserSide(trade);
         const isLoadingThis = actionLoadingId === trade.id;
 
+        // --- E1: PENDING_CONFIRMATION — "Awaiting Confirmation" with clock ---
         if (trade.status === 'PENDING_CONFIRMATION') {
-            // Only the counterparty (non-initiator) can confirm/decline
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
                 (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
@@ -183,7 +187,7 @@ export const MyTrades: React.FC = () => {
                 return (
                     <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                         <Clock size={12} />
-                        {t('myTrades.awaiting.counterparty')}
+                        Awaiting Confirmation
                     </span>
                 );
             }
@@ -210,57 +214,80 @@ export const MyTrades: React.FC = () => {
             );
         }
 
+        // --- E1/E2/E4: CONFIRMED ---
         if (trade.status === 'CONFIRMED') {
-            // Only seller can mark as delivered
-            if (userSide !== 'SELLER') {
+            // E2: BUYER sees "Confirm Delivery" button
+            if (userSide === 'BUYER') {
                 return (
-                    <span className="text-xs text-blue-600 dark:text-blue-400 italic flex items-center gap-1">
-                        <Clock size={12} />
-                        {t('myTrades.awaiting.delivery')}
-                    </span>
+                    <button
+                        onClick={() => {
+                            setDeliverTradeId(trade.id);
+                            setDeliverQuantity(trade.quantity_mt);
+                            setDeliverPrice(trade.price_per_mt_usd);
+                        }}
+                        disabled={isLoadingThis}
+                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                        {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <Truck size={12} />}
+                        Confirm Delivery
+                    </button>
                 );
             }
 
+            // E1+E4: SELLER sees "Confirmed — Commission Due" label + commission notice
+            const commissionAmt = trade.commission_amount_usd
+                ? `$${Number(trade.commission_amount_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : `${Number(trade.commission_rate_pct)}%`;
             return (
-                <button
-                    onClick={() => {
-                        setDeliverTradeId(trade.id);
-                        setDeliverQuantity(trade.quantity_mt);
-                        setDeliverPrice(trade.price_per_mt_usd);
-                    }}
-                    disabled={isLoadingThis}
-                    className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
-                >
-                    {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <Truck size={12} />}
-                    {t('myTrades.btn.deliver')}
-                </button>
+                <div className="flex flex-col gap-1.5">
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1">
+                        <Clock size={12} />
+                        Confirmed &mdash; Commission Due
+                    </span>
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-2 py-1">
+                        <ShieldAlert size={11} />
+                        Commission due ({commissionAmt}) &mdash; counterparty revealed after payment
+                    </span>
+                </div>
             );
         }
 
+        // --- E1: DELIVERED ---
         if (trade.status === 'DELIVERED') {
-            // Only seller can mark as paid
-            if (userSide !== 'SELLER') {
+            // E1: Seller sees "Mark as Paid" button
+            if (userSide === 'SELLER') {
                 return (
-                    <span className="text-xs text-blue-600 dark:text-blue-400 italic flex items-center gap-1">
-                        <Clock size={12} />
-                        {t('myTrades.awaiting.payment')}
-                    </span>
+                    <button
+                        onClick={() => handlePay(trade.id)}
+                        disabled={isLoadingThis}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                    >
+                        {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <DollarSign size={12} />}
+                        Mark as Paid
+                    </button>
                 );
             }
 
+            // E1: Buyer sees "Delivered" label
             return (
-                <button
-                    onClick={() => handlePay(trade.id)}
-                    disabled={isLoadingThis}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
-                >
-                    {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <DollarSign size={12} />}
-                    {t('myTrades.btn.pay')}
-                </button>
+                <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
+                    <Truck size={12} />
+                    Delivered
+                </span>
             );
         }
 
-        // PAID, DECLINED, CANCELLED — no actions
+        // --- E1: PAID — "Completed" with check ---
+        if (trade.status === 'PAID') {
+            return (
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 size={12} />
+                    Completed
+                </span>
+            );
+        }
+
+        // DECLINED, CANCELLED — no actions
         return <span className="text-xs text-slate-400 dark:text-slate-500 italic">{t('myTrades.noActions')}</span>;
     };
 
@@ -366,8 +393,14 @@ export const MyTrades: React.FC = () => {
                                     <th className="px-4 lg:px-6 py-4">{t('myTrades.col.region')}</th>
                                     <th className="px-4 lg:px-6 py-4">{t('myTrades.col.side')}</th>
                                     <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.qty')}</th>
-                                    <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.price')}</th>
-                                    <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.total')}</th>
+                                    {/* E3: Hide price/total for buyers */}
+                                    {userRole !== 'BUYER' && (
+                                        <>
+                                            <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.price')}</th>
+                                            <th className="px-4 lg:px-6 py-4 text-right">{t('myTrades.col.total')}</th>
+                                        </>
+                                    )}
+                                    <th className="px-4 lg:px-6 py-4">Counterparty</th>
                                     <th className="px-4 lg:px-6 py-4">{t('myTrades.col.status')}</th>
                                     <th className="px-4 lg:px-6 py-4">{t('myTrades.col.actions')}</th>
                                 </tr>
@@ -380,6 +413,7 @@ export const MyTrades: React.FC = () => {
                                     const price = trade.final_price_per_mt || trade.price_per_mt_usd;
                                     const total = trade.final_total_usd || (quantity * price);
                                     const statusCfg = STATUS_CONFIG[trade.status] || STATUS_CONFIG.CANCELLED;
+                                    const isSeller = userSide === 'SELLER';
 
                                     return (
                                         <tr key={trade.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -405,16 +439,49 @@ export const MyTrades: React.FC = () => {
                                             <td className="px-4 lg:px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
                                                 {quantity.toLocaleString()}
                                             </td>
-                                            <td className="px-4 lg:px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                                ${price.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 lg:px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-                                                ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {/* E3: Hide price/total columns for buyers */}
+                                            {userRole !== 'BUYER' && (
+                                                <>
+                                                    <td className="px-4 lg:px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                                        ${price.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 lg:px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                                                        ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </td>
+                                                </>
+                                            )}
+                                            {/* Counterparty — E4: sellers see gated identity */}
+                                            <td className="px-4 lg:px-6 py-4">
+                                                {trade.status === 'PENDING_CONFIRMATION' || trade.is_anonymous ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 italic">
+                                                        <EyeOff size={12} />
+                                                        Anonymous
+                                                    </span>
+                                                ) : isSeller && trade.status === 'CONFIRMED' ? (
+                                                    /* E4: Seller sees gated message until commission is paid */
+                                                    <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 italic">
+                                                        <EyeOff size={12} />
+                                                        Revealed after payment
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                                        {userSide === 'BUYER' ? (trade.seller_name || 'Seller') : (trade.buyer_name || 'Buyer')}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
-                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusCfg.bgColor} ${statusCfg.color} ${statusCfg.borderColor}`}>
-                                                    {statusCfg.label}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusCfg.bgColor} ${statusCfg.color} ${statusCfg.borderColor}`}>
+                                                        {statusCfg.label}
+                                                    </span>
+                                                    {/* E5: Invoice Sent badge for confirmed+ trades (seller only) */}
+                                                    {isSeller && ['CONFIRMED', 'DELIVERED', 'PAID'].includes(trade.status) && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+                                                            <FileText size={10} />
+                                                            Invoice Sent
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 {renderActions(trade)}

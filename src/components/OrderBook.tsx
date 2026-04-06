@@ -16,7 +16,7 @@ interface OrderBookRow extends OrderBookOrder {
 }
 
 const POLL_INTERVAL_MS = 10_000;
-const MAX_ROWS = 10;
+const MAX_ROWS = 15;
 
 function formatPrice(price: number): string {
     return `$${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
@@ -83,6 +83,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
         return allQtys.length > 0 ? Math.max(...allQtys) : 1;
     }, [bids, asks]);
 
+    const maxRows = Math.max(bids.length, asks.length);
+
     if (!ready) return null;
 
     if (loading) {
@@ -125,170 +127,146 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
                 </div>
             </div>
 
-            {/* Two-column grid */}
-            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700 flex-1 overflow-y-auto">
-                {/* === BIDS === */}
-                <div>
-                    {/* Column header */}
-                    <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/20 border-b border-slate-200 dark:border-slate-700">
-                        <TrendingUp size={14} className="text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('orderBook.bids')}</span>
-                        <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.buyPressure')}</span>
-                    </div>
-
-                    {/* Column sub-header */}
-                    <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
-                    </div>
-
-                    {/* Rows */}
-                    {bids.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-xs text-slate-400">
-                            {t('orderBook.noBids')}
-                        </div>
-                    ) : (
-                        bids.map((bid) => {
-                            const depthPct = maxQty > 0 ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
-                            const isCrossed = (bid as any).is_crossed === true;
-                            return (
-                                <div
-                                    key={bid.id}
-                                    onClick={() => onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType)}
-                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer ${
-                                        isCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-                                    }`}
-                                    title={t('orderBook.clickToSell')}
-                                >
-                                    {/* Depth bar behind row */}
-                                    <div
-                                        className={`absolute inset-y-0 left-0 pointer-events-none ${
-                                            isCrossed
-                                                ? 'bg-amber-200/40 dark:bg-amber-700/20'
-                                                : 'bg-emerald-100/60 dark:bg-emerald-900/20'
-                                        }`}
-                                        style={{ width: `${depthPct}%` }}
-                                    />
-                                    {/* Price */}
-                                    <span className={`relative z-10 text-xs font-mono font-bold ${
-                                        isCrossed
-                                            ? 'text-amber-600 dark:text-amber-400'
-                                            : 'text-emerald-600 dark:text-emerald-400'
-                                    }`}>
-                                        {formatPrice(bid.price_per_mt_usd)}
-                                        {isCrossed && (
-                                            <span className="ml-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                <Zap size={8} className="mr-0.5" />
-                                                CROSS
-                                            </span>
-                                        )}
-                                    </span>
-                                    {/* Quantity */}
-                                    <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
-                                        {formatQty(bid.remaining_quantity_mt)}
-                                    </span>
-                                    {/* Sell Now button */}
-                                    {onInstantTrade && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
-                                            className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                            title={`Sell ${formatQty(bid.remaining_quantity_mt)} MT at ${formatPrice(bid.price_per_mt_usd)}`}
-                                        >
-                                            Sell
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
+            {/* Column headers */}
+            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
+                <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/20">
+                    <TrendingUp size={14} className="text-emerald-500" />
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('orderBook.bids')}</span>
+                    <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.buyPressure')}</span>
                 </div>
-
-                {/* === ASKS === */}
-                <div>
-                    {/* Column header */}
-                    <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 dark:bg-red-950/20 border-b border-slate-200 dark:border-slate-700">
-                        <TrendingDown size={14} className="text-red-500" />
-                        <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">{t('orderBook.asks')}</span>
-                        <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.sellOffers')}</span>
-                    </div>
-
-                    {/* Column sub-header */}
-                    <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
-                    </div>
-
-                    {/* Rows */}
-                    {asks.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-xs text-slate-400">
-                            {t('orderBook.noAsks')}
-                        </div>
-                    ) : (
-                        asks.map((ask) => {
-                            const depthPct = maxQty > 0 ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
-                            const isCrossed = (ask as any).is_crossed === true;
-                            return (
-                                <div
-                                    key={ask.id}
-                                    onClick={() => onPriceClick?.('BID', ask.price_per_mt_usd, fuelType)}
-                                    className={`relative flex items-center justify-between px-4 py-1.5 border-b border-slate-100/60 dark:border-slate-700/30 last:border-b-0 group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors cursor-pointer ${
-                                        isCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
-                                    }`}
-                                    title={t('orderBook.clickToBuy')}
-                                >
-                                    {/* Depth bar behind row */}
-                                    <div
-                                        className={`absolute inset-y-0 left-0 pointer-events-none ${
-                                            isCrossed
-                                                ? 'bg-amber-200/40 dark:bg-amber-700/20'
-                                                : 'bg-red-100/60 dark:bg-red-900/20'
-                                        }`}
-                                        style={{ width: `${depthPct}%` }}
-                                    />
-                                    {/* Price */}
-                                    <span className={`relative z-10 text-xs font-mono font-bold ${
-                                        isCrossed
-                                            ? 'text-amber-600 dark:text-amber-400'
-                                            : 'text-red-600 dark:text-red-400'
-                                    }`}>
-                                        {formatPrice(ask.price_per_mt_usd)}
-                                        {isCrossed && (
-                                            <span className="ml-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                <Zap size={8} className="mr-0.5" />
-                                                CROSS
-                                            </span>
-                                        )}
-                                        {ask.carbon_intensity_gco2_mj != null && (
-                                            <span className={`ml-1.5 inline-flex items-center text-[9px] font-bold px-1 py-0.5 rounded-full ${
-                                                ask.carbon_intensity_gco2_mj < 30
-                                                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
-                                                    : ask.carbon_intensity_gco2_mj <= 60
-                                                    ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
-                                                    : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
-                                            }`}>
-                                                CI {Math.round(ask.carbon_intensity_gco2_mj)}
-                                            </span>
-                                        )}
-                                    </span>
-                                    {/* Quantity */}
-                                    <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
-                                        {formatQty(ask.remaining_quantity_mt)}
-                                    </span>
-                                    {/* Buy Now button */}
-                                    {onInstantTrade && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
-                                            className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                            title={`Buy ${formatQty(ask.remaining_quantity_mt)} MT at ${formatPrice(ask.price_per_mt_usd)}`}
-                                        >
-                                            Buy
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                        })
-                    )}
+                <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 dark:bg-red-950/20">
+                    <TrendingDown size={14} className="text-red-500" />
+                    <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">{t('orderBook.asks')}</span>
+                    <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.sellOffers')}</span>
                 </div>
+            </div>
+
+            {/* Sub-headers */}
+            <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700 border-b border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.qtyMt')}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.pricePerMt')}</span>
+                </div>
+                <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
+                </div>
+            </div>
+
+            {/* Unified rows — bid and ask per row for perfect vertical alignment */}
+            <div className="flex-1 overflow-y-auto">
+                {maxRows === 0 ? (
+                    <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
+                        <div className="px-4 py-8 text-center text-xs text-slate-400">{t('orderBook.noBids')}</div>
+                        <div className="px-4 py-8 text-center text-xs text-slate-400">{t('orderBook.noAsks')}</div>
+                    </div>
+                ) : (
+                    Array.from({ length: maxRows }).map((_, i) => {
+                        const bid = bids[i] ?? null;
+                        const ask = asks[i] ?? null;
+                        const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
+                        const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
+                        const bidCrossed = bid ? (bid as any).is_crossed === true : false;
+                        const askCrossed = ask ? (ask as any).is_crossed === true : false;
+
+                        return (
+                            <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
+                                {/* BID cell */}
+                                {bid ? (
+                                    <div
+                                        onClick={() => onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType)}
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer ${
+                                            bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
+                                        }`}
+                                        title={t('orderBook.clickToSell')}
+                                    >
+                                        <div
+                                            className={`absolute inset-y-0 right-0 pointer-events-none ${
+                                                bidCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-emerald-100/60 dark:bg-emerald-900/20'
+                                            }`}
+                                            style={{ width: `${bidDepth}%` }}
+                                        />
+                                        {onInstantTrade && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
+                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                            >
+                                                Sell
+                                            </button>
+                                        )}
+                                        <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400">
+                                            {formatQty(bid.remaining_quantity_mt)}
+                                        </span>
+                                        <span className={`relative z-10 text-xs font-mono font-bold text-right ${
+                                            bidCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                                        }`}>
+                                            {bidCrossed && (
+                                                <span className="mr-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                                    <Zap size={8} className="mr-0.5" />CROSS
+                                                </span>
+                                            )}
+                                            {formatPrice(bid.price_per_mt_usd)}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-1.5" />
+                                )}
+
+                                {/* ASK cell */}
+                                {ask ? (
+                                    <div
+                                        onClick={() => onPriceClick?.('BID', ask.price_per_mt_usd, fuelType)}
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors cursor-pointer ${
+                                            askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
+                                        }`}
+                                        title={t('orderBook.clickToBuy')}
+                                    >
+                                        <div
+                                            className={`absolute inset-y-0 left-0 pointer-events-none ${
+                                                askCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-red-100/60 dark:bg-red-900/20'
+                                            }`}
+                                            style={{ width: `${askDepth}%` }}
+                                        />
+                                        <span className={`relative z-10 text-xs font-mono font-bold ${
+                                            askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+                                        }`}>
+                                            {formatPrice(ask.price_per_mt_usd)}
+                                            {askCrossed && (
+                                                <span className="ml-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                                    <Zap size={8} className="mr-0.5" />CROSS
+                                                </span>
+                                            )}
+                                            {ask.carbon_intensity_gco2_mj != null && (
+                                                <span className={`ml-1.5 inline-flex items-center text-[9px] font-bold px-1 py-0.5 rounded-full ${
+                                                    ask.carbon_intensity_gco2_mj < 30
+                                                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+                                                        : ask.carbon_intensity_gco2_mj <= 60
+                                                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+                                                        : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                                                }`}>
+                                                    CI {Math.round(ask.carbon_intensity_gco2_mj)}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
+                                            {formatQty(ask.remaining_quantity_mt)}
+                                        </span>
+                                        {onInstantTrade && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
+                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                            >
+                                                Buy
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="px-4 py-1.5" />
+                                )}
+                            </div>
+                        );
+                    })
+                )}
             </div>
 
             {/* Spread footer */}
