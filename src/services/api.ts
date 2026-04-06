@@ -605,6 +605,12 @@ export const api = {
         cancel: async (rfqId: string) => {
             return fetchApi(`/rfq/${rfqId}/cancel`, { method: 'POST', headers: getHeaders() });
         },
+        decline: async (rfqId: string, quoteId: string) => {
+            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/decline`, { method: 'POST', headers: getHeaders() });
+        },
+        counter: async (rfqId: string, quoteId: string, data: { counter_price_per_mt: number }) => {
+            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/counter`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        },
     },
 
     tradeTape: {

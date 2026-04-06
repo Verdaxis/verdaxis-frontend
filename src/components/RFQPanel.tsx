@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Plus, Loader2, X, ChevronDown, ChevronUp, Check, Ban,
-    MessageSquare, Clock, Send, EyeOff, AlertCircle,
+    MessageSquare, Clock, Send, EyeOff, AlertCircle, ArrowLeftRight, XCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { API_URL } from '../services/config';
 import type { RFQ, RFQQuote, Product, DeliveryPoint } from '../types';
 
 // ─── Status badge config ──────────────────────────────────────
@@ -44,13 +45,22 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [toast, setToast] = useState<string | null>(null);
 
-    // Create RFQ modal
+    // Modals
     const [showCreateModal, setShowCreateModal] = useState(false);
-    // Submit quote modal
     const [quoteTarget, setQuoteTarget] = useState<RFQ | null>(null);
+    const [counterTarget, setCounterTarget] = useState<{ rfq: RFQ; quote: RFQQuote } | null>(null);
 
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const sseRef = useRef<EventSource | null>(null);
+
+    const showToast = useCallback((msg: string) => {
+        setToast(msg);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    }, []);
 
     const fetchRFQs = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -68,11 +78,44 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
 
     useEffect(() => { fetchRFQs(); }, [fetchRFQs]);
 
-    // 30s polling
+    // 30s polling fallback
     useEffect(() => {
         const iv = setInterval(() => fetchRFQs(true), 30_000);
         return () => clearInterval(iv);
     }, [fetchRFQs]);
+
+    // SSE: real-time updates for new quotes / counters
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const url = `${API_URL}/stream/activity?token=${encodeURIComponent(token)}`;
+        const source = new EventSource(url);
+        sseRef.current = source;
+
+        const onQuoteReceived = (e: MessageEvent) => {
+            fetchRFQs(true);
+            showToast('New quote received on your RFQ');
+        };
+        const onCountered = (e: MessageEvent) => {
+            fetchRFQs(true);
+            showToast('Buyer sent a counter-offer on your quote');
+        };
+
+        source.addEventListener('rfq_quote_received', onQuoteReceived);
+        source.addEventListener('rfq_countered', onCountered);
+
+        return () => {
+            source.removeEventListener('rfq_quote_received', onQuoteReceived);
+            source.removeEventListener('rfq_countered', onCountered);
+            source.close();
+            sseRef.current = null;
+        };
+    }, [fetchRFQs, showToast]);
+
+    useEffect(() => () => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    }, []);
 
     const handleCancel = async (rfqId: string) => {
         setActionLoading(rfqId);
@@ -87,6 +130,15 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
         setActionLoading(quoteId);
         try {
             await api.rfq.accept(rfqId, quoteId);
+            await fetchRFQs(true);
+        } catch (err) { console.error('Action failed:', err); }
+        setActionLoading(null);
+    };
+
+    const handleDeclineQuote = async (rfqId: string, quoteId: string) => {
+        setActionLoading(quoteId);
+        try {
+            await api.rfq.decline(rfqId, quoteId);
             await fetchRFQs(true);
         } catch (err) { console.error('Action failed:', err); }
         setActionLoading(null);
@@ -111,6 +163,15 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
 
     return (
         <div className="space-y-4">
+            {/* Toast notification */}
+            {toast && (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-xl shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                    <MessageSquare size={14} />
+                    {toast}
+                    <button onClick={() => setToast(null)} className="ml-auto opacity-70 hover:opacity-100"><X size={14} /></button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -210,9 +271,6 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
                                             <div><span className="text-slate-400">Buyer:</span> <span className="text-slate-700 dark:text-slate-200 font-medium">{rfq.buyer_org_name}</span></div>
                                         )}
                                     </div>
-                                    {rfq.notes && (
-                                        <p className="text-xs text-slate-500 italic">"{rfq.notes}"</p>
-                                    )}
 
                                     {/* Quotes section */}
                                     {rfq.quotes && rfq.quotes.length > 0 && (
@@ -220,6 +278,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quotes</span>
                                             {rfq.quotes.map(q => {
                                                 const qStyle = QUOTE_STATUS_STYLES[q.status] ?? QUOTE_STATUS_STYLES.PENDING;
+                                                const canAct = isOwn && q.status === 'PENDING' && rfq.status !== 'CANCELLED';
                                                 return (
                                                     <div key={q.id} className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg px-3 py-2 border border-slate-200 dark:border-slate-700">
                                                         <div className="min-w-0">
@@ -234,19 +293,37 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
                                                             {q.seller_org_name && (
                                                                 <span className="text-[10px] text-slate-400">from {q.seller_org_name}</span>
                                                             )}
-                                                            {q.notes && (
-                                                                <p className="text-[10px] text-slate-400 italic mt-0.5">"{q.notes}"</p>
-                                                            )}
                                                         </div>
-                                                        {isOwn && q.status === 'PENDING' && rfq.status !== 'CANCELLED' && (
-                                                            <button
-                                                                onClick={() => handleAcceptQuote(rfq.id, q.id)}
-                                                                disabled={actionLoading === q.id}
-                                                                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-white text-[10px] font-bold rounded-md transition-colors disabled:opacity-50"
-                                                            >
-                                                                {actionLoading === q.id ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                                                                Accept
-                                                            </button>
+                                                        {canAct && (
+                                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                                {/* Accept */}
+                                                                <button
+                                                                    onClick={() => handleAcceptQuote(rfq.id, q.id)}
+                                                                    disabled={!!actionLoading}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-white text-[10px] font-bold rounded-md transition-colors disabled:opacity-50"
+                                                                >
+                                                                    {actionLoading === q.id ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                                                    Accept
+                                                                </button>
+                                                                {/* Counter */}
+                                                                <button
+                                                                    onClick={() => setCounterTarget({ rfq, quote: q })}
+                                                                    disabled={!!actionLoading}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-white text-[10px] font-bold rounded-md transition-colors disabled:opacity-50"
+                                                                >
+                                                                    <ArrowLeftRight size={10} />
+                                                                    Counter
+                                                                </button>
+                                                                {/* Decline */}
+                                                                <button
+                                                                    onClick={() => handleDeclineQuote(rfq.id, q.id)}
+                                                                    disabled={!!actionLoading}
+                                                                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-red-500 hover:text-red-400 border border-red-200 dark:border-red-800 rounded-md transition-colors disabled:opacity-50"
+                                                                >
+                                                                    <XCircle size={10} />
+                                                                    Decline
+                                                                </button>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 );
@@ -288,6 +365,16 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role }) => {
 
             {/* Submit Quote Modal */}
             {quoteTarget && <SubmitQuoteModal rfq={quoteTarget} onClose={() => setQuoteTarget(null)} onSubmitted={() => { setQuoteTarget(null); fetchRFQs(true); }} />}
+
+            {/* Counter Modal */}
+            {counterTarget && (
+                <CounterModal
+                    rfq={counterTarget.rfq}
+                    quote={counterTarget.quote}
+                    onClose={() => setCounterTarget(null)}
+                    onSubmitted={() => { setCounterTarget(null); fetchRFQs(true); showToast('Counter-offer sent'); }}
+                />
+            )}
         </div>
     );
 };
@@ -305,7 +392,6 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
     const [quantityMt, setQuantityMt] = useState(500);
     const [targetPrice, setTargetPrice] = useState<number | ''>('');
     const [availabilityWindow, setAvailabilityWindow] = useState('Spot');
-    const [notes, setNotes] = useState('');
     const [isAnonymous, setIsAnonymous] = useState(true);
     const [expiresInHours, setExpiresInHours] = useState(72);
 
@@ -334,7 +420,6 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
                 quantity_mt: quantityMt,
                 target_price_per_mt: targetPrice || undefined,
                 availability_window: availabilityWindow,
-                notes: notes || undefined,
                 is_anonymous: isAnonymous,
                 expires_in_hours: expiresInHours,
             });
@@ -397,10 +482,6 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
                                     </select>
                                 </div>
                             </div>
-                            <div>
-                                <label className="v-label">Notes (optional)</label>
-                                <textarea value={notes} onChange={e => setNotes(e.target.value)} className="v-input" rows={2} placeholder="Any special requirements..." />
-                            </div>
                             <label className="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" checked={isAnonymous} onChange={e => setIsAnonymous(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />
                                 <span className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1"><EyeOff size={14} /> Anonymous RFQ</span>
@@ -421,7 +502,6 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
 // ─── Submit Quote Modal ───────────────────────────────────────
 const SubmitQuoteModal: React.FC<{ rfq: RFQ; onClose: () => void; onSubmitted: () => void }> = ({ rfq, onClose, onSubmitted }) => {
     const [price, setPrice] = useState<number>(rfq.target_price_per_mt ?? 0);
-    const [notes, setNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
@@ -431,7 +511,7 @@ const SubmitQuoteModal: React.FC<{ rfq: RFQ; onClose: () => void; onSubmitted: (
         setSubmitting(true);
         setError('');
         try {
-            await api.rfq.quote(rfq.id, { price_per_mt_usd: price, notes: notes || undefined });
+            await api.rfq.quote(rfq.id, { price_per_mt_usd: price });
             onSubmitted();
         } catch (err: any) {
             setError(err?.message || 'Failed to submit quote');
@@ -459,14 +539,69 @@ const SubmitQuoteModal: React.FC<{ rfq: RFQ; onClose: () => void; onSubmitted: (
                         <label className="v-label">Your Price ($/MT)</label>
                         <input type="number" min={0.01} step={0.01} value={price} onChange={e => setPrice(Number(e.target.value))} className="v-input font-mono" required />
                     </div>
-                    <div>
-                        <label className="v-label">Notes (optional)</label>
-                        <textarea value={notes} onChange={e => setNotes(e.target.value)} className="v-input" rows={2} placeholder="Payment terms, delivery details..." />
-                    </div>
                     {error && <p className="text-sm text-red-500">{error}</p>}
                     <button type="submit" disabled={submitting || price <= 0} className="w-full v-btn-primary disabled:opacity-50">
                         {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
                         Submit Quote
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+// ─── Counter Modal ────────────────────────────────────────────
+const CounterModal: React.FC<{ rfq: RFQ; quote: RFQQuote; onClose: () => void; onSubmitted: () => void }> = ({ rfq, quote, onClose, onSubmitted }) => {
+    const [counterPrice, setCounterPrice] = useState<number>(rfq.target_price_per_mt ?? Math.round(Number(quote.price_per_mt_usd) * 0.97));
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (counterPrice <= 0) return;
+        setSubmitting(true);
+        setError('');
+        try {
+            await api.rfq.counter(rfq.id, quote.id, { counter_price_per_mt: counterPrice });
+            onSubmitted();
+        } catch (err: any) {
+            setError(err?.message || 'Failed to send counter-offer');
+        }
+        setSubmitting(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                    <div>
+                        <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">Counter Offer</h3>
+                        <p className="text-xs text-slate-500">{rfq.product_name || rfq.product_id} · {rfq.quantity_mt.toLocaleString()} MT</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={20} /></button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-700/40 rounded-lg border border-slate-200 dark:border-slate-600 text-xs">
+                        <span className="text-slate-500">Supplier quoted:</span>{' '}
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-200">${Number(quote.price_per_mt_usd).toLocaleString()}/MT</span>
+                    </div>
+                    <div>
+                        <label className="v-label">Your Counter Price ($/MT)</label>
+                        <input
+                            type="number"
+                            min={0.01}
+                            step={0.01}
+                            value={counterPrice}
+                            onChange={e => setCounterPrice(Number(e.target.value))}
+                            className="v-input font-mono"
+                            required
+                        />
+                        <p className="text-[11px] text-slate-400 mt-1">This will update your RFQ target price and decline the current quote.</p>
+                    </div>
+                    {error && <p className="text-sm text-red-500">{error}</p>}
+                    <button type="submit" disabled={submitting || counterPrice <= 0} className="w-full v-btn-primary disabled:opacity-50">
+                        {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <ArrowLeftRight size={16} className="mr-2" />}
+                        Send Counter Offer
                     </button>
                 </form>
             </div>
