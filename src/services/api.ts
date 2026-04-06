@@ -611,6 +611,9 @@ export const api = {
         counter: async (rfqId: string, quoteId: string, data: { counter_price_per_mt: number }) => {
             return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/counter`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },
+        revise: async (rfqId: string, quoteId: string, data: { price_per_mt_usd: number }) => {
+            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(data) });
+        },
     },
 
     tradeTape: {
