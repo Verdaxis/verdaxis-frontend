@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     return (
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative transition-colors duration-200">
+        <header className="h-16 bg-[#343E50] dark:bg-[#0f172a] border-b border-[#2A3344] dark:border-[#1e293b] flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative transition-colors duration-200">
             <div className="flex items-center flex-1">
                 <button
                     className="md:hidden mr-4 text-slate-500 hover:text-verdaxis-dark"
@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     <input
                         type="text"
                         placeholder={viewMode === 'BUYER' ? t('header.search') : t('header.searchRequests')}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-verdaxis text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400"
+                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#2A3344] bg-[#2A3344] dark:bg-[#0A1628] focus:outline-none focus:ring-2 focus:ring-verdaxis text-sm text-white placeholder-slate-400"
                     />
                 </div>
             </div>
@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     <button
                         onClick={startTutorial}
                         data-tour="tour-button"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-verdaxis dark:text-slate-400 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-verdaxis dark:hover:border-blue-500 transition-all duration-200"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white border border-[#2A3344] rounded-lg hover:border-verdaxis transition-all duration-200"
                     >
                         <Compass size={14} />
                         <span className="hidden md:inline">{t('header.platformTour')}</span>
@@ -78,13 +78,13 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 <div className="relative">
                     <button
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
-                        className="flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors"
+                        className="flex items-center space-x-3 hover:bg-[#2A3344] p-2 rounded-lg transition-colors"
                     >
                         <div className="text-right hidden md:block">
-                            <div className="text-sm font-bold text-verdaxis-dark dark:text-slate-200">
+                            <div className="text-sm font-bold text-white">
                                 {user ? `${user.first_name} ${user.last_name}` : 'Guest User'}
                             </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                            <div className="text-xs text-slate-400">
                                 {user && user.role === 'BUYER'
                                     ? t('header.roleBuyer')
                                     : user && user.role === 'SUPPLIER'
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                     : 'Guest'}
                             </div>
                         </div>
-                        <div className="h-10 w-10 bg-slate-200 rounded-full flex items-center justify-center border border-slate-300 text-slate-500">
+                        <div className="h-10 w-10 bg-[#2A3344] rounded-full flex items-center justify-center border border-[#3A4A60] text-slate-400">
                             <UserCircle size={24} />
                         </div>
                         <ChevronDown size={16} className="text-slate-400 hidden md:block" />
