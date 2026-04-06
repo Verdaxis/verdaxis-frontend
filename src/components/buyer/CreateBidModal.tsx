@@ -17,7 +17,7 @@ export interface BidFormData {
 }
 
 const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai', 'UAE'];
-const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia', 'LSMGO'];
+const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
 const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 
@@ -51,7 +51,7 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>

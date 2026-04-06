@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, AlertCircle, Sparkles, RefreshCw, Shield, GraduationCap } from 'lucide-react';
 import { Port, Page, Vessel } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import { useNamespace } from '../../hooks/useNamespace';
+import { NewsFeed } from '../NewsFeed';
 
 interface IntelligencePanelProps {
     isOpen: boolean;
@@ -153,11 +154,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             </div>
                         )}
 
-                        {/* Future Compliance & Projects */}
+                        {/* Compliance & Future Projects */}
                         {selectedPort.details.upcomingProjects && (
                             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
-                                <h3 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1">
-                                    <TrendingUp size={10} /> {t('intelligencePanel.futurePipeline')}
+                                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
+                                    <Shield size={16} className="text-blue-500" /> {t('intelligencePanel.futurePipeline')}
                                 </h3>
                                 <div className="space-y-2">
                                     {selectedPort.details.upcomingProjects.map((project, idx) => (
@@ -232,42 +233,68 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 ))}
                             </div>
                         </div>
+
+                        {/* Compliance */}
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
+                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
+                                <Shield size={16} className="text-blue-500" /> Compliance
+                            </h3>
+                            <div className="space-y-2">
+                                {atRiskVessel ? (
+                                    <div className="flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
+                                        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <div className="font-bold text-amber-700 dark:text-amber-300">{atRiskVessel.name}</div>
+                                            <div className="text-[10px] text-amber-600 dark:text-amber-400">{alertType} risk — review required</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-[11px] text-slate-500 dark:text-slate-400">All vessels compliant. No alerts.</div>
+                                )}
+                                <button
+                                    onClick={() => onNavigate('FLEET')}
+                                    className="w-full text-[11px] font-bold text-blue-500 hover:text-blue-600 text-left flex items-center gap-1 mt-1"
+                                >
+                                    View Fleet Compliance <ArrowRight size={12} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Education */}
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
+                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
+                                <GraduationCap size={16} className="text-emerald-500" /> Education
+                            </h3>
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => onNavigate('TRAINING')}
+                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <Info size={12} className="text-emerald-500 shrink-0" />
+                                    <div>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">FuelEU & EU ETS Basics</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Regulation overview for operators</div>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => onNavigate('TRAINING')}
+                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <Info size={12} className="text-emerald-500 shrink-0" />
+                                    <div>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">Alternative Fuel Guide</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Methanol, ammonia, biofuel comparison</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
                     </>
                 )}
 
-                {/* Compliance Alert - Dynamic from fleet data */}
-                {atRiskVessel ? (
-                    <div className="p-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 rounded-lg mt-auto">
-                        <div className="flex items-center space-x-2 text-amber-700 dark:text-amber-500 mb-2">
-                            <AlertCircle size={16} />
-                            <span className="text-xs font-bold uppercase">{t('intelligencePanel.fleetAlert')}</span>
-                        </div>
-                        <p className="text-xs text-amber-800 dark:text-amber-400">
-                            {t('intelligencePanel.fleetAlertMessage', {
-                                name: atRiskVessel.name,
-                                alertType,
-                                status: alertType === 'FuelEU' ? atRiskVessel.complianceFuelEU : atRiskVessel.complianceEUETS,
-                                grade: atRiskVessel.ciiGrade,
-                            })}
-                        </p>
-                        <button
-                            onClick={() => onNavigate('FLEET')}
-                            className="mt-3 w-full text-xs font-bold text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded py-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                        >
-                            {t('intelligencePanel.viewFleetStatus')}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="p-4 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg mt-auto">
-                        <div className="flex items-center space-x-2 text-emerald-700 dark:text-emerald-500 mb-2">
-                            <Ship size={16} />
-                            <span className="text-xs font-bold uppercase">{t('intelligencePanel.fleetStatus')}</span>
-                        </div>
-                        <p className="text-xs text-emerald-800 dark:text-emerald-400">
-                            {t('intelligencePanel.allVesselsCompliant')}
-                        </p>
-                    </div>
-                )}
+                {/* News Feed — replaces fleet alert per Gavin feedback */}
+                <div className="mt-auto">
+                    <NewsFeed />
+                </div>
             </div>
         </div>
     );

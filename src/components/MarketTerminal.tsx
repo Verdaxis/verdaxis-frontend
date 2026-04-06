@@ -73,12 +73,11 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
 // These are ARA mid-market prices; region modifiers adjust per port
 const FUEL_BASE_PRICES: Record<string, number> = {
-    'Methanol': 590,      // Green methanol ARA ~$590 (2x gray premium over ~$292)
-    'Biofuel': 920,       // HVO ARA ~$920 (VLSFO + $150 premium)
-    'LNG': 760,           // LNG bunker ARA ~$760
+    'Methanol': 590,      // Green methanol ARA ~$590
+    'Biofuel': 920,       // HVO ARA ~$920
     'Ammonia': 670,       // Green ammonia projected ~$670
     'Ethanol': 930,       // Bioethanol ~$930
-    'LSMGO': 770,         // VLSFO ARA ~$770
+    'Biomethane': 850,    // Bio-LNG/Biomethane ARA ~$850
 };
 
 // Region price modifiers (spread vs base)
@@ -88,14 +87,14 @@ const REGION_MODIFIERS: Record<string, number> = {
     'Rotterdam': 0,       // ~= ARA
     'ARA': 0,
     'Houston': 30,
-    'Fujairah': 170,      // Fujairah premium (real: VLSFO $941 vs ARA $757)
+    'Fujairah': 170,      // Fujairah premium vs ARA
     'Busan': 120,
     'Shanghai': 100,
     'Algeciras': 20,
 };
 
-// Available fuel types for the selector
-const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia'];
+// Green fuel types only — no fossil fuels
+const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 
 // Seeded random for deterministic-looking but varying data
 const seededRandom = (seed: number) => {

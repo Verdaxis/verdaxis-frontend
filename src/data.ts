@@ -663,7 +663,7 @@ export const MARKET_WATCH_ITEMS: MarketWatchItem[] = [
 export const INVENTORY_ITEMS: InventoryItem[] = [
     { id: 'inv-1', productName: 'Green Methanol', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 1200, incomingStock: 500, pricePerMt: 545, status: 'Available' },
     { id: 'inv-2', productName: 'Biofuel B24', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 450, incomingStock: 1000, pricePerMt: 780, status: 'Low Stock' },
-    { id: 'inv-3', productName: 'LSMGO', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 3500, incomingStock: 0, pricePerMt: 620, status: 'Available' },
+    { id: 'inv-3', productName: 'Biomethane', portId: 'nl-rtm', portName: 'Rotterdam', currentStock: 2800, incomingStock: 600, pricePerMt: 850, status: 'Available' },
     { id: 'inv-4', productName: 'Green Methanol', portId: 'jp-tok', portName: 'Tokyo', currentStock: 800, incomingStock: 200, pricePerMt: 530, status: 'Available' },
     { id: 'inv-5', productName: 'Biofuel B100', portId: 'us-lax', portName: 'Los Angeles', currentStock: 600, incomingStock: 1500, pricePerMt: 820, status: 'Low Stock' },
 ];

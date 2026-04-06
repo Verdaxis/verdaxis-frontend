@@ -1,31 +1,23 @@
-import React, { useState, useEffect, useMemo } from 'react';
-// Fix: Alias imports to allow casting to any, solving type definition errors for standard props
-import { MapContainer as LMapContainer, TileLayer as LTileLayer, Popup as LPopup, Tooltip as LTooltip, CircleMarker as LCircleMarker } from 'react-leaflet';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff } from 'lucide-react';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
 import { api } from '../services/api';
-import { VesselMarkers } from './map/VesselMarkers';
 import { MapLegend } from './map/MapLegend';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
-
-// Fix: Cast components to any to bypass "Property does not exist" errors on standard props like center, icon, attribution
-const MapContainer = LMapContainer as any;
-const TileLayer = LTileLayer as any;
-const Popup = LPopup as any;
-const MapTooltip = LTooltip as any;
-const CircleMarker = LCircleMarker as any;
+import { calculateHeading } from '../utils';
+import { useTheme } from '../context/ThemeContext';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
 }
-
-import { useTheme } from '../context/ThemeContext';
 
 // Aggregate port market data from the orderbook aggregated endpoint
 interface PortMarketData {
@@ -35,47 +27,67 @@ interface PortMarketData {
         bestBid: number | null;
         bestAsk: number | null;
         orderCount: number;
+        spreadPct: number; // Spread as % of mid-price for THIS fuel
     }>;
-    avgSpreadPct: number; // Average spread as % of mid-price
+    spreadPct: number; // Spread for the selected/best fuel (NOT averaged across fuels)
 }
 
 const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
     portName: string,
-    portCountry: string
+    portCountry: string,
+    selectedFuelType?: string
 ): PortMarketData => {
     // Match by region (could be port name or country)
     const portRows = aggregated.filter(
-        a => a.region === portName || a.region === portCountry
+        a => a.delivery_point_name === portName || a.region === portName || a.region === portCountry
     );
 
-    // Group by fuel_type
+    // Group by fuel_type — green fuels only
     const byFuel: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
     portRows.forEach(row => {
+        if (!isGreenFuel(row.fuel_type)) return;
         if (!byFuel[row.fuel_type]) byFuel[row.fuel_type] = { bids: [], asks: [] };
         if (row.side === 'BID') byFuel[row.fuel_type].bids.push(row);
         else byFuel[row.fuel_type].asks.push(row);
     });
 
     let totalVolume = 0;
-    const spreads: number[] = [];
     const fuelRows = Object.entries(byFuel).map(([fuel_type, { bids, asks }]) => {
-        const bestBid = bids.length > 0 ? Math.max(...bids.map(b => b.max_price)) : null;
-        const bestAsk = asks.length > 0 ? Math.min(...asks.map(a => a.min_price)) : null;
-        const orderCount = bids.reduce((s, b) => s + b.order_count, 0) + asks.reduce((s, a) => s + a.order_count, 0);
-        totalVolume += bids.reduce((s, b) => s + b.total_quantity, 0) + asks.reduce((s, a) => s + a.total_quantity, 0);
+        const bestBid = bids.length > 0 ? Math.max(...bids.map(b => Number(b.max_price))) : null;
+        const bestAsk = asks.length > 0 ? Math.min(...asks.map(a => Number(a.min_price))) : null;
+        const orderCount = bids.reduce((s, b) => s + Number(b.order_count), 0) + asks.reduce((s, a) => s + Number(a.order_count), 0);
+        totalVolume += bids.reduce((s, b) => s + Number(b.total_quantity), 0) + asks.reduce((s, a) => s + Number(a.total_quantity), 0);
 
+        let spreadPct = 999;
         if (bestBid !== null && bestAsk !== null) {
             const mid = (bestBid + bestAsk) / 2;
-            if (mid > 0) spreads.push(((bestAsk - bestBid) / mid) * 100);
+            if (mid > 0) spreadPct = ((bestAsk - bestBid) / mid) * 100;
         }
 
-        return { fuel_type, bestBid, bestAsk, orderCount };
+        return { fuel_type, bestBid, bestAsk, orderCount, spreadPct };
     }).filter(r => r.orderCount > 0);
 
-    const avgSpreadPct = spreads.length > 0 ? spreads.reduce((a, b) => a + b, 0) / spreads.length : 999;
+    // Pick the spread for the circle color: use the selected fuel type if provided,
+    // otherwise pick the fuel with the tightest (lowest) spread.
+    // Averaging across independent fuel types is meaningless.
+    let spreadPct = 999;
+    if (fuelRows.length > 0) {
+        if (selectedFuelType) {
+            const match = fuelRows.find(r => r.fuel_type === selectedFuelType);
+            if (match) {
+                spreadPct = match.spreadPct;
+            } else {
+                // Selected fuel not present at this port — use tightest available
+                spreadPct = Math.min(...fuelRows.map(r => r.spreadPct));
+            }
+        } else {
+            // No fuel selected — show the tightest spread (most tradeable fuel)
+            spreadPct = Math.min(...fuelRows.map(r => r.spreadPct));
+        }
+    }
 
-    return { totalVolume, fuelRows, avgSpreadPct };
+    return { totalVolume, fuelRows, spreadPct };
 };
 
 // Port circle radius: proportional to volume, clamped 6-20px
@@ -84,6 +96,13 @@ const getPortRadius = (volume: number, maxVolume: number): number => {
     const ratio = volume / maxVolume;
     return Math.round(6 + ratio * 14); // 6..20
 };
+
+// Green fuels only — fossil fuels (LNG, MGO, VLSFO, LSMGO) are suppressed platform-wide
+const GREEN_FUELS = new Set(['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane']);
+const isGreenFuel = (fuel: string) => GREEN_FUELS.has(fuel) || GREEN_FUELS.has(
+    // Handle variants like "Green Methanol", "Bio-Methanol", "Biofuel B24"
+    Array.from(GREEN_FUELS).find(g => fuel.toLowerCase().includes(g.toLowerCase())) ?? ''
+);
 
 // Border color by spread tightness
 const getSpreadColor = (spreadPct: number): string => {
@@ -103,6 +122,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [showOverlays, setShowOverlays] = useState(true);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
+    const [selectedFuelType, setSelectedFuelType] = useState<string | undefined>(undefined);
+
+    const mapContainer = useRef<HTMLDivElement>(null);
+    const mapRef = useRef<maplibregl.Map | null>(null);
+    const popupRef = useRef<maplibregl.Popup | null>(null);
 
     // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
@@ -133,63 +157,400 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
     const selectedPort = ports.find(p => p.id === selectedPortId);
 
-    const handleMarkerClick = (portId: string) => {
+    const handleMarkerClick = useCallback((portId: string) => {
         setSelectedPortId(portId);
         setIsPanelOpen(true);
-    };
+    }, []);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
         const map: Record<string, PortMarketData> = {};
         ports.forEach(port => {
-            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country);
+            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country, selectedFuelType);
         });
         return map;
-    }, [ports, aggregatedData]);
+    }, [ports, aggregatedData, selectedFuelType]);
+
+    // All distinct fuel types across all ports (for fuel filter selector)
+    const availableFuelTypes = useMemo(() => {
+        const fuels = new Set<string>();
+        Object.values(portMarketMap).forEach(mkt => {
+            mkt.fuelRows.forEach(r => fuels.add(r.fuel_type));
+        });
+        return Array.from(fuels).sort();
+    }, [portMarketMap]);
 
     // Max volume across all ports (for radius scaling)
     const maxVolume = useMemo(() => {
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
-    // Aggregate listings by region for Methanol Avails
+    // Aggregate listings by region for Fuel Avails (all low-carbon fuels)
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
-        listings
-            .filter(l => l.fuel_type.toLowerCase().includes('methanol'))
-            .forEach(l => {
-                const region = l.region;
-                regionMap[region] = (regionMap[region] || 0) + Number(l.quantity_mt);
-            });
+        listings.forEach(l => {
+            const region = l.region;
+            regionMap[region] = (regionMap[region] || 0) + Number(l.quantity_mt);
+        });
 
         return Object.entries(regionMap)
             .map(([region, qty]) => ({ region, qty }))
             .sort((a, b) => b.qty - a.qty)
-            .slice(0, 5);
+            .slice(0, 6);
     }, [listings]);
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
-    // Last Done: derive from listings (most recent listing per region)
+    // Last Done: derive from listings (most recent listing per region, all fuels)
     const lastDoneByRegion = useMemo(() => {
-        const regionMap: Record<string, { price: number; qty: number; date: string }> = {};
-        listings
-            .filter(l => l.fuel_type.toLowerCase().includes('methanol'))
-            .forEach(l => {
-                const region = l.region;
-                if (!regionMap[region] || l.created_at > regionMap[region].date) {
-                    regionMap[region] = {
-                        price: Number(l.price_per_mt_usd),
-                        qty: Number(l.quantity_mt),
-                        date: l.created_at,
-                    };
-                }
-            });
+        const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
+        listings.forEach(l => {
+            const region = l.region;
+            if (!regionMap[region] || l.created_at > regionMap[region].date) {
+                regionMap[region] = {
+                    price: Number(l.price_per_mt_usd),
+                    qty: Number(l.quantity_mt),
+                    date: l.created_at,
+                    fuel: l.fuel_type,
+                };
+            }
+        });
 
         return Object.entries(regionMap)
             .map(([region, data]) => ({ region, ...data }))
-            .slice(0, 4);
+            .slice(0, 6);
     }, [listings]);
+
+    // Map initialization
+    useEffect(() => {
+        if (loading || !mapContainer.current || mapRef.current) return;
+
+        const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
+
+        const map = new maplibregl.Map({
+            container: mapContainer.current,
+            style: {
+                version: 8,
+                sources: {
+                    'carto-base': {
+                        type: 'raster',
+                        tiles: [isDark
+                            ? 'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png'
+                            : 'https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png'],
+                        tileSize: 256,
+                    },
+                    'carto-labels': {
+                        type: 'raster',
+                        tiles: [isDark
+                            ? 'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png'
+                            : 'https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png'],
+                        tileSize: 256,
+                    },
+                },
+                layers: [
+                    { id: 'carto-base', type: 'raster', source: 'carto-base' },
+                    { id: 'carto-labels', type: 'raster', source: 'carto-labels' },
+                ],
+            },
+            center: [10, 25],
+            zoom: 2.5,
+            attributionControl: false,
+        });
+
+        map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+        mapRef.current = map;
+
+        return () => { map.remove(); mapRef.current = null; };
+    }, [loading, theme]);
+
+    // Port markers layer
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || ports.length === 0) return;
+
+        const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
+
+        const addPortLayers = () => {
+
+            // Build GeoJSON for ports
+            const portFeatures = ports.map(port => {
+                const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999 };
+                const radius = getPortRadius(mkt.totalVolume, maxVolume);
+                const spreadColor = getSpreadColor(mkt.spreadPct);
+                return {
+                    type: 'Feature' as const,
+                    geometry: { type: 'Point' as const, coordinates: [port.location.lng, port.location.lat] },
+                    properties: {
+                        id: port.id,
+                        name: port.name,
+                        country: port.country,
+                        radius,
+                        color: spreadColor,
+                        priceMethanol: port.priceMethanol,
+                        totalVolume: mkt.totalVolume,
+                    },
+                };
+            });
+
+            const geojson = { type: 'FeatureCollection' as const, features: portFeatures };
+
+            if (map.getSource('ports')) {
+                (map.getSource('ports') as maplibregl.GeoJSONSource).setData(geojson);
+            } else {
+                map.addSource('ports', { type: 'geojson', data: geojson });
+
+                // Port fill circles
+                map.addLayer({
+                    id: 'port-fills',
+                    type: 'circle',
+                    source: 'ports',
+                    paint: {
+                        'circle-radius': ['get', 'radius'],
+                        'circle-color': isDark ? '#1E293B' : '#FFFFFF',
+                        'circle-opacity': 0.85,
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': ['get', 'color'],
+                    },
+                });
+
+                // Hover tooltip popup
+                const hoverPopup = new maplibregl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    offset: 10,
+                    className: 'verdaxis-port-popup',
+                });
+
+                map.on('mouseenter', 'port-fills', (e) => {
+                    map.getCanvas().style.cursor = 'pointer';
+                    if (!e.features?.length) return;
+                    const f = e.features[0];
+                    const props = f.properties;
+                    const coords = (f.geometry as any).coordinates.slice();
+                    const pricePart = props.priceMethanol
+                        ? ' <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + props.priceMethanol + '</span>'
+                        : '';
+                    const volumePart = props.totalVolume > 0
+                        ? '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + Math.round(props.totalVolume).toLocaleString() + ' MT open</div>'
+                        : '';
+                    const tooltipHtml = '<div style="background:#1E293B;color:#F8FAFC;border-radius:6px;padding:6px 10px;font-family:\'DM Sans\',\'Inter\',sans-serif;font-size:12px;white-space:nowrap">'
+                        + '<span style="font-weight:700">' + props.name + '</span>'
+                        + pricePart
+                        + volumePart
+                        + '</div>';
+                    hoverPopup.setLngLat(coords).setHTML(tooltipHtml).addTo(map);
+                });
+
+                map.on('mouseleave', 'port-fills', () => {
+                    map.getCanvas().style.cursor = '';
+                    hoverPopup.remove();
+                });
+
+                // Click handler for port popups
+                map.on('click', 'port-fills', (e) => {
+                    if (!e.features?.length) return;
+                    const f = e.features[0];
+                    const portId = f.properties.id;
+                    handleMarkerClick(portId);
+
+                    // Show popup
+                    if (popupRef.current) popupRef.current.remove();
+
+                    const mkt = portMarketMap[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999 };
+                    const port = ports.find(p => p.id === portId);
+                    if (!port) return;
+
+                    // Build popup HTML
+                    const fuelRowsHtml = mkt.fuelRows.length > 0
+                        ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">'
+                            + '<thead><tr style="border-bottom:1px solid rgba(148,163,184,0.3)">'
+                            + '<th style="text-align:left;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px;text-transform:uppercase">Fuel</th>'
+                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">Bid</th>'
+                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">Ask</th>'
+                            + '<th style="text-align:right;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px">#</th>'
+                            + '</tr></thead><tbody>'
+                            + mkt.fuelRows.map((row, i) =>'<tr style="border-bottom:' + (i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none') + '">'
+                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + row.fuel_type + '</td>'
+                                + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#10B981;font-weight:600">' + (row.bestBid !== null ? '$' + row.bestBid.toFixed(0) : '--') + '</td>'
+                                + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#EF4444;font-weight:600">' + (row.bestAsk !== null ? '$' + row.bestAsk.toFixed(0) : '--') + '</td>'
+                                + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
+                                + '</tr>').join('')
+                            + '</tbody></table>'
+                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No live orders at this port</div>';
+
+                    // Market intelligence section
+                    const spotPrice = port.priceMethanol ? '$' + port.priceMethanol : '--';
+                    const availability = port.methanolSupply || 'Medium';
+                    const availColor = availability === 'High' ? '#10B981' : availability === 'Medium' ? '#F59E0B' : '#EF4444';
+                    const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
+                    const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
+                    const congestion = port.details?.congestionLevel || '--';
+                    const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : '#EF4444';
+                    const lastDone = port.details?.lastDone || '';
+
+                    const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
+                        // Spot + Availability row
+                        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Spot</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Avail</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availability + '</span></div>'
+                        + '</div>'
+                        // Platts & Swap box
+                        + '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
+                        + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
+                        + '<span style="color:#E8373E;font-weight:600">Platts</span>'
+                        + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
+                        + '</div>'
+                        + '<div style="display:flex;justify-content:space-between;font-size:11px">'
+                        + '<span style="color:#94A3B8;font-weight:600">Swap</span>'
+                        + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
+                        + '</div>'
+                        + '</div>'
+                        // Congestion + Last Done row
+                        + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
+                        + '<div><span style="color:#94A3B8;font-weight:600">Congestion</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + congestion + '</span></div>'
+                        + (lastDone ? '<div><span style="color:#94A3B8;font-weight:600">Last</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + lastDone + '</span></div>' : '')
+                        + '</div>'
+                        + '</div>';
+
+                    const html = '<div style="width:260px;background:' + (isDark ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
+                        + '<h3 style="font-family:\'Montserrat\',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.2)">'
+                        + (port.name || 'Unknown Port')
+                        + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + (port.country || 'Global') + '</span>'
+                        + '</h3>'
+                        + fuelRowsHtml
+                        + marketIntelHtml
+                        + '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(\'' + port.id + '\')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">Trade at ' + port.name + ' \u2192</button>'
+                        + '</div>';
+
+                    const coords = (f.geometry as any).coordinates.slice();
+                    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '280px', className: 'verdaxis-port-popup' })
+                        .setLngLat(coords)
+                        .setHTML(html)
+                        .addTo(map);
+                });
+            }
+        };
+
+        if (map.loaded()) {
+            addPortLayers();
+        } else {
+            map.once('load', addPortLayers);
+        }
+    }, [ports, portMarketMap, maxVolume, handleMarkerClick]);
+
+    // Vessel markers layer
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const addVessels = async () => {
+            try {
+                const vessels = await api.vessels.list();
+
+                const addVesselLayers = () => {
+
+                    const features = vessels.filter((v: any) => v.location).map((v: any) => {
+                        const heading = calculateHeading(v.previousLocation, v.location);
+                        const vt = (v.vesselType || '').toLowerCase();
+                        const color = vt.includes('methanol') || vt.includes('dual') || vt.includes('green') || vt.includes('ammonia')
+                            ? '#10B981' : vt.includes('lng') ? '#3B82F6' : '#94A3B8';
+                        return {
+                            type: 'Feature' as const,
+                            geometry: { type: 'Point' as const, coordinates: [v.location.lng, v.location.lat] },
+                            properties: { name: v.name, heading, color, vesselType: v.vesselType, ciiGrade: v.ciiGrade || '' },
+                        };
+                    });
+
+                    if (map.getSource('vessels')) {
+                        (map.getSource('vessels') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features });
+                    } else {
+                        map.addSource('vessels', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+
+                        // Vessel chevron arrows via SDF image
+                        if (!map.hasImage('vessel-arrow')) {
+                            const sz = 64;
+                            const c = document.createElement('canvas');
+                            c.width = sz; c.height = sz;
+                            const x = c.getContext('2d')!;
+                            // White filled chevron pointing up — will be tinted by icon-color
+                            x.fillStyle = '#ffffff';
+                            x.beginPath();
+                            x.moveTo(sz * 0.5, sz * 0.1);   // top center
+                            x.lineTo(sz * 0.85, sz * 0.8);  // bottom right
+                            x.lineTo(sz * 0.5, sz * 0.6);   // notch center
+                            x.lineTo(sz * 0.15, sz * 0.8);  // bottom left
+                            x.closePath();
+                            x.fill();
+                            map.addImage('vessel-arrow', c.getContext('2d')!.getImageData(0, 0, sz, sz), { sdf: true });
+                        }
+
+                        if (!map.getLayer('vessels-layer')) {
+                            map.addLayer({
+                                id: 'vessels-layer',
+                                type: 'symbol',
+                                source: 'vessels',
+                                layout: {
+                                    'icon-image': 'vessel-arrow',
+                                    'icon-size': ['interpolate', ['linear'], ['zoom'], 2, 0.3, 5, 0.45, 8, 0.65],
+                                    'icon-rotate': ['get', 'heading'],
+                                    'icon-allow-overlap': true,
+                                    'icon-rotation-alignment': 'map',
+                                    'icon-pitch-alignment': 'map',
+                                },
+                                paint: {
+                                    'icon-color': ['get', 'color'],
+                                    'icon-halo-color': 'rgba(0,0,0,0.6)',
+                                    'icon-halo-width': 1,
+                                },
+                            });
+
+                            // Vessel hover tooltip
+                            const vesselPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'verdaxis-vessel-tooltip' });
+                            map.on('mouseenter', 'vessels-layer', (e) => {
+                                map.getCanvas().style.cursor = 'pointer';
+                                if (!e.features?.length) return;
+                                const p = e.features[0].properties;
+                                const coords = (e.features[0].geometry as any).coordinates.slice();
+                                const ciiColor = ['A','B'].includes(p.ciiGrade) ? '#10B981' : p.ciiGrade === 'C' ? '#F59E0B' : '#EF4444';
+                                const html = '<div style="font-family:\'DM Sans\',sans-serif"><strong>' + p.name + '</strong>'
+                                    + '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + p.vesselType
+                                    + (p.ciiGrade ? ' <span style="color:' + ciiColor + ';font-weight:700">CII ' + p.ciiGrade + '</span>' : '')
+                                    + '</div></div>';
+                                vesselPopup.setLngLat(coords).setHTML(html).addTo(map);
+                            });
+                            map.on('mouseleave', 'vessels-layer', () => {
+                                map.getCanvas().style.cursor = '';
+                                vesselPopup.remove();
+                            });
+                        }
+                    }
+                };
+
+                if (map.loaded()) {
+                    addVesselLayers();
+                } else {
+                    map.once('load', addVesselLayers);
+                }
+            } catch (e) {
+                console.error('Failed to load vessels', e);
+            }
+        };
+
+        addVessels();
+    }, [loading]);
+
+    // Window trade-at handler for popup button
+    useEffect(() => {
+        (window as any).__verdaxisTradeAt = (portId: string) => {
+            const port = ports.find(p => p.id === portId);
+            if (port) {
+                if (onOrderClick) onOrderClick(port);
+                else onPortSelect(port);
+            }
+        };
+        return () => { delete (window as any).__verdaxisTradeAt; };
+    }, [ports, onOrderClick, onPortSelect]);
 
     if (!ready || loading) {
         return (
@@ -202,154 +563,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         );
     }
 
-    const isDark = document.documentElement.classList.contains('dark');
+    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     return (
         <div className="relative w-full h-full flex overflow-hidden">
             {/* The Map */}
             <div className="flex-1 relative z-0">
-                <MapContainer
-                    center={[25, 10]}
-                    zoom={3}
-                    scrollWheelZoom={true}
-                    style={{ height: '100%', width: '100%', background: isDark ? '#0f172a' : '#F8FAFC' }}
-                    zoomControl={false}
-                >
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url={isDark
-                             ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                             : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"}
-                    />
-
-                    {/* Fleet Layer */}
-                    <VesselMarkers />
-
-                    {ports.map((port) => {
-                        const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], avgSpreadPct: 999 };
-                        const radius = getPortRadius(mkt.totalVolume, maxVolume);
-                        const spreadColor = getSpreadColor(mkt.avgSpreadPct);
-
-                        return (
-                            <CircleMarker
-                                className="port-pulse"
-                                key={port.id}
-                                center={[port.location.lat, port.location.lng]}
-                                radius={radius}
-                                pathOptions={{
-                                    color: spreadColor,
-                                    weight: 2,
-                                    fillColor: isDark ? '#1E293B' : '#FFFFFF',
-                                    fillOpacity: 0.85,
-                                }}
-                                eventHandlers={{
-                                    click: () => handleMarkerClick(port.id),
-                                }}
-                            >
-                                <MapTooltip direction="top" offset={[0, -radius]} opacity={1}>
-                                    <div className="text-xs font-bold text-slate-700">
-                                        {port.name} <span className="text-emerald-600 ml-1">${port.priceMethanol}</span>
-                                        {mkt.totalVolume > 0 && (
-                                            <div className="text-[10px] text-slate-500 font-normal">
-                                                {Math.round(mkt.totalVolume).toLocaleString()} MT open
-                                            </div>
-                                        )}
-                                    </div>
-                                </MapTooltip>
-                                <Popup
-                                    className="verdaxis-port-popup"
-                                    maxWidth={280}
-                                    minWidth={260}
-                                    autoPanPadding={[100, 100]}
-                                >
-                                    <div className="w-[260px]" style={{
-                                        background: isDark ? '#0F172A' : '#1E293B',
-                                        color: '#F8FAFC',
-                                        borderRadius: '8px',
-                                        padding: '12px',
-                                        fontFamily: "'DM Sans', 'Inter', sans-serif",
-                                    }}>
-                                        {/* Port Header */}
-                                        <h3 style={{
-                                            fontFamily: "'Montserrat', sans-serif",
-                                            fontWeight: 700,
-                                            fontSize: '15px',
-                                            marginBottom: '8px',
-                                            paddingBottom: '6px',
-                                            borderBottom: '1px solid rgba(148,163,184,0.2)',
-                                        }}>
-                                            {port.name || 'Unknown Port'}
-                                            <span style={{ display: 'block', fontSize: '10px', fontWeight: 500, color: '#94A3B8', marginTop: '2px' }}>
-                                                {port.country || 'Global'}
-                                            </span>
-                                        </h3>
-
-                                        {/* Live Bid/Ask Table */}
-                                        {mkt.fuelRows.length > 0 ? (
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginBottom: '10px' }}>
-                                                <thead>
-                                                    <tr style={{ borderBottom: '1px solid rgba(148,163,184,0.3)' }}>
-                                                        <th style={{ textAlign: 'left', padding: '3px 0', color: '#94A3B8', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase' }}>Fuel Type</th>
-                                                        <th style={{ textAlign: 'right', padding: '3px 4px', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>Bid</th>
-                                                        <th style={{ textAlign: 'right', padding: '3px 4px', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>Ask</th>
-                                                        <th style={{ textAlign: 'right', padding: '3px 0', color: '#94A3B8', fontWeight: 600, fontSize: '10px' }}>#</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {mkt.fuelRows.map((row, i) => (
-                                                        <tr key={i} style={{ borderBottom: i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none' }}>
-                                                            <td style={{ padding: '4px 0', fontWeight: 600, color: '#E2E8F0' }}>{row.fuel_type}</td>
-                                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: "'IBM Plex Mono', monospace", color: '#10B981', fontWeight: 600 }}>
-                                                                {row.bestBid !== null ? `$${row.bestBid.toFixed(0)}` : '--'}
-                                                            </td>
-                                                            <td style={{ textAlign: 'right', padding: '4px 4px', fontFamily: "'IBM Plex Mono', monospace", color: '#EF4444', fontWeight: 600 }}>
-                                                                {row.bestAsk !== null ? `$${row.bestAsk.toFixed(0)}` : '--'}
-                                                            </td>
-                                                            <td style={{ textAlign: 'right', padding: '4px 0', color: '#94A3B8' }}>{row.orderCount}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        ) : (
-                                            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', padding: '8px 0', textAlign: 'center' }}>
-                                                No live orders at this port
-                                            </div>
-                                        )}
-
-                                        {/* Trade CTA Button */}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                if (onOrderClick) {
-                                                    onOrderClick(port);
-                                                } else {
-                                                    onPortSelect(port);
-                                                }
-                                            }}
-                                            style={{
-                                                width: '100%',
-                                                background: '#10B981',
-                                                color: '#FFFFFF',
-                                                fontSize: '12px',
-                                                fontWeight: 700,
-                                                padding: '8px 0',
-                                                borderRadius: '6px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                gap: '6px',
-                                            }}
-                                        >
-                                            Trade at {port.name} →
-                                        </button>
-                                    </div>
-                                </Popup>
-                            </CircleMarker>
-                        );
-                    })}
-                </MapContainer>
+                <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showOverlays && (
@@ -357,7 +577,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
                         {/* Top Row: Widgets */}
                         <div className="flex justify-between items-end flex-wrap-reverse gap-4">
-                            {/* 1. Methanol Availability from Marketplace Data */}
+                            {/* 1. Fuel Availability from Marketplace Data */}
                             <div className="pointer-events-auto w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-4 hidden lg:block">
                                 <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
                                     <BarChart3 size={16} className="text-emerald-600" />
@@ -433,8 +653,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </div>
                 )}
 
-                {/* Overlay Toggle (Top-left) */}
-                <div className="absolute top-6 left-6 z-[20]">
+                {/* Overlay Toggle + Fuel Filter (Top-left) */}
+                <div className="absolute top-6 left-6 z-[20] flex items-center gap-2">
                     <button
                         onClick={() => setShowOverlays(!showOverlays)}
                         className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 hover:bg-white dark:hover:bg-slate-800 transition-colors"
@@ -449,6 +669,36 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             {t('buyerMap.overlays')}
                         </span>
                     </button>
+
+                    {/* Fuel type filter — controls which fuel's spread colors the port circles */}
+                    {availableFuelTypes.length > 0 && (
+                        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex items-center gap-1">
+                            <Layers size={14} className="text-slate-400 ml-1" />
+                            <button
+                                onClick={() => setSelectedFuelType(undefined)}
+                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                    !selectedFuelType
+                                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                All
+                            </button>
+                            {availableFuelTypes.map(fuel => (
+                                <button
+                                    key={fuel}
+                                    onClick={() => setSelectedFuelType(fuel)}
+                                    className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                        selectedFuelType === fuel
+                                            ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    {fuel}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 

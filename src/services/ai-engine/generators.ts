@@ -17,10 +17,10 @@ const MOCK_NARRATIVE_FALLBACK = (portName: string) =>
 
 // Reference prices (used when no trade data available)
 const REFERENCE_MARKET_DATA: MarketWatchItem[] = [
-    { pair: 'VLSFO-Methanol Spread', val: '$142.50', change: 'Ref', up: true },
+    { pair: 'Methanol (ARA)', val: '$590', change: 'Ref', up: true },
     { pair: 'EUA Carbon', val: '\u20ac68.40', change: 'Ref', up: false },
-    { pair: 'Brent Crude', val: '$74.85', change: 'Ref', up: true },
-    { pair: 'LNG (RTM)', val: '$12.60', change: 'Ref', up: true },
+    { pair: 'Ammonia (AG)', val: '$670', change: 'Ref', up: true },
+    { pair: 'Biofuel (ARA)', val: '$920', change: 'Ref', up: true },
 ];
 
 // Helper for backend AI proxy calls

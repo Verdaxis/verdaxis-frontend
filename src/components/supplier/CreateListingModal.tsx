@@ -20,7 +20,7 @@ export interface ListingFormData {
 }
 
 const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai'];
-const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia'];
+const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
 const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 

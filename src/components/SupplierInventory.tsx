@@ -391,8 +391,8 @@ export const SupplierInventory: React.FC = () => {
                                     >
                                         <option value="Methanol">Methanol</option>
                                         <option value="Biofuel">Biofuel B24</option>
-                                        <option value="LNG">LNG</option>
-                                        <option value="LSMGO">LSMGO</option>
+                                        <option value="Ethanol">Ethanol</option>
+                                        <option value="Biomethane">Biomethane</option>
                                         <option value="Ammonia">Ammonia</option>
                                     </select>
                                 </div>
@@ -514,8 +514,8 @@ export const SupplierInventory: React.FC = () => {
                                     >
                                         <option value="Methanol">Methanol</option>
                                         <option value="Biofuel">Biofuel B24</option>
-                                        <option value="LNG">LNG</option>
-                                        <option value="LSMGO">LSMGO</option>
+                                        <option value="Ethanol">Ethanol</option>
+                                        <option value="Biomethane">Biomethane</option>
                                         <option value="Ammonia">Ammonia</option>
                                     </select>
                                 </div>
