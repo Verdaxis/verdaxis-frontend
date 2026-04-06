@@ -140,8 +140,8 @@ export const ActivityFeed: React.FC = () => {
 
     return (
         <div style={{
-            background: 'var(--abyss, #050A14)',
-            border: '1px solid rgba(0,102,255,0.15)',
+            background: 'var(--abyss)',
+            border: '1px solid var(--ocean-border)',
             borderRadius: 8,
             display: 'flex',
             flexDirection: 'column',
@@ -154,11 +154,11 @@ export const ActivityFeed: React.FC = () => {
                 alignItems: 'center',
                 gap: 8,
                 padding: '10px 14px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
-                background: 'var(--ocean, #0A1628)',
+                borderBottom: '1px solid var(--ocean-border)',
+                background: 'var(--ocean)',
             }}>
                 <Activity size={12} color="var(--bio, #00D4AA)" />
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#888' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
                     {t('activityFeed.title')}
                 </span>
                 <div style={{
@@ -169,7 +169,7 @@ export const ActivityFeed: React.FC = () => {
                     marginLeft: 2,
                     ...(isConnected ? { animation: 'pulse 2s infinite' } : {}),
                 }} />
-                <span style={{ marginLeft: 'auto', fontSize: 10, color: '#555' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--terminal-dim)' }}>
                     {events.length > 0 ? t('activityFeed.events', { count: events.length }) : ''}
                 </span>
             </div>
@@ -191,13 +191,13 @@ export const ActivityFeed: React.FC = () => {
                         height: 120,
                         flexDirection: 'column',
                         gap: 8,
-                        color: '#444',
+                        color: 'var(--terminal-muted)',
                     }}>
                         <div style={{
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            background: '#333',
+                            background: 'var(--terminal-dim)',
                             animation: 'pulse 2s infinite',
                         }} />
                         <span style={{ fontSize: 11 }}>{t('activityFeed.noActivity')}</span>
@@ -213,10 +213,10 @@ export const ActivityFeed: React.FC = () => {
                                     alignItems: 'flex-start',
                                     gap: 10,
                                     padding: '8px 14px',
-                                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                    borderBottom: '1px solid var(--ocean-border)',
                                     ...(evt.isParticipant ? {
                                         borderLeft: `2px solid ${cfg.color}`,
-                                        background: 'rgba(255,255,255,0.02)',
+                                        background: 'var(--ocean)',
                                     } : {}),
                                 }}
                             >
@@ -230,11 +230,11 @@ export const ActivityFeed: React.FC = () => {
                                     {cfg.icon}
                                 </span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 11, color: '#ccc', wordBreak: 'break-word' }}>
+                                    <div style={{ fontSize: 11, color: 'var(--terminal-text)', wordBreak: 'break-word' }}>
                                         {evt.description}
                                     </div>
                                 </div>
-                                <span style={{ fontSize: 10, color: '#555', flexShrink: 0, marginTop: 1 }}>
+                                <span style={{ fontSize: 10, color: 'var(--terminal-dim)', flexShrink: 0, marginTop: 1 }}>
                                     {formatRelativeTime(evt.timestamp)}
                                 </span>
                             </div>

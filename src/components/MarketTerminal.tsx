@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import {
-    ResponsiveContainer,
-    LineChart,
-    Line,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip as RechartsTooltip,
-} from 'recharts';
+import { createChart, LineSeries, CrosshairMode, ColorType } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import {
     ArrowUpRight,
     ArrowDownRight,
@@ -23,12 +16,16 @@ import {
 import { Port, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
+import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
 import { ForwardCurve } from './ForwardCurve';
 import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
+import { GridLayout } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
 // --- Types ---
 interface TerminalRow {
@@ -63,7 +60,13 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
     { window: 'Q3 2026', period: 'Q3 26', type: 'QTR' },
     { window: 'Q4 2026', period: 'Q4 26', type: 'QTR' },
     { window: 'Forward 2027', period: 'CAL 27', type: 'YEAR' },
+    { window: 'Q1 2027', period: 'Q1 27', type: 'QTR' },
+    { window: 'Q2 2027', period: 'Q2 27', type: 'QTR' },
+    { window: 'Q3 2027', period: 'Q3 27', type: 'QTR' },
+    { window: 'Q4 2027', period: 'Q4 27', type: 'QTR' },
     { window: 'Forward 2028', period: 'CAL 28', type: 'YEAR' },
+    { window: 'Forward 2029', period: 'CAL 29', type: 'YEAR' },
+    { window: 'Forward 2030', period: 'CAL 30', type: 'YEAR' },
 ];
 
 // Base prices by fuel type for simulation
@@ -92,7 +95,7 @@ const REGION_MODIFIERS: Record<string, number> = {
 };
 
 // Available fuel types for the selector
-const FUEL_TYPES = ['Methanol', 'Biofuel', 'LNG', 'Ammonia', 'Ethanol', 'LSMGO'];
+const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia'];
 
 // Seeded random for deterministic-looking but varying data
 const seededRandom = (seed: number) => {
@@ -162,9 +165,15 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     return { id, time, qty, price, port: region, period, side, is_anonymous: data.is_anonymous ?? false };
 };
 
-export const MarketTerminal: React.FC = () => {
+interface MarketTerminalProps {
+    onNavigate?: (page: string) => void;
+}
+
+export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) => {
     const { setPageContext } = useCopilotContext();
     const { t } = useNamespace('trading');
+    const { theme } = useTheme();
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Port & Fuel selectors
     const [ports, setPorts] = useState<Port[]>([]);
@@ -179,6 +188,29 @@ export const MarketTerminal: React.FC = () => {
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
+
+    // TradingView lightweight-charts refs
+    const tvChartContainerRef = useRef<HTMLDivElement>(null);
+    const tvChartRef = useRef<IChartApi | null>(null);
+    const tvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+
+    // Responsive grid width
+    const gridContainerRef = useRef<HTMLDivElement>(null);
+    const [gridWidth, setGridWidth] = useState(1200);
+
+    // Layout customization (movable boxes — currently shows preset toggle)
+    const [layoutMode, setLayoutMode] = useState<'default' | 'compact'>('default');
+
+    // Collapsible year groups — Cal years default collapsed, quarters hidden
+    const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set(['2027']));
+    const toggleYear = (year: string) => {
+        setCollapsedYears(prev => {
+            const next = new Set(prev);
+            if (next.has(year)) next.delete(year);
+            else next.add(year);
+            return next;
+        });
+    };
 
     // Simulation tick counter (drives simulated row data for periods without real orders)
     const [tick, setTick] = useState(0);
@@ -280,6 +312,20 @@ export const MarketTerminal: React.FC = () => {
             setTick(t => t + 1);
         }, 6000);
         return () => clearInterval(interval);
+    }, []);
+
+    // Responsive grid width — observe container and update
+    useEffect(() => {
+        const container = gridContainerRef.current;
+        if (!container) return;
+        const observer = new ResizeObserver(entries => {
+            const w = entries[0]?.contentRect.width;
+            if (w) setGridWidth(w);
+        });
+        observer.observe(container);
+        // Set initial width
+        setGridWidth(container.getBoundingClientRect().width || 1200);
+        return () => observer.disconnect();
     }, []);
 
     // Derived base price for simulated rows
@@ -387,6 +433,7 @@ export const MarketTerminal: React.FC = () => {
 
             return {
                 period: config.period,
+                window: config.window,
                 price: midPrice ? Math.round(midPrice * 100) / 100 : null,
                 bestBid: bestBid ? Math.round(bestBid * 100) / 100 : null,
                 bestAsk: bestAsk ? Math.round(bestAsk * 100) / 100 : null,
@@ -394,6 +441,120 @@ export const MarketTerminal: React.FC = () => {
             };
         });
     }, [filteredAsks, filteredBids]);
+
+    // Stable ref for click handler closures (avoids recreating chart on every state change)
+    const chartDataRef = useRef(chartData);
+    chartDataRef.current = chartData;
+    const selectedPortRef = useRef(selectedPort);
+    selectedPortRef.current = selectedPort;
+    const selectedFuelRef = useRef(selectedFuel);
+    selectedFuelRef.current = selectedFuel;
+    const onNavigateRef = useRef(onNavigate);
+    onNavigateRef.current = onNavigate;
+
+    // TradingView chart: create once when container mounts, clean up on unmount
+    useEffect(() => {
+        const container = tvChartContainerRef.current;
+        if (!container) return;
+
+        const dark = isDark;
+        const chartBg   = dark ? '#040404' : '#F1F5F9';
+        const chartText = dark ? '#888888' : '#6B7280';
+        const chartGrid = dark ? '#1a1a1a' : '#E2E8F0';
+        const chartBorder = dark ? '#333333' : '#CBD5E1';
+
+        const chart = createChart(container, {
+            autoSize: true,
+            layout: {
+                background: { type: ColorType.Solid, color: chartBg },
+                textColor: chartText,
+                fontFamily: "'IBM Plex Mono', monospace",
+            },
+            grid: {
+                vertLines: { color: chartGrid, style: 0 },
+                horzLines: { color: chartGrid, style: 0 },
+            },
+            crosshair: {
+                mode: CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: chartBorder,
+            },
+            timeScale: {
+                borderColor: chartBorder,
+                tickMarkFormatter: (time: number) => {
+                    const item = chartDataRef.current[time];
+                    return item ? item.period : '';
+                },
+            },
+            handleScroll: false,
+            handleScale: false,
+        });
+
+        const series = chart.addSeries(LineSeries, {
+            color: '#10b981',
+            lineWidth: 2,
+            pointMarkersVisible: true,
+            pointMarkersRadius: 4,
+            crosshairMarkerRadius: 6,
+            crosshairMarkerBorderColor: '#fff',
+            crosshairMarkerBorderWidth: 2,
+            crosshairMarkerBackgroundColor: '#10b981',
+            lastValueVisible: false,
+            priceLineVisible: false,
+        });
+
+        tvChartRef.current = chart;
+        tvSeriesRef.current = series;
+
+        // Click handler reads from refs so it always has current values
+        chart.subscribeClick((param) => {
+            if (!param.time && param.time !== 0) return;
+            const idx = param.time as number;
+            const item = chartDataRef.current[idx];
+            if (item?.window && onNavigateRef.current) {
+                localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
+                localStorage.setItem('verdaxis_marketplace_fuel', selectedFuelRef.current);
+                localStorage.setItem('verdaxis_marketplace_window', item.window);
+                onNavigateRef.current('MARKETPLACE');
+            }
+        });
+
+        return () => {
+            chart.remove();
+            tvChartRef.current = null;
+            tvSeriesRef.current = null;
+        };
+    }, [loading]); // recreate when loading toggles (container mounts/unmounts)
+
+    // Update chart data when chartData changes
+    useEffect(() => {
+        if (!tvSeriesRef.current || !tvChartRef.current) return;
+        const tvData = chartData
+            .map((item, idx) => ({
+                time: idx as any,
+                value: item.price as number,
+            }))
+            .filter(d => d.value != null);
+
+        tvSeriesRef.current.setData(tvData);
+        tvChartRef.current.timeScale().fitContent();
+    }, [chartData]);
+
+    // Update TV chart colors when theme changes
+    useEffect(() => {
+        if (!tvChartRef.current) return;
+        const chartBg   = isDark ? '#040404' : '#F1F5F9';
+        const chartText = isDark ? '#888888' : '#6B7280';
+        const chartGrid = isDark ? '#1a1a1a' : '#E2E8F0';
+        const chartBorder = isDark ? '#333333' : '#CBD5E1';
+        tvChartRef.current.applyOptions({
+            layout: { background: { type: ColorType.Solid, color: chartBg }, textColor: chartText },
+            grid: { vertLines: { color: chartGrid }, horzLines: { color: chartGrid } },
+            rightPriceScale: { borderColor: chartBorder },
+            timeScale: { borderColor: chartBorder },
+        });
+    }, [isDark]);
 
     // Summary stats
     // Best offer = lowest real ask price across all periods (for the header display)
@@ -438,7 +599,7 @@ export const MarketTerminal: React.FC = () => {
 
     return (
         <>
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono overflow-auto lg:overflow-hidden transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
+        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
 
             {/* Top Section: Header & Chart */}
             <div className="h-auto lg:h-64 border-b border-slate-200 dark:border-[#222] flex flex-col lg:flex-row">
@@ -469,6 +630,23 @@ export const MarketTerminal: React.FC = () => {
                                 }}
                             >
                                 <Bell size={11} />
+                            </button>
+                            <button
+                                onClick={e => { e.stopPropagation(); setLayoutMode(layoutMode === 'default' ? 'compact' : 'default'); }}
+                                title={layoutMode === 'default' ? 'Compact layout' : 'Default layout'}
+                                style={{
+                                    background: 'transparent',
+                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'}`,
+                                    borderRadius: 4,
+                                    color: '#888',
+                                    cursor: 'pointer',
+                                    padding: '2px 5px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    marginLeft: 4,
+                                }}
+                            >
+                                <Maximize2 size={11} />
                             </button>
                         </div>
 
@@ -544,11 +722,11 @@ export const MarketTerminal: React.FC = () => {
                 </div>
 
                 {/* Price Curve Chart */}
-                <div className="flex-1 p-4 bg-slate-50 dark:bg-[#080808] min-h-[200px] lg:min-h-0">
+                <div className="flex-1 p-4 bg-slate-100 dark:bg-[#040404] min-h-[200px] lg:min-h-0" style={{ background: isDark ? '#040404' : '#F1F5F9' }}>
                     <div className="flex justify-between items-start mb-2 px-2">
                         <div>
                             <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
-                            <div className="text-xs text-slate-600 dark:text-[#444]">{selectedFuel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
+                            <div className="text-xs text-slate-600 dark:text-[#555]">{selectedFuel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
                         </div>
                         <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
@@ -557,27 +735,10 @@ export const MarketTerminal: React.FC = () => {
                             <Loader2 size={24} className="animate-spin text-emerald-500" />
                         </div>
                     ) : (
-                        <ResponsiveContainer width="100%" height="80%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="2 2" strokeOpacity={0.1} vertical={false} />
-                                <XAxis dataKey="period" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} />
-                                <YAxis orientation="right" stroke="#888" tick={{fontSize: 10, fill: '#888'}} tickLine={false} axisLine={false} domain={['dataMin - 10', 'dataMax + 10']} />
-                                <RechartsTooltip
-                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333', fontSize: '12px' }}
-                                    itemStyle={{ color: '#fff' }}
-                                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="price"
-                                    connectNulls={true}
-                                    stroke="#10b981"
-                                    strokeWidth={2}
-                                    dot={{ r: 3, fill: '#10b981', stroke: '#000' }}
-                                    activeDot={{ r: 5, fill: '#10b981', stroke: '#000' }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <div
+                            ref={tvChartContainerRef}
+                            style={{ width: '100%', height: '80%', cursor: 'pointer' }}
+                        />
                     )}
                 </div>
             </div>
@@ -638,14 +799,34 @@ export const MarketTerminal: React.FC = () => {
                                 ? filteredOrders.filter(o => o.availability_window === periodConfig.window).length
                                 : 0;
 
+                            // Determine if this is a quarterly row under a Cal year
+                            const yearMatch = row.period.match(/^Q[1-4] (\d{2})$/);
+                            const parentYear = yearMatch ? `20${yearMatch[1]}` : null;
+                            const isCalRow = row.type === 'YEAR';
+                            const calYear = isCalRow ? row.period.replace('CAL ', '20') : null;
+
+                            // Skip quarterly rows if their parent Cal year is collapsed
+                            if (parentYear && collapsedYears.has(parentYear)) {
+                                return null;
+                            }
+
                             return (
                                 <div
                                     key={row.id}
-                                    className={`flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group ${hoverColor}`}
+                                    className={`flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group ${hoverColor} ${isCalRow ? 'bg-slate-50/50 dark:bg-[#0a0a0a]' : ''}`}
                                 >
                                     {/* Period */}
                                     <div className="w-32 px-4 text-xs font-bold flex items-center space-x-2 text-slate-900 dark:text-white">
                                         {row.type === 'SPOT' && <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse mr-1"/>}
+                                        {isCalRow && calYear && (
+                                            <button
+                                                onClick={() => toggleYear(calYear)}
+                                                className="mr-1 text-slate-400 hover:text-emerald-500 transition-colors"
+                                                title={collapsedYears.has(calYear) ? 'Show quarters' : 'Hide quarters'}
+                                            >
+                                                <ChevronDown size={12} className={`transition-transform ${collapsedYears.has(calYear) ? '-rotate-90' : ''}`} />
+                                            </button>
+                                        )}
                                         <span>{row.period}</span>
                                     </div>
 
@@ -720,58 +901,105 @@ export const MarketTerminal: React.FC = () => {
                     )}
                 </div>
 
-                {/* Orderbook Depth Chart */}
-                <div className="px-3 py-2 border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
-                    <OrderbookDepth
-                        bids={depthBids}
-                        asks={depthAsks}
-                        fuelType={selectedFuel}
-                        region={selectedPort}
-                    />
-                </div>
-
-                {/* Forward Curve & Activity Feed */}
-                <div className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 0 }}>
-                        <div data-tour="terminal-forward-curve" style={{ padding: '12px', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-                            <ForwardCurve fuelType={selectedFuel} deliveryPointName={selectedPort} />
+                {/* All bottom panels — draggable grid including orderbook depth */}
+                <div ref={gridContainerRef} className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
+                    {/* @ts-expect-error — react-grid-layout v2 types don't expose legacy props but runtime accepts them */}
+                    <GridLayout
+                        className="layout"
+                        cols={12}
+                        rowHeight={50}
+                        width={gridWidth}
+                        layout={[
+                            { i: 'depth', x: 0, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
+                            { i: 'trades', x: 6, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
+                            { i: 'curve', x: 0, y: 3, w: 8, h: 4, minW: 4, minH: 3 },
+                            { i: 'activity', x: 8, y: 3, w: 4, h: 4, minW: 3, minH: 2 },
+                        ]}
+                        isDraggable={true}
+                        isResizable={true}
+                        draggableHandle=".drag-handle"
+                        compactType="vertical"
+                        margin={[6, 6]}
+                    >
+                        {/* Orderbook Depth */}
+                        <div key="depth" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Orderbook Depth</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div style={{ padding: '4px 8px', height: 'calc(100% - 24px)', overflow: 'hidden' }}>
+                                <OrderbookDepth
+                                    bids={depthBids}
+                                    asks={depthAsks}
+                                    fuelType={selectedFuel}
+                                    region={selectedPort}
+                                />
+                            </div>
                         </div>
-                        <div data-tour="terminal-activity-feed" style={{ padding: '12px' }}>
-                            <ActivityFeed />
+                        {/* Trade Events */}
+                        <div key="trades" className="bg-slate-50 dark:bg-[#0a0a0a] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move border-b border-slate-100 dark:border-[#181818]">
+                                <Activity size={10} className="text-emerald-500 mr-1.5" />
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.activity.title')}</span>
+                                <div className={`ml-1.5 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div ref={tradeScrollRef} className="overflow-y-auto px-2 py-1" style={{ height: 'calc(100% - 24px)' }}>
+                                {tradeEvents.length === 0 ? (
+                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.activity.waiting')}</div>
+                                ) : (
+                                    tradeEvents.map((trade) => (
+                                        <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">
+                                            <span className="text-slate-400 dark:text-[#555] w-16 shrink-0">{trade.time}</span>
+                                            <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
+                                                {trade.side}
+                                            </span>
+                                            <span className="text-slate-700 dark:text-slate-300 font-bold">
+                                                {trade.qty.toLocaleString()} MT
+                                            </span>
+                                            <span className="text-slate-400 dark:text-[#666] mx-1">@</span>
+                                            <span className="text-slate-900 dark:text-white font-bold">${trade.price.toFixed(2)}</span>
+                                            {trade.is_anonymous && (
+                                                <span title="Anonymous trade"><EyeOff size={9} className="text-violet-400 dark:text-violet-500 ml-1.5 shrink-0" /></span>
+                                            )}
+                                            <span className="text-slate-400 dark:text-[#555] ml-auto">{trade.period}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* Trade Activity Feed */}
-                <div className="border-t border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#0a0a0a]">
-                    <div className="flex items-center px-4 py-1.5 border-b border-slate-100 dark:border-[#181818]">
-                        <Activity size={12} className="text-emerald-500 mr-2" />
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-[#666] uppercase tracking-widest">{t('terminal.activity.title')}</span>
-                        <div className={`ml-2 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                    </div>
-                    <div ref={tradeScrollRef} className="h-24 overflow-y-auto px-2 py-1">
-                        {tradeEvents.length === 0 ? (
-                            <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.activity.waiting')}</div>
-                        ) : (
-                            tradeEvents.map((trade) => (
-                                <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">
-                                    <span className="text-slate-400 dark:text-[#555] w-16 shrink-0">{trade.time}</span>
-                                    <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
-                                        {trade.side}
-                                    </span>
-                                    <span className="text-slate-700 dark:text-slate-300 font-bold">
-                                        {trade.qty.toLocaleString()} MT
-                                    </span>
-                                    <span className="text-slate-400 dark:text-[#666] mx-1">@</span>
-                                    <span className="text-slate-900 dark:text-white font-bold">${trade.price.toFixed(2)}</span>
-                                    {trade.is_anonymous && (
-                                        <EyeOff size={9} className="text-violet-400 dark:text-violet-500 ml-1.5 shrink-0" title="Anonymous trade" />
-                                    )}
-                                    <span className="text-slate-400 dark:text-[#555] ml-auto">{trade.period}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                        {/* Forward Curve */}
+                        <div key="curve" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Forward Curve</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div data-tour="terminal-forward-curve" style={{ padding: '4px', height: 'calc(100% - 24px)' }}>
+                                <ForwardCurve
+                                    fuelType={selectedFuel}
+                                    deliveryPointName={selectedPort}
+                                    onPeriodClick={(window) => {
+                                        if (onNavigate) {
+                                            localStorage.setItem('verdaxis_marketplace_port', selectedPort);
+                                            localStorage.setItem('verdaxis_marketplace_fuel', selectedFuel);
+                                            localStorage.setItem('verdaxis_marketplace_window', window);
+                                            onNavigate('MARKETPLACE');
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        {/* Activity Feed */}
+                        <div key="activity" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Activity Feed</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div data-tour="terminal-activity-feed" style={{ padding: '4px', height: 'calc(100% - 24px)', overflow: 'auto' }}>
+                                <ActivityFeed />
+                            </div>
+                        </div>
+                    </GridLayout>
                 </div>
             </div>
         </div>

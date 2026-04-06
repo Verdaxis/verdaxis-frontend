@@ -110,13 +110,15 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
             />
 
             {/* Slide-out panel */}
-            <div style={{
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
                 position: 'relative',
                 width: 360,
                 maxWidth: '95vw',
                 height: '100vh',
-                background: 'var(--ocean, #0A1628)',
-                borderLeft: '1px solid rgba(0,102,255,0.2)',
+                background: 'var(--ocean)',
+                borderLeft: '1px solid var(--ocean-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 fontFamily: "'IBM Plex Mono', monospace",
@@ -128,16 +130,16 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                     alignItems: 'center',
                     gap: 8,
                     padding: '16px 20px',
-                    borderBottom: '1px solid rgba(255,255,255,0.08)',
-                    background: 'var(--abyss, #050A14)',
+                    borderBottom: '1px solid var(--ocean-border)',
+                    background: 'var(--abyss)',
                 }}>
                     <Bell size={14} color="var(--amber, #FFB020)" />
-                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#e5e5e5', flex: 1 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--terminal-text)', flex: 1 }}>
                         {t('priceAlerts.title')}
                     </span>
                     <button
                         onClick={onClose}
-                        style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', padding: 2 }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--terminal-dim)', cursor: 'pointer', padding: 2 }}
                     >
                         <X size={16} />
                     </button>
@@ -151,7 +153,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                         alignItems: 'center',
                         marginBottom: 16,
                     }}>
-                        <span style={{ fontSize: 11, color: '#888' }}>
+                        <span style={{ fontSize: 11, color: 'var(--terminal-muted)' }}>
                             {t('priceAlerts.alertsUsed', { used: alerts.length, limit: tier === 'free' ? FREE_TIER_LIMIT : '∞' })}
                         </span>
                         {tier === 'free' && (
@@ -201,7 +203,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                             <div style={{ fontSize: 12, color: 'var(--amber, #FFB020)', fontWeight: 700, marginBottom: 4 }}>
                                 {t('priceAlerts.limitReached')}
                             </div>
-                            <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>
+                            <div style={{ fontSize: 11, color: 'var(--terminal-muted)', marginBottom: 12 }}>
                                 {t('priceAlerts.limitMessage', { limit: FREE_TIER_LIMIT })}
                             </div>
                             <button
@@ -257,13 +259,13 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                     padding: '14px',
                                     marginBottom: 16,
                                 }}>
-                                    <div style={{ fontSize: 11, color: '#888', fontWeight: 700, marginBottom: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                                    <div style={{ fontSize: 11, color: 'var(--terminal-muted)', fontWeight: 700, marginBottom: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                                         {t('priceAlerts.newAlert')}
                                     </div>
 
                                     {/* Product */}
                                     <div style={{ marginBottom: 10 }}>
-                                        <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        <label style={{ fontSize: 10, color: 'var(--terminal-dim)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                             {t('priceAlerts.product')}
                                         </label>
                                         <select
@@ -272,10 +274,10 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             required
                                             style={{
                                                 width: '100%',
-                                                background: 'var(--abyss, #050A14)',
+                                                background: 'var(--abyss)',
                                                 border: '1px solid rgba(0,102,255,0.2)',
                                                 borderRadius: 4,
-                                                color: '#e5e5e5',
+                                                color: 'var(--terminal-text)',
                                                 fontSize: 11,
                                                 padding: '6px 10px',
                                                 fontFamily: "'IBM Plex Mono', monospace",
@@ -289,7 +291,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
 
                                     {/* Direction toggle */}
                                     <div style={{ marginBottom: 10 }}>
-                                        <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        <label style={{ fontSize: 10, color: 'var(--terminal-dim)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                             {t('priceAlerts.direction')}
                                         </label>
                                         <div style={{ display: 'flex', gap: 6 }}>
@@ -330,7 +332,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
 
                                     {/* Threshold */}
                                     <div style={{ marginBottom: 12 }}>
-                                        <label style={{ fontSize: 10, color: '#666', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                                        <label style={{ fontSize: 10, color: 'var(--terminal-dim)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                                             {t('priceAlerts.threshold')}
                                         </label>
                                         <input
@@ -343,10 +345,10 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             required
                                             style={{
                                                 width: '100%',
-                                                background: 'var(--abyss, #050A14)',
+                                                background: 'var(--abyss)',
                                                 border: '1px solid rgba(0,102,255,0.2)',
                                                 borderRadius: 4,
-                                                color: '#e5e5e5',
+                                                color: 'var(--terminal-text)',
                                                 fontSize: 11,
                                                 padding: '6px 10px',
                                                 fontFamily: "'IBM Plex Mono', monospace",
@@ -366,7 +368,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                 background: 'transparent',
                                                 border: '1px solid rgba(255,255,255,0.1)',
                                                 borderRadius: 4,
-                                                color: '#888',
+                                                color: 'var(--terminal-muted)',
                                                 fontSize: 11,
                                                 cursor: 'pointer',
                                                 fontFamily: "'IBM Plex Mono', monospace",
@@ -406,11 +408,11 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
 
                     {/* Alert list */}
                     {loading ? (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '20px', color: '#555' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '20px', color: 'var(--terminal-dim)' }}>
                             <Loader2 size={18} className="animate-spin" />
                         </div>
                     ) : alerts.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: '#555', fontSize: 11, padding: '20px 0' }}>
+                        <div style={{ textAlign: 'center', color: 'var(--terminal-dim)', fontSize: 11, padding: '20px 0' }}>
                             {t('priceAlerts.noAlerts')}
                         </div>
                     ) : (
@@ -438,11 +440,11 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             }
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: 11, color: '#ccc', marginBottom: 2 }}>
+                                            <div style={{ fontSize: 11, color: 'var(--terminal-text)', marginBottom: 2 }}>
                                                 {productName(alert.product_id)}
                                             </div>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: dirColor }}>
-                                                {alert.direction === 'above' ? t('priceAlerts.directionAbove') : t('priceAlerts.directionBelow')} ${alert.threshold_usd.toFixed(2)}
+                                                {alert.direction === 'above' ? t('priceAlerts.directionAbove') : t('priceAlerts.directionBelow')} ${Number(alert.threshold_usd).toFixed(2)}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                                                 <span style={{
@@ -466,7 +468,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                     {triggered ? t('priceAlerts.statusTriggered') : alert.is_active ? t('priceAlerts.statusActive') : t('priceAlerts.statusInactive')}
                                                 </span>
                                                 {triggered && alert.triggered_at && (
-                                                    <span style={{ fontSize: 9, color: '#555' }}>
+                                                    <span style={{ fontSize: 9, color: 'var(--terminal-dim)' }}>
                                                         {new Date(alert.triggered_at).toLocaleDateString()}
                                                     </span>
                                                 )}
@@ -478,7 +480,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                             style={{
                                                 background: 'transparent',
                                                 border: 'none',
-                                                color: '#555',
+                                                color: 'var(--terminal-dim)',
                                                 cursor: 'pointer',
                                                 padding: 2,
                                                 flexShrink: 0,
