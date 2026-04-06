@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronDown, ChevronUp, MapPin, Ship, AlertCircle, Circle } from 'lucide-react';
+import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const MapLegend: React.FC = () => {
@@ -22,31 +22,6 @@ export const MapLegend: React.FC = () => {
                     <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">{t('mapLegend.title')}</h4>
                     
                     <div className="space-y-4">
-                        {/* Vessel Icons by Fuel Capability */}
-                        <div>
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Vessel — Fuel Capability</div>
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2.5 text-xs">
-                                    <svg viewBox="0 0 24 16" width="16" height="12" className="shrink-0">
-                                        <path d="M2 12 L4 8 L8 6 L20 6 L22 8 L22 12 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="#10B981" />
-                                    </svg>
-                                    <span>Dual-Fuel / Green (Methanol, Ammonia)</span>
-                                </div>
-                                <div className="flex items-center gap-2.5 text-xs">
-                                    <svg viewBox="0 0 24 16" width="16" height="12" className="shrink-0">
-                                        <path d="M2 12 L4 8 L8 6 L20 6 L22 8 L22 12 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="#3B82F6" />
-                                    </svg>
-                                    <span>LNG-Fuelled</span>
-                                </div>
-                                <div className="flex items-center gap-2.5 text-xs">
-                                    <svg viewBox="0 0 24 16" width="16" height="12" className="shrink-0">
-                                        <path d="M2 12 L4 8 L8 6 L20 6 L22 8 L22 12 Z M10 6 L10 3 L14 3 L14 6 M8 3 L8 1 L9 1 L9 3" fill="#94A3B8" />
-                                    </svg>
-                                    <span>Conventional</span>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Port Circles */}
                         <div>
                             <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Port — Order Volume & Spread</div>
@@ -70,6 +45,21 @@ export const MapLegend: React.FC = () => {
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="w-3.5 h-3.5 rounded-full border-2 border-red-500 bg-white dark:bg-slate-800"></div>
                                     <span>Wide spread (&gt;15%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Overlays */}
+                        <div>
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Overlays (Bottom)</div>
+                            <div className="space-y-1.5 text-xs">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-1.5 rounded-full bg-emerald-500"></div>
+                                    <span>Avails — available volume by port</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded border border-slate-400 flex items-center justify-center text-[8px] font-bold text-slate-500">$</div>
+                                    <span>Last Done — most recent trade price</span>
                                 </div>
                             </div>
                         </div>
