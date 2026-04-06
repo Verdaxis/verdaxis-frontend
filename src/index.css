@@ -2,35 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme CSS custom properties — light and dark mode */
+/* ============================================
+   Theme CSS custom properties — light and dark
+   ============================================ */
 :root {
-  --bg-primary: #F8FAFC;   /* slate-50 */
-  --text-primary: #334155;  /* slate-700 */
+  --bg-primary: #F8FAFC;
+  --text-primary: #334155;
   --bg-card: #FFFFFF;
-  --border-color: #E2E8F0;  /* slate-200 */
-  --input-bg: #F8FAFC;      /* slate-50 */
-  --text-secondary: #64748B; /* slate-500 */
+  --border-color: #E2E8F0;
+  --input-bg: #F8FAFC;
+  --text-secondary: #64748B;
 
   /* Terminal/chart panel variables — light mode */
-  --ocean: #EFF6FF;          /* blue-50: panel background */
-  --abyss: #E8F0FE;          /* slightly deeper nested panels */
+  --ocean: #EFF6FF;
+  --abyss: #E8F0FE;
   --ocean-border: rgba(0, 0, 0, 0.08);
-  --terminal-text: #374151;  /* gray-700 */
-  --terminal-muted: #6B7280; /* gray-500 */
-  --terminal-dim: #9CA3AF;   /* gray-400 */
+  --terminal-text: #374151;
+  --terminal-muted: #6B7280;
+  --terminal-dim: #9CA3AF;
   --terminal-input-bg: #FFFFFF;
   --terminal-input-border: rgba(0, 102, 255, 0.25);
+
+  /* Supplier accent — AA-safe (#22D37A is 8.9:1 on dark, was #4CAF50 which failed) */
+  --supplier: #22D37A;
+  --supplier-dim: rgba(34, 211, 122, 0.10);
 }
 
 .dark {
-  --bg-primary: #0F172A;   /* slate-900 */
-  --text-primary: #F8FAFC;  /* slate-50 */
-  --bg-card: #1E293B;       /* slate-800 */
-  --border-color: #334155;  /* slate-700 */
-  --input-bg: #1E293B;      /* slate-800 */
-  --text-secondary: #94A3B8; /* slate-400 */
+  --bg-primary: #0F172A;
+  --text-primary: #F8FAFC;
+  --bg-card: #1E293B;
+  --border-color: #334155;
+  --input-bg: #1E293B;
+  --text-secondary: #94A3B8;
 
-  /* Terminal/chart panel variables — dark mode */
   --ocean: #0A1628;
   --abyss: #050A14;
   --ocean-border: rgba(0, 102, 255, 0.15);
@@ -39,6 +44,15 @@
   --terminal-dim: #555555;
   --terminal-input-bg: #050A14;
   --terminal-input-border: rgba(0, 102, 255, 0.3);
+}
+
+/* ============================================
+   Global Focus Ring
+   ============================================ */
+*:focus-visible {
+  outline: 2px solid #5DADE2;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ============================================
@@ -78,13 +92,22 @@
   border-top-color: #0F172A;
 }
 
+/* ============================================
+   Component Layer
+   ============================================ */
 @layer components {
   .v-card {
     @apply bg-verdaxis-card rounded-xl shadow-sm border border-verdaxis-border transition-colors duration-200;
   }
 
+  /* v-glass: solid dark panel (previously was transparent/blur — kept for where blur is intentional) */
   .v-glass {
-    @apply bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-slate-700/30 rounded-xl shadow-sm;
+    @apply bg-white/80 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 rounded-xl shadow-sm;
+  }
+
+  /* v-glass-solid: opaque dark card, no blur — use for data-heavy panels */
+  .v-glass-solid {
+    @apply bg-white dark:bg-[#0D1829] border border-slate-200 dark:border-[rgba(93,173,226,0.12)] rounded-xl;
   }
 
   .v-heading {
@@ -99,18 +122,56 @@
     @apply w-full px-4 py-3 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-2 focus:ring-[#5DADE2] focus:outline-none font-medium text-verdaxis-text transition-colors duration-200;
   }
 
+  /* v-btn-primary: brand blue (was slate-700 which is invisible on dark bg) */
   .v-btn-primary {
-    @apply bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2;
+    @apply bg-[#5DADE2] hover:bg-[#7EC5ED] active:bg-[#4090C5] text-[#07101E] font-bold py-2.5 px-5 rounded-lg transition-colors flex items-center justify-center space-x-2;
+  }
+
+  /* Supplier-mode primary button */
+  .v-btn-supplier {
+    @apply bg-[#22D37A] hover:bg-[#39E38C] active:bg-[#1AB568] text-[#07101E] font-bold py-2.5 px-5 rounded-lg transition-colors flex items-center justify-center space-x-2;
+  }
+
+  /* Price/data monospace */
+  .v-price {
+    @apply font-mono font-semibold tabular-nums;
   }
 }
 
-/* Smooth page transitions */
+/* ============================================
+   Price Flash Animations (Market Terminal)
+   ============================================ */
+@keyframes flash-up {
+  0%   { background-color: rgba(34, 211, 122, 0.18); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-down {
+  0%   { background-color: rgba(248, 113, 113, 0.18); }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flash-up 600ms ease-out forwards;
+}
+
+.flash-down {
+  animation: flash-down 600ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-up, .flash-down {
+    animation: none;
+  }
+}
+
+/* ============================================
+   Page Transitions
+   ============================================ */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
 }
-
-

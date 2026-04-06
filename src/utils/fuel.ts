@@ -14,6 +14,8 @@ const FUEL_COLOR_MAP: Record<string, ColorKey> = {
   lng: 'sky',
   ammonia: 'teal',
   'ammonia (green)': 'teal',
+  ethanol: 'green',
+  biomethane: 'sky',
   lsmgo: 'amber',
 };
 

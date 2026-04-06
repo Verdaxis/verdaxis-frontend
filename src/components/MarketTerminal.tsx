@@ -214,6 +214,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Simulation tick counter (drives simulated row data for periods without real orders)
     const [tick, setTick] = useState(0);
     const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
+    // Track which rows are flashing and in which direction
+    const [flashRows, setFlashRows] = useState<Record<string, 'up' | 'down'>>({});
+    const prevPrices = useRef<Record<string, { bid: number | null; ask: number | null }>>({});
     const tradeScrollRef = useRef<HTMLDivElement>(null);
 
     // Fetch ports for the selector
@@ -412,6 +415,28 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             };
         });
     }, [filteredAsks, filteredBids, priceSummaries, selectedFuel, selectedPort]);
+
+    // Flash rows whose bid or ask changed on each tick
+    useEffect(() => {
+        if (!terminalData.length) return;
+        const newFlash: Record<string, 'up' | 'down'> = {};
+        for (const row of terminalData) {
+            const prev = prevPrices.current[row.id];
+            if (prev) {
+                const bidChanged = row.bid !== prev.bid && row.bid != null && prev.bid != null;
+                const askChanged = row.ask !== prev.ask && row.ask != null && prev.ask != null;
+                if (bidChanged && row.bid! > prev.bid!) newFlash[row.id] = 'up';
+                else if (bidChanged && row.bid! < prev.bid!) newFlash[row.id] = 'down';
+                else if (askChanged && row.ask! > prev.ask!) newFlash[row.id] = 'up';
+                else if (askChanged && row.ask! < prev.ask!) newFlash[row.id] = 'down';
+            }
+            prevPrices.current[row.id] = { bid: row.bid, ask: row.ask };
+        }
+        if (Object.keys(newFlash).length) {
+            setFlashRows(newFlash);
+            setTimeout(() => setFlashRows({}), 650);
+        }
+    }, [terminalData]);
 
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
@@ -812,7 +837,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             return (
                                 <div
                                     key={row.id}
-                                    className={`flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group ${hoverColor} ${isCalRow ? 'bg-slate-50/50 dark:bg-[#0a0a0a]' : ''}`}
+                                    className={`flex items-center border-b border-slate-100 dark:border-[#111] py-1.5 transition-colors group ${flashRows[row.id] === 'up' ? 'flash-up' : flashRows[row.id] === 'down' ? 'flash-down' : hoverColor} ${isCalRow ? 'bg-slate-50/50 dark:bg-[#0a0a0a]' : ''}`}
                                 >
                                     {/* Period */}
                                     <div className="w-32 px-4 text-xs font-bold flex items-center space-x-2 text-slate-900 dark:text-white">

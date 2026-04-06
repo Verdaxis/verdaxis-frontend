@@ -112,7 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed && (
                 <div className="px-6 mt-6 mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold truncate flex items-center justify-between">
                     <span>{viewMode === 'BUYER' ? 'Buyer Platform' : 'Supplier Platform'}</span>
-                    <div className={`w-2 h-2 rounded-full ${viewMode === 'BUYER' ? 'bg-verdaxis' : 'bg-verdaxis-green'}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${viewMode === 'BUYER' ? 'bg-verdaxis' : 'bg-[#22D37A]'}`}></div>
                 </div>
             )}
 
@@ -124,11 +124,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => handleNavigate(item.id as Page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentPage === item.id
-                                ? 'bg-verdaxis text-white shadow-lg'
-                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
+                                ? (viewMode === 'SUPPLIER'
+                                    ? 'bg-[rgba(34,211,122,0.12)] text-white border-l-[3px] border-l-[#22D37A] pl-[9px]'
+                                    : 'bg-[rgba(93,173,226,0.12)] text-white border-l-[3px] border-l-verdaxis pl-[9px]')
+                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white border-l-[3px] border-l-transparent pl-[9px]'
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
-                            <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.id ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                            <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.id ? (viewMode === 'SUPPLIER' ? 'text-[#22D37A]' : 'text-verdaxis') : 'text-slate-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="font-medium truncate">{item.label}</span>}
                         </button>
                     </Tooltip>
