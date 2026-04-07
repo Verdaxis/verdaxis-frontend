@@ -183,7 +183,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Client-side filters ──────────────────────────────────────
     const [filterGrade, setFilterGrade] = useState<string>('All');
-    const [filterVerifiedOnly, setFilterVerifiedOnly] = useState(false);
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
     const [showFilters, setShowFilters] = useState(false);
 
@@ -219,7 +218,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             id: orderId,
             side: _side === 'BID' ? 'ASK' : 'BID', // counter-side: if we're buying, the order is an ask
             fuel_type: fuelType !== 'All' ? fuelType : '',
-            fuel_grade: 'Conventional' as const,
+            fuel_grade: 'Green' as const,
             region: portInput || '',
             quantity_mt: quantity,
             remaining_quantity_mt: quantity,
@@ -253,9 +252,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         if (filterGrade !== 'All') {
             result = result.filter(l => l.fuel_grade === filterGrade);
         }
-        if (filterVerifiedOnly) {
-            result = result.filter(l => l.is_verdaxis_verified);
-        }
         switch (sortBy) {
             case 'price_asc': result.sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd); break;
             case 'price_desc': result.sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd); break;
@@ -263,9 +259,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             case 'newest': result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
         }
         return result;
-    }, [listings, filterGrade, filterVerifiedOnly, sortBy]);
+    }, [listings, filterGrade, sortBy]);
 
-    const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (filterVerifiedOnly ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
+    const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
@@ -747,7 +743,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
                                     >
                                         <option value="All">{t('marketplace.filter.allGrades')}</option>
-                                        <option value="Conventional">Conventional</option>
                                         <option value="Green">Green</option>
                                         <option value="Bio">Bio</option>
                                     </select>
@@ -765,22 +760,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <option value="newest">{t('marketplace.sort.newest')}</option>
                                     </select>
                                 </div>
-                                <div className="flex items-end">
-                                    <label className="flex items-center gap-2 cursor-pointer py-1.5">
-                                        <input
-                                            type="checkbox"
-                                            checked={filterVerifiedOnly}
-                                            onChange={(e) => setFilterVerifiedOnly(e.target.checked)}
-                                            className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                                        />
-                                        <span className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                            <Shield size={14} className="text-emerald-500" /> {t('marketplace.filter.verifiedOnly')}
-                                        </span>
-                                    </label>
-                                </div>
                                 {activeFilterCount > 0 && (
                                     <button
-                                        onClick={() => { setFilterGrade('All'); setFilterVerifiedOnly(false); setSortBy('price_asc'); }}
+                                        onClick={() => { setFilterGrade('All'); setSortBy('price_asc'); }}
                                         className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
                                     >
                                         <X size={12} /> {t('marketplace.btn.clear')}
@@ -940,7 +922,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {marketTab === 'rfq' && (
                 <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} />
+                        <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} sortBy={sortBy} onSortChange={setSortBy} />
                     </div>
                 </div>
             )}
