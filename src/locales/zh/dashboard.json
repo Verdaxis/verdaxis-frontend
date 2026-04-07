@@ -1,4 +1,8 @@
 {
+  "commandCenter": {
+    "title": "指挥中心",
+    "subtitle": "您想做什么？"
+  },
   "buyerDashboard": {
     "title": "采购控制台",
     "emptyState": {

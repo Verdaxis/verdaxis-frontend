@@ -1,4 +1,8 @@
 {
+  "commandCenter": {
+    "title": "Command Center",
+    "subtitle": "What would you like to do?"
+  },
   "buyerDashboard": {
     "title": "Procurement Dashboard",
     "emptyState": {
