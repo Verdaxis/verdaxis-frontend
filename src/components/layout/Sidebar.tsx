@@ -55,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ];
 
     const sidebarItems = viewMode === 'BUYER' ? [
-        { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MAP', label: 'Market Intelligence', icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },

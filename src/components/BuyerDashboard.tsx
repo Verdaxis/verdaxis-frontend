@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, TrendingUp, AlertCircle, CheckCircle, Clock, ShoppingCart, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
+import { Loader2, ShoppingCart, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
 import { Page, Trade } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { MatchSuggestions } from './MatchSuggestions';
+import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 import { useNamespace } from '../hooks/useNamespace';
 
 interface BuyerDashboardProps {
@@ -185,111 +186,16 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({ onNavigate, open
                 <MatchSuggestions onViewTrade={(orderId) => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} />
             </div>
 
-            {/* ─── Recent Trades ─── */}
+            {/* ─── Needs Attention ─── */}
             <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Your Trades</h2>
-                <div className="grid grid-cols-1 gap-4">
-                    {requests.length === 0 ? (
-                        <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                            <ShoppingCart className="mx-auto h-10 w-10 text-slate-400 mb-3" />
-                            <h3 className="text-lg font-medium text-slate-900 dark:text-white">No trades yet</h3>
-                            <p className="text-slate-500 dark:text-slate-400 mt-1">Post your first bid to attract suppliers</p>
-                            <button
-                                onClick={() => setOrderModalOpen(true)}
-                                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium"
-                            >
-                                Post a Bid
-                            </button>
-                        </div>
-                    ) : (
-                        requests.map(req => (
-                            <div key={req.id} id={`order-${req.id}`} className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-all duration-500">
-                                {/* Header */}
-                                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/30">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`text-sm font-bold uppercase ${req.fuel_type === 'Methanol' ? 'text-blue-600' : 'text-green-600'}`}>
-                                                {req.fuel_type}
-                                            </span>
-                                            <span className="text-slate-400">•</span>
-                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">{Number(req.quantity_mt).toLocaleString()} MT</span>
-                                            <span className="text-slate-400">•</span>
-                                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">${Number(req.price_per_mt_usd).toLocaleString()}/MT</span>
-                                        </div>
-                                        <div className="text-xs text-slate-500 mt-1">{t('buyerDashboard.order.idLabel')}: {req.id.slice(0, 8)} • {new Date(req.created_at).toLocaleDateString()} • {t('buyerDashboard.order.sellerLabel')}: {req.seller_name}</div>
-                                    </div>
-                                    <div>
-                                        {req.status === 'PENDING_CONFIRMATION' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                                <Clock size={14} /> {t('buyerDashboard.order.status.pendingConfirmation')}
-                                            </span>
-                                        )}
-                                        {req.status === 'CONFIRMED' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                <CheckCircle size={14} /> {t('buyerDashboard.order.status.confirmed')}
-                                            </span>
-                                        )}
-                                        {req.status === 'DELIVERED' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                                                <TrendingUp size={14} /> {t('buyerDashboard.order.status.delivered')}
-                                            </span>
-                                        )}
-                                        {req.status === 'PAID' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                                <CheckCircle size={14} /> {t('buyerDashboard.order.status.paid')}
-                                            </span>
-                                        )}
-                                        {req.status === 'CANCELLED' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                                                <AlertCircle size={14} /> {t('buyerDashboard.order.status.cancelled')}
-                                            </span>
-                                        )}
-                                        {req.status === 'DECLINED' && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-                                                <AlertCircle size={14} /> {t('buyerDashboard.order.status.declined')}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Trade Details */}
-                                <div className="p-6">
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        <div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.region')}</div>
-                                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{req.region}</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.quantity')}</div>
-                                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{Number(req.quantity_mt).toLocaleString()} MT</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.price')}</div>
-                                            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${Number(req.price_per_mt_usd).toLocaleString()}/MT</div>
-                                        </div>
-                                        <div>
-                                            <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('buyerDashboard.order.total')}</div>
-                                            <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                                {req.final_total_usd ? `$${Number(req.final_total_usd).toLocaleString()}` : `$${(Number(req.quantity_mt) * Number(req.price_per_mt_usd)).toLocaleString()}`}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {req.status === 'PENDING_CONFIRMATION' && (
-                                        <div className="mt-4 flex justify-end">
-                                            <button
-                                                onClick={() => handleConfirmTrade(req.id)}
-                                                disabled={processing}
-                                                className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-sm font-bold rounded hover:opacity-90 transition-opacity"
-                                            >
-                                                {t('buyerDashboard.order.confirmTrade')}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Needs Attention</h2>
+                <NeedsAttentionFeed
+                    trades={requests}
+                    viewMode="BUYER"
+                    onNavigate={onNavigate}
+                    onConfirmTrade={handleConfirmTrade}
+                    onPostOrder={() => setOrderModalOpen(true)}
+                />
             </div>
 
             {/* ─── Order Placement Modal ─── */}
