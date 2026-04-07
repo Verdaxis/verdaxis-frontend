@@ -6,7 +6,7 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { MatchSuggestions } from './MatchSuggestions';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
-import { SupplierDemandFeed } from './SupplierDemandFeed';
+import { MarketFeed } from './MarketFeed';
 import { useNamespace } from '../hooks/useNamespace';
 import { useCopilotContext } from '../context/CopilotContext';
 
@@ -23,7 +23,7 @@ const CTA_CONFIG = {
     },
     SUPPLIER: {
         primary: { icon: Package, label: 'Post Supply', desc: 'List your fuel inventory', side: 'ASK' as const },
-        secondary: { icon: Search, label: 'View Demand', desc: 'Browse buyer bids' },
+        secondary: { icon: Search, label: 'Browse Demand', desc: 'Explore active buyer bids' },
     },
 };
 
@@ -209,8 +209,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} />
             </div>
 
-            {/* ─── Supplier-only: Demand Feed ─── */}
-            {viewMode === 'SUPPLIER' && <SupplierDemandFeed onNavigate={onNavigate} />}
+            {/* ─── Market Activity ─── */}
+            <MarketFeed viewMode={viewMode} onNavigate={onNavigate} />
 
             {/* ─── Needs Attention ─── */}
             <div>
