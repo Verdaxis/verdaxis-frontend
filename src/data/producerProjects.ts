@@ -19,7 +19,7 @@ export interface ProducerProject {
 
 export const fuelTypeColors: Record<FuelType, string> = {
   'E-Methanol': '#5DADE2',
-  'Biomethanol': '#4CAF50',
+  'Bio Methanol': '#4CAF50',
   'Green Methanol': '#FF9800',
 };
 

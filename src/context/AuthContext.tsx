@@ -50,6 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clearTokens = useCallback(() => {
         localStorage.removeItem('token');
         localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('verdaxis_currentPage');
+        sessionStorage.removeItem('verdaxis_viewMode');
         setToken(null);
         setUser(null);
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);

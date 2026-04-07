@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, AlertCircle, Sparkles, RefreshCw, Shield, GraduationCap } from 'lucide-react';
-import { Port, Page, Vessel } from '../../types';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, Sparkles, RefreshCw, GraduationCap, Shield } from 'lucide-react';
+import { Port, Page, Product, ForwardCurvePoint } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
@@ -32,12 +32,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     
     const [arbitrageData, setArbitrageData] = useState<{narrative: string, spread: number} | null>(null);
     const [isArbitrageLoading, setIsArbitrageLoading] = useState(false);
-    const [fleetVessels, setFleetVessels] = useState<Vessel[]>([]);
 
-    // Fetch fleet data for alerts
-    useEffect(() => {
-        api.vessels.list().then(setFleetVessels).catch(() => {});
-    }, []);
+
 
     useEffect(() => {
         if (selectedPort) {
@@ -53,23 +49,46 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         }
     }, [selectedPort?.id, ports.length]);
 
-    // Derive forward curve data from top ports
-    const forwardCurves = ports.slice(0, 2).map(p => ({
-        label: `Methanol (${p.name.substring(0, 3).toUpperCase()})`,
-        change: p.priceTrend >= 0 ? `+${p.priceTrend.toFixed(1)}%` : `${p.priceTrend.toFixed(1)}%`,
-        up: p.priceTrend >= 0,
-        price: `$${p.priceMethanol}`,
-        curve: p.priceTrend >= 0 ? t('intelligencePanel.contango') : t('intelligencePanel.backwardation'),
-    }));
+    // Real forward curve data from API
+    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: string }[]>([]);
 
-    // Find the most at-risk vessel for fleet alert
-    const atRiskVessel = fleetVessels.find(v =>
-        v.complianceFuelEU === 'Non-Compliant' || v.complianceFuelEU === 'Warning' ||
-        v.complianceEUETS === 'Non-Compliant' || v.complianceEUETS === 'Warning'
-    );
-    const alertType = atRiskVessel
-        ? (atRiskVessel.complianceFuelEU === 'Non-Compliant' || atRiskVessel.complianceFuelEU === 'Warning' ? 'FuelEU' : 'EU ETS')
-        : null;
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const products: Product[] = await api.catalog.products();
+                const active = products.filter(p => p.is_active).slice(0, 3);
+                const results = await Promise.allSettled(
+                    active.map(p => api.curves.forward({ product_id: p.id }))
+                );
+                if (cancelled) return;
+                const items = results
+                    .map((r, i) => {
+                        if (r.status !== 'fulfilled' || !r.value.curve?.length) return null;
+                        const curve = r.value.curve;
+                        const spot = curve.find((c: ForwardCurvePoint) => c.availability_window === 'Spot') || curve[0];
+                        const far = curve[curve.length - 1];
+                        const mid = spot.mid_price ?? 0;
+                        const farMid = far.mid_price ?? mid;
+                        const pctChange = mid > 0 ? ((farMid - mid) / mid) * 100 : 0;
+                        const isContango = farMid >= mid;
+                        return {
+                            label: active[i].name,
+                            price: mid > 0 ? `$${mid.toFixed(0)}` : '--',
+                            change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
+                            up: isContango,
+                            curve: isContango ? 'Contango' : 'Backwardation',
+                        };
+                    })
+                    .filter(Boolean) as typeof curveProducts;
+                setCurveProducts(items);
+            } catch {
+                // Graceful degradation — show empty if API unavailable
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
 
     if (!ready) return null;
 
@@ -211,11 +230,14 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         {/* Forward Curves */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('intelligencePanel.forwardCurvesQ4')}</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
                                 <LineChart size={14} className="text-slate-400" />
                             </div>
                             <div className="space-y-3">
-                                {forwardCurves.map((item, i) => (
+                                {curveProducts.length === 0 && (
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">Loading curve data...</div>
+                                )}
+                                {curveProducts.map((item, i) => (
                                     <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                                         <div className="flex justify-between items-center mb-1">
                                             <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
@@ -231,32 +253,6 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-                        </div>
-
-                        {/* Compliance */}
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
-                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
-                                <Shield size={16} className="text-blue-500" /> Compliance
-                            </h3>
-                            <div className="space-y-2">
-                                {atRiskVessel ? (
-                                    <div className="flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-900/20 p-2 rounded border border-amber-200 dark:border-amber-800">
-                                        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                                        <div>
-                                            <div className="font-bold text-amber-700 dark:text-amber-300">{atRiskVessel.name}</div>
-                                            <div className="text-[10px] text-amber-600 dark:text-amber-400">{alertType} risk — review required</div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-[11px] text-slate-500 dark:text-slate-400">All vessels compliant. No alerts.</div>
-                                )}
-                                <button
-                                    onClick={() => onNavigate('FLEET')}
-                                    className="w-full text-[11px] font-bold text-blue-500 hover:text-blue-600 text-left flex items-center gap-1 mt-1"
-                                >
-                                    View Fleet Compliance <ArrowRight size={12} />
-                                </button>
                             </div>
                         </div>
 

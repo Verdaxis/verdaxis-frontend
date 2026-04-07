@@ -24,7 +24,6 @@ import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard } from './components/BuyerDashboard';
 import { SupplierDashboard } from './components/SupplierDashboard';
 import { SupplierQuotes } from './components/SupplierQuotes';
-import { Fleet } from './components/Fleet';
 import { DataAnalytics } from './components/DataAnalytics';
 import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
@@ -38,6 +37,7 @@ import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { WatchlistPage } from './components/WatchlistPage';
+import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
 import LanguageRedirect from './components/public/LanguageRedirect';
@@ -135,10 +135,18 @@ const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
   const { user } = useAuth();
   const location = useLocation();
-  const [viewMode, setViewMode] = useState<ViewMode>(user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
-  const [currentPage, setCurrentPage] = useState<Page>('MAP');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = sessionStorage.getItem('verdaxis_viewMode');
+    return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
+  });
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    const saved = sessionStorage.getItem('verdaxis_currentPage');
+    if (saved) return saved as Page;
+    return 'DASHBOARD';
+  });
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
+  const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
 
   useEffect(() => {
       if (location.state) {
@@ -154,11 +162,15 @@ const Dashboard: React.FC = () => {
 
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
-    setCurrentPage(mode === 'BUYER' ? 'MAP' : 'DASHBOARD');
+    const defaultPage = 'DASHBOARD';
+    setCurrentPage(defaultPage);
+    sessionStorage.setItem('verdaxis_viewMode', mode);
+    sessionStorage.setItem('verdaxis_currentPage', defaultPage);
   };
 
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
+    sessionStorage.setItem('verdaxis_currentPage', page);
   };
 
   const handlePortSelect = (port: Port) => {
@@ -189,8 +201,6 @@ const Dashboard: React.FC = () => {
                 return <SupplierQuotes />;
             case 'TERMINAL':
                 return <MarketTerminal onNavigate={handleNavigate} />;
-            case 'STATS':
-                return <TradeHistoryPage />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
             case 'MARKETPLACE':
@@ -214,21 +224,18 @@ const Dashboard: React.FC = () => {
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
         return <MarketTerminal onNavigate={handleNavigate} />;
-      case 'FLEET':
       case 'DATA_ANALYTICS':
         return <DataAnalytics />;
       case 'COMPLIANCE':
         return <Compliance />;
       case 'TRAINING':
          return <Training />;
-      case 'STATS':
-         return <TradeHistoryPage />;
       case 'TRADES':
          return <TradeHistoryPage />;
       case 'WATCHLISTS':
          return <WatchlistPage />;
       default:
-        return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
+        return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
     }
   };
 
@@ -238,11 +245,17 @@ const Dashboard: React.FC = () => {
       onSwitchView={handleSwitchView}
       currentPage={currentPage}
       onNavigate={handleNavigate}
+      onPrimaryAction={() => setSidebarModalSide(viewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
       <GuidedTutorial viewMode={viewMode} />
       <ErrorBoundary>
         {renderContent()}
       </ErrorBoundary>
+      <OrderPlaceModal
+        isOpen={sidebarModalSide !== null}
+        onClose={() => setSidebarModalSide(null)}
+        side={sidebarModalSide || 'BID'}
+      />
     </Layout>
   );
 };

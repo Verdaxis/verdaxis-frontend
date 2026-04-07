@@ -13,14 +13,16 @@ interface LayoutProps {
     onSwitchView: (mode: ViewMode) => void;
     currentPage: Page;
     onNavigate: (page: Page) => void;
+    onPrimaryAction?: () => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ 
-    children, 
-    viewMode, 
+export const Layout: React.FC<LayoutProps> = ({
+    children,
+    viewMode,
     onSwitchView,
     currentPage,
-    onNavigate
+    onNavigate,
+    onPrimaryAction
 }) => {
     const { user } = useAuth();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -45,6 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 isMobileOpen={isMobileSidebarOpen}
                 onMobileClose={() => setIsMobileSidebarOpen(false)}
                 userRole={user?.role}
+                onPrimaryAction={onPrimaryAction}
             />
 
             {/* Main Content */}

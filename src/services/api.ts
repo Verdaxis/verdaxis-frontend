@@ -38,7 +38,9 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
 
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
-    const res = await fetchWithTimeout(`${API_URL}${path}`, options);
+    // Mutations get a longer timeout (30s) since they must not be silently dropped
+    const isMutation = options?.method && options.method !== 'GET';
+    const res = await fetchWithTimeout(`${API_URL}${path}`, options, isMutation ? 30000 : 15000);
     return handleResponse(res);
 };
 
@@ -136,7 +138,7 @@ export const api = {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({ vessel_id: vesselId, fuel_mix: fuelMix, year }),
-            });
+            }, 30000);
             return handleResponse(res);
         },
         fuels: async () => {
@@ -180,7 +182,7 @@ export const api = {
             const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}/publish`, {
                 method: 'POST',
                 headers: getHeaders()
-            });
+            }, 30000);
             return handleResponse(res);
         },
         update: async (itemId: string, data: any): Promise<any> => {
@@ -188,14 +190,14 @@ export const api = {
                 method: 'PATCH',
                 headers: getHeaders(),
                 body: JSON.stringify(data)
-            });
+            }, 30000);
             return handleResponse(res);
         },
         delete: async (itemId: string): Promise<void> => {
             const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}`, {
                 method: 'DELETE',
                 headers: getHeaders()
-            });
+            }, 30000);
             if (!res.ok) {
                 const error = await res.text();
                 throw new Error(error || "Failed to delete inventory item");
@@ -214,7 +216,7 @@ export const api = {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(payload)
-            });
+            }, 30000);
             const data = await handleResponse(res);
             let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
             const currentStock = Number(data.current_stock_mt);
@@ -250,14 +252,14 @@ export const api = {
             const res = await fetchWithTimeout(`${API_URL}/notifications/${id}/read`, {
                 method: 'PATCH',
                 headers: getHeaders()
-            });
+            }, 30000);
             return handleResponse(res);
         },
         markAllRead: async (): Promise<any> => {
             const res = await fetchWithTimeout(`${API_URL}/notifications/read-all`, {
                 method: 'PATCH',
                 headers: getHeaders()
-            });
+            }, 30000);
             return handleResponse(res);
         }
     },
@@ -567,7 +569,7 @@ export const api = {
             const res = await fetchWithTimeout(`${API_URL}/alerts/${alertId}`, {
                 method: 'DELETE',
                 headers: getHeaders(),
-            });
+            }, 30000);
             if (!res.ok) throw new Error(await res.text() || 'Failed to delete alert');
         },
     },
@@ -613,6 +615,12 @@ export const api = {
         },
         revise: async (rfqId: string, quoteId: string, data: { price_per_mt_usd: number }) => {
             return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(data) });
+        },
+        withdraw: async (rfqId: string, quoteId: string) => {
+            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/withdraw`, { method: 'POST', headers: getHeaders() });
+        },
+        sellerAccept: async (rfqId: string, quoteId: string) => {
+            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/seller-accept`, { method: 'POST', headers: getHeaders() });
         },
     },
 

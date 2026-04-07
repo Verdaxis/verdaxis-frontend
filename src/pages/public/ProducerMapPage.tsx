@@ -16,7 +16,7 @@ import { useNamespace } from '../../hooks/useNamespace';
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Biomethanol', 'Low-Carbon Methanol'];
+const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Bio Methanol', 'Green Methanol'];
 const ALL_STATUSES: (ProjectStatus | 'All')[] = ['All', 'Operational', 'Under Construction', 'Engineering', 'Pre-Feasibility'];
 
 const statusColors: Record<ProjectStatus, string> = {

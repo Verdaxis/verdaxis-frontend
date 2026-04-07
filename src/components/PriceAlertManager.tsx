@@ -3,6 +3,7 @@ import { Bell, Trash2, Plus, ArrowUp, ArrowDown, X, Loader2, Lock } from 'lucide
 import { api } from '../services/api';
 import { PriceAlert, Product, Subscription } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
+import { useToast } from './Toast';
 
 const FREE_TIER_LIMIT = 5;
 
@@ -13,6 +14,7 @@ interface PriceAlertManagerProps {
 
 export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, onClose }) => {
     const { t, ready } = useNamespace('dashboard');
+    const { addToast } = useToast();
     const [alerts, setAlerts] = useState<PriceAlert[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -207,7 +209,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                 {t('priceAlerts.limitMessage', { limit: FREE_TIER_LIMIT })}
                             </div>
                             <button
-                                onClick={() => window.open('/pricing', '_blank')}
+                                onClick={() => addToast({ type: 'info', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' })}
                                 style={{
                                     background: 'var(--amber, #FFB020)',
                                     border: 'none',

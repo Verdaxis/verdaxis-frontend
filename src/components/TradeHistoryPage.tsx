@@ -159,7 +159,7 @@ const PerformanceTab: React.FC = () => {
                 <div className="v-card p-5">
                     <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">Volume by Fuel Type</h3>
                     {volumeByFuel.length === 0 ? (
-                        <p className="text-sm text-slate-400 py-8 text-center">No trade data available</p>
+                        <p className="text-sm text-slate-400 py-8 text-center">Complete your first trade to see volume data</p>
                     ) : (
                         <div className="space-y-3">
                             {volumeByFuel.map(([fuel, vol]) => (
@@ -207,7 +207,7 @@ const PerformanceTab: React.FC = () => {
             <div className="v-card p-5">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">Avg Execution Price vs Market Mid</h3>
                 {priceComparison.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-8 text-center">No comparison data available</p>
+                    <p className="text-sm text-slate-400 py-8 text-center">Complete trades to see price comparison data</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

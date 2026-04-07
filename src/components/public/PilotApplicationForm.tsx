@@ -119,16 +119,27 @@ export const PilotApplicationForm: React.FC = () => {
     existing.push(application);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
 
-    // Try to send to backend (graceful fallback if endpoint doesn't exist)
+    // Send to backend — fall back to email link if endpoint unavailable
+    let apiOk = false;
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '';
-      await fetch(`${apiUrl}/pilot-applications`, {
+      const res = await fetch(`${apiUrl}/pilot-applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(application),
       });
+      apiOk = res.ok;
     } catch {
-      // Endpoint may not exist yet — localStorage capture is sufficient for demo
+      // API unavailable
+    }
+
+    if (!apiOk) {
+      // Fallback: open mailto with structured application data
+      const subject = encodeURIComponent(`Pilot Application — ${formData.companyName}`);
+      const body = encodeURIComponent(
+        `Pilot Application\n\nCompany: ${formData.companyName}\nName: ${formData.yourName}\nEmail: ${formData.email}\nRole: ${formData.role}\nFuels: ${formData.fuelTypes.join(', ')}\nVolume: ${formData.estimatedVolume}\nMessage: ${formData.interest}\nSubmitted: ${application.submittedAt}`
+      );
+      window.open(`mailto:pilot@verdaxis.exchange?subject=${subject}&body=${body}`, '_self');
     }
 
     setSubmitted(true);

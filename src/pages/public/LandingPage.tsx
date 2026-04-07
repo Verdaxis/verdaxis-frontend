@@ -134,10 +134,10 @@ export const LandingPage: React.FC = () => {
   if (!ready) return null;
 
   const whyCards = [
-    { icon: TrendingUp, title: t('landing.why.items.0.title'), body: t('landing.why.items.0.body') },
-    { icon: Eye, title: t('landing.why.items.1.title'), body: t('landing.why.items.1.body') },
-    { icon: Zap, title: t('landing.why.items.2.title'), body: t('landing.why.items.2.body') },
-    { icon: ArrowLeftRight, title: t('landing.why.items.3.title'), body: t('landing.why.items.3.body') },
+    { icon: TrendingUp, title: t('landing.why.cards.0.title'), body: t('landing.why.cards.0.body') },
+    { icon: Eye, title: t('landing.why.cards.1.title'), body: t('landing.why.cards.1.body') },
+    { icon: Zap, title: t('landing.why.cards.2.title'), body: t('landing.why.cards.2.body') },
+    { icon: ArrowLeftRight, title: t('landing.why.cards.3.title'), body: t('landing.why.cards.3.body') },
   ];
 
   const howSteps = [
@@ -149,51 +149,51 @@ export const LandingPage: React.FC = () => {
   const roleCards = [
     {
       icon: Factory,
-      title: t('landing.roles.items.0.title'),
+      title: t('landing.roles.cards.0.title'),
       path: '/for-producers',
       bullets: [
-        t('landing.roles.items.0.bullets.0'),
-        t('landing.roles.items.0.bullets.1'),
-        t('landing.roles.items.0.bullets.2'),
+        t('landing.roles.cards.0.bullets.0'),
+        t('landing.roles.cards.0.bullets.1'),
+        t('landing.roles.cards.0.bullets.2'),
       ],
     },
     {
       icon: Ship,
-      title: t('landing.roles.items.1.title'),
+      title: t('landing.roles.cards.1.title'),
       path: '/for-buyers',
       bullets: [
-        t('landing.roles.items.1.bullets.0'),
-        t('landing.roles.items.1.bullets.1'),
-        t('landing.roles.items.1.bullets.2'),
+        t('landing.roles.cards.1.bullets.0'),
+        t('landing.roles.cards.1.bullets.1'),
+        t('landing.roles.cards.1.bullets.2'),
       ],
     },
     {
       icon: ArrowLeftRight,
-      title: t('landing.roles.items.2.title'),
+      title: t('landing.roles.cards.2.title'),
       path: '/for-traders',
       bullets: [
-        t('landing.roles.items.2.bullets.0'),
-        t('landing.roles.items.2.bullets.1'),
-        t('landing.roles.items.2.bullets.2'),
+        t('landing.roles.cards.2.bullets.0'),
+        t('landing.roles.cards.2.bullets.1'),
+        t('landing.roles.cards.2.bullets.2'),
       ],
     },
     {
       icon: Landmark,
-      title: t('landing.roles.items.3.title'),
+      title: t('landing.roles.cards.3.title'),
       path: '/for-financiers',
       bullets: [
-        t('landing.roles.items.3.bullets.0'),
-        t('landing.roles.items.3.bullets.1'),
-        t('landing.roles.items.3.bullets.2'),
+        t('landing.roles.cards.3.bullets.0'),
+        t('landing.roles.cards.3.bullets.1'),
+        t('landing.roles.cards.3.bullets.2'),
       ],
     },
   ];
 
   const stats = [
-    { value: 10, suffix: '+', label: t('landing.stats.items.0') },
-    { value: 6, suffix: '', label: t('landing.stats.items.1') },
-    { value: 100, suffix: '%', label: t('landing.stats.items.2') },
-    { value: 0, suffix: '', label: t('landing.stats.items.3') },
+    { value: 10, suffix: '+', label: t('landing.stats.fuelPathways') },
+    { value: 6, suffix: '', label: t('landing.stats.regulatoryFrameworks') },
+    { value: 100, suffix: '%', label: t('landing.stats.chainOfCustody') },
+    { value: 0, suffix: '', label: t('landing.stats.doubleCounting') },
   ];
 
   const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];

@@ -7,7 +7,7 @@ import { type SupportedLang } from '../../i18n';
 import { useLocalePath } from '../../hooks/useLocalePath';
 
 const BLUE = '#5DADE2';
-const GREEN = '#4CAF50';
+const GREEN = '#22D37A';
 const DARK = '#0F172A';
 
 interface DropdownItem {

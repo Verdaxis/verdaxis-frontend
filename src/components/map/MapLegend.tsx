@@ -1,26 +1,32 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const MapLegend: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
-    const [isOpen, setIsOpen] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     if (!ready) return null;
 
     return (
-        <div className="absolute top-4 right-20 z-[20] flex flex-col items-end">
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors mb-2"
+        <div
+            className="absolute top-4 right-4 z-[20]"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            {/* Trigger icon */}
+            <button
+                className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors"
+                aria-label={t('mapLegend.title')}
             >
-                {isOpen ? <ChevronUp size={20} /> : <HelpCircle size={20} />}
+                <HelpCircle size={20} />
             </button>
 
-            {isOpen && (
-                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 w-72 text-slate-700 dark:text-slate-200">
+            {/* Hover panel — opens downward from the icon */}
+            {isHovered && (
+                <div className="absolute top-full right-0 mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 w-72 text-slate-700 dark:text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">{t('mapLegend.title')}</h4>
-                    
+
                     <div className="space-y-4">
                         {/* Port Circles */}
                         <div>
@@ -29,7 +35,7 @@ export const MapLegend: React.FC = () => {
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="flex items-center gap-1">
                                         <div className="w-3 h-3 rounded-full border-2 border-slate-400 bg-white dark:bg-slate-800"></div>
-                                        <span className="text-slate-400 mx-0.5">→</span>
+                                        <span className="text-slate-400 mx-0.5">&rarr;</span>
                                         <div className="w-5 h-5 rounded-full border-2 border-slate-400 bg-white dark:bg-slate-800"></div>
                                     </div>
                                     <span>Size = open order volume</span>
@@ -61,15 +67,6 @@ export const MapLegend: React.FC = () => {
                                     <div className="w-3 h-3 rounded border border-slate-400 flex items-center justify-center text-[8px] font-bold text-slate-500">$</div>
                                     <span>Last Done — most recent trade price</span>
                                 </div>
-                            </div>
-                        </div>
-
-                        {/* Routes */}
-                        <div>
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('mapLegend.infrastructure')}</div>
-                            <div className="flex items-center gap-2 text-xs">
-                                <div className="w-8 h-0.5 bg-emerald-500 border-t border-dashed border-emerald-300"></div>
-                                <span>{t('mapLegend.activeGreenCorridor')}</span>
                             </div>
                         </div>
                     </div>

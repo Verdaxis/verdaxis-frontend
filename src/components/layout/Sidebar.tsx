@@ -16,6 +16,7 @@ import {
     Star,
     ExternalLink,
     BarChart3,
+    Plus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
@@ -30,6 +31,7 @@ interface SidebarProps {
     isMobileOpen: boolean;
     onMobileClose: () => void;
     userRole?: string | null;
+    onPrimaryAction?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -40,7 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onToggleCollapse,
     isMobileOpen,
     onMobileClose,
-    userRole
+    userRole,
+    onPrimaryAction
 }) => {
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
@@ -52,7 +55,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ];
 
     const sidebarItems = viewMode === 'BUYER' ? [
-        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
+        { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'MAP', label: 'Market Intelligence', icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'DATA_ANALYTICS', label: 'Data & Analytics', icon: BarChart3 },
@@ -116,7 +120,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            <nav className="flex-1 py-4 space-y-1 px-3">
+            {/* Primary CTA */}
+            <div className="px-3 pt-4 pb-2">
+                <button
+                    onClick={() => onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE' as any)}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
+                >
+                    <Plus size={18} />
+                    {!isCollapsed && (viewMode === 'BUYER' ? 'Post a Bid' : 'Post Supply')}
+                </button>
+            </div>
+
+            <nav className="flex-1 py-2 space-y-1 px-3">
                 {sidebarItems.map((item) => (
                     <Tooltip key={item.id} content={isCollapsed ? item.label : ''} position="right">
                         <button

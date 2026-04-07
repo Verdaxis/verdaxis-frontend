@@ -10,13 +10,12 @@ interface GuidedTutorialProps {
 
 // Maps step index -> data-tour ID of the nav item to click on transition
 const BUYER_NAV_MAP: Record<number, string> = {
-    1: 'nav-MAP',
-    2: 'nav-MARKETPLACE',
-    3: 'nav-TERMINAL',
-    // 4-6: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
-    7: 'nav-FLEET',
-    8: 'nav-COMPLIANCE',
-    9: 'nav-TRADES',
+    1: 'nav-DASHBOARD',
+    2: 'nav-MAP',
+    3: 'nav-MARKETPLACE',
+    4: 'nav-TERMINAL',
+    // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
+    8: 'nav-TRADES',
 };
 
 const SUPPLIER_NAV_MAP: Record<number, string> = {
@@ -32,20 +31,19 @@ const SUPPLIER_NAV_MAP: Record<number, string> = {
 
 const BUYER_STEP_TARGETS = [
     'body',
+    '[data-tour="nav-DASHBOARD"]',
     '[data-tour="nav-MAP"]',
     '[data-tour="nav-MARKETPLACE"]',
     '[data-tour="nav-TERMINAL"]',
     '[data-tour="terminal-forward-curve"]',
     '[data-tour="terminal-activity-feed"]',
     '[data-tour="terminal-price-alerts"]',
-    '[data-tour="nav-FLEET"]',
-    '[data-tour="nav-COMPLIANCE"]',
     '[data-tour="nav-TRADES"]',
     '[data-tour="notification-bell"]',
 ];
 
 const BUYER_PLACEMENTS = [
-    'center', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'bottom',
+    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'bottom',
 ] as const;
 
 const SUPPLIER_STEP_TARGETS = [

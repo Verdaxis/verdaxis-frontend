@@ -5,9 +5,10 @@ import { MatchSuggestion } from '../types';
 
 interface MatchSuggestionsProps {
     onViewTrade?: (orderId: string) => void;
+    onCountChange?: (count: number) => void;
 }
 
-export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade }) => {
+export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade, onCountChange }) => {
     const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade 
 
     useEffect(() => {
         fetchSuggestions();
-        const interval = setInterval(fetchSuggestions, 30_000);
+        const interval = setInterval(fetchSuggestions, 15_000);
         return () => clearInterval(interval);
     }, [fetchSuggestions]);
 
@@ -39,7 +40,20 @@ export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade 
 
     const visible = suggestions.filter(s => !dismissed.has(s.id));
 
-    if (visible.length === 0) return null;
+    useEffect(() => {
+        onCountChange?.(visible.length);
+    }, [visible.length, onCountChange]);
+
+    if (visible.length === 0) {
+        return (
+            <div className="mb-3 bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-dashed border-emerald-500/20 dark:border-emerald-500/10 rounded-lg p-4 text-center">
+                <Sparkles size={20} className="mx-auto text-emerald-500/50 mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {loading ? 'Checking for matches...' : 'No matches yet. Post a bid to start matching with suppliers.'}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="mb-3 space-y-2">

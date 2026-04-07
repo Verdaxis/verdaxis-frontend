@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { MoreHorizontal, Check, TrendingUp, Clock, Anchor, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Check, TrendingUp, Clock, Anchor, Loader2, Package } from 'lucide-react';
 import { Trade, Page, TradeStatus } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { useNamespace } from '../hooks/useNamespace';
+import { SupplierDemandFeed } from './SupplierDemandFeed';
 
 interface SupplierDashboardProps {
     onNavigate: (page: Page) => void;
@@ -223,6 +224,9 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                 </div>
             </div>
 
+            {/* Buyer Demand Feed */}
+            <SupplierDemandFeed onNavigate={onNavigate} />
+
             {/* Order Management */}
             <div className="v-card overflow-hidden">
                 <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex space-x-8">
@@ -304,8 +308,16 @@ export const SupplierDashboard: React.FC<SupplierDashboardProps> = ({ onNavigate
                     </table>
                     
                     {filteredOrders.length === 0 && (
-                        <div className="p-8 text-center text-slate-400">
-                            {t('supplierDashboard.table.noOrders')}
+                        <div className="p-12 text-center">
+                            <Package className="mx-auto h-10 w-10 text-slate-400 mb-3" />
+                            <h3 className="text-lg font-medium text-slate-900 dark:text-white">No orders yet</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Post your first supply listing to attract buyers</p>
+                            <button
+                                onClick={() => onNavigate('MARKETPLACE')}
+                                className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
+                            >
+                                Post Supply
+                            </button>
                         </div>
                     )}
                 </div>

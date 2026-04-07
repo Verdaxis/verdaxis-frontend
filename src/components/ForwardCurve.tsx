@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createChart, LineSeries, AreaSeries, CrosshairMode, ColorType } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { Download, RefreshCw, TrendingUp, Lock } from 'lucide-react';
+import { useToast } from './Toast';
 import { api } from '../services/api';
 import { Product, ForwardCurveResponse, Subscription } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
@@ -21,6 +22,7 @@ const REFRESH_INTERVAL_MS = 30_000;
 
 export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, deliveryPointName, onPeriodClick }) => {
     const { t, ready } = useNamespace('dashboard');
+    const { addToast } = useToast();
     const { theme } = useTheme();
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const [products, setProducts] = useState<Product[]>([]);
@@ -113,7 +115,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         const isFree = !subscription || subscription.tier === 'free';
         if (isFree) {
             // Show upgrade CTA — open in new tab pointing to a pricing page
-            window.open('/pricing', '_blank');
+            addToast({ type: 'info', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' });
             return;
         }
         const url = api.curves.exportCsvUrl(selectedProductId);

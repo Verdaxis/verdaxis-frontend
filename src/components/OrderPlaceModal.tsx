@@ -35,7 +35,7 @@ const QUANTITY_PRESETS = [
 
 import { api } from '../services/api';
 
-type ModalState = 'form' | 'submitting' | 'success' | 'auto_matched' | 'error';
+type ModalState = 'form' | 'submitting' | 'checking_matches' | 'success' | 'auto_matched' | 'error';
 
 export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     isOpen,
@@ -66,6 +66,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
+    const [matchSuggestionsCount, setMatchSuggestionsCount] = useState<number | null>(null);
+    const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Fetch products and delivery points on mount
     useEffect(() => {
@@ -160,6 +163,20 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 setMatchResult(result);
                 setModalState('auto_matched');
             } else {
+                // No auto-match — check for potential matches (with timeout)
+                const orderId = result.order?.id || result.id;
+                setCreatedOrderId(orderId);
+                setModalState('checking_matches');
+                try {
+                    const matchPromise = api.matchmaking.generate(orderId);
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('timeout')), 10000)
+                    );
+                    const matches = await Promise.race([matchPromise, timeoutPromise]);
+                    setMatchSuggestionsCount(Array.isArray(matches) ? matches.length : 0);
+                } catch {
+                    setMatchSuggestionsCount(0);
+                }
                 setModalState('success');
             }
         } catch (err: any) {
@@ -172,6 +189,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
+        setMatchSuggestionsCount(null);
+        setCreatedOrderId(null);
         onClose();
     };
 
@@ -180,6 +199,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const selectClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1";
+
+    // Checking matches overlay
+    if (modalState === 'checking_matches') {
+        return (
+            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                    <div className="p-8 text-center">
+                        <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-emerald-100 dark:bg-emerald-900/30">
+                            <Loader2 size={32} className="text-emerald-500 animate-spin" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                            {sideLabel} Posted!
+                        </h3>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                            Checking for potential matches...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // Success / Auto-matched / Error overlays
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'error') {
@@ -260,7 +300,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                                     {t('orderPlaceModal.success.title', { side: sideLabel })}
                                 </h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
+                                <p className="text-slate-500 dark:text-slate-400 text-sm">
                                     {t('orderPlaceModal.success.body', {
                                         side: sideLabel.toLowerCase(),
                                         qty: formData.quantity_mt.toLocaleString(),
@@ -268,14 +308,37 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         price: formData.price_per_mt_usd,
                                     })}
                                 </p>
+                                {matchSuggestionsCount !== null && matchSuggestionsCount > 0 && (
+                                    <div className="mt-3 mb-4 px-4 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50">
+                                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            {matchSuggestionsCount} potential match{matchSuggestionsCount > 1 ? 'es' : ''} found
+                                        </p>
+                                    </div>
+                                )}
+                                {(matchSuggestionsCount === null || matchSuggestionsCount === 0) && (
+                                    <div className="mb-4" />
+                                )}
                             </>
                         )}
-                        <button
-                            onClick={handleClose}
-                            className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
-                        >
-                            {t('orderPlaceModal.btn.close')}
-                        </button>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setModalState('form');
+                                    setMatchSuggestionsCount(null);
+                                    setCreatedOrderId(null);
+                                }}
+                                className="flex-1 py-3 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold rounded-lg transition-colors"
+                            >
+                                Post Another
+                            </button>
+                            <button
+                                onClick={handleClose}
+                                className="flex-1 py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
+                            >
+                                {t('orderPlaceModal.btn.close')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -316,52 +379,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
                     <div className="p-4 space-y-3">
 
-                        {/* Product & Delivery Point */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
-                                {catalogLoading ? (
-                                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
-                                        <Loader2 size={14} className="animate-spin text-slate-400" />
-                                        <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.products')}</span>
-                                    </div>
-                                ) : (
-                                    <select
-                                        value={formData.product_id}
-                                        onChange={(e) => handleChange('product_id', e.target.value)}
-                                        className={selectClass}
-                                        required
-                                    >
-                                        <option value="">{t('orderPlaceModal.select.product')}</option>
-                                        {products.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
-                            <div>
-                                <label className={labelClass}>
-                                    {t('orderPlaceModal.label.deliveryPoint')}
-                                    <span className="text-slate-400 normal-case font-normal ml-1">{t('orderPlaceModal.label.deliveryPointOptional')}</span>
-                                </label>
-                                {catalogLoading ? (
-                                    <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
-                                        <Loader2 size={14} className="animate-spin text-slate-400" />
-                                        <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.generic')}</span>
-                                    </div>
-                                ) : (
-                                    <select
-                                        value={formData.delivery_point_id}
-                                        onChange={(e) => handleChange('delivery_point_id', e.target.value)}
-                                        className={selectClass}
-                                    >
-                                        <option value="">{t('orderPlaceModal.select.anyLocation')}</option>
-                                        {deliveryPoints.map(d => (
-                                            <option key={d.id} value={d.id}>{d.name} ({d.region})</option>
-                                        ))}
-                                    </select>
-                                )}
-                            </div>
+                        {/* Fuel Type */}
+                        <div>
+                            <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
+                            {catalogLoading ? (
+                                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
+                                    <Loader2 size={14} className="animate-spin text-slate-400" />
+                                    <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.products')}</span>
+                                </div>
+                            ) : (
+                                <select
+                                    value={formData.product_id}
+                                    onChange={(e) => handleChange('product_id', e.target.value)}
+                                    className={selectClass}
+                                    required
+                                >
+                                    <option value="">{t('orderPlaceModal.select.product')}</option>
+                                    {products.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
 
                         {/* Product details panel (shown when product selected) */}
@@ -458,89 +496,128 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </select>
                         </div>
 
-                        {/* Delivery Window (optional) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.deliveryStart')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
-                                <input
-                                    type="date"
-                                    value={formData.delivery_window_start}
-                                    onChange={(e) => handleChange('delivery_window_start', e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.deliveryEnd')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
-                                <input
-                                    type="date"
-                                    value={formData.delivery_window_end}
-                                    onChange={(e) => handleChange('delivery_window_end', e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                        </div>
+                        {/* Advanced Options Toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setShowAdvanced(!showAdvanced)}
+                            className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                        >
+                            <ChevronDown size={16} className={`transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
+                            Advanced Options
+                        </button>
 
-                        {/* Order Expiry */}
-                        <div>
-                            <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
-                            <div className="flex gap-2 mb-2">
-                                <button
-                                    type="button"
-                                    onClick={() => handleChange('expiry_type', 'GTC')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
-                                        formData.expiry_type === 'GTC'
-                                            ? side === 'BID'
-                                                ? 'bg-emerald-500 text-white border border-emerald-500'
-                                                : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
-                                            : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
-                                    }`}
-                                >
-                                    {t('orderPlaceModal.expiry.gtc')}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleChange('expiry_type', 'date')}
-                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
-                                        formData.expiry_type === 'date'
-                                            ? side === 'BID'
-                                                ? 'bg-emerald-500 text-white border border-emerald-500'
-                                                : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
-                                            : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
-                                    }`}
-                                >
-                                    {t('orderPlaceModal.expiry.date')}
-                                </button>
-                            </div>
-                            {formData.expiry_type === 'date' && (
-                                <input
-                                    type="date"
-                                    value={formData.expiry_date}
-                                    onChange={(e) => handleChange('expiry_date', e.target.value)}
-                                    className={inputClass}
-                                />
-                            )}
-                        </div>
+                        {showAdvanced && (
+                            <div className="space-y-4 border-l-2 border-slate-200 dark:border-slate-700 pl-4">
+                                {/* Delivery Point */}
+                                <div>
+                                    <label className={labelClass}>
+                                        {t('orderPlaceModal.label.deliveryPoint')}
+                                        <span className="text-slate-400 normal-case font-normal ml-1">{t('orderPlaceModal.label.deliveryPointOptional')}</span>
+                                    </label>
+                                    {catalogLoading ? (
+                                        <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg">
+                                            <Loader2 size={14} className="animate-spin text-slate-400" />
+                                            <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.generic')}</span>
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={formData.delivery_point_id}
+                                            onChange={(e) => handleChange('delivery_point_id', e.target.value)}
+                                            className={selectClass}
+                                        >
+                                            <option value="">{t('orderPlaceModal.select.anyLocation')}</option>
+                                            {deliveryPoints.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name} ({d.region})</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
 
-                        {/* Anonymous toggle */}
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                            <div className="relative">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.is_anonymous}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
-                                    className="sr-only peer"
-                                />
-                                <div className="w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-violet-500 transition-colors" />
-                                <div className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                                {/* Delivery Window (optional) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className={labelClass}>{t('orderPlaceModal.label.deliveryStart')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
+                                        <input
+                                            type="date"
+                                            value={formData.delivery_window_start}
+                                            onChange={(e) => handleChange('delivery_window_start', e.target.value)}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{t('orderPlaceModal.label.deliveryEnd')} <span className="text-slate-400 normal-case font-normal">{t('orderPlaceModal.label.optional')}</span></label>
+                                        <input
+                                            type="date"
+                                            value={formData.delivery_window_end}
+                                            onChange={(e) => handleChange('delivery_window_end', e.target.value)}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Order Expiry */}
+                                <div>
+                                    <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
+                                    <div className="flex gap-2 mb-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleChange('expiry_type', 'GTC')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
+                                                formData.expiry_type === 'GTC'
+                                                    ? side === 'BID'
+                                                        ? 'bg-emerald-500 text-white border border-emerald-500'
+                                                        : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
+                                                    : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
+                                            }`}
+                                        >
+                                            {t('orderPlaceModal.expiry.gtc')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleChange('expiry_type', 'date')}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
+                                                formData.expiry_type === 'date'
+                                                    ? side === 'BID'
+                                                        ? 'bg-emerald-500 text-white border border-emerald-500'
+                                                        : 'bg-[#5DADE2] text-white border border-[#5DADE2]'
+                                                    : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
+                                            }`}
+                                        >
+                                            {t('orderPlaceModal.expiry.date')}
+                                        </button>
+                                    </div>
+                                    {formData.expiry_type === 'date' && (
+                                        <input
+                                            type="date"
+                                            value={formData.expiry_date}
+                                            onChange={(e) => handleChange('expiry_date', e.target.value)}
+                                            className={inputClass}
+                                        />
+                                    )}
+                                </div>
+
+                                {/* Anonymous toggle */}
+                                <label className="flex items-center gap-3 cursor-pointer group">
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.is_anonymous}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-violet-500 transition-colors" />
+                                        <div className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                                    </div>
+                                    <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
+                                    <div>
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('orderPlaceModal.label.anonymous')}</span>
+                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                                            {t('orderPlaceModal.anonymous.description')}
+                                        </p>
+                                    </div>
+                                </label>
                             </div>
-                            <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
-                            <div>
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('orderPlaceModal.label.anonymous')}</span>
-                                <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                    {t('orderPlaceModal.anonymous.description')}
-                                </p>
-                            </div>
-                        </label>
+                        )}
 
                         {/* Estimated total */}
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (

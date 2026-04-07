@@ -15,6 +15,8 @@ import {
     CheckCircle2,
     Newspaper,
     Star,
+    ClipboardList,
+    Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -192,7 +194,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'market' | 'listings' | 'rfq'>('market');
+    const [marketTab, setMarketTab] = useState<'market' | 'listings' | 'my_orders'>('market');
+    const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
+    const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -381,10 +385,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setFuelType(ft);
     };
 
-    // Re-fetch when fuelType changes (fixes stale closure from chip click)
-    useEffect(() => {
-        fetchData(false, 0);
-    }, [fuelType]); // eslint-disable-line react-hooks/exhaustive-deps
+    // fuelType changes are handled by fetchData's useCallback deps — no separate effect needed
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -392,6 +393,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
+    };
+
+    /* ---- My Orders fetch ---- */
+    const fetchMyOrders = useCallback(async () => {
+        setMyOrdersLoading(true);
+        try {
+            const data = await api.orderbook.myOrders();
+            setMyOrders(Array.isArray(data) ? data : data.items ?? []);
+        } catch {
+            setMyOrders([]);
+        } finally {
+            setMyOrdersLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (marketTab === 'my_orders') fetchMyOrders();
+    }, [marketTab, fetchMyOrders]);
+
+    const handleCancelOrder = async (orderId: string) => {
+        try {
+            await api.orderbook.cancel(orderId);
+            setMyOrders(prev => prev.filter(o => o.id !== orderId));
+        } catch {
+            // Silently fail — order may already be filled/cancelled
+        }
     };
 
     const closeTradeModal = () => {
@@ -797,7 +824,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
                     </div>
 
-                    {/* Tab Switcher: Market | Listings | RFQ — fluid sliding indicator */}
+                    {/* Tab Switcher: Market | Listings | My Orders — fluid sliding indicator */}
                     <div className="relative flex mb-2 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
                         {/* Sliding glass indicator */}
                         <div
@@ -828,14 +855,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             {t('marketplace.tab.listings')}
                         </button>
                         <button
-                            onClick={() => setMarketTab('rfq')}
+                            onClick={() => setMarketTab('my_orders')}
                             className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
-                                marketTab === 'rfq'
+                                marketTab === 'my_orders'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            {t('marketplace.tab.rfq')}
+                            <span className="flex items-center gap-1 justify-center">
+                                <ClipboardList size={12} />
+                                My Orders
+                            </span>
                         </button>
                     </div>
 
@@ -918,8 +948,125 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* When RFQ tab active, show RFQPanel */}
-            {marketTab === 'rfq' && (
+            {/* My Orders tab: user's open/active orders */}
+            {marketTab === 'my_orders' && (
+                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
+                    <div className="max-w-7xl mx-auto">
+                        {myOrdersLoading ? (
+                            <div className="flex items-center justify-center py-20 text-slate-400">
+                                <Loader2 className="animate-spin mr-2" size={20} /> Loading your orders...
+                            </div>
+                        ) : myOrders.length === 0 ? (
+                            <div className="text-center py-20">
+                                <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No open orders</h3>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
+                                    {role === 'SUPPLIER' ? 'Post supply to attract buyers' : 'Post a bid to start trading'}
+                                </p>
+                                <button
+                                    onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
+                                >
+                                    {role === 'SUPPLIER' ? 'Post Supply' : 'Post a Bid'}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <table className="w-full border-collapse text-sm">
+                                    <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
+                                        <tr>
+                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
+                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
+                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
+                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
+                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
+                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
+                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
+                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
+                                            <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {myOrders.map((order) => {
+                                            const isBid = order.side === 'BID';
+                                            const filled = order.status === 'FILLED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
+                                            return (
+                                                <tr
+                                                    key={order.id}
+                                                    className={`border-t border-slate-100 dark:border-slate-700 ${filled ? 'opacity-50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                                >
+                                                    <td className="px-4 py-3">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                                            isBid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                                        }`}>
+                                                            {order.side}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
+                                                        {order.product_name || order.fuel_type}
+                                                        {order.fuel_grade && order.fuel_grade !== 'Conventional' && (
+                                                            <span className="ml-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">{order.fuel_grade}</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">
+                                                        {order.delivery_point_name || order.region}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                                                        ${Number(order.price_per_mt_usd).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                        {Number(order.quantity_mt).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                        {Number(order.remaining_quantity_mt).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                                                        {order.availability_window}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                            order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
+                                                            order.status === 'PARTIALLY_FILLED' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
+                                                            order.status === 'FILLED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
+                                                            'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500'
+                                                        }`}>
+                                                            {order.status.replaceAll('_', ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-center">
+                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
+                                                            <button
+                                                                onClick={() => handleCancelOrder(order.id)}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                                                title="Cancel order"
+                                                            >
+                                                                <Trash2 size={12} />
+                                                                Cancel
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                        <div className="flex justify-end mt-3">
+                            <button
+                                onClick={fetchMyOrders}
+                                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            >
+                                <RefreshCw size={12} /> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* RFQ panel archived — orderbook is the single source of truth
+               Re-enable via VITE_ENABLE_RFQ=true if needed for specific use cases */}
+            {import.meta.env.VITE_ENABLE_RFQ === 'true' && marketTab === 'rfq' && (
                 <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} sortBy={sortBy} onSortChange={setSortBy} />
