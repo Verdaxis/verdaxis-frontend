@@ -48,3 +48,8 @@
 - **Trigger:** Staging deployment was initially treated as runtime-only while the user wanted all approved branch changes merged into staging first.
 - **Rule:** Consolidate approved frontend branches into `origin/staging` before building and publishing staging assets.
 - **Why:** Runtime-only deploys without branch consolidation leave staging behavior inconsistent with approved git history.
+
+- **Date:** 2026-04-08
+- **Trigger:** The order modal reintroduced a user-facing anonymity toggle even though order identity should stay hidden until final confirmation.
+- **Rule:** Keep order placement anonymous by default and do not expose a pre-confirmation anonymity toggle in the modal.
+- **Why:** The demo trading flow treats anonymity as a fixed market rule until confirmation, not a per-order user choice.

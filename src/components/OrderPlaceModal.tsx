@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff, ChevronDown } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Product, DeliveryPoint } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
@@ -25,7 +25,6 @@ interface OrderFormData {
     availability_window: string;
     expiry_type: 'GTC' | 'date';
     expiry_date: string;
-    is_anonymous: boolean;
 }
 
 const QUANTITY_PRESETS = [
@@ -61,7 +60,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         availability_window: SPOT_WINDOW,
         expiry_type: 'GTC',
         expiry_date: '',
-        is_anonymous: true,
     });
 
     const [modalState, setModalState] = useState<ModalState>('form');
@@ -148,7 +146,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 quantity_mt: formData.quantity_mt,
                 price_per_mt_usd: formData.price_per_mt_usd,
                 availability_window: formData.availability_window,
-                is_anonymous: formData.is_anonymous,
+                is_anonymous: true,
             };
             if (formData.expiry_type === 'date' && formData.expiry_date) {
                 payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
@@ -512,26 +510,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             />
                                         )}
                                     </div>
-
-                                    <label className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="relative">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.is_anonymous}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-violet-500 transition-colors" />
-                                            <div className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
-                                        </div>
-                                        <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
-                                        <div>
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('orderPlaceModal.label.anonymous')}</span>
-                                            <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                                {t('orderPlaceModal.anonymous.description')}
-                                            </p>
-                                        </div>
-                                    </label>
                                 </div>
                             )}
                         </div>
