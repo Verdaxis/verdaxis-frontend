@@ -913,7 +913,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
                                 <div className={showNews ? 'md:w-[45%] md:h-full' : 'md:w-[60%] md:h-full'}>
                                     <div className="h-full flex flex-col">
-                                        <MatchSuggestions />
                                         <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={resolvedPort || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
                                     </div>
                                 </div>

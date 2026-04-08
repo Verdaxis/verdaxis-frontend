@@ -4,9 +4,9 @@ import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
-import { MatchSuggestions } from './MatchSuggestions';
+// import { MatchSuggestions } from './MatchSuggestions';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
-import { MarketFeed } from './MarketFeed';
+// MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
 import { useCopilotContext } from '../context/CopilotContext';
 
@@ -203,14 +203,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 </div>
             </div>
 
-            {/* ─── Match Suggestions ─── */}
-            <div>
+            {/* ─── Match Suggestions (hidden until matching algorithm is solidified) ─── */}
+            {/* <div>
                 <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Recommended Matches</h2>
-                <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} />
-            </div>
-
-            {/* ─── Market Activity ─── */}
-            <MarketFeed viewMode={viewMode} onNavigate={onNavigate} />
+                <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
+            </div> */}
 
             {/* ─── Needs Attention ─── */}
             <div>
@@ -223,6 +220,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     onPostOrder={() => setOrderModalOpen(true)}
                 />
             </div>
+
+            {/* Market Feed removed — redundant with Marketplace */}
 
             {/* ─── Modals ─── */}
             <OrderPlaceModal

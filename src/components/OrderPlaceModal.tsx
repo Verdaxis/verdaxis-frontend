@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, CheckCircle2, Zap, AlertTriangle, EyeOff, ChevronDown } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Product, DeliveryPoint } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 
@@ -118,6 +118,23 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     if (!isOpen || !ready) return null;
 
+    const friendlyError = (msg: string): string => {
+        if (!msg) return 'Something went wrong. Please try again.';
+        const map: Record<string, string> = {
+            'delivery_window_start cannot be later than delivery_window_end': 'Delivery start date must be before the end date.',
+            'delivery_window_end cannot be earlier than delivery_window_start': 'Delivery end date must be after the start date.',
+            'delivery_window_start must be in the future': 'Delivery start date cannot be in the past.',
+            'delivery_window_end must be in the future': 'Delivery end date cannot be in the past.',
+        };
+        for (const [raw, friendly] of Object.entries(map)) {
+            if (msg.toLowerCase().includes(raw.toLowerCase())) return friendly;
+        }
+        // Strip snake_case variable names as fallback
+        return msg.replace(/\b\w+_\w+(?:_\w+)*\b/g, (match) =>
+            match.split('_').join(' ')
+        );
+    };
+
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
 
@@ -125,7 +142,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const isValid = formData.product_id !== '' && formData.quantity_mt > 0 && formData.price_per_mt_usd > 0;
+    const today = new Date().toISOString().split('T')[0];
+    const dateRangeValid = !(formData.delivery_window_start && formData.delivery_window_end && formData.delivery_window_end < formData.delivery_window_start);
+    const datesNotInPast = !(formData.delivery_window_start && formData.delivery_window_start < today) && !(formData.delivery_window_end && formData.delivery_window_end < today);
+    const isValid = formData.product_id !== '' && formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && dateRangeValid && datesNotInPast;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -163,20 +183,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 setMatchResult(result);
                 setModalState('auto_matched');
             } else {
-                // No auto-match — check for potential matches (with timeout)
+                // Success — matches are now computed live from watchlist
                 const orderId = result.order?.id || result.id;
                 setCreatedOrderId(orderId);
-                setModalState('checking_matches');
-                try {
-                    const matchPromise = api.matchmaking.generate(orderId);
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('timeout')), 10000)
-                    );
-                    const matches = await Promise.race([matchPromise, timeoutPromise]);
-                    setMatchSuggestionsCount(Array.isArray(matches) ? matches.length : 0);
-                } catch {
-                    setMatchSuggestionsCount(0);
-                }
+                setMatchSuggestionsCount(0);
                 setModalState('success');
             }
         } catch (err: any) {
@@ -233,7 +243,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     <AlertTriangle size={32} className="text-red-500" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{friendlyError(errorMessage)}</p>
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
@@ -540,6 +550,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <input
                                             type="date"
                                             value={formData.delivery_window_start}
+                                            min={new Date().toISOString().split('T')[0]}
                                             onChange={(e) => handleChange('delivery_window_start', e.target.value)}
                                             className={inputClass}
                                         />
@@ -549,11 +560,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <input
                                             type="date"
                                             value={formData.delivery_window_end}
+                                            min={formData.delivery_window_start || new Date().toISOString().split('T')[0]}
                                             onChange={(e) => handleChange('delivery_window_end', e.target.value)}
                                             className={inputClass}
                                         />
                                     </div>
                                 </div>
+                                {formData.delivery_window_start && formData.delivery_window_end && formData.delivery_window_end < formData.delivery_window_start && (
+                                    <p className="text-xs text-red-500 -mt-2">Delivery end date must be on or after the start date.</p>
+                                )}
 
                                 {/* Order Expiry */}
                                 <div>
@@ -596,26 +611,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     )}
                                 </div>
 
-                                {/* Anonymous toggle */}
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <div className="relative">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.is_anonymous}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, is_anonymous: e.target.checked }))}
-                                            className="sr-only peer"
-                                        />
-                                        <div className="w-10 h-5 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-violet-500 transition-colors" />
-                                        <div className="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
-                                    </div>
-                                    <EyeOff size={14} className="text-slate-400 dark:text-slate-500 group-hover:text-violet-500 transition-colors" />
-                                    <div>
-                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('orderPlaceModal.label.anonymous')}</span>
-                                        <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                                            {t('orderPlaceModal.anonymous.description')}
-                                        </p>
-                                    </div>
-                                </label>
                             </div>
                         )}
 

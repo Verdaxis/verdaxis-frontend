@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Truck, CheckCircle2, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle2 } from 'lucide-react';
 import { Trade, ViewMode, Page } from '../types';
 
 interface NeedsAttentionFeedProps {
@@ -17,18 +17,16 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
     onConfirmTrade,
     onPostOrder,
 }) => {
-    const pending = trades.filter(t => t.status === 'PENDING_CONFIRMATION');
-    const recentConfirmed = trades.filter(t => {
-        if (t.status !== 'CONFIRMED') return false;
-        if (!t.confirmed_at) return true;
-        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        return new Date(t.confirmed_at).getTime() > sevenDaysAgo;
+    // Only show trades the user CAN act on — pending trades where they are the confirming party
+    const actionable = trades.filter(t => {
+        if (t.status !== 'PENDING_CONFIRMATION') return false;
+        // Only the non-initiating party can confirm
+        if (viewMode === 'BUYER' && t.initiated_by === 'SELLER') return true;
+        if (viewMode === 'SUPPLIER' && t.initiated_by === 'BUYER') return true;
+        return false;
     });
 
-    const items = [
-        ...pending.map(t => ({ trade: t, category: 'pending' as const })),
-        ...recentConfirmed.map(t => ({ trade: t, category: 'confirmed' as const })),
-    ];
+    const items = actionable.map(t => ({ trade: t }));
 
     if (items.length === 0) {
         return (
@@ -50,7 +48,7 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
 
     return (
         <div className="space-y-2">
-            {items.map(({ trade, category }) => {
+            {items.map(({ trade }) => {
                 const counterparty = viewMode === 'BUYER' ? trade.seller_name : trade.buyer_name;
                 const qty = Number(trade.quantity_mt).toLocaleString();
                 const price = Number(trade.price_per_mt_usd).toLocaleString();
@@ -60,18 +58,10 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                         key={trade.id}
                         className="flex items-center gap-4 px-4 py-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
                     >
-                        {/* Status icon */}
-                        {category === 'pending' ? (
-                            <div className="flex-shrink-0 h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
-                            </div>
-                        ) : (
-                            <div className="flex-shrink-0 h-9 w-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                <Truck size={18} className="text-blue-600 dark:text-blue-400" />
-                            </div>
-                        )}
+                        <div className="flex-shrink-0 h-9 w-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                            <Clock size={18} className="text-amber-600 dark:text-amber-400" />
+                        </div>
 
-                        {/* Trade info */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <span className={`text-sm font-bold ${trade.fuel_type === 'Methanol' ? 'text-blue-600' : 'text-green-600'}`}>
@@ -83,26 +73,16 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                                 <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{counterparty}</span>
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                {category === 'pending' ? 'Awaiting confirmation' : 'Ready for delivery'}
+                                Awaiting your confirmation
                             </div>
                         </div>
 
-                        {/* Action */}
-                        {category === 'pending' ? (
-                            <button
-                                onClick={() => onConfirmTrade(trade.id)}
-                                className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity"
-                            >
-                                Confirm
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => onNavigate('TRADES')}
-                                className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                            >
-                                View <ArrowRight size={12} />
-                            </button>
-                        )}
+                        <button
+                            onClick={() => onConfirmTrade(trade.id)}
+                            className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity"
+                        >
+                            Confirm
+                        </button>
                     </div>
                 );
             })}

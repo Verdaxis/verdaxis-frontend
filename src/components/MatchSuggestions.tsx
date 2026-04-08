@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Sparkles, X, ArrowRight, Eye } from 'lucide-react';
+import { Sparkles, X, ArrowRight, Eye, List } from 'lucide-react';
 import { api } from '../services/api';
-import { MatchSuggestion } from '../types';
+import { MatchSuggestion, Page } from '../types';
 
 interface MatchSuggestionsProps {
     onViewTrade?: (orderId: string) => void;
     onCountChange?: (count: number) => void;
+    onNavigate?: (page: Page) => void;
 }
 
-export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade, onCountChange }) => {
+export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade, onCountChange, onNavigate }) => {
     const [suggestions, setSuggestions] = useState<MatchSuggestion[]>([]);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(false);
@@ -47,10 +48,25 @@ export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade,
     if (visible.length === 0) {
         return (
             <div className="mb-3 bg-gradient-to-r from-emerald-500/5 to-blue-500/5 border border-dashed border-emerald-500/20 dark:border-emerald-500/10 rounded-lg p-4 text-center">
-                <Sparkles size={20} className="mx-auto text-emerald-500/50 mb-2" />
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {loading ? 'Checking for matches...' : 'No matches yet. Post a bid to start matching with suppliers.'}
-                </p>
+                {loading ? (
+                    <>
+                        <Sparkles size={20} className="mx-auto text-emerald-500/50 mb-2" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Checking for matches...</p>
+                    </>
+                ) : (
+                    <>
+                        <List size={20} className="mx-auto text-emerald-500/50 mb-2" />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Add products to your Watchlist to get recommendations.</p>
+                        {onNavigate && (
+                            <button
+                                onClick={() => onNavigate('WATCHLISTS')}
+                                className="mt-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors text-xs font-medium"
+                            >
+                                Go to Watchlist
+                            </button>
+                        )}
+                    </>
+                )}
             </div>
         );
     }
@@ -60,7 +76,7 @@ export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade,
             {visible.map(suggestion => {
                 const askOrder = suggestion.ask_order;
                 const bidOrder = suggestion.bid_order;
-                const score = Math.round(suggestion.score * 100);
+                const score = Math.round(suggestion.score);
 
                 return (
                     <div

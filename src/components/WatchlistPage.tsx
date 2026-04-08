@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Star, Plus, Trash2, Loader2, X, ChevronDown, ChevronUp,
+    List, Plus, Trash2, Loader2, X, ChevronDown, ChevronUp,
     Eye, AlertCircle, Package,
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -103,7 +103,7 @@ export const WatchlistPage: React.FC = () => {
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading flex items-center gap-3">
-                                <Star size={28} className="text-amber-500" />
+                                <List size={28} className="text-emerald-500" />
                                 {t('watchlist.title')}
                             </h1>
                             <p className="text-slate-500 mt-1 text-sm">{t('watchlist.subtitle')}</p>
@@ -130,7 +130,7 @@ export const WatchlistPage: React.FC = () => {
 
                     {watchlists.length === 0 ? (
                         <div className="v-card p-12 text-center">
-                            <Star size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                            <List size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                             <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('watchlist.empty.title')}</h3>
                             <p className="text-sm text-slate-400 max-w-md mx-auto mb-6">
                                 {t('watchlist.empty.body')}
@@ -156,7 +156,7 @@ export const WatchlistPage: React.FC = () => {
                                             onClick={() => setExpandedId(isExpanded ? null : wl.id)}
                                             className="flex items-center gap-3 min-w-0 flex-1 text-left"
                                         >
-                                            <Star size={18} className="text-amber-500 flex-shrink-0" fill="currentColor" />
+                                            <List size={18} className="text-emerald-500 flex-shrink-0" />
                                             <div className="min-w-0">
                                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate block">
                                                     {wl.name}
@@ -167,7 +167,7 @@ export const WatchlistPage: React.FC = () => {
                                                     )}
                                                 </span>
                                                 <span className="text-[10px] text-slate-400">
-                                                    {entryCount} {entryCount !== 1 ? t('watchlist.item.count_other', { count: entryCount }).replace(/^\d+ /, '') : t('watchlist.item.count_one', { count: entryCount }).replace(/^\d+ /, '')}
+                                                    {entryCount} {entryCount === 1 ? 'item' : 'items'}
                                                 </span>
                                             </div>
                                             {isExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
