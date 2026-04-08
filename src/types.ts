@@ -123,9 +123,19 @@ export interface MarketWatchItem {
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============
+export const MARKET_PRODUCTS = [
+    'BIO_METHANOL',
+    'E_METHANOL',
+    'BIO_ETHANOL',
+    'SYNTHETIC_ETHANOL',
+] as const;
+
+export type MarketProduct = typeof MARKET_PRODUCTS[number];
+
 export interface Product {
     id: string;
     name: string;
+    market_product?: MarketProduct | null;
     fuel_type: string;
     fuel_grade: string;
     unit: string;
@@ -160,6 +170,7 @@ export interface OrderBookOrder {
     // Product/DeliveryPoint FK fields (new model)
     product_id?: string;
     product_name?: string;
+    market_product?: MarketProduct | null;
     delivery_point_id?: string;
     delivery_point_name?: string;
     // Denormalized fields from product/delivery_point (always present in API responses)
@@ -208,6 +219,7 @@ export interface Trade {
     // Denormalized from order product/delivery_point
     product_id?: string;
     product_name?: string;
+    market_product?: MarketProduct | null;
     delivery_point_id?: string;
     delivery_point_name?: string;
     fuel_type: string;

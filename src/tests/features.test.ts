@@ -9,6 +9,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
+import { MARKET_PRODUCTS } from '../types';
 
 // -------- Vessel API Mapping --------
 describe('Vessel API Data Mapping', () => {
@@ -160,6 +161,18 @@ describe('Availability Windows', () => {
         expect(formatAvailabilityWindow(SPOT_WINDOW)).toBe('Spot');
         expect(formatAvailabilityWindow('2026-04')).toBe('Apr 2026');
         expect(formatAvailabilityWindow('2026-Q3')).toBe('Q3 2026');
+    });
+});
+
+// -------- Green Fuels Contract --------
+describe('Green Fuels Market Products', () => {
+    it('should expose exactly the approved market products', () => {
+        expect(MARKET_PRODUCTS).toEqual([
+            'BIO_METHANOL',
+            'E_METHANOL',
+            'BIO_ETHANOL',
+            'SYNTHETIC_ETHANOL',
+        ]);
     });
 });
 
