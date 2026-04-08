@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse } from '../types';
 import { API_URL } from './config';
 import { getAccessToken } from './authToken';
 
@@ -412,6 +412,27 @@ export const api = {
             if (params?.visibility) searchParams.append('visibility', params.visibility);
             const query = searchParams.toString();
             return fetchApi(`/prices/reference${query ? `?${query}` : ''}`);
+        },
+    },
+
+    benchmarks: {
+        lookup: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }): Promise<BenchmarkQuoteResponse> => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('market_product', params.market_product);
+            searchParams.append('delivery_point_id', params.delivery_point_id);
+            searchParams.append('availability_window', params.availability_window);
+            const data = await fetchApi(`/benchmarks?${searchParams.toString()}`);
+            return {
+                ...data,
+                items: (data.items || []).map((item: any) => ({
+                    ...item,
+                    benchmark_price_per_mt_usd: Number(item.benchmark_price_per_mt_usd),
+                })),
+            };
         },
     },
 

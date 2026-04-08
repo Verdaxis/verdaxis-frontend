@@ -211,6 +211,9 @@ export interface OrderBookOrder {
     created_at: string;
     updated_at?: string;
     trade_count?: number; // Only in "my" view
+    benchmark_price_per_mt_usd?: number | null;
+    premium_discount_per_mt_usd?: number | null;
+    benchmark_source?: string | null;
 }
 
 export interface Trade {
@@ -273,6 +276,21 @@ export interface PriceSummary {
 
 export interface PriceDiscoveryResponse {
     summaries: PriceSummary[];
+    generated_at: string;
+}
+
+export interface BenchmarkQuote {
+    market_product: MarketProduct;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    availability_window: AvailabilityWindow;
+    benchmark_price_per_mt_usd: number;
+    source: string;
+    generated_at: string;
+}
+
+export interface BenchmarkQuoteResponse {
+    items: BenchmarkQuote[];
     generated_at: string;
 }
 
