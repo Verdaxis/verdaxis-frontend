@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { API_URL } from '../services/config';
 import type { RFQ, RFQQuote, Product, DeliveryPoint } from '../types';
+import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import {
     SPOT_WINDOW,
     formatAvailabilityWindow,
@@ -484,15 +485,15 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
                     {catalogLoading ? (
                         <div className="flex items-center justify-center py-8 text-slate-400"><Loader2 size={20} className="animate-spin mr-2" />Loading catalog...</div>
                     ) : (<>
-                        <div><label className="v-label">Product</label><select value={productId} onChange={e => setProductId(e.target.value)} className="v-input">{products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.fuel_type})</option>)}</select></div>
-                        <div><label className="v-label">Delivery Point (optional)</label><select value={deliveryPointId} onChange={e => setDeliveryPointId(e.target.value)} className="v-input"><option value="">Any</option>{deliveryPoints.map(d => <option key={d.id} value={d.id}>{d.name} ({d.region})</option>)}</select></div>
+                        <div><label className="v-label">Product</label><VerdaxisSelect ariaLabel="RFQ product" value={productId} onChange={setProductId} options={products.map(p => ({ value: p.id, label: p.name, description: p.fuel_type }))} /></div>
+                        <div><label className="v-label">Delivery Point (optional)</label><VerdaxisSelect ariaLabel="RFQ delivery point" value={deliveryPointId} onChange={setDeliveryPointId} options={[{ value: '', label: 'Any' }, ...deliveryPoints.map(d => ({ value: d.id, label: d.name, description: d.region }))]} /></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div><label className="v-label">Quantity (MT)</label><input type="number" min={1} value={quantityMt} onChange={e => setQuantityMt(Number(e.target.value))} className="v-input font-mono" /></div>
                             <div><label className="v-label">Target Price ($/MT)</label><input type="number" min={0} step={0.01} value={targetPrice} onChange={e => setTargetPrice(e.target.value ? Number(e.target.value) : '')} className="v-input font-mono" placeholder="Optional" /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="v-label">Availability Window</label><select value={availabilityWindow} onChange={e => setAvailabilityWindow(e.target.value)} className="v-input">{availabilityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-                            <div><label className="v-label">Expires In</label><select value={expiresInHours} onChange={e => setExpiresInHours(Number(e.target.value))} className="v-input"><option value={24}>24 hours</option><option value={48}>48 hours</option><option value={72}>72 hours</option><option value={168}>1 week</option></select></div>
+                            <div><label className="v-label">Availability Window</label><VerdaxisSelect ariaLabel="RFQ availability window" value={availabilityWindow} onChange={setAvailabilityWindow} options={availabilityOptions.map(option => ({ value: option.value, label: option.label }))} /></div>
+                            <div><label className="v-label">Expires In</label><VerdaxisSelect ariaLabel="RFQ expiry" value={String(expiresInHours)} onChange={(value) => setExpiresInHours(Number(value))} options={[{ value: '24', label: '24 hours' }, { value: '48', label: '48 hours' }, { value: '72', label: '72 hours' }, { value: '168', label: '1 week' }]} /></div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" checked={isAnonymous} onChange={e => setIsAnonymous(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500" />

@@ -7,6 +7,8 @@ import {
     getAvailabilityWindowOptions,
     getAvailabilityWindowSummary,
 } from '../utils/availabilityWindow';
+import { VerdaxisSelect } from './ui/VerdaxisSelect';
+import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -176,7 +178,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
 
-    const selectClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1";
 
@@ -318,17 +319,17 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.products')}</span>
                                     </div>
                                 ) : (
-                                    <select
+                                    <VerdaxisSelect
+                                        ariaLabel="Order product"
                                         value={formData.product_id}
-                                        onChange={(e) => handleChange('product_id', e.target.value)}
-                                        className={selectClass}
-                                        required
-                                    >
-                                        <option value="">{t('orderPlaceModal.select.product')}</option>
-                                        {products.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(value) => handleChange('product_id', value)}
+                                        options={products.map(product => ({
+                                            value: product.id,
+                                            label: getProductDisplayName(product),
+                                            description: product.market_product ? formatMarketProduct(product.market_product) : undefined,
+                                        }))}
+                                        placeholder={t('orderPlaceModal.select.product')}
+                                    />
                                 )}
                             </div>
                             <div>
@@ -339,17 +340,17 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <span className="text-sm text-slate-400">{t('orderPlaceModal.loading.generic')}</span>
                                     </div>
                                 ) : (
-                                    <select
+                                    <VerdaxisSelect
+                                        ariaLabel="Order delivery point"
                                         value={formData.delivery_point_id}
-                                        onChange={(e) => handleChange('delivery_point_id', e.target.value)}
-                                        className={selectClass}
-                                        required
-                                    >
-                                        <option value="">{t('orderPlaceModal.select.deliveryPoint')}</option>
-                                        {deliveryPoints.map(d => (
-                                            <option key={d.id} value={d.id}>{d.name} ({d.region})</option>
-                                        ))}
-                                    </select>
+                                        onChange={(value) => handleChange('delivery_point_id', value)}
+                                        options={deliveryPoints.map(point => ({
+                                            value: point.id,
+                                            label: point.name,
+                                            description: point.region,
+                                        }))}
+                                        placeholder={t('orderPlaceModal.select.deliveryPoint')}
+                                    />
                                 )}
                             </div>
                         </div>
@@ -358,12 +359,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.fuelType')}</span>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_type}</div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.product')}</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{getProductDisplayName(selectedProduct)}</div>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.grade')}</span>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.fuel_grade}</div>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Market Product</span>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{formatMarketProduct(selectedProduct.market_product)}</div>
                                     </div>
                                     <div>
                                         <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.unit')}</span>
@@ -456,16 +457,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className="p-4 space-y-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
-                                        <select
+                                        <VerdaxisSelect
+                                            ariaLabel="Order availability window"
                                             value={formData.availability_window}
-                                            onChange={(e) => handleChange('availability_window', e.target.value)}
-                                            className={selectClass}
-                                            required
-                                        >
-                                            {availabilityOptions.map(option => (
-                                                <option key={option.value} value={option.value}>{option.label}</option>
-                                            ))}
-                                        </select>
+                                            onChange={(value) => handleChange('availability_window', value)}
+                                            options={availabilityOptions.map(option => ({ value: option.value, label: option.label }))}
+                                        />
                                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                             {t('orderPlaceModal.helper.availability')}
                                         </p>

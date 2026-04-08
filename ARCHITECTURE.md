@@ -13,6 +13,7 @@ src/
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
+  utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
   index.css                        # Tailwind base + global styles
 
@@ -39,7 +40,7 @@ src/
     # Buyer views
     BuyerMap.tsx                   # Leaflet intelligence map with port/vessel markers
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
-    Marketplace.tsx                # Browse/filter listings, place orders
+    Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     MarketTerminal.tsx             # Bloomberg-style price terminal (bid/ask, charts)
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
@@ -63,7 +64,7 @@ src/
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
     fleet/VesselDetailModal.tsx
-    ui/{Tooltip,MarkdownRenderer,ConfirmModal}.tsx
+    ui/{Tooltip,MarkdownRenderer,ConfirmModal,VerdaxisSelect}.tsx
     # Public site
     public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
     public/{PublicNav,PublicFooter,HeroSection,PriceTicker,PilotApplicationForm}.tsx
@@ -141,7 +142,9 @@ provides a toggle to switch.
 **API data transform:** Backend returns snake_case with numbers-as-strings. `api.ts`
 transforms to camelCase frontend interfaces and wraps numeric fields with `Number()`.
 Orderbook timing is normalized through `utils/availabilityWindow.ts` so the UI can show
-relative labels while the API persists canonical codes.
+relative labels while the API persists canonical codes. Green-fuels naming is normalized
+through `utils/marketProduct.ts`, and benchmark-relative pricing is carried in the shared
+order interfaces.
 
 **AI copilot architecture:** Gemini chat with multi-turn tool calling. `tools.ts` defines
 FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat loop in
@@ -149,6 +152,14 @@ FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat l
 
 **Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
 Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+**Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
+green-fuels products while preserving richer certification and sustainability metadata on
+supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
+
+**Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
+forms should use it instead of browser-native `<select>` elements unless there is a strong
+accessibility or browser-integration reason not to.
 
 **Orderbook timing model:** `OrderPlaceModal` keeps `Availability Window` in Advanced Options
 but mandatory, with `Spot` as the default. Relative labels like `M+1` are display-only and

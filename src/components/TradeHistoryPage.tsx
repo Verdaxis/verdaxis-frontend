@@ -18,6 +18,7 @@ import { Trade, Product, DeliveryPoint, PriceAlert } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './Toast';
 import { MyTrades } from './MyTrades';
+import { VerdaxisSelect } from './ui/VerdaxisSelect';
 
 // ─── Types ───────────────────────────────────────────────────────
 type TabId = 'blotter' | 'performance' | 'alerts';
@@ -360,40 +361,30 @@ const AlertsTab: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Fuel Type</label>
-                            <select
+                            <VerdaxisSelect
+                                ariaLabel="Price alert fuel"
                                 value={formProductId}
-                                onChange={e => setFormProductId(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2]"
-                            >
-                                <option value="">Select fuel...</option>
-                                {products.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
+                                onChange={setFormProductId}
+                                options={[{ value: '', label: 'Select fuel...' }, ...products.map(p => ({ value: p.id, label: p.name }))]}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Port</label>
-                            <select
+                            <VerdaxisSelect
+                                ariaLabel="Price alert port"
                                 value={formDpId}
-                                onChange={e => setFormDpId(e.target.value)}
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2]"
-                            >
-                                <option value="">Any port</option>
-                                {deliveryPoints.map(dp => (
-                                    <option key={dp.id} value={dp.id}>{dp.name}</option>
-                                ))}
-                            </select>
+                                onChange={setFormDpId}
+                                options={[{ value: '', label: 'Any port' }, ...deliveryPoints.map(dp => ({ value: dp.id, label: dp.name }))]}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Direction</label>
-                            <select
+                            <VerdaxisSelect
+                                ariaLabel="Price alert direction"
                                 value={formDirection}
-                                onChange={e => setFormDirection(e.target.value as 'above' | 'below')}
-                                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2]"
-                            >
-                                <option value="above">Above</option>
-                                <option value="below">Below</option>
-                            </select>
+                                onChange={value => setFormDirection(value as 'above' | 'below')}
+                                options={[{ value: 'above', label: 'Above' }, { value: 'below', label: 'Below' }]}
+                            />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Target Price (USD/MT)</label>

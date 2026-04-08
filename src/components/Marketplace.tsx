@@ -46,6 +46,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
+import { getOrderDisplayName } from '../utils/marketProduct';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'star' | 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -490,10 +491,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <td key={col} className={`px-4 py-2 sticky left-0 z-20 ${stickyBg} whitespace-nowrap min-w-[180px]`}>
                         <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
-                                {order.product_name || order.fuel_type}
+                                {getOrderDisplayName(order)}
                             </span>
                             {order.is_verdaxis_verified && (
                                 <Shield size={12} className="text-emerald-500 flex-shrink-0" />
+                            )}
+                            {order.off_spec && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                                    Off-spec
+                                </span>
                             )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
@@ -509,7 +515,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                            {order.fuel_grade}
+                            {order.certification_declared ? 'Certified' : 'Pending cert'}
                         </span>
                     </td>
                 );
@@ -521,8 +527,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 );
             case 'price':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs">
-                        ${order.price_per_mt_usd.toLocaleString()}
+                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-xs">
+                        <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                            ${order.price_per_mt_usd.toLocaleString()}
+                        </div>
+                        {order.premium_discount_per_mt_usd != null && (
+                            <div className={order.premium_discount_per_mt_usd <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                                {order.premium_discount_per_mt_usd < 0 ? '-' : '+'}
+                                ${Math.abs(Number(order.premium_discount_per_mt_usd)).toFixed(2)}
+                            </div>
+                        )}
                     </td>
                 );
             case 'window':
@@ -984,10 +998,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                                                        {order.product_name || order.fuel_type}
-                                                        {order.fuel_grade && order.fuel_grade !== 'Conventional' && (
-                                                            <span className="ml-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">{order.fuel_grade}</span>
-                                                        )}
+                                                        {getOrderDisplayName(order)}
                                                     </td>
                                                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
@@ -1144,7 +1155,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Product</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.product_name || selectedOrder.fuel_type}</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder)}</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Port</span>
@@ -1194,7 +1205,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            {selectedOrder.fuel_type} &middot; {selectedOrder.region}
+                                            {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
                                     <button onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
@@ -1208,7 +1219,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">
-                                                {selectedOrder.product_name || selectedOrder.fuel_type} ({selectedOrder.fuel_grade})
+                                                {getOrderDisplayName(selectedOrder)}
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center mb-2">

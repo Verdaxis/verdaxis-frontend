@@ -216,6 +216,25 @@ export interface OrderBookOrder {
     benchmark_source?: string | null;
 }
 
+export interface SupplierListingTemplate {
+    product_id: string;
+    delivery_point_id: string;
+    quantity_mt: number;
+    price_per_mt_usd: number;
+    availability_window: AvailabilityWindow;
+    certifications: string[];
+    certification_declared: boolean;
+    certification_scheme?: string | null;
+    specification_standard?: string | null;
+    msds_available?: boolean;
+    carbon_intensity_gco2_mj?: number | null;
+    carbon_intensity_method?: string | null;
+    feedstock?: string | null;
+    origin?: string | null;
+    off_spec?: boolean;
+    off_spec_notes?: string | null;
+}
+
 export interface Trade {
     id: string;
     bid_order_id?: string;

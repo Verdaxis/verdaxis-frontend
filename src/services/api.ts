@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate } from '../types';
 import { API_URL } from './config';
 import { getAccessToken } from './authToken';
 
@@ -356,6 +356,9 @@ export const api = {
         myOrders: async () => {
             return fetchApi('/orderbook/my', { headers: getHeaders() });
         },
+        latestAskTemplate: async (): Promise<SupplierListingTemplate | null> => {
+            return fetchApi('/orderbook/my/latest-ask-template', { headers: getHeaders() });
+        },
         create: async (data: {
             side: string;
             product_id: string;
@@ -365,6 +368,17 @@ export const api = {
             availability_window: string;
             is_anonymous?: boolean;
             expires_at?: string;
+            certifications?: string[];
+            certification_declared?: boolean;
+            certification_scheme?: string | null;
+            specification_standard?: string | null;
+            msds_available?: boolean;
+            carbon_intensity_gco2_mj?: number | null;
+            carbon_intensity_method?: string | null;
+            feedstock?: string | null;
+            origin?: string | null;
+            off_spec?: boolean;
+            off_spec_notes?: string | null;
         }) => {
             return fetchApi('/orderbook', {
                 method: 'POST',

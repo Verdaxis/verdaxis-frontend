@@ -2,7 +2,9 @@
  * Tests for new features: vessel data mapping, trade route building,
  * availability windows, and market terminal data derivation.
  */
+import React from 'react';
 import { describe, it, expect } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
 import {
     SPOT_WINDOW,
     formatAvailabilityWindow,
@@ -10,6 +12,8 @@ import {
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
 import { MARKET_PRODUCTS } from '../types';
+import { VerdaxisSelect } from '../components/ui/VerdaxisSelect';
+import { renderWithProviders } from './test-utils';
 
 // -------- Vessel API Mapping --------
 describe('Vessel API Data Mapping', () => {
@@ -173,6 +177,34 @@ describe('Green Fuels Market Products', () => {
             'BIO_ETHANOL',
             'SYNTHETIC_ETHANOL',
         ]);
+    });
+});
+
+describe('VerdaxisSelect', () => {
+    it('renders a shared select trigger and supports keyboard selection', () => {
+        let selected = 'one';
+        renderWithProviders(
+            React.createElement(VerdaxisSelect, {
+                ariaLabel: 'Test select',
+                value: selected,
+                onChange: (value: string) => {
+                    selected = value;
+                },
+                options: [
+                    { value: 'one', label: 'Option One' },
+                    { value: 'two', label: 'Option Two' },
+                ],
+            })
+        );
+
+        const trigger = screen.getByRole('combobox', { name: 'Test select' });
+        expect(trigger.textContent).toContain('Option One');
+
+        fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+        fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+        fireEvent.keyDown(trigger, { key: 'Enter' });
+
+        expect(selected).toBe('two');
     });
 });
 
