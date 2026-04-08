@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Upload, CheckCircle2, AlertCircle, Loader2, FileText, Trash2, BarChart3 } from 'lucide-react';
 import type { AggregatedMarketEntry } from '../SupplierListingConsole';
+import { SPOT_WINDOW, getAvailabilityWindowOptions } from '../../utils/availabilityWindow';
 
 interface CreateListingModalProps {
     onSubmit: (data: ListingFormData) => void;
@@ -22,7 +23,6 @@ export interface ListingFormData {
 const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai'];
 const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
-const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 
 export const CreateListingModal: React.FC<CreateListingModalProps> = ({
     onSubmit,
@@ -36,9 +36,10 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
         fuel_grade: FUEL_GRADES[0],
         quantity_mt: 0,
         price_per_mt_usd: 0,
-        availability_window: AVAILABILITY_WINDOWS[0],
+        availability_window: SPOT_WINDOW,
         certifications: [],
     });
+    const availabilityOptions = getAvailabilityWindowOptions();
 
     const [uploadedFiles, setUploadedFiles] = useState<{name: string; type: string}[]>([]);
     const [isDragging, setIsDragging] = useState(false);
@@ -254,7 +255,7 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
                                     onChange={(e) => handleChange('availability_window', e.target.value)}
                                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                 >
-                                    {AVAILABILITY_WINDOWS.map(a => <option key={a} value={a}>{a}</option>)}
+                                    {availabilityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                 </select>
                             </div>
                         </div>

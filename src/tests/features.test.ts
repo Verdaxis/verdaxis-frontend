@@ -3,6 +3,12 @@
  * availability windows, and market terminal data derivation.
  */
 import { describe, it, expect } from 'vitest';
+import {
+    SPOT_WINDOW,
+    formatAvailabilityWindow,
+    getAvailabilityWindowOptions,
+    normalizeAvailabilityWindow,
+} from '../utils/availabilityWindow';
 
 // -------- Vessel API Mapping --------
 describe('Vessel API Data Mapping', () => {
@@ -125,26 +131,35 @@ describe('Dynamic Trade Route Building', () => {
 
 // -------- Availability Windows --------
 describe('Availability Windows', () => {
-    const VALID_WINDOWS = [
-        'Spot', 'Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025',
-        'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026',
-        'Forward 2027', 'Forward 2028',
-    ];
-
-    it('should include all 2026 quarters', () => {
-        expect(VALID_WINDOWS).toContain('Q1 2026');
-        expect(VALID_WINDOWS).toContain('Q2 2026');
-        expect(VALID_WINDOWS).toContain('Q3 2026');
-        expect(VALID_WINDOWS).toContain('Q4 2026');
+    const VALID_WINDOWS = getAvailabilityWindowOptions({
+        now: new Date('2026-04-08T00:00:00Z'),
+        timeZone: 'UTC',
+        quarterCount: 4,
     });
 
-    it('should include forward years', () => {
-        expect(VALID_WINDOWS).toContain('Forward 2027');
-        expect(VALID_WINDOWS).toContain('Forward 2028');
+    it('should start with Spot and current-quarter months', () => {
+        expect(VALID_WINDOWS[0]?.value).toBe(SPOT_WINDOW);
+        expect(VALID_WINDOWS[1]?.value).toBe('2026-04');
+        expect(VALID_WINDOWS[2]?.value).toBe('2026-05');
+        expect(VALID_WINDOWS[3]?.value).toBe('2026-06');
     });
 
-    it('should include Spot window', () => {
-        expect(VALID_WINDOWS).toContain('Spot');
+    it('should continue with future quarter buckets', () => {
+        expect(VALID_WINDOWS.map(option => option.value)).toContain('2026-Q3');
+        expect(VALID_WINDOWS.map(option => option.value)).toContain('2026-Q4');
+        expect(VALID_WINDOWS.map(option => option.value)).toContain('2027-Q1');
+    });
+
+    it('should normalize legacy labels to canonical codes', () => {
+        expect(normalizeAvailabilityWindow('Spot')).toBe(SPOT_WINDOW);
+        expect(normalizeAvailabilityWindow('Q3 2026')).toBe('2026-Q3');
+        expect(normalizeAvailabilityWindow('Forward 2027')).toBe('2027-CAL');
+    });
+
+    it('should format canonical codes for display', () => {
+        expect(formatAvailabilityWindow(SPOT_WINDOW)).toBe('Spot');
+        expect(formatAvailabilityWindow('2026-04')).toBe('Apr 2026');
+        expect(formatAvailabilityWindow('2026-Q3')).toBe('Q3 2026');
     });
 });
 

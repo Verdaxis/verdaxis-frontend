@@ -8,6 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { API_URL } from '../services/config';
 import type { RFQ, RFQQuote, Product, DeliveryPoint } from '../types';
+import {
+    SPOT_WINDOW,
+    formatAvailabilityWindow,
+    getAvailabilityWindowOptions,
+} from '../utils/availabilityWindow';
 
 // ─── Status styles ────────────────────────────────────────────
 const RFQ_STATUS_STYLES: Record<string, { bg: string; text: string; dot: string }> = {
@@ -39,9 +44,12 @@ interface RFQPanelProps {
     role: 'BUYER' | 'SUPPLIER';
     sortBy?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
     onSortChange?: (sort: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest') => void;
+    region?: string;
+    fuelType?: string;
+    availability?: string;
 }
 
-export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', onSortChange }) => {
+export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', region, fuelType, availability }) => {
     const { user } = useAuth();
     const [rfqs, setRfqs] = useState<RFQ[]>([]);
     const [loading, setLoading] = useState(true);
@@ -68,14 +76,19 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', 
         if (!silent) setLoading(true);
         setError(null);
         try {
-            const data = await api.rfq.list({ limit: 50 });
+            const data = await api.rfq.list({
+                limit: 50,
+                region: region || undefined,
+                fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
+                availability_window: availability || undefined,
+            });
             setRfqs(data.items ?? data);
         } catch (err: any) {
             if (!silent) setError(err?.message || 'Failed to load RFQs');
         } finally {
             if (!silent) setLoading(false);
         }
-    }, []);
+    }, [region, fuelType, availability]);
 
     useEffect(() => { fetchRFQs(); }, [fetchRFQs]);
 
@@ -187,7 +200,6 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', 
 
             {(() => {
                 let filtered = statusFilter === 'ALL' ? rfqs : rfqs.filter(r => r.status === statusFilter);
-                // Apply sorting
                 if (sortBy === 'price_asc') {
                     filtered = [...filtered].sort((a, b) => (a.target_price_per_mt || 0) - (b.target_price_per_mt || 0));
                 } else if (sortBy === 'price_desc') {
@@ -222,13 +234,16 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', 
                                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{rfq.product_name || rfq.product_id}</span>
                                         {rfq.is_anonymous && <EyeOff size={12} className="text-slate-400 flex-shrink-0" />}
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 flex-wrap">
                                         <span>{rfq.quantity_mt.toLocaleString()} MT</span>
                                         {rfq.target_price_per_mt && (
-                                            <><span className="text-slate-300">|</span><span className="text-emerald-600 dark:text-emerald-400 font-mono font-semibold">Target ${rfq.target_price_per_mt.toLocaleString()}/MT</span></>
+                                            <><span className="text-slate-300 dark:text-slate-600">|</span><span className="text-emerald-600 dark:text-emerald-400 font-mono font-semibold">Target ${rfq.target_price_per_mt.toLocaleString()}/MT</span></>
                                         )}
-                                        <span className="text-slate-300">|</span>
-                                        <span>{rfq.availability_window}</span>
+                                        {rfq.delivery_point_name && (
+                                            <><span className="text-slate-300 dark:text-slate-600">|</span><span>{rfq.delivery_point_name}</span></>
+                                        )}
+                                        <span className="text-slate-300 dark:text-slate-600">|</span>
+                                        <span>{formatAvailabilityWindow(rfq.availability_window)}</span>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3 flex-shrink-0">
@@ -429,9 +444,10 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
     const [deliveryPointId, setDeliveryPointId] = useState('');
     const [quantityMt, setQuantityMt] = useState(500);
     const [targetPrice, setTargetPrice] = useState<number | ''>('');
-    const [availabilityWindow, setAvailabilityWindow] = useState('Spot');
-    const [isAnonymous, setIsAnonymous] = useState(true);
+    const [availabilityWindow, setAvailabilityWindow] = useState(SPOT_WINDOW);
+    const availabilityOptions = getAvailabilityWindowOptions();
     const [expiresInHours, setExpiresInHours] = useState(72);
+    const [isAnonymous, setIsAnonymous] = useState(true);
 
     useEffect(() => {
         Promise.all([
@@ -475,7 +491,7 @@ const CreateRFQModal: React.FC<{ onClose: () => void; onCreated: () => void }> =
                             <div><label className="v-label">Target Price ($/MT)</label><input type="number" min={0} step={0.01} value={targetPrice} onChange={e => setTargetPrice(e.target.value ? Number(e.target.value) : '')} className="v-input font-mono" placeholder="Optional" /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="v-label">Availability Window</label><select value={availabilityWindow} onChange={e => setAvailabilityWindow(e.target.value)} className="v-input">{['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'].map(w => <option key={w}>{w}</option>)}</select></div>
+                            <div><label className="v-label">Availability Window</label><select value={availabilityWindow} onChange={e => setAvailabilityWindow(e.target.value)} className="v-input">{availabilityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
                             <div><label className="v-label">Expires In</label><select value={expiresInHours} onChange={e => setExpiresInHours(Number(e.target.value))} className="v-input"><option value={24}>24 hours</option><option value={48}>48 hours</option><option value={72}>72 hours</option><option value={168}>1 week</option></select></div>
                         </div>
                         <label className="flex items-center gap-2 cursor-pointer">

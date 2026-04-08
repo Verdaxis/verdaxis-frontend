@@ -359,8 +359,6 @@ export const api = {
             price_per_mt_usd: number;
             availability_window: string;
             is_anonymous?: boolean;
-            delivery_window_start?: string;
-            delivery_window_end?: string;
             expires_at?: string;
         }) => {
             return fetchApi('/orderbook', {
@@ -581,12 +579,15 @@ export const api = {
     },
 
     rfq: {
-        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; is_anonymous?: boolean; expires_in_hours?: number }) => {
+        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; expires_in_hours?: number }) => {
             return fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },
-        list: async (params?: { status?: string; skip?: number; limit?: number }) => {
+        list: async (params?: { status?: string; skip?: number; limit?: number; region?: string; fuel_type?: string; availability_window?: string }) => {
             const sp = new URLSearchParams();
             if (params?.status) sp.append('status', params.status);
+            if (params?.region) sp.append('region', params.region);
+            if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
+            if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('skip', String(params?.skip ?? 0));
             sp.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() });

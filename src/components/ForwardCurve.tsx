@@ -7,6 +7,11 @@ import { api } from '../services/api';
 import { Product, ForwardCurveResponse, Subscription } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { useTheme } from '../context/ThemeContext';
+import {
+    formatAvailabilityWindow,
+    formatAvailabilityWindowPeriod,
+    normalizeAvailabilityWindow,
+} from '../utils/availabilityWindow';
 
 interface ForwardCurveProps {
     initialProductId?: string;
@@ -152,7 +157,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             tooltip.appendChild(div);
         };
 
-        addLine(item.availability_window, '#e5e5e5', 11, true);
+        addLine(formatAvailabilityWindow(item.availability_window), '#e5e5e5', 11, true);
         if (bidVal != null) addLine(`Bid: $${bidVal.toFixed(2)}`, '#00D4AA', 11, true, 2);
         if (askVal != null) addLine(`Ask: $${askVal.toFixed(2)}`, '#FF3B3B', 11, true, 2);
         if (midVal != null) addLine(`Mid: $${midVal.toFixed(2)}`, '#0066FF', 11, true, 2);
@@ -196,7 +201,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                 borderColor: chartGrid,
                 tickMarkFormatter: (time: number) => {
                     const item = chartPointsRef.current[time];
-                    return item ? item.availability_window : '';
+                    return item ? formatAvailabilityWindowPeriod(item.availability_window) : '';
                 },
             },
             handleScroll: false,
@@ -287,7 +292,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             const idx = param.time as number;
             const item = chartPointsRef.current[idx];
             if (item?.availability_window && onPeriodClickRef.current) {
-                onPeriodClickRef.current(item.availability_window);
+                onPeriodClickRef.current(normalizeAvailabilityWindow(item.availability_window));
             }
         });
 

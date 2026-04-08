@@ -26,6 +26,12 @@ import { useNamespace } from '../hooks/useNamespace';
 import { GridLayout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import {
+    compareAvailabilityWindows,
+    formatAvailabilityWindowPeriod,
+    getAvailabilityWindowOptions,
+    normalizeAvailabilityWindow,
+} from '../utils/availabilityWindow';
 
 // --- Types ---
 interface TerminalRow {
@@ -52,22 +58,30 @@ interface TradeEvent {
     is_anonymous?: boolean;
 }
 
-// Map availability windows to terminal periods
-const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type'] }[] = [
-    { window: 'Spot', period: 'SPOT', type: 'SPOT' },
-    { window: 'Q1 2026', period: 'Q1 26', type: 'QTR' },
-    { window: 'Q2 2026', period: 'Q2 26', type: 'QTR' },
-    { window: 'Q3 2026', period: 'Q3 26', type: 'QTR' },
-    { window: 'Q4 2026', period: 'Q4 26', type: 'QTR' },
-    { window: 'Forward 2027', period: 'CAL 27', type: 'YEAR' },
-    { window: 'Q1 2027', period: 'Q1 27', type: 'QTR' },
-    { window: 'Q2 2027', period: 'Q2 27', type: 'QTR' },
-    { window: 'Q3 2027', period: 'Q3 27', type: 'QTR' },
-    { window: 'Q4 2027', period: 'Q4 27', type: 'QTR' },
-    { window: 'Forward 2028', period: 'CAL 28', type: 'YEAR' },
-    { window: 'Forward 2029', period: 'CAL 29', type: 'YEAR' },
-    { window: 'Forward 2030', period: 'CAL 30', type: 'YEAR' },
-];
+interface PeriodConfig {
+    window: string;
+    period: string;
+    type: TerminalRow['type'];
+}
+
+function getPeriodType(window: string): TerminalRow['type'] {
+    if (window === 'SPOT') return 'SPOT';
+    if (/^\d{4}-\d{2}$/.test(window)) return 'MONTH';
+    if (/^\d{4}-Q[1-4]$/.test(window)) return 'QTR';
+    return 'YEAR';
+}
+
+function buildPeriodConfig(windows: string[]): PeriodConfig[] {
+    const defaults = getAvailabilityWindowOptions({ quarterCount: 8 }).map(option => option.value);
+    const merged = Array.from(new Set([...defaults, ...windows.map(window => normalizeAvailabilityWindow(window))]));
+    return merged
+        .sort(compareAvailabilityWindows)
+        .map(window => ({
+            window,
+            period: formatAvailabilityWindowPeriod(window),
+            type: getPeriodType(window),
+        }));
+}
 
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
@@ -343,15 +357,24 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [tradeEvents]);
 
     // Filter orders by selected port and fuel, split into asks and bids
+    const normalizedOrders = useMemo(() => {
+        return allOrders.map(order => ({
+            ...order,
+            availability_window: normalizeAvailabilityWindow(order.availability_window),
+        }));
+    }, [allOrders]);
+
+    const periodConfig = useMemo(() => buildPeriodConfig(normalizedOrders.map(order => order.availability_window)), [normalizedOrders]);
+
     const filteredOrders = useMemo(() => {
-        return allOrders.filter(o => {
+        return normalizedOrders.filter(o => {
             const portLower = selectedPort.toLowerCase();
             const matchPort = o.region.toLowerCase().includes(portLower)
                 || (o.delivery_point_name || '').toLowerCase().includes(portLower);
             const matchFuel = o.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
             return matchPort && matchFuel;
         });
-    }, [allOrders, selectedPort, selectedFuel]);
+    }, [normalizedOrders, selectedPort, selectedFuel]);
 
     const filteredAsks = useMemo(() => filteredOrders.filter(o => o.side === 'ASK'), [filteredOrders]);
     const filteredBids = useMemo(() => filteredOrders.filter(o => o.side === 'BID'), [filteredOrders]);
@@ -368,7 +391,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Build terminal rows: merge real orderbook data (bids + asks) with simulated activity
     const terminalData: TerminalRow[] = useMemo(() => {
-        return PERIOD_CONFIG.map((config, idx) => {
+        return periodConfig.map((config, idx) => {
             const periodAsks = filteredAsks.filter(
                 o => o.availability_window === config.window
             );
@@ -414,7 +437,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, priceSummaries, selectedFuel, selectedPort]);
+    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedFuel, selectedPort]);
 
     // Flash rows whose bid or ask changed on each tick
     useEffect(() => {
@@ -440,7 +463,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
-        return PERIOD_CONFIG.map((config, idx) => {
+        return periodConfig.map((config, idx) => {
             const periodAsksForChart = filteredAsks.filter(o => o.availability_window === config.window);
             const periodBidsForChart = filteredBids.filter(o => o.availability_window === config.window);
 
@@ -464,7 +487,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 quantity: totalQty || null,
             };
         });
-    }, [filteredAsks, filteredBids]);
+    }, [filteredAsks, filteredBids, periodConfig]);
 
     // Stable ref for click handler closures (avoids recreating chart on every state change)
     const chartDataRef = useRef(chartData);
@@ -600,10 +623,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Helper to determine if a row has real orderbook data
     const hasRealData = useCallback((row: TerminalRow) => {
-        const config = PERIOD_CONFIG.find(p => p.period === row.period);
+        const config = periodConfig.find(p => p.period === row.period);
         if (!config) return false;
         return filteredOrders.some(o => o.availability_window === config.window);
-    }, [filteredOrders]);
+    }, [filteredOrders, periodConfig]);
 
     // Unique port names from ports list
     const portNames = useMemo(() => {
@@ -818,9 +841,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             const hoverColor = 'hover:bg-slate-50 dark:hover:bg-[#111]';
 
                             // Count offers for this period
-                            const periodConfig = PERIOD_CONFIG.find(p => p.period === row.period);
-                            const offerCount = periodConfig
-                                ? filteredOrders.filter(o => o.availability_window === periodConfig.window).length
+                            const matchedPeriod = periodConfig.find(config => config.period === row.period);
+                            const offerCount = matchedPeriod
+                                ? filteredOrders.filter(o => o.availability_window === matchedPeriod.window).length
                                 : 0;
 
                             // Determine if this is a quarterly row under a Cal year

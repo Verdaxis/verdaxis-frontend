@@ -144,7 +144,7 @@ export interface DeliveryPoint {
 
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
-export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
+export type AvailabilityWindow = string; // Canonical API codes: SPOT, YYYY-MM, YYYY-QN, and legacy YYYY-CAL
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
 // ============== Unified Orderbook Types ==============
@@ -172,8 +172,6 @@ export interface OrderBookOrder {
     remaining_quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: AvailabilityWindow;
-    delivery_window_start?: string;
-    delivery_window_end?: string;
     certifications: string[];
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;

@@ -12,6 +12,7 @@ src/
   App.tsx                          # Route definitions, auth guards, Dashboard state machine
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
+  utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
   index.css                        # Tailwind base + global styles
 
@@ -139,6 +140,8 @@ provides a toggle to switch.
 
 **API data transform:** Backend returns snake_case with numbers-as-strings. `api.ts`
 transforms to camelCase frontend interfaces and wraps numeric fields with `Number()`.
+Orderbook timing is normalized through `utils/availabilityWindow.ts` so the UI can show
+relative labels while the API persists canonical codes.
 
 **AI copilot architecture:** Gemini chat with multi-turn tool calling. `tools.ts` defines
 FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat loop in
@@ -146,6 +149,10 @@ FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat l
 
 **Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
 Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+**Orderbook timing model:** `OrderPlaceModal` keeps `Availability Window` in Advanced Options
+but mandatory, with `Spot` as the default. Relative labels like `M+1` are display-only and
+must resolve to canonical month/quarter codes before requests are sent.
 
 ## Entry Points
 

@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { OrderBookOrder } from '../types';
+import { formatAvailabilityWindow } from './availabilityWindow';
 
 // ─── Fuel Color Map ────────────────────────────────────────────
 type ColorKey = 'violet' | 'green' | 'sky' | 'teal' | 'amber' | 'slate';
@@ -110,12 +111,7 @@ export function formatExpiry(order: OrderBookOrder): React.ReactNode {
   }, formatted);
 }
 
-// ─── Delivery Window ───────────────────────────────────────────
+// ─── Availability Window ───────────────────────────────────────
 export function formatDeliveryWindow(order: OrderBookOrder): string {
-  if (order.delivery_window_start && order.delivery_window_end) {
-    const start = new Date(order.delivery_window_start).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-    const end = new Date(order.delivery_window_end).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-    return `${start} – ${end}`;
-  }
-  return order.availability_window || 'Spot';
+  return formatAvailabilityWindow(order.availability_window);
 }

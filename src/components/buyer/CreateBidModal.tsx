@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { SPOT_WINDOW, getAvailabilityWindowOptions } from '../../utils/availabilityWindow';
 
 interface CreateBidModalProps {
     onSubmit: (data: BidFormData) => void;
@@ -19,7 +20,6 @@ export interface BidFormData {
 const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai', 'UAE'];
 const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
-const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 
 export const CreateBidModal: React.FC<CreateBidModalProps> = ({
     onSubmit,
@@ -32,8 +32,9 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
         fuel_grade: FUEL_GRADES[0],
         quantity_mt: 0,
         price_per_mt_usd: 0,
-        availability_window: AVAILABILITY_WINDOWS[0],
+        availability_window: SPOT_WINDOW,
     });
+    const availabilityOptions = getAvailabilityWindowOptions();
 
     const handleChange = (field: keyof BidFormData, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -94,9 +95,9 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
                                 </select>
                             </div>
                             <div>
-                                <label className={labelClass}>Delivery Window</label>
+                                <label className={labelClass}>Availability Window</label>
                                 <select value={formData.availability_window} onChange={(e) => handleChange('availability_window', e.target.value)} className={selectClass}>
-                                    {AVAILABILITY_WINDOWS.map(a => <option key={a} value={a}>{a}</option>)}
+                                    {availabilityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                                 </select>
                             </div>
                         </div>

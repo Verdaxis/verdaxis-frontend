@@ -27,7 +27,6 @@ import { PORTS } from '../data';
 import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
 import { NewsFeed } from './NewsFeed';
-import { MatchSuggestions } from './MatchSuggestions';
 import { RFQPanel } from './RFQPanel';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -42,6 +41,11 @@ import {
 import { useNamespace } from '../hooks/useNamespace';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getFuelChipClasses } from '../utils/fuel';
+import {
+    SPOT_WINDOW,
+    getAvailabilityWindowOptions,
+    normalizeAvailabilityWindow,
+} from '../utils/availabilityWindow';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'star' | 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -78,7 +82,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 };
 
 // ─── Fuel chip options ────────────────────────────────────────────
-const FUEL_TYPES = ['All', 'Methanol', 'Ethanol', 'Biofuel', 'Ammonia'];
+const FUEL_TYPES = ['All', 'Methanol', 'Biofuel', 'LNG', 'Ammonia', 'LSMGO'];
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -104,11 +108,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     } = useWatchlist();
     const [starLoading, setStarLoading] = useState<string | null>(null);
 
-    // Green fuels allowlist — fossil fuels are not traded on this platform
-    const FOSSIL_FUELS = new Set(['LNG', 'MGO', 'VLSFO', 'LSMGO', 'HSFO', 'IFO', 'HFO']);
-    const isFossil = (name: string) => FOSSIL_FUELS.has(name.split(' ')[0].toUpperCase());
-
-    // Derive starred chips from all watchlist entries (green fuels only)
+    // Derive starred chips from all watchlist entries
     const starredChips = useMemo(() => {
         const chips: Array<{
             key: string;
@@ -120,7 +120,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         }> = [];
         for (const wl of watchlists) {
             for (const entry of wl.entries ?? []) {
-                if (isFossil(entry.product_name || '')) continue;
                 const key = `${entry.product_id}::${entry.delivery_point_id ?? ''}`;
                 if (!chips.find(c => c.key === key)) {
                     chips.push({
@@ -170,7 +169,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [fuelType, setFuelType] = useState(() => localStorage.getItem('verdaxis_marketplace_fuel') || 'All');
-    const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => (localStorage.getItem('verdaxis_marketplace_window') as AvailabilityWindow) || '');
+    const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
+        const stored = localStorage.getItem('verdaxis_marketplace_window');
+        return stored ? normalizeAvailabilityWindow(stored) : '';
+    });
+    const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
     const [currentSkip, setCurrentSkip] = useState(0);
 
     // ─── Resolved port name (best match as user types) ─────────
@@ -227,7 +230,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             quantity_mt: quantity,
             remaining_quantity_mt: quantity,
             price_per_mt_usd: price,
-            availability_window: 'Spot' as const,
+            availability_window: SPOT_WINDOW,
             certifications: [],
             is_verdaxis_verified: false,
             tier_label: 'INDEPENDENT' as const,
@@ -605,93 +608,74 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-y-auto" onClick={() => setShowSuggestions(false)}>
-            {/* Header — compact single bar */}
-            <div className="flex-shrink-0 px-4 lg:px-6 pt-2 pb-0">
+        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden" onClick={() => setShowSuggestions(false)}>
+            {/* Header */}
+            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                        <h1 className="text-lg font-bold v-heading whitespace-nowrap">{t('marketplace.title')}</h1>
-                        <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                        <div>
+                            <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
+                            <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
                             <button
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-lg transition-colors"
+                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
-                                <Plus size={14} />
+                                <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
                             <button
                                 onClick={() => fetchData(false, currentSkip)}
-                                className="p-1.5 text-slate-500 hover:text-emerald-500 transition-colors"
+                                className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
-                                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+                                <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Compact shortcut bar + filter in one row */}
-                    <div className="flex items-center gap-2 mb-2 overflow-x-auto scrollbar-thin">
-                        {[
-                            { label: 'MeOH SG', fuel: 'Methanol', port: 'Singapore' },
-                            { label: 'MeOH SH', fuel: 'Methanol', port: 'Shanghai' },
-                            { label: 'MeOH RTM', fuel: 'Methanol', port: 'Rotterdam' },
-                            { label: 'EtOH HOU', fuel: 'Ethanol', port: 'Houston' },
-                            { label: 'EtOH SAN', fuel: 'Ethanol', port: 'Santos' },
-                            { label: 'Bio RTM', fuel: 'Biofuel', port: 'Rotterdam' },
-                            { label: 'NH₃ SG', fuel: 'Ammonia', port: 'Singapore' },
-                        ].map(s => {
-                            const isActive = fuelType === s.fuel && resolvedPort.toLowerCase() === s.port.toLowerCase();
-                            return (
+                    {/* Starred Quick Access Chips */}
+                    {starredChips.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-thin">
+                            {starredChips.map(chip => (
                                 <button
-                                    key={s.label}
+                                    key={chip.key}
                                     onClick={() => {
-                                        setFuelType(s.fuel);
-                                        setPortInput(s.port);
+                                        if (chip.deliveryPointName) setPortInput(chip.deliveryPointName);
+                                        const fuel = chip.fuelType;
+                                        const matchedFuel = FUEL_TYPES.find(ft => ft.toLowerCase() === fuel.toLowerCase());
+                                        if (matchedFuel) setFuelType(matchedFuel);
                                     }}
-                                    className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap flex-shrink-0 transition-all ${
-                                        isActive
-                                            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                                            : 'text-slate-500 dark:text-slate-500 hover:text-slate-300 border border-transparent hover:border-slate-600'
-                                    }`}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap flex-shrink-0 hover:shadow-sm active:scale-95 ${getFuelChipClasses(chip.fuelType)}`}
                                 >
-                                    {s.label}
+                                    <Star size={10} fill="currentColor" className="opacity-70" />
+                                    <span>{chip.productName}</span>
+                                    {chip.deliveryPointName && (
+                                        <>
+                                            <span className="opacity-40">·</span>
+                                            <span className="opacity-70">{chip.deliveryPointName}</span>
+                                        </>
+                                    )}
                                 </button>
-                            );
-                        })}
-                        {starredChips.length > 0 && (
-                            <>
-                                <div className="w-px h-4 bg-slate-600 flex-shrink-0" />
-                                {starredChips.slice(0, 3).map(chip => (
-                                    <button
-                                        key={chip.key}
-                                        onClick={() => {
-                                            if (chip.deliveryPointName) setPortInput(chip.deliveryPointName);
-                                            const fuel = chip.fuelType;
-                                            const matchedFuel = FUEL_TYPES.find(ft => ft.toLowerCase() === fuel.toLowerCase());
-                                            if (matchedFuel) setFuelType(matchedFuel);
-                                        }}
-                                        className="px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap flex-shrink-0 text-amber-500 border border-amber-500/20 hover:border-amber-500/40 transition-all"
-                                    >
-                                        <Star size={8} fill="currentColor" className="inline mr-1 opacity-70" />
-                                        {chip.productName?.split(' ')[0]}
-                                    </button>
-                                ))}
-                            </>
-                        )}
-                    </div>
+                            ))}
+                        </div>
+                    )}
 
-                    {/* Filter Bar — compact inline */}
-                    <div className="v-glass p-2 mb-2 relative z-20">
-                        <form onSubmit={handleSearch} className="flex flex-row gap-2 items-end">
+                    {/* Filter Bar */}
+                    <div className="v-glass p-4 mb-4 relative z-20">
+                        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3 items-end">
                             {/* Port autocomplete */}
                             <div className="relative flex-1 min-w-0">
+                                <label className="v-label">{t('marketplace.filter.port')}</label>
                                 <div className="relative">
-                                    <Ship className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <Ship className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
                                         type="text"
                                         value={portInput}
                                         onChange={(e) => handlePortInput(e.target.value)}
-                                        className="w-full px-3 py-2 pl-8 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none text-sm text-verdaxis-text"
-                                        placeholder="Port (e.g. Singapore)"
+                                        className="v-input pl-10"
+                                        placeholder="e.g. Singapore"
                                         autoComplete="off"
                                     />
                                 </div>
@@ -711,35 +695,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 )}
                             </div>
 
-                            {/* Delivery Window */}
-                            <div className="w-36">
+                            {/* Availability Window */}
+                            <div className="w-full lg:w-44">
+                                <label className="v-label">{t('marketplace.filter.window')}</label>
                                 <select
                                     value={availability}
                                     onChange={(e) => setAvailability(e.target.value as any)}
-                                    className="w-full px-3 py-2 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none text-sm text-verdaxis-text appearance-none"
+                                    className="v-input appearance-none"
                                 >
                                     <option value="">Any</option>
-                                    <option value="Spot">Spot</option>
-                                    <option value="Q2 2026">Apr-26 (M1)</option>
-                                    <option value="Q2 2026">May-26 (M2)</option>
-                                    <option value="Q2 2026">Jun-26 (M3)</option>
-                                    <option value="Q3 2026">Q3-26</option>
-                                    <option value="Q4 2026">Q4-26</option>
-                                    <option value="Forward 2027">Cal-27</option>
-                                    <option value="Q1 2027">Q1-27</option>
-                                    <option value="Q2 2027">Q2-27</option>
-                                    <option value="Q3 2027">Q3-27</option>
-                                    <option value="Q4 2027">Q4-27</option>
-                                    <option value="Forward 2028">Cal-28</option>
-                                    <option value="Forward 2029">Cal-29</option>
-                                    <option value="Forward 2030">Cal-30</option>
+                                    {availabilityOptions.map(option => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
                                 </select>
                             </div>
 
                             {/* Search + Filter toggle */}
-                            <div className="flex gap-1.5">
-                                <button type="submit" className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1">
-                                    <Search size={14} />
+                            <div className="flex gap-2">
+                                <button type="submit" className="v-btn-primary whitespace-nowrap">
+                                    <Search size={18} />
+                                    <span>{t('marketplace.btn.search')}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -799,8 +774,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         )}
                     </div>
 
-                    {/* Fuel pills + count + tabs — single compact row */}
-                    <div className="flex items-center gap-1.5 mb-1 overflow-x-auto scrollbar-thin">
+                    {/* Fuel chip pills */}
+                    <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin mb-2">
                         {FUEL_TYPES.map(ft => {
                             const isActive = fuelType === ft;
                             const count = ft === 'All' ? totalCount : (fuelCounts[ft] || 0);
@@ -808,24 +783,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <button
                                     key={ft}
                                     onClick={() => handleFuelChipClick(ft)}
-                                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
+                                    className={`rounded-full px-3 py-1.5 text-sm font-medium cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                                         isActive
-                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-sm'
-                                            : 'text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md border border-white/30 dark:border-slate-600/50'
+                                            : 'bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/60'
                                     }`}
                                 >
-                                    {ft}{count > 0 ? ` ${count}` : ''}
+                                    {ft}{count > 0 ? ` (${count})` : ''}
                                 </button>
                             );
                         })}
-                        <div className="flex items-center gap-1 ml-auto flex-shrink-0">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-[10px] text-slate-500 font-medium">LIVE</span>
-                        </div>
                     </div>
 
-                    {/* Tab Switcher: Market | Listings | My Orders — fluid sliding indicator */}
-                    <div className="relative flex mb-2 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
+                    {/* Result count + live badge */}
+                    <div className="flex items-center gap-3 mb-3">
+                        <span className="bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                            {totalCount.toLocaleString()} listing{totalCount !== 1 ? 's' : ''}
+                            <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-[10px] text-slate-400">LIVE &middot; 60s</span>
+                            </span>
+                        </span>
+                    </div>
+
+                    {/* Tab Switcher: Market | Listings | RFQ — fluid sliding indicator */}
+                    <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
                         {/* Sliding glass indicator */}
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
@@ -895,7 +877,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {/* Market tab: OrderBook + TradeTape side by side, full height */}
             {marketTab === 'market' && (
-                <div className="flex-1 min-h-[450px] px-4 lg:px-10 pb-6">
+                <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
                     {(!portInput || fuelType === 'All') ? (
                         <div className="max-w-7xl mx-auto h-full flex items-center justify-center">
                             <div className="text-center p-8">
@@ -1068,7 +1050,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {import.meta.env.VITE_ENABLE_RFQ === 'true' && marketTab === 'rfq' && (
                 <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} sortBy={sortBy} onSortChange={setSortBy} />
+                        <RFQPanel
+                            role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'}
+                            sortBy={sortBy}
+                            region={resolvedPort || undefined}
+                            fuelType={fuelType !== 'All' ? fuelType : undefined}
+                            availability={availability || undefined}
+                        />
                     </div>
                 </div>
             )}

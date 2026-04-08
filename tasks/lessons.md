@@ -33,3 +33,13 @@
 - **Trigger:** Orphaned deps (@auth0/auth0-react, oidc-client-ts, react-oidc-context, @studio-freight/lenis) left after removing Authentik auth.
 - **Rule:** When removing a feature, also remove its dependencies from package.json.
 - **Why:** Unused dependencies increase bundle size, attack surface, and maintenance burden.
+
+- **Date:** 2026-04-08
+- **Trigger:** The order placement flow initially framed timing as delivery logistics instead of marketplace availability.
+- **Rule:** Keep the UI and API aligned on mandatory `Availability Window` semantics for matching, and leave delivery logistics out of the demo flow.
+- **Why:** The demo needs a simple, extensible orderbook model where timing drives matching without pretending to manage physical delivery scheduling.
+
+- **Date:** 2026-04-08
+- **Trigger:** Stale `AI_README.md` context still existed despite the repo using `CLAUDE.md` and `.codesight` as the active bootstrap path.
+- **Rule:** Delete obsolete AI guidance files and keep the active agent instructions centralized in `CLAUDE.md`, `ARCHITECTURE.md`, and `.codesight`.
+- **Why:** Duplicate AI docs create conflicting guidance and make repo context less reliable.

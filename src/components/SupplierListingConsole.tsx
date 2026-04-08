@@ -19,6 +19,10 @@ import { CreateListingModal, ListingFormData } from './supplier/CreateListingMod
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { useNamespace } from '../hooks/useNamespace';
+import {
+    formatAvailabilityWindow,
+    getAvailabilityWindowOptions,
+} from '../utils/availabilityWindow';
 
 import { OrderBookOrder, OrderBookStatus, AggregatedOrderbook } from '../types';
 
@@ -76,6 +80,7 @@ export const SupplierListingConsole: React.FC = () => {
         status: 'OPEN',
     });
     const [isUpdating, setIsUpdating] = useState(false);
+    const availabilityOptions = getAvailabilityWindowOptions();
 
     // Fetch Listings & Market Data
     useEffect(() => {
@@ -504,7 +509,7 @@ export const SupplierListingConsole: React.FC = () => {
                                                     </div>
                                                     <div className="text-sm text-slate-500">{listing.region}</div>
                                                 </td>
-                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{listing.availability_window}</td>
+                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{formatAvailabilityWindow(listing.availability_window)}</td>
                                                 <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
                                                     {listing.quantity_mt.toLocaleString()} MT
                                                     {listing.remaining_quantity_mt !== undefined && listing.remaining_quantity_mt !== listing.quantity_mt && (
@@ -694,8 +699,8 @@ export const SupplierListingConsole: React.FC = () => {
                                         onChange={(e) => handleEditFormChange('availability_window', e.target.value)}
                                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     >
-                                        {['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'].map(a => (
-                                            <option key={a} value={a}>{a}</option>
+                                        {availabilityOptions.map(option => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
                                         ))}
                                     </select>
                                 </div>
