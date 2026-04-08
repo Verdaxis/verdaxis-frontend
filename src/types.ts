@@ -90,6 +90,16 @@ export interface InventoryItem {
     incomingStock: number;
     pricePerMt: number;
     status: 'Available' | 'Low Stock' | 'Out of Stock';
+    certification_declared?: boolean;
+    certification_scheme?: string | null;
+    specification_standard?: string | null;
+    msds_available?: boolean;
+    carbon_intensity_gco2_mj?: number | null;
+    carbon_intensity_method?: string | null;
+    feedstock?: string | null;
+    origin?: string | null;
+    off_spec?: boolean;
+    off_spec_notes?: string | null;
 }
 
 export interface TraceEvent {
@@ -153,7 +163,7 @@ export interface DeliveryPoint {
 }
 
 // ============== Order Marketplace Types ==============
-export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
+export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'E' | 'Synthetic';
 export type AvailabilityWindow = string; // Canonical API codes: SPOT, YYYY-MM, YYYY-QN, and legacy YYYY-CAL
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
@@ -184,8 +194,17 @@ export interface OrderBookOrder {
     price_per_mt_usd: number;
     availability_window: AvailabilityWindow;
     certifications: string[];
+    certification_declared?: boolean;
+    certification_scheme?: string | null;
+    specification_standard?: string | null;
+    msds_available?: boolean;
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;
+    carbon_intensity_method?: string | null;
+    feedstock?: string | null;
+    origin?: string | null;
+    off_spec?: boolean;
+    off_spec_notes?: string | null;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
