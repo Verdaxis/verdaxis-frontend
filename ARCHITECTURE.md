@@ -154,6 +154,10 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 but mandatory, with `Spot` as the default. Relative labels like `M+1` are display-only and
 must resolve to canonical month/quarter codes before requests are sent.
 
+**Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
+`AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
+while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
+
 ## Entry Points
 
 - **App bootstrap:** `index.html` -> `src/index.tsx` -> `src/App.tsx`

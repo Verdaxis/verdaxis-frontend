@@ -30,8 +30,9 @@ describe('EducationPage', () => {
     expect(screen.getByText('How Scope 3 Emissions Are Claimed Safely')).toBeTruthy();
     expect(screen.getByText(/Energy Content Matters/)).toBeTruthy();
     expect(screen.getByText('FuelEU Maritime: What Fuel Buyers Need to Know')).toBeTruthy();
-    // Should have 6 "Read article" links
-    const readLinks = screen.getAllByText(/Read article/);
+    const readLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.startsWith('/education/'));
     expect(readLinks.length).toBe(6);
   });
 

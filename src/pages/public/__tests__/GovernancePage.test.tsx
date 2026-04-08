@@ -67,5 +67,6 @@ describe('GovernancePage', () => {
     expect(screen.getByText(/fuel production advisor/i)).toBeTruthy();
     expect(screen.getByText(/financial compliance advisor/i)).toBeTruthy();
     expect(screen.getByText(/interested in joining our advisory board/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /contact us/i }).getAttribute('href')).toBe('mailto:governance@verdaxis.exchange');
   });
 });

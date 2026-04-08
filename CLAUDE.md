@@ -17,7 +17,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
 - **AI Copilot:** Google Gemini (`@google/genai`) with tool-calling for fleet/procurement queries
-- **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
+- **Auth:** Access JWT stored in in-memory state, refresh token stored in an HttpOnly `/api/auth` cookie, validated via `/api/auth/refresh` and `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
 - **Linting:** No ESLint configuration present. Consider adding one for consistency.
 
@@ -37,7 +37,7 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, directOrders, inventory, listings, orders, notifications, training).
-- **Auth:** Every request includes `Authorization: Bearer <token>` from `localStorage`.
+- **Auth:** Authenticated requests include `Authorization: Bearer <token>` from the in-memory token store. Session restoration happens by calling `/api/auth/refresh` with cookie credentials.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 

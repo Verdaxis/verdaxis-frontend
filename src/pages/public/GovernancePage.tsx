@@ -119,26 +119,26 @@ export const GovernancePage: React.FC = () => {
   const structuralRoles = [
     {
       icon: Server,
-      title: t('governance.roles.items.0.title'),
-      description: t('governance.roles.items.0.description'),
+      title: t('governance.structuralRoles.items.0.title'),
+      description: t('governance.structuralRoles.items.0.description'),
     },
     {
       icon: Users,
-      title: t('governance.roles.items.1.title'),
-      description: t('governance.roles.items.1.description'),
+      title: t('governance.structuralRoles.items.1.title'),
+      description: t('governance.structuralRoles.items.1.description'),
     },
     {
       icon: BadgeCheck,
-      title: t('governance.roles.items.2.title'),
-      description: t('governance.roles.items.2.description'),
+      title: t('governance.structuralRoles.items.2.title'),
+      description: t('governance.structuralRoles.items.2.description'),
     },
   ];
 
   const dataNeutralityStatements = [
-    t('governance.dataNeutrality.statements.0'),
-    t('governance.dataNeutrality.statements.1'),
-    t('governance.dataNeutrality.statements.2'),
-    t('governance.dataNeutrality.statements.3'),
+    t('governance.dataNeutrality.points.0'),
+    t('governance.dataNeutrality.points.1'),
+    t('governance.dataNeutrality.points.2'),
+    t('governance.dataNeutrality.points.3'),
   ];
 
   const conflictOfInterestPoints = [
@@ -265,10 +265,10 @@ export const GovernancePage: React.FC = () => {
       {/* ---- Section 3: Structural Separation ---- */}
       <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <Reveal>
-          <h2 style={sectionTitle}>{t('governance.roles.title')}</h2>
+          <h2 style={sectionTitle}>{t('governance.structuralRoles.title')}</h2>
         </Reveal>
         <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>{t('governance.roles.subtitle')}</p>
+          <p style={sectionSubtitle}>{t('governance.structuralRoles.subtitle')}</p>
         </Reveal>
 
         <StaggerGrid
@@ -523,7 +523,7 @@ export const GovernancePage: React.FC = () => {
 
           <Reveal>
             <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.7 }}>
-              {t('governance.advisoryBoard.joinText')}{' '}
+              {t('governance.advisoryBoard.interestedText')}{' '}
               <a
                 href="mailto:governance@verdaxis.exchange"
                 style={{
@@ -532,7 +532,7 @@ export const GovernancePage: React.FC = () => {
                   textDecoration: 'underline',
                 }}
               >
-                {t('governance.advisoryBoard.contactLink')}
+                {t('governance.advisoryBoard.contactUs')}
               </a>
             </p>
           </Reveal>

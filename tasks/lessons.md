@@ -43,3 +43,8 @@
 - **Trigger:** Stale `AI_README.md` context still existed despite the repo using `CLAUDE.md` and `.codesight` as the active bootstrap path.
 - **Rule:** Delete obsolete AI guidance files and keep the active agent instructions centralized in `CLAUDE.md`, `ARCHITECTURE.md`, and `.codesight`.
 - **Why:** Duplicate AI docs create conflicting guidance and make repo context less reliable.
+
+- **Date:** 2026-04-08
+- **Trigger:** Staging deployment was initially treated as runtime-only while the user wanted all approved branch changes merged into staging first.
+- **Rule:** Consolidate approved frontend branches into `origin/staging` before building and publishing staging assets.
+- **Why:** Runtime-only deploys without branch consolidation leave staging behavior inconsistent with approved git history.

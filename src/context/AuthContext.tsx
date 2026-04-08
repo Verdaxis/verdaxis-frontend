@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
+import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 
@@ -42,14 +43,13 @@ const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    const [token, setToken] = useState<string | null>(getAccessToken());
     const [isLoading, setIsLoading] = useState(true);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const clearTokens = useCallback(() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refresh_token');
+        clearAccessToken();
         sessionStorage.removeItem('verdaxis_currentPage');
         sessionStorage.removeItem('verdaxis_viewMode');
         setToken(null);
@@ -58,7 +58,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     }, []);
 
+    const applyAccessToken = useCallback((nextToken: string) => {
+        setAccessToken(nextToken);
+        setToken(nextToken);
+    }, []);
+
     const logout = useCallback(() => {
+        void fetch(`${API_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+        }).catch(() => undefined);
         clearTokens();
     }, [clearTokens]);
 
@@ -73,21 +82,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const refreshIn = Math.max(msUntilExpiry - REFRESH_BUFFER_MS, 1000);
 
         refreshTimerRef.current = setTimeout(async () => {
-            const rt = localStorage.getItem('refresh_token');
-            if (!rt) { logout(); return; }
-
             try {
                 const res = await fetch(`${API_URL}/auth/refresh`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ refresh_token: rt }),
+                    credentials: 'include',
+                    body: JSON.stringify({}),
                 });
 
                 if (res.ok) {
                     const data = await res.json();
-                    localStorage.setItem('token', data.access_token);
-                    if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
-                    setToken(data.access_token);
+                    applyAccessToken(data.access_token);
                     scheduleRefresh(data.access_token);
                 } else {
                     logout();
@@ -96,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 logout();
             }
         }, refreshIn);
-    }, [logout]);
+    }, [applyAccessToken, logout]);
 
     // --- Idle timeout ---
     const resetIdleTimer = useCallback(() => {
@@ -120,9 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // --- Login ---
     const login = useCallback(async (accessToken: string, refreshToken?: string) => {
-        localStorage.setItem('token', accessToken);
-        if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
-        setToken(accessToken);
+        void refreshToken;
+        applyAccessToken(accessToken);
         scheduleRefresh(accessToken);
         // Fetch user profile so isAuthenticated becomes true immediately
         try {
@@ -133,13 +137,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(await res.json());
             }
         } catch { /* checkAuth will retry on next mount */ }
-    }, [scheduleRefresh]);
+    }, [applyAccessToken, scheduleRefresh]);
 
     // --- Check auth on mount / token change ---
     const checkAuth = useCallback(async () => {
-        const currentToken = localStorage.getItem('token');
+        const currentToken = getAccessToken();
         if (!currentToken) {
-            setIsLoading(false);
+            try {
+                const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({}),
+                });
+                if (!refreshRes.ok) {
+                    clearTokens();
+                    return;
+                }
+
+                const data = await refreshRes.json();
+                applyAccessToken(data.access_token);
+                scheduleRefresh(data.access_token);
+
+                const userRes = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${data.access_token}` },
+                });
+                if (userRes.ok) {
+                    setUser(await userRes.json());
+                } else {
+                    clearTokens();
+                }
+            } catch (err) {
+                console.error('Error refreshing auth session:', err);
+                clearTokens();
+            } finally {
+                setIsLoading(false);
+            }
             return;
         }
 
@@ -154,28 +187,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 scheduleRefresh(currentToken);
             } else if (res.status === 401) {
                 // Try refresh before giving up
-                const rt = localStorage.getItem('refresh_token');
-                if (rt) {
-                    const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refresh_token: rt }),
+                const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({}),
+                });
+                if (refreshRes.ok) {
+                    const data = await refreshRes.json();
+                    applyAccessToken(data.access_token);
+                    const userRes = await fetch(`${API_URL}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${data.access_token}` },
                     });
-                    if (refreshRes.ok) {
-                        const data = await refreshRes.json();
-                        localStorage.setItem('token', data.access_token);
-                        if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
-                        setToken(data.access_token);
-                        // Re-fetch user with new token
-                        const userRes = await fetch(`${API_URL}/auth/me`, {
-                            headers: { 'Authorization': `Bearer ${data.access_token}` },
-                        });
-                        if (userRes.ok) {
-                            setUser(await userRes.json());
-                            scheduleRefresh(data.access_token);
-                        } else {
-                            clearTokens();
-                        }
+                    if (userRes.ok) {
+                        setUser(await userRes.json());
+                        scheduleRefresh(data.access_token);
                     } else {
                         clearTokens();
                     }
@@ -185,13 +211,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } catch (err) {
             console.error('Error fetching user profile:', err);
+            clearTokens();
         } finally {
             setIsLoading(false);
         }
-    }, [scheduleRefresh, clearTokens]);
+    }, [applyAccessToken, scheduleRefresh, clearTokens]);
 
     // Capture tokens from OAuth redirect URL params
     useEffect(() => {
+        if (typeof window === 'undefined') {
+            setIsLoading(false);
+            return;
+        }
         const params = new URLSearchParams(window.location.search);
         const urlToken = params.get('token');
         const urlRefresh = params.get('refresh');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { getAccessToken } from '../services/authToken';
 import { useNamespace } from '../hooks/useNamespace';
 
 interface FeedEvent {
@@ -60,7 +61,7 @@ export const ActivityFeed: React.FC = () => {
     const [, setTick] = useState(0);
 
     const connect = useCallback(() => {
-        const token = localStorage.getItem('token');
+        const token = getAccessToken();
         const url = token
             ? `${API_URL}/stream/activity?token=${encodeURIComponent(token)}`
             : `${API_URL}/stream/activity`;

@@ -1,5 +1,6 @@
 import { AI_ENABLED, AI_ENDPOINT } from "./config";
 import { API_URL } from "../config";
+import { getAccessToken } from "../authToken";
 
 export const SYSTEM_INSTRUCTION = `You are 'Verdaxis Copilot', an intelligent maritime agent connected to a live database and the internet.
 Your role is to assist with fuel procurement, compliance, and fleet tracking.
@@ -28,13 +29,17 @@ export const chatWithCopilot = async (
     }
 
     try {
-        const token = localStorage.getItem('token');
+        const token = getAccessToken();
         const response = await fetch(`${API_URL}${AI_ENDPOINT}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
-            },
+            headers: token
+                ? {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                }
+                : {
+                    'Content-Type': 'application/json',
+                },
             body: JSON.stringify({
                 message,
                 history: history.map(h => ({ role: h.role, text: h.text })),

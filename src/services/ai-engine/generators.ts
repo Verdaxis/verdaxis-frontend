@@ -1,6 +1,7 @@
 import { Port, RiskProfile, MarketWatchItem } from "../../types";
 import { getCachedData, setCachedData } from "./cache";
 import { API_URL } from "../config";
+import { getAccessToken } from "../authToken";
 
 // All AI generation now goes through the backend proxy.
 // These functions provide mock fallback data for immediate UI rendering.
@@ -26,13 +27,17 @@ const REFERENCE_MARKET_DATA: MarketWatchItem[] = [
 // Helper for backend AI proxy calls
 const callAiProxy = async (message: string): Promise<string | null> => {
     try {
-        const token = localStorage.getItem('token');
+        const token = getAccessToken();
         const res = await fetch(`${API_URL}/ai/chat`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
-            },
+            headers: token
+                ? {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                }
+                : {
+                    'Content-Type': 'application/json',
+                },
             body: JSON.stringify({ message, history: [] }),
         });
         if (!res.ok) return null;

@@ -31,7 +31,6 @@ describe('RoadmapPage', () => {
 
   it('highlights Phase 1 as current', () => {
     renderWithRouter(<RoadmapPage />);
-    // CURRENT badge appears in both desktop and mobile views
     expect(screen.getAllByText('CURRENT').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -61,7 +60,7 @@ describe('RoadmapPage', () => {
     expect(screen.getAllByText(/green financing module/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders design principles', () => {
+  it('renders how-we-build principles', () => {
     renderWithRouter(<RoadmapPage />);
     expect(screen.getByText('How We Build')).toBeTruthy();
     expect(screen.getByText('Integrity First')).toBeTruthy();

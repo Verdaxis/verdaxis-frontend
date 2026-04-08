@@ -141,9 +141,9 @@ export const LandingPage: React.FC = () => {
   ];
 
   const howSteps = [
-    { num: '01', icon: ClipboardCheck, title: t('landing.how.steps.0.title'), body: t('landing.how.steps.0.body') },
-    { num: '02', icon: ShieldCheck, title: t('landing.how.steps.1.title'), body: t('landing.how.steps.1.body') },
-    { num: '03', icon: BarChart3, title: t('landing.how.steps.2.title'), body: t('landing.how.steps.2.body') },
+    { num: '01', stepLabel: t('landing.how.steps.0.step'), icon: ClipboardCheck, title: t('landing.how.steps.0.title'), body: t('landing.how.steps.0.body') },
+    { num: '02', stepLabel: t('landing.how.steps.1.step'), icon: ShieldCheck, title: t('landing.how.steps.1.title'), body: t('landing.how.steps.1.body') },
+    { num: '03', stepLabel: t('landing.how.steps.2.step'), icon: BarChart3, title: t('landing.how.steps.2.title'), body: t('landing.how.steps.2.body') },
   ];
 
   const roleCards = [
@@ -424,7 +424,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Step cards */}
-          {howSteps.map(({ num, icon: Icon, title, body }) => (
+          {howSteps.map(({ num, stepLabel, icon: Icon, title, body }) => (
             <div
               key={num}
               style={{
@@ -467,7 +467,7 @@ export const LandingPage: React.FC = () => {
                     marginBottom: 10,
                   }}
                 >
-                  {t('landing.how.stepLabel')} {num}
+                  {stepLabel} {num}
                 </div>
                 <h3
                   style={{
@@ -499,14 +499,14 @@ export const LandingPage: React.FC = () => {
             </h2>
           </div>
           <div style={{ maxWidth: 500, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {howSteps.map(({ num, icon: Icon, title, body }) => (
+            {howSteps.map(({ num, stepLabel, icon: Icon, title, body }) => (
               <div key={num} style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14, padding: 28 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                   <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(76,175,80,0.08)', border: '2px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon size={20} color="#4CAF50" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{t('landing.how.stepLabel')} {num}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{stepLabel} {num}</div>
                     <h3 style={{ fontFamily: '"Montserrat", sans-serif', fontSize: 17, fontWeight: 700, color: '#0F172A' }}>{title}</h3>
                   </div>
                 </div>
