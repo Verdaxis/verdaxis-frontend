@@ -16,7 +16,7 @@ import {
     ExternalLink,
     BarChart3,
     Plus,
-    RadioTower,
+    Star,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
@@ -56,17 +56,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const sidebarItems = viewMode === 'BUYER' ? [
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
-        { id: 'MAP', label: 'Market Intelligence', icon: MapIcon },
+        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: RadioTower },
+        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'DATA_ANALYTICS', label: 'Data & Analytics', icon: BarChart3 },
         { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
     ] : [
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
+        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: RadioTower },
+        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
         { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
     ];

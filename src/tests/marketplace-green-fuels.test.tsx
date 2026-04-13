@@ -26,7 +26,7 @@ vi.mock('../hooks/useWatchlist', () => ({
   useWatchlist: () => ({
     radar: {
       id: 'radar-1',
-      name: 'Market Radar',
+      name: 'Watchlist',
       kind: 'RADAR_DEFAULT',
       unread_event_count: 0,
       slices: [],
@@ -108,7 +108,7 @@ describe('Marketplace green fuels surface', () => {
 
     expect(screen.queryByText('Biofuel')).toBeNull();
     expect(screen.queryByText('Ammonia')).toBeNull();
-    expect(screen.getByRole('button', { name: /tracked/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /saved/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /pinned/i })).toBeTruthy();
   });
 });

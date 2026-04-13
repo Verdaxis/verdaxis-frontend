@@ -9,7 +9,7 @@ vi.mock('../hooks/useWatchlist', () => ({
   useWatchlist: () => ({
     radar: {
       id: 'radar-1',
-      name: 'Market Radar',
+      name: 'Watchlist',
       kind: 'RADAR_DEFAULT',
       unread_event_count: 2,
       latest_event_at: new Date().toISOString(),
@@ -93,9 +93,9 @@ describe('WatchlistPage', () => {
   it('renders market slices, pinned orders, and event feed', () => {
     renderWithProviders(<WatchlistPage />);
 
-    expect(screen.getByText(/Market Radar/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Everything you starred, in one place\./i })).toBeTruthy();
     expect(screen.getAllByText(/Bio Methanol · Singapore · Spot/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/No watchlist events yet/i)).toBeNull();
+    expect(screen.queryByText(/No Watchlist activity yet/i)).toBeNull();
     expect(screen.getAllByText(/Pinned order partially filled/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /mark read/i }).length).toBeGreaterThan(0);
   });

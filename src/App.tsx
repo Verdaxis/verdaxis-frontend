@@ -196,6 +196,8 @@ const Dashboard: React.FC = () => {
 
     if (viewMode === 'SUPPLIER') {
         switch (currentPage) {
+            case 'MAP':
+                return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
             case 'DASHBOARD':
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':

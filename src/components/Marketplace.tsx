@@ -16,7 +16,7 @@ import {
     ClipboardList,
     Trash2,
     Pin,
-    RadioTower,
+    Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -500,10 +500,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             });
                                         }}
                                         aria-pressed={isTracked}
-                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isTracked ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 text-slate-500 hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300'}`}
+                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
                                     >
-                                        <RadioTower size={12} />
-                                        {isTracked ? 'Tracked' : 'Track slice'}
+                                        <Star size={12} fill={isTracked ? 'currentColor' : 'none'} />
+                                        {isTracked ? 'Saved' : 'Watchlist'}
                                     </button>
                                     <button
                                         onClick={async (e) => {

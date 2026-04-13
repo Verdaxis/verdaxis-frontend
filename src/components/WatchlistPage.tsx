@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BellDot, Loader2, Pin, RadioTower, Trash2 } from 'lucide-react';
+import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
 
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget } from '../utils/watchlist';
@@ -32,7 +32,7 @@ export const WatchlistPage: React.FC = () => {
             <div className="flex h-full items-center justify-center">
                 <div className="flex items-center gap-3 text-slate-400">
                     <Loader2 size={24} className="animate-spin" />
-                    <span className="font-medium">Loading Market Radar...</span>
+                    <span className="font-medium">Loading Watchlist...</span>
                 </div>
             </div>
         );
@@ -43,13 +43,13 @@ export const WatchlistPage: React.FC = () => {
             <div className="mx-auto max-w-6xl space-y-6">
                 <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
-                        <RadioTower size={14} />
-                        Market Radar
+                        <Star size={14} />
+                        Watchlist
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Watch market slices, not just rows.</h1>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Everything you starred, in one place.</h1>
                         <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-                            Verdaxis tracks persistent market pockets and lets you pin specific live orders inside them. The slice stays stable even when individual listings churn.
+                            Star a market slice or pin a specific live order from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact rows you care about in one view.
                         </p>
                     </div>
                     {radar && (
@@ -104,7 +104,7 @@ export const WatchlistPage: React.FC = () => {
                                 </div>
 
                                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
-                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No radar signals have landed for this slice yet.'}
+                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No Watchlist signals have landed for this slice yet.'}
                                 </div>
 
                                 <div className="mt-4 space-y-2">
@@ -158,7 +158,7 @@ export const WatchlistPage: React.FC = () => {
                     <div className="space-y-3">
                         {events.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                No watchlist events yet. Track a slice or pin an order from Marketplace to start the feed.
+                                No Watchlist activity yet. Star a slice or pin an order from Marketplace to start the feed.
                             </div>
                         ) : (
                             events.map((event) => (

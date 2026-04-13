@@ -43,7 +43,7 @@ export function useWatchlist(): UseWatchlistResult {
             setEvents(page.items);
             setNextCursor(page.next_cursor ?? null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load Market Radar');
+            setError(err instanceof Error ? err.message : 'Failed to load Watchlist');
         } finally {
             setLoading(false);
         }

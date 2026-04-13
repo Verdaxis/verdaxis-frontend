@@ -63,3 +63,13 @@
 - **Trigger:** A marketplace redesign left the watchlist star and watchlist page reachable even though the feature was no longer part of the approved demo flow.
 - **Rule:** When a demo feature is deferred or removed, disable every reachable UI entry point and stale saved-navigation state in the same change.
 - **Why:** Partial removals leave broken controls in production and create avoidable user-facing regressions.
+### Keep the order model symmetric until market feedback proves otherwise
+- **Date:** 2026-04-13
+- **Trigger:** I started drifting toward asymmetric supplier-vs-buyer listing semantics before the team had aligned on whether Verdaxis should encode that behavior in the product.
+- **Rule:** Unless the team explicitly decides otherwise, keep the core orderbook model symmetric and treat supplier/buyer behavioral differences as user behavior, not engine rules.
+- **Why:** Prematurely encoding asymmetry complicates the market model and reinvents behavior the team wants to validate with real feedback first.
+### Prefer user language over invented feature branding
+- **Date:** 2026-04-13
+- **Trigger:** I shipped the new watchlist as `Market Radar` / `Market Intelligence` style branding when the simpler user mental model was just `Watchlist`, and the map label also drifted from the requested `Intelligence Map`.
+- **Rule:** Default to the user's plain product vocabulary for core navigation and saved-item flows unless a separate naming decision is explicitly approved.
+- **Why:** Custom branding obscures the interaction model and makes simple features harder to discover.
