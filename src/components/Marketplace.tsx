@@ -66,7 +66,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
         fetchOrders: api.orderbook.listAsksPaged,
         subtitleKey: 'marketplace.subtitle.buyer',
         primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
-        counterAction: { labelKey: 'marketplace.btn.inquire' },
+        counterAction: { labelKey: 'marketplace.btn.hitAsk' },
         columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
@@ -384,11 +384,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const confirmTrade = async () => {
         if (!selectedOrder || tradeState === 'submitting') return;
+        const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
+        if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
+            setTradeError('Enter a valid quantity within the remaining amount.');
+            setTradeState('error');
+            return;
+        }
         setTradeState('submitting');
         try {
             await api.trades.initiate({
                 order_id: selectedOrder.id,
-                quantity_mt: tradeQuantity || selectedOrder.quantity_mt,
+                quantity_mt: normalizedTradeQuantity,
             });
             setTradeState('success');
             // Auto-close after 2s and refresh
@@ -438,7 +444,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                            {order.certification_declared ? 'Certified' : 'Pending cert'}
+                            {order.certification_declared ? 'Declared cert' : 'Cert missing'}
                         </span>
                     </td>
                 );
@@ -501,13 +507,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 );
             }
             case 'action': {
-                const isOpen = order.status === 'OPEN';
+                const isExecutable = order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED';
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
                         <div className="flex flex-col items-start gap-2">
-                            {isOpen ? (
+                            {isExecutable ? (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
@@ -533,7 +539,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
                                 >
                                     <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? 'Saved' : 'Save listing'}
+                                    {isPinned ? 'Pinned' : 'Pin order'}
                                 </button>
                             )}
                         </div>
@@ -596,7 +602,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
                             >
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
-                                <span>{isCurrentSliceTracked ? 'Saved slice' : 'Save slice'}</span>
+                                <span>{isCurrentSliceTracked ? 'Watching slice' : 'Watch slice'}</span>
                             </button>
                         </div>
                     </div>
@@ -729,7 +735,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     {/* Result count + live badge */}
                     <div className="flex items-center gap-3 mb-3">
                         <span className="bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                            {totalCount.toLocaleString()} listing{totalCount !== 1 ? 's' : ''}
+                            {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
                             <span className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                 <span className="text-[10px] text-slate-400">LIVE &middot; 60s</span>
@@ -985,7 +991,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <CheckCircle2 size={28} className="text-white" />
                                     </div>
                                 </div>
-                                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1">Trade Executed</h3>
+                                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1">{t('marketplace.modal.tradeInitiated')}</h3>
                                 {selectedOrder && (
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1015,7 +1021,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     </div>
                                 )}
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-                                    Executed at the maker&apos;s listed price. View in Trade History.
+                                    {role === 'BUYER' ? t('marketplace.modal.tradeInitiated.buyer') : t('marketplace.modal.tradeInitiated.supplier')}
                                 </p>
                             </div>
                         ) : tradeState === 'error' ? (
@@ -1078,7 +1084,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                value={tradeQuantity}
+                                                value={Number.isFinite(tradeQuantity) ? tradeQuantity : ''}
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
                                                 max={selectedOrder.remaining_quantity_mt}
                                                 min={1}
@@ -1088,7 +1094,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
                                             {t('marketplace.modal.maxAvailable')} {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
-                                            {tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
+                                            {Number.isFinite(tradeQuantity) && tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
                                                     {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
                                                 </span>
@@ -1107,7 +1113,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     </button>
                                     <button
                                         onClick={confirmTrade}
-                                        disabled={tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                        disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}

@@ -50,6 +50,30 @@ git commit -m "docs: add qualified executable orderbook design"
 
 ---
 
+### Task 1.5: Close the architecture review gaps before feature rollout
+
+**Files:**
+- Modify: `be/app/routers/trades.py`
+- Modify: `be/app/services/watchlist_events.py`
+- Modify: `be/app/services/matchmaking.py`
+- Modify: `be/app/routers/orderbook.py`
+- Modify: `be/app/seeds/market_seed.py`
+- Test: `be/tests/integration/test_trades.py`
+- Test: `be/tests/unit/test_watchlist_events.py`
+- Test: `be/tests/unit/test_matchmaking_service.py`
+- Test: `be/tests/unit/test_orderbook_marketplace_filters.py`
+- Test: `be/tests/unit/test_market_seed.py`
+
+**Purpose:** Land the four review-blocking fixes first so the rest of the rollout builds on aligned runtime behavior.
+
+**Blocking requirements:**
+- trade execution and decline must emit watchlist updates
+- certification mismatch must be rejected in matchmaking and execution
+- off-spec must be excluded from default executable views
+- seeded executable asks must carry certification metadata
+
+---
+
 ### Task 2: Add a shared field-role policy on the backend
 
 **Files:**

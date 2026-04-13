@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate, WatchlistSummary, WatchlistEventsPage, WatchlistTarget, MarketProduct } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate, WatchlistSummary, WatchlistEventsPage, WatchlistTarget, MarketProduct, OrderSide, OrderBookOrder } from '../types';
 import { API_URL } from './config';
 import { getAccessToken } from './authToken';
 
@@ -323,7 +323,7 @@ export const api = {
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
-        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -334,7 +334,7 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<OrderBookOrder>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -345,7 +345,7 @@ export const api = {
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
         },
         // Backward-compatible: returns array
-        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -356,7 +356,7 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<OrderBookOrder>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -373,9 +373,9 @@ export const api = {
             return fetchApi('/orderbook/my/latest-ask-template', { headers: getHeaders() });
         },
         create: async (data: {
-            side: string;
+            side: OrderSide;
             product_id: string;
-            delivery_point_id?: string;
+            delivery_point_id: string;
             quantity_mt: number;
             price_per_mt_usd: number;
             availability_window: string;
@@ -383,7 +383,7 @@ export const api = {
             expires_at?: string;
             certifications?: string[];
             certification_declared?: boolean;
-            certification_scheme?: string | null;
+            certification_scheme: string;
             specification_standard?: string | null;
             msds_available?: boolean;
             carbon_intensity_gco2_mj?: number | null;
@@ -600,7 +600,7 @@ export const api = {
         },
         create: async (data: {
             product_id: string;
-            delivery_point_id?: string;
+            delivery_point_id: string;
             direction: 'above' | 'below';
             threshold_usd: number;
         }): Promise<import('../types').PriceAlert> => {

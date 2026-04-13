@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
 
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget } from '../utils/watchlist';
 
 export const WatchlistPage: React.FC = () => {
+    const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
     const {
         radar,
         events,
@@ -27,6 +28,16 @@ export const WatchlistPage: React.FC = () => {
         return labels;
     }, [radar]);
 
+    const handleRemoveTarget = async (targetId: string, label: string) => {
+        if (!window.confirm(`Remove ${label} from Watchlist?`)) return;
+        setPendingRemovalId(targetId);
+        try {
+            await removeTarget(targetId);
+        } finally {
+            setPendingRemovalId((current) => (current === targetId ? null : current));
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center">
@@ -47,25 +58,30 @@ export const WatchlistPage: React.FC = () => {
                         Watchlist
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Everything you starred, in one place.</h1>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Everything you are watching, in one place.</h1>
                         <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-                            Save a current market slice or save a specific live listing from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact rows you care about in one view.
+                            Track a market slice or pin a specific live order from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact executable rows you care about in one view.
                         </p>
                     </div>
                     {radar && (
                         <div className="grid gap-3 sm:grid-cols-3">
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Tracked slices</div>
-                                <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.length}</div>
+                                <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.total_slice_count}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
                                 <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Unread events</div>
                                 <div className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">{radar.unread_event_count}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Saved listings</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Pinned orders</div>
                                 <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.reduce((count, slice) => count + slice.pins.length, 0)}</div>
                             </div>
+                        </div>
+                    )}
+                    {radar?.has_more_slices && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                            Showing the top {radar.slices.length} of {radar.total_slice_count} tracked slices. Refine the list if this grows further.
                         </div>
                     )}
                 </header>
@@ -95,11 +111,12 @@ export const WatchlistPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => removeTarget(slice.id)}
+                                        onClick={() => handleRemoveTarget(slice.id, formatWatchlistSliceLabel(slice))}
+                                        disabled={pendingRemovalId === slice.id}
                                         className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
                                     >
                                         <Trash2 size={14} />
-                                        Untrack
+                                        {pendingRemovalId === slice.id ? "Removing..." : "Untrack"}
                                     </button>
                                 </div>
 
@@ -110,7 +127,7 @@ export const WatchlistPage: React.FC = () => {
                                 <div className="mt-4 space-y-2">
                                     {slice.pins.length === 0 ? (
                                         <div className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                            No saved live listings in this slice yet.
+                                            No pinned live orders in this slice yet.
                                         </div>
                                     ) : (
                                         slice.pins.map((pinTarget) => {
@@ -121,7 +138,7 @@ export const WatchlistPage: React.FC = () => {
                                                         <div>
                                                             <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
                                                                 <Pin size={14} className="text-emerald-500" />
-                                                                {pinTarget.snapshot_market_product || 'Saved listing'}
+                                                                {pinTarget.snapshot_market_product || 'Pinned order'}
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                                                 {pinTarget.snapshot_delivery_point_name || slice.delivery_point_name} · {pinTarget.snapshot_availability_window || slice.availability_window_code}
@@ -131,14 +148,15 @@ export const WatchlistPage: React.FC = () => {
                                                             </div>
                                                         </div>
                                                         <button
-                                                            onClick={() => removeTarget(pinTarget.id)}
+                                                            onClick={() => handleRemoveTarget(pinTarget.id, pinTarget.snapshot_market_product || "pinned order")}
+                                                            disabled={pendingRemovalId === pinTarget.id}
                                                             className="text-xs font-semibold text-slate-500 transition-colors hover:text-red-600"
                                                         >
-                                                            Unpin
+                                                            {pendingRemovalId === pinTarget.id ? "Removing..." : "Unpin"}
                                                         </button>
                                                     </div>
                                                     <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this saved listing.'}
+                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}
                                                     </div>
                                                 </div>
                                             );
@@ -158,7 +176,7 @@ export const WatchlistPage: React.FC = () => {
                     <div className="space-y-3">
                         {events.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                No Watchlist activity yet. Save a slice or listing from Marketplace to start the feed.
+                                No Watchlist activity yet. Track a slice or pin an order from Marketplace to start the feed.
                             </div>
                         ) : (
                             events.map((event) => (

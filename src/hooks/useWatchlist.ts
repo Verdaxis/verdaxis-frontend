@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../services/api';
-import type { WatchlistEvent, WatchlistSummary } from '../types';
+import type { MarketProduct, WatchlistEvent, WatchlistSummary } from '../types';
 import { getWatchlistSliceKey, getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 
 interface SliceToggleInput {
-    marketProductCode: string;
+    marketProductCode: MarketProduct;
     deliveryPointId: string;
     availabilityWindowCode: string;
 }

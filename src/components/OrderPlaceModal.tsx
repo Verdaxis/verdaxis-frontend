@@ -8,6 +8,7 @@ import {
     getAvailabilityWindowSummary,
 } from '../utils/availabilityWindow';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
+import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
 
 interface OrderPlaceModalProps {
@@ -25,6 +26,8 @@ interface OrderFormData {
     quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: string;
+    certification_scheme: string;
+    certification_declared: boolean;
     expiry_type: 'GTC' | 'date';
     expiry_date: string;
 }
@@ -36,7 +39,11 @@ const QUANTITY_PRESETS = [
     { label: '5,000 MT', value: 5_000 },
 ];
 
-import { api } from '../services/api';
+const CERTIFICATION_SCHEME_OPTIONS = [
+    { value: 'ISCC EU', label: 'ISCC EU', description: 'Renewable transport fuels certification' },
+    { value: 'ISCC PLUS', label: 'ISCC PLUS', description: 'Chain-of-custody for circular and bio-based feedstocks' },
+    { value: 'REDcert EU', label: 'REDcert EU', description: 'EU renewable fuels certification scheme' },
+];
 
 type ModalState = 'form' | 'submitting' | 'success' | 'auto_matched' | 'error';
 
@@ -60,6 +67,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         quantity_mt: 1_000,
         price_per_mt_usd: 0,
         availability_window: SPOT_WINDOW,
+        certification_scheme: CERTIFICATION_SCHEME_OPTIONS[0].value,
+        certification_declared: false,
         expiry_type: 'GTC',
         expiry_date: '',
     });
@@ -131,7 +140,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
         formData.quantity_mt > 0 &&
-        formData.price_per_mt_usd > 0;
+        formData.price_per_mt_usd > 0 &&
+        formData.certification_scheme.trim() !== '' &&
+        (side === 'BID' || formData.certification_declared);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -148,8 +159,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 quantity_mt: formData.quantity_mt,
                 price_per_mt_usd: formData.price_per_mt_usd,
                 availability_window: formData.availability_window,
+                certification_scheme: formData.certification_scheme.trim(),
                 is_anonymous: true,
             };
+            if (side === 'ASK') {
+                payload.certification_declared = formData.certification_declared;
+                payload.certifications = [formData.certification_scheme.trim()];
+            }
             if (formData.expiry_type === 'date' && formData.expiry_date) {
                 payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
             }
@@ -467,6 +483,38 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             {t('orderPlaceModal.helper.availability')}
                                         </p>
                                     </div>
+
+                                    <div>
+                                        <label className={labelClass}>{t('orderPlaceModal.label.certificationScheme')}</label>
+                                        <VerdaxisSelect
+                                            ariaLabel={t('orderPlaceModal.label.certificationScheme')}
+                                            value={formData.certification_scheme}
+                                            onChange={(value) => handleChange('certification_scheme', value)}
+                                            options={CERTIFICATION_SCHEME_OPTIONS}
+                                        />
+                                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                            {t('orderPlaceModal.helper.certificationScheme')}
+                                        </p>
+                                    </div>
+
+                                    {side === 'ASK' && (
+                                        <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.certification_declared}
+                                                onChange={(event) => handleChange('certification_declared', event.target.checked)}
+                                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+                                            />
+                                            <span>
+                                                <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                    {t('orderPlaceModal.label.certificationDeclared')}
+                                                </span>
+                                                <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                    {t('orderPlaceModal.helper.certificationDeclared')}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    )}
 
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>

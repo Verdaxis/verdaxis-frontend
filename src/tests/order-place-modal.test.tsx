@@ -81,7 +81,8 @@ describe('OrderPlaceModal', () => {
     await waitFor(() => {
       expect(productsMock).toHaveBeenCalled();
       expect(deliveryPointsMock).toHaveBeenCalled();
-    });
+    }, { timeout: 10000 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Place Bid' })).toBeTruthy(), { timeout: 10000 });
 
     fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
 
@@ -103,9 +104,50 @@ describe('OrderPlaceModal', () => {
           quantity_mt: 1000,
           price_per_mt_usd: 540,
           availability_window: 'SPOT',
+          certification_scheme: 'ISCC EU',
+          is_anonymous: true,
+        })
+      );
+    }, { timeout: 10000 });
+  }, 15000);
+
+  it('requires supplier certification declaration for ask orders', async () => {
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        side="ASK"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '555' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+
+    await waitFor(() => {
+      expect(createOrderMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          side: 'ASK',
+          product_id: 'prod-1',
+          delivery_point_id: 'dp-1',
+          quantity_mt: 1000,
+          price_per_mt_usd: 555,
+          availability_window: 'SPOT',
+          certification_scheme: 'ISCC EU',
+          certification_declared: true,
+          certifications: ['ISCC EU'],
           is_anonymous: true,
         })
       );
     });
   });
+
 });

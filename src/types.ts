@@ -524,6 +524,8 @@ export interface WatchlistSummary {
     kind: string;
     unread_event_count: number;
     latest_event_at?: string | null;
+    total_slice_count: number;
+    has_more_slices: boolean;
     slices: WatchlistSlice[];
     created_at: string;
 }

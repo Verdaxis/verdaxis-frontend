@@ -7,6 +7,23 @@
 
 ---
 
+
+## Review Amendments
+
+The design has been reviewed through system-architecture, API-contract, database-architecture, and frontend/design lenses.
+
+These implementation-critical amendments are now part of the approved design:
+
+- Trade-path order mutations must emit the same watchlist and slice-state events as orderbook-path mutations.
+- `certification_scheme` must be enforced as a hard execution qualifier in both hit validation and matchmaking suggestions.
+- Public executable-book views must exclude `off_spec` rows by default and only include them through explicit opt-in.
+- Seeded executable ASK rows must satisfy the same certification requirements as user-created executable rows.
+- Benchmarks and watchlist slice identity remain shallow and do not include `certification_scheme` in v1.
+
+These are not optional refinements. They are required to keep runtime behavior aligned with the approved market model.
+
+---
+
 ## Goal
 
 Restore Verdaxis as a transparent executable market rather than a pure listings board, while avoiding liquidity fragmentation from overly specific fuel attributes.

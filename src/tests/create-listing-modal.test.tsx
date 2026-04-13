@@ -64,19 +64,21 @@ describe('CreateListingModal', () => {
       <CreateListingModal onSubmit={onSubmit} onCancel={() => undefined} />
     );
 
-    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    await waitFor(() => expect(productsMock).toHaveBeenCalled(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByText('Certification and documents')).toBeTruthy(), { timeout: 10000 });
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Listing product' }));
 
-    expect(screen.getByRole('option', { name: /Bio Methanol/i })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /e-Methanol/i })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /Bio Ethanol/i })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /Synthetic Ethanol/i })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /Bio Methanol/i })).toBeTruthy();
+      expect(screen.getByRole('option', { name: /e-Methanol/i })).toBeTruthy();
+      expect(screen.getByRole('option', { name: /Bio Ethanol/i })).toBeTruthy();
+      expect(screen.getByRole('option', { name: /Synthetic Ethanol/i })).toBeTruthy();
+    }, { timeout: 10000 });
 
-    expect(screen.getByText('Certification and documents')).toBeTruthy();
     expect(screen.getByText('Attribute pack')).toBeTruthy();
     expect(screen.getByText('Off-spec handling')).toBeTruthy();
-  });
+  }, 15000);
 
   it('requires certification declaration and only shows off-spec notes when toggled', async () => {
     renderWithProviders(

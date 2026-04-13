@@ -93,7 +93,7 @@ describe('WatchlistPage', () => {
   it('renders market slices, pinned orders, and event feed', () => {
     renderWithProviders(<WatchlistPage />);
 
-    expect(screen.getByRole('heading', { name: /Everything you starred, in one place\./i })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Everything you are watching, in one place\./i })).toBeTruthy();
     expect(screen.getAllByText(/Bio Methanol · Singapore · Spot/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/No Watchlist activity yet/i)).toBeNull();
     expect(screen.getAllByText(/Pinned order partially filled/i).length).toBeGreaterThan(0);

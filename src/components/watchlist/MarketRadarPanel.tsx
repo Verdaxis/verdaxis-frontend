@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BellRing, Pin, Star } from 'lucide-react';
+import { ArrowRight, BellRing, Pin } from 'lucide-react';
 
 import type { WatchlistEvent, WatchlistSummary } from '../../types';
 import { describeWatchlistEvent, formatWatchlistSliceLabel, getLatestEventForSlice } from '../../utils/watchlist';
@@ -15,19 +15,19 @@ interface MarketRadarPanelProps {
 export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, events, loading = false, error = null, onOpenRadar }) => {
     const allSlices = radar?.slices ?? [];
     const slices = allSlices.slice(0, 3);
-    const hiddenCount = Math.max(allSlices.length - slices.length, 0);
+    const hiddenCount = Math.max((radar?.total_slice_count ?? allSlices.length) - slices.length, 0);
 
     return (
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                     <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                        <Star size={14} className="text-amber-500" />
+                        <BellRing size={14} className="text-emerald-500" />
                         Watchlist
                     </div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Saved market view</h2>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Watchlist summary</h2>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Star market slices and keep tactical pins on live orders without leaving the main flow.
+                        Track market slices and keep tactical pins on live orders without leaving the main orderbook flow.
                     </p>
                 </div>
                 <button
@@ -51,7 +51,7 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                 </div>
             ) : slices.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                    Star a slice from Marketplace to start building your Watchlist here.
+                    Track a slice from Marketplace to start building your Watchlist here.
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -64,7 +64,7 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                                     <div>
                                         <div className="text-sm font-bold text-slate-900 dark:text-white">{formatWatchlistSliceLabel(slice)}</div>
                                         <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            {slice.active_order_count} live orders
+                                            {slice.active_order_count} executable orders live in this slice
                                         </div>
                                     </div>
                                     {slice.unread_event_count > 0 && (
@@ -74,8 +74,7 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                                     )}
                                 </div>
                                 <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
-                                    <span className="inline-flex items-center gap-1"><BellRing size={12} /> {slice.active_order_count}</span>
-                                    <span className="inline-flex items-center gap-1"><Pin size={12} /> {slice.pins.length}</span>
+                                    <span className="inline-flex items-center gap-1"><Pin size={12} /> {slice.pins.length} pinned</span>
                                 </div>
                                 <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                                     {latestEvent ? describeWatchlistEvent(latestEvent) : 'No recent Watchlist activity for this slice.'}

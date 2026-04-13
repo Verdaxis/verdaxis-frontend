@@ -5,11 +5,12 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { listAsksPaged, myOrders, toggleSlice, togglePin } = vi.hoisted(() => ({
+const { listAsksPaged, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
   listAsksPaged: vi.fn(),
   myOrders: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
+  tradesInitiate: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -64,7 +65,7 @@ vi.mock('../services/api', () => ({
       myOrders,
     },
     trades: {
-      initiate: vi.fn(),
+      initiate: tradesInitiate,
     },
   },
 }));
@@ -107,6 +108,7 @@ describe('Marketplace green fuels surface', () => {
     myOrders.mockResolvedValue([]);
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
+    tradesInitiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
   });
 
   it('shows canonical market product chips instead of generic fuel families', async () => {
@@ -128,10 +130,10 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /saved/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /pinned/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /saved/i }));
+    fireEvent.click(screen.getByRole('button', { name: /pinned/i }));
 
     await waitFor(() => {
       expect(togglePin).toHaveBeenCalledWith('ask-1');
@@ -147,10 +149,10 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /saved slice/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /watching slice/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /saved slice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /watching slice/i }));
 
     await waitFor(() => {
       expect(toggleSlice).toHaveBeenCalledWith({
@@ -160,4 +162,29 @@ describe('Marketplace green fuels surface', () => {
       });
     });
   });
+
+  it('disables trade submission when the quantity input is invalid', async () => {
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /hit ask/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /hit ask/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /submit trade/i })).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByRole('spinbutton'), {
+      target: { value: 'abc' },
+    });
+
+    const submit = screen.getByRole('button', { name: /submit trade/i });
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(submit);
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
 });
