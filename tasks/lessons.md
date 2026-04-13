@@ -53,3 +53,8 @@
 - **Trigger:** The order modal reintroduced a user-facing anonymity toggle even though order identity should stay hidden until final confirmation.
 - **Rule:** Keep order placement anonymous by default and do not expose a pre-confirmation anonymity toggle in the modal.
 - **Why:** The demo trading flow treats anonymity as a fixed market rule until confirmation, not a per-order user choice.
+### Audit staging against actual marketplace surfaces
+- **Date:** 2026-04-13
+- **Trigger:** A follow-up audit missed that the live marketplace still exposed old orderbook framing and non-approved fuels in active UI/data paths.
+- **Rule:** After a redesign, verify the exact user-facing marketplace screens against live staging data and reachable alternate entry paths, not just the primary modal or happy path.
+- **Why:** Repo-level checks and partial UI inspection can miss stale seeded data and secondary components that still leak the old model.

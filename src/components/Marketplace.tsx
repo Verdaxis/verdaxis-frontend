@@ -13,7 +13,6 @@ import {
     Filter,
     AlertCircle,
     CheckCircle2,
-    Newspaper,
     Star,
     ClipboardList,
     Trash2,
@@ -24,10 +23,6 @@ import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow } from '../types';
 import { PORTS } from '../data';
-import { OrderBook } from './OrderBook';
-import { TradeTape } from './TradeTape';
-import { NewsFeed } from './NewsFeed';
-import { RFQPanel } from './RFQPanel';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
 import {
@@ -46,7 +41,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { getOrderDisplayName } from '../utils/marketProduct';
+import { getOrderDisplayName, normalizeProductDisplayName } from '../utils/marketProduct';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'star' | 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -83,7 +78,15 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 };
 
 // ─── Fuel chip options ────────────────────────────────────────────
-const FUEL_TYPES = ['All', 'Methanol', 'Biofuel', 'LNG', 'Ammonia', 'LSMGO'];
+const FUEL_TYPES = ['All', 'Methanol', 'Ethanol'];
+
+const getFuelFamily = (value: string | null | undefined): string => {
+    if (!value) return '';
+    const normalized = value.toLowerCase();
+    if (normalized.includes('methanol')) return 'Methanol';
+    if (normalized.includes('ethanol')) return 'Ethanol';
+    return '';
+};
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -122,16 +125,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         for (const wl of watchlists) {
             for (const entry of wl.entries ?? []) {
                 const key = `${entry.product_id}::${entry.delivery_point_id ?? ''}`;
-                if (!chips.find(c => c.key === key)) {
-                    chips.push({
-                        key,
-                        productId: entry.product_id,
-                        productName: entry.product_name || 'Unknown',
-                        fuelType: entry.product_name?.split(' ')[0] || 'Unknown',
-                        deliveryPointId: entry.delivery_point_id ?? undefined,
-                        deliveryPointName: entry.delivery_point_name ?? undefined,
-                    });
-                }
+                const productName = normalizeProductDisplayName(entry.product_name || 'Unknown');
+                const fuelType = getFuelFamily(productName);
+                if (!fuelType || chips.find(c => c.key === key)) continue;
+                chips.push({
+                    key,
+                    productId: entry.product_id,
+                    productName,
+                    fuelType,
+                    deliveryPointId: entry.delivery_point_id ?? undefined,
+                    deliveryPointName: entry.delivery_point_name ?? undefined,
+                });
             }
         }
         return chips;
@@ -198,7 +202,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'market' | 'listings' | 'my_orders'>('market');
+    const [marketTab, setMarketTab] = useState<'market' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
@@ -206,43 +210,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [tradeError, setTradeError] = useState('');
 
     // ─── News panel toggle ──────────────────────────────────────
-    const [showNews, setShowNews] = useState(false);
 
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
-    const [orderModalPrefillPrice, setOrderModalPrefillPrice] = useState<number | undefined>(undefined);
-
-    const handleOrderBookPriceClick = useCallback((side: 'BID' | 'ASK', price: number, clickedFuelType?: string) => {
-        setOrderModalSide(side);
-        setOrderModalPrefillPrice(price);
-    }, []);
-
-    // ─── Instant trade (Buy Now / Sell Now from order book) ─────
-    // Opens the existing trade confirmation modal pre-filled with order details
-    const handleInstantTrade = useCallback((orderId: string, _side: 'BID' | 'ASK', price: number, quantity: number) => {
-        // Find the matching order from current listings or build a minimal OrderBookOrder
-        const matchedOrder = listings.find(o => o.id === orderId);
-        const order: OrderBookOrder = matchedOrder || {
-            id: orderId,
-            side: _side === 'BID' ? 'ASK' : 'BID', // counter-side: if we're buying, the order is an ask
-            fuel_type: fuelType !== 'All' ? fuelType : '',
-            fuel_grade: 'Green' as const,
-            region: portInput || '',
-            quantity_mt: quantity,
-            remaining_quantity_mt: quantity,
-            price_per_mt_usd: price,
-            availability_window: SPOT_WINDOW,
-            certifications: [],
-            is_verdaxis_verified: false,
-            tier_label: 'INDEPENDENT' as const,
-            status: 'OPEN' as const,
-            created_at: new Date().toISOString(),
-        };
-        setSelectedOrder(order);
-        setTradeQuantity(quantity);
-        setTradeState('confirming');
-        setTradeError('');
-    }, [listings, fuelType, portInput]);
 
     // ─── Fuel counts for chips ────────────────────────────────────
     const fuelCounts = useMemo(() => {
@@ -658,8 +628,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     onClick={() => {
                                         if (chip.deliveryPointName) setPortInput(chip.deliveryPointName);
                                         const fuel = chip.fuelType;
-                                        const matchedFuel = FUEL_TYPES.find(ft => ft.toLowerCase() === fuel.toLowerCase());
-                                        if (matchedFuel) setFuelType(matchedFuel);
+                                        if (fuel) setFuelType(fuel);
                                     }}
                                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap flex-shrink-0 hover:shadow-sm active:scale-95 ${getFuelChipClasses(chip.fuelType)}`}
                                 >
@@ -820,19 +789,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </span>
                     </div>
 
-                    {/* Tab Switcher: Market | Listings | RFQ — fluid sliding indicator */}
+                    {/* Tab Switcher: Market | My Orders */}
                     <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
-                        {/* Sliding glass indicator */}
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
-                                left: marketTab === 'market' ? '2px' : marketTab === 'listings' ? 'calc(33.33%)' : 'calc(66.66%)',
-                                width: 'calc(33.33% - 2px)',
+                                left: marketTab === 'market' ? '2px' : 'calc(50%)',
+                                width: 'calc(50% - 2px)',
                             }}
                         />
                         <button
                             onClick={() => setMarketTab('market')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
                                 marketTab === 'market'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -841,18 +809,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             {t('marketplace.tab.market')}
                         </button>
                         <button
-                            onClick={() => setMarketTab('listings')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
-                                marketTab === 'listings'
-                                    ? 'text-slate-900 dark:text-white'
-                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                            }`}
-                        >
-                            {t('marketplace.tab.listings')}
-                        </button>
-                        <button
                             onClick={() => setMarketTab('my_orders')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
                                 marketTab === 'my_orders'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -886,60 +844,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
-
-            {/* Market tab: OrderBook + TradeTape side by side, full height */}
-            {marketTab === 'market' && (
-                <div className="md:flex-1 md:overflow-hidden px-4 lg:px-10 pb-6">
-                    {(!portInput || fuelType === 'All') ? (
-                        <div className="max-w-7xl mx-auto h-full flex items-center justify-center">
-                            <div className="text-center p-8">
-                                <div className="text-slate-400 dark:text-slate-500 mb-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">Select a port and fuel type</h3>
-                                <p className="text-sm text-slate-400 dark:text-slate-500 max-w-md">
-                                    The order book shows live bids and asks for a specific fuel at a specific port. Select a port above and filter by fuel type to view the order book.
-                                </p>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="max-w-[1600px] mx-auto h-full flex flex-col">
-                            <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
-                                <div className={showNews ? 'md:w-[45%] md:h-full' : 'md:w-[60%] md:h-full'}>
-                                    <div className="h-full flex flex-col">
-                                        <OrderBook fuelType={fuelType !== 'All' ? fuelType : undefined} region={resolvedPort || undefined} onPriceClick={handleOrderBookPriceClick} onInstantTrade={handleInstantTrade} />
-                                    </div>
-                                </div>
-                                <div className={showNews ? 'md:w-[30%] md:h-full' : 'md:w-[40%] md:h-full'}>
-                                    <div className="h-full flex flex-col">
-                                        <div className="flex items-center justify-end mb-2">
-                                            <button
-                                                onClick={() => setShowNews(!showNews)}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-                                                    showNews
-                                                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                                                        : 'bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                                                }`}
-                                            >
-                                                <Newspaper size={12} />
-                                                News
-                                            </button>
-                                        </div>
-                                        <div className="flex-1 min-h-0">
-                                            <TradeTape fuelType={fuelType !== 'All' ? fuelType : undefined} region={resolvedPort || undefined} />
-                                        </div>
-                                    </div>
-                                </div>
-                                {showNews && (
-                                    <div className="md:w-[25%] md:h-full">
-                                        <NewsFeed />
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
@@ -1056,24 +960,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* RFQ panel archived — orderbook is the single source of truth
-               Re-enable via VITE_ENABLE_RFQ=true if needed for specific use cases */}
-            {import.meta.env.VITE_ENABLE_RFQ === 'true' && marketTab === 'rfq' && (
-                <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
-                        <RFQPanel
-                            role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'}
-                            sortBy={sortBy}
-                            region={resolvedPort || undefined}
-                            fuelType={fuelType !== 'All' ? fuelType : undefined}
-                            availability={availability || undefined}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Listings tab: full table with sticky thead */}
-            {marketTab === 'listings' && !error && (
+            {/* Market tab: listings table */}
+            {marketTab === 'market' && !error && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -1287,11 +1175,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); setOrderModalPrefillPrice(undefined); fetchData(true, currentSkip); }}
+                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={fuelType !== 'All' ? fuelType : undefined}
                 prefillRegion={portInput || undefined}
-                prefillPrice={orderModalPrefillPrice}
             />
         </div>
     );
