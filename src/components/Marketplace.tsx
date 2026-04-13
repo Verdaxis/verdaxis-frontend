@@ -42,6 +42,7 @@ import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
+import { OrderBook } from './OrderBook';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -184,7 +185,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'market' | 'my_orders'>('market');
+    const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
@@ -743,13 +744,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </span>
                     </div>
 
-                    {/* Tab Switcher: Market | My Orders */}
+                    {/* Tab Switcher: Market | Orderbook | My Orders */}
                     <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
-                                left: marketTab === 'market' ? '2px' : 'calc(50%)',
-                                width: 'calc(50% - 2px)',
+                                left: marketTab === 'market'
+                                    ? '2px'
+                                    : marketTab === 'orderbook'
+                                        ? 'calc(33.333% + 1px)'
+                                        : 'calc(66.666% + 1px)',
+                                width: 'calc(33.333% - 2px)',
                             }}
                         />
                         <button
@@ -761,6 +766,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             }`}
                         >
                             {t('marketplace.tab.market')}
+                        </button>
+                        <button
+                            onClick={() => setMarketTab('orderbook')}
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
+                                marketTab === 'orderbook'
+                                    ? 'text-slate-900 dark:text-white'
+                                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            {t('marketplace.tab.listings')}
                         </button>
                         <button
                             onClick={() => setMarketTab('my_orders')}
@@ -796,6 +811,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             >
                                 {t('marketplace.btn.tryAgain')}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {marketTab === 'orderbook' && !error && (
+                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="min-h-[520px]">
+                            <OrderBook
+                                marketProduct={marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct}
+                                region={resolvedPort || undefined}
+                            />
                         </div>
                     </div>
                 </div>
