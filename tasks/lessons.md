@@ -73,3 +73,9 @@
 - **Trigger:** I shipped the new watchlist as `Market Radar` / `Market Intelligence` style branding when the simpler user mental model was just `Watchlist`, and the map label also drifted from the requested `Intelligence Map`.
 - **Rule:** Default to the user's plain product vocabulary for core navigation and saved-item flows unless a separate naming decision is explicitly approved.
 - **Why:** Custom branding obscures the interaction model and makes simple features harder to discover.
+
+### Preserve canonical market products in marketplace filters
+- **Date:** 2026-04-13
+- **Trigger:** I shipped the watchlist flow while the marketplace was still keyed to generic `fuel_type` chips, which hid pathway-level products and made slice saving less precise than the actual market identity.
+- **Rule:** When the market model is canonical `market_product + delivery_point + availability_window`, every user-facing marketplace filter and save action must use that same identity instead of a looser compatibility field.
+- **Why:** Mixed filter identities make the UI look broken, create ambiguous watchlist targets, and hide supported products behind legacy labels.

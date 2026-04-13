@@ -15,14 +15,13 @@ import {
     CheckCircle2,
     ClipboardList,
     Trash2,
-    Pin,
     Star,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -39,7 +38,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { getOrderDisplayName } from '../utils/marketProduct';
+import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
@@ -51,6 +50,7 @@ interface RoleConfigEntry {
     fetchOrders: (params?: {
         region?: string;
         fuel_type?: string;
+        market_product?: string;
         availability?: string;
         skip?: number;
         limit?: number;
@@ -78,8 +78,17 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
     },
 };
 
-// ─── Fuel chip options ────────────────────────────────────────────
-const FUEL_TYPES = ['All', 'Methanol', 'Ethanol'];
+// ─── Product chip options ─────────────────────────────────────────
+const ALL_MARKET_PRODUCTS = 'All';
+const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
+const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
+const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
+
+function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
+    const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
+        ?? localStorage.getItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
+    return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
+}
 
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
@@ -119,7 +128,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
-    const [fuelType, setFuelType] = useState(() => localStorage.getItem('verdaxis_marketplace_fuel') || 'All');
+    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         const stored = localStorage.getItem('verdaxis_marketplace_window');
         return stored ? normalizeAvailabilityWindow(stored) : '';
@@ -136,6 +145,34 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             || PORTS.find(p => p.name.toLowerCase().includes(q));
         return match ? match.name : '';
     }, [portInput]);
+
+    const currentSliceTarget = useMemo(() => {
+        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
+
+        const matchingOrder = listings.find((order) => (
+            order.market_product === marketProduct
+            && order.availability_window === availability
+            && order.delivery_point_id
+            && (order.delivery_point_name === resolvedPort || order.region === resolvedPort)
+        ));
+
+        if (!matchingOrder?.delivery_point_id) return null;
+
+        return {
+            marketProductCode: marketProduct,
+            deliveryPointId: matchingOrder.delivery_point_id,
+            availabilityWindowCode: matchingOrder.availability_window,
+        };
+    }, [availability, listings, marketProduct, resolvedPort]);
+
+    const currentSliceKey = currentSliceTarget
+        ? getWatchlistSliceKeyFromParts(
+            currentSliceTarget.marketProductCode,
+            currentSliceTarget.deliveryPointId,
+            currentSliceTarget.availabilityWindowCode,
+        )
+        : '';
+    const isCurrentSliceTracked = Boolean(currentSliceTarget) && trackedSliceKeys.has(currentSliceKey);
 
     // ─── Client-side filters ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
@@ -160,10 +197,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     // ─── Fuel counts for chips ────────────────────────────────────
-    const fuelCounts = useMemo(() => {
+    const marketProductCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         for (const order of listings) {
-            const key = order.fuel_type;
+            const key = order.market_product;
+            if (!key) continue;
             counts[key] = (counts[key] || 0) + 1;
         }
         return counts;
@@ -192,7 +230,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         try {
             const data = await configBase.fetchOrders({
                 region: resolvedPort || undefined,
-                fuel_type: fuelType === 'All' ? undefined : fuelType,
+                market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
                 availability: availability || undefined,
                 skip,
                 limit: PAGE_SIZE,
@@ -207,9 +245,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [configBase, resolvedPort, fuelType, availability]);
+    }, [configBase, resolvedPort, marketProduct, availability]);
 
-    // Fetch on mount + whenever filters change (fuelType, portInput, availability, role)
+    // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
         fetchData(false, 0);
     }, [fetchData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -229,14 +267,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 view: 'Marketplace',
                 role,
                 total_listings: totalCount,
-                fuel_filter: fuelType,
+                fuel_filter: marketProduct,
                 region_filter: resolvedPort || 'Any',
                 availability_filter: availability || 'Any',
                 page_skip: currentSkip,
                 summary: t(configBase.subtitleKey),
             });
         }
-    }, [listings, loading, fuelType, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
+    }, [listings, loading, marketProduct, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -244,8 +282,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     }, [portInput]);
 
     useEffect(() => {
-        localStorage.setItem('verdaxis_marketplace_fuel', fuelType);
-    }, [fuelType]);
+        localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
+        localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
+    }, [marketProduct]);
 
     useEffect(() => {
         localStorage.setItem('verdaxis_marketplace_window', availability);
@@ -297,11 +336,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         fetchData(false, newSkip);
     };
 
-    const handleFuelChipClick = (ft: string) => {
-        setFuelType(ft);
+    const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
+        setMarketProduct(productCode);
     };
 
-    // fuelType changes are handled by fetchData's useCallback deps — no separate effect needed
+    // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -463,11 +502,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             }
             case 'action': {
                 const isOpen = order.status === 'OPEN';
-                const trackable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
-                const sliceKey = trackable
-                    ? getWatchlistSliceKeyFromParts(order.market_product, order.delivery_point_id, order.availability_window)
-                    : '';
-                const isTracked = trackable && trackedSliceKeys.has(sliceKey);
+                const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
@@ -488,35 +523,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             : t('marketplace.status.closed')}
                                 </span>
                             )}
-                            {trackable && (
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            await toggleSlice({
-                                                marketProductCode: order.market_product!,
-                                                deliveryPointId: order.delivery_point_id!,
-                                                availabilityWindowCode: order.availability_window,
-                                            });
-                                        }}
-                                        aria-pressed={isTracked}
-                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
-                                    >
-                                        <Star size={12} fill={isTracked ? 'currentColor' : 'none'} />
-                                        {isTracked ? 'Saved' : 'Watchlist'}
-                                    </button>
-                                    <button
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            await togglePin(order.id);
-                                        }}
-                                        aria-pressed={isPinned}
-                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-500 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}`}
-                                    >
-                                        <Pin size={12} />
-                                        {isPinned ? 'Pinned' : 'Pin order'}
-                                    </button>
-                                </div>
+                            {pinnable && (
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        await togglePin(order.id);
+                                    }}
+                                    aria-pressed={isPinned}
+                                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
+                                >
+                                    <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
+                                    {isPinned ? 'Saved' : 'Save listing'}
+                                </button>
                             )}
                         </div>
                     </td>
@@ -567,6 +585,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                                 <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!currentSliceTarget) return;
+                                    await toggleSlice(currentSliceTarget);
+                                }}
+                                disabled={!currentSliceTarget}
+                                aria-pressed={isCurrentSliceTracked}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
+                            >
+                                <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
+                                <span>{isCurrentSliceTracked ? 'Saved slice' : 'Save slice'}</span>
                             </button>
                         </div>
                     </div>
@@ -674,22 +704,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         )}
                     </div>
 
-                    {/* Fuel chip pills */}
+                    {/* Product chip pills */}
                     <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin mb-2">
-                        {FUEL_TYPES.map(ft => {
-                            const isActive = fuelType === ft;
-                            const count = ft === 'All' ? totalCount : (fuelCounts[ft] || 0);
+                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
+                            const isActive = marketProduct === productCode;
+                            const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
+                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
                             return (
                                 <button
-                                    key={ft}
-                                    onClick={() => handleFuelChipClick(ft)}
+                                    key={productCode}
+                                    onClick={() => handleProductChipClick(productCode)}
                                     className={`rounded-full px-3 py-1.5 text-sm font-medium cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
                                         isActive
                                             ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md border border-white/30 dark:border-slate-600/50'
                                             : 'bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/60'
                                     }`}
                                 >
-                                    {ft}{count > 0 ? ` (${count})` : ''}
+                                    {label}{count > 0 ? ` (${count})` : ''}
                                 </button>
                             );
                         })}
@@ -1094,7 +1125,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 isOpen={orderModalSide !== null}
                 onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
                 side={orderModalSide || configBase.primaryAction.side}
-                prefillFuelType={fuelType !== 'All' ? fuelType : undefined}
+                prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}
             />
         </div>

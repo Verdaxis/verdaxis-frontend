@@ -1,13 +1,15 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { listAsksPaged, myOrders } = vi.hoisted(() => ({
+const { listAsksPaged, myOrders, toggleSlice, togglePin } = vi.hoisted(() => ({
   listAsksPaged: vi.fn(),
   myOrders: vi.fn(),
+  toggleSlice: vi.fn(),
+  togglePin: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -40,8 +42,8 @@ vi.mock('../hooks/useWatchlist', () => ({
     nextCursor: null,
     refresh: vi.fn(),
     loadMoreEvents: vi.fn(),
-    toggleSlice: vi.fn(),
-    togglePin: vi.fn(),
+    toggleSlice,
+    togglePin,
     removeTarget: vi.fn(),
     markEventRead: vi.fn(),
   }),
@@ -67,48 +69,95 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-describe('Marketplace green fuels surface', () => {
-  it('shows radar actions only for supported green-fuel listings', async () => {
-    listAsksPaged.mockResolvedValue({
-      items: [
-        {
-          id: 'ask-1',
-          side: 'ASK',
-          product_id: 'product-1',
-          product_name: 'Bio Methanol',
-          market_product: 'BIO_METHANOL',
-          fuel_type: 'Methanol',
-          fuel_grade: 'Bio',
-          delivery_point_id: 'dp-1',
-          delivery_point_name: 'Singapore',
-          region: 'Asia',
-          quantity_mt: 1000,
-          remaining_quantity_mt: 1000,
-          price_per_mt_usd: 1080,
-          availability_window: 'SPOT',
-          certifications: ['ISCC'],
-          certification_declared: true,
-          is_verdaxis_verified: true,
-          off_spec: false,
-          status: 'OPEN',
-          created_at: new Date().toISOString(),
-        },
-      ],
-      total: 1,
-      skip: 0,
-      limit: 20,
-    });
-    myOrders.mockResolvedValue([]);
+const listingsResponse = {
+  items: [
+    {
+      id: 'ask-1',
+      side: 'ASK',
+      product_id: 'product-1',
+      product_name: 'Bio Methanol',
+      market_product: 'BIO_METHANOL',
+      fuel_type: 'Methanol',
+      fuel_grade: 'Bio',
+      delivery_point_id: 'dp-1',
+      delivery_point_name: 'Singapore',
+      region: 'Asia',
+      quantity_mt: 1000,
+      remaining_quantity_mt: 1000,
+      price_per_mt_usd: 1080,
+      availability_window: 'SPOT',
+      certifications: ['ISCC'],
+      certification_declared: true,
+      is_verdaxis_verified: true,
+      off_spec: false,
+      status: 'OPEN',
+      created_at: new Date().toISOString(),
+    },
+  ],
+  total: 1,
+  skip: 0,
+  limit: 20,
+};
 
+describe('Marketplace green fuels surface', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    listAsksPaged.mockResolvedValue(listingsResponse);
+    myOrders.mockResolvedValue([]);
+    toggleSlice.mockResolvedValue(true);
+    togglePin.mockResolvedValue(true);
+  });
+
+  it('shows canonical market product chips instead of generic fuel families', async () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.queryByText('Biofuel')).toBeNull();
-    expect(screen.queryByText('Ammonia')).toBeNull();
-    expect(screen.getByRole('button', { name: /saved/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /pinned/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /e-Methanol/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Bio Ethanol/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
+  });
+
+  it('saves the exact listing when the row watchlist button is pressed', async () => {
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /saved/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /saved/i }));
+
+    await waitFor(() => {
+      expect(togglePin).toHaveBeenCalledWith('ask-1');
+    });
+    expect(toggleSlice).not.toHaveBeenCalled();
+  });
+
+  it('lets the user save the current filtered slice from the filter bar', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /saved slice/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /saved slice/i }));
+
+    await waitFor(() => {
+      expect(toggleSlice).toHaveBeenCalledWith({
+        marketProductCode: 'BIO_METHANOL',
+        deliveryPointId: 'dp-1',
+        availabilityWindowCode: 'SPOT',
+      });
+    });
   });
 });

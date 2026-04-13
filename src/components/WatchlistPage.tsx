@@ -49,7 +49,7 @@ export const WatchlistPage: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-black text-slate-900 dark:text-white">Everything you starred, in one place.</h1>
                         <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-                            Star a market slice or pin a specific live order from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact rows you care about in one view.
+                            Save a current market slice or save a specific live listing from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact rows you care about in one view.
                         </p>
                     </div>
                     {radar && (
@@ -63,7 +63,7 @@ export const WatchlistPage: React.FC = () => {
                                 <div className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">{radar.unread_event_count}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Pinned orders</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Saved listings</div>
                                 <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.reduce((count, slice) => count + slice.pins.length, 0)}</div>
                             </div>
                         </div>
@@ -110,7 +110,7 @@ export const WatchlistPage: React.FC = () => {
                                 <div className="mt-4 space-y-2">
                                     {slice.pins.length === 0 ? (
                                         <div className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                            No pinned live orders in this slice yet.
+                                            No saved live listings in this slice yet.
                                         </div>
                                     ) : (
                                         slice.pins.map((pinTarget) => {
@@ -121,7 +121,7 @@ export const WatchlistPage: React.FC = () => {
                                                         <div>
                                                             <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
                                                                 <Pin size={14} className="text-emerald-500" />
-                                                                {pinTarget.snapshot_market_product || 'Pinned order'}
+                                                                {pinTarget.snapshot_market_product || 'Saved listing'}
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                                                                 {pinTarget.snapshot_delivery_point_name || slice.delivery_point_name} · {pinTarget.snapshot_availability_window || slice.availability_window_code}
@@ -138,7 +138,7 @@ export const WatchlistPage: React.FC = () => {
                                                         </button>
                                                     </div>
                                                     <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}
+                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this saved listing.'}
                                                     </div>
                                                 </div>
                                             );
@@ -158,7 +158,7 @@ export const WatchlistPage: React.FC = () => {
                     <div className="space-y-3">
                         {events.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                No Watchlist activity yet. Star a slice or pin an order from Marketplace to start the feed.
+                                No Watchlist activity yet. Save a slice or listing from Marketplace to start the feed.
                             </div>
                         ) : (
                             events.map((event) => (
