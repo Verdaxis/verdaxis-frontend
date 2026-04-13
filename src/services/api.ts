@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate, WatchlistSummary, WatchlistEventsPage, WatchlistTarget, MarketProduct } from '../types';
 import { API_URL } from './config';
 import { getAccessToken } from './authToken';
 
@@ -26,7 +26,16 @@ const handleResponse = async (res: Response) => {
             throw new Error(errorText || res.statusText);
         }
     }
-    return res.json();
+
+    if (res.status === 204 || res.status === 205) {
+        return null;
+    }
+
+    const text = await res.text();
+    if (!text) {
+        return null;
+    }
+    return JSON.parse(text);
 };
 
 // Fetch with timeout to prevent indefinite loading spinners
@@ -671,16 +680,33 @@ export const api = {
     },
 
     watchlists: {
-        list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
-        create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
-        addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
-            return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        getRadar: async (): Promise<WatchlistSummary> => fetchApi('/watchlists/me', { headers: getHeaders() }),
+        getDetail: async (watchlistId: string): Promise<WatchlistSummary> => fetchApi(`/watchlists/${watchlistId}`, { headers: getHeaders() }),
+        createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'SLICE', ...data }),
+            });
         },
-        removeEntry: async (watchlistId: string, entryId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}/entries/${entryId}`, { method: 'DELETE', headers: getHeaders() });
+        createPinTarget: async (watchlistId: string, orderId: string): Promise<WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'PIN', order_id: orderId }),
+            });
         },
-        delete: async (watchlistId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
+        removeTarget: async (watchlistId: string, targetId: string): Promise<void> => {
+            await fetchApi(`/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+        listEvents: async (watchlistId: string, params?: { cursor?: string | null; limit?: number }): Promise<WatchlistEventsPage> => {
+            const sp = new URLSearchParams();
+            if (params?.cursor) sp.append('cursor', params.cursor);
+            sp.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/watchlists/${watchlistId}/events?${sp.toString()}`, { headers: getHeaders() });
+        },
+        markEventRead: async (watchlistId: string, eventId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
         },
     },
 

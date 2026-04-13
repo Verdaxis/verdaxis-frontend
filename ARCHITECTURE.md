@@ -14,6 +14,7 @@ src/
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
   utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
+  utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
   index.css                        # Tailwind base + global styles
 
@@ -55,6 +56,7 @@ src/
     SupplierStats.tsx              # Supplier-specific stats
     SupplierAnalytics.tsx          # Revenue and performance analytics
     SupplierDemandFeed.tsx         # Live demand signals from buyers
+    WatchlistPage.tsx              # Slice-first Market Radar detail view and event feed
     # Modals
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
@@ -65,6 +67,7 @@ src/
     notifications/{NotificationBell,NotificationList}.tsx
     fleet/VesselDetailModal.tsx
     ui/{Tooltip,MarkdownRenderer,ConfirmModal,VerdaxisSelect}.tsx
+    watchlist/MarketRadarPanel.tsx # Command-center radar summary for tracked slices
     # Public site
     public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
     public/{PublicNav,PublicFooter,HeroSection,PriceTicker,PilotApplicationForm}.tsx
@@ -156,6 +159,11 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
+
+**Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
+`Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
+availability_window`), `CommandCenter` shows compact radar cards, and `WatchlistPage` persists pinned live
+orders plus the event feed.
 
 **Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
 forms should use it instead of browser-native `<select>` elements unless there is a strong

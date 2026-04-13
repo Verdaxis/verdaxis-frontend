@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PilotPage } from '../PilotPage';
@@ -27,6 +27,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: storageMock, writable
 describe('PilotPage', () => {
   beforeEach(() => {
     storageMock.clear();
+    vi.stubGlobal('open', vi.fn());
   });
 
   it('renders page title', () => {
@@ -96,7 +97,7 @@ describe('PilotPage', () => {
     expect(screen.queryByText(/thank you/i)).toBeNull();
   });
 
-  it('saves to localStorage on valid submit', () => {
+  it('saves to localStorage on valid submit', async () => {
     renderWithRouter(<PilotPage />);
 
     fireEvent.change(screen.getByLabelText(/company name/i), {
@@ -110,6 +111,8 @@ describe('PilotPage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
+
+    await screen.findByText(/thank you! we'll be in touch within 48 hours/i);
 
     const stored = JSON.parse(localStorage.getItem('verdaxis_pilot_applications') || '[]');
     expect(stored.length).toBe(1);
@@ -118,7 +121,7 @@ describe('PilotPage', () => {
     expect(stored[0].email).toBe('jane@acme.com');
   });
 
-  it('shows success message after submit', () => {
+  it('shows success message after submit', async () => {
     renderWithRouter(<PilotPage />);
 
     fireEvent.change(screen.getByLabelText(/company name/i), {
@@ -133,7 +136,7 @@ describe('PilotPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
 
-    expect(screen.getByText(/thank you! we'll be in touch within 48 hours/i)).toBeTruthy();
-    expect(screen.getByText(/pilot@verdaxis.exchange/i)).toBeTruthy();
+    expect(await screen.findByText(/thank you! we'll be in touch within 48 hours/i)).toBeTruthy();
+    expect(await screen.findByText(/pilot@verdaxis.exchange/i)).toBeTruthy();
   });
 });

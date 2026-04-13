@@ -9,6 +9,8 @@ import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 // MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
 import { useCopilotContext } from '../context/CopilotContext';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
@@ -35,6 +37,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [processing, setProcessing] = useState(false);
     const [orderModalOpen, setOrderModalOpen] = useState(false);
     const [matchCount, setMatchCount] = useState(0);
+    const { radar, events, loading: radarLoading, error: radarError } = useWatchlist();
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -208,6 +211,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Recommended Matches</h2>
                 <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
             </div> */}
+
+            <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
 
             {/* ─── Needs Attention ─── */}
             <div>

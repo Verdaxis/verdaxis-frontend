@@ -52,7 +52,6 @@
   "marketplace.modal.product": "产品",
   "marketplace.modal.price": "价格",
   "marketplace.modal.location": "地点",
-
   "orderBook.title": "实时订单簿",
   "orderBook.bids": "买单",
   "orderBook.asks": "卖单",
@@ -68,7 +67,6 @@
   "orderBook.clickToSell": "点击以此价格卖出",
   "orderBook.clickToBuy": "点击以此价格买入",
   "orderBook.live": "实时 · 10秒",
-
   "orderPlaceModal.title": "发布{{side}}",
   "orderPlaceModal.subtitle.bid": "提交以目标价格购买燃料的请求",
   "orderPlaceModal.subtitle.ask": "在市场上发布燃料销售报价",
@@ -110,7 +108,6 @@
   "orderPlaceModal.autoMatched.price": "价格",
   "orderPlaceModal.autoMatched.status": "状态",
   "orderPlaceModal.error.title": "订单失败",
-
   "myTrades.title": "我的交易",
   "myTrades.subtitle": "管理并跟踪您的所有交易。",
   "myTrades.subtitle.full": "在一个地方管理并跟踪您的所有交易。",
@@ -170,13 +167,11 @@
   "myTrades.toast.paid.message": "交易已标记为已支付。",
   "myTrades.toast.payFailed.title": "付款失败",
   "myTrades.toast.payFailed.message": "无法记录付款。",
-
   "tradeTape.title": "交易记录",
   "tradeTape.loading": "加载交易记录...",
   "tradeTape.empty": "暂无近期交易",
   "tradeTape.market.open": "市场开放",
   "tradeTape.market.closed": "市场关闭",
-
   "watchlist.title": "关注列表",
   "watchlist.subtitle": "跟踪您感兴趣的产品和交货地点。",
   "watchlist.btn.new": "新建关注列表",
@@ -197,7 +192,6 @@
   "watchlist.modal.deliveryPoint": "交货地点（可选）",
   "watchlist.modal.anyDelivery": "任意",
   "watchlist.modal.loadingCatalog": "加载目录...",
-
   "terminal.title": "交易终端",
   "terminal.label.bestOffer": "最优报价",
   "terminal.label.noOffers": "无报价",
@@ -217,9 +211,12 @@
   "terminal.col.offers": "报价数",
   "terminal.activity.title": "交易动态",
   "terminal.activity.waiting": "等待动态...",
-
   "tradeNotifier.autoMatched.title": "订单已自动撮合",
   "tradeNotifier.confirmed.title": "交易已确认",
   "tradeNotifier.delivered.title": "交易已交付",
-  "tradeNotifier.paid.title": "已收到付款"
+  "tradeNotifier.paid.title": "已收到付款",
+  "orderPlaceModal.label.advanced": "高级选项",
+  "orderPlaceModal.select.deliveryPoint": "选择交货地点...",
+  "orderPlaceModal.summary.availability": "可用窗口：{{value}}",
+  "orderPlaceModal.helper.availability": "可用窗口定义该订单何时可进入市场。更详细的交付安排将在撮合后处理。"
 }

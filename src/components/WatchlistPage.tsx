@@ -1,413 +1,200 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-    List, Plus, Trash2, Loader2, X, ChevronDown, ChevronUp,
-    Eye, AlertCircle, Package,
-} from 'lucide-react';
-import { api } from '../services/api';
-import type { Watchlist, WatchlistEntry, Product, DeliveryPoint } from '../types';
-import { useNamespace } from '../hooks/useNamespace';
+import React, { useMemo } from 'react';
+import { BellDot, Loader2, Pin, RadioTower, Trash2 } from 'lucide-react';
 
-const DEFAULT_WATCHLIST_NAME = 'Default';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget } from '../utils/watchlist';
 
 export const WatchlistPage: React.FC = () => {
-    const { t, ready } = useNamespace('trading');
-    const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [expandedId, setExpandedId] = useState<string | null>(null);
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showAddEntryModal, setShowAddEntryModal] = useState<string | null>(null);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [defaultWatchlistId, setDefaultWatchlistId] = useState<string | null>(null);
+    const {
+        radar,
+        events,
+        loading,
+        error,
+        nextCursor,
+        loadMoreEvents,
+        markEventRead,
+        removeTarget,
+    } = useWatchlist();
 
-    const fetchWatchlists = useCallback(async (silent = false) => {
-        if (!silent) setLoading(true);
-        setError(null);
-        try {
-            const data = await api.watchlists.list();
-            const items: Watchlist[] = data.items ?? data;
-            const wlArray = Array.isArray(items) ? items : [];
-            setWatchlists(wlArray);
-
-            // Track the default watchlist ID
-            const defaultWl = wlArray.find(wl => wl.name === DEFAULT_WATCHLIST_NAME);
-            if (defaultWl) {
-                setDefaultWatchlistId(defaultWl.id);
+    const targetLabels = useMemo(() => {
+        const labels = new Map<string, string>();
+        for (const slice of radar?.slices ?? []) {
+            labels.set(slice.id, formatWatchlistSliceLabel(slice));
+            for (const pin of slice.pins) {
+                labels.set(pin.id, pin.snapshot_market_product || formatWatchlistSliceLabel(slice));
             }
-
-            return wlArray;
-        } catch (err: any) {
-            if (!silent) setError(err?.message || 'Failed to load watchlists');
-            return [];
-        } finally {
-            if (!silent) setLoading(false);
         }
-    }, []);
+        return labels;
+    }, [radar]);
 
-    // On mount: fetch watchlists, create "Default" if none exists
-    useEffect(() => {
-        let cancelled = false;
-        const init = async () => {
-            const wlArray = await fetchWatchlists();
-            if (cancelled) return;
-            if (wlArray.length === 0) {
-                try {
-                    const created = await api.watchlists.create(DEFAULT_WATCHLIST_NAME);
-                    if (!cancelled) {
-                        setDefaultWatchlistId(created.id);
-                        await fetchWatchlists(true);
-                    }
-                } catch { /* ignore — user may not be authenticated */ }
-            }
-        };
-        init();
-        return () => { cancelled = true; };
-    }, [fetchWatchlists]);
-
-    const handleDeleteWatchlist = async (id: string) => {
-        if (!confirm('Delete this watchlist?')) return;
-        setActionLoading(id);
-        try {
-            await api.watchlists.delete(id);
-            if (id === defaultWatchlistId) setDefaultWatchlistId(null);
-            await fetchWatchlists(true);
-        } catch { /* ignore */ }
-        setActionLoading(null);
-    };
-
-    const handleRemoveEntry = async (watchlistId: string, entryId: string) => {
-        setActionLoading(entryId);
-        try {
-            await api.watchlists.removeEntry(watchlistId, entryId);
-            await fetchWatchlists(true);
-        } catch { /* ignore */ }
-        setActionLoading(null);
-    };
-
-    if (!ready || loading) {
+    if (loading) {
         return (
-            <div className="h-full flex items-center justify-center">
+            <div className="flex h-full items-center justify-center">
                 <div className="flex items-center gap-3 text-slate-400">
                     <Loader2 size={24} className="animate-spin" />
-                    <span className="font-medium">{ready ? t('watchlist.loading') : '...'}</span>
+                    <span className="font-medium">Loading Market Radar...</span>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-4">
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h1 className="text-2xl lg:text-3xl v-heading flex items-center gap-3">
-                                <List size={28} className="text-emerald-500" />
-                                {t('watchlist.title')}
-                            </h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t('watchlist.subtitle')}</p>
-                        </div>
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm"
-                        >
-                            <Plus size={16} />
-                            {t('watchlist.btn.new')}
-                        </button>
+        <div className="h-full overflow-y-auto px-4 pb-8 pt-4 lg:px-10 lg:pt-8">
+            <div className="mx-auto max-w-6xl space-y-6">
+                <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
+                        <RadioTower size={14} />
+                        Market Radar
                     </div>
-                </div>
-            </div>
-
-            {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-4 lg:px-10 pb-6">
-                <div className="max-w-4xl mx-auto space-y-4">
-                    {error && (
-                        <div className="v-card p-4 text-center text-sm text-red-500 dark:text-red-400">
-                            <AlertCircle size={16} className="inline mr-1" />{error}
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Watch market slices, not just rows.</h1>
+                        <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
+                            Verdaxis tracks persistent market pockets and lets you pin specific live orders inside them. The slice stays stable even when individual listings churn.
+                        </p>
+                    </div>
+                    {radar && (
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Tracked slices</div>
+                                <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.length}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Unread events</div>
+                                <div className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">{radar.unread_event_count}</div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Pinned orders</div>
+                                <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.reduce((count, slice) => count + slice.pins.length, 0)}</div>
+                            </div>
                         </div>
                     )}
+                </header>
 
-                    {watchlists.length === 0 ? (
-                        <div className="v-card p-12 text-center">
-                            <List size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                            <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('watchlist.empty.title')}</h3>
-                            <p className="text-sm text-slate-400 max-w-md mx-auto mb-6">
-                                {t('watchlist.empty.body')}
-                            </p>
-                            <button
-                                onClick={() => setShowCreateModal(true)}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors"
-                            >
-                                <Plus size={16} />
-                                {t('watchlist.btn.create')}
-                            </button>
-                        </div>
-                    ) : (
-                        watchlists.map(wl => {
-                            const isExpanded = expandedId === wl.id;
-                            const entryCount = wl.entries?.length ?? 0;
-                            const isDefault = wl.id === defaultWatchlistId;
-                            return (
-                                <div key={wl.id} className="v-card overflow-hidden">
-                                    {/* Watchlist header */}
-                                    <div className="flex items-center justify-between px-4 py-3">
-                                        <button
-                                            onClick={() => setExpandedId(isExpanded ? null : wl.id)}
-                                            className="flex items-center gap-3 min-w-0 flex-1 text-left"
-                                        >
-                                            <List size={18} className="text-emerald-500 flex-shrink-0" />
-                                            <div className="min-w-0">
-                                                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate block">
-                                                    {wl.name}
-                                                    {isDefault && (
-                                                        <span className="ml-2 text-[10px] font-medium text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
-                                                            DEFAULT
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span className="text-[10px] text-slate-400">
-                                                    {entryCount} {entryCount === 1 ? 'item' : 'items'}
-                                                </span>
-                                            </div>
-                                            {isExpanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
-                                        </button>
-                                        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                                            <button
-                                                onClick={() => setShowAddEntryModal(wl.id)}
-                                                className="p-1.5 text-slate-400 hover:text-emerald-500 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                                                title={t('watchlist.btn.addEntry')}
-                                            >
-                                                <Plus size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteWatchlist(wl.id)}
-                                                disabled={actionLoading === wl.id}
-                                                className="p-1.5 text-slate-400 hover:text-red-500 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
-                                                title="Delete watchlist"
-                                            >
-                                                {actionLoading === wl.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                                            </button>
-                                        </div>
-                                    </div>
+                {error && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                        {error}
+                    </div>
+                )}
 
-                                    {/* Expanded entries */}
-                                    {isExpanded && (
-                                        <div className="border-t border-slate-200 dark:border-slate-700">
-                                            {(!wl.entries || wl.entries.length === 0) ? (
-                                                <div className="px-4 py-6 text-center text-xs text-slate-400">
-                                                    <Package size={20} className="mx-auto mb-2 text-slate-300" />
-                                                    {t('watchlist.entries.empty')}
-                                                </div>
-                                            ) : (
-                                                <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                                    {wl.entries.map(entry => (
-                                                        <div key={entry.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                                            <div className="min-w-0">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Eye size={12} className="text-slate-400 flex-shrink-0" />
-                                                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-                                                                        {entry.product_name || entry.product_id}
-                                                                    </span>
-                                                                </div>
-                                                                {entry.delivery_point_name && (
-                                                                    <span className="text-[10px] text-slate-400 ml-5">{entry.delivery_point_name}</span>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-4 flex-shrink-0">
-                                                                {entry.best_bid != null && (
-                                                                    <div className="text-right">
-                                                                        <span className="text-[9px] text-slate-400 uppercase block">{t('watchlist.entry.bid')}</span>
-                                                                        <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                                                            ${entry.best_bid.toLocaleString()}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                                {entry.best_ask != null && (
-                                                                    <div className="text-right">
-                                                                        <span className="text-[9px] text-slate-400 uppercase block">{t('watchlist.entry.ask')}</span>
-                                                                        <span className="text-xs font-mono font-bold text-red-500 dark:text-red-400">
-                                                                            ${entry.best_ask.toLocaleString()}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                                {entry.best_bid == null && entry.best_ask == null && (
-                                                                    <span className="text-xs text-slate-400">{t('watchlist.entry.noQuotes')}</span>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => handleRemoveEntry(wl.id, entry.id)}
-                                                                    disabled={actionLoading === entry.id}
-                                                                    className="p-1 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
-                                                                >
-                                                                    {actionLoading === entry.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                <section className="grid gap-4 lg:grid-cols-2">
+                    {(radar?.slices ?? []).map((slice) => {
+                        const latestEvent = getLatestEventForSlice(slice, events);
+                        return (
+                            <article key={slice.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-lg font-black text-slate-900 dark:text-white">{formatWatchlistSliceLabel(slice)}</h2>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{slice.active_order_count} live orders</span>
+                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{slice.pins.length} pins</span>
+                                            {slice.unread_event_count > 0 && (
+                                                <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-bold text-emerald-700 dark:text-emerald-300">
+                                                    {slice.unread_event_count} unread
+                                                </span>
                                             )}
                                         </div>
+                                    </div>
+                                    <button
+                                        onClick={() => removeTarget(slice.id)}
+                                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
+                                    >
+                                        <Trash2 size={14} />
+                                        Untrack
+                                    </button>
+                                </div>
+
+                                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
+                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No radar signals have landed for this slice yet.'}
+                                </div>
+
+                                <div className="mt-4 space-y-2">
+                                    {slice.pins.length === 0 ? (
+                                        <div className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                            No pinned live orders in this slice yet.
+                                        </div>
+                                    ) : (
+                                        slice.pins.map((pinTarget) => {
+                                            const pinEvent = getLatestEventForTarget(pinTarget, events);
+                                            return (
+                                                <div key={pinTarget.id} className="rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                                                                <Pin size={14} className="text-emerald-500" />
+                                                                {pinTarget.snapshot_market_product || 'Pinned order'}
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                {pinTarget.snapshot_delivery_point_name || slice.delivery_point_name} · {pinTarget.snapshot_availability_window || slice.availability_window_code}
+                                                            </div>
+                                                            <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                                                                ${Number(pinTarget.snapshot_price_per_mt_usd ?? 0).toLocaleString()} / MT · {Number(pinTarget.snapshot_remaining_quantity_mt ?? 0).toLocaleString()} MT remaining
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => removeTarget(pinTarget.id)}
+                                                            className="text-xs font-semibold text-slate-500 transition-colors hover:text-red-600"
+                                                        >
+                                                            Unpin
+                                                        </button>
+                                                    </div>
+                                                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
                                     )}
                                 </div>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
+                            </article>
+                        );
+                    })}
+                </section>
 
-            {/* Create Watchlist Modal */}
-            {showCreateModal && (
-                <CreateWatchlistModal
-                    onClose={() => setShowCreateModal(false)}
-                    onCreated={() => { setShowCreateModal(false); fetchWatchlists(true); }}
-                />
-            )}
-
-            {/* Add Entry Modal */}
-            {showAddEntryModal && (
-                <AddEntryModal
-                    watchlistId={showAddEntryModal}
-                    onClose={() => setShowAddEntryModal(null)}
-                    onAdded={() => { setShowAddEntryModal(null); fetchWatchlists(true); }}
-                />
-            )}
-        </div>
-    );
-};
-
-// ─── Create Watchlist Modal ───────────────────────────────────
-const CreateWatchlistModal: React.FC<{ onClose: () => void; onCreated: () => void }> = ({ onClose, onCreated }) => {
-    const { t, ready } = useNamespace('trading');
-    const [name, setName] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim()) return;
-        setSubmitting(true);
-        setError('');
-        try {
-            await api.watchlists.create(name.trim());
-            onCreated();
-        } catch (err: any) {
-            setError(err?.message || 'Failed to create watchlist');
-        }
-        setSubmitting(false);
-    };
-
-    if (!ready) return null;
-
-    return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">{t('watchlist.modal.newTitle')}</h3>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={20} /></button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="v-label">{t('watchlist.modal.name')}</label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            className="v-input"
-                            placeholder="e.g. Green Methanol Watch"
-                            autoFocus
-                            maxLength={100}
-                        />
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
+                        <BellDot size={18} className="text-emerald-500" />
+                        Event Feed
                     </div>
-                    {error && <p className="text-sm text-red-500">{error}</p>}
-                    <button type="submit" disabled={submitting || !name.trim()} className="w-full v-btn-primary disabled:opacity-50">
-                        {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                        {t('watchlist.btn.create.short')}
-                    </button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-// ─── Add Entry Modal ──────────────────────────────────────────
-const AddEntryModal: React.FC<{ watchlistId: string; onClose: () => void; onAdded: () => void }> = ({ watchlistId, onClose, onAdded }) => {
-    const { t, ready } = useNamespace('trading');
-    const [products, setProducts] = useState<Product[]>([]);
-    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [catalogLoading, setCatalogLoading] = useState(true);
-    const [productId, setProductId] = useState('');
-    const [deliveryPointId, setDeliveryPointId] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState('');
-
-    useEffect(() => {
-        Promise.all([
-            api.catalog.products().catch(() => [] as Product[]),
-            api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
-        ]).then(([prods, dps]) => {
-            const active = prods.filter(p => p.is_active);
-            setProducts(active);
-            setDeliveryPoints(dps.filter(d => d.is_active));
-            if (active.length > 0) setProductId(active[0].id);
-            setCatalogLoading(false);
-        });
-    }, []);
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!productId) return;
-        setSubmitting(true);
-        setError('');
-        try {
-            await api.watchlists.addEntry(watchlistId, {
-                product_id: productId,
-                delivery_point_id: deliveryPointId || undefined,
-            });
-            onAdded();
-        } catch (err: any) {
-            setError(err?.message || 'Failed to add entry');
-        }
-        setSubmitting(false);
-    };
-
-    if (!ready) return null;
-
-    return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <h3 className="text-lg font-['Montserrat'] font-bold text-slate-700 dark:text-white">{t('watchlist.modal.addTitle')}</h3>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg"><X size={20} /></button>
-                </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    {catalogLoading ? (
-                        <div className="flex items-center justify-center py-6 text-slate-400">
-                            <Loader2 size={20} className="animate-spin mr-2" />
-                            {t('watchlist.modal.loadingCatalog')}
-                        </div>
-                    ) : (
-                        <>
-                            <div>
-                                <label className="v-label">{t('watchlist.modal.product')}</label>
-                                <select value={productId} onChange={e => setProductId(e.target.value)} className="v-input">
-                                    {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.fuel_type})</option>)}
-                                </select>
+                    <div className="space-y-3">
+                        {events.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                No watchlist events yet. Track a slice or pin an order from Marketplace to start the feed.
                             </div>
-                            <div>
-                                <label className="v-label">{t('watchlist.modal.deliveryPoint')}</label>
-                                <select value={deliveryPointId} onChange={e => setDeliveryPointId(e.target.value)} className="v-input">
-                                    <option value="">{t('watchlist.modal.anyDelivery')}</option>
-                                    {deliveryPoints.map(d => <option key={d.id} value={d.id}>{d.name} ({d.region})</option>)}
-                                </select>
-                            </div>
-                            {error && <p className="text-sm text-red-500">{error}</p>}
-                            <button type="submit" disabled={submitting || !productId} className="w-full v-btn-primary disabled:opacity-50">
-                                {submitting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Plus size={16} className="mr-2" />}
-                                {t('watchlist.btn.addEntry')}
+                        ) : (
+                            events.map((event) => (
+                                <div key={event.id} className={`rounded-xl border px-4 py-3 ${event.is_read ? 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40' : 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/60 dark:bg-emerald-950/20'}`}>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
+                                                {targetLabels.get(event.watchlist_target_id) || event.target_type}
+                                            </div>
+                                            <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{describeWatchlistEvent(event)}</div>
+                                            <div className="mt-2 text-[11px] text-slate-400">{new Date(event.created_at).toLocaleString()}</div>
+                                        </div>
+                                        {!event.is_read && (
+                                            <button
+                                                onClick={() => markEventRead(event.id)}
+                                                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300"
+                                            >
+                                                Mark read
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    {nextCursor && (
+                        <div className="mt-4 flex justify-center">
+                            <button
+                                onClick={loadMoreEvents}
+                                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200"
+                            >
+                                Load more events
                             </button>
-                        </>
+                        </div>
                     )}
-                </form>
+                </section>
             </div>
         </div>
     );

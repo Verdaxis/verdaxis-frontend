@@ -18,9 +18,9 @@ vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('../../../data/producerProjects', () => {
   const projects = [
     { id: 'proj-001', name: 'George Olah', company: 'CRI', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Operational', capacityKtpa: 10, codYear: 2012, lat: 63.84, lng: -22.43, country: 'Iceland', city: 'Grindavik' },
-    { id: 'proj-002', name: 'Ecoplanta', company: 'Repsol', fuelType: 'Biomethanol', pathway: 'Residual waste', status: 'Under Construction', capacityKtpa: 240, codYear: 2029, lat: 41.19, lng: 1.21, country: 'Spain', city: 'El Morell' },
-    { id: 'proj-003', name: 'Project AIR', company: 'Perstorp', fuelType: 'Biomethanol', pathway: 'Biomethane', status: 'Engineering', capacityKtpa: 200, codYear: 2029, lat: 58.08, lng: 11.92, country: 'Sweden', city: 'Stenungsund' },
-    { id: 'proj-004', name: 'Shunli CO2-to-methanol', company: 'Henan Shuncheng', fuelType: 'Low-Carbon Methanol', pathway: 'CO2 + H2', status: 'Operational', capacityKtpa: 110, codYear: 2022, lat: 35.99, lng: 114.51, country: 'China', city: 'Anyang' },
+    { id: 'proj-002', name: 'Ecoplanta', company: 'Repsol', fuelType: 'Bio Methanol', pathway: 'Residual waste', status: 'Under Construction', capacityKtpa: 240, codYear: 2029, lat: 41.19, lng: 1.21, country: 'Spain', city: 'El Morell' },
+    { id: 'proj-003', name: 'Project AIR', company: 'Perstorp', fuelType: 'Bio Methanol', pathway: 'Biomethane', status: 'Engineering', capacityKtpa: 200, codYear: 2029, lat: 58.08, lng: 11.92, country: 'Sweden', city: 'Stenungsund' },
+    { id: 'proj-004', name: 'Shunli CO2-to-methanol', company: 'Henan Shuncheng', fuelType: 'Green Methanol', pathway: 'CO2 + H2', status: 'Operational', capacityKtpa: 110, codYear: 2022, lat: 35.99, lng: 114.51, country: 'China', city: 'Anyang' },
     { id: 'proj-005', name: 'Carbon Iceland', company: 'Carbon Iceland', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 300, codYear: 2029, lat: 64.36, lng: -21.78, country: 'Iceland', city: 'Grundartangi' },
     { id: 'proj-006', name: 'Triskelion', company: 'Forestal del Atlantico', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Engineering', capacityKtpa: 57, codYear: 2028, lat: 43.46, lng: -8.26, country: 'Spain', city: 'Mugardos' },
   ];
@@ -28,8 +28,8 @@ vi.mock('../../../data/producerProjects', () => {
     producerProjects: projects,
     fuelTypeColors: {
       'E-Methanol': '#5DADE2',
-      'Biomethanol': '#4CAF50',
-      'Low-Carbon Methanol': '#FF9800',
+      'Bio Methanol': '#4CAF50',
+      'Green Methanol': '#FF9800',
     },
   };
 });
@@ -66,8 +66,8 @@ describe('ProducerMapPage', () => {
     renderWithRouter(<ProducerMapPage />);
     // Each fuel type appears in both the checkbox filter and legend sections
     expect(screen.getAllByText('E-Methanol').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Biomethanol').length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText('Low-Carbon Methanol').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Bio Methanol').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('Green Methanol').length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders map container', () => {

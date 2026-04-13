@@ -32,6 +32,7 @@ import { MyTrades } from './components/MyTrades';
 import { TradeHistoryPage } from './components/TradeHistoryPage';
 import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
+import { WatchlistPage } from './components/WatchlistPage';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -130,7 +131,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 };
 
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
-  if (!page || page === 'WATCHLISTS') return 'DASHBOARD';
+  if (!page) return 'DASHBOARD';
   return page as Page;
 };
 
@@ -208,6 +209,8 @@ const Dashboard: React.FC = () => {
                 return <Marketplace initialPort={selectedPort} />;
             case 'TRADES':
                 return <TradeHistoryPage />;
+            case 'WATCHLISTS':
+                return <WatchlistPage />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
@@ -230,6 +233,8 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'TRADES':
          return <TradeHistoryPage />;
+      case 'WATCHLISTS':
+         return <WatchlistPage />;
       default:
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
     }

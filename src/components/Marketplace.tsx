@@ -15,6 +15,8 @@ import {
     CheckCircle2,
     ClipboardList,
     Trash2,
+    Pin,
+    RadioTower,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -38,6 +40,9 @@ import {
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
 import { getOrderDisplayName } from '../utils/marketProduct';
+import { useWatchlist } from '../hooks/useWatchlist';
+import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
+import { VerdaxisSelect } from './ui/VerdaxisSelect';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -90,6 +95,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const { t, ready } = useNamespace('trading');
     const role = user?.role ?? 'BUYER';
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
+    const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
 
     // ─── Column header labels (inside component to access t()) ────
     const COLUMN_HEADERS: Record<ColumnId, string> = {
@@ -132,7 +138,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     }, [portInput]);
 
     // ─── Client-side filters ──────────────────────────────────────
-    const [filterGrade, setFilterGrade] = useState<string>('All');
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
     const [showFilters, setShowFilters] = useState(false);
 
@@ -166,10 +171,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Client-side filter + sort ────────────────────────────────
     const filteredListings = useMemo(() => {
-        let result = [...listings];
-        if (filterGrade !== 'All') {
-            result = result.filter(l => l.fuel_grade === filterGrade);
-        }
+        const result = [...listings];
         switch (sortBy) {
             case 'price_asc': result.sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd); break;
             case 'price_desc': result.sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd); break;
@@ -177,9 +179,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             case 'newest': result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
         }
         return result;
-    }, [listings, filterGrade, sortBy]);
+    }, [listings, sortBy]);
 
-    const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
+    const activeFilterCount = sortBy !== 'price_asc' ? 1 : 0;
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
@@ -461,24 +463,62 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             }
             case 'action': {
                 const isOpen = order.status === 'OPEN';
+                const trackable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
+                const sliceKey = trackable
+                    ? getWatchlistSliceKeyFromParts(order.market_product, order.delivery_point_id, order.availability_window)
+                    : '';
+                const isTracked = trackable && trackedSliceKeys.has(sliceKey);
+                const isPinned = pinnedOrderIds.has(order.id);
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
-                        {isOpen ? (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
-                                className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
-                            >
-                                {t(configBase.counterAction.labelKey)}
-                            </button>
-                        ) : (
-                            <span className="text-xs text-slate-400 font-medium">
-                                {order.status === 'FILLED'
-                                    ? t('marketplace.status.filled')
-                                    : order.status === 'PARTIALLY_FILLED'
-                                        ? t('marketplace.status.partial')
-                                        : t('marketplace.status.closed')}
-                            </span>
-                        )}
+                        <div className="flex flex-col items-start gap-2">
+                            {isOpen ? (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
+                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
+                                >
+                                    {t(configBase.counterAction.labelKey)}
+                                </button>
+                            ) : (
+                                <span className="text-xs text-slate-400 font-medium">
+                                    {order.status === 'FILLED'
+                                        ? t('marketplace.status.filled')
+                                        : order.status === 'PARTIALLY_FILLED'
+                                            ? t('marketplace.status.partial')
+                                            : t('marketplace.status.closed')}
+                                </span>
+                            )}
+                            {trackable && (
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            await toggleSlice({
+                                                marketProductCode: order.market_product!,
+                                                deliveryPointId: order.delivery_point_id!,
+                                                availabilityWindowCode: order.availability_window,
+                                            });
+                                        }}
+                                        aria-pressed={isTracked}
+                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isTracked ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 text-slate-500 hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300'}`}
+                                    >
+                                        <RadioTower size={12} />
+                                        {isTracked ? 'Tracked' : 'Track slice'}
+                                    </button>
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            await togglePin(order.id);
+                                        }}
+                                        aria-pressed={isPinned}
+                                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300' : 'border-slate-200 text-slate-500 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300'}`}
+                                    >
+                                        <Pin size={12} />
+                                        {isPinned ? 'Pinned' : 'Pin order'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </td>
                 );
             }
@@ -568,16 +608,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             {/* Availability Window */}
                             <div className="w-full lg:w-44">
                                 <label className="v-label">{t('marketplace.filter.window')}</label>
-                                <select
+                                <VerdaxisSelect
+                                    ariaLabel={t('marketplace.filter.window')}
                                     value={availability}
-                                    onChange={(e) => setAvailability(e.target.value as any)}
-                                    className="v-input appearance-none"
-                                >
-                                    <option value="">Any</option>
-                                    {availabilityOptions.map(option => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
+                                    onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                    options={[
+                                        { value: '', label: 'Any window' },
+                                        ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                    ]}
+                                    triggerClassName="v-input min-h-[42px] py-2.5"
+                                />
                             </div>
 
                             {/* Search + Filter toggle */}
@@ -606,35 +646,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
                         {/* Client-side filter panel */}
                         {showFilters && (
-                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-200">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.grade')}</label>
-                                    <select
-                                        value={filterGrade}
-                                        onChange={(e) => setFilterGrade(e.target.value)}
-                                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
-                                    >
-                                        <option value="All">{t('marketplace.filter.allGrades')}</option>
-                                        <option value="Green">Green</option>
-                                        <option value="Bio">Bio</option>
-                                    </select>
-                                </div>
-                                <div>
+                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-end gap-4 animate-in slide-in-from-top-2 duration-200">
+                                <div className="min-w-[220px]">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.sortBy')}</label>
-                                    <select
+                                    <VerdaxisSelect
+                                        ariaLabel={t('marketplace.filter.sortBy')}
                                         value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value as any)}
-                                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
-                                    >
-                                        <option value="price_asc">{t('marketplace.sort.priceAsc')}</option>
-                                        <option value="price_desc">{t('marketplace.sort.priceDesc')}</option>
-                                        <option value="quantity_desc">{t('marketplace.sort.largestQty')}</option>
-                                        <option value="newest">{t('marketplace.sort.newest')}</option>
-                                    </select>
+                                        onChange={(value) => setSortBy(value as typeof sortBy)}
+                                        options={[
+                                            { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
+                                            { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
+                                            { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
+                                            { value: 'newest', label: t('marketplace.sort.newest') },
+                                        ]}
+                                        triggerClassName="min-h-[38px] px-3 py-2 text-sm"
+                                    />
                                 </div>
                                 {activeFilterCount > 0 && (
                                     <button
-                                        onClick={() => { setFilterGrade('All'); setSortBy('price_asc'); }}
+                                        onClick={() => { setSortBy('price_asc'); }}
                                         className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
                                     >
                                         <X size={12} /> {t('marketplace.btn.clear')}

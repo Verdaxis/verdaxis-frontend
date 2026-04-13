@@ -382,7 +382,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'DATA_ANALYTICS' | 'WATCHLISTS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -479,20 +479,67 @@ export interface TradeTapeResponse {
 }
 
 // ============== Watchlist Types ==============
-export interface WatchlistEntry {
+export type WatchlistTargetType = 'SLICE' | 'PIN';
+
+export interface WatchlistTarget {
     id: string;
-    product_id: string;
-    product_name?: string;
-    delivery_point_id?: string;
-    delivery_point_name?: string;
-    best_bid?: number;
-    best_ask?: number;
+    target_type: WatchlistTargetType;
+    market_product_code?: MarketProduct | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
+    order_id?: string | null;
+    snapshot_price_per_mt_usd?: number | null;
+    snapshot_quantity_mt?: number | null;
+    snapshot_remaining_quantity_mt?: number | null;
+    snapshot_status?: string | null;
+    snapshot_side?: OrderSide | string | null;
+    snapshot_market_product?: string | null;
+    snapshot_delivery_point_name?: string | null;
+    snapshot_availability_window?: string | null;
+    snapshot_counterparty_label?: string | null;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
     created_at: string;
 }
 
-export interface Watchlist {
+export interface WatchlistSlice {
+    id: string;
+    target_type: 'SLICE';
+    market_product_code: MarketProduct;
+    delivery_point_id: string;
+    delivery_point_name?: string | null;
+    availability_window_code: string;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    pins: WatchlistTarget[];
+    created_at: string;
+}
+
+export interface WatchlistSummary {
     id: string;
     name: string;
-    entries: WatchlistEntry[];
+    kind: string;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    slices: WatchlistSlice[];
     created_at: string;
+}
+
+export interface WatchlistEvent {
+    id: string;
+    watchlist_id: string;
+    watchlist_target_id: string;
+    target_type: WatchlistTargetType;
+    event_type: string;
+    event_payload: Record<string, unknown>;
+    is_read: boolean;
+    created_at: string;
+}
+
+export interface WatchlistEventsPage {
+    items: WatchlistEvent[];
+    next_cursor?: string | null;
 }

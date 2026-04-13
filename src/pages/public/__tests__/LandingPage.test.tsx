@@ -83,8 +83,8 @@ describe('LandingPage', () => {
 
   it('renders price ticker with fuel data', () => {
     renderWithRouter(<LandingPage />);
-    // Bio-Methanol appears in the doubled ticker array
-    const elements = screen.getAllByText('Bio-Methanol');
+    // Bio Methanol appears in the doubled ticker array
+    const elements = screen.getAllByText('Bio Methanol');
     expect(elements.length).toBeGreaterThanOrEqual(1);
   });
 

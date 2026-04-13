@@ -22,20 +22,29 @@ vi.mock('../context/CopilotContext', () => ({
   }),
 }));
 
-vi.mock('../components/OrderBook', () => ({
-  OrderBook: () => <div>Live Orderbook</div>,
-}));
-
-vi.mock('../components/TradeTape', () => ({
-  TradeTape: () => <div>Trade Tape</div>,
-}));
-
-vi.mock('../components/NewsFeed', () => ({
-  NewsFeed: () => <div>News Feed</div>,
-}));
-
-vi.mock('../components/RFQPanel', () => ({
-  RFQPanel: () => <div>RFQ</div>,
+vi.mock('../hooks/useWatchlist', () => ({
+  useWatchlist: () => ({
+    radar: {
+      id: 'radar-1',
+      name: 'Market Radar',
+      kind: 'RADAR_DEFAULT',
+      unread_event_count: 0,
+      slices: [],
+      created_at: new Date().toISOString(),
+    },
+    events: [],
+    loading: false,
+    error: null,
+    trackedSliceKeys: new Set(['BIO_METHANOL::dp-1::SPOT']),
+    pinnedOrderIds: new Set(['ask-1']),
+    nextCursor: null,
+    refresh: vi.fn(),
+    loadMoreEvents: vi.fn(),
+    toggleSlice: vi.fn(),
+    togglePin: vi.fn(),
+    removeTarget: vi.fn(),
+    markEventRead: vi.fn(),
+  }),
 }));
 
 vi.mock('../components/OrderPlaceModal', () => ({
@@ -59,7 +68,7 @@ vi.mock('../services/api', () => ({
 }));
 
 describe('Marketplace green fuels surface', () => {
-  it('hides the old orderbook surface, unsupported fuel chips, and watchlist affordances', async () => {
+  it('shows radar actions only for supported green-fuel listings', async () => {
     listAsksPaged.mockResolvedValue({
       items: [
         {
@@ -97,11 +106,9 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.queryByText('Live Orderbook')).toBeNull();
-    expect(screen.queryByRole('button', { name: /add to watchlist/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /remove from watchlist/i })).toBeNull();
     expect(screen.queryByText('Biofuel')).toBeNull();
     expect(screen.queryByText('Ammonia')).toBeNull();
-    expect(screen.queryByText('Biofuel Bio')).toBeNull();
+    expect(screen.getByRole('button', { name: /tracked/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /pinned/i })).toBeTruthy();
   });
 });

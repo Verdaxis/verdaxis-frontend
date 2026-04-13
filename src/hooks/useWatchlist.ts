@@ -1,138 +1,139 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { api } from '../services/api';
-import type { Watchlist, WatchlistEntry } from '../types';
+import type { WatchlistEvent, WatchlistSummary } from '../types';
+import { getWatchlistSliceKey, getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 
-const DEFAULT_WATCHLIST_NAME = 'Default';
-
-interface UseWatchlistResult {
-    /** All user watchlists */
-    watchlists: Watchlist[];
-    /** ID of the default watchlist (auto-created if missing) */
-    defaultWatchlistId: string | null;
-    /** All entries across all watchlists, keyed by "product_id::delivery_point_id" */
-    watchedKeys: Set<string>;
-    /** Map from watchedKey to { watchlistId, entryId } for removal */
-    watchedEntryMap: Map<string, { watchlistId: string; entryId: string }>;
-    /** Loading state for initial fetch */
-    loading: boolean;
-    /** Toggle an item in/out of the default watchlist. Returns true if added, false if removed. */
-    toggleWatch: (productId: string, deliveryPointId?: string) => Promise<boolean>;
-    /** Check if a product+deliveryPoint combo is watched */
-    isWatched: (productId: string, deliveryPointId?: string) => boolean;
-    /** Re-fetch watchlists from the API */
-    refresh: () => Promise<void>;
+interface SliceToggleInput {
+    marketProductCode: string;
+    deliveryPointId: string;
+    availabilityWindowCode: string;
 }
 
-/** Stable key for a watchlist entry */
-function entryKey(productId: string, deliveryPointId?: string | null): string {
-    return `${productId}::${deliveryPointId ?? ''}`;
+interface UseWatchlistResult {
+    radar: WatchlistSummary | null;
+    events: WatchlistEvent[];
+    loading: boolean;
+    error: string | null;
+    trackedSliceKeys: Set<string>;
+    pinnedOrderIds: Set<string>;
+    nextCursor: string | null;
+    refresh: () => Promise<void>;
+    loadMoreEvents: () => Promise<void>;
+    toggleSlice: (input: SliceToggleInput) => Promise<boolean>;
+    togglePin: (orderId: string) => Promise<boolean>;
+    removeTarget: (targetId: string) => Promise<void>;
+    markEventRead: (eventId: string) => Promise<void>;
 }
 
 export function useWatchlist(): UseWatchlistResult {
-    const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
-    const [defaultWatchlistId, setDefaultWatchlistId] = useState<string | null>(null);
+    const [radar, setRadar] = useState<WatchlistSummary | null>(null);
+    const [events, setEvents] = useState<WatchlistEvent[]>([]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const initDone = useRef(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchWatchlists = useCallback(async () => {
+    const refresh = useCallback(async () => {
+        setLoading(true);
+        setError(null);
         try {
-            const data = await api.watchlists.list();
-            const items: Watchlist[] = data.items ?? data;
-            const arr = Array.isArray(items) ? items : [];
-            setWatchlists(arr);
-
-            const defaultWl = arr.find(wl => wl.name === DEFAULT_WATCHLIST_NAME);
-            if (defaultWl) setDefaultWatchlistId(defaultWl.id);
-            return arr;
-        } catch {
-            return [];
+            const summary = await api.watchlists.getRadar();
+            setRadar(summary);
+            const page = await api.watchlists.listEvents(summary.id, { limit: 25 });
+            setEvents(page.items);
+            setNextCursor(page.next_cursor ?? null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load Market Radar');
+        } finally {
+            setLoading(false);
         }
     }, []);
 
-    // Init: fetch + ensure default watchlist exists
     useEffect(() => {
-        if (initDone.current) return;
-        initDone.current = true;
-        let cancelled = false;
+        refresh();
+    }, [refresh]);
 
-        const init = async () => {
-            setLoading(true);
-            const arr = await fetchWatchlists();
-            if (cancelled) return;
+    const trackedSliceKeys = useMemo(() => new Set(
+        (radar?.slices ?? []).map((slice) => getWatchlistSliceKey(slice)),
+    ), [radar]);
 
-            if (arr.length === 0 || !arr.find(wl => wl.name === DEFAULT_WATCHLIST_NAME)) {
-                try {
-                    const created = await api.watchlists.create(DEFAULT_WATCHLIST_NAME);
-                    if (!cancelled) {
-                        setDefaultWatchlistId(created.id);
-                        await fetchWatchlists();
-                    }
-                } catch { /* user may not be authenticated */ }
-            }
-            if (!cancelled) setLoading(false);
-        };
-        init();
-        return () => { cancelled = true; };
-    }, [fetchWatchlists]);
-
-    // Derived: build lookup structures
-    const { watchedKeys, watchedEntryMap } = (() => {
-        const keys = new Set<string>();
-        const map = new Map<string, { watchlistId: string; entryId: string }>();
-        for (const wl of watchlists) {
-            for (const entry of wl.entries ?? []) {
-                const key = entryKey(entry.product_id, entry.delivery_point_id);
-                keys.add(key);
-                map.set(key, { watchlistId: wl.id, entryId: entry.id });
+    const pinnedOrderIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (const slice of radar?.slices ?? []) {
+            for (const pin of slice.pins) {
+                if (pin.order_id) ids.add(pin.order_id);
             }
         }
-        return { watchedKeys: keys, watchedEntryMap: map };
-    })();
+        return ids;
+    }, [radar]);
 
-    const isWatched = useCallback(
-        (productId: string, deliveryPointId?: string) => watchedKeys.has(entryKey(productId, deliveryPointId)),
-        [watchedKeys],
-    );
-
-    const toggleWatch = useCallback(async (productId: string, deliveryPointId?: string): Promise<boolean> => {
-        const key = entryKey(productId, deliveryPointId);
-        const existing = watchedEntryMap.get(key);
-
+    const toggleSlice = useCallback(async (input: SliceToggleInput) => {
+        if (!radar) return false;
+        const sliceKey = getWatchlistSliceKeyFromParts(
+            input.marketProductCode,
+            input.deliveryPointId,
+            input.availabilityWindowCode,
+        );
+        const existing = radar.slices.find((slice) => getWatchlistSliceKey(slice) === sliceKey);
         if (existing) {
-            // Remove
-            await api.watchlists.removeEntry(existing.watchlistId, existing.entryId);
-            await fetchWatchlists();
+            await api.watchlists.removeTarget(radar.id, existing.id);
+            await refresh();
             return false;
         }
-
-        // Add to default watchlist
-        let targetId = defaultWatchlistId;
-        if (!targetId) {
-            // Create default watchlist on-the-fly
-            const created = await api.watchlists.create(DEFAULT_WATCHLIST_NAME);
-            targetId = created.id;
-            setDefaultWatchlistId(created.id);
-        }
-        await api.watchlists.addEntry(targetId, {
-            product_id: productId,
-            delivery_point_id: deliveryPointId || undefined,
+        await api.watchlists.createSliceTarget(radar.id, {
+            market_product_code: input.marketProductCode,
+            delivery_point_id: input.deliveryPointId,
+            availability_window_code: input.availabilityWindowCode,
         });
-        await fetchWatchlists();
+        await refresh();
         return true;
-    }, [defaultWatchlistId, watchedEntryMap, fetchWatchlists]);
+    }, [radar, refresh]);
 
-    const refresh = useCallback(async () => {
-        await fetchWatchlists();
-    }, [fetchWatchlists]);
+    const togglePin = useCallback(async (orderId: string) => {
+        if (!radar) return false;
+        const existing = radar.slices.flatMap((slice) => slice.pins).find((pin) => pin.order_id === orderId);
+        if (existing) {
+            await api.watchlists.removeTarget(radar.id, existing.id);
+            await refresh();
+            return false;
+        }
+        await api.watchlists.createPinTarget(radar.id, orderId);
+        await refresh();
+        return true;
+    }, [radar, refresh]);
+
+    const removeTarget = useCallback(async (targetId: string) => {
+        if (!radar) return;
+        await api.watchlists.removeTarget(radar.id, targetId);
+        await refresh();
+    }, [radar, refresh]);
+
+    const markEventRead = useCallback(async (eventId: string) => {
+        if (!radar) return;
+        await api.watchlists.markEventRead(radar.id, eventId);
+        await refresh();
+    }, [radar, refresh]);
+
+    const loadMoreEvents = useCallback(async () => {
+        if (!radar || !nextCursor) return;
+        const page = await api.watchlists.listEvents(radar.id, { cursor: nextCursor, limit: 25 });
+        setEvents((current) => [...current, ...page.items]);
+        setNextCursor(page.next_cursor ?? null);
+    }, [radar, nextCursor]);
 
     return {
-        watchlists,
-        defaultWatchlistId,
-        watchedKeys,
-        watchedEntryMap,
+        radar,
+        events,
         loading,
-        toggleWatch,
-        isWatched,
+        error,
+        trackedSliceKeys,
+        pinnedOrderIds,
+        nextCursor,
         refresh,
+        loadMoreEvents,
+        toggleSlice,
+        togglePin,
+        removeTarget,
+        markEventRead,
     };
 }
