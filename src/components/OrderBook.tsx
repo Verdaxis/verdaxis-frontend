@@ -3,9 +3,11 @@ import { TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
+import { formatMarketProduct } from '../utils/marketProduct';
 
 interface OrderBookProps {
     fuelType?: string;
+    marketProduct?: string;
     region?: string;
     onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
@@ -26,7 +28,7 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, onPriceClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -39,6 +41,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
         try {
             const params = {
                 fuel_type: fuelType,
+                market_product: marketProduct as any,
                 region,
             };
             const [rawBids, rawAsks] = await Promise.all([
@@ -63,7 +66,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [fuelType, region]);
+    }, [fuelType, marketProduct, region]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {
@@ -110,9 +113,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, region, onPriceC
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
                     {t('orderBook.title')}
-                    {fuelType && fuelType !== 'All' && (
+                    {marketProduct && (
                         <span className="ml-2 text-xs font-semibold text-slate-400 normal-case">
-                            — {fuelType}
+                            — {formatMarketProduct(marketProduct)}
                         </span>
                     )}
                     {region && (

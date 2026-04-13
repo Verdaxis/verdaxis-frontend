@@ -17,6 +17,7 @@ import {
     BarChart3,
     Plus,
     Star,
+    Scale,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
@@ -58,6 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
+        { id: 'ORDERBOOK', label: t('sidebar.orderbook'), icon: Scale },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'DATA_ANALYTICS', label: 'Data & Analytics', icon: BarChart3 },
@@ -66,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
+        { id: 'ORDERBOOK', label: t('sidebar.orderbook'), icon: Scale },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },

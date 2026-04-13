@@ -85,3 +85,9 @@
 - **Trigger:** Marketplace used an `Inquire` CTA that still hit the old trade execution path and produced `PARTIALLY_FILLED` statuses.
 - **Rule:** Keep inquiry/negotiation flows separate from executable trade flows in both labels and backend behavior.
 - **Why:** Legacy orderbook wiring survived after the product moved to a listing-first marketplace, causing a misleading and destructive user action.
+
+### Reintroduced views must be reachable from navigation
+- **Date:** 2026-04-14
+- **Trigger:** The orderbook implementation still existed in the frontend, but it had been dropped from sidebar navigation and render routing, so the user experienced it as missing.
+- **Rule:** When reintroducing or preserving a feature, verify the full navigation path and page render wiring, not just that the component still exists in the codebase.
+- **Why:** Component-level survival does not matter if the app shell no longer exposes the feature to users.

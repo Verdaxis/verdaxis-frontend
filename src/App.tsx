@@ -33,6 +33,7 @@ import { TradeHistoryPage } from './components/TradeHistoryPage';
 import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { WatchlistPage } from './components/WatchlistPage';
+import { OrderBookPage } from './components/OrderBookPage';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -209,6 +210,8 @@ const Dashboard: React.FC = () => {
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} />;
+            case 'ORDERBOOK':
+                return <OrderBookPage />;
             case 'TRADES':
                 return <TradeHistoryPage />;
             case 'WATCHLISTS':
@@ -225,6 +228,8 @@ const Dashboard: React.FC = () => {
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
+      case 'ORDERBOOK':
+        return <OrderBookPage />;
       case 'TERMINAL':
         return <MarketTerminal onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
