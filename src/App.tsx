@@ -35,7 +35,6 @@ import { Marketplace } from './components/Marketplace';
 import { SupplierStats } from './components/SupplierStats';
 import { SupplierAnalytics } from './components/SupplierAnalytics';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { WatchlistPage } from './components/WatchlistPage';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
@@ -130,6 +129,11 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
     return children;
 };
 
+const sanitizeDashboardPage = (page: string | null | undefined): Page => {
+  if (!page || page === 'WATCHLISTS') return 'DASHBOARD';
+  return page as Page;
+};
+
 const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
   const { user } = useAuth();
@@ -138,11 +142,7 @@ const Dashboard: React.FC = () => {
     const saved = sessionStorage.getItem('verdaxis_viewMode');
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
-  const [currentPage, setCurrentPage] = useState<Page>(() => {
-    const saved = sessionStorage.getItem('verdaxis_currentPage');
-    if (saved) return saved as Page;
-    return 'DASHBOARD';
-  });
+  const [currentPage, setCurrentPage] = useState<Page>(() => sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
@@ -151,7 +151,7 @@ const Dashboard: React.FC = () => {
       if (location.state) {
         const state = location.state as any;
         if (state.targetPage) {
-            setCurrentPage(state.targetPage);
+            setCurrentPage(sanitizeDashboardPage(state.targetPage));
         }
         if (state.openOrderId) {
             setOpenOrderId(state.openOrderId);
@@ -168,8 +168,9 @@ const Dashboard: React.FC = () => {
   };
 
   const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
-    sessionStorage.setItem('verdaxis_currentPage', page);
+    const nextPage = sanitizeDashboardPage(page);
+    setCurrentPage(nextPage);
+    sessionStorage.setItem('verdaxis_currentPage', nextPage);
   };
 
   const handlePortSelect = (port: Port) => {
@@ -207,8 +208,6 @@ const Dashboard: React.FC = () => {
                 return <Marketplace initialPort={selectedPort} />;
             case 'TRADES':
                 return <TradeHistoryPage />;
-            case 'WATCHLISTS':
-                return <WatchlistPage />;
             default:
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
         }
@@ -231,8 +230,6 @@ const Dashboard: React.FC = () => {
          return <Training />;
       case 'TRADES':
          return <TradeHistoryPage />;
-      case 'WATCHLISTS':
-         return <WatchlistPage />;
       default:
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
     }

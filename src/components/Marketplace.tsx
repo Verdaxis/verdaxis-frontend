@@ -13,7 +13,6 @@ import {
     Filter,
     AlertCircle,
     CheckCircle2,
-    Star,
     ClipboardList,
     Trash2,
 } from 'lucide-react';
@@ -34,17 +33,14 @@ import {
     formatDeliveryWindow,
 } from '../utils/fuel';
 import { useNamespace } from '../hooks/useNamespace';
-import { useWatchlist } from '../hooks/useWatchlist';
-import { getFuelChipClasses } from '../utils/fuel';
 import {
-    SPOT_WINDOW,
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { getOrderDisplayName, normalizeProductDisplayName } from '../utils/marketProduct';
+import { getOrderDisplayName } from '../utils/marketProduct';
 
 // ─── Role Config ──────────────────────────────────────────────────
-type ColumnId = 'star' | 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
+type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
 
 interface RoleConfigEntry {
     fetchOrders: (params?: {
@@ -66,27 +62,20 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
         subtitleKey: 'marketplace.subtitle.buyer',
         primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
         counterAction: { labelKey: 'marketplace.btn.inquire' },
-        columns: ['star', 'fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
+        columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
         fetchOrders: api.orderbook.listBidsPaged,
         subtitleKey: 'marketplace.subtitle.supplier',
         primaryAction: { labelKey: 'marketplace.btn.placeAsk', side: 'ASK' as const },
         counterAction: { labelKey: 'marketplace.btn.hitBid' },
-        columns: ['star', 'fuel', 'volume', 'price', 'window', 'status', 'action'],
+        columns: ['fuel', 'volume', 'price', 'window', 'status', 'action'],
     },
 };
 
 // ─── Fuel chip options ────────────────────────────────────────────
 const FUEL_TYPES = ['All', 'Methanol', 'Ethanol'];
 
-const getFuelFamily = (value: string | null | undefined): string => {
-    if (!value) return '';
-    const normalized = value.toLowerCase();
-    if (normalized.includes('methanol')) return 'Methanol';
-    if (normalized.includes('ethanol')) return 'Ethanol';
-    return '';
-};
 const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -102,57 +91,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const role = user?.role ?? 'BUYER';
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
 
-    // ─── Watchlist state ────────────────────────────────────────
-    const {
-        watchlists,
-        defaultWatchlistId,
-        isWatched,
-        toggleWatch,
-        loading: watchlistLoading,
-    } = useWatchlist();
-    const [starLoading, setStarLoading] = useState<string | null>(null);
-
-    // Derive starred chips from all watchlist entries
-    const starredChips = useMemo(() => {
-        const chips: Array<{
-            key: string;
-            productId: string;
-            productName: string;
-            fuelType: string;
-            deliveryPointId?: string;
-            deliveryPointName?: string;
-        }> = [];
-        for (const wl of watchlists) {
-            for (const entry of wl.entries ?? []) {
-                const key = `${entry.product_id}::${entry.delivery_point_id ?? ''}`;
-                const productName = normalizeProductDisplayName(entry.product_name || 'Unknown');
-                const fuelType = getFuelFamily(productName);
-                if (!fuelType || chips.find(c => c.key === key)) continue;
-                chips.push({
-                    key,
-                    productId: entry.product_id,
-                    productName,
-                    fuelType,
-                    deliveryPointId: entry.delivery_point_id ?? undefined,
-                    deliveryPointName: entry.delivery_point_name ?? undefined,
-                });
-            }
-        }
-        return chips;
-    }, [watchlists]);
-
-    const handleStarToggle = useCallback(async (productId: string, deliveryPointId?: string) => {
-        const key = `${productId}::${deliveryPointId ?? ''}`;
-        setStarLoading(key);
-        try {
-            await toggleWatch(productId, deliveryPointId);
-        } catch { /* ignore */ }
-        setStarLoading(null);
-    }, [toggleWatch]);
-
     // ─── Column header labels (inside component to access t()) ────
     const COLUMN_HEADERS: Record<ColumnId, string> = {
-        star: '',
         fuel: t('marketplace.col.fuel'),
         grade: t('marketplace.col.grade'),
         volume: t('marketplace.col.volume'),
@@ -426,34 +366,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // ─── Column renderer ──────────────────────────────────────────
     const renderCell = (col: ColumnId, order: OrderBookOrder): React.ReactNode => {
         switch (col) {
-            case 'star': {
-                const productId = order.product_id;
-                const deliveryPointId = order.delivery_point_id;
-                if (!productId) return <td key={col} className="px-2 py-2 w-8" />;
-                const watched = isWatched(productId, deliveryPointId);
-                const loadingKey = `${productId}::${deliveryPointId ?? ''}`;
-                const isLoading = starLoading === loadingKey;
-                return (
-                    <td key={col} className="px-2 py-2 w-8">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleStarToggle(productId, deliveryPointId); }}
-                            disabled={isLoading}
-                            className={`p-1 rounded transition-colors ${
-                                watched
-                                    ? 'text-amber-500 hover:text-amber-600'
-                                    : 'text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400'
-                            } disabled:opacity-50`}
-                            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
-                        >
-                            {isLoading ? (
-                                <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                                <Star size={14} fill={watched ? 'currentColor' : 'none'} />
-                            )}
-                        </button>
-                    </td>
-                );
-            }
             case 'fuel': {
                 const badgeClasses = getFuelBadgeClasses(order.fuel_type);
                 const stickyBg = getFuelStickyBg(order.fuel_type);
@@ -619,31 +531,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
                     </div>
 
-                    {/* Starred Quick Access Chips */}
-                    {starredChips.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 scrollbar-thin">
-                            {starredChips.map(chip => (
-                                <button
-                                    key={chip.key}
-                                    onClick={() => {
-                                        if (chip.deliveryPointName) setPortInput(chip.deliveryPointName);
-                                        const fuel = chip.fuelType;
-                                        if (fuel) setFuelType(fuel);
-                                    }}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap flex-shrink-0 hover:shadow-sm active:scale-95 ${getFuelChipClasses(chip.fuelType)}`}
-                                >
-                                    <Star size={10} fill="currentColor" className="opacity-70" />
-                                    <span>{chip.productName}</span>
-                                    {chip.deliveryPointName && (
-                                        <>
-                                            <span className="opacity-40">·</span>
-                                            <span className="opacity-70">{chip.deliveryPointName}</span>
-                                        </>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
-                    )}
 
                     {/* Filter Bar */}
                     <div className="v-glass p-4 mb-4 relative z-20">

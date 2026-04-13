@@ -58,3 +58,8 @@
 - **Trigger:** A follow-up audit missed that the live marketplace still exposed old orderbook framing and non-approved fuels in active UI/data paths.
 - **Rule:** After a redesign, verify the exact user-facing marketplace screens against live staging data and reachable alternate entry paths, not just the primary modal or happy path.
 - **Why:** Repo-level checks and partial UI inspection can miss stale seeded data and secondary components that still leak the old model.
+### Retire disabled features at the navigation layer
+- **Date:** 2026-04-13
+- **Trigger:** A marketplace redesign left the watchlist star and watchlist page reachable even though the feature was no longer part of the approved demo flow.
+- **Rule:** When a demo feature is deferred or removed, disable every reachable UI entry point and stale saved-navigation state in the same change.
+- **Why:** Partial removals leave broken controls in production and create avoidable user-facing regressions.

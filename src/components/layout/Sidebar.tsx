@@ -13,7 +13,6 @@ import {
     MonitorDot,
     ArrowLeftRight,
     ShieldCheck,
-    Star,
     ExternalLink,
     BarChart3,
     Plus,
@@ -61,13 +60,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'DATA_ANALYTICS', label: 'Data & Analytics', icon: BarChart3 },
         { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
     ] : [
         { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
         { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
         { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
         { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
         { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
     ];
 

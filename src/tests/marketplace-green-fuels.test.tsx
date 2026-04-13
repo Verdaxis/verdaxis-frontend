@@ -22,34 +22,6 @@ vi.mock('../context/CopilotContext', () => ({
   }),
 }));
 
-vi.mock('../hooks/useWatchlist', () => ({
-  useWatchlist: () => ({
-    watchlists: [
-      {
-        id: 'watchlist-1',
-        entries: [
-          {
-            product_id: 'product-1',
-            product_name: 'Methanol Green',
-            delivery_point_id: 'dp-1',
-            delivery_point_name: 'Singapore',
-          },
-          {
-            product_id: 'product-2',
-            product_name: 'Biofuel Bio',
-            delivery_point_id: 'dp-1',
-            delivery_point_name: 'Singapore',
-          },
-        ],
-      },
-    ],
-    defaultWatchlistId: 'watchlist-1',
-    isWatched: () => false,
-    toggleWatch: vi.fn(),
-    loading: false,
-  }),
-}));
-
 vi.mock('../components/OrderBook', () => ({
   OrderBook: () => <div>Live Orderbook</div>,
 }));
@@ -87,7 +59,7 @@ vi.mock('../services/api', () => ({
 }));
 
 describe('Marketplace green fuels surface', () => {
-  it('hides the old orderbook surface and unsupported fuel chips', async () => {
+  it('hides the old orderbook surface, unsupported fuel chips, and watchlist affordances', async () => {
     listAsksPaged.mockResolvedValue({
       items: [
         {
@@ -126,6 +98,8 @@ describe('Marketplace green fuels surface', () => {
     });
 
     expect(screen.queryByText('Live Orderbook')).toBeNull();
+    expect(screen.queryByRole('button', { name: /add to watchlist/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /remove from watchlist/i })).toBeNull();
     expect(screen.queryByText('Biofuel')).toBeNull();
     expect(screen.queryByText('Ammonia')).toBeNull();
     expect(screen.queryByText('Biofuel Bio')).toBeNull();

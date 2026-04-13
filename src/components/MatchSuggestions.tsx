@@ -56,13 +56,13 @@ export const MatchSuggestions: React.FC<MatchSuggestionsProps> = ({ onViewTrade,
                 ) : (
                     <>
                         <List size={20} className="mx-auto text-emerald-500/50 mb-2" />
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Add products to your Watchlist to get recommendations.</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Recommendations will appear here as matching supply and demand builds up.</p>
                         {onNavigate && (
                             <button
-                                onClick={() => onNavigate('WATCHLISTS')}
+                                onClick={() => onNavigate('MARKETPLACE')}
                                 className="mt-2 px-4 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors text-xs font-medium"
                             >
-                                Go to Watchlist
+                                Open Marketplace
                             </button>
                         )}
                     </>
