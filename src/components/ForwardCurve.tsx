@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createChart, LineSeries, AreaSeries, CrosshairMode, ColorType } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { Download, RefreshCw, TrendingUp, Lock } from 'lucide-react';
@@ -26,6 +26,71 @@ interface ForwardCurveProps {
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
+
+const addMonthOffset = (year: number, month: number, offset: number) => {
+    const zeroBased = month - 1 + offset;
+    return {
+        year: year + Math.floor(zeroBased / 12),
+        month: (zeroBased % 12) + 1,
+    };
+};
+
+const formatMonthWindow = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`;
+
+const formatQuarterWindow = (year: number, quarter: number) => `${year}-Q${quarter}`;
+
+const formatCalendarWindow = (year: number) => `${year}-CAL`;
+
+const MONTH_WINDOW_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
+const QUARTER_WINDOW_RE = /^(\d{4})-Q([1-4])$/;
+const CALENDAR_WINDOW_RE = /^(\d{4})-CAL$/;
+
+const getCurveWindowRank = (window: string) => {
+    if (window === 'SPOT') return [0, 0, 0];
+    const monthMatch = window.match(MONTH_WINDOW_RE);
+    if (monthMatch) return [1, Number(monthMatch[1]), Number(monthMatch[2])];
+    const quarterMatch = window.match(QUARTER_WINDOW_RE);
+    if (quarterMatch) return [2, Number(quarterMatch[1]), Number(quarterMatch[2])];
+    const calendarMatch = window.match(CALENDAR_WINDOW_RE);
+    if (calendarMatch) return [3, Number(calendarMatch[1]), 0];
+    return [4, Number.MAX_SAFE_INTEGER, 0];
+};
+
+const compareCurveWindows = (left: string, right: string) => {
+    const a = getCurveWindowRank(left);
+    const b = getCurveWindowRank(right);
+    for (let index = 0; index < a.length; index += 1) {
+        if (a[index] !== b[index]) return a[index] - b[index];
+    }
+    return 0;
+};
+
+export function selectVisibleCurvePoints(points: ForwardCurveResponse['curve'], now: Date = new Date()) {
+    const month = now.getUTCMonth() + 1;
+    const year = now.getUTCFullYear();
+    const currentQuarter = Math.floor((month - 1) / 3) + 1;
+
+    const allowedMonths = new Set<string>();
+    for (let index = 1; index <= 6; index += 1) {
+        const nextMonth = addMonthOffset(year, month, index);
+        allowedMonths.add(formatMonthWindow(nextMonth.year, nextMonth.month));
+    }
+
+    const allowedQuarters = new Set<string>();
+    for (let index = 1; index <= 4; index += 1) {
+        const absoluteQuarter = (year * 4) + (currentQuarter - 1) + index;
+        const quarterYear = Math.floor(absoluteQuarter / 4);
+        const quarter = (absoluteQuarter % 4) + 1;
+        allowedQuarters.add(formatQuarterWindow(quarterYear, quarter));
+    }
+
+    const allowedCalendars = new Set<string>([formatCalendarWindow(year + 1), formatCalendarWindow(year + 2)]);
+
+    return [...points]
+        .map((point) => ({ ...point, availability_window: normalizeAvailabilityWindow(point.availability_window) }))
+        .sort((left, right) => compareCurveWindows(left.availability_window, right.availability_window))
+        .filter((point) => point.availability_window === 'SPOT' || allowedMonths.has(point.availability_window) || allowedQuarters.has(point.availability_window) || allowedCalendars.has(point.availability_window));
+}
 
 export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick }) => {
     const { t, ready } = useNamespace('dashboard');
@@ -136,12 +201,13 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             addToast({ type: 'info', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' });
             return;
         }
-        const url = api.curves.exportCsvUrl(selectedProductId);
+        const url = api.curves.exportCsvUrl(selectedProductId, resolvedDpId);
         window.open(url, '_blank');
     };
 
     const isFree = !subscription || subscription.tier === 'free';
-    const chartPoints = curveData?.curve ?? [];
+    const selectedProductName = products.find(p => p.id === selectedProductId)?.name || fuelType || marketProductCode || '';
+    const chartPoints = useMemo(() => selectVisibleCurvePoints(curveData?.curve ?? []), [curveData?.curve]);
 
     // Stable refs for click handler closure
     const chartPointsRef = useRef(chartPoints);
@@ -170,7 +236,9 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             tooltip.appendChild(div);
         };
 
-        addLine(formatAvailabilityWindow(item.availability_window), '#e5e5e5', 11, true);
+        if (selectedProductName) addLine(selectedProductName, '#e5e5e5', 11, true);
+        if (deliveryPointName) addLine(deliveryPointName, '#94a3b8', 10, false, 2);
+        addLine(formatAvailabilityWindow(item.availability_window), '#e5e5e5', 11, true, selectedProductName || deliveryPointName ? 6 : 0);
         if (bidVal != null) addLine(`Bid: $${bidVal.toFixed(2)}`, '#00D4AA', 11, true, 2);
         if (askVal != null) addLine(`Ask: $${askVal.toFixed(2)}`, '#FF3B3B', 11, true, 2);
         if (midVal != null) addLine(`Mid: $${midVal.toFixed(2)}`, '#0066FF', 11, true, 2);
@@ -180,7 +248,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             if (item.order_count != null) volText += ` \u00b7 ${item.order_count} orders`;
             addLine(volText, '#888', 10, false, 0);
         }
-    }, []);
+    }, [deliveryPointName, selectedProductName]);
 
     // TradingView chart: create once when container appears
     const chartCreated = useRef(false);
@@ -368,13 +436,18 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <TrendingUp size={14} color="var(--bio, #00D4AA)" />
-                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
-                        {t('forwardCurve.title')}
-                    </span>
-                    {lastRefresh && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <TrendingUp size={14} color="var(--bio, #00D4AA)" style={{ marginTop: 2 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
+                            {t('forwardCurve.title')}
+                        </span>
                         <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
+                            {t('forwardCurve.subtitle')}
+                        </span>
+                    </div>
+                    {lastRefresh && (
+                        <span style={{ fontSize: 10, color: 'var(--terminal-dim)', marginTop: 1 }}>
                             {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
                         </span>
                     )}
@@ -389,7 +462,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                             color: 'var(--bio, #00D4AA)',
                             fontFamily: "'IBM Plex Mono', monospace",
                         }}>
-                            {products.find(p => p.id === selectedProductId)?.name || marketProductCode || fuelType}
+                            {selectedProductName}
                             {deliveryPointName && <span style={{ color: 'var(--terminal-muted)', fontWeight: 400 }}> — {deliveryPointName}</span>}
                         </span>
                     ) : (
@@ -461,8 +534,11 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                     <span style={{ fontSize: 12 }}>{t('forwardCurve.loading')}</span>
                 </div>
             ) : chartPoints.length === 0 ? (
-                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)' }}>
-                    <span style={{ fontSize: 12 }}>{t('forwardCurve.noData')}</span>
+                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)', textAlign: 'center', padding: '0 24px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <span style={{ fontSize: 12, color: 'var(--terminal-text)' }}>{t('forwardCurve.noData')}</span>
+                        <span style={{ fontSize: 10 }}>{t('forwardCurve.noDataHint')}</span>
+                    </div>
                 </div>
             ) : (
                 <div style={{ position: 'relative', height: 220, cursor: onPeriodClick ? 'pointer' : undefined }}>
@@ -510,7 +586,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             {/* Product name subtitle */}
             {curveData && (
                 <div style={{ marginTop: 6, fontSize: 10, color: '#555', textAlign: 'right' }}>
-                    {curveData.product_name} · updated {new Date(curveData.generated_at).toLocaleTimeString('en-US', { hour12: false })}
+                    {selectedProductName || curveData.product_name} · updated {new Date(curveData.generated_at).toLocaleTimeString('en-US', { hour12: false })}
                 </div>
             )}
         </div>

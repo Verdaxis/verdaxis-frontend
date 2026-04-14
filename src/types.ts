@@ -397,7 +397,8 @@ export interface ForwardCurvePoint {
 
 export interface ForwardCurveResponse {
     product_id: string;
-    product_name: string;
+    product_name?: string;
+    delivery_point_id?: string | null;
     curve: ForwardCurvePoint[];
     generated_at: string;
 }

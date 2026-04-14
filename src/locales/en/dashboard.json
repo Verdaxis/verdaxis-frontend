@@ -399,18 +399,20 @@
     "events": "{{count}} events"
   },
   "forwardCurve": {
-    "title": "Forward Curve",
+    "title": "Indicative Forward Curve",
+    "subtitle": "Benchmark mid with soft bid/ask context",
     "loading": "Loading...",
-    "noData": "No forward curve data available",
+    "noData": "No indicative curve is available for this product and port yet.",
+    "noDataHint": "Check Marketplace or Orderbook for live spot and near-dated liquidity.",
     "exportCsv": "Export CSV",
     "upgrade": "Upgrade",
     "refresh": "Refresh",
     "spread": "Spread:",
     "vol": "Vol:",
     "orders": "orders",
-    "bestBid": "Best Bid",
-    "bestAsk": "Best Ask",
-    "midPrice": "Mid Price"
+    "bestBid": "Indicative Bid",
+    "bestAsk": "Indicative Ask",
+    "midPrice": "Benchmark Mid"
   },
   "priceAlerts": {
     "title": "Price Alerts",
