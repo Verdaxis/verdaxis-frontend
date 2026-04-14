@@ -108,7 +108,12 @@ describe('Marketplace green fuels surface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    listAsksPaged.mockResolvedValue(listingsResponse);
+    listAsksPaged.mockImplementation(async (params?: { market_product?: string }) => {
+      if (!params?.market_product || params.market_product === 'BIO_METHANOL') {
+        return listingsResponse;
+      }
+      return { items: [], total: 0, skip: 0, limit: 20 };
+    });
     listAsks.mockResolvedValue(listingsResponse.items);
     listBids.mockResolvedValue([]);
     myOrders.mockResolvedValue([]);
@@ -236,6 +241,40 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('combobox', { name: 'Port' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Window' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
+  });
+
+  it('filters My Orders by the active market slice', async () => {
+    localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
+    myOrders.mockResolvedValue([
+      {
+        ...listingsResponse.items[0],
+        id: 'mine-bio',
+        side: 'BID',
+        market_product: 'BIO_METHANOL',
+        product_name: 'Bio Methanol',
+      },
+      {
+        ...listingsResponse.items[0],
+        id: 'mine-e',
+        side: 'BID',
+        market_product: 'E_METHANOL',
+        product_name: 'e-Methanol',
+      },
+    ]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /my orders/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /my orders/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('e-Methanol')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Bio Methanol')).toBeNull();
   });
 
   it('disables trade submission when the quantity input is invalid', async () => {

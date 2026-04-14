@@ -193,15 +193,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     // ─── Fuel counts for chips ────────────────────────────────────
-    const marketProductCounts = useMemo(() => {
-        const counts: Record<string, number> = {};
-        for (const order of listings) {
-            const key = order.market_product;
-            if (!key) continue;
-            counts[key] = (counts[key] || 0) + 1;
-        }
-        return counts;
-    }, [listings]);
+    const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
 
     // ─── Client-side filter + sort ────────────────────────────────
     const filteredListings = useMemo(() => {
@@ -282,8 +274,38 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     }, [marketProduct]);
 
     useEffect(() => {
-        localStorage.setItem('verdaxis_marketplace_window', availability);
-    }, [availability]);
+        let cancelled = false;
+
+        const fetchMarketProductCounts = async () => {
+            try {
+                const totals = await Promise.all(
+                    MARKET_PRODUCTS.map(async (productCode) => {
+                        const response = await configBase.fetchOrders({
+                            region: resolvedPort || undefined,
+                            market_product: productCode,
+                            availability: availability || undefined,
+                            skip: 0,
+                            limit: 1,
+                        });
+                        return [productCode, response.total ?? response.items?.length ?? 0] as const;
+                    }),
+                );
+
+                if (cancelled) return;
+
+                setMarketProductCounts(Object.fromEntries(totals));
+            } catch {
+                if (!cancelled) {
+                    setMarketProductCounts({});
+                }
+            }
+        };
+
+        fetchMarketProductCounts();
+        return () => {
+            cancelled = true;
+        };
+    }, [availability, configBase, resolvedPort]);
 
 
     const portOptions = useMemo(() => ([
@@ -350,6 +372,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     useEffect(() => {
         if (marketTab === 'my_orders') fetchMyOrders();
     }, [marketTab, fetchMyOrders]);
+
+    const filteredMyOrders = useMemo(() => myOrders.filter((order) => {
+        if (marketProduct !== ALL_MARKET_PRODUCTS && order.market_product !== marketProduct) {
+            return false;
+        }
+
+        if (availability && order.availability_window !== availability) {
+            return false;
+        }
+
+        if (resolvedPort) {
+            const orderPort = order.delivery_point_name || order.region || '';
+            if (orderPort !== resolvedPort) {
+                return false;
+            }
+        }
+
+        return true;
+    }), [availability, marketProduct, myOrders, resolvedPort]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {
@@ -803,7 +844,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> Loading your orders...
                             </div>
-                        ) : myOrders.length === 0 ? (
+                        ) : filteredMyOrders.length === 0 ? (
                             <div className="text-center py-20">
                                 <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                                 <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No open orders</h3>
@@ -834,7 +875,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {myOrders.map((order) => {
+                                        {filteredMyOrders.map((order) => {
                                             const isBid = order.side === 'BID';
                                             const filled = order.status === 'FILLED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
                                             return (
