@@ -5,8 +5,10 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { listAsksPaged, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
+const { listAsksPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
   listAsksPaged: vi.fn(),
+  listAsks: vi.fn(),
+  listBids: vi.fn(),
   myOrders: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
@@ -62,6 +64,8 @@ vi.mock('../services/api', () => ({
   api: {
     orderbook: {
       listAsksPaged,
+      listAsks,
+      listBids,
       myOrders,
     },
     trades: {
@@ -105,6 +109,8 @@ describe('Marketplace green fuels surface', () => {
     vi.clearAllMocks();
     localStorage.clear();
     listAsksPaged.mockResolvedValue(listingsResponse);
+    listAsks.mockResolvedValue(listingsResponse.items);
+    listBids.mockResolvedValue([]);
     myOrders.mockResolvedValue([]);
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
@@ -161,6 +167,38 @@ describe('Marketplace green fuels surface', () => {
         availabilityWindowCode: 'SPOT',
       });
     });
+  });
+
+
+  it('uses the same slice filters when switching from listings to orderbook', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /listings/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    await waitFor(() => {
+      expect(listAsks).toHaveBeenCalledWith({
+        fuel_type: undefined,
+        market_product: 'BIO_METHANOL',
+        region: 'Singapore',
+        availability: 'SPOT',
+      });
+      expect(listBids).toHaveBeenCalledWith({
+        fuel_type: undefined,
+        market_product: 'BIO_METHANOL',
+        region: 'Singapore',
+        availability: 'SPOT',
+      });
+    });
+
+    expect(screen.getByText(/exact same product, port, and window filters as listings/i)).toBeTruthy();
   });
 
   it('disables trade submission when the quantity input is invalid', async () => {

@@ -9,6 +9,7 @@ interface OrderBookProps {
     fuelType?: string;
     marketProduct?: string;
     region?: string;
+    availability?: string;
     onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
@@ -28,7 +29,7 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, onPriceClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, availability, onPriceClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -43,6 +44,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 fuel_type: fuelType,
                 market_product: marketProduct as any,
                 region,
+                availability,
             };
             const [rawBids, rawAsks] = await Promise.all([
                 api.orderbook.listBids(params),
@@ -66,7 +68,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [fuelType, marketProduct, region]);
+    }, [fuelType, marketProduct, region, availability]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {
@@ -121,6 +123,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     {region && (
                         <span className="ml-1 text-xs font-semibold text-slate-400 normal-case">
                             · {region}
+                        </span>
+                    )}
+                    {availability && (
+                        <span className="ml-1 text-xs font-semibold text-slate-400 normal-case">
+                            · {availability}
                         </span>
                     )}
                 </h3>

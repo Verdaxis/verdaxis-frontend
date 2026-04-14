@@ -792,6 +792,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </button>
                     </div>
 
+                    <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                        {marketTab === 'market'
+                            ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
+                            : marketTab === 'orderbook'
+                                ? t('marketplace.viewHint.orderbook')
+                                : t('marketplace.viewHint.myOrders')}
+                    </p>
+
                 </div>
             </div>
 
@@ -823,6 +831,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <OrderBook
                                 marketProduct={marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct}
                                 region={resolvedPort || undefined}
+                                availability={availability || undefined}
                             />
                         </div>
                     </div>
