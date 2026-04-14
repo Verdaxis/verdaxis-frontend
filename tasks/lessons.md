@@ -165,3 +165,9 @@
 - **Trigger:** I framed `.impeccable.md` around Marketplace when the correct scope is the entire Verdaxis frontend.
 - **Rule:** When establishing a design-context baseline file, scope it to the full product surface unless the user explicitly wants a section-level or feature-level design context.
 - **Why:** A frontend-wide guardrail is more useful than a page-specific one for keeping future UI work coherent across public and authenticated surfaces.
+
+### Root design baselines should cover both public and app surfaces
+- **Date:** 2026-04-14
+- **Trigger:** I nearly treated `.impeccable.md` as a Marketplace-specific document instead of a Verdaxis-wide frontend baseline.
+- **Rule:** When adding a root-level design guardrail file, define rules for the entire frontend product surface, including both public marketing pages and the authenticated app.
+- **Why:** Root-level design context is meant to prevent drift across the whole product, not just one workflow.
