@@ -159,3 +159,9 @@
 - **Trigger:** I left the `All` fuel chip tied to the currently selected slice total, so its count changed to the selected fuel instead of staying as the aggregate total.
 - **Rule:** When a control represents an aggregate bucket like `All`, compute its count from the aggregate dataset rather than reusing the active filtered result count.
 - **Why:** Reusing the selected-slice total made the aggregate label misleading and broke the mental model of the chip row.
+
+### Scope impeccable at the product level, not a single screen
+- **Date:** 2026-04-14
+- **Trigger:** I framed `.impeccable.md` around Marketplace when the correct scope is the entire Verdaxis frontend.
+- **Rule:** When establishing a design-context baseline file, scope it to the full product surface unless the user explicitly wants a section-level or feature-level design context.
+- **Why:** A frontend-wide guardrail is more useful than a page-specific one for keeping future UI work coherent across public and authenticated surfaces.
