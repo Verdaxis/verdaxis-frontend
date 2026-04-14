@@ -1,0 +1,117 @@
+# Components
+
+- **ScrollToTop** — `src/App.tsx`
+- **ActivityFeed** — `src/components/ActivityFeed.tsx`
+- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick — `src/components/BuyerMap.tsx`
+- **CommandCenter** — props: viewMode, onNavigate, openOrderId — `src/components/CommandCenter.tsx`
+- **BuyerDashboard** — `src/components/CommandCenter.tsx`
+- **SupplierDashboard** — `src/components/CommandCenter.tsx`
+- **Compliance** — `src/components/Compliance.tsx`
+- **DataAnalytics** — `src/components/DataAnalytics.tsx`
+- **ErrorFallback** — props: fallback — `src/components/ErrorBoundary.tsx`
+- **Fleet** — `src/components/Fleet.tsx`
+- **ForwardCurve** — props: initialProductId, fuelType, deliveryPointName, onPeriodClick — `src/components/ForwardCurve.tsx`
+- **GuidedTutorial** — props: viewMode — `src/components/GuidedTutorial.tsx`
+- **LanguageSelector** — props: onLanguageChange, variant — `src/components/LanguageSelector.tsx`
+- **Layout** — props: viewMode, onSwitchView, currentPage, onNavigate, onPrimaryAction — `src/components/Layout.tsx`
+- **MarketFeed** — props: viewMode, onNavigate — `src/components/MarketFeed.tsx`
+- **MarketTerminal** — props: onNavigate — `src/components/MarketTerminal.tsx`
+- **Marketplace** — props: initialPort — `src/components/Marketplace.tsx`
+- **MatchSuggestions** — props: onViewTrade, onCountChange, onNavigate — `src/components/MatchSuggestions.tsx`
+- **MyTrades** — `src/components/MyTrades.tsx`
+- **NeedsAttentionFeed** — props: trades, viewMode, onNavigate, onConfirmTrade, onPostOrder — `src/components/NeedsAttentionFeed.tsx`
+- **NewsCard** — `src/components/NewsCard.tsx`
+- **NewsFeed** — `src/components/NewsFeed.tsx`
+- **OrderBook** — props: fuelType, marketProduct, region, availability, actionableSide, onLevelClick, onInstantTrade — `src/components/OrderBook.tsx`
+- **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillPrice — `src/components/OrderPlaceModal.tsx`
+- **PriceAlertManager** — props: isOpen, onClose — `src/components/PriceAlertManager.tsx`
+- **RFQPanel** — props: role, sortBy, region, fuelType, availability — `src/components/RFQPanel.tsx`
+- **ReferralsTab** — `src/components/ReferralsTab.tsx`
+- **Settings** — props: viewMode — `src/components/Settings.tsx`
+- **Stats** — `src/components/Stats.tsx`
+- **SupplierAnalytics** — `src/components/SupplierAnalytics.tsx`
+- **SupplierDemandFeed** — props: onNavigate — `src/components/SupplierDemandFeed.tsx`
+- **SupplierInventory** — `src/components/SupplierInventory.tsx`
+- **SupplierListingConsole** — `src/components/SupplierListingConsole.tsx`
+- **SupplierQuotes** — `src/components/SupplierQuotes.tsx`
+- **SupplierStats** — `src/components/SupplierStats.tsx`
+- **TradeHistoryPage** — `src/components/TradeHistoryPage.tsx`
+- **TradeNotifier** — `src/components/TradeNotifier.tsx`
+- **TradeTape** — props: fuelType, region — `src/components/TradeTape.tsx`
+- **Training** — `src/components/Training.tsx`
+- **WatchlistPage** — `src/components/WatchlistPage.tsx`
+- **AdminDashboard** — `src/components/admin/AdminDashboard.tsx`
+- **Copilot** — props: viewMode, currentPage — `src/components/ai/Copilot.tsx`
+- **CreateBidModal** — props: onSubmit, onCancel, isLoading — `src/components/buyer/CreateBidModal.tsx`
+- **ComplianceDashboard** — props: onOpenLedger — `src/components/compliance/ComplianceDashboard.tsx`
+- **ComplianceDataInput** — `src/components/compliance/ComplianceDataInput.tsx`
+- **ComplianceLedgerModal** — props: onClose — `src/components/compliance/ComplianceLedgerModal.tsx`
+- **ComplianceTracing** — `src/components/compliance/ComplianceTracing.tsx`
+- **VesselDetailModal** — props: vessel, onClose — `src/components/fleet/VesselDetailModal.tsx`
+- **Header** — props: viewMode, onSwitchView, onOpenMobileSidebar — `src/components/layout/Header.tsx`
+- **IntelligencePanel** — props: isOpen, onClose, selectedPort, onPortSelect, onNavigate, ports, onArbitrageUpdate — `src/components/map/IntelligencePanel.tsx`
+- **MapLegend** — `src/components/map/MapLegend.tsx`
+- **MarketWatchTicker** — props: isPanelOpen, onOpenPanel — `src/components/map/MarketWatchTicker.tsx`
+- **VesselMarkers** — `src/components/map/VesselMarkers.tsx`
+- **NotificationBell** — `src/components/notifications/NotificationBell.tsx`
+- **NotificationList** — props: onClose — `src/components/notifications/NotificationList.tsx`
+- **DataOcean** — props: style — `src/components/public/DataOcean.tsx`
+- **HeroSection** — `src/components/public/HeroSection.tsx`
+- **LanguageRedirect** — `src/components/public/LanguageRedirect.tsx`
+- **LegacyRedirect** — `src/components/public/LegacyRedirect.tsx`
+- **PilotApplicationForm** — `src/components/public/PilotApplicationForm.tsx`
+- **PriceTicker** — `src/components/public/PriceTicker.tsx`
+- **PublicFooter** — `src/components/public/PublicFooter.tsx`
+- **PublicLanguageWrapper** — `src/components/public/PublicLanguageWrapper.tsx`
+- **PublicLayout** — `src/components/public/PublicLayout.tsx`
+- **PublicNav** — `src/components/public/PublicNav.tsx`
+- **Reveal** — props: delay, y, className, style — `src/components/public/motionUtils.tsx`
+- **HoverCard** — props: style, className — `src/components/public/motionUtils.tsx`
+- **HoverButton** — props: style — `src/components/public/motionUtils.tsx`
+- **StaggerGrid** — props: style, className — `src/components/public/motionUtils.tsx`
+- **StaggerItem** — props: style, className — `src/components/public/motionUtils.tsx`
+- **LeafDecor** — props: style, color — `src/components/public/motionUtils.tsx`
+- **DotGrid** — props: style, color — `src/components/public/motionUtils.tsx`
+- **CircuitLines** — props: style, color — `src/components/public/motionUtils.tsx`
+- **GradientOrb** — props: style, color, size — `src/components/public/motionUtils.tsx`
+- **RFQOfferAlert** — props: onNavigateToRFQ — `src/components/rfq/RFQOfferAlert.tsx`
+- **CreateListingModal** — props: onSubmit, onCancel, isLoading — `src/components/supplier/CreateListingModal.tsx`
+- **CreateQuoteModal** — props: requestId, onClose, onSubmit — `src/components/supplier/CreateQuoteModal.tsx`
+- **OrderbookDepth** — props: bids, asks, fuelType, region — `src/components/trading/OrderbookDepth.tsx`
+- **MarketRadarPanel** — props: radar, events, loading, error, onOpenRadar — `src/components/watchlist/MarketRadarPanel.tsx`
+- **AuthProvider** — `src/context/AuthContext.tsx`
+- **CopilotProvider** — `src/context/CopilotContext.tsx`
+- **NotificationProvider** — `src/context/NotificationContext.tsx`
+- **ThemeProvider** — `src/context/ThemeContext.tsx`
+- **TutorialProvider** — `src/context/TutorialContext.tsx`
+- **COUNTRIES** — props: value, onChange, placeholder, searchPlaceholder, noResults — `src/pages/CreateOrganizationPage.tsx`
+- **ForgotPasswordPage** — `src/pages/ForgotPasswordPage.tsx`
+- **InvitePage** — `src/pages/InvitePage.tsx`
+- **KycPage** — `src/pages/KycPage.tsx`
+- **LoginPage** — `src/pages/LoginPage.tsx`
+- **OnboardingPage** — `src/pages/OnboardingPage.tsx`
+- **RESEND_COOLDOWN** — `src/pages/RegisterPage.tsx`
+- **ResetPasswordPage** — `src/pages/ResetPasswordPage.tsx`
+- **VerifyEmailPage** — `src/pages/VerifyEmailPage.tsx`
+- **BuyerUseCasePage** — `src/pages/public/BuyerUseCasePage.tsx`
+- **ComplianceInfoPage** — `src/pages/public/ComplianceInfoPage.tsx`
+- **EducationArticlePage** — `src/pages/public/EducationArticlePage.tsx`
+- **EducationPage** — `src/pages/public/EducationPage.tsx`
+- **EnergyCalculatorPage** — `src/pages/public/EnergyCalculatorPage.tsx`
+- **FinancierUseCasePage** — `src/pages/public/FinancierUseCasePage.tsx`
+- **FuelCoveragePage** — `src/pages/public/FuelCoveragePage.tsx`
+- **GovernancePage** — `src/pages/public/GovernancePage.tsx`
+- **HowItWorksPage** — `src/pages/public/HowItWorksPage.tsx`
+- **LandingPage** — `src/pages/public/LandingPage.tsx`
+- **NotFoundPage** — `src/pages/public/NotFoundPage.tsx`
+- **PartnerLandingPage** — `src/pages/public/PartnerLandingPage.tsx`
+- **PartnerShowcasePage** — `src/pages/public/PartnerShowcasePage.tsx`
+- **PartnersPage** — `src/pages/public/PartnersPage.tsx`
+- **PilotPage** — `src/pages/public/PilotPage.tsx`
+- **PrivacyPage** — `src/pages/public/PrivacyPage.tsx`
+- **ProducerMapPage** — `src/pages/public/ProducerMapPage.tsx`
+- **ProducerUseCasePage** — `src/pages/public/ProducerUseCasePage.tsx`
+- **RoadmapPage** — `src/pages/public/RoadmapPage.tsx`
+- **TermsPage** — `src/pages/public/TermsPage.tsx`
+- **TraderUseCasePage** — `src/pages/public/TraderUseCasePage.tsx`
+- **AllProviders** — `src/tests/test-utils.tsx`

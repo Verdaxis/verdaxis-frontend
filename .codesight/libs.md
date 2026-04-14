@@ -1,0 +1,77 @@
+# Libraries
+
+- `scripts/geocode_projects.py`
+  - function parse_cod_year: (cod_estimated, cod_announced) -> int | None
+  - function load_cache: () -> dict
+  - function save_cache: (cache)
+  - function geocode: (city, country) -> tuple[float, float] | None
+  - function main: ()
+- `src/data/calculatorDefaults.ts`
+  - function calculateVoyage: (energyDensity, fuelPrice, dailyConsumption, inputs) => VoyageResult
+  - interface CalculatorInputs
+  - interface VoyageResult
+  - const defaultInputs: CalculatorInputs
+- `src/data/educationArticles.ts`
+  - function getEducationArticles: () => EducationArticle[]
+  - interface EducationArticle
+  - const educationArticles: EducationArticle[]
+- `src/hooks/useDemoMode.ts` — function useDemoMode: () => [boolean, () => void], function isDemoMode: () => boolean
+- `src/hooks/useLocalePath.ts` — function useLocalePath: () => void
+- `src/hooks/useNamespace.ts` — function useNamespace: (ns) => void
+- `src/hooks/useSSE.ts` — function useSSE: (channel, onEvent, enabled) => void
+- `src/hooks/useWatchlist.ts` — function useWatchlist: () => UseWatchlistResult
+- `src/i18n.ts`
+  - function isSupportedLang: (lang) => lang is SupportedLang
+  - function loadNamespace: (ns) => Promise<void>
+  - type SupportedLang
+  - const SUPPORTED_LANGS
+- `src/services/ai-engine/cache.ts` — function getCachedData, function setCachedData
+- `src/services/ai-engine/chat.ts`
+  - function chatWithCopilot
+  - interface ChatResponse
+  - const SYSTEM_INSTRUCTION
+- `src/services/ai-engine/generators.ts`
+  - function generateMarketNarrative
+  - function generateArbitrageInsight
+  - function analyzeRisk
+  - function fetchLiveMarketData
+  - function performWebSearch
+  - interface MarketDataResult
+- `src/services/authToken.ts`
+  - function getAccessToken: () => string | null
+  - function setAccessToken: (token) => void
+  - function clearAccessToken: () => void
+- `src/utils/availabilityWindow.ts`
+  - function normalizeAvailabilityWindow: (value) => string
+  - function compareAvailabilityWindows: (left, right) => number
+  - function formatAvailabilityWindow: (value) => string
+  - function formatAvailabilityWindowPeriod: (value) => string
+  - function getAvailabilityWindowOptions: (options?) => AvailabilityWindowOption[]
+  - function getAvailabilityWindowSummary: (value, options?) => void
+  - _...2 more_
+- `src/utils/fuel.ts`
+  - function getFuelRowClasses: (fuelType) => string
+  - function getFuelBadgeClasses: (fuelType) => string
+  - function getFuelStickyBg: (fuelType) => string
+  - function getFuelChipClasses: (fuelType) => string
+  - function getStatusConfig: (status) => StatusConfig
+  - function formatExpiry: (order) => React.ReactNode
+  - _...2 more_
+- `src/utils/marketProduct.ts`
+  - function formatMarketProduct: (value) => string
+  - function normalizeProductDisplayName: (value) => string
+  - function getProductDisplayName: (product) => string
+  - function getOrderDisplayName: (order) => string
+  - const MARKET_PRODUCT_LABELS: Record<MarketProduct, string>
+- `src/utils/watchlist.ts`
+  - function getWatchlistSliceKeyFromParts: (marketProductCode?, deliveryPointId?, availabilityWindowCode?) => string
+  - function getWatchlistSliceKey: (target) => string
+  - function formatWatchlistSliceLabel: (slice) => string
+  - function describeWatchlistEvent: (event) => string
+  - function getLatestEventForSlice: (slice, events) => WatchlistEvent | undefined
+  - function getLatestEventForTarget: (target, events) => WatchlistEvent | undefined
+- `src/utils.ts`
+  - function createCustomIcon
+  - function calculateHeading
+  - function getArbitrageRoute
+  - function formatTierLabel
