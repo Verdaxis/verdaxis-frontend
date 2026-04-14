@@ -71,6 +71,10 @@
   "orderBook.clickToSell": "点击以此价格卖出",
   "orderBook.clickToBuy": "点击以此价格买入",
   "orderBook.live": "实时 · 10秒",
+  "orderBook.clickToReviewBid": "在挂牌中打开此买单",
+  "orderBook.selectProduct.title": "请选择燃料后查看深度",
+  "orderBook.selectProduct.body": "订单簿深度一次只显示一个精确燃料路径。请先在上方选择燃料，再加载买卖盘。",
+  "orderBook.clickToReviewAsk": "在挂牌中打开此卖单",
   "orderPlaceModal.title": "发布{{side}}",
   "orderPlaceModal.subtitle.bid": "提交以目标价格购买燃料的请求",
   "orderPlaceModal.subtitle.ask": "在市场上发布燃料销售报价",
@@ -226,5 +230,11 @@
   "orderPlaceModal.label.certificationScheme": "认证体系",
   "orderPlaceModal.label.certificationDeclared": "认证声明",
   "orderPlaceModal.helper.certificationScheme": "认证体系属于该订单的可执行资格条件。",
+  "orderPlaceModal.label.specificationStandard": "规格标准",
+  "orderPlaceModal.label.carbonIntensity": "碳强度（gCO2e/MJ）",
+  "orderPlaceModal.label.feedstock": "原料来源",
+  "orderPlaceModal.label.origin": "产地",
+  "orderPlaceModal.label.msdsAvailable": "已提供 MSDS",
+  "orderPlaceModal.helper.msdsAvailable": "卖盘必须确认该燃料已提供 MSDS。",
   "orderPlaceModal.helper.certificationDeclared": "确认该卖盘由所选认证体系及配套文件支持。"
 }

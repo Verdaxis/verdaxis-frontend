@@ -71,6 +71,10 @@
   "orderBook.clickToSell": "Click to sell at this price",
   "orderBook.clickToBuy": "Click to buy at this price",
   "orderBook.live": "LIVE · 10s",
+  "orderBook.clickToReviewBid": "Open this bid in Listings",
+  "orderBook.selectProduct.title": "Select a fuel to show Orderbook",
+  "orderBook.selectProduct.body": "Orderbook depth is shown for one exact fuel pathway at a time. Choose a fuel above to load bids and asks.",
+  "orderBook.clickToReviewAsk": "Open this ask in Listings",
   "orderPlaceModal.title": "Place {{side}}",
   "orderPlaceModal.subtitle.bid": "Submit a request to buy fuel at your target price",
   "orderPlaceModal.subtitle.ask": "Offer fuel for sale on the marketplace",
@@ -226,5 +230,11 @@
   "orderPlaceModal.label.certificationScheme": "Certification scheme",
   "orderPlaceModal.label.certificationDeclared": "Certification declaration",
   "orderPlaceModal.helper.certificationScheme": "Certification scheme is part of the executable order qualification.",
+  "orderPlaceModal.label.specificationStandard": "Specification Standard",
+  "orderPlaceModal.label.carbonIntensity": "Carbon Intensity (gCO2e/MJ)",
+  "orderPlaceModal.label.feedstock": "Feedstock",
+  "orderPlaceModal.label.origin": "Origin",
+  "orderPlaceModal.label.msdsAvailable": "MSDS available",
+  "orderPlaceModal.helper.msdsAvailable": "Supplier asks must confirm that an MSDS is available for the listed fuel.",
   "orderPlaceModal.helper.certificationDeclared": "Confirm this ASK is backed by the selected certification scheme and supporting documentation."
 }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useId } from 'react';
+import { createPortal } from 'react-dom';
 import { TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
@@ -10,7 +11,8 @@ interface OrderBookProps {
     marketProduct?: string;
     region?: string;
     availability?: string;
-    onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
+    actionableSide?: 'BID' | 'ASK';
+    onLevelClick?: (order: OrderBookOrder) => void;
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
 
@@ -29,12 +31,14 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, availability, onPriceClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
+    const tooltipId = useId();
 
     const fetchData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -89,6 +93,20 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }, [bids, asks]);
 
     const maxRows = Math.max(bids.length, asks.length);
+
+    const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
+        const rect = element.getBoundingClientRect();
+        const tooltipWidth = 320;
+        const tooltipHeight = 152;
+        const padding = 16;
+        const preferredX = rect.right + 14;
+        const fallbackX = rect.left - tooltipWidth - 14;
+        const x = preferredX + tooltipWidth <= window.innerWidth - padding
+            ? preferredX
+            : Math.max(padding, fallbackX);
+        const y = Math.max(padding, Math.min(rect.top + rect.height / 2 - tooltipHeight / 2, window.innerHeight - tooltipHeight - padding));
+        setHoverTooltip({ order, x, y });
+    }, []);
 
     if (!ready) return null;
 
@@ -164,7 +182,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
             </div>
 
             {/* Unified rows — bid and ask per row for perfect vertical alignment */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="relative flex-1 overflow-y-auto" onMouseLeave={() => setHoverTooltip(null)}>
                 {maxRows === 0 ? (
                     <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
                         <div className="px-4 py-8 text-center text-xs text-slate-400">{t('orderBook.noBids')}</div>
@@ -179,16 +197,32 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         const bidCrossed = bid ? (bid as any).is_crossed === true : false;
                         const askCrossed = ask ? (ask as any).is_crossed === true : false;
 
+                        const bidInteractive = actionableSide === 'BID';
+                        const askInteractive = actionableSide === 'ASK';
+
                         return (
                             <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
                                 {/* BID cell */}
                                 {bid ? (
                                     <div
-                                        onClick={() => onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType)}
-                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer ${
+                                        onMouseEnter={(event) => showTooltipFromElement(bid, event.currentTarget)}
+                                        onFocus={(event) => showTooltipFromElement(bid, event.currentTarget)}
+                                        onBlur={() => setHoverTooltip(null)}
+                                        onClick={() => { if (bidInteractive) onLevelClick?.(bid); }}
+                                        onKeyDown={(event) => {
+                                            if (!bidInteractive) return;
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                onLevelClick?.(bid);
+                                            }
+                                        }}
+                                        role={bidInteractive ? 'button' : undefined}
+                                        tabIndex={bidInteractive ? 0 : undefined}
+                                        aria-label={bidInteractive ? `Open bid ${formatPrice(bid.price_per_mt_usd)} for ${formatQty(bid.remaining_quantity_mt)} MT in listings` : undefined}
+                                        aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors ${bidInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70' : 'cursor-default'} ${
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
-                                        title={t('orderBook.clickToSell')}
                                     >
                                         <div
                                             className={`absolute inset-y-0 right-0 pointer-events-none ${
@@ -199,7 +233,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         {onInstantTrade && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
-                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
                                                 Sell
                                             </button>
@@ -225,11 +259,24 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                 {/* ASK cell */}
                                 {ask ? (
                                     <div
-                                        onClick={() => onPriceClick?.('BID', ask.price_per_mt_usd, fuelType)}
-                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors cursor-pointer ${
+                                        onMouseEnter={(event) => showTooltipFromElement(ask, event.currentTarget)}
+                                        onFocus={(event) => showTooltipFromElement(ask, event.currentTarget)}
+                                        onBlur={() => setHoverTooltip(null)}
+                                        onClick={() => { if (askInteractive) onLevelClick?.(ask); }}
+                                        onKeyDown={(event) => {
+                                            if (!askInteractive) return;
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                onLevelClick?.(ask);
+                                            }
+                                        }}
+                                        role={askInteractive ? 'button' : undefined}
+                                        tabIndex={askInteractive ? 0 : undefined}
+                                        aria-label={askInteractive ? `Open ask ${formatPrice(ask.price_per_mt_usd)} for ${formatQty(ask.remaining_quantity_mt)} MT in listings` : undefined}
+                                        aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors ${askInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70' : 'cursor-default'} ${
                                             askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
-                                        title={t('orderBook.clickToBuy')}
                                     >
                                         <div
                                             className={`absolute inset-y-0 left-0 pointer-events-none ${
@@ -264,7 +311,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         {onInstantTrade && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
-                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
                                                 Buy
                                             </button>
@@ -276,6 +323,46 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                             </div>
                         );
                     })
+                )}
+
+                {hoverTooltip && createPortal(
+                    <div
+                        id={tooltipId}
+                        role="tooltip"
+                        className="pointer-events-none fixed z-[140] w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/18 dark:border-slate-700 dark:bg-slate-950"
+                        style={{ left: hoverTooltip.x, top: hoverTooltip.y }}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                {formatMarketProduct(hoverTooltip.order.market_product || marketProduct || 'BIO_METHANOL')}
+                            </span>
+                            <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                                {hoverTooltip.order.side}
+                            </span>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-600 dark:text-slate-300">
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Certification</span>
+                                <span>{hoverTooltip.order.certification_scheme || hoverTooltip.order.certifications?.[0] || 'Declared cert'}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Origin</span>
+                                <span>{hoverTooltip.order.origin || 'Not specified'}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Feedstock</span>
+                                <span>{hoverTooltip.order.feedstock || 'Not specified'}</span>
+                            </div>
+                            <div>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">CI</span>
+                                <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div className="mt-3 border-t border-slate-200 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                            {hoverTooltip.order.delivery_point_name || hoverTooltip.order.region} · {hoverTooltip.order.availability_window}
+                        </div>
+                    </div>,
+                    document.body,
                 )}
             </div>
 

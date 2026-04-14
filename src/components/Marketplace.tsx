@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-    Search,
-    Ship,
     Loader2,
     MapPin,
     Shield,
     Calendar,
     RefreshCw,
     Plus,
-    ChevronDown,
-    X,
-    Filter,
     AlertCircle,
     CheckCircle2,
     ClipboardList,
     Trash2,
     Star,
+    Ship,
+    X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -177,11 +174,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Client-side filters ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
-    const [showFilters, setShowFilters] = useState(false);
-
-    // ─── Port autocomplete ────────────────────────────────────────
-    const [suggestions, setSuggestions] = useState<Port[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
@@ -220,7 +213,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         return result;
     }, [listings, sortBy]);
 
-    const activeFilterCount = sortBy !== 'price_asc' ? 1 : 0;
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
@@ -291,57 +283,45 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         localStorage.setItem('verdaxis_marketplace_window', availability);
     }, [availability]);
 
-    // ─── Port autocomplete handlers ───────────────────────────────
-    const handlePortInput = (text: string) => {
-        setPortInput(text);
-        if (text.length > 1) {
-            const matches = PORTS.filter(p => p.name.toLowerCase().includes(text.toLowerCase()));
-            setSuggestions(matches);
-            setShowSuggestions(true);
-        } else {
-            setShowSuggestions(false);
-        }
-    };
+    const portOptions = useMemo(() => ([
+        { value: '', label: 'All ports' },
+        ...PORTS.map((port) => ({ value: port.name, label: port.name, description: port.country })),
+    ]), []);
 
-    const selectSuggestion = (portName: string) => {
-        setPortInput(portName);
-        setShowSuggestions(false);
-    };
-
-    // ─── Search handlers ──────────────────────────────────────────
-    const handleSearch = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        // Auto-select the closest matching port on Enter
-        if (portInput.trim()) {
-            const query = portInput.trim().toLowerCase();
-            const exactMatch = PORTS.find(p => p.name.toLowerCase() === query);
-            if (exactMatch) {
-                setPortInput(exactMatch.name);
-                setShowSuggestions(false);
-                return; // useEffect will re-fetch when portInput changes
-            }
-            const partialMatch = PORTS.find(p => p.name.toLowerCase().startsWith(query))
-                || PORTS.find(p => p.name.toLowerCase().includes(query));
-            if (partialMatch) {
-                setPortInput(partialMatch.name);
-                setShowSuggestions(false);
-                return; // useEffect will re-fetch when portInput changes
-            }
-            setShowSuggestions(false);
-        }
-        // Only manually fetch if no port resolution happened (e.g. empty input or no match)
-        fetchData(false, 0);
-    };
+    const sliceSummary = useMemo(() => {
+        const parts = [
+            marketProduct === ALL_MARKET_PRODUCTS ? 'All products' : formatMarketProduct(marketProduct),
+            resolvedPort || 'All ports',
+            availability || 'Any window',
+        ];
+        return parts.join(' · ');
+    }, [availability, marketProduct, resolvedPort]);
 
     const handlePageChange = (newSkip: number) => {
         fetchData(false, newSkip);
     };
+
+    const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
     };
 
     // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
+
+    const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
+        setHighlightedOrderId(order.id);
+        setMarketTab('market');
+    }, []);
+
+    useEffect(() => {
+        if (marketTab !== 'market' || !highlightedOrderId) return;
+        const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
+        if (!(node instanceof HTMLElement)) return;
+        requestAnimationFrame(() => {
+            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }, [filteredListings, highlightedOrderId, marketTab]);
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -569,9 +549,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden" onClick={() => setShowSuggestions(false)}>
+        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden">
             {/* Header */}
-            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0">
+            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0 relative z-[80]">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
                         <div>
@@ -609,83 +589,56 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
 
 
-                    {/* Filter Bar */}
-                    <div className="v-glass p-4 mb-4 relative z-20">
-                        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-3 items-end">
-                            {/* Port autocomplete */}
-                            <div className="relative flex-1 min-w-0">
-                                <label className="v-label">{t('marketplace.filter.port')}</label>
-                                <div className="relative">
-                                    <Ship className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <input
-                                        type="text"
+                    {/* Unified filter rail */}
+                    <div className="v-glass p-4 mb-4 relative z-[90]">
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-wrap gap-2">
+                                {MARKET_PRODUCT_FILTERS.map((productCode) => {
+                                    const isActive = marketProduct === productCode;
+                                    const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
+                                    const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
+                                    return (
+                                        <button
+                                            key={productCode}
+                                            onClick={() => handleProductChipClick(productCode)}
+                                            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
+                                                isActive
+                                                    ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
+                                                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            {label}{count > 0 ? ` (${count})` : ''}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)] gap-3">
+                                <div>
+                                    <label className="v-label">{t('marketplace.filter.port')}</label>
+                                    <VerdaxisSelect
+                                        ariaLabel={t('marketplace.filter.port')}
                                         value={portInput}
-                                        onChange={(e) => handlePortInput(e.target.value)}
-                                        className="v-input pl-10"
-                                        placeholder="e.g. Singapore"
-                                        autoComplete="off"
+                                        onChange={setPortInput}
+                                        options={portOptions}
+                                        triggerClassName="v-input min-h-[42px] py-2.5"
                                     />
                                 </div>
-                                {showSuggestions && suggestions.length > 0 && (
-                                    <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 mt-1 z-30 overflow-hidden max-h-60 overflow-y-auto">
-                                        {suggestions.map(port => (
-                                            <div
-                                                key={port.id}
-                                                className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center space-x-2 transition-colors"
-                                                onClick={(e) => { e.stopPropagation(); selectSuggestion(port.name); }}
-                                            >
-                                                <MapPin size={14} className="text-slate-400" />
-                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{port.name}, {port.country}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Availability Window */}
-                            <div className="w-full lg:w-44">
-                                <label className="v-label">{t('marketplace.filter.window')}</label>
-                                <VerdaxisSelect
-                                    ariaLabel={t('marketplace.filter.window')}
-                                    value={availability}
-                                    onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
-                                    options={[
-                                        { value: '', label: 'Any window' },
-                                        ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
-                                    ]}
-                                    triggerClassName="v-input min-h-[42px] py-2.5"
-                                />
-                            </div>
-
-                            {/* Search + Filter toggle */}
-                            <div className="flex gap-2">
-                                <button type="submit" className="v-btn-primary whitespace-nowrap">
-                                    <Search size={18} />
-                                    <span>{t('marketplace.btn.search')}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                                        showFilters
-                                            ? 'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
-                                            : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:text-slate-700'
-                                    }`}
-                                >
-                                    <Filter size={16} />
-                                    {activeFilterCount > 0 && (
-                                        <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">{activeFilterCount}</span>
-                                    )}
-                                    <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                                </button>
-                            </div>
-                        </form>
-
-                        {/* Client-side filter panel */}
-                        {showFilters && (
-                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-end gap-4 animate-in slide-in-from-top-2 duration-200">
-                                <div className="min-w-[220px]">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.sortBy')}</label>
+                                <div>
+                                    <label className="v-label">{t('marketplace.filter.window')}</label>
+                                    <VerdaxisSelect
+                                        ariaLabel={t('marketplace.filter.window')}
+                                        value={availability}
+                                        onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                        options={[
+                                            { value: '', label: 'Any window' },
+                                            ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                        ]}
+                                        triggerClassName="v-input min-h-[42px] py-2.5"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="v-label">{t('marketplace.filter.sortBy')}</label>
                                     <VerdaxisSelect
                                         ariaLabel={t('marketplace.filter.sortBy')}
                                         value={sortBy}
@@ -696,52 +649,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
                                             { value: 'newest', label: t('marketplace.sort.newest') },
                                         ]}
-                                        triggerClassName="min-h-[38px] px-3 py-2 text-sm"
+                                        triggerClassName="v-input min-h-[42px] py-2.5"
                                     />
                                 </div>
-                                {activeFilterCount > 0 && (
-                                    <button
-                                        onClick={() => { setSortBy('price_asc'); }}
-                                        className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
-                                    >
-                                        <X size={12} /> {t('marketplace.btn.clear')}
-                                    </button>
-                                )}
                             </div>
-                        )}
-                    </div>
 
-                    {/* Product chip pills */}
-                    <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-thin mb-2">
-                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                            const isActive = marketProduct === productCode;
-                            const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
-                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
-                            return (
-                                <button
-                                    key={productCode}
-                                    onClick={() => handleProductChipClick(productCode)}
-                                    className={`rounded-full px-3 py-1.5 text-sm font-medium cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
-                                        isActive
-                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-md border border-white/30 dark:border-slate-600/50'
-                                            : 'bg-white/40 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-700/60'
-                                    }`}
-                                >
-                                    {label}{count > 0 ? ` (${count})` : ''}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Result count + live badge */}
-                    <div className="flex items-center gap-3 mb-3">
-                        <span className="bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                            {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
-                            <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                <span className="text-[10px] text-slate-400">LIVE &middot; 60s</span>
-                            </span>
-                        </span>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                    {sliceSummary}
+                                </div>
+                                <span className="bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                    {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="text-[10px] text-slate-400">LIVE · 60s</span>
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Tab Switcher: Market | Orderbook | My Orders */}
@@ -828,11 +754,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="min-h-[520px]">
-                            <OrderBook
-                                marketProduct={marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct}
-                                region={resolvedPort || undefined}
-                                availability={availability || undefined}
-                            />
+                            {orderbookRequiresProductSelection ? (
+                                <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
+                                    <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
+                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
+                                    <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
+                                </div>
+                            ) : (
+                                <OrderBook
+                                    marketProduct={marketProduct}
+                                    region={resolvedPort || undefined}
+                                    availability={availability || undefined}
+                                    actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
+                                    onLevelClick={handleOrderbookLevelClick}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -979,7 +915,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         filteredListings.map(order => (
                                             <tr
                                                 key={order.id}
-                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)}`}
+                                                data-order-id={order.id}
+                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1021,14 +958,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
-                                {/* Animated success ring */}
-                                <div className="relative mx-auto w-16 h-16 mb-4">
-                                    <div className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" style={{ animationDuration: '1.5s' }} />
-                                    <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                                        <CheckCircle2 size={28} className="text-white" />
-                                    </div>
+                                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                    <CheckCircle2 size={24} />
                                 </div>
-                                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1">{t('marketplace.modal.tradeInitiated')}</h3>
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('marketplace.modal.tradeInitiated')}</h3>
                                 {selectedOrder && (
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1051,7 +984,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                                             <span className="text-xs text-slate-400">Total</span>
-                                            <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                                            <span className="text-base font-bold text-slate-900 dark:text-white">
                                                 ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
@@ -1080,14 +1013,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 {/* Header */}
                                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                                     <div>
-                                        <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">
+                                        <h3 className="text-xl font-bold text-[#334155] dark:text-white">
                                             {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
                                             {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>

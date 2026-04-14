@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
 
 export interface VerdaxisSelectOption {
@@ -35,7 +36,9 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
     const listId = useId();
+    const [menuPosition, setMenuPosition] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
 
     const enabledOptions = useMemo(
         () => options.filter(option => !option.disabled),
@@ -54,13 +57,53 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
         if (!open) return;
 
         const handlePointerDown = (event: MouseEvent) => {
-            if (!containerRef.current?.contains(event.target as Node)) {
+            const target = event.target as Node;
+            const insideTrigger = containerRef.current?.contains(target);
+            const insideMenu = menuRef.current?.contains(target);
+            if (!insideTrigger && !insideMenu) {
                 setOpen(false);
             }
         };
 
         document.addEventListener('mousedown', handlePointerDown);
         return () => document.removeEventListener('mousedown', handlePointerDown);
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            setMenuPosition(null);
+            return;
+        }
+
+        const updateMenuPosition = () => {
+            const rect = buttonRef.current?.getBoundingClientRect();
+            if (!rect) return;
+
+            const viewportPadding = 12;
+            const estimatedMenuHeight = 288;
+            const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+            const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - width - viewportPadding));
+            const openBelowTop = rect.bottom + 8;
+            const availableBelow = Math.max(0, window.innerHeight - openBelowTop - viewportPadding);
+            const availableAbove = Math.max(0, rect.top - 8 - viewportPadding);
+            const shouldOpenBelow = availableBelow >= availableAbove;
+            const preferredSpace = shouldOpenBelow ? availableBelow : availableAbove;
+            const fallbackSpace = Math.max(availableBelow, availableAbove);
+            const maxHeight = Math.min(estimatedMenuHeight, preferredSpace > 0 ? preferredSpace : fallbackSpace);
+            const top = shouldOpenBelow
+                ? openBelowTop
+                : Math.max(viewportPadding, rect.top - 8 - maxHeight);
+
+            setMenuPosition({ top, left, width, maxHeight });
+        };
+
+        updateMenuPosition();
+        window.addEventListener('resize', updateMenuPosition);
+        document.addEventListener('scroll', updateMenuPosition, true);
+        return () => {
+            window.removeEventListener('resize', updateMenuPosition);
+            document.removeEventListener('scroll', updateMenuPosition, true);
+        };
     }, [open]);
 
     const commitSelection = (nextValue: string) => {
@@ -76,6 +119,10 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
             event.preventDefault();
             if (!open) {
                 setOpen(true);
+                return;
+            }
+
+            if (enabledOptions.length === 0) {
                 return;
             }
 
@@ -129,12 +176,19 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                 />
             </button>
 
-            {open && (
+            {open && menuPosition && createPortal(
                 <div
+                    ref={menuRef}
                     id={listId}
                     role="listbox"
                     tabIndex={-1}
-                    className={`absolute z-[120] mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-950 ${menuClassName}`}
+                    className={`fixed z-[220] max-h-72 overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-950 ${menuClassName}`}
+                    style={{
+                        top: menuPosition.top,
+                        left: menuPosition.left,
+                        width: menuPosition.width,
+                        maxHeight: menuPosition.maxHeight,
+                    }}
                 >
                     {options.map(option => {
                         const isSelected = option.value === value;
@@ -174,7 +228,8 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                             </button>
                         );
                     })}
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );

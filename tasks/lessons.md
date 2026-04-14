@@ -91,3 +91,46 @@
 - **Trigger:** The orderbook implementation still existed in the frontend, but it had been dropped from sidebar navigation and render routing, so the user experienced it as missing.
 - **Rule:** When reintroducing or preserving a feature, verify the full navigation path and page render wiring, not just that the component still exists in the codebase.
 - **Why:** Component-level survival does not matter if the app shell no longer exposes the feature to users.
+
+### Raise filter stack above sticky market tables
+- **Date:** 2026-04-14
+- **Trigger:** Marketplace dropdowns rendered behind the orderbook/listings area.
+- **Rule:** When adding overlays above sticky tables, check stacking contexts at the parent container level, not just the dropdown menu's local z-index.
+- **Why:** The select menu had a high local z-index, but its parent header sat below sibling sticky table headers in the overall stacking order.
+
+### Tooltip intent over detail rail
+- **Date:** 2026-04-14
+- **Trigger:** I implemented the orderbook hover details as a persistent top info strip when the user expected a tooltip-style hover treatment.
+- **Rule:** When the user describes a hover effect as tooltip-like, implement an anchored transient tooltip near the hovered element, not a separate persistent detail rail.
+- **Why:** I preserved information but missed the interaction model the user was actually asking for.
+
+### Deploy UI changes before describing them as visible
+- **Date:** 2026-04-14
+- **Trigger:** I said the orderbook hover had been changed to a tooltip, but the user still saw the old persistent top detail rail on staging.
+- **Rule:** Do not describe frontend behavior as changed for the user until the updated bundle is actually built and deployed to the environment they are viewing.
+- **Why:** I verified local code and tests, but not the live staging asset the user was interacting with.
+
+### Portal floating tooltips out of transformed containers
+- **Date:** 2026-04-14
+- **Trigger:** The orderbook tooltip rendered at the bottom of the page instead of next to the hovered row on staging.
+- **Rule:** When a floating overlay needs viewport-relative positioning, render it through a body-level portal instead of inside potentially transformed or scrolling component containers.
+- **Why:** Fixed positioning inside a transformed/stacked UI subtree can behave relative to that subtree, not the viewport.
+
+### Avoid stacked tooltip systems
+- **Date:** 2026-04-14
+- **Trigger:** After adding a custom hover tooltip, the old browser `title` tooltip still appeared on orderbook rows.
+- **Rule:** When implementing a custom tooltip, remove native `title` tooltips from the same interactive element unless they are intentionally duplicated.
+- **Why:** Overlapping tooltip systems look broken and create conflicting hover feedback.
+
+### Match requested UI copy exactly
+- **Date:** 2026-04-14
+- **Trigger:** I shipped the orderbook empty-state with 'Select a fuel to view depth' when the requested wording was 'Select a fuel to show Orderbook'.
+- **Rule:** For short UI copy changes, use the user's requested wording exactly unless there is a strong product reason not to.
+- **Why:** I optimized the phrasing instead of matching the requested label, which created unnecessary iteration.
+
+
+### Keep ASK metadata strict and BID metadata broad
+- **Date:** 2026-04-14
+- **Trigger:** I left supplier asks and buyer bids too symmetrical in metadata strictness after the user clarified that only asks must carry detailed origin, CI, and document fields.
+- **Rule:** Treat supplier ASK metadata completeness as mandatory for public execution, while allowing BID orders to omit non-executable detail fields unless the user explicitly promotes them.
+- **Why:** The executable market is symmetric in mechanics, but not every descriptive field should be mandatory on both sides.

@@ -201,6 +201,25 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText(/exact same product, port, and window filters as listings/i)).toBeTruthy();
   });
 
+  it('asks the user to select a fuel before showing the orderbook when all products are selected', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.removeItem('verdaxis_marketplace_product');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    expect(screen.getByText(/select a fuel to show orderbook/i)).toBeTruthy();
+    expect(screen.getByText(/choose a fuel above to load bids and asks/i)).toBeTruthy();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(listBids).not.toHaveBeenCalled();
+  });
+
   it('disables trade submission when the quantity input is invalid', async () => {
     renderWithProviders(<Marketplace />);
 

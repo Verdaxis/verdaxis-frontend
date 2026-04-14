@@ -129,7 +129,20 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '555' },
     });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), {
+      target: { value: 'IMPCA' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 40'), {
+      target: { value: '42.5' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), {
+      target: { value: 'Waste residue' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), {
+      target: { value: 'Singapore hub' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
 
     await waitFor(() => {
@@ -144,6 +157,11 @@ describe('OrderPlaceModal', () => {
           certification_scheme: 'ISCC EU',
           certification_declared: true,
           certifications: ['ISCC EU'],
+          specification_standard: 'IMPCA',
+          msds_available: true,
+          carbon_intensity_gco2_mj: 42.5,
+          feedstock: 'Waste residue',
+          origin: 'Singapore hub',
           is_anonymous: true,
         })
       );

@@ -28,6 +28,11 @@ interface OrderFormData {
     availability_window: string;
     certification_scheme: string;
     certification_declared: boolean;
+    specification_standard: string;
+    msds_available: boolean;
+    carbon_intensity_gco2_mj: number;
+    feedstock: string;
+    origin: string;
     expiry_type: 'GTC' | 'date';
     expiry_date: string;
 }
@@ -69,6 +74,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         availability_window: SPOT_WINDOW,
         certification_scheme: CERTIFICATION_SCHEME_OPTIONS[0].value,
         certification_declared: false,
+        specification_standard: '',
+        msds_available: false,
+        carbon_intensity_gco2_mj: 0,
+        feedstock: '',
+        origin: '',
         expiry_type: 'GTC',
         expiry_date: '',
     });
@@ -136,13 +146,20 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     if (!isOpen || !ready) return null;
 
+    const hasRequiredAskMetadata =
+        formData.specification_standard.trim() !== '' &&
+        formData.msds_available &&
+        formData.carbon_intensity_gco2_mj > 0 &&
+        formData.feedstock.trim() !== '' &&
+        formData.origin.trim() !== '';
+
     const isValid =
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
         formData.quantity_mt > 0 &&
         formData.price_per_mt_usd > 0 &&
         formData.certification_scheme.trim() !== '' &&
-        (side === 'BID' || formData.certification_declared);
+        (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -165,6 +182,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             if (side === 'ASK') {
                 payload.certification_declared = formData.certification_declared;
                 payload.certifications = [formData.certification_scheme.trim()];
+                payload.specification_standard = formData.specification_standard.trim();
+                payload.msds_available = formData.msds_available;
+                payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
+                payload.feedstock = formData.feedstock.trim();
+                payload.origin = formData.origin.trim();
             }
             if (formData.expiry_type === 'date' && formData.expiry_date) {
                 payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
@@ -498,22 +520,89 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
 
                                     {side === 'ASK' && (
-                                        <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.certification_declared}
-                                                onChange={(event) => handleChange('certification_declared', event.target.checked)}
-                                                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
-                                            />
-                                            <span>
-                                                <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                    {t('orderPlaceModal.label.certificationDeclared')}
+                                        <>
+                                            <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.certification_declared}
+                                                    onChange={(event) => handleChange('certification_declared', event.target.checked)}
+                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+                                                />
+                                                <span>
+                                                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                        {t('orderPlaceModal.label.certificationDeclared')}
+                                                    </span>
+                                                    <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                        {t('orderPlaceModal.helper.certificationDeclared')}
+                                                    </span>
                                                 </span>
-                                                <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                    {t('orderPlaceModal.helper.certificationDeclared')}
+                                            </label>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className={labelClass}>{t('orderPlaceModal.label.specificationStandard')}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.specification_standard}
+                                                        onChange={(e) => handleChange('specification_standard', e.target.value)}
+                                                        placeholder="e.g. IMPCA"
+                                                        className={inputClass}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className={labelClass}>{t('orderPlaceModal.label.carbonIntensity')}</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.carbon_intensity_gco2_mj || ''}
+                                                        onChange={(e) => handleChange('carbon_intensity_gco2_mj', parseFloat(e.target.value) || 0)}
+                                                        placeholder="e.g. 40"
+                                                        min={0}
+                                                        step={0.01}
+                                                        className={inputClass}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className={labelClass}>{t('orderPlaceModal.label.feedstock')}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.feedstock}
+                                                        onChange={(e) => handleChange('feedstock', e.target.value)}
+                                                        placeholder="e.g. Waste residue"
+                                                        className={inputClass}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className={labelClass}>{t('orderPlaceModal.label.origin')}</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.origin}
+                                                        onChange={(e) => handleChange('origin', e.target.value)}
+                                                        placeholder="e.g. Singapore hub"
+                                                        className={inputClass}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.msds_available}
+                                                    onChange={(event) => handleChange('msds_available', event.target.checked)}
+                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+                                                />
+                                                <span>
+                                                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                        {t('orderPlaceModal.label.msdsAvailable')}
+                                                    </span>
+                                                    <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                        {t('orderPlaceModal.helper.msdsAvailable')}
+                                                    </span>
                                                 </span>
-                                            </span>
-                                        </label>
+                                            </label>
+                                        </>
                                     )}
 
                                     <div>
