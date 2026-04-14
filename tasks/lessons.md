@@ -141,3 +141,9 @@
 - **Trigger:** I limited the Marketplace filter collapse behavior to narrow widths after the user wanted the fuel-only collapsed state available on tablet and then all widths.
 - **Rule:** When a control group is meant to collapse behind a disclosure, keep that interaction model consistent across breakpoints unless the user explicitly wants desktop to behave differently.
 - **Why:** Breakpoint-specific interaction changes made the same filter rail feel inconsistent and forced another UI correction.
+
+### Confirm whether shared filters should persist across tabs
+- **Date:** 2026-04-14
+- **Trigger:** I removed the marketplace filters from `My Orders`, but the intended behavior was that the same filters should still apply there.
+- **Rule:** When a tab shares the same underlying market context, verify whether the user wants continuity of filters before decoupling the UI just because the data is personal.
+- **Why:** I optimized for separation of concerns without checking whether the product wanted a unified filtered workspace across tabs.
