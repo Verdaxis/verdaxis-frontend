@@ -725,10 +725,11 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             )}
                         </div>
                     </div>
-                    <div className="mt-1 h-[80%]" data-tour="terminal-forward-curve">
+                    <div className="mt-2 h-[180px] lg:h-[calc(100%-3.75rem)]" data-tour="terminal-forward-curve">
                         <ForwardCurve
                             marketProductCode={selectedMarketProduct}
                             deliveryPointName={selectedPort}
+                            embedded
                             onPeriodClick={(window) => {
                                 if (onNavigate) {
                                     localStorage.setItem('verdaxis_marketplace_port', selectedPort);

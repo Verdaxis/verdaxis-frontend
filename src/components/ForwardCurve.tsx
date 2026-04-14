@@ -24,6 +24,7 @@ interface ForwardCurveProps {
     deliveryPointName?: string;
     /** Called when user clicks a period on the chart */
     onPeriodClick?: (availabilityWindow: string) => void;
+    embedded?: boolean;
 }
 
 const REFRESH_INTERVAL_MS = 30_000;
@@ -93,7 +94,7 @@ export function selectVisibleCurvePoints(points: ForwardCurveResponse['curve'], 
         .filter((point) => point.availability_window === 'SPOT' || allowedMonths.has(point.availability_window) || allowedQuarters.has(point.availability_window) || allowedCalendars.has(point.availability_window));
 }
 
-export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick }) => {
+export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick, embedded = false }) => {
     const { t, ready } = useNamespace('dashboard');
     const { addToast } = useToast();
     const { theme } = useTheme();
@@ -349,10 +350,24 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         fcBidSeriesRef.current = bidSeries;
         fcAskSeriesRef.current = askSeries;
         fcMidSeriesRef.current = midSeries;
+
+        const hideTradingViewAttribution = () => {
+            container.querySelectorAll('a').forEach((node) => {
+                const anchor = node as HTMLAnchorElement;
+                if (anchor.href?.includes('tradingview.com')) {
+                    (anchor as HTMLElement).style.display = 'none';
+                }
+            });
+        };
+        hideTradingViewAttribution();
+        const observer = new MutationObserver(hideTradingViewAttribution);
+        observer.observe(container, { childList: true, subtree: true });
+
         chartCreated.current = true;
 
         // Custom tooltip via crosshair move
         chart.subscribeCrosshairMove((param) => {
+            hideTradingViewAttribution();
             const tooltip = fcTooltipRef.current;
             if (!tooltip) return;
             if (!param.time) {
@@ -389,6 +404,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         });
 
         return () => {
+            observer.disconnect();
             chart.remove();
             fcChartRef.current = null;
             fcBidSeriesRef.current = null;
@@ -446,145 +462,144 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
 
     if (!ready) return null;
 
+    const chartHeight = embedded ? '100%' : 220;
+
     return (
         <div style={{
-            background: 'var(--ocean)',
-            border: '1px solid var(--ocean-border)',
-            borderRadius: 8,
-            padding: '16px',
+            background: embedded ? 'transparent' : 'var(--ocean)',
+            border: embedded ? 'none' : '1px solid var(--ocean-border)',
+            borderRadius: embedded ? 0 : 8,
+            padding: embedded ? 0 : '16px',
             fontFamily: "'IBM Plex Mono', monospace",
+            height: embedded ? '100%' : undefined,
         }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <TrendingUp size={14} color="var(--bio, #00D4AA)" style={{ marginTop: 2 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
-                                {t('forwardCurve.title')}
+            {!embedded && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                        <TrendingUp size={14} color="var(--bio, #00D4AA)" style={{ marginTop: 2 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
+                                    {t('forwardCurve.title')}
+                                </span>
+                                <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: 'var(--sonar, #0066FF)',
+                                    background: 'rgba(0, 102, 255, 0.10)',
+                                    border: '1px solid rgba(0, 102, 255, 0.22)',
+                                    borderRadius: 999,
+                                    padding: '2px 8px',
+                                }}>
+                                    {t('forwardCurve.indicativeOnly')}
+                                </span>
+                                {lastRefresh && (
+                                    <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
+                                        {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
+                                    </span>
+                                )}
+                            </div>
+                            <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
+                                {t('forwardCurve.subtitle')}
                             </span>
-                            <span style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                color: 'var(--sonar, #0066FF)',
-                                background: 'rgba(0, 102, 255, 0.10)',
-                                border: '1px solid rgba(0, 102, 255, 0.22)',
-                                borderRadius: 999,
-                                padding: '2px 8px',
-                            }}>
-                                {t('forwardCurve.indicativeOnly')}
-                            </span>
-                            {lastRefresh && (
-                                <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
-                                    {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
+                            {onPeriodClick && (
+                                <span style={{ fontSize: 10, color: 'var(--sonar, #0066FF)' }}>
+                                    {t('forwardCurve.clickHint')}
                                 </span>
                             )}
                         </div>
-                        <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
-                            {t('forwardCurve.subtitle')}
-                        </span>
-                        {onPeriodClick && (
-                            <span style={{ fontSize: 10, color: 'var(--sonar, #0066FF)' }}>
-                                {t('forwardCurve.clickHint')}
-                            </span>
-                        )}
                     </div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Product selector — hidden when controlled by parent */}
-                    {isProductControlled ? (
-                        <span style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: 'var(--bio, #00D4AA)',
-                            fontFamily: "'IBM Plex Mono', monospace",
-                        }}>
-                            {selectedProductName}
-                            {deliveryPointName && <span style={{ color: 'var(--terminal-muted)', fontWeight: 400 }}> — {deliveryPointName}</span>}
-                        </span>
-                    ) : (
-                        <select
-                            value={selectedProductId}
-                            onChange={e => setSelectedProductId(e.target.value)}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isProductControlled ? (
+                            <span style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: 'var(--bio, #00D4AA)',
+                                fontFamily: "'IBM Plex Mono', monospace",
+                            }}>
+                                {selectedProductName}
+                                {deliveryPointName && <span style={{ color: 'var(--terminal-muted)', fontWeight: 400 }}> — {deliveryPointName}</span>}
+                            </span>
+                        ) : (
+                            <select
+                                value={selectedProductId}
+                                onChange={e => setSelectedProductId(e.target.value)}
+                                style={{
+                                    background: 'var(--terminal-input-bg)',
+                                    border: '1px solid var(--terminal-input-border)',
+                                    borderRadius: 4,
+                                    color: 'var(--terminal-text)',
+                                    fontSize: 11,
+                                    padding: '4px 8px',
+                                    fontFamily: "'IBM Plex Mono', monospace",
+                                }}
+                            >
+                                {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        )}
+
+                        <button
+                            onClick={fetchCurve}
+                            disabled={loading}
+                            title={t('forwardCurve.refresh')}
                             style={{
-                                background: 'var(--terminal-input-bg)',
+                                background: 'transparent',
                                 border: '1px solid var(--terminal-input-border)',
                                 borderRadius: 4,
-                                color: 'var(--terminal-text)',
-                                fontSize: 11,
-                                padding: '4px 8px',
-                                fontFamily: "'IBM Plex Mono', monospace",
+                                color: 'var(--terminal-muted)',
+                                padding: '4px 6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
                             }}
                         >
-                            {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </select>
-                    )}
+                            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                        </button>
 
-                    {/* Refresh button */}
-                    <button
-                        onClick={fetchCurve}
-                        disabled={loading}
-                        title={t('forwardCurve.refresh')}
-                        style={{
-                            background: 'transparent',
-                            border: '1px solid var(--terminal-input-border)',
-                            borderRadius: 4,
-                            color: 'var(--terminal-muted)',
-                            padding: '4px 6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                    </button>
-
-                    {/* Export CSV */}
-                    <button
-                        onClick={handleExport}
-                        style={{
-                            background: isFree ? 'rgba(255,176,32,0.1)' : 'rgba(0,102,255,0.1)',
-                            border: `1px solid ${isFree ? 'rgba(255,176,32,0.3)' : 'rgba(0,102,255,0.3)'}`,
-                            borderRadius: 4,
-                            color: isFree ? 'var(--amber, #FFB020)' : 'var(--sonar, #0066FF)',
-                            fontSize: 10,
-                            padding: '4px 10px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontWeight: 700,
-                        }}
-                    >
-                        {isFree ? <Lock size={10} /> : <Download size={10} />}
-                        {isFree ? t('forwardCurve.upgrade') : t('forwardCurve.exportCsv')}
-                    </button>
+                        <button
+                            onClick={handleExport}
+                            style={{
+                                background: isFree ? 'rgba(255,176,32,0.1)' : 'rgba(0,102,255,0.1)',
+                                border: `1px solid ${isFree ? 'rgba(255,176,32,0.3)' : 'rgba(0,102,255,0.3)'}`,
+                                borderRadius: 4,
+                                color: isFree ? 'var(--amber, #FFB020)' : 'var(--sonar, #0066FF)',
+                                fontSize: 10,
+                                padding: '4px 10px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontWeight: 700,
+                            }}
+                        >
+                            {isFree ? <Lock size={10} /> : <Download size={10} />}
+                            {isFree ? t('forwardCurve.upgrade') : t('forwardCurve.exportCsv')}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Chart */}
             {loading && chartPoints.length === 0 ? (
-                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)' }}>
+                <div style={{ height: chartHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)' }}>
                     <span style={{ fontSize: 12 }}>{t('forwardCurve.loading')}</span>
                 </div>
             ) : chartPoints.length === 0 ? (
-                <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)', textAlign: 'center', padding: '0 24px' }}>
+                <div style={{ height: chartHeight, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--terminal-dim)', textAlign: 'center', padding: '0 24px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <span style={{ fontSize: 12, color: 'var(--terminal-text)' }}>{t('forwardCurve.noData')}</span>
                         <span style={{ fontSize: 10 }}>{t('forwardCurve.noDataHint')}</span>
                     </div>
                 </div>
             ) : (
-                <div style={{ position: 'relative', height: 220, cursor: onPeriodClick ? 'pointer' : undefined }}>
+                <div style={{ position: 'relative', height: chartHeight, cursor: onPeriodClick ? 'pointer' : undefined }}>
                     <div
                         ref={fcChartContainerRef}
                         style={{ width: '100%', height: '100%' }}
                     />
-                    {/* Custom tooltip overlay */}
                     <div
                         ref={fcTooltipRef}
                         style={{
@@ -604,25 +619,25 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                             zIndex: 10,
                         }}
                     />
-                    {/* Legend */}
-                    <div style={{
-                        display: 'flex',
-                        gap: 16,
-                        justifyContent: 'center',
-                        paddingTop: 8,
-                        fontSize: 10,
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        color: '#888',
-                    }}>
-                        <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00D4AA', marginRight: 4 }} />{t('forwardCurve.bestBid')}</span>
-                        <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3B3B', marginRight: 4 }} />{t('forwardCurve.bestAsk')}</span>
-                        <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0066FF', marginRight: 4 }} />{t('forwardCurve.midPrice')}</span>
-                    </div>
+                    {!embedded && (
+                        <div style={{
+                            display: 'flex',
+                            gap: 16,
+                            justifyContent: 'center',
+                            paddingTop: 8,
+                            fontSize: 10,
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            color: '#888',
+                        }}>
+                            <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#00D4AA', marginRight: 4 }} />{t('forwardCurve.bestBid')}</span>
+                            <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FF3B3B', marginRight: 4 }} />{t('forwardCurve.bestAsk')}</span>
+                            <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#0066FF', marginRight: 4 }} />{t('forwardCurve.midPrice')}</span>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Product name subtitle */}
-            {curveData && (
+            {!embedded && curveData && (
                 <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontSize: 10, color: '#555' }}>
                     <span>{selectedProductName || curveData.product_name}{deliveryPointName ? ` · ${deliveryPointName}` : ''}</span>
                     <span>updated {new Date(curveData.generated_at).toLocaleTimeString('en-US', { hour12: false })}</span>

@@ -114,4 +114,17 @@ describe('ForwardCurve', () => {
 
     expect(screen.getByText('Check Marketplace or Orderbook for live spot and near-dated liquidity.')).toBeTruthy();
   });
+
+  it('omits standalone card chrome when rendered in embedded terminal mode', async () => {
+    renderWithProviders(
+      <ForwardCurve marketProductCode="BIO_METHANOL" deliveryPointName="Singapore" embedded />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('No indicative curve is available for this product and port yet.')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
+    expect(screen.queryByText('Benchmark mid with soft bid/ask context')).toBeNull();
+  });
 });

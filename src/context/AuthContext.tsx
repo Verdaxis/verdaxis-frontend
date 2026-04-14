@@ -137,6 +137,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(await res.json());
             }
         } catch { /* checkAuth will retry on next mount */ }
+        finally {
+            setIsLoading(false);
+        }
     }, [applyAccessToken, scheduleRefresh]);
 
     // --- Check auth on mount / token change ---

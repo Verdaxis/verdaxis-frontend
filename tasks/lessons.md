@@ -202,3 +202,9 @@
 - **Trigger:** I removed the duplicate Forward Curve widget from Market Terminal but left the top panel on the older orderbook-derived mini-chart, so the user lost the real forward-curve experience.
 - **Rule:** When consolidating duplicate market panels, keep the canonical data surface and remove the proxy, not the other way around.
 - **Why:** A visually similar chart can still be the wrong product surface if it is backed by a narrower or different data model.
+
+### Dogfood live terminal changes before reporting success
+- **Date:** 2026-04-14
+- **Trigger:** I reported terminal fixes before reproducing the live authenticated staging UI, and the user had to point out the screen was still broken.
+- **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
+- **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
