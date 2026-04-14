@@ -13,8 +13,9 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { Port, OrderBookOrder, PriceSummary } from '../types';
+import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { APPROVED_TRADING_PORTS } from '../data';
+import { formatMarketProduct } from '../utils/marketProduct';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
@@ -84,15 +85,10 @@ function buildPeriodConfig(windows: string[]): PeriodConfig[] {
         }));
 }
 
-// Base prices by fuel type for simulation
-// Base prices by fuel type — indicative benchmark anchors
-// Indicative benchmark anchors by fuel; port modifiers adjust per approved trading port
+// Indicative benchmark anchors by fuel family; port modifiers adjust per approved trading port.
 const FUEL_BASE_PRICES: Record<string, number> = {
     'Methanol': 590,
-    'Biofuel': 920,
-    'Ammonia': 670,
     'Ethanol': 930,
-    'Biomethane': 850,
 };
 
 // Port price modifiers ($/MT vs benchmark anchor)
@@ -104,9 +100,6 @@ const REGION_MODIFIERS: Record<string, number> = {
     'Rotterdam': 0,
     'Antwerp': 5,
 };
-
-// Green fuel types only — no fossil fuels
-const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 
 // Seeded random for deterministic-looking but varying data
 const seededRandom = (seed: number) => {
@@ -176,6 +169,8 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     return { id, time, qty, price, port: region, period, side, is_anonymous: data.is_anonymous ?? false };
 };
 
+export const getTerminalFuelType = (marketProduct: MarketProduct): string => marketProduct.includes('METHANOL') ? 'Methanol' : 'Ethanol';
+
 interface MarketTerminalProps {
     onNavigate?: (page: string) => void;
 }
@@ -187,11 +182,17 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Port & Fuel selectors
-    const [ports, setPorts] = useState<Port[]>([]);
-    const [selectedPort, setSelectedPort] = useState<string>('Singapore');
-    const [selectedFuel, setSelectedFuel] = useState<string>('Methanol');
+    const [selectedPort, setSelectedPort] = useState<string>(() => {
+        const stored = localStorage.getItem('verdaxis_marketplace_port');
+        return APPROVED_TRADING_PORTS.includes(stored as (typeof APPROVED_TRADING_PORTS)[number]) ? stored as string : 'Singapore';
+    });
+    const [selectedMarketProduct, setSelectedMarketProduct] = useState<MarketProduct>(() => {
+        const stored = localStorage.getItem('verdaxis_marketplace_fuel');
+        return MARKET_PRODUCTS.includes(stored as MarketProduct) ? (stored as MarketProduct) : 'BIO_METHANOL';
+    });
     const [showPortDropdown, setShowPortDropdown] = useState(false);
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
+    const selectedFuelType = getTerminalFuelType(selectedMarketProduct);
 
     // Orders from API (orderbook sync)
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
@@ -231,11 +232,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const prevPrices = useRef<Record<string, { bid: number | null; ask: number | null }>>({});
     const tradeScrollRef = useRef<HTMLDivElement>(null);
 
-    // Fetch ports for the selector
-    useEffect(() => {
-        api.ports.list().then((allPorts) => setPorts(allPorts.filter((port) => APPROVED_TRADING_PORTS.includes(port.name as (typeof APPROVED_TRADING_PORTS)[number])))).catch(console.error);
-    }, []);
-
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -262,6 +258,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     const { isConnected: orderbookConnected } = useSSE('orderbook', handleOrderbookEvent);
 
+
     // --- SSE: Trade events (replaces tick-based simulation) ---
     const handleTradeEvent = useCallback((event: string, data: any) => {
         if (event === 'trade_created' || event === 'trade_auto_matched' || event === 'trade_confirmed') {
@@ -282,7 +279,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         const fetchPrices = async () => {
             try {
                 const resp = await api.prices.getSummaries({
-                    fuel_type: selectedFuel,
+                    fuel_type: selectedFuelType,
                     region: selectedPort,
                 });
                 setPriceSummaries(resp.summaries);
@@ -293,7 +290,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchPrices();
         const interval = setInterval(fetchPrices, 30000);
         return () => clearInterval(interval);
-    }, [selectedFuel, selectedPort]);
+    }, [selectedFuelType, selectedPort]);
 
     // Fetch VWAP reference prices (internal vs external split)
     const [vwapData, setVwapData] = useState<{ vwap_usd: number; total_volume_mt: number; trade_count: number; visibility: string } | null>(null);
@@ -302,7 +299,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         const fetchVwap = async () => {
             try {
                 const resp = await api.prices.getReference({
-                    fuel_type: selectedFuel,
+                    fuel_type: selectedFuelType,
                     region: selectedPort,
                     visibility: 'internal',
                 });
@@ -318,7 +315,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchVwap();
         const interval = setInterval(fetchVwap, 30000);
         return () => clearInterval(interval);
-    }, [selectedFuel, selectedPort]);
+    }, [selectedFuelType, selectedPort]);
 
     // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
     useEffect(() => {
@@ -343,7 +340,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, []);
 
     // Derived base price for simulated rows
-    const basePrice = FUEL_BASE_PRICES[selectedFuel] || 540;
+    const basePrice = FUEL_BASE_PRICES[selectedFuelType] || 540;
     const regionMod = REGION_MODIFIERS[selectedPort] || 0;
     const effectiveBase = basePrice + regionMod;
 
@@ -369,10 +366,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             const portLower = selectedPort.toLowerCase();
             const matchPort = o.region.toLowerCase().includes(portLower)
                 || (o.delivery_point_name || '').toLowerCase().includes(portLower);
-            const matchFuel = o.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase());
+            const matchFuel = o.market_product === selectedMarketProduct;
             return matchPort && matchFuel;
         });
-    }, [normalizedOrders, selectedPort, selectedFuel]);
+    }, [normalizedOrders, selectedPort, selectedMarketProduct]);
 
     const filteredAsks = useMemo(() => filteredOrders.filter(o => o.side === 'ASK'), [filteredOrders]);
     const filteredBids = useMemo(() => filteredOrders.filter(o => o.side === 'BID'), [filteredOrders]);
@@ -415,7 +412,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                         // Only show last/change on SPOT row (price summaries are not per-period)
             const matchingSummary = config.type === 'SPOT' ? priceSummaries.find(
-                s => s.fuel_type.toLowerCase().includes(selectedFuel.toLowerCase())
+                s => s.fuel_type.toLowerCase().includes(selectedFuelType.toLowerCase())
                   && s.region.toLowerCase().includes(selectedPort.toLowerCase())
             ) : null;
             const last = hasAnyRealData && matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : null;
@@ -435,7 +432,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedFuel, selectedPort]);
+    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedFuelType, selectedPort]);
 
     // Flash rows whose bid or ask changed on each tick
     useEffect(() => {
@@ -492,8 +489,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     chartDataRef.current = chartData;
     const selectedPortRef = useRef(selectedPort);
     selectedPortRef.current = selectedPort;
-    const selectedFuelRef = useRef(selectedFuel);
-    selectedFuelRef.current = selectedFuel;
+    const selectedMarketProductRef = useRef(selectedMarketProduct);
+    selectedMarketProductRef.current = selectedMarketProduct;
     const onNavigateRef = useRef(onNavigate);
     onNavigateRef.current = onNavigate;
 
@@ -559,7 +556,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             const item = chartDataRef.current[idx];
             if (item?.window && onNavigateRef.current) {
                 localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
-                localStorage.setItem('verdaxis_marketplace_fuel', selectedFuelRef.current);
+                localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProductRef.current);
                 localStorage.setItem('verdaxis_marketplace_window', item.window);
                 onNavigateRef.current('MARKETPLACE');
             }
@@ -612,12 +609,12 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     useEffect(() => {
         setPageContext({
             view: 'Market Terminal',
-            product: `${selectedFuel} (${selectedPort})`,
-            market_data_summary: `Showing ${totalListings} active listings for ${selectedFuel} at ${selectedPort}.`,
+            product: `${formatMarketProduct(selectedMarketProduct)} (${selectedPort})`,
+            market_data_summary: `Showing ${totalListings} active listings for ${formatMarketProduct(selectedMarketProduct)} at ${selectedPort}.`,
             spot_price: spotPrice ? `$${spotPrice.toFixed(2)}` : 'No offers',
             total_volume: `${totalVolume.toLocaleString()} MT`,
         });
-    }, [terminalData, selectedPort, selectedFuel, setPageContext]);
+    }, [terminalData, selectedPort, selectedMarketProduct, setPageContext]);
 
     // Helper to determine if a row has real orderbook data
     const hasRealData = useCallback((row: TerminalRow) => {
@@ -627,23 +624,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [filteredOrders, periodConfig]);
 
     // Unique port names from ports list
-    const portNames = useMemo(() => {
-        const allowed = new Set(APPROVED_TRADING_PORTS);
-        const names = ports.map(p => p.name).filter((name) => allowed.has(name as (typeof APPROVED_TRADING_PORTS)[number]));
-        allOrders.forEach((o) => {
-            if (allowed.has(o.region as (typeof APPROVED_TRADING_PORTS)[number]) && !names.includes(o.region)) {
-                names.push(o.region);
-            }
-        });
-        return [...new Set(names)].sort();
-    }, [ports, allOrders]);
+    const portNames = useMemo(() => [...APPROVED_TRADING_PORTS], []);
 
-    // Unique fuel types from orderbook
-    const availableFuels = useMemo(() => {
-        const fromOrders = [...new Set(allOrders.map(o => o.fuel_type))];
-        const combined = [...new Set([...FUEL_TYPES, ...fromOrders])];
-        return combined.sort();
-    }, [allOrders]);
+    const availableProducts = useMemo(() => [...MARKET_PRODUCTS], []);
 
     return (
         <>
@@ -704,20 +687,20 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 onClick={() => { setShowFuelDropdown(!showFuelDropdown); setShowPortDropdown(false); }}
                                 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 hover:text-emerald-500 transition-colors"
                             >
-                                {selectedFuel.toUpperCase()}
+                                {formatMarketProduct(selectedMarketProduct)}
                                 <ChevronDown size={16} className="text-slate-400" />
                             </button>
                             {showFuelDropdown && (
                                 <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded shadow-xl z-50 min-w-[160px] max-h-48 overflow-y-auto">
-                                    {availableFuels.map(fuel => (
+                                    {availableProducts.map((productCode) => (
                                         <button
-                                            key={fuel}
-                                            onClick={() => { setSelectedFuel(fuel); setShowFuelDropdown(false); }}
+                                            key={productCode}
+                                            onClick={() => { setSelectedMarketProduct(productCode); setShowFuelDropdown(false); }}
                                             className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1a1a] transition-colors ${
-                                                selectedFuel === fuel ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
+                                                selectedMarketProduct === productCode ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
                                             }`}
                                         >
-                                            {fuel}
+                                            {formatMarketProduct(productCode)}
                                         </button>
                                     ))}
                                 </div>
@@ -730,7 +713,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 onClick={() => { setShowPortDropdown(!showPortDropdown); setShowFuelDropdown(false); }}
                                 className="text-xs font-semibold flex items-center gap-1.5 hover:text-emerald-500 transition-colors"
                             >
-                                <span className="text-emerald-500">{selectedPort.toUpperCase()}</span>
+                                <span className="text-emerald-500">{selectedPort}</span>
                                 <ChevronDown size={12} className="text-slate-400" />
                             </button>
                             {showPortDropdown && (
@@ -774,7 +757,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                     <div className="flex justify-between items-start mb-2 px-2">
                         <div>
                             <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
-                            <div className="text-xs text-slate-600 dark:text-[#555]">{selectedFuel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
+                            <div className="text-xs text-slate-600 dark:text-[#555]">{formatMarketProduct(selectedMarketProduct)} — {selectedPort}</div>
                         </div>
                         <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
@@ -979,7 +962,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 <OrderbookDepth
                                     bids={depthBids}
                                     asks={depthAsks}
-                                    fuelType={selectedFuel}
+                                    fuelType={formatMarketProduct(selectedMarketProduct)}
                                     region={selectedPort}
                                 />
                             </div>
@@ -1024,12 +1007,12 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             </div>
                             <div data-tour="terminal-forward-curve" style={{ padding: '4px', height: 'calc(100% - 24px)' }}>
                                 <ForwardCurve
-                                    fuelType={selectedFuel}
+                                    marketProductCode={selectedMarketProduct}
                                     deliveryPointName={selectedPort}
                                     onPeriodClick={(window) => {
                                         if (onNavigate) {
                                             localStorage.setItem('verdaxis_marketplace_port', selectedPort);
-                                            localStorage.setItem('verdaxis_marketplace_fuel', selectedFuel);
+                                            localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProduct);
                                             localStorage.setItem('verdaxis_marketplace_window', window);
                                             onNavigate('MARKETPLACE');
                                         }

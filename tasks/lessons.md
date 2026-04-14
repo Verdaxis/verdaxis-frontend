@@ -177,3 +177,9 @@
 - **Trigger:** I left legacy bucket and non-approved ports like `ARA`, `Fujairah`, and `Houston` active after the user narrowed the trading surface to six specific ports.
 - **Rule:** When the user defines an approved trading port set, update both the catalog/seed layer and the live dropdown/data sources together, and remove bucket ports like `ARA` from executable trading surfaces.
 - **Why:** Mixed port taxonomies make the marketplace, forward curve, and seeded data disagree about what a valid market slice is.
+
+### Keep terminal market surfaces on the canonical trading taxonomy
+- **Date:** 2026-04-14
+- **Trigger:** I aligned Marketplace and seeds to the approved ports/products but left MarketTerminal on a separate port API and legacy fuel-type list, so the user still saw missing ports and deprecated fuels in the forward-curve terminal.
+- **Rule:** When the trading taxonomy changes, update secondary market surfaces like MarketTerminal and forward-curve selectors in the same pass as Marketplace.
+- **Why:** Parallel market UIs drift quickly when one uses canonical `market_product + approved ports` and another keeps legacy `fuel_type + ports` sources.

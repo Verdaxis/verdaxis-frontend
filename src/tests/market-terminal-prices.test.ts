@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { getTerminalFuelType } from '../components/MarketTerminal';
+import { APPROVED_TRADING_PORTS } from '../data';
 
 describe('MarketTerminal price data integration', () => {
     it('should prefer real trade prices over simulated data', () => {
@@ -20,5 +22,19 @@ describe('MarketTerminal price data integration', () => {
 
         const change = summary.price_change_pct ?? null;
         expect(change).toBe(1.2);
+    });
+});
+
+
+describe('MarketTerminal trading taxonomy', () => {
+    it('maps canonical market products back to the underlying terminal fuel family', () => {
+        expect(getTerminalFuelType('BIO_METHANOL')).toBe('Methanol');
+        expect(getTerminalFuelType('E_METHANOL')).toBe('Methanol');
+        expect(getTerminalFuelType('BIO_ETHANOL')).toBe('Ethanol');
+        expect(getTerminalFuelType('SYNTHETIC_ETHANOL')).toBe('Ethanol');
+    });
+
+    it('uses the approved trading port set for terminal selectors', () => {
+        expect(APPROVED_TRADING_PORTS).toEqual(['Singapore', 'Shanghai', 'Dalian', 'Amsterdam', 'Rotterdam', 'Antwerp']);
     });
 });

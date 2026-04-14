@@ -4,7 +4,7 @@ import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { Download, RefreshCw, TrendingUp, Lock } from 'lucide-react';
 import { useToast } from './Toast';
 import { api } from '../services/api';
-import { Product, ForwardCurveResponse, Subscription } from '../types';
+import { Product, ForwardCurveResponse, Subscription, MarketProduct } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -17,6 +17,8 @@ interface ForwardCurveProps {
     initialProductId?: string;
     /** When set, auto-select the product matching this fuel type and hide the product selector */
     fuelType?: string;
+    /** When set, auto-select the canonical market product and hide the product selector */
+    marketProductCode?: MarketProduct;
     /** When set, pass as delivery_point filter to the forward curve API */
     deliveryPointName?: string;
     /** Called when user clicks a period on the chart */
@@ -25,7 +27,7 @@ interface ForwardCurveProps {
 
 const REFRESH_INTERVAL_MS = 30_000;
 
-export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, deliveryPointName, onPeriodClick }) => {
+export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { addToast } = useToast();
     const { theme } = useTheme();
@@ -37,6 +39,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
     const [loading, setLoading] = useState(false);
     const [deliveryPoints, setDeliveryPoints] = useState<{ id: string; name: string }[]>([]);
     const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+    const isProductControlled = Boolean(fuelType || marketProductCode);
 
     // TradingView lightweight-charts refs
     const fcChartContainerRef = useRef<HTMLDivElement>(null);
@@ -69,6 +72,16 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             .then(setSubscription)
             .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
     }, []);
+
+    // When marketProductCode prop changes, auto-select the matching product
+    useEffect(() => {
+        if (marketProductCode && products.length > 0) {
+            const match = products.find((p) => p.market_product === marketProductCode);
+            if (match && match.id !== selectedProductId) {
+                setSelectedProductId(match.id);
+            }
+        }
+    }, [marketProductCode, products, selectedProductId]);
 
     // When fuelType prop changes, auto-select the matching product
     useEffect(() => {
@@ -368,15 +381,15 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Product selector — hidden when controlled by parent via fuelType prop */}
-                    {fuelType ? (
+                    {/* Product selector — hidden when controlled by parent */}
+                    {isProductControlled ? (
                         <span style={{
                             fontSize: 11,
                             fontWeight: 700,
                             color: 'var(--bio, #00D4AA)',
                             fontFamily: "'IBM Plex Mono', monospace",
                         }}>
-                            {products.find(p => p.id === selectedProductId)?.name || fuelType}
+                            {products.find(p => p.id === selectedProductId)?.name || marketProductCode || fuelType}
                             {deliveryPointName && <span style={{ color: 'var(--terminal-muted)', fontWeight: 400 }}> — {deliveryPointName}</span>}
                         </span>
                     ) : (
