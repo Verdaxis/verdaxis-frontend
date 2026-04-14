@@ -89,7 +89,7 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const REFRESH_INTERVAL_MS = 60_000;
 
 // ─── Props ────────────────────────────────────────────────────────
@@ -321,6 +321,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         ];
         return parts.join(' · ');
     }, [availability, marketProduct, resolvedPort]);
+
+    const totalMarketProductCount = useMemo(
+        () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
+        [marketProductCounts],
+    );
 
     const handlePageChange = (newSkip: number) => {
         fetchData(false, newSkip);
@@ -640,7 +645,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <div className="flex flex-1 flex-wrap gap-2">
                                     {MARKET_PRODUCT_FILTERS.map((productCode) => {
                                         const isActive = marketProduct === productCode;
-                                        const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
+                                        const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
                                         const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
                                         return (
                                             <button

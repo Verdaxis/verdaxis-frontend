@@ -153,3 +153,9 @@
 - **Trigger:** I showed fuel-chip counts using only the current paginated listings page and left `My Orders` unfiltered even though the visible filter state implied both should follow the active slice.
 - **Rule:** When a UI shows persistent filter state, every visible dataset and count label in that workspace must either honor the same filters or be clearly labeled as a different scope.
 - **Why:** Reusing page-local data for global-looking counters and unfiltered personal rows made the interface look inconsistent and misleading.
+
+### Keep aggregate chips separate from selected-slice totals
+- **Date:** 2026-04-14
+- **Trigger:** I left the `All` fuel chip tied to the currently selected slice total, so its count changed to the selected fuel instead of staying as the aggregate total.
+- **Rule:** When a control represents an aggregate bucket like `All`, compute its count from the aggregate dataset rather than reusing the active filtered result count.
+- **Why:** Reusing the selected-slice total made the aggregate label misleading and broke the mental model of the chip row.
