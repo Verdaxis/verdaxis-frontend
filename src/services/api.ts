@@ -383,7 +383,7 @@ export const api = {
             expires_at?: string;
             certifications?: string[];
             certification_declared?: boolean;
-            certification_scheme: string;
+            certification_scheme?: string | null;
             specification_standard?: string | null;
             msds_available?: boolean;
             carbon_intensity_gco2_mj?: number | null;
@@ -673,10 +673,12 @@ export const api = {
     },
 
     tradeTape: {
-        list: async (params?: { fuel_type?: string; region?: string; limit?: number; skip?: number }) => {
+        list: async (params?: { fuel_type?: string; market_product?: MarketProduct; region?: string; availability?: string; limit?: number; skip?: number }) => {
             const sp = new URLSearchParams();
             if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
+            if (params?.market_product) sp.append('market_product', params.market_product);
             if (params?.region) sp.append('region', params.region);
+            if (params?.availability) sp.append('availability_window', params.availability);
             sp.append('limit', String(params?.limit ?? 20));
             sp.append('skip', String(params?.skip ?? 0));
             return fetchApi(`/trade-tape?${sp.toString()}`);

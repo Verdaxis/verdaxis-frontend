@@ -72,7 +72,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         quantity_mt: 1_000,
         price_per_mt_usd: 0,
         availability_window: SPOT_WINDOW,
-        certification_scheme: CERTIFICATION_SCHEME_OPTIONS[0].value,
+        certification_scheme: side === 'BID' ? '' : CERTIFICATION_SCHEME_OPTIONS[0].value,
         certification_declared: false,
         specification_standard: '',
         msds_available: false,
@@ -127,6 +127,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         }
     }, [isOpen, prefillPrice]);
 
+
+    useEffect(() => {
+        setFormData((prev) => ({
+            ...prev,
+            certification_scheme: side === 'BID' ? '' : (prev.certification_scheme || CERTIFICATION_SCHEME_OPTIONS[0].value),
+        }));
+    }, [side]);
+
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({
@@ -158,7 +166,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.delivery_point_id !== '' &&
         formData.quantity_mt > 0 &&
         formData.price_per_mt_usd > 0 &&
-        formData.certification_scheme.trim() !== '' &&
+        (side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -176,9 +184,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 quantity_mt: formData.quantity_mt,
                 price_per_mt_usd: formData.price_per_mt_usd,
                 availability_window: formData.availability_window,
-                certification_scheme: formData.certification_scheme.trim(),
                 is_anonymous: true,
             };
+            if (formData.certification_scheme.trim()) {
+                payload.certification_scheme = formData.certification_scheme.trim();
+            }
             if (side === 'ASK') {
                 payload.certification_declared = formData.certification_declared;
                 payload.certifications = [formData.certification_scheme.trim()];
@@ -512,7 +522,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             ariaLabel={t('orderPlaceModal.label.certificationScheme')}
                                             value={formData.certification_scheme}
                                             onChange={(value) => handleChange('certification_scheme', value)}
-                                            options={CERTIFICATION_SCHEME_OPTIONS}
+                                            options={side === 'BID' ? [{ value: '', label: t('orderPlaceModal.option.anyCertifiedScheme') }, ...CERTIFICATION_SCHEME_OPTIONS] : CERTIFICATION_SCHEME_OPTIONS}
                                         />
                                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                             {t('orderPlaceModal.helper.certificationScheme')}

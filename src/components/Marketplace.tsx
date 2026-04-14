@@ -578,7 +578,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
                                 >
                                     <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? 'Pinned' : 'Pin order'}
+                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
                                 </button>
                             )}
                         </div>
@@ -641,7 +641,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
                             >
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
-                                <span>{isCurrentSliceTracked ? 'Watching slice' : 'Watch slice'}</span>
+                                <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
                             </button>
                         </div>
                     </div>
@@ -742,10 +742,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                            {sliceSummary}
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                                {sliceSummary}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
+                                            <span className="font-bold uppercase tracking-[0.14em]">{t('marketplace.legend.title')}</span>
+                                            <span className="ml-2">{t('marketplace.legend.body')}</span>
                                         </div>
                                     </div>
                                 </>

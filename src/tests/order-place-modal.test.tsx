@@ -104,11 +104,13 @@ describe('OrderPlaceModal', () => {
           quantity_mt: 1000,
           price_per_mt_usd: 540,
           availability_window: 'SPOT',
-          certification_scheme: 'ISCC EU',
           is_anonymous: true,
         })
       );
     }, { timeout: 10000 });
+
+    const payload = createOrderMock.mock.calls[0]?.[0];
+    expect(payload?.certification_scheme).toBeUndefined();
   }, 15000);
 
   it('requires supplier certification declaration for ask orders', async () => {
@@ -154,7 +156,6 @@ describe('OrderPlaceModal', () => {
           quantity_mt: 1000,
           price_per_mt_usd: 555,
           availability_window: 'SPOT',
-          certification_scheme: 'ISCC EU',
           certification_declared: true,
           certifications: ['ISCC EU'],
           specification_standard: 'IMPCA',

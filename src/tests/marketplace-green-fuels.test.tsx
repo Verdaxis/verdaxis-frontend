@@ -160,10 +160,10 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /watching slice/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /watching market/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /watching slice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /watching market/i }));
 
     await waitFor(() => {
       expect(toggleSlice).toHaveBeenCalledWith({
@@ -309,10 +309,10 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /hit ask/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /hit ask/i }));
+    fireEvent.click(screen.getByRole('button', { name: /lift ask/i }));
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /submit trade/i })).toBeTruthy();

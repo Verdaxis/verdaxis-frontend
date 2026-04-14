@@ -464,12 +464,14 @@ export interface RFQ {
 // ============== Trade Tape Types ==============
 export interface TradeTapeEntry {
     id: string;
+    market_product?: MarketProduct | null;
     fuel_type: string;
     fuel_grade?: string;
     region: string;
     quantity_mt: number;
     price_per_mt_usd: number;
     confirmed_at: string;
+    availability_window?: string;
 }
 
 export interface TradeTapeResponse {

@@ -5,6 +5,7 @@ import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
+import { TradeTape } from './TradeTape';
 
 interface OrderBookProps {
     fuelType?: string;
@@ -86,7 +87,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         return () => clearInterval(interval);
     }, [fetchData]);
 
-    // Max quantity across both sides for depth bar scaling
+    // Scale depth bars against the largest visible resting order so large positions still render proportionally.
     const maxQty = React.useMemo(() => {
         const allQtys = [...bids, ...asks].map(o => o.remaining_quantity_mt);
         return allQtys.length > 0 ? Math.max(...allQtys) : 1;
@@ -128,6 +129,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }
 
     return (
+        <div className="space-y-4">
         <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
@@ -343,7 +345,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-600 dark:text-slate-300">
                             <div>
                                 <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Certification</span>
-                                <span>{hoverTooltip.order.certification_scheme || hoverTooltip.order.certifications?.[0] || 'Declared cert'}</span>
+                                <span>{hoverTooltip.order.certification_scheme || hoverTooltip.order.certifications?.[0] || t('orderPlaceModal.option.anyCertifiedScheme')}</span>
                             </div>
                             <div>
                                 <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Origin</span>
@@ -388,6 +390,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     </div>
                 );
             })()}
+        </div>
+            <TradeTape
+                fuelType={fuelType}
+                marketProduct={marketProduct}
+                region={region}
+                availability={availability}
+            />
         </div>
     );
 };
