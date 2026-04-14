@@ -17,6 +17,8 @@
   "marketplace.filter.window": "窗口",
   "marketplace.filter.grade": "等级",
   "marketplace.filter.sortBy": "排序",
+  "marketplace.filter.more": "更多筛选",
+  "marketplace.filter.hide": "收起筛选",
   "marketplace.filter.allGrades": "所有等级",
   "marketplace.filter.verifiedOnly": "仅认证",
   "marketplace.sort.priceAsc": "价格：由低到高",

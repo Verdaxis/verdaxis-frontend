@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
@@ -218,6 +218,43 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText(/choose a fuel above to load bids and asks/i)).toBeTruthy();
     expect(listAsks).not.toHaveBeenCalled();
     expect(listBids).not.toHaveBeenCalled();
+  });
+
+
+  it('collapses advanced filters on narrow screens while keeping fuel selection visible', async () => {
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 390,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /more filters/i })).toBeTruthy();
+    });
+
+    expect(screen.getByRole('button', { name: /bio methanol \(1\)/i })).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: 'Port' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+
+    expect(screen.getByRole('combobox', { name: 'Port' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Window' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: originalWidth,
+    });
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
   });
 
   it('disables trade submission when the quantity input is invalid', async () => {

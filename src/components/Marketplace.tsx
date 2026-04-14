@@ -13,6 +13,7 @@ import {
     Star,
     Ship,
     X,
+    ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
@@ -132,6 +133,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         return stored ? normalizeAvailabilityWindow(stored) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
+    const [isCompactFilters, setIsCompactFilters] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+    const [mobileFiltersExpanded, setMobileFiltersExpanded] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
     const [currentSkip, setCurrentSkip] = useState(0);
 
     // ─── Resolved port name (best match as user types) ─────────
@@ -283,6 +286,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         localStorage.setItem('verdaxis_marketplace_window', availability);
     }, [availability]);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') return undefined;
+
+        const syncCompactFilters = () => {
+            setIsCompactFilters(window.innerWidth < 768);
+        };
+
+        syncCompactFilters();
+        window.addEventListener('resize', syncCompactFilters);
+        return () => window.removeEventListener('resize', syncCompactFilters);
+    }, []);
+
+    useEffect(() => {
+        setMobileFiltersExpanded(!isCompactFilters);
+    }, [isCompactFilters]);
+
     const portOptions = useMemo(() => ([
         { value: '', label: 'All ports' },
         ...PORTS.map((port) => ({ value: port.name, label: port.name, description: port.country })),
@@ -302,6 +321,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     };
 
     const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
+    const showAdvancedFilters = !isCompactFilters || mobileFiltersExpanded;
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -592,81 +612,101 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     {/* Unified filter rail */}
                     <div className="v-glass p-4 mb-4 relative z-[90]">
                         <div className="flex flex-col gap-4">
-                            <div className="flex flex-wrap gap-2">
-                                {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                    const isActive = marketProduct === productCode;
-                                    const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
-                                    const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
-                                    return (
-                                        <button
-                                            key={productCode}
-                                            onClick={() => handleProductChipClick(productCode)}
-                                            className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
-                                                isActive
-                                                    ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
-                                                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-                                            }`}
-                                        >
-                                            {label}{count > 0 ? ` (${count})` : ''}
-                                        </button>
-                                    );
-                                })}
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex flex-1 flex-wrap gap-2">
+                                    {MARKET_PRODUCT_FILTERS.map((productCode) => {
+                                        const isActive = marketProduct === productCode;
+                                        const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
+                                        const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
+                                        return (
+                                            <button
+                                                key={productCode}
+                                                onClick={() => handleProductChipClick(productCode)}
+                                                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
+                                                    isActive
+                                                        ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
+                                                        : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+                                                }`}
+                                            >
+                                                {label}{count > 0 ? ` (${count})` : ''}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {isCompactFilters && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setMobileFiltersExpanded((expanded) => !expanded)}
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
+                                    >
+                                        <span>{mobileFiltersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
+                                        <ChevronDown size={14} className={`transition-transform ${mobileFiltersExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
+                                )}
                             </div>
 
-                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)] gap-3">
-                                <div>
-                                    <label className="v-label">{t('marketplace.filter.port')}</label>
-                                    <VerdaxisSelect
-                                        ariaLabel={t('marketplace.filter.port')}
-                                        value={portInput}
-                                        onChange={setPortInput}
-                                        options={portOptions}
-                                        triggerClassName="v-input min-h-[42px] py-2.5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="v-label">{t('marketplace.filter.window')}</label>
-                                    <VerdaxisSelect
-                                        ariaLabel={t('marketplace.filter.window')}
-                                        value={availability}
-                                        onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
-                                        options={[
-                                            { value: '', label: 'Any window' },
-                                            ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
-                                        ]}
-                                        triggerClassName="v-input min-h-[42px] py-2.5"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="v-label">{t('marketplace.filter.sortBy')}</label>
-                                    <VerdaxisSelect
-                                        ariaLabel={t('marketplace.filter.sortBy')}
-                                        value={sortBy}
-                                        onChange={(value) => setSortBy(value as typeof sortBy)}
-                                        options={[
-                                            { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
-                                            { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
-                                            { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
-                                            { value: 'newest', label: t('marketplace.sort.newest') },
-                                        ]}
-                                        triggerClassName="v-input min-h-[42px] py-2.5"
-                                    />
-                                </div>
-                            </div>
+                            {showAdvancedFilters && (
+                                <>
+                                    <div className="grid grid-cols-2 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)] gap-3">
+                                        <div>
+                                            <label className="v-label">{t('marketplace.filter.port')}</label>
+                                            <VerdaxisSelect
+                                                ariaLabel={t('marketplace.filter.port')}
+                                                value={portInput}
+                                                onChange={setPortInput}
+                                                options={portOptions}
+                                                triggerClassName="v-input min-h-[42px] py-2.5"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="v-label">{t('marketplace.filter.window')}</label>
+                                            <VerdaxisSelect
+                                                ariaLabel={t('marketplace.filter.window')}
+                                                value={availability}
+                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                                options={[
+                                                    { value: '', label: 'Any window' },
+                                                    ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                                ]}
+                                                triggerClassName="v-input min-h-[42px] py-2.5"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="v-label">{t('marketplace.filter.sortBy')}</label>
+                                            <VerdaxisSelect
+                                                ariaLabel={t('marketplace.filter.sortBy')}
+                                                value={sortBy}
+                                                onChange={(value) => setSortBy(value as typeof sortBy)}
+                                                options={[
+                                                    { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
+                                                    { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
+                                                    { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
+                                                    { value: 'newest', label: t('marketplace.sort.newest') },
+                                                ]}
+                                                triggerClassName="v-input min-h-[42px] py-2.5"
+                                            />
+                                        </div>
+                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market depth</div>
+                                            <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
+                                            </div>
+                                            <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-400">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                LIVE · 60s
+                                            </div>
+                                        </div>
+                                    </div>
 
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                    {sliceSummary}
-                                </div>
-                                <span className="bg-slate-100 dark:bg-slate-800 rounded-full px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                                    {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
-                                    <span className="flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                        <span className="text-[10px] text-slate-400">LIVE · 60s</span>
-                                    </span>
-                                </span>
-                            </div>
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                            {sliceSummary}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 

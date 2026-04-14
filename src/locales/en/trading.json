@@ -17,6 +17,8 @@
   "marketplace.filter.window": "Window",
   "marketplace.filter.grade": "Grade",
   "marketplace.filter.sortBy": "Sort By",
+  "marketplace.filter.more": "More Filters",
+  "marketplace.filter.hide": "Hide Filters",
   "marketplace.filter.allGrades": "All Grades",
   "marketplace.filter.verifiedOnly": "Verified Only",
   "marketplace.sort.priceAsc": "Price: Low → High",
