@@ -277,6 +277,34 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.queryByText('Bio Methanol')).toBeNull();
   });
 
+  it('shows a filtered empty state in My Orders when account orders exist outside the active slice', async () => {
+    localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
+    myOrders.mockResolvedValue([
+      {
+        ...listingsResponse.items[0],
+        id: 'mine-bio-only',
+        side: 'BID',
+        market_product: 'BIO_METHANOL',
+        product_name: 'Bio Methanol',
+      },
+    ]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /my orders/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /my orders/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/no orders match current filters/i)).toBeTruthy();
+    });
+
+    expect(screen.getByRole('button', { name: /clear/i })).toBeTruthy();
+    expect(screen.queryByText('Bio Methanol')).toBeNull();
+  });
+
   it('disables trade submission when the quantity input is invalid', async () => {
     renderWithProviders(<Marketplace />);
 

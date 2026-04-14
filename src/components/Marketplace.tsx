@@ -327,6 +327,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         [marketProductCounts],
     );
 
+    const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
+
+    const clearMarketFilters = useCallback(() => {
+        setMarketProduct(ALL_MARKET_PRODUCTS);
+        setPortInput('');
+        setAvailability('');
+        setCurrentSkip(0);
+    }, []);
+
     const handlePageChange = (newSkip: number) => {
         fetchData(false, newSkip);
     };
@@ -642,25 +651,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <div className="v-glass p-4 mb-4 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
-                                <div className="flex flex-1 flex-wrap gap-2">
-                                    {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                        const isActive = marketProduct === productCode;
-                                        const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
-                                        const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
-                                        return (
-                                            <button
-                                                key={productCode}
-                                                onClick={() => handleProductChipClick(productCode)}
-                                                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
-                                                    isActive
-                                                        ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
-                                                        : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-                                                }`}
-                                            >
-                                                {label}{count > 0 ? ` (${count})` : ''}
-                                            </button>
-                                        );
-                                    })}
+                                <div className="min-w-0 flex-1">
+                                    <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.products')}</span>
+                                        <span className="text-xs text-slate-400">{t('marketplace.metrics.productsHint')}</span>
+                                    </div>
+                                    <div className="flex flex-1 flex-wrap gap-2">
+                                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
+                                            const isActive = marketProduct === productCode;
+                                            const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
+                                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
+                                            return (
+                                                <button
+                                                    key={productCode}
+                                                    onClick={() => handleProductChipClick(productCode)}
+                                                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
+                                                        isActive
+                                                            ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
+                                                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+                                                    }`}
+                                                >
+                                                    {label}{count > 0 ? ` (${count})` : ''}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
 
                                 <button
@@ -715,13 +730,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             />
                                         </div>
                                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market depth</div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.currentSlice')}</div>
                                             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
+                                                {totalCount.toLocaleString()} {t(totalCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
                                             </div>
-                                            <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-400">
+                                            <div className="mt-1 text-xs text-slate-400">{sliceSummary}</div>
+                                            <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-400">
                                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                LIVE · 60s
+                                                {t('marketplace.metrics.currentSliceHint')}
                                             </div>
                                         </div>
                                     </div>
@@ -738,7 +754,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     </div>
 
                     {/* Tab Switcher: Market | Orderbook | My Orders */}
-                    <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
+                    <div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
@@ -752,7 +768,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         />
                         <button
                             onClick={() => setMarketTab('market')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
+                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'market'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -762,7 +778,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </button>
                         <button
                             onClick={() => setMarketTab('orderbook')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
+                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'orderbook'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -772,7 +788,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </button>
                         <button
                             onClick={() => setMarketTab('my_orders')}
-                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 ${
+                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'my_orders'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -849,7 +865,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> Loading your orders...
                             </div>
-                        ) : filteredMyOrders.length === 0 ? (
+                        ) : myOrders.length === 0 ? (
                             <div className="text-center py-20">
                                 <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
                                 <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No open orders</h3>
@@ -862,6 +878,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 >
                                     {role === 'SUPPLIER' ? 'Post Supply' : 'Post a Bid'}
                                 </button>
+                            </div>
+                        ) : filteredMyOrders.length === 0 ? (
+                            <div className="text-center py-20">
+                                <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.filtered.title')}</h3>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
+                                    {t('marketplace.myOrders.empty.filtered.body', { slice: sliceSummary })}
+                                </p>
+                                {hasActiveSliceFilters && (
+                                    <button
+                                        onClick={clearMarketFilters}
+                                        className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 transition-colors font-medium text-sm"
+                                    >
+                                        {t('marketplace.btn.clear')}
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
