@@ -141,9 +141,3 @@
 - **Trigger:** I limited the Marketplace filter collapse behavior to narrow widths after the user wanted the fuel-only collapsed state available on tablet and then all widths.
 - **Rule:** When a control group is meant to collapse behind a disclosure, keep that interaction model consistent across breakpoints unless the user explicitly wants desktop to behave differently.
 - **Why:** Breakpoint-specific interaction changes made the same filter rail feel inconsistent and forced another UI correction.
-
-### Keep personal-management views separate from market discovery filters
-- **Date:** 2026-04-14
-- **Trigger:** I left the Marketplace filter rail visible on `My Orders`, which made a personal order-management view look like it was subject to public market slice filters.
-- **Rule:** When a tab is for the user's own records or actions rather than market discovery, do not reuse public-market filters or watch controls unless they truly affect that tab's data.
-- **Why:** Shared UI chrome implied filtering behavior that does not belong on a personal orders view and created unnecessary confusion.

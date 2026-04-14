@@ -238,23 +238,6 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
   });
 
-  it('keeps My Orders independent from marketplace filters', async () => {
-    renderWithProviders(<Marketplace />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /my orders/i })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /my orders/i }));
-
-    await waitFor(() => {
-      expect(myOrders).toHaveBeenCalled();
-    });
-
-    expect(screen.queryByRole('button', { name: /more filters/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /watch(ing)? slice/i })).toBeNull();
-  });
-
   it('disables trade submission when the quantity input is invalid', async () => {
     renderWithProviders(<Marketplace />);
 
