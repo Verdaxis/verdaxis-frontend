@@ -190,3 +190,9 @@
 - **Trigger:** I was improving the Forward Curve tab without foregrounding that the desired reference was a Braemar-style customizable trading workspace.
 - **Rule:** When redesigning a major market surface, explicitly align the layout and interaction model to the intended benchmark product aesthetic before iterating on individual widgets.
 - **Why:** Local UI fixes can still miss the overall product feel if the target interaction model is not treated as the primary constraint.
+
+### Re-verify staging behavior after UI refactors
+- **Date:** 2026-04-14
+- **Trigger:** I changed the Market Terminal layout and feed wiring, but the user still saw the forward curve missing and both feeds blank on staging.
+- **Rule:** After refactoring live market surfaces, verify the exact selected slice on staging and confirm the UI still shows the intended critical data before closing the task.
+- **Why:** Passing local tests is not enough when staging data and UI state can diverge from the implementation assumptions.
