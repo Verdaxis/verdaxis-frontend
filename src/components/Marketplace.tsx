@@ -305,6 +305,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     };
 
     const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
+    const showMarketFilters = marketTab !== 'my_orders';
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -576,120 +577,124 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                                 <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
                             </button>
-                            <button
-                                onClick={async () => {
-                                    if (!currentSliceTarget) return;
-                                    await toggleSlice(currentSliceTarget);
-                                }}
-                                disabled={!currentSliceTarget}
-                                aria-pressed={isCurrentSliceTracked}
-                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
-                            >
-                                <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
-                                <span>{isCurrentSliceTracked ? 'Watching slice' : 'Watch slice'}</span>
-                            </button>
+                            {showMarketFilters && (
+                                <button
+                                    onClick={async () => {
+                                        if (!currentSliceTarget) return;
+                                        await toggleSlice(currentSliceTarget);
+                                    }}
+                                    disabled={!currentSliceTarget}
+                                    aria-pressed={isCurrentSliceTracked}
+                                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
+                                >
+                                    <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
+                                    <span>{isCurrentSliceTracked ? 'Watching slice' : 'Watch slice'}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
 
                     {/* Unified filter rail */}
-                    <div className="v-glass p-4 mb-4 relative z-[90]">
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex flex-1 flex-wrap gap-2">
-                                    {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                        const isActive = marketProduct === productCode;
-                                        const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
-                                        const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
-                                        return (
-                                            <button
-                                                key={productCode}
-                                                onClick={() => handleProductChipClick(productCode)}
-                                                className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
-                                                    isActive
-                                                        ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
-                                                        : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-                                                }`}
-                                            >
-                                                {label}{count > 0 ? ` (${count})` : ''}
-                                            </button>
-                                        );
-                                    })}
+                    {showMarketFilters && (
+                        <div className="v-glass p-4 mb-4 relative z-[90]">
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex flex-1 flex-wrap gap-2">
+                                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
+                                            const isActive = marketProduct === productCode;
+                                            const count = productCode === ALL_MARKET_PRODUCTS ? totalCount : (marketProductCounts[productCode] || 0);
+                                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
+                                            return (
+                                                <button
+                                                    key={productCode}
+                                                    onClick={() => handleProductChipClick(productCode)}
+                                                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
+                                                        isActive
+                                                            ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
+                                                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
+                                                    }`}
+                                                >
+                                                    {label}{count > 0 ? ` (${count})` : ''}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setFiltersExpanded((expanded) => !expanded)}
+                                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
+                                    >
+                                        <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
+                                        <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
+                                    </button>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setFiltersExpanded((expanded) => !expanded)}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                                >
-                                    <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
-                                    <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
-                                </button>
+                                {filtersExpanded && (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
+                                            <div>
+                                                <label className="v-label">{t('marketplace.filter.port')}</label>
+                                                <VerdaxisSelect
+                                                    ariaLabel={t('marketplace.filter.port')}
+                                                    value={portInput}
+                                                    onChange={setPortInput}
+                                                    options={portOptions}
+                                                    triggerClassName="v-input min-h-[42px] py-2.5"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="v-label">{t('marketplace.filter.window')}</label>
+                                                <VerdaxisSelect
+                                                    ariaLabel={t('marketplace.filter.window')}
+                                                    value={availability}
+                                                    onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                                    options={[
+                                                        { value: '', label: 'Any window' },
+                                                        ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                                    ]}
+                                                    triggerClassName="v-input min-h-[42px] py-2.5"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="v-label">{t('marketplace.filter.sortBy')}</label>
+                                                <VerdaxisSelect
+                                                    ariaLabel={t('marketplace.filter.sortBy')}
+                                                    value={sortBy}
+                                                    onChange={(value) => setSortBy(value as typeof sortBy)}
+                                                    options={[
+                                                        { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
+                                                        { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
+                                                        { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
+                                                        { value: 'newest', label: t('marketplace.sort.newest') },
+                                                    ]}
+                                                    triggerClassName="v-input min-h-[42px] py-2.5"
+                                                />
+                                            </div>
+                                            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market depth</div>
+                                                <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                    {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
+                                                </div>
+                                                <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-400">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                                    LIVE · 60s
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                                {sliceSummary}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
-
-                            {filtersExpanded && (
-                                <>
-                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.port')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.port')}
-                                                value={portInput}
-                                                onChange={setPortInput}
-                                                options={portOptions}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.window')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.window')}
-                                                value={availability}
-                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
-                                                options={[
-                                                    { value: '', label: 'Any window' },
-                                                    ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
-                                                ]}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.sortBy')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.sortBy')}
-                                                value={sortBy}
-                                                onChange={(value) => setSortBy(value as typeof sortBy)}
-                                                options={[
-                                                    { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
-                                                    { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
-                                                    { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
-                                                    { value: 'newest', label: t('marketplace.sort.newest') },
-                                                ]}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market depth</div>
-                                            <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {totalCount.toLocaleString()} order{totalCount !== 1 ? 's' : ''}
-                                            </div>
-                                            <div className="mt-1 flex items-center gap-1 text-[10px] font-medium text-slate-400">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                LIVE · 60s
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                            {sliceSummary}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
                         </div>
-                    </div>
+                    )}
 
                     {/* Tab Switcher: Market | Orderbook | My Orders */}
                     <div className="relative flex mb-3 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
