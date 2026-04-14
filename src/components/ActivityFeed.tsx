@@ -193,6 +193,8 @@ export const ActivityFeed: React.FC = () => {
                         flexDirection: 'column',
                         gap: 8,
                         color: 'var(--terminal-muted)',
+                        textAlign: 'center',
+                        padding: '0 16px',
                     }}>
                         <div style={{
                             width: 8,
@@ -202,6 +204,7 @@ export const ActivityFeed: React.FC = () => {
                             animation: 'pulse 2s infinite',
                         }} />
                         <span style={{ fontSize: 11 }}>{t('activityFeed.noActivity')}</span>
+                        <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>{t('activityFeed.noActivityHint')}</span>
                     </div>
                 ) : (
                     events.map((evt) => {

@@ -16,35 +16,25 @@ export interface OrderbookDepthProps {
 interface AggregatedLevel {
     price: number;
     quantity: number;
-    cumulative: number;
 }
 
 // --- Helpers ---
 
-/** Aggregate orders at the same price, sort, limit to maxLevels, compute cumulative qty */
+/** Aggregate orders at the same price, sort, and limit to visible depth levels. */
 function aggregateLevels(
     orders: DepthLevel[],
     side: 'bid' | 'ask',
     maxLevels: number
 ): AggregatedLevel[] {
-    // Group by price
     const byPrice = new Map<number, number>();
-    for (const o of orders) {
-        byPrice.set(o.price, (byPrice.get(o.price) || 0) + o.quantity);
+    for (const order of orders) {
+        byPrice.set(order.price, (byPrice.get(order.price) || 0) + order.quantity);
     }
 
-    // Sort: bids descending (best bid first), asks ascending (best ask first)
-    const sorted = [...byPrice.entries()]
+    return [...byPrice.entries()]
         .map(([price, quantity]) => ({ price, quantity }))
         .sort((a, b) => side === 'bid' ? b.price - a.price : a.price - b.price)
         .slice(0, maxLevels);
-
-    // Cumulative
-    let cum = 0;
-    return sorted.map(lvl => {
-        cum += lvl.quantity;
-        return { ...lvl, cumulative: cum };
-    });
 }
 
 function formatQty(qty: number): string {
@@ -71,11 +61,10 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
     const bidLevels = useMemo(() => aggregateLevels(bids, 'bid', MAX_LEVELS), [bids]);
     const askLevels = useMemo(() => aggregateLevels(asks, 'ask', MAX_LEVELS), [asks]);
 
-    // Max cumulative across both sides for scaling bars proportionally
-    const maxCumulative = useMemo(() => {
-        const maxBid = bidLevels.length > 0 ? bidLevels[bidLevels.length - 1].cumulative : 0;
-        const maxAsk = askLevels.length > 0 ? askLevels[askLevels.length - 1].cumulative : 0;
-        return Math.max(maxBid, maxAsk, 1); // avoid division by zero
+    // Scale bars to the largest single price-level quantity across both sides.
+    const maxVisibleQuantity = useMemo(() => {
+        const quantities = [...bidLevels, ...askLevels].map(level => level.quantity);
+        return Math.max(...quantities, 1);
     }, [bidLevels, askLevels]);
 
     // Spread calculation
@@ -133,10 +122,10 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
                         const askLevel = askLevels[rowIdx] ?? null;
 
                         const bidBarWidth = bidLevel
-                            ? (bidLevel.cumulative / maxCumulative) * 100
+                            ? (bidLevel.quantity / maxVisibleQuantity) * 100
                             : 0;
                         const askBarWidth = askLevel
-                            ? (askLevel.cumulative / maxCumulative) * 100
+                            ? (askLevel.quantity / maxVisibleQuantity) * 100
                             : 0;
 
                         const isBidHovered =
@@ -187,7 +176,7 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
                                     {/* Hover tooltip */}
                                     {isBidHovered && bidLevel && (
                                         <div className="absolute right-0 -top-7 z-50 bg-[#111] border border-[#333] rounded px-2 py-0.5 text-[9px] text-white whitespace-nowrap shadow-xl">
-                                            Bid ${bidLevel.price.toFixed(2)} — {bidLevel.quantity.toLocaleString()} MT — Cum: {bidLevel.cumulative.toLocaleString()} MT
+                                            Bid ${bidLevel.price.toFixed(2)} — {bidLevel.quantity.toLocaleString()} MT
                                         </div>
                                     )}
                                 </div>
@@ -256,7 +245,7 @@ export const OrderbookDepth: React.FC<OrderbookDepthProps> = ({
                                     {/* Hover tooltip */}
                                     {isAskHovered && askLevel && (
                                         <div className="absolute left-0 -top-7 z-50 bg-[#111] border border-[#333] rounded px-2 py-0.5 text-[9px] text-white whitespace-nowrap shadow-xl">
-                                            Ask ${askLevel.price.toFixed(2)} — {askLevel.quantity.toLocaleString()} MT — Cum: {askLevel.cumulative.toLocaleString()} MT
+                                            Ask ${askLevel.price.toFixed(2)} — {askLevel.quantity.toLocaleString()} MT
                                         </div>
                                     )}
                                 </div>

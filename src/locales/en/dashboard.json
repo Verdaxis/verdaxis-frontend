@@ -36,6 +36,12 @@
       "errorMessagePrefix": "Failed to confirm trade: "
     }
   },
+  "activityFeed": {
+    "title": "Activity Feed",
+    "events": "{{count}} events",
+    "noActivity": "No live activity yet",
+    "noActivityHint": "This panel shows listing alerts, price crossings, and other live market signals after they are emitted."
+  },
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
     "methanolAvails": "Methanol Avails (Top Ports)",

@@ -15,7 +15,7 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS, DeliveryPoint } from '../types';
+import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS, DeliveryPoint, TradeTapeEntry } from '../types';
 import { APPROVED_TRADING_PORTS } from '../data';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { api } from '../services/api';
@@ -59,7 +59,7 @@ interface TradeEvent {
     price: number;
     port: string;
     period: string;
-    side: 'BUY' | 'SELL';
+    side: 'BUY' | 'SELL' | 'TRADE';
     is_anonymous?: boolean;
 }
 
@@ -193,15 +193,22 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     const fuel = data.fuel_type || '';
     const region = data.region || '';
 
-    // Determine side: auto-matched trades don't include side, default to BUY
-    // trade_created events come from explicit order creation
     const side: 'BUY' | 'SELL' = eventType === 'trade_auto_matched' ? 'BUY' : (data.side === 'SELL' ? 'SELL' : 'BUY');
-
-    // Best-effort period label from fuel_type (the backend doesn't send availability_window in trade events)
-    const period = fuel || 'SPOT';
+    const period = data.availability_window ? formatAvailabilityWindowPeriod(normalizeAvailabilityWindow(String(data.availability_window))) : (fuel || 'SPOT');
 
     return { id, time, qty, price, port: region, period, side, is_anonymous: data.is_anonymous ?? false };
 };
+
+export const tradeTapeEntryToEvent = (entry: TradeTapeEntry): TradeEvent => ({
+    id: `tape-${entry.id}`,
+    time: new Date(entry.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    qty: Number(entry.quantity_mt) || 0,
+    price: Number(entry.price_per_mt_usd) || 0,
+    port: entry.region,
+    period: formatAvailabilityWindowPeriod(normalizeAvailabilityWindow(entry.availability_window || 'SPOT')),
+    side: 'TRADE',
+    is_anonymous: true,
+});
 
 export const getTerminalFuelType = (marketProduct: MarketProduct): string => marketProduct.includes('METHANOL') ? 'Methanol' : 'Ethanol';
 
@@ -274,6 +281,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Simulation tick counter (drives simulated row data for periods without real orders)
     const [tick, setTick] = useState(0);
     const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
+    const [tradeTapeLoading, setTradeTapeLoading] = useState(true);
     // Track which rows are flashing and in which direction
     const [flashRows, setFlashRows] = useState<Record<string, 'up' | 'down'>>({});
     const prevPrices = useRef<Record<string, { bid: number | null; ask: number | null }>>({});
@@ -375,6 +383,34 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Fetch VWAP reference prices (internal vs external split)
     const [vwapData, setVwapData] = useState<{ vwap_usd: number; total_volume_mt: number; trade_count: number; visibility: string } | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const fetchTradeTape = async () => {
+            setTradeTapeLoading(true);
+            try {
+                const response = await api.tradeTape.list({
+                    market_product: selectedMarketProduct,
+                    region: selectedPort,
+                    availability: selectedAvailabilityWindow,
+                    limit: 20,
+                });
+                if (!cancelled) {
+                    setTradeEvents(response.items.map(tradeTapeEntryToEvent));
+                }
+            } catch (error) {
+                console.error('Failed to load trade tape for terminal', error);
+                if (!cancelled) setTradeEvents([]);
+            } finally {
+                if (!cancelled) setTradeTapeLoading(false);
+            }
+        };
+
+        fetchTradeTape();
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedPort]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1145,13 +1181,15 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
                             </div>
                             <div ref={tradeScrollRef} className="overflow-y-auto px-2 py-1" style={{ height: 'calc(100% - 24px)' }}>
-                                {tradeEvents.length === 0 ? (
-                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.activity.waiting')}</div>
+                                {tradeTapeLoading ? (
+                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.tradeTape.loading')}</div>
+                                ) : tradeEvents.length === 0 ? (
+                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.tradeTape.empty')}</div>
                                 ) : (
                                     tradeEvents.map((trade) => (
                                         <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">
                                             <span className="text-slate-400 dark:text-[#555] w-16 shrink-0">{trade.time}</span>
-                                            <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
+                                            <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : trade.side === 'SELL' ? 'text-rose-600 dark:text-rose-500' : 'text-blue-600 dark:text-blue-400'}`}>
                                                 {trade.side}
                                             </span>
                                             <span className="text-slate-700 dark:text-slate-300 font-bold">

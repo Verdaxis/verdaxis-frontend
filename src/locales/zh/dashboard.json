@@ -36,6 +36,12 @@
       "errorMessagePrefix": "确认交易失败："
     }
   },
+  "activityFeed": {
+    "title": "动态资讯",
+    "events": "{{count}} 条事件",
+    "noActivity": "暂无线实时动态",
+    "noActivityHint": "该面板会在新挂单、价格触发和其他实时市场信号发出后显示事件。"
+  },
   "buyerMap": {
     "loading": "正在加载情报地图...",
     "methanolAvails": "甲醇供应（主要港口）",

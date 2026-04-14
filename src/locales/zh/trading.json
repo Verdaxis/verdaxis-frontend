@@ -247,6 +247,8 @@
   "terminal.panel.orderbookDepth": "订单簿深度",
   "terminal.panel.tradeTape": "成交明细",
   "terminal.panel.activityFeed": "动态资讯",
+  "terminal.tradeTape.loading": "正在加载近期成交...",
+  "terminal.tradeTape.empty": "该产品、港口和窗口暂无近期成交。",
   "tradeNotifier.autoMatched.title": "订单已自动撮合",
   "tradeNotifier.confirmed.title": "交易已确认",
   "tradeNotifier.delivered.title": "交易已交付",

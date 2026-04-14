@@ -251,6 +251,8 @@
   "terminal.panel.orderbookDepth": "Orderbook Depth",
   "terminal.panel.tradeTape": "Trade Tape",
   "terminal.panel.activityFeed": "Activity Feed",
+  "terminal.tradeTape.loading": "Loading recent trades...",
+  "terminal.tradeTape.empty": "No recent trades for this product, port, and window.",
   "tradeNotifier.autoMatched.title": "Order Auto-Matched",
   "tradeNotifier.confirmed.title": "Trade Confirmed",
   "tradeNotifier.delivered.title": "Trade Delivered",
