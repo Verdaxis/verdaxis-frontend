@@ -133,8 +133,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         return stored ? normalizeAvailabilityWindow(stored) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
-    const [isCompactFilters, setIsCompactFilters] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-    const [mobileFiltersExpanded, setMobileFiltersExpanded] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+    const [filtersExpanded, setFiltersExpanded] = useState(false);
     const [currentSkip, setCurrentSkip] = useState(0);
 
     // ─── Resolved port name (best match as user types) ─────────
@@ -286,21 +285,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         localStorage.setItem('verdaxis_marketplace_window', availability);
     }, [availability]);
 
-    useEffect(() => {
-        if (typeof window === 'undefined') return undefined;
-
-        const syncCompactFilters = () => {
-            setIsCompactFilters(window.innerWidth < 768);
-        };
-
-        syncCompactFilters();
-        window.addEventListener('resize', syncCompactFilters);
-        return () => window.removeEventListener('resize', syncCompactFilters);
-    }, []);
-
-    useEffect(() => {
-        setMobileFiltersExpanded(!isCompactFilters);
-    }, [isCompactFilters]);
 
     const portOptions = useMemo(() => ([
         { value: '', label: 'All ports' },
@@ -321,7 +305,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     };
 
     const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
-    const showAdvancedFilters = !isCompactFilters || mobileFiltersExpanded;
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -634,21 +617,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     })}
                                 </div>
 
-                                {isCompactFilters && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setMobileFiltersExpanded((expanded) => !expanded)}
-                                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                                    >
-                                        <span>{mobileFiltersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
-                                        <ChevronDown size={14} className={`transition-transform ${mobileFiltersExpanded ? 'rotate-180' : ''}`} />
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setFiltersExpanded((expanded) => !expanded)}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
+                                >
+                                    <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
+                                    <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
+                                </button>
                             </div>
 
-                            {showAdvancedFilters && (
+                            {filtersExpanded && (
                                 <>
-                                    <div className="grid grid-cols-2 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)] gap-3">
+                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
                                             <label className="v-label">{t('marketplace.filter.port')}</label>
                                             <VerdaxisSelect

@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
@@ -221,17 +221,7 @@ describe('Marketplace green fuels surface', () => {
   });
 
 
-  it('collapses advanced filters on narrow screens while keeping fuel selection visible', async () => {
-    const originalWidth = window.innerWidth;
-    Object.defineProperty(window, 'innerWidth', {
-      configurable: true,
-      writable: true,
-      value: 390,
-    });
-    act(() => {
-      window.dispatchEvent(new Event('resize'));
-    });
-
+  it('collapses advanced filters by default while keeping fuel selection visible', async () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
@@ -246,15 +236,6 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('combobox', { name: 'Port' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Window' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
-
-    Object.defineProperty(window, 'innerWidth', {
-      configurable: true,
-      writable: true,
-      value: originalWidth,
-    });
-    act(() => {
-      window.dispatchEvent(new Event('resize'));
-    });
   });
 
   it('disables trade submission when the quantity input is invalid', async () => {

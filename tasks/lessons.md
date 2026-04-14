@@ -134,3 +134,10 @@
 - **Trigger:** I left supplier asks and buyer bids too symmetrical in metadata strictness after the user clarified that only asks must carry detailed origin, CI, and document fields.
 - **Rule:** Treat supplier ASK metadata completeness as mandatory for public execution, while allowing BID orders to omit non-executable detail fields unless the user explicitly promotes them.
 - **Why:** The executable market is symmetric in mechanics, but not every descriptive field should be mandatory on both sides.
+
+
+### Make filter disclosure behavior consistent across breakpoints
+- **Date:** 2026-04-14
+- **Trigger:** I limited the Marketplace filter collapse behavior to narrow widths after the user wanted the fuel-only collapsed state available on tablet and then all widths.
+- **Rule:** When a control group is meant to collapse behind a disclosure, keep that interaction model consistent across breakpoints unless the user explicitly wants desktop to behave differently.
+- **Why:** Breakpoint-specific interaction changes made the same filter rail feel inconsistent and forced another UI correction.
