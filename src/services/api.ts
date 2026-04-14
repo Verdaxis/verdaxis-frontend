@@ -424,16 +424,36 @@ export const api = {
     },
 
     prices: {
-        getSummaries: async (params?: { fuel_type?: string; region?: string; hours?: number }): Promise<PriceDiscoveryResponse> => {
+        getSummaries: async (params?: {
+            market_product?: MarketProduct;
+            delivery_point_id?: string;
+            availability_window?: string;
+            fuel_type?: string;
+            region?: string;
+            hours?: number;
+        }): Promise<PriceDiscoveryResponse> => {
             const searchParams = new URLSearchParams();
+            if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
+            if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
             if (params?.hours) searchParams.append('hours', String(params.hours));
             const query = searchParams.toString();
             return fetchApi(`/prices${query ? `?${query}` : ''}`);
         },
-        getReference: async (params?: { fuel_type?: string; region?: string; visibility?: 'internal' | 'external' }): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: {
+            market_product?: MarketProduct;
+            delivery_point_id?: string;
+            availability_window?: string;
+            fuel_type?: string;
+            region?: string;
+            visibility?: 'internal' | 'external';
+        }): Promise<{ prices: Array<{ market_product?: MarketProduct | null; fuel_type: string; delivery_point_id?: string; delivery_point_name?: string | null; availability_window?: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
             const searchParams = new URLSearchParams();
+            if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
+            if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
             if (params?.visibility) searchParams.append('visibility', params.visibility);

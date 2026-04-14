@@ -412,7 +412,9 @@
     "orders": "orders",
     "bestBid": "Indicative Bid",
     "bestAsk": "Indicative Ask",
-    "midPrice": "Benchmark Mid"
+    "midPrice": "Benchmark Mid",
+    "indicativeOnly": "Indicative only",
+    "clickHint": "Click a point to open the matching market slice."
   },
   "priceAlerts": {
     "title": "Price Alerts",

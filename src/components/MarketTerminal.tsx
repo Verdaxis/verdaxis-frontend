@@ -13,7 +13,7 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS } from '../types';
+import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS, DeliveryPoint } from '../types';
 import { APPROVED_TRADING_PORTS } from '../data';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { api } from '../services/api';
@@ -171,6 +171,17 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
 
 export const getTerminalFuelType = (marketProduct: MarketProduct): string => marketProduct.includes('METHANOL') ? 'Methanol' : 'Ethanol';
 
+const getStoredTerminalWindow = (): string => {
+    if (typeof window === 'undefined') return 'SPOT';
+    const stored = localStorage.getItem('verdaxis_marketplace_window');
+    if (!stored) return 'SPOT';
+    try {
+        return normalizeAvailabilityWindow(stored);
+    } catch {
+        return 'SPOT';
+    }
+};
+
 interface MarketTerminalProps {
     onNavigate?: (page: string) => void;
 }
@@ -192,7 +203,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     });
     const [showPortDropdown, setShowPortDropdown] = useState(false);
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
+    const [selectedAvailabilityWindow, setSelectedAvailabilityWindow] = useState<string>(() => getStoredTerminalWindow());
     const selectedFuelType = getTerminalFuelType(selectedMarketProduct);
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
 
     // Orders from API (orderbook sync)
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
@@ -250,6 +263,22 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchOrders();
     }, [fetchOrders]);
 
+    useEffect(() => {
+        let cancelled = false;
+        api.catalog.deliveryPoints()
+            .then(points => {
+                if (cancelled) return;
+                setDeliveryPoints(points.filter(point => point.is_active !== false));
+            })
+            .catch(error => {
+                console.error('Failed to load delivery points for terminal', error);
+                if (!cancelled) setDeliveryPoints([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // --- SSE: Orderbook updates (replaces 30s polling) ---
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: refetch the full orderbook
@@ -272,50 +301,79 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Combined SSE connection status
     const sseConnected = orderbookConnected || tradesConnected;
 
+    const selectedDeliveryPoint = useMemo(() => (
+        deliveryPoints.find(point => point.name.toLowerCase() === selectedPort.toLowerCase()) ?? null
+    ), [deliveryPoints, selectedPort]);
+
+    const selectedDeliveryPointId = selectedDeliveryPoint?.id ?? null;
+
     // Fetch real price summaries from price discovery API
     const [priceSummaries, setPriceSummaries] = useState<PriceSummary[]>([]);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchPrices = async () => {
+            if (!selectedDeliveryPointId) {
+                if (!cancelled) setPriceSummaries([]);
+                return;
+            }
             try {
                 const resp = await api.prices.getSummaries({
-                    fuel_type: selectedFuelType,
-                    region: selectedPort,
+                    market_product: selectedMarketProduct,
+                    delivery_point_id: selectedDeliveryPointId,
+                    availability_window: selectedAvailabilityWindow,
                 });
-                setPriceSummaries(resp.summaries);
+                if (!cancelled) {
+                    setPriceSummaries(resp.summaries);
+                }
             } catch (e) {
                 console.error('Failed to load price summaries', e);
+                if (!cancelled) setPriceSummaries([]);
             }
         };
         fetchPrices();
         const interval = setInterval(fetchPrices, 30000);
-        return () => clearInterval(interval);
-    }, [selectedFuelType, selectedPort]);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedDeliveryPointId]);
 
     // Fetch VWAP reference prices (internal vs external split)
     const [vwapData, setVwapData] = useState<{ vwap_usd: number; total_volume_mt: number; trade_count: number; visibility: string } | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchVwap = async () => {
+            if (!selectedDeliveryPointId) {
+                if (!cancelled) setVwapData(null);
+                return;
+            }
             try {
                 const resp = await api.prices.getReference({
-                    fuel_type: selectedFuelType,
-                    region: selectedPort,
+                    market_product: selectedMarketProduct,
+                    delivery_point_id: selectedDeliveryPointId,
+                    availability_window: selectedAvailabilityWindow,
                     visibility: 'internal',
                 });
-                if (resp.prices.length > 0) {
-                    setVwapData(resp.prices[0]);
-                } else {
-                    setVwapData(null);
+                if (!cancelled) {
+                    if (resp.prices.length > 0) {
+                        setVwapData(resp.prices[0]);
+                    } else {
+                        setVwapData(null);
+                    }
                 }
             } catch {
-                setVwapData(null);
+                if (!cancelled) setVwapData(null);
             }
         };
         fetchVwap();
         const interval = setInterval(fetchVwap, 30000);
-        return () => clearInterval(interval);
-    }, [selectedFuelType, selectedPort]);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedDeliveryPointId]);
 
     // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
     useEffect(() => {
@@ -412,8 +470,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                         // Only show last/change on SPOT row (price summaries are not per-period)
             const matchingSummary = config.type === 'SPOT' ? priceSummaries.find(
-                s => s.fuel_type.toLowerCase().includes(selectedFuelType.toLowerCase())
-                  && s.region.toLowerCase().includes(selectedPort.toLowerCase())
+                s => s.market_product === selectedMarketProduct
+                  && s.delivery_point_id === selectedDeliveryPointId
+                  && (s.availability_window ?? 'SPOT') === selectedAvailabilityWindow
             ) : null;
             const last = hasAnyRealData && matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : null;
             const change = hasAnyRealData && matchingSummary?.price_change_pct
@@ -432,7 +491,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedFuelType, selectedPort]);
+    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedAvailabilityWindow, selectedDeliveryPointId, selectedMarketProduct]);
 
     // Flash rows whose bid or ask changed on each tick
     useEffect(() => {
@@ -557,6 +616,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             if (item?.window && onNavigateRef.current) {
                 localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
                 localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProductRef.current);
+                setSelectedAvailabilityWindow(item.window);
                 localStorage.setItem('verdaxis_marketplace_window', item.window);
                 onNavigateRef.current('MARKETPLACE');
             }
@@ -599,22 +659,31 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [isDark]);
 
     // Summary stats
-    // Best offer = lowest real ask price across all periods (for the header display)
-    const realAskPrices = filteredAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
-    const spotPrice = realAskPrices.length > 0 ? Math.min(...realAskPrices) : terminalData.find(r => r.type === 'SPOT')?.ask;
+    const selectedWindowOrders = filteredOrders.filter(o => o.availability_window === selectedAvailabilityWindow);
+    const selectedWindowAskPrices = filteredAsks
+        .filter(o => o.availability_window === selectedAvailabilityWindow)
+        .map(o => Number(o.price_per_mt_usd))
+        .filter(Boolean);
+    const selectedWindowConfig = periodConfig.find(config => config.window === selectedAvailabilityWindow);
+    const selectedWindowRow = selectedWindowConfig
+        ? terminalData.find(row => row.period === selectedWindowConfig.period)
+        : null;
+    const activeWindowPrice = selectedWindowAskPrices.length > 0 ? Math.min(...selectedWindowAskPrices) : selectedWindowRow?.ask;
+    const hasCurveData = chartData.some(item => item.price != null);
     const totalListings = filteredOrders.length;
     const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
+    const activeWindowVolume = selectedWindowOrders.reduce((sum, order) => sum + Number(order.quantity_mt), 0);
 
     // Broadcast Context
     useEffect(() => {
         setPageContext({
             view: 'Market Terminal',
-            product: `${formatMarketProduct(selectedMarketProduct)} (${selectedPort})`,
-            market_data_summary: `Showing ${totalListings} active listings for ${formatMarketProduct(selectedMarketProduct)} at ${selectedPort}.`,
-            spot_price: spotPrice ? `$${spotPrice.toFixed(2)}` : 'No offers',
-            total_volume: `${totalVolume.toLocaleString()} MT`,
+            product: `${formatMarketProduct(selectedMarketProduct)} (${selectedPort} · ${formatAvailabilityWindowPeriod(selectedAvailabilityWindow)})`,
+            market_data_summary: `Showing ${selectedWindowOrders.length} active listings for ${formatMarketProduct(selectedMarketProduct)} at ${selectedPort} for ${formatAvailabilityWindowPeriod(selectedAvailabilityWindow)}.`,
+            spot_price: activeWindowPrice ? `$${activeWindowPrice.toFixed(2)}` : 'No offers',
+            total_volume: `${activeWindowVolume.toLocaleString()} MT`,
         });
-    }, [terminalData, selectedPort, selectedMarketProduct, setPageContext]);
+    }, [activeWindowPrice, activeWindowVolume, selectedAvailabilityWindow, selectedMarketProduct, selectedPort, selectedWindowOrders.length, setPageContext]);
 
     // Helper to determine if a row has real orderbook data
     const hasRealData = useCallback((row: TerminalRow) => {
@@ -738,8 +807,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         <div className="flex justify-between items-end">
                             <span className="text-xs text-slate-400 dark:text-[#888] font-bold">{t('terminal.label.bestOffer')}</span>
                             <div className="text-right">
-                                {spotPrice ? (
-                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">${spotPrice.toFixed(2)}</span>
+                                {activeWindowPrice ? (
+                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">${activeWindowPrice.toFixed(2)}</span>
                                 ) : (
                                     <span className="text-lg font-bold text-slate-400 dark:text-[#555]">{t('terminal.label.noOffers')}</span>
                                 )}
@@ -754,10 +823,15 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                 {/* Price Curve Chart */}
                 <div className="flex-1 p-4 bg-slate-100 dark:bg-[#040404] min-h-[200px] lg:min-h-0" style={{ background: isDark ? '#040404' : '#F1F5F9' }}>
-                    <div className="flex justify-between items-start mb-2 px-2">
-                        <div>
-                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
+                    <div className="flex justify-between items-start mb-2 px-2 gap-3">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-full px-2 py-0.5">{t('terminal.label.indicativeOnly')}</span>
+                            </div>
                             <div className="text-xs text-slate-600 dark:text-[#555]">{formatMarketProduct(selectedMarketProduct)} — {selectedPort}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-[#666] mt-1">{t('terminal.label.curveHint')}</div>
+                            <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{t('terminal.label.openSliceHint')}</div>
                         </div>
                         <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
@@ -765,11 +839,18 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         <div className="flex items-center justify-center h-[80%]">
                             <Loader2 size={24} className="animate-spin text-emerald-500" />
                         </div>
-                    ) : (
+                    ) : hasCurveData ? (
                         <div
                             ref={tvChartContainerRef}
                             style={{ width: '100%', height: '80%', cursor: 'pointer' }}
                         />
+                    ) : (
+                        <div className="h-[80%] flex items-center justify-center px-6 text-center">
+                            <div className="space-y-2">
+                                <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t('terminal.emptyCurve')}</div>
+                                <div className="text-[11px] text-slate-500 dark:text-[#777]">{t('terminal.emptyCurveHint')}</div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
@@ -1013,6 +1094,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                         if (onNavigate) {
                                             localStorage.setItem('verdaxis_marketplace_port', selectedPort);
                                             localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProduct);
+                                            setSelectedAvailabilityWindow(window);
                                             localStorage.setItem('verdaxis_marketplace_window', window);
                                             onNavigate('MARKETPLACE');
                                         }

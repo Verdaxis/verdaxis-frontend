@@ -438,19 +438,37 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                     <TrendingUp size={14} color="var(--bio, #00D4AA)" style={{ marginTop: 2 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
-                            {t('forwardCurve.title')}
-                        </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--terminal-muted)' }}>
+                                {t('forwardCurve.title')}
+                            </span>
+                            <span style={{
+                                fontSize: 10,
+                                fontWeight: 700,
+                                color: 'var(--sonar, #0066FF)',
+                                background: 'rgba(0, 102, 255, 0.10)',
+                                border: '1px solid rgba(0, 102, 255, 0.22)',
+                                borderRadius: 999,
+                                padding: '2px 8px',
+                            }}>
+                                {t('forwardCurve.indicativeOnly')}
+                            </span>
+                            {lastRefresh && (
+                                <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
+                                    {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
+                                </span>
+                            )}
+                        </div>
                         <span style={{ fontSize: 10, color: 'var(--terminal-dim)' }}>
                             {t('forwardCurve.subtitle')}
                         </span>
+                        {onPeriodClick && (
+                            <span style={{ fontSize: 10, color: 'var(--sonar, #0066FF)' }}>
+                                {t('forwardCurve.clickHint')}
+                            </span>
+                        )}
                     </div>
-                    {lastRefresh && (
-                        <span style={{ fontSize: 10, color: 'var(--terminal-dim)', marginTop: 1 }}>
-                            {lastRefresh.toLocaleTimeString('en-US', { hour12: false })}
-                        </span>
-                    )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -585,8 +603,9 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
 
             {/* Product name subtitle */}
             {curveData && (
-                <div style={{ marginTop: 6, fontSize: 10, color: '#555', textAlign: 'right' }}>
-                    {selectedProductName || curveData.product_name} · updated {new Date(curveData.generated_at).toLocaleTimeString('en-US', { hour12: false })}
+                <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', fontSize: 10, color: '#555' }}>
+                    <span>{selectedProductName || curveData.product_name}{deliveryPointName ? ` · ${deliveryPointName}` : ''}</span>
+                    <span>updated {new Date(curveData.generated_at).toLocaleTimeString('en-US', { hour12: false })}</span>
                 </div>
             )}
         </div>

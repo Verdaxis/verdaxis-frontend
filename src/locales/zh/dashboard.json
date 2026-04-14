@@ -412,7 +412,9 @@
     "orders": "笔订单",
     "bestBid": "指示买价",
     "bestAsk": "指示卖价",
-    "midPrice": "基准中间价"
+    "midPrice": "基准中间价",
+    "indicativeOnly": "仅供参考",
+    "clickHint": "点击曲线点可打开对应的市场切片。"
   },
   "priceAlerts": {
     "title": "价格提醒",
