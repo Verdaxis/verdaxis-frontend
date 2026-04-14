@@ -183,3 +183,10 @@
 - **Trigger:** I aligned Marketplace and seeds to the approved ports/products but left MarketTerminal on a separate port API and legacy fuel-type list, so the user still saw missing ports and deprecated fuels in the forward-curve terminal.
 - **Rule:** When the trading taxonomy changes, update secondary market surfaces like MarketTerminal and forward-curve selectors in the same pass as Marketplace.
 - **Why:** Parallel market UIs drift quickly when one uses canonical `market_product + approved ports` and another keeps legacy `fuel_type + ports` sources.
+
+
+### Anchor market-terminal redesigns to the intended product reference
+- **Date:** 2026-04-14
+- **Trigger:** I was improving the Forward Curve tab without foregrounding that the desired reference was a Braemar-style customizable trading workspace.
+- **Rule:** When redesigning a major market surface, explicitly align the layout and interaction model to the intended benchmark product aesthetic before iterating on individual widgets.
+- **Why:** Local UI fixes can still miss the overall product feel if the target interaction model is not treated as the primary constraint.

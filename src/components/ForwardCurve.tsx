@@ -12,6 +12,7 @@ import {
     formatAvailabilityWindowPeriod,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
+import { availabilityWindowToChartTime, serializeChartTime } from '../utils/curveChart';
 
 interface ForwardCurveProps {
     initialProductId?: string;
@@ -208,10 +209,16 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
     const isFree = !subscription || subscription.tier === 'free';
     const selectedProductName = products.find(p => p.id === selectedProductId)?.name || fuelType || marketProductCode || '';
     const chartPoints = useMemo(() => selectVisibleCurvePoints(curveData?.curve ?? []), [curveData?.curve]);
+    const chartPointLookup = useMemo(() => new Map(
+        chartPoints.map((point) => [
+            serializeChartTime(availabilityWindowToChartTime(point.availability_window)),
+            point,
+        ]),
+    ), [chartPoints]);
 
     // Stable refs for click handler closure
-    const chartPointsRef = useRef(chartPoints);
-    chartPointsRef.current = chartPoints;
+    const chartPointLookupRef = useRef(chartPointLookup);
+    chartPointLookupRef.current = chartPointLookup;
     const onPeriodClickRef = useRef(onPeriodClick);
     onPeriodClickRef.current = onPeriodClick;
 
@@ -274,14 +281,20 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             },
             crosshair: {
                 mode: CrosshairMode.Normal,
+                vertLine: {
+                    labelVisible: false,
+                },
+                horzLine: {
+                    labelVisible: false,
+                },
             },
             rightPriceScale: {
                 borderColor: chartGrid,
             },
             timeScale: {
                 borderColor: chartGrid,
-                tickMarkFormatter: (time: number) => {
-                    const item = chartPointsRef.current[time];
+                tickMarkFormatter: (time) => {
+                    const item = chartPointLookupRef.current.get(serializeChartTime(time));
                     return item ? formatAvailabilityWindowPeriod(item.availability_window) : '';
                 },
             },
@@ -342,12 +355,11 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         chart.subscribeCrosshairMove((param) => {
             const tooltip = fcTooltipRef.current;
             if (!tooltip) return;
-            if (!param.time && param.time !== 0) {
+            if (!param.time) {
                 tooltip.style.display = 'none';
                 return;
             }
-            const idx = param.time as number;
-            const item = chartPointsRef.current[idx];
+            const item = chartPointLookupRef.current.get(serializeChartTime(param.time));
             if (!item) { tooltip.style.display = 'none'; return; }
 
             const bidVal = (param.seriesData.get(bidSeries) as any)?.value ?? null;
@@ -369,9 +381,8 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
 
         // Click handler: navigate to period
         chart.subscribeClick((param) => {
-            if (!param.time && param.time !== 0) return;
-            const idx = param.time as number;
-            const item = chartPointsRef.current[idx];
+            if (!param.time) return;
+            const item = chartPointLookupRef.current.get(serializeChartTime(param.time));
             if (item?.availability_window && onPeriodClickRef.current) {
                 onPeriodClickRef.current(normalizeAvailabilityWindow(item.availability_window));
             }
@@ -407,16 +418,25 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         if (chartPoints.length === 0) return;
 
         const bidData = chartPoints
-            .map((pt, idx) => ({ time: idx as any, value: pt.best_bid != null ? Number(pt.best_bid) : null }))
-            .filter((d): d is { time: any; value: number } => d.value != null);
+            .map((pt) => ({
+                time: availabilityWindowToChartTime(pt.availability_window),
+                value: pt.best_bid != null ? Number(pt.best_bid) : null,
+            }))
+            .filter((d): d is { time: number; value: number } => d.value != null);
 
         const askData = chartPoints
-            .map((pt, idx) => ({ time: idx as any, value: pt.best_ask != null ? Number(pt.best_ask) : null }))
-            .filter((d): d is { time: any; value: number } => d.value != null);
+            .map((pt) => ({
+                time: availabilityWindowToChartTime(pt.availability_window),
+                value: pt.best_ask != null ? Number(pt.best_ask) : null,
+            }))
+            .filter((d): d is { time: number; value: number } => d.value != null);
 
         const midData = chartPoints
-            .map((pt, idx) => ({ time: idx as any, value: pt.mid_price != null ? Number(pt.mid_price) : null }))
-            .filter((d): d is { time: any; value: number } => d.value != null);
+            .map((pt) => ({
+                time: availabilityWindowToChartTime(pt.availability_window),
+                value: pt.mid_price != null ? Number(pt.mid_price) : null,
+            }))
+            .filter((d): d is { time: number; value: number } => d.value != null);
 
         fcBidSeriesRef.current.setData(bidData);
         fcAskSeriesRef.current.setData(askData);

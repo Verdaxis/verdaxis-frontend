@@ -5,7 +5,9 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Zap,
-    Maximize2,
+    Settings2,
+    Check,
+    RotateCcw,
     TrendingUp,
     Activity,
     Loader2,
@@ -21,11 +23,11 @@ import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
-import { ForwardCurve } from './ForwardCurve';
 import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
 import { GridLayout } from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import {
@@ -34,6 +36,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
+import { availabilityWindowToChartTime, serializeChartTime } from '../utils/curveChart';
 
 // --- Types ---
 interface TerminalRow {
@@ -84,6 +87,37 @@ function buildPeriodConfig(windows: string[]): PeriodConfig[] {
             type: getPeriodType(window),
         }));
 }
+
+type TerminalLayoutMode = 'view' | 'customize';
+
+const TERMINAL_LAYOUT_STORAGE_KEY = 'verdaxis_terminal_layout_v1';
+
+const DEFAULT_TERMINAL_LAYOUT: Layout[] = [
+    { i: 'depth', x: 0, y: 0, w: 7, h: 3, minW: 4, minH: 2 },
+    { i: 'trades', x: 7, y: 0, w: 5, h: 3, minW: 4, minH: 2 },
+    { i: 'activity', x: 0, y: 3, w: 12, h: 4, minW: 6, minH: 3 },
+];
+
+const normalizeTerminalLayout = (layout: Layout[] | null | undefined): Layout[] => {
+    const byId = new Map((layout ?? []).map((item) => [item.i, item]));
+    return DEFAULT_TERMINAL_LAYOUT.map((item) => ({
+        ...item,
+        ...byId.get(item.i),
+        minW: item.minW,
+        minH: item.minH,
+    }));
+};
+
+const getStoredTerminalLayout = (): Layout[] => {
+    if (typeof window === 'undefined') return DEFAULT_TERMINAL_LAYOUT;
+    const stored = localStorage.getItem(TERMINAL_LAYOUT_STORAGE_KEY);
+    if (!stored) return DEFAULT_TERMINAL_LAYOUT;
+    try {
+        return normalizeTerminalLayout(JSON.parse(stored));
+    } catch {
+        return DEFAULT_TERMINAL_LAYOUT;
+    }
+};
 
 // Indicative benchmark anchors by fuel family; port modifiers adjust per approved trading port.
 const FUEL_BASE_PRICES: Record<string, number> = {
@@ -223,8 +257,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const gridContainerRef = useRef<HTMLDivElement>(null);
     const [gridWidth, setGridWidth] = useState(1200);
 
-    // Layout customization (movable boxes — currently shows preset toggle)
-    const [layoutMode, setLayoutMode] = useState<'default' | 'compact'>('default');
+    const [layoutMode, setLayoutMode] = useState<TerminalLayoutMode>('view');
+    const [terminalLayout, setTerminalLayout] = useState<Layout[]>(() => getStoredTerminalLayout());
 
     // Collapsible year groups — Cal years default collapsed, quarters hidden
     const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set(['2027']));
@@ -397,6 +431,23 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         return () => observer.disconnect();
     }, []);
 
+    const persistTerminalLayout = useCallback((layout: Layout[]) => {
+        const normalized = normalizeTerminalLayout(layout);
+        setTerminalLayout(normalized);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem(TERMINAL_LAYOUT_STORAGE_KEY, JSON.stringify(normalized));
+        }
+    }, []);
+
+    const handleTerminalLayoutChange = useCallback((layout: Layout[]) => {
+        if (layoutMode !== 'customize') return;
+        persistTerminalLayout(layout);
+    }, [layoutMode, persistTerminalLayout]);
+
+    const resetTerminalLayout = useCallback(() => {
+        persistTerminalLayout(DEFAULT_TERMINAL_LAYOUT);
+    }, [persistTerminalLayout]);
+
     // Derived base price for simulated rows
     const basePrice = FUEL_BASE_PRICES[selectedFuelType] || 540;
     const regionMod = REGION_MODIFIERS[selectedPort] || 0;
@@ -543,9 +594,16 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         });
     }, [filteredAsks, filteredBids, periodConfig]);
 
+    const chartDataLookup = useMemo(() => new Map(
+        chartData.map((item) => [
+            serializeChartTime(availabilityWindowToChartTime(item.window)),
+            item,
+        ]),
+    ), [chartData]);
+
     // Stable ref for click handler closures (avoids recreating chart on every state change)
-    const chartDataRef = useRef(chartData);
-    chartDataRef.current = chartData;
+    const chartDataLookupRef = useRef(chartDataLookup);
+    chartDataLookupRef.current = chartDataLookup;
     const selectedPortRef = useRef(selectedPort);
     selectedPortRef.current = selectedPort;
     const selectedMarketProductRef = useRef(selectedMarketProduct);
@@ -577,14 +635,16 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             },
             crosshair: {
                 mode: CrosshairMode.Normal,
+                vertLine: { labelVisible: false },
+                horzLine: { labelVisible: false },
             },
             rightPriceScale: {
                 borderColor: chartBorder,
             },
             timeScale: {
                 borderColor: chartBorder,
-                tickMarkFormatter: (time: number) => {
-                    const item = chartDataRef.current[time];
+                tickMarkFormatter: (time) => {
+                    const item = chartDataLookupRef.current.get(serializeChartTime(time));
                     return item ? item.period : '';
                 },
             },
@@ -610,9 +670,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
         // Click handler reads from refs so it always has current values
         chart.subscribeClick((param) => {
-            if (!param.time && param.time !== 0) return;
-            const idx = param.time as number;
-            const item = chartDataRef.current[idx];
+            if (!param.time) return;
+            const item = chartDataLookupRef.current.get(serializeChartTime(param.time));
             if (item?.window && onNavigateRef.current) {
                 localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
                 localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProductRef.current);
@@ -633,8 +692,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     useEffect(() => {
         if (!tvSeriesRef.current || !tvChartRef.current) return;
         const tvData = chartData
-            .map((item, idx) => ({
-                time: idx as any,
+            .map((item) => ({
+                time: availabilityWindowToChartTime(item.window),
                 value: item.price as number,
             }))
             .filter(d => d.value != null);
@@ -732,22 +791,53 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 <Bell size={11} />
                             </button>
                             <button
-                                onClick={e => { e.stopPropagation(); setLayoutMode(layoutMode === 'default' ? 'compact' : 'default'); }}
-                                title={layoutMode === 'default' ? 'Compact layout' : 'Default layout'}
+                                onClick={e => { e.stopPropagation(); setLayoutMode(layoutMode === 'view' ? 'customize' : 'view'); }}
+                                title={layoutMode === 'view' ? t('terminal.btn.customizeLayout') : t('terminal.btn.doneCustomizing')}
                                 style={{
-                                    background: 'transparent',
-                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'}`,
+                                    background: layoutMode === 'customize' ? 'rgba(16,185,129,0.12)' : 'transparent',
+                                    border: `1px solid ${layoutMode === 'customize' ? 'rgba(16,185,129,0.25)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)')}`,
                                     borderRadius: 4,
-                                    color: '#888',
+                                    color: layoutMode === 'customize' ? '#10b981' : '#888',
                                     cursor: 'pointer',
-                                    padding: '2px 5px',
+                                    padding: '2px 7px',
                                     display: 'flex',
                                     alignItems: 'center',
+                                    gap: 4,
                                     marginLeft: 4,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
                                 }}
                             >
-                                <Maximize2 size={11} />
+                                {layoutMode === 'view' ? <Settings2 size={11} /> : <Check size={11} />}
+                                {layoutMode === 'view' ? t('terminal.btn.customizeLayout') : t('terminal.btn.doneCustomizing')}
                             </button>
+                            {layoutMode === 'customize' && (
+                                <button
+                                    onClick={e => { e.stopPropagation(); resetTerminalLayout(); }}
+                                    title={t('terminal.btn.resetLayout')}
+                                    style={{
+                                        background: 'transparent',
+                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'}`,
+                                        borderRadius: 4,
+                                        color: '#888',
+                                        cursor: 'pointer',
+                                        padding: '2px 7px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 4,
+                                        marginLeft: 4,
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        letterSpacing: '0.08em',
+                                        textTransform: 'uppercase',
+                                    }}
+                                >
+                                    <RotateCcw size={11} />
+                                    {t('terminal.btn.resetLayout')}
+                                </button>
+                            )}
                         </div>
 
                         {/* Fuel Type Selector */}
@@ -832,8 +922,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             <div className="text-xs text-slate-600 dark:text-[#555]">{formatMarketProduct(selectedMarketProduct)} — {selectedPort}</div>
                             <div className="text-[10px] text-slate-500 dark:text-[#666] mt-1">{t('terminal.label.curveHint')}</div>
                             <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{t('terminal.label.openSliceHint')}</div>
+                            {layoutMode === 'customize' && (
+                                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">{t('terminal.label.layoutHint')}</div>
+                            )}
                         </div>
-                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
                     {loading ? (
                         <div className="flex items-center justify-center h-[80%]">
@@ -1021,23 +1113,19 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         cols={12}
                         rowHeight={50}
                         width={gridWidth}
-                        layout={[
-                            { i: 'depth', x: 0, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
-                            { i: 'trades', x: 6, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
-                            { i: 'curve', x: 0, y: 3, w: 8, h: 4, minW: 4, minH: 3 },
-                            { i: 'activity', x: 8, y: 3, w: 4, h: 4, minW: 3, minH: 2 },
-                        ]}
-                        isDraggable={true}
-                        isResizable={true}
+                        layout={terminalLayout}
+                        onLayoutChange={handleTerminalLayoutChange}
+                        isDraggable={layoutMode === 'customize'}
+                        isResizable={layoutMode === 'customize'}
                         draggableHandle=".drag-handle"
                         compactType="vertical"
                         margin={[6, 6]}
                     >
                         {/* Orderbook Depth */}
                         <div key="depth" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Orderbook Depth</span>
-                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]`}>
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.orderbookDepth')}</span>
+                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
                             </div>
                             <div style={{ padding: '4px 8px', height: 'calc(100% - 24px)', overflow: 'hidden' }}>
                                 <OrderbookDepth
@@ -1050,11 +1138,11 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         </div>
                         {/* Trade Events */}
                         <div key="trades" className="bg-slate-50 dark:bg-[#0a0a0a] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className="drag-handle flex items-center px-3 py-1 cursor-move border-b border-slate-100 dark:border-[#181818]">
+                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} border-b border-slate-100 dark:border-[#181818]`}>
                                 <Activity size={10} className="text-emerald-500 mr-1.5" />
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.activity.title')}</span>
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.tradeTape')}</span>
                                 <div className={`ml-1.5 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
                             </div>
                             <div ref={tradeScrollRef} className="overflow-y-auto px-2 py-1" style={{ height: 'calc(100% - 24px)' }}>
                                 {tradeEvents.length === 0 ? (
@@ -1080,33 +1168,11 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 )}
                             </div>
                         </div>
-                        {/* Forward Curve */}
-                        <div key="curve" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Forward Curve</span>
-                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
-                            </div>
-                            <div data-tour="terminal-forward-curve" style={{ padding: '4px', height: 'calc(100% - 24px)' }}>
-                                <ForwardCurve
-                                    marketProductCode={selectedMarketProduct}
-                                    deliveryPointName={selectedPort}
-                                    onPeriodClick={(window) => {
-                                        if (onNavigate) {
-                                            localStorage.setItem('verdaxis_marketplace_port', selectedPort);
-                                            localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProduct);
-                                            setSelectedAvailabilityWindow(window);
-                                            localStorage.setItem('verdaxis_marketplace_window', window);
-                                            onNavigate('MARKETPLACE');
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
                         {/* Activity Feed */}
                         <div key="activity" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Activity Feed</span>
-                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]`}>
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.activityFeed')}</span>
+                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
                             </div>
                             <div data-tour="terminal-activity-feed" style={{ padding: '4px', height: 'calc(100% - 24px)', overflow: 'auto' }}>
                                 <ActivityFeed />
