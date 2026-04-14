@@ -22,7 +22,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
 import { ForwardCurve } from './ForwardCurve';
-import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
 import { GridLayout } from 'react-grid-layout';
@@ -93,7 +92,6 @@ const TERMINAL_LAYOUT_STORAGE_KEY = 'verdaxis_terminal_layout_v1';
 const DEFAULT_TERMINAL_LAYOUT: Layout[] = [
     { i: 'depth', x: 0, y: 0, w: 7, h: 3, minW: 4, minH: 2 },
     { i: 'trades', x: 7, y: 0, w: 5, h: 3, minW: 4, minH: 2 },
-    { i: 'activity', x: 0, y: 3, w: 12, h: 4, minW: 6, minH: 3 },
 ];
 
 const normalizeTerminalLayout = (layout: Layout[] | null | undefined): Layout[] => {
@@ -965,16 +963,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                         </div>
                                     ))
                                 )}
-                            </div>
-                        </div>
-                        {/* Activity Feed */}
-                        <div key="activity" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]`}>
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.activityFeed')}</span>
-                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
-                            </div>
-                            <div data-tour="terminal-activity-feed" style={{ padding: '4px', height: 'calc(100% - 24px)', overflow: 'auto' }}>
-                                <ActivityFeed />
                             </div>
                         </div>
                     </GridLayout>
