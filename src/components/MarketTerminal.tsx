@@ -14,6 +14,7 @@ import {
     Bell,
 } from 'lucide-react';
 import { Port, OrderBookOrder, PriceSummary } from '../types';
+import { APPROVED_TRADING_PORTS } from '../data';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
@@ -84,27 +85,24 @@ function buildPeriodConfig(windows: string[]): PeriodConfig[] {
 }
 
 // Base prices by fuel type for simulation
-// Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
-// These are ARA mid-market prices; region modifiers adjust per port
+// Base prices by fuel type — indicative benchmark anchors
+// Indicative benchmark anchors by fuel; port modifiers adjust per approved trading port
 const FUEL_BASE_PRICES: Record<string, number> = {
-    'Methanol': 590,      // Green methanol ARA ~$590
-    'Biofuel': 920,       // HVO ARA ~$920
-    'Ammonia': 670,       // Green ammonia projected ~$670
-    'Ethanol': 930,       // Bioethanol ~$930
-    'Biomethane': 850,    // Bio-LNG/Biomethane ARA ~$850
+    'Methanol': 590,
+    'Biofuel': 920,
+    'Ammonia': 670,
+    'Ethanol': 930,
+    'Biomethane': 850,
 };
 
-// Region price modifiers (spread vs base)
-// Region price modifiers ($/MT vs ARA base)
+// Port price modifiers ($/MT vs benchmark anchor)
 const REGION_MODIFIERS: Record<string, number> = {
-    'Singapore': 140,     // SG consistently premium over ARA
-    'Rotterdam': 0,       // ~= ARA
-    'ARA': 0,
-    'Houston': 30,
-    'Fujairah': 170,      // Fujairah premium vs ARA
-    'Busan': 120,
+    'Singapore': 140,
     'Shanghai': 100,
-    'Algeciras': 20,
+    'Dalian': 85,
+    'Amsterdam': -5,
+    'Rotterdam': 0,
+    'Antwerp': 5,
 };
 
 // Green fuel types only — no fossil fuels
@@ -235,7 +233,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Fetch ports for the selector
     useEffect(() => {
-        api.ports.list().then(setPorts).catch(console.error);
+        api.ports.list().then((allPorts) => setPorts(allPorts.filter((port) => APPROVED_TRADING_PORTS.includes(port.name as (typeof APPROVED_TRADING_PORTS)[number])))).catch(console.error);
     }, []);
 
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
@@ -630,9 +628,12 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Unique port names from ports list
     const portNames = useMemo(() => {
-        const names = ports.map(p => p.name);
-        allOrders.forEach(o => {
-            if (!names.includes(o.region)) names.push(o.region);
+        const allowed = new Set(APPROVED_TRADING_PORTS);
+        const names = ports.map(p => p.name).filter((name) => allowed.has(name as (typeof APPROVED_TRADING_PORTS)[number]));
+        allOrders.forEach((o) => {
+            if (allowed.has(o.region as (typeof APPROVED_TRADING_PORTS)[number]) && !names.includes(o.region)) {
+                names.push(o.region);
+            }
         });
         return [...new Set(names)].sort();
     }, [ports, allOrders]);

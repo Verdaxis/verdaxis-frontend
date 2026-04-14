@@ -171,3 +171,9 @@
 - **Trigger:** I nearly treated `.impeccable.md` as a Marketplace-specific document instead of a Verdaxis-wide frontend baseline.
 - **Rule:** When adding a root-level design guardrail file, define rules for the entire frontend product surface, including both public marketing pages and the authenticated app.
 - **Why:** Root-level design context is meant to prevent drift across the whole product, not just one workflow.
+
+### Keep trading delivery points on the approved port list
+- **Date:** 2026-04-14
+- **Trigger:** I left legacy bucket and non-approved ports like `ARA`, `Fujairah`, and `Houston` active after the user narrowed the trading surface to six specific ports.
+- **Rule:** When the user defines an approved trading port set, update both the catalog/seed layer and the live dropdown/data sources together, and remove bucket ports like `ARA` from executable trading surfaces.
+- **Why:** Mixed port taxonomies make the marketplace, forward curve, and seeded data disagree about what a valid market slice is.

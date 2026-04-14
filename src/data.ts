@@ -1,6 +1,15 @@
 
 import { Port, Supplier, Course, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
 
+export const APPROVED_TRADING_PORTS = [
+    'Singapore',
+    'Shanghai',
+    'Dalian',
+    'Amsterdam',
+    'Rotterdam',
+    'Antwerp',
+] as const;
+
 export const PORTS: Port[] = [
     {
         id: 'sg-sin',
@@ -20,113 +29,12 @@ export const PORTS: Port[] = [
             plattsPrice: 518.50,
             ffaPrice: 525.00,
             swapPrice: 522.10,
-            lastDone: "1,200MT @ $519",
+            lastDone: '1,200MT @ $519',
             upcomingProjects: [
                 { year: '2027 Q1', project: 'Jurong Green Methanol', capacity: '500kt' },
-                { year: '2028 Q3', project: 'Tuas Ammonia Terminal', capacity: '1.2Mt' }
-            ]
-        }
-    },
-    {
-        id: 'nl-rtm',
-        name: 'Rotterdam',
-        location: { lat: 51.9225, lng: 4.47917 },
-        country: 'Netherlands',
-        methanolSupply: 'High',
-        biofuelSupply: 'Medium',
-        priceMethanol: 545,
-        priceTrend: -0.5,
-        details: {
-            congestionLevel: 'Low',
-            avgWaitingTime: 4,
-            activeBarges: 5,
-            forecastSupply: 'Surplus',
-            priceHistory: [550, 548, 546, 545, 545, 544, 545],
-            plattsPrice: 542.00,
-            ffaPrice: 540.00,
-            swapPrice: 541.50,
-            lastDone: "800MT @ $544",
-            upcomingProjects: [
-                { year: '2026 Q2', project: 'Maasvlakte Bio-Methanol', capacity: '200kt' }
-            ]
-        }
-    },
-    {
-        id: 'be-ant',
-        name: 'Antwerp',
-        location: { lat: 51.2194, lng: 4.4025 },
-        country: 'Belgium',
-        methanolSupply: 'High',
-        biofuelSupply: 'High',
-        priceMethanol: 548,
-        priceTrend: -0.2,
-        details: {
-            congestionLevel: 'Moderate',
-            avgWaitingTime: 8,
-            activeBarges: 6,
-            forecastSupply: 'Balanced',
-            priceHistory: [552, 550, 548, 548, 549, 548, 548],
-            plattsPrice: 546.50,
-            ffaPrice: 545.00,
-            swapPrice: 547.00,
-            lastDone: "500MT @ $547"
-        }
-    },
-    {
-        id: 'de-ham',
-        name: 'Hamburg',
-        location: { lat: 53.5488, lng: 9.9872 },
-        country: 'Germany',
-        methanolSupply: 'Medium',
-        biofuelSupply: 'High',
-        priceMethanol: 555,
-        priceTrend: -0.8,
-        details: {
-            congestionLevel: 'Moderate',
-            avgWaitingTime: 6,
-            activeBarges: 4,
-            forecastSupply: 'Balanced',
-            priceHistory: [560, 558, 555, 554, 555, 556, 555],
-            plattsPrice: 552.00,
-            ffaPrice: 550.00,
-            swapPrice: 551.00,
-            lastDone: "2,000MT @ $553"
-        }
-    },
-    {
-        id: 'us-hou',
-        name: 'Houston',
-        location: { lat: 29.7604, lng: -95.3698 },
-        country: 'USA',
-        methanolSupply: 'High',
-        biofuelSupply: 'Low',
-        priceMethanol: 480,
-        priceTrend: 1.2,
-        details: {
-            congestionLevel: 'Low',
-            avgWaitingTime: 3,
-            activeBarges: 10,
-            forecastSupply: 'Surplus',
-            priceHistory: [475, 478, 480, 480, 482, 481, 480],
-            plattsPrice: 478.00,
-            ffaPrice: 485.00,
-            swapPrice: 482.00,
-            lastDone: "3,500MT @ $479",
-            upcomingProjects: [
-                { year: '2026 Q3', project: 'Gulf Coast Blue Ammonia', capacity: '1.2Mt' },
-                { year: '2027 Q4', project: 'Texas e-Fuel Hub', capacity: '300kt' } 
-            ]
-        }
-    },
-    {
-        id: 'us-nyc',
-        name: 'New York',
-        location: { lat: 40.7128, lng: -74.0060 },
-        country: 'USA',
-        methanolSupply: 'Medium',
-        biofuelSupply: 'Medium',
-        priceMethanol: 505,
-        priceTrend: 0.3
+                { year: '2028 Q3', project: 'Tuas Synthetic Fuel Terminal', capacity: '1.2Mt' },
+            ],
+        },
     },
     {
         id: 'cn-sha',
@@ -146,196 +54,99 @@ export const PORTS: Port[] = [
             plattsPrice: 508.00,
             ffaPrice: 515.00,
             swapPrice: 512.00,
-            lastDone: "1,000MT @ $511",
+            lastDone: '1,000MT @ $511',
             upcomingProjects: [
-                { year: '2027 Q4', project: 'Yangshan E-Methanol Pilot', capacity: '50kt' }
-            ]
-        }
+                { year: '2027 Q4', project: 'Yangshan e-Methanol Pilot', capacity: '50kt' },
+            ],
+        },
     },
     {
-        id: 'cn-hkg',
-        name: 'Hong Kong',
-        location: { lat: 22.3193, lng: 114.1694 },
+        id: 'cn-dlc',
+        name: 'Dalian',
+        location: { lat: 38.914, lng: 121.6147 },
         country: 'China',
         methanolSupply: 'Medium',
         biofuelSupply: 'Medium',
-        priceMethanol: 525,
-        priceTrend: 1.5
-    },
-    {
-        id: 'kr-bus',
-        name: 'Busan',
-        location: { lat: 35.1028, lng: 129.0403 },
-        country: 'South Korea',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Medium',
-        priceMethanol: 535,
-        priceTrend: 1.8
-    },
-    {
-        id: 'my-ptp',
-        name: 'Tanjung Pelepas',
-        location: { lat: 1.3635, lng: 103.5442 },
-        country: 'Malaysia',
-        methanolSupply: 'Low',
-        biofuelSupply: 'High',
-        priceMethanol: 535,
-        priceTrend: 1.2
-    },
-    {
-        id: 'gi-gib',
-        name: 'Gibraltar',
-        location: { lat: 36.1408, lng: -5.3536 },
-        country: 'Gibraltar',
-        methanolSupply: 'Medium',
-        biofuelSupply: 'High',
-        priceMethanol: 560,
-        priceTrend: 0.5
-    },
-    {
-        id: 'ae-jeb',
-        name: 'Jebel Ali',
-        location: { lat: 24.9857, lng: 55.0273 },
-        country: 'UAE',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Medium',
-        priceMethanol: 590,
-        priceTrend: 0.0
-    },
-    {
-        id: 'ae-fjr',
-        name: 'Fujairah',
-        location: { lat: 25.1288, lng: 56.3265 },
-        country: 'UAE',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Low',
-        priceMethanol: 610,
-        priceTrend: 0.5,
+        priceMethanol: 498,
+        priceTrend: 1.1,
         details: {
-            congestionLevel: 'High',
-            avgWaitingTime: 24,
-            activeBarges: 12,
-            forecastSupply: 'Tight',
-            priceHistory: [600, 605, 608, 610, 610, 612, 610],
-            plattsPrice: 608.00,
-            ffaPrice: 615.00,
-            swapPrice: 610.00,
-            lastDone: "500MT @ $612"
-        }
+            congestionLevel: 'Low',
+            avgWaitingTime: 7,
+            activeBarges: 6,
+            forecastSupply: 'Balanced',
+            priceHistory: [492, 494, 495, 497, 499, 500, 498],
+            plattsPrice: 496.00,
+            ffaPrice: 501.00,
+            swapPrice: 498.20,
+            lastDone: '900MT @ $497',
+        },
     },
     {
-        id: 'pa-bal',
-        name: 'Balboa',
-        location: { lat: 8.9593, lng: -79.5732 },
-        country: 'Panama',
-        methanolSupply: 'Medium',
-        biofuelSupply: 'Medium',
-        priceMethanol: 515,
-        priceTrend: -1.5
-    },
-    {
-        id: 'jp-tok',
-        name: 'Tokyo',
-        location: { lat: 35.6895, lng: 139.6917 },
-        country: 'Japan',
+        id: 'nl-ams',
+        name: 'Amsterdam',
+        location: { lat: 52.3676, lng: 4.9041 },
+        country: 'Netherlands',
         methanolSupply: 'High',
         biofuelSupply: 'Medium',
-        priceMethanol: 530,
-        priceTrend: 1.0,
+        priceMethanol: 542,
+        priceTrend: -0.4,
         details: {
-            congestionLevel: 'Moderate',
-            avgWaitingTime: 10,
-            activeBarges: 7,
+            congestionLevel: 'Low',
+            avgWaitingTime: 5,
+            activeBarges: 5,
             forecastSupply: 'Balanced',
-            priceHistory: [525, 528, 530, 532, 530, 529, 530],
-            plattsPrice: 528.00,
-            ffaPrice: 535.00,
-            swapPrice: 530.00,
-            lastDone: "1,500MT @ $529"
-        }
+            priceHistory: [546, 545, 544, 543, 542, 541, 542],
+            plattsPrice: 541.00,
+            ffaPrice: 540.00,
+            swapPrice: 541.20,
+            lastDone: '700MT @ $541',
+        },
     },
     {
-        id: 'us-lax',
-        name: 'Los Angeles',
-        location: { lat: 33.7547, lng: -118.2713 },
-        country: 'USA',
-        methanolSupply: 'Medium',
-        biofuelSupply: 'High',
-        priceMethanol: 495,
-        priceTrend: 0.8,
-        details: {
-            congestionLevel: 'High',
-            avgWaitingTime: 18,
-            activeBarges: 6,
-            forecastSupply: 'Tight',
-            priceHistory: [490, 492, 495, 494, 495, 497, 495],
-            plattsPrice: 492.00,
-            ffaPrice: 500.00,
-            swapPrice: 496.00,
-            lastDone: "2,000MT @ $498"
-        }
-    },
-    {
-        id: 'es-alg',
-        name: 'Algeciras',
-        location: { lat: 36.1368, lng: -5.4377 },
-        country: 'Spain',
-        methanolSupply: 'Medium',
+        id: 'nl-rtm',
+        name: 'Rotterdam',
+        location: { lat: 51.9225, lng: 4.47917 },
+        country: 'Netherlands',
+        methanolSupply: 'High',
         biofuelSupply: 'Medium',
-        priceMethanol: 555,
-        priceTrend: 0.2
-    },
-    {
-        id: 'lk-cmb',
-        name: 'Colombo',
-        location: { lat: 6.9319, lng: 79.8478 },
-        country: 'Sri Lanka',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Low',
-        priceMethanol: 570,
-        priceTrend: -0.1
-    },
-    {
-        id: 'br-ssz',
-        name: 'Santos',
-        location: { lat: -23.9618, lng: -46.3322 },
-        country: 'Brazil',
-        methanolSupply: 'Low',
-        biofuelSupply: 'High',
-        priceMethanol: 580,
-        priceTrend: -1.2,
+        priceMethanol: 545,
+        priceTrend: -0.5,
         details: {
-            congestionLevel: 'High',
-            avgWaitingTime: 36,
+            congestionLevel: 'Low',
+            avgWaitingTime: 4,
             activeBarges: 5,
             forecastSupply: 'Surplus',
-            priceHistory: [590, 588, 585, 582, 580, 578, 580],
-            plattsPrice: 575.00,
-            ffaPrice: 585.00,
-            swapPrice: 582.00,
-            lastDone: "300MT @ $578"
-        }
+            priceHistory: [550, 548, 546, 545, 545, 544, 545],
+            plattsPrice: 542.00,
+            ffaPrice: 540.00,
+            swapPrice: 541.50,
+            lastDone: '800MT @ $544',
+            upcomingProjects: [
+                { year: '2026 Q2', project: 'Maasvlakte Bio-Methanol', capacity: '200kt' },
+            ],
+        },
     },
     {
-        id: 'za-dur',
-        name: 'Durban',
-        location: { lat: -29.8587, lng: 31.0218 },
-        country: 'South Africa',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Low',
-        priceMethanol: 650,
-        priceTrend: 0.0
+        id: 'be-ant',
+        name: 'Antwerp',
+        location: { lat: 51.2194, lng: 4.4025 },
+        country: 'Belgium',
+        methanolSupply: 'High',
+        biofuelSupply: 'High',
+        priceMethanol: 548,
+        priceTrend: -0.2,
+        details: {
+            congestionLevel: 'Moderate',
+            avgWaitingTime: 8,
+            activeBarges: 6,
+            forecastSupply: 'Balanced',
+            priceHistory: [552, 550, 548, 548, 549, 548, 548],
+            plattsPrice: 546.50,
+            ffaPrice: 545.00,
+            swapPrice: 547.00,
+            lastDone: '500MT @ $547',
+        },
     },
-    {
-        id: 'in-mun',
-        name: 'Mundra',
-        location: { lat: 22.8390, lng: 69.7130 },
-        country: 'India',
-        methanolSupply: 'Low',
-        biofuelSupply: 'Medium',
-        priceMethanol: 595,
-        priceTrend: 2.5
-    }
 ];
 
 export const SUPPLIERS: Supplier[] = [

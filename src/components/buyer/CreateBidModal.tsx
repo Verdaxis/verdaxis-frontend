@@ -18,7 +18,7 @@ export interface BidFormData {
     availability_window: string;
 }
 
-const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai', 'UAE'];
+const REGIONS = ['Singapore', 'Shanghai', 'Dalian', 'Amsterdam', 'Rotterdam', 'Antwerp'];
 const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
 
