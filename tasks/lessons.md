@@ -196,3 +196,9 @@
 - **Trigger:** I changed the Market Terminal layout and feed wiring, but the user still saw the forward curve missing and both feeds blank on staging.
 - **Rule:** After refactoring live market surfaces, verify the exact selected slice on staging and confirm the UI still shows the intended critical data before closing the task.
 - **Why:** Passing local tests is not enough when staging data and UI state can diverge from the implementation assumptions.
+
+### Don't replace a real market surface with a proxy chart
+- **Date:** 2026-04-14
+- **Trigger:** I removed the duplicate Forward Curve widget from Market Terminal but left the top panel on the older orderbook-derived mini-chart, so the user lost the real forward-curve experience.
+- **Rule:** When consolidating duplicate market panels, keep the canonical data surface and remove the proxy, not the other way around.
+- **Why:** A visually similar chart can still be the wrong product surface if it is backed by a narrower or different data model.

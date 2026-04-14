@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createChart, LineSeries, CrosshairMode, ColorType } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import {
     ArrowUpRight,
     ArrowDownRight,
@@ -23,6 +21,7 @@ import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
+import { ForwardCurve } from './ForwardCurve';
 import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
@@ -36,7 +35,6 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { availabilityWindowToChartTime, serializeChartTime } from '../utils/curveChart';
 
 // --- Types ---
 interface TerminalRow {
@@ -119,69 +117,6 @@ const getStoredTerminalLayout = (): Layout[] => {
     }
 };
 
-// Indicative benchmark anchors by fuel family; port modifiers adjust per approved trading port.
-const FUEL_BASE_PRICES: Record<string, number> = {
-    'Methanol': 590,
-    'Ethanol': 930,
-};
-
-// Port price modifiers ($/MT vs benchmark anchor)
-const REGION_MODIFIERS: Record<string, number> = {
-    'Singapore': 140,
-    'Shanghai': 100,
-    'Dalian': 85,
-    'Amsterdam': -5,
-    'Rotterdam': 0,
-    'Antwerp': 5,
-};
-
-// Seeded random for deterministic-looking but varying data
-const seededRandom = (seed: number) => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-};
-
-// Generate simulated market data for a period
-const generateSimulatedRow = (
-    periodIndex: number,
-    basePrice: number,
-    realAsk: number | null,
-    realAskQty: number | null,
-    tick: number
-): { bid: number; bidQty: number; last: number; change: number } => {
-    // Forward curve: slight contango (prices increase with time)
-    const forwardPremium = periodIndex * (2 + seededRandom(tick * 7 + periodIndex) * 3);
-    const periodBase = basePrice + forwardPremium;
-
-    // Small tick-to-tick variance
-    const tickNoise = (seededRandom(tick * 13 + periodIndex * 37) - 0.5) * 4;
-    const currentMid = periodBase + tickNoise;
-
-    // Bid sits below ask (or below mid if no ask)
-    const spread = 3 + seededRandom(tick * 19 + periodIndex) * 5;
-    const bid = realAsk
-        ? realAsk - spread
-        : currentMid - spread / 2;
-
-    // Bid quantity: random realistic amounts
-    const bidQty = Math.round((200 + seededRandom(tick * 23 + periodIndex * 11) * 800) / 50) * 50;
-
-    // Last done: between bid and ask, with slight randomness
-    const askForCalc = realAsk || (currentMid + spread / 2);
-    const lastPct = 0.3 + seededRandom(tick * 29 + periodIndex * 43) * 0.4;
-    const last = bid + (askForCalc - bid) * lastPct;
-
-    // Change from previous (small random delta)
-    const change = (seededRandom(tick * 31 + periodIndex * 53) - 0.45) * 8;
-
-    return {
-        bid: Math.round(bid * 100) / 100,
-        bidQty,
-        last: Math.round(last * 100) / 100,
-        change: Math.round(change * 100) / 100,
-    };
-};
-
 // Convert an SSE trade event into the TradeEvent shape used by the feed UI
 let tradeIdCounter = 0;
 const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
@@ -245,7 +180,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const [showPortDropdown, setShowPortDropdown] = useState(false);
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
     const [selectedAvailabilityWindow, setSelectedAvailabilityWindow] = useState<string>(() => getStoredTerminalWindow());
-    const selectedFuelType = getTerminalFuelType(selectedMarketProduct);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
 
     // Orders from API (orderbook sync)
@@ -254,11 +188,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
-
-    // TradingView lightweight-charts refs
-    const tvChartContainerRef = useRef<HTMLDivElement>(null);
-    const tvChartRef = useRef<IChartApi | null>(null);
-    const tvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
     // Responsive grid width
     const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -278,8 +207,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         });
     };
 
-    // Simulation tick counter (drives simulated row data for periods without real orders)
-    const [tick, setTick] = useState(0);
     const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
     const [tradeTapeLoading, setTradeTapeLoading] = useState(true);
     // Track which rows are flashing and in which direction
@@ -445,14 +372,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         };
     }, [selectedAvailabilityWindow, selectedMarketProduct, selectedDeliveryPointId]);
 
-    // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTick(t => t + 1);
-        }, 6000);
-        return () => clearInterval(interval);
-    }, []);
-
     // Responsive grid width — observe container and update
     useEffect(() => {
         const container = gridContainerRef.current;
@@ -483,11 +402,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const resetTerminalLayout = useCallback(() => {
         persistTerminalLayout(DEFAULT_TERMINAL_LAYOUT);
     }, [persistTerminalLayout]);
-
-    // Derived base price for simulated rows
-    const basePrice = FUEL_BASE_PRICES[selectedFuelType] || 540;
-    const regionMod = REGION_MODIFIERS[selectedPort] || 0;
-    const effectiveBase = basePrice + regionMod;
 
     // Auto-scroll trade feed
     useEffect(() => {
@@ -602,157 +516,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         }
     }, [terminalData]);
 
-    // Build chart data from orderbook by period
-    const chartData = useMemo(() => {
-        return periodConfig.map((config, idx) => {
-            const periodAsksForChart = filteredAsks.filter(o => o.availability_window === config.window);
-            const periodBidsForChart = filteredBids.filter(o => o.availability_window === config.window);
-
-            const askPricesChart = periodAsksForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
-            const bidPricesChart = periodBidsForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
-
-            // Best bid and best ask for the chart — no simulation fallback, show real data only
-            const bestAsk = askPricesChart.length > 0 ? Math.min(...askPricesChart) : null;
-            const bestBid = bidPricesChart.length > 0 ? Math.max(...bidPricesChart) : null;
-            const midPrice = (bestBid && bestAsk) ? (bestBid + bestAsk) / 2 : bestBid || bestAsk || null;
-
-            const totalQty = [...periodAsksForChart, ...periodBidsForChart]
-                .reduce((s, o) => s + Number(o.remaining_quantity_mt || o.quantity_mt), 0);
-
-            return {
-                period: config.period,
-                window: config.window,
-                price: midPrice ? Math.round(midPrice * 100) / 100 : null,
-                bestBid: bestBid ? Math.round(bestBid * 100) / 100 : null,
-                bestAsk: bestAsk ? Math.round(bestAsk * 100) / 100 : null,
-                quantity: totalQty || null,
-            };
-        });
-    }, [filteredAsks, filteredBids, periodConfig]);
-
-    const chartDataLookup = useMemo(() => new Map(
-        chartData.map((item) => [
-            serializeChartTime(availabilityWindowToChartTime(item.window)),
-            item,
-        ]),
-    ), [chartData]);
-
-    // Stable ref for click handler closures (avoids recreating chart on every state change)
-    const chartDataLookupRef = useRef(chartDataLookup);
-    chartDataLookupRef.current = chartDataLookup;
-    const selectedPortRef = useRef(selectedPort);
-    selectedPortRef.current = selectedPort;
-    const selectedMarketProductRef = useRef(selectedMarketProduct);
-    selectedMarketProductRef.current = selectedMarketProduct;
-    const onNavigateRef = useRef(onNavigate);
-    onNavigateRef.current = onNavigate;
-
-    // TradingView chart: create once when container mounts, clean up on unmount
-    useEffect(() => {
-        const container = tvChartContainerRef.current;
-        if (!container) return;
-
-        const dark = isDark;
-        const chartBg   = dark ? '#040404' : '#F1F5F9';
-        const chartText = dark ? '#888888' : '#6B7280';
-        const chartGrid = dark ? '#1a1a1a' : '#E2E8F0';
-        const chartBorder = dark ? '#333333' : '#CBD5E1';
-
-        const chart = createChart(container, {
-            autoSize: true,
-            layout: {
-                background: { type: ColorType.Solid, color: chartBg },
-                textColor: chartText,
-                fontFamily: "'IBM Plex Mono', monospace",
-            },
-            grid: {
-                vertLines: { color: chartGrid, style: 0 },
-                horzLines: { color: chartGrid, style: 0 },
-            },
-            crosshair: {
-                mode: CrosshairMode.Normal,
-                vertLine: { labelVisible: false },
-                horzLine: { labelVisible: false },
-            },
-            rightPriceScale: {
-                borderColor: chartBorder,
-            },
-            timeScale: {
-                borderColor: chartBorder,
-                tickMarkFormatter: (time) => {
-                    const item = chartDataLookupRef.current.get(serializeChartTime(time));
-                    return item ? item.period : '';
-                },
-            },
-            handleScroll: false,
-            handleScale: false,
-        });
-
-        const series = chart.addSeries(LineSeries, {
-            color: '#10b981',
-            lineWidth: 2,
-            pointMarkersVisible: true,
-            pointMarkersRadius: 4,
-            crosshairMarkerRadius: 6,
-            crosshairMarkerBorderColor: '#fff',
-            crosshairMarkerBorderWidth: 2,
-            crosshairMarkerBackgroundColor: '#10b981',
-            lastValueVisible: false,
-            priceLineVisible: false,
-        });
-
-        tvChartRef.current = chart;
-        tvSeriesRef.current = series;
-
-        // Click handler reads from refs so it always has current values
-        chart.subscribeClick((param) => {
-            if (!param.time) return;
-            const item = chartDataLookupRef.current.get(serializeChartTime(param.time));
-            if (item?.window && onNavigateRef.current) {
-                localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
-                localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProductRef.current);
-                setSelectedAvailabilityWindow(item.window);
-                localStorage.setItem('verdaxis_marketplace_window', item.window);
-                onNavigateRef.current('MARKETPLACE');
-            }
-        });
-
-        return () => {
-            chart.remove();
-            tvChartRef.current = null;
-            tvSeriesRef.current = null;
-        };
-    }, [loading]); // recreate when loading toggles (container mounts/unmounts)
-
-    // Update chart data when chartData changes
-    useEffect(() => {
-        if (!tvSeriesRef.current || !tvChartRef.current) return;
-        const tvData = chartData
-            .map((item) => ({
-                time: availabilityWindowToChartTime(item.window),
-                value: item.price as number,
-            }))
-            .filter(d => d.value != null);
-
-        tvSeriesRef.current.setData(tvData);
-        tvChartRef.current.timeScale().fitContent();
-    }, [chartData]);
-
-    // Update TV chart colors when theme changes
-    useEffect(() => {
-        if (!tvChartRef.current) return;
-        const chartBg   = isDark ? '#040404' : '#F1F5F9';
-        const chartText = isDark ? '#888888' : '#6B7280';
-        const chartGrid = isDark ? '#1a1a1a' : '#E2E8F0';
-        const chartBorder = isDark ? '#333333' : '#CBD5E1';
-        tvChartRef.current.applyOptions({
-            layout: { background: { type: ColorType.Solid, color: chartBg }, textColor: chartText },
-            grid: { vertLines: { color: chartGrid }, horzLines: { color: chartGrid } },
-            rightPriceScale: { borderColor: chartBorder },
-            timeScale: { borderColor: chartBorder },
-        });
-    }, [isDark]);
-
     // Summary stats
     const selectedWindowOrders = filteredOrders.filter(o => o.availability_window === selectedAvailabilityWindow);
     const selectedWindowAskPrices = filteredAsks
@@ -764,7 +527,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         ? terminalData.find(row => row.period === selectedWindowConfig.period)
         : null;
     const activeWindowPrice = selectedWindowAskPrices.length > 0 ? Math.min(...selectedWindowAskPrices) : selectedWindowRow?.ask;
-    const hasCurveData = chartData.some(item => item.price != null);
     const totalListings = filteredOrders.length;
     const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
     const activeWindowVolume = selectedWindowOrders.reduce((sum, order) => sum + Number(order.quantity_mt), 0);
@@ -963,23 +725,21 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             )}
                         </div>
                     </div>
-                    {loading ? (
-                        <div className="flex items-center justify-center h-[80%]">
-                            <Loader2 size={24} className="animate-spin text-emerald-500" />
-                        </div>
-                    ) : hasCurveData ? (
-                        <div
-                            ref={tvChartContainerRef}
-                            style={{ width: '100%', height: '80%', cursor: 'pointer' }}
+                    <div className="mt-1 h-[80%]" data-tour="terminal-forward-curve">
+                        <ForwardCurve
+                            marketProductCode={selectedMarketProduct}
+                            deliveryPointName={selectedPort}
+                            onPeriodClick={(window) => {
+                                if (onNavigate) {
+                                    localStorage.setItem('verdaxis_marketplace_port', selectedPort);
+                                    localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProduct);
+                                    setSelectedAvailabilityWindow(window);
+                                    localStorage.setItem('verdaxis_marketplace_window', window);
+                                    onNavigate('MARKETPLACE');
+                                }
+                            }}
                         />
-                    ) : (
-                        <div className="h-[80%] flex items-center justify-center px-6 text-center">
-                            <div className="space-y-2">
-                                <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t('terminal.emptyCurve')}</div>
-                                <div className="text-[11px] text-slate-500 dark:text-[#777]">{t('terminal.emptyCurveHint')}</div>
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
             </div>
 
