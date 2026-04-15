@@ -215,3 +215,9 @@
 - **Trigger:** I drafted buyer and supplier walkthrough scripts and initially treated them as ready before fully replaying the live steps in the browser.
 - **Rule:** Before handing off any recorded walkthrough script, replay the exact live flow end-to-end in the browser for each role and verify the backend side effects for every trade action.
 - **Why:** A script is only usable if the clicks, modal states, and resulting orders or trades all work on the live staging surface the recorder will use.
+
+### Benchmark labels must match benchmark semantics
+- **Date:** 2026-04-15
+- **Trigger:** I shipped listing price deltas against a seeded benchmark even though the user expected them to be derived from the visible product/port/window slice.
+- **Rule:** When surfacing market-relative deltas in the trading UI, derive the benchmark from the live visible slice or label it explicitly as an external reference before shipping.
+- **Why:** Users read signed row deltas as relative to the visible market, so an unlabeled external benchmark makes on-screen prices look internally contradictory.
