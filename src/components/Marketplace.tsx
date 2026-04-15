@@ -554,6 +554,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         <div className="flex flex-col items-start gap-2">
                             {isExecutable ? (
                                 <button
+                                    type="button"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
@@ -570,6 +571,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             )}
                             {pinnable && (
                                 <button
+                                    type="button"
                                     onClick={async (e) => {
                                         e.stopPropagation();
                                         await togglePin(order.id);
@@ -618,6 +620,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
                         <div className="flex items-center gap-3">
                             <button
+                                type="button"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
@@ -625,6 +628,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
                             <button
+                                type="button"
                                 onClick={() => fetchData(false, currentSkip)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
@@ -632,6 +636,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
                             </button>
                             <button
+                                type="button"
                                 onClick={async () => {
                                     if (!currentSliceTarget) return;
                                     await toggleSlice(currentSliceTarget);
@@ -663,6 +668,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
                                             return (
                                                 <button
+                                                    type="button"
                                                     key={productCode}
                                                     onClick={() => handleProductChipClick(productCode)}
                                                     className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
@@ -879,6 +885,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     {role === 'SUPPLIER' ? 'Post supply to attract buyers' : 'Post a bid to start trading'}
                                 </p>
                                 <button
+                                    type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
                                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
                                 >
@@ -964,6 +971,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                     <td className="px-4 py-3 text-center">
                                                         {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
                                                             <button
+                                                                type="button"
                                                                 onClick={() => handleCancelOrder(order.id)}
                                                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                                                 title="Cancel order"
@@ -1107,6 +1115,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
                                 <button
+                                    type="button"
                                     onClick={closeTradeModal}
                                     className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors"
                                 >
@@ -1125,7 +1134,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button type="button" aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -1181,12 +1190,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 {/* Actions */}
                                 <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
                                     <button
+                                        type="button"
                                         onClick={closeTradeModal}
                                         className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                                     >
                                         {t('marketplace.btn.cancel')}
                                     </button>
                                     <button
+                                        type="button"
                                         onClick={confirmTrade}
                                         disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1208,6 +1219,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}
+                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
+                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
+                prefillAvailabilityWindow={availability || undefined}
             />
         </div>
     );

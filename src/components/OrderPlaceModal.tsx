@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
-import { Product, DeliveryPoint } from '../types';
+import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
     SPOT_WINDOW,
@@ -17,6 +17,9 @@ interface OrderPlaceModalProps {
     side: 'BID' | 'ASK';
     prefillFuelType?: string;
     prefillRegion?: string;
+    prefillMarketProduct?: MarketProduct;
+    prefillDeliveryPointId?: string;
+    prefillAvailabilityWindow?: AvailabilityWindow;
     prefillPrice?: number;
 }
 
@@ -52,26 +55,17 @@ const CERTIFICATION_SCHEME_OPTIONS = [
 
 type ModalState = 'form' | 'submitting' | 'success' | 'auto_matched' | 'error';
 
-export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
-    isOpen,
-    onClose,
-    side,
-    prefillFuelType,
-    prefillRegion,
-    prefillPrice,
-}) => {
-    const { t, ready } = useNamespace('trading');
-    const [products, setProducts] = useState<Product[]>([]);
-    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [catalogLoading, setCatalogLoading] = useState(false);
-    const [advancedOpen, setAdvancedOpen] = useState(false);
-
-    const [formData, setFormData] = useState<OrderFormData>({
+function createInitialFormData(
+    side: 'BID' | 'ASK',
+    prefillPrice?: number,
+    prefillAvailabilityWindow?: AvailabilityWindow,
+): OrderFormData {
+    return {
         product_id: '',
         delivery_point_id: '',
         quantity_mt: 1_000,
-        price_per_mt_usd: 0,
-        availability_window: SPOT_WINDOW,
+        price_per_mt_usd: prefillPrice && prefillPrice > 0 ? prefillPrice : 0,
+        availability_window: prefillAvailabilityWindow || SPOT_WINDOW,
         certification_scheme: side === 'BID' ? '' : CERTIFICATION_SCHEME_OPTIONS[0].value,
         certification_declared: false,
         specification_standard: '',
@@ -81,7 +75,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         origin: '',
         expiry_type: 'GTC',
         expiry_date: '',
-    });
+    };
+}
+
+export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
+    isOpen,
+    onClose,
+    side,
+    prefillFuelType,
+    prefillRegion,
+    prefillMarketProduct,
+    prefillDeliveryPointId,
+    prefillAvailabilityWindow,
+    prefillPrice,
+}) => {
+    const { t, ready } = useNamespace('trading');
+    const [products, setProducts] = useState<Product[]>([]);
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+    const [catalogLoading, setCatalogLoading] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+
+    const [formData, setFormData] = useState<OrderFormData>(() => createInitialFormData(side, prefillPrice, prefillAvailabilityWindow));
 
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
@@ -89,6 +103,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     useEffect(() => {
         if (!isOpen) return;
+
+        setFormData(createInitialFormData(side, prefillPrice, prefillAvailabilityWindow));
+        setModalState('form');
+        setErrorMessage('');
+        setMatchResult(null);
+        setAdvancedOpen(false);
+
         setCatalogLoading(true);
         Promise.all([
             api.catalog.products().catch(() => [] as Product[]),
@@ -99,41 +120,39 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
 
-            if (activeProds.length > 0 && !formData.product_id) {
-                let match = activeProds[0];
-                if (prefillFuelType) {
-                    const found = activeProds.find(p =>
-                        p.fuel_type.toLowerCase() === prefillFuelType.toLowerCase() ||
-                        p.name.toLowerCase().includes(prefillFuelType.toLowerCase())
-                    );
-                    if (found) match = found;
-                }
-                setFormData(prev => ({ ...prev, product_id: match.id }));
-            }
+            const matchedProduct = activeProds.find((product) => (
+                (prefillMarketProduct && product.market_product === prefillMarketProduct)
+                || (!prefillMarketProduct && prefillFuelType && (
+                    product.fuel_type.toLowerCase() === prefillFuelType.toLowerCase()
+                    || product.name.toLowerCase().includes(prefillFuelType.toLowerCase())
+                ))
+            )) ?? activeProds[0];
 
-            if (activeDps.length > 0 && !formData.delivery_point_id) {
-                const found = prefillRegion ? activeDps.find(d =>
-                    d.region.toLowerCase().includes(prefillRegion.toLowerCase()) ||
-                    d.name.toLowerCase().includes(prefillRegion.toLowerCase())
-                ) : undefined;
-                setFormData(prev => ({ ...prev, delivery_point_id: (found ?? activeDps[0]).id }));
-            }
+            const matchedDeliveryPoint = activeDps.find((point) => (
+                (prefillDeliveryPointId && point.id === prefillDeliveryPointId)
+                || (!prefillDeliveryPointId && prefillRegion && (
+                    point.region.toLowerCase().includes(prefillRegion.toLowerCase())
+                    || point.name.toLowerCase().includes(prefillRegion.toLowerCase())
+                ))
+            )) ?? activeDps[0];
+
+            setFormData((prev) => ({
+                ...prev,
+                product_id: matchedProduct?.id ?? '',
+                delivery_point_id: matchedDeliveryPoint?.id ?? '',
+                availability_window: prefillAvailabilityWindow || prev.availability_window,
+            }));
         }).finally(() => setCatalogLoading(false));
-    }, [isOpen, prefillFuelType, prefillRegion, formData.product_id, formData.delivery_point_id]);
-
-    useEffect(() => {
-        if (isOpen && prefillPrice && prefillPrice > 0) {
-            setFormData(prev => ({ ...prev, price_per_mt_usd: prefillPrice }));
-        }
-    }, [isOpen, prefillPrice]);
-
-
-    useEffect(() => {
-        setFormData((prev) => ({
-            ...prev,
-            certification_scheme: side === 'BID' ? '' : (prev.certification_scheme || CERTIFICATION_SCHEME_OPTIONS[0].value),
-        }));
-    }, [side]);
+    }, [
+        isOpen,
+        side,
+        prefillPrice,
+        prefillAvailabilityWindow,
+        prefillMarketProduct,
+        prefillFuelType,
+        prefillDeliveryPointId,
+        prefillRegion,
+    ]);
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
@@ -316,6 +335,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </>
                         )}
                         <button
+                            type="button"
                             onClick={handleClose}
                             className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
                         >
@@ -349,6 +369,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </p>
                     </div>
                     <button
+                        type="button"
                         onClick={handleClose}
                         className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                     >

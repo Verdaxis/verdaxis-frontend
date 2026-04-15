@@ -208,3 +208,10 @@
 - **Trigger:** I reported terminal fixes before reproducing the live authenticated staging UI, and the user had to point out the screen was still broken.
 - **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
 - **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
+
+
+### Dogfood narrated walkthrough flows before declaring them ready
+- **Date:** 2026-04-15
+- **Trigger:** I drafted buyer and supplier walkthrough scripts and initially treated them as ready before fully replaying the live steps in the browser.
+- **Rule:** Before handing off any recorded walkthrough script, replay the exact live flow end-to-end in the browser for each role and verify the backend side effects for every trade action.
+- **Why:** A script is only usable if the clicks, modal states, and resulting orders or trades all work on the live staging surface the recorder will use.

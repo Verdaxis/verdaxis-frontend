@@ -69,6 +69,122 @@ describe('OrderPlaceModal', () => {
     createOrderMock.mockResolvedValue({ trades: [] });
   });
 
+  it('resets to the new canonical slice when reopened', async () => {
+    productsMock.mockResolvedValue([
+      {
+        id: 'prod-bio',
+        name: 'Bio Methanol',
+        market_product: 'BIO_METHANOL',
+        fuel_type: 'Methanol',
+        fuel_grade: 'Bio',
+        unit: 'MT',
+        min_lot_size: 500,
+        is_active: true,
+        spec_description: 'Bio product',
+      },
+      {
+        id: 'prod-e',
+        name: 'e-Methanol',
+        market_product: 'E_METHANOL',
+        fuel_type: 'Methanol',
+        fuel_grade: 'E',
+        unit: 'MT',
+        min_lot_size: 500,
+        is_active: true,
+        spec_description: 'E product',
+      },
+    ]);
+    deliveryPointsMock.mockResolvedValue([
+      {
+        id: 'dp-singapore',
+        name: 'Singapore',
+        region: 'Asia',
+        timezone: 'Asia/Singapore',
+        is_active: true,
+      },
+      {
+        id: 'dp-rotterdam',
+        name: 'Rotterdam',
+        region: 'Europe',
+        timezone: 'Europe/Amsterdam',
+        is_active: true,
+      },
+    ]);
+
+    const { rerender } = renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        side="ASK"
+        prefillMarketProduct="BIO_METHANOL"
+        prefillDeliveryPointId="dp-singapore"
+        prefillAvailabilityWindow="SPOT"
+      />
+    );
+
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Order product' }).textContent).toContain('Bio Methanol');
+    });
+
+    rerender(
+      <OrderPlaceModal
+        isOpen={false}
+        onClose={() => undefined}
+        side="ASK"
+        prefillMarketProduct="BIO_METHANOL"
+        prefillDeliveryPointId="dp-singapore"
+        prefillAvailabilityWindow="SPOT"
+      />
+    );
+
+    rerender(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        side="ASK"
+        prefillMarketProduct="E_METHANOL"
+        prefillDeliveryPointId="dp-rotterdam"
+        prefillAvailabilityWindow="2026-05"
+      />
+    );
+
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Order product' }).textContent).toContain('e-Methanol');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '575' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), {
+      target: { value: 'IMPCA' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 40'), {
+      target: { value: '38.4' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), {
+      target: { value: 'Biogenic CO2 + green hydrogen' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), {
+      target: { value: 'Netherlands' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+
+    await waitFor(() => {
+      expect(createOrderMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          product_id: 'prod-e',
+          delivery_point_id: 'dp-rotterdam',
+          availability_window: '2026-05',
+        })
+      );
+    });
+  });
+
   it('submits anonymous orders without exposing an anonymity toggle', async () => {
     renderWithProviders(
       <OrderPlaceModal
@@ -167,6 +283,30 @@ describe('OrderPlaceModal', () => {
         })
       );
     });
+  });
+
+  it('closes on cancel without submitting the form', async () => {
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={onClose}
+        side="ASK"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.btn.cancel' }));
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(createOrderMock).not.toHaveBeenCalled();
   });
 
 });

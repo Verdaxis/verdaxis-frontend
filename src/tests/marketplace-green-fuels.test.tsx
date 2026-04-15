@@ -5,8 +5,11 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { listAsksPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
+const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
+  userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' },
+  orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
+  listBidsPaged: vi.fn(),
   listAsks: vi.fn(),
   listBids: vi.fn(),
   myOrders: vi.fn(),
@@ -17,7 +20,7 @@ const { listAsksPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tra
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { role: 'BUYER' },
+    user: { role: userRole.current },
   }),
 }));
 
@@ -53,7 +56,10 @@ vi.mock('../hooks/useWatchlist', () => ({
 }));
 
 vi.mock('../components/OrderPlaceModal', () => ({
-  OrderPlaceModal: () => null,
+  OrderPlaceModal: (props: unknown) => {
+    orderPlaceModalSpy(props);
+    return null;
+  },
 }));
 
 vi.mock('../components/ui/Pagination', () => ({
@@ -64,6 +70,7 @@ vi.mock('../services/api', () => ({
   api: {
     orderbook: {
       listAsksPaged,
+      listBidsPaged,
       listAsks,
       listBids,
       myOrders,
@@ -107,10 +114,20 @@ const listingsResponse = {
 describe('Marketplace green fuels surface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    userRole.current = 'BUYER';
     localStorage.clear();
     listAsksPaged.mockImplementation(async (params?: { market_product?: string }) => {
       if (!params?.market_product || params.market_product === 'BIO_METHANOL') {
         return listingsResponse;
+      }
+      return { items: [], total: 0, skip: 0, limit: 20 };
+    });
+    listBidsPaged.mockImplementation(async (params?: { market_product?: string }) => {
+      if (!params?.market_product || params.market_product === 'BIO_METHANOL') {
+        return {
+          ...listingsResponse,
+          items: listingsResponse.items.map((item) => ({ ...item, side: 'BID' })),
+        };
       }
       return { items: [], total: 0, skip: 0, limit: 20 };
     });
@@ -303,6 +320,54 @@ describe('Marketplace green fuels surface', () => {
 
     expect(screen.getByRole('button', { name: /clear/i })).toBeTruthy();
     expect(screen.queryByText('Bio Methanol')).toBeNull();
+  });
+
+  it('opens the lift ask modal even when marketplace is nested inside a form', async () => {
+    renderWithProviders(
+      <form>
+        <Marketplace />
+      </form>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+    });
+
+    const liftAsk = screen.getByRole('button', { name: /lift ask/i });
+    expect(liftAsk.getAttribute('type')).toBe('button');
+
+    fireEvent.click(liftAsk);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /submit trade/i })).toBeTruthy();
+    });
+  });
+
+  it('passes the active canonical slice into the supplier ask modal', async () => {
+    userRole.current = 'SUPPLIER';
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /place ask/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /place ask/i }));
+
+    await waitFor(() => {
+      expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          isOpen: true,
+          side: 'ASK',
+          prefillMarketProduct: 'BIO_METHANOL',
+          prefillDeliveryPointId: 'dp-1',
+          prefillAvailabilityWindow: 'SPOT',
+        })
+      );
+    });
   });
 
   it('disables trade submission when the quantity input is invalid', async () => {
