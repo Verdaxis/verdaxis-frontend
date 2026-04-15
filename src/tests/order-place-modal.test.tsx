@@ -154,7 +154,7 @@ describe('OrderPlaceModal', () => {
       expect(screen.getByRole('combobox', { name: 'Order product' }).textContent).toContain('e-Methanol');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    expect(screen.getByPlaceholderText('e.g. IMPCA')).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '575' },
     });
@@ -183,6 +183,26 @@ describe('OrderPlaceModal', () => {
         })
       );
     });
+  });
+
+  it('opens ask metadata by default for supplier orders', async () => {
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        side="ASK"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByPlaceholderText('e.g. IMPCA')).toBeTruthy();
+    expect(screen.getByPlaceholderText('e.g. 40')).toBeTruthy();
+    expect(screen.getByPlaceholderText('e.g. Waste residue')).toBeTruthy();
+    expect(screen.getByPlaceholderText('e.g. Singapore hub')).toBeTruthy();
   });
 
   it('submits anonymous orders without exposing an anonymity toggle', async () => {
@@ -243,7 +263,7 @@ describe('OrderPlaceModal', () => {
       expect(deliveryPointsMock).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    expect(screen.getByPlaceholderText('e.g. IMPCA')).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '555' },
     });

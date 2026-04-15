@@ -93,7 +93,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
-    const [advancedOpen, setAdvancedOpen] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(side === 'ASK');
 
     const [formData, setFormData] = useState<OrderFormData>(() => createInitialFormData(side, prefillPrice, prefillAvailabilityWindow));
 
@@ -108,7 +108,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        setAdvancedOpen(false);
+        setAdvancedOpen(side === 'ASK');
 
         setCatalogLoading(true);
         Promise.all([
@@ -239,7 +239,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        setAdvancedOpen(false);
+        setAdvancedOpen(side === 'ASK');
         onClose();
     };
 
