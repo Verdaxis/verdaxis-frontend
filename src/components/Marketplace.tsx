@@ -387,7 +387,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         if (marketTab === 'my_orders') fetchMyOrders();
     }, [marketTab, fetchMyOrders]);
 
-    const filteredMyOrders = useMemo(() => myOrders.filter((order) => {
+    const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
+        order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
+    )), [myOrders]);
+
+    const filteredMyOrders = useMemo(() => outstandingMyOrders.filter((order) => {
         if (marketProduct !== ALL_MARKET_PRODUCTS && order.market_product !== marketProduct) {
             return false;
         }
@@ -404,7 +408,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         }
 
         return true;
-    }), [availability, marketProduct, myOrders, resolvedPort]);
+    }), [availability, marketProduct, outstandingMyOrders, resolvedPort]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {
@@ -765,7 +769,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </div>
                     </div>
 
-                    {/* Tab Switcher: Market | Orderbook | My Orders */}
+                    {/* Tab Switcher: Market | Orderbook | My Listings */}
                     <div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
@@ -808,7 +812,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         >
                             <span className="flex items-center gap-1 justify-center">
                                 <ClipboardList size={12} />
-                                My Orders
+                                {t('marketplace.tab.myOrders')}
                             </span>
                         </button>
                     </div>
@@ -869,27 +873,29 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* My Orders tab: user's open/active orders */}
+            {/* My Listings tab: user's outstanding orders */}
             {marketTab === 'my_orders' && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         {myOrdersLoading ? (
                             <div className="flex items-center justify-center py-20 text-slate-400">
-                                <Loader2 className="animate-spin mr-2" size={20} /> Loading your orders...
+                                <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
                             </div>
-                        ) : myOrders.length === 0 ? (
+                        ) : outstandingMyOrders.length === 0 ? (
                             <div className="text-center py-20">
                                 <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No open orders</h3>
+                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.none.title')}</h3>
                                 <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
-                                    {role === 'SUPPLIER' ? 'Post supply to attract buyers' : 'Post a bid to start trading'}
+                                    {role === 'SUPPLIER'
+                                        ? t('marketplace.myOrders.empty.none.supplier')
+                                        : t('marketplace.myOrders.empty.none.buyer')}
                                 </p>
                                 <button
                                     type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
                                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
                                 >
-                                    {role === 'SUPPLIER' ? 'Post Supply' : 'Post a Bid'}
+                                    {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
                                 </button>
                             </div>
                         ) : filteredMyOrders.length === 0 ? (

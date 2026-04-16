@@ -221,3 +221,10 @@
 - **Trigger:** I shipped listing price deltas against a seeded benchmark even though the user expected them to be derived from the visible product/port/window slice.
 - **Rule:** When surfacing market-relative deltas in the trading UI, derive the benchmark from the live visible slice or label it explicitly as an external reference before shipping.
 - **Why:** Users read signed row deltas as relative to the visible market, so an unlabeled external benchmark makes on-screen prices look internally contradictory.
+
+
+### Keep listings and trades as separate operational objects
+- **Date:** 2026-04-16
+- **Trigger:** I initially treated the missing post-trade row in Marketplace as a bug, but the user clarified that `Marketplace > My Orders` should only show the user's outstanding listings while initiated trades belong in `Trade History`.
+- **Rule:** Preserve the order-versus-trade separation in the product model unless the user explicitly wants a merged activity view; solve confusion with naming and walkthrough flow before changing the underlying UI contract.
+- **Why:** Resting listings and negotiated trades are different lifecycle objects, and collapsing them into one view creates demo and product ambiguity.

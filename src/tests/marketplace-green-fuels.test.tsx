@@ -200,7 +200,7 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /listings/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /^listings$/i })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
@@ -260,7 +260,7 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
   });
 
-  it('filters My Orders by the active market slice', async () => {
+  it('filters My Listings by the active market slice', async () => {
     localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
     myOrders.mockResolvedValue([
       {
@@ -282,10 +282,10 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /my orders/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /my listings/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /my orders/i }));
+    fireEvent.click(screen.getByRole('button', { name: /my listings/i }));
 
     await waitFor(() => {
       expect(screen.getByText('e-Methanol')).toBeTruthy();
@@ -294,7 +294,7 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.queryByText('Bio Methanol')).toBeNull();
   });
 
-  it('shows a filtered empty state in My Orders when account orders exist outside the active slice', async () => {
+  it('shows a filtered empty state in My Listings when account orders exist outside the active slice', async () => {
     localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
     myOrders.mockResolvedValue([
       {
@@ -309,17 +309,51 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /my orders/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /my listings/i })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /my orders/i }));
+    fireEvent.click(screen.getByRole('button', { name: /my listings/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/no orders match current filters/i)).toBeTruthy();
+      expect(screen.getByText(/no listings match current filters/i)).toBeTruthy();
     });
 
     expect(screen.getByRole('button', { name: /clear/i })).toBeTruthy();
     expect(screen.queryByText('Bio Methanol')).toBeNull();
+  });
+
+  it('hides filled listings from My Listings even if the API returns them', async () => {
+    myOrders.mockResolvedValue([
+      {
+        ...listingsResponse.items[0],
+        id: 'open-order',
+        side: 'BID',
+        product_name: 'Bio Methanol',
+        status: 'OPEN',
+      },
+      {
+        ...listingsResponse.items[0],
+        id: 'filled-order',
+        side: 'BID',
+        product_name: 'Filled Bio Methanol',
+        status: 'FILLED',
+        remaining_quantity_mt: 0,
+      },
+    ]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /my listings/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /my listings/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Bio Methanol')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('Filled Bio Methanol')).toBeNull();
   });
 
   it('opens the lift ask modal even when marketplace is nested inside a form', async () => {

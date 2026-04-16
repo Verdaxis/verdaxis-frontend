@@ -43,7 +43,7 @@
   "marketplace.viewHint.listings.buyer": "挂牌视图显示当前切片下可直接成交的卖单，便于比较供给并直接接受。",
   "marketplace.viewHint.listings.supplier": "挂牌视图显示当前切片下可直接成交的买单，便于比较需求并直接接受。",
   "marketplace.viewHint.orderbook": "订单簿显示与挂牌视图完全相同产品、港口和窗口筛选下的双边买卖深度。",
-  "marketplace.viewHint.myOrders": "我的订单显示您自己的实时与部分成交订单，便于跟进和撤单。",
+  "marketplace.viewHint.myOrders": "我的挂牌仅显示您仍挂在订单簿上的未完成买卖单。",
   "marketplace.col.fuel": "燃料与地区",
   "marketplace.col.grade": "资格",
   "marketplace.col.volume": "数量（公吨）",
@@ -60,8 +60,8 @@
   "marketplace.empty.supplier": "目前没有开放的买方需求，请稍后再来或发布卖单。",
   "marketplace.empty.title": "未找到订单",
   "marketplace.error.title": "加载订单失败",
-  "marketplace.myOrders.empty.filtered.title": "当前筛选下没有匹配订单",
-  "marketplace.myOrders.empty.filtered.body": "您的账户中有开放订单，但没有订单符合 {{slice}}。请清除筛选或切换切片后查看。",
+  "marketplace.myOrders.empty.filtered.title": "当前筛选下没有匹配挂牌",
+  "marketplace.myOrders.empty.filtered.body": "您的账户中有有效挂牌，但没有挂牌符合 {{slice}}。请清除筛选或切换切片后查看。",
   "marketplace.modal.tradeInitiated": "交易请求已发送",
   "marketplace.modal.tradeInitiated.buyer": "您已抬价接受卖单，供应商仍需确认交易。",
   "marketplace.modal.tradeInitiated.supplier": "您已接受买单，买方仍需确认交易。",
@@ -267,5 +267,10 @@
   "orderPlaceModal.label.origin": "产地",
   "orderPlaceModal.label.msdsAvailable": "已提供 MSDS",
   "orderPlaceModal.helper.msdsAvailable": "卖盘必须确认该燃料已提供 MSDS。",
-  "orderPlaceModal.helper.certificationDeclared": "确认该卖盘由所选认证体系及配套文件支持。"
+  "orderPlaceModal.helper.certificationDeclared": "确认该卖盘由所选认证体系及配套文件支持。",
+  "marketplace.tab.myOrders": "我的挂牌",
+  "marketplace.myOrders.loading": "正在加载您的挂牌...",
+  "marketplace.myOrders.empty.none.title": "当前没有有效挂牌",
+  "marketplace.myOrders.empty.none.buyer": "发布买单后，您的买方需求才会显示在这里。",
+  "marketplace.myOrders.empty.none.supplier": "发布卖单后，您的卖方供给才会显示在这里。"
 }

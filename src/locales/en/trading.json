@@ -43,7 +43,7 @@
   "marketplace.viewHint.listings.buyer": "Listings shows executable asks for the current slice. Use it to compare offers and hit the rows you want to buy.",
   "marketplace.viewHint.listings.supplier": "Listings shows executable bids for the current slice. Use it to compare demand and hit the rows you want to supply.",
   "marketplace.viewHint.orderbook": "Orderbook shows both bids and asks for the exact same product, port, and window filters as Listings.",
-  "marketplace.viewHint.myOrders": "My Orders shows your own live and partially filled orders for follow-up and cancellation.",
+  "marketplace.viewHint.myOrders": "My Listings shows your own outstanding bids and asks that are still resting on the book.",
   "marketplace.col.fuel": "Fuel & Region",
   "marketplace.col.grade": "Qualification",
   "marketplace.col.volume": "Volume (MT)",
@@ -60,8 +60,8 @@
   "marketplace.empty.supplier": "No open buyer requests right now. Check back soon or place an ask.",
   "marketplace.empty.title": "No orders found",
   "marketplace.error.title": "Failed to Load Orders",
-  "marketplace.myOrders.empty.filtered.title": "No orders match current filters",
-  "marketplace.myOrders.empty.filtered.body": "Your account has open orders, but none match {{slice}}. Clear filters or switch slices to view them.",
+  "marketplace.myOrders.empty.filtered.title": "No listings match current filters",
+  "marketplace.myOrders.empty.filtered.body": "Your account has active listings, but none match {{slice}}. Clear filters or switch slices to view them.",
   "marketplace.modal.tradeInitiated": "Trade Request Sent",
   "marketplace.modal.tradeInitiated.buyer": "You lifted the ask. The supplier must confirm the trade.",
   "marketplace.modal.tradeInitiated.supplier": "You hit the bid. The buyer must confirm the trade.",
@@ -267,5 +267,10 @@
   "orderPlaceModal.label.origin": "Origin",
   "orderPlaceModal.label.msdsAvailable": "MSDS available",
   "orderPlaceModal.helper.msdsAvailable": "Supplier asks must confirm that an MSDS is available for the listed fuel.",
-  "orderPlaceModal.helper.certificationDeclared": "Confirm this ASK is backed by the selected certification scheme and supporting documentation."
+  "orderPlaceModal.helper.certificationDeclared": "Confirm this ASK is backed by the selected certification scheme and supporting documentation.",
+  "marketplace.tab.myOrders": "My Listings",
+  "marketplace.myOrders.loading": "Loading your listings...",
+  "marketplace.myOrders.empty.none.title": "No active listings",
+  "marketplace.myOrders.empty.none.buyer": "Place a bid to show your own resting demand in the market.",
+  "marketplace.myOrders.empty.none.supplier": "Place an ask to show your own resting supply in the market."
 }
