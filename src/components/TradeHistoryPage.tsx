@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     ArrowLeftRight,
     TrendingUp,
-    Bell,
     Package,
     DollarSign,
     BarChart3,
@@ -26,7 +25,7 @@ import { compareAvailabilityWindows, formatAvailabilityWindow } from '../utils/a
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 
 // ─── Types ───────────────────────────────────────────────────────
-type TabId = 'blotter' | 'performance' | 'alerts';
+type TabId = 'blotter' | 'performance';
 
 type ScannerPresetId = 'VALUE_ASKS' | 'AGGRESSIVE_BIDS' | 'TIGHT_SPREAD' | 'LARGE_LOTS';
 type ScannerSide = 'BOTH' | 'ASK' | 'BID';
@@ -57,7 +56,6 @@ interface ScannerRow extends OrderBookOrder {
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: 'blotter', label: 'Blotter', icon: ArrowLeftRight },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
-    { id: 'alerts', label: 'Alerts', icon: Bell },
 ];
 
 const SCANNER_STORAGE_KEY = 'verdaxis_alert_scanner_v1';
@@ -1116,7 +1114,7 @@ export const TradeHistoryPage: React.FC = () => {
             <div className="mb-6 lg:mb-8">
                 <h1 className="text-2xl lg:text-3xl v-heading">Trade History</h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">
-                    Review your trade blotter, track performance, and manage price alerts.
+                    Review your trade blotter and track performance.
                 </p>
             </div>
 
@@ -1126,12 +1124,8 @@ export const TradeHistoryPage: React.FC = () => {
                 <div
                     className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                     style={{
-                        left: activeTab === 'blotter'
-                            ? '2px'
-                            : activeTab === 'performance'
-                                ? 'calc(33.33%)'
-                                : 'calc(66.66%)',
-                        width: 'calc(33.33% - 2px)',
+                        left: activeTab === 'blotter' ? '2px' : 'calc(50%)',
+                        width: 'calc(50% - 2px)',
                     }}
                 />
                 {TABS.map(tab => (
@@ -1153,7 +1147,6 @@ export const TradeHistoryPage: React.FC = () => {
             {/* Tab Content */}
             {activeTab === 'blotter' && <MyTrades />}
             {activeTab === 'performance' && <PerformanceTab />}
-            {activeTab === 'alerts' && <AlertsTab />}
         </div>
     );
 };

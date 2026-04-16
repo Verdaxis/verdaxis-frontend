@@ -3,7 +3,6 @@ import {
     BarChart3,
     LayoutDashboard,
     Map as MapIcon,
-    MonitorDot,
     ShoppingCart,
     Star,
     type LucideIcon,
@@ -30,7 +29,6 @@ const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
     { key: 'DASHBOARD', page: 'DASHBOARD', labelKey: 'sidebar.commandCenter', icon: LayoutDashboard },
     { key: 'MAP', page: 'MAP', labelKey: 'sidebar.intelligenceMap', icon: MapIcon },
     { key: 'MARKETPLACE', page: 'MARKETPLACE', labelKey: 'sidebar.marketplace', icon: ShoppingCart },
-    { key: 'TERMINAL', page: 'TERMINAL', labelKey: 'sidebar.marketTerminal', icon: MonitorDot },
     { key: 'WATCHLISTS', page: 'WATCHLISTS', labelKey: 'sidebar.watchlists', icon: Star },
     {
         key: 'ANALYTICS',

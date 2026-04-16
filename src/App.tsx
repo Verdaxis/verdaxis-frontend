@@ -30,7 +30,6 @@ import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { MyTrades } from './components/MyTrades';
 import { TradeHistoryPage } from './components/TradeHistoryPage';
-import { MarketTerminal } from './components/MarketTerminal';
 import { Marketplace } from './components/Marketplace';
 import { WatchlistPage } from './components/WatchlistPage';
 import { SupplierStats } from './components/SupplierStats';
@@ -132,7 +131,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
   if (!page) return 'DASHBOARD';
-  if (page === 'ORDERBOOK') return 'MARKETPLACE';
+  if (page === 'ORDERBOOK' || page === 'TERMINAL') return 'MARKETPLACE';
   return page as Page;
 };
 
@@ -203,8 +202,6 @@ const Dashboard: React.FC = () => {
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
-            case 'TERMINAL':
-                return <MarketTerminal onNavigate={handleNavigate} />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
             case 'MARKETPLACE':
@@ -226,8 +223,6 @@ const Dashboard: React.FC = () => {
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
-      case 'TERMINAL':
-        return <MarketTerminal onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
         return <DataAnalytics />;
       case 'COMPLIANCE':
