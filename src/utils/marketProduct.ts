@@ -33,6 +33,24 @@ export function getProductDisplayName(product: Partial<Product> | null | undefin
     return '';
 }
 
+export function getProductDisplayNameFromReference(
+    value: string | null | undefined,
+    products: Array<Partial<Product>> = [],
+): string {
+    if (!value) return '';
+
+    const byId = products.find((product) => product.id === value);
+    if (byId) return getProductDisplayName(byId);
+
+    const byMarketProduct = products.find((product) => product.market_product === value);
+    if (byMarketProduct) return getProductDisplayName(byMarketProduct);
+
+    const formattedMarketProduct = formatMarketProduct(value);
+    if (formattedMarketProduct !== String(value)) return formattedMarketProduct;
+
+    return normalizeProductDisplayName(value);
+}
+
 export function getOrderDisplayName(order: Partial<OrderBookOrder> | null | undefined): string {
     if (!order) return '';
     if (order.market_product) return formatMarketProduct(order.market_product);

@@ -28,7 +28,7 @@
   "marketplace.metrics.currentSliceCountOther": "matching orders",
   "marketplace.metrics.currentSliceHint": "Executable orders in the selected slice",
   "marketplace.legend.title": "Indicative pricing",
-  "marketplace.legend.body": "Premium and discount values are shown against the current Verdaxis average for this product, port, and window.",
+  "marketplace.legend.body": "Signed values under each listing price are shown against the live same-side benchmark for this product, port, and window.",
   "marketplace.btn.watchMarket": "Watch Market",
   "marketplace.btn.watchingMarket": "Watching Market",
   "marketplace.btn.pinToWatchlist": "Pin to Watchlist",
@@ -272,5 +272,7 @@
   "marketplace.myOrders.loading": "Loading your listings...",
   "marketplace.myOrders.empty.none.title": "No active listings",
   "marketplace.myOrders.empty.none.buyer": "Place a bid to show your own resting demand in the market.",
-  "marketplace.myOrders.empty.none.supplier": "Place an ask to show your own resting supply in the market."
+  "marketplace.myOrders.empty.none.supplier": "Place an ask to show your own resting supply in the market.",
+  "myTrades.col.counterparty": "Counterparty",
+  "myTrades.note.offPlatform": "Off-platform after confirmation"
 }

@@ -412,6 +412,8 @@ export interface ForwardCurveResponse {
 export interface PriceAlert {
     id: string;
     product_id: string;
+    product_name?: string;
+    market_product?: MarketProduct | null;
     delivery_point_id?: string;
     direction: 'above' | 'below';
     threshold_usd: number;

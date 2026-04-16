@@ -1,26 +1,19 @@
 import React, { useState } from 'react';
 import {
-    LayoutDashboard,
-    Map as MapIcon,
-    ShoppingCart,
-    Ship,
     GraduationCap,
     Settings as SettingsIcon,
     ChevronsLeft,
     ChevronsRight,
     FileText,
     Hexagon,
-    MonitorDot,
-    ArrowLeftRight,
     ShieldCheck,
     ExternalLink,
-    BarChart3,
     Plus,
-    Star
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
+import { buildPrimarySidebarItems } from './sidebarConfig';
 
 interface SidebarProps {
     viewMode: ViewMode;
@@ -43,34 +36,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isMobileOpen,
     onMobileClose,
     userRole,
-    onPrimaryAction
+    onPrimaryAction,
 }) => {
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
 
-    // External partner links
     const partnerLinks: { id: string; label: string; icon: any; href: string; logo?: string }[] = [
         { id: 'COMPLIANCE_EXT', label: 'Compliance', icon: FileText, href: 'https://marinachain.io', logo: 'https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/mc_logo_icon.png' },
         { id: 'TRAINING_EXT', label: 'Education', icon: GraduationCap, href: 'https://greenmarine.dk/', logo: 'https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/green_marine_icon.png' },
     ];
 
-    const sidebarItems = viewMode === 'BUYER' ? [
-        { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
-        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
-        { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
-        { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
-        { id: 'DATA_ANALYTICS', label: 'Data & Analytics', icon: BarChart3 },
-        { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
-    ] : [
-        { id: 'DASHBOARD', label: t('sidebar.commandCenter'), icon: LayoutDashboard },
-        { id: 'MAP', label: t('sidebar.intelligenceMap'), icon: MapIcon },
-        { id: 'MARKETPLACE', label: t('sidebar.marketplace'), icon: ShoppingCart },
-        { id: 'TERMINAL', label: t('sidebar.marketTerminal'), icon: MonitorDot },
-        { id: 'WATCHLISTS', label: t('sidebar.watchlists'), icon: Star },
-        { id: 'TRADES', label: t('sidebar.tradeHistory'), icon: ArrowLeftRight },
-        { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
-    ];
+    const sidebarItems = buildPrimarySidebarItems(t, viewMode);
 
     const handleNavigate = (page: Page) => {
         onNavigate(page);
@@ -78,17 +54,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
 
     return (
-        <aside className={`
-            fixed md:static inset-y-0 left-0 z-[70]
-            bg-[#343E50] dark:bg-[#0f172a] border-r border-[#2A3344] dark:border-[#1e293b] text-white flex flex-col flex-shrink-0 shadow-xl 
-            transition-all duration-300 ease-in-out
-            ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-            ${isCollapsed ? 'md:w-20' : 'md:w-64'}
-            w-64
-        `}>
+        <aside
+            className={`
+                fixed md:static inset-y-0 left-0 z-[70]
+                bg-[#343E50] dark:bg-[#0f172a] border-r border-[#2A3344] dark:border-[#1e293b] text-white flex flex-col flex-shrink-0 shadow-xl
+                transition-all duration-300 ease-in-out
+                ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+                w-64
+            `}
+        >
             <div className={`p-6 border-b border-[#2A3344] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                 <div className="flex items-center space-x-3 overflow-hidden">
-                    {/* Logo Container - Rounded White Square */}
                     <div className="w-11 h-11 bg-white rounded-lg p-1.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                         {!logoError ? (
                             <img
@@ -121,10 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            {/* Primary CTA */}
             <div className="px-3 pt-4 pb-2">
                 <button
-                    onClick={() => onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE' as any)}
+                    onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
                     <Plus size={18} />
@@ -134,26 +110,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <nav className="flex-1 py-2 space-y-1 px-3">
                 {sidebarItems.map((item) => (
-                    <Tooltip key={item.id} content={isCollapsed ? item.label : ''} position="right">
+                    <Tooltip key={item.key} content={isCollapsed ? item.label : ''} position="right">
                         <button
-                            data-tour={`nav-${item.id}`}
-                            onClick={() => handleNavigate(item.id as Page)}
+                            data-tour={`nav-${item.key}`}
+                            onClick={() => handleNavigate(item.page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
-                                currentPage === item.id
-                                ? (viewMode === 'SUPPLIER'
-                                    ? 'bg-[rgba(34,211,122,0.12)] text-white border-l-[3px] border-l-[#22D37A] pl-[9px]'
-                                    : 'bg-[rgba(93,173,226,0.12)] text-white border-l-[3px] border-l-verdaxis pl-[9px]')
-                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white border-l-[3px] border-l-transparent pl-[9px]'
+                                currentPage === item.page
+                                    ? (viewMode === 'SUPPLIER'
+                                        ? 'bg-[rgba(34,211,122,0.12)] text-white border-l-[3px] border-l-[#22D37A] pl-[9px]'
+                                        : 'bg-[rgba(93,173,226,0.12)] text-white border-l-[3px] border-l-verdaxis pl-[9px]')
+                                    : 'text-slate-300 hover:bg-[#2A3344] hover:text-white border-l-[3px] border-l-transparent pl-[9px]'
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
-                            <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.id ? (viewMode === 'SUPPLIER' ? 'text-[#22D37A]' : 'text-verdaxis') : 'text-slate-400 group-hover:text-white'}`} />
+                            <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.page ? (viewMode === 'SUPPLIER' ? 'text-[#22D37A]' : 'text-verdaxis') : 'text-slate-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="font-medium truncate">{item.label}</span>}
                         </button>
                     </Tooltip>
                 ))}
             </nav>
 
-            {/* Partner Links */}
             {viewMode === 'BUYER' && (
                 <div className={`px-3 pb-3 ${isCollapsed ? '' : 'border-t border-[#2A3344] pt-3 mx-3'}`}>
                     {!isCollapsed && (
@@ -191,8 +166,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onClick={() => handleNavigate('ADMIN')}
                             className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                                 currentPage === 'ADMIN'
-                                ? 'bg-amber-500 text-white shadow-lg'
-                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
+                                    ? 'bg-amber-500 text-white shadow-lg'
+                                    : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                             } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                         >
                             <ShieldCheck size={20} className={`flex-shrink-0 ${currentPage === 'ADMIN' ? 'text-white' : 'text-amber-400 group-hover:text-white'}`} />
@@ -205,8 +180,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => handleNavigate('SETTINGS')}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                             currentPage === 'SETTINGS'
-                            ? 'bg-verdaxis text-white shadow-lg'
-                            : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
+                                ? 'bg-verdaxis text-white shadow-lg'
+                                : 'text-slate-300 hover:bg-[#2A3344] hover:text-white'
                         } ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
                     >
                         <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
@@ -214,7 +189,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                 </Tooltip>
 
-                {/* Desktop Expand Button */}
                 {isCollapsed && (
                     <button
                         onClick={onToggleCollapse}

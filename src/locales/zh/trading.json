@@ -28,7 +28,7 @@
   "marketplace.metrics.currentSliceCountOther": "个匹配订单",
   "marketplace.metrics.currentSliceHint": "当前所选切片下可执行的订单",
   "marketplace.legend.title": "指示性定价",
-  "marketplace.legend.body": "升贴水相对于当前 Verdaxis 在该产品、港口和窗口下的平均价格显示。",
+  "marketplace.legend.body": "每条挂牌价格下方的正负值，均相对于该产品、港口和时间窗口的实时同侧基准价显示。",
   "marketplace.btn.watchMarket": "关注市场",
   "marketplace.btn.watchingMarket": "已关注市场",
   "marketplace.btn.pinToWatchlist": "钉住到观察列表",
@@ -272,5 +272,7 @@
   "marketplace.myOrders.loading": "正在加载您的挂牌...",
   "marketplace.myOrders.empty.none.title": "当前没有有效挂牌",
   "marketplace.myOrders.empty.none.buyer": "发布买单后，您的买方需求才会显示在这里。",
-  "marketplace.myOrders.empty.none.supplier": "发布卖单后，您的卖方供给才会显示在这里。"
+  "marketplace.myOrders.empty.none.supplier": "发布卖单后，您的卖方供给才会显示在这里。",
+  "myTrades.col.counterparty": "交易对手",
+  "myTrades.note.offPlatform": "确认后转为线下处理"
 }

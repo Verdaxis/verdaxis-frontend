@@ -228,3 +228,15 @@
 - **Trigger:** I initially treated the missing post-trade row in Marketplace as a bug, but the user clarified that `Marketplace > My Orders` should only show the user's outstanding listings while initiated trades belong in `Trade History`.
 - **Rule:** Preserve the order-versus-trade separation in the product model unless the user explicitly wants a merged activity view; solve confusion with naming and walkthrough flow before changing the underlying UI contract.
 - **Why:** Resting listings and negotiated trades are different lifecycle objects, and collapsing them into one view creates demo and product ambiguity.
+
+### Confirmed trades are off-platform, not platform-fulfilled
+- **Date:** 2026-04-16
+- **Trigger:** I kept delivery and payment lifecycle states in the trade UI even after the user clarified that Verdaxis stops managing the trade once it is confirmed.
+- **Rule:** When the user defines confirmation as the platform handoff point, reveal counterparties at confirmation and remove downstream delivery or payment workflow from the active product UX and demo data.
+- **Why:** Leaving post-confirmation platform statuses in place makes the product promise and the demo flow internally inconsistent.
+
+### Share role-based nav config
+- **Date:** 2026-04-16
+- **Trigger:** Buyer and supplier sidebars drifted in label text and ordering because each role had its own hardcoded nav array.
+- **Rule:** When two roles share the same app shell, build the primary navigation from one shared config with role-specific page routing only where necessary.
+- **Why:** Duplicate nav definitions drift quickly and create avoidable UX inconsistency.

@@ -103,6 +103,8 @@ const listingsResponse = {
       is_verdaxis_verified: true,
       off_spec: false,
       status: 'OPEN',
+      benchmark_price_per_mt_usd: 1092,
+      premium_discount_per_mt_usd: -12,
       created_at: new Date().toISOString(),
     },
   ],
@@ -152,6 +154,18 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
+  });
+
+
+  it('shows the benchmark price next to the row delta in listings', async () => {
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Marketplace')).toBeTruthy();
+    });
+
+    expect(screen.getByText(/vs benchmark \$1,092.00\/MT/i)).toBeTruthy();
+    expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 
   it('saves the exact listing when the row watchlist button is pressed', async () => {

@@ -41,6 +41,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { OrderBook } from './OrderBook';
+import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -500,15 +501,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             case 'price':
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-xs">
-                        <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                            ${order.price_per_mt_usd.toLocaleString()}
-                        </div>
-                        {order.premium_discount_per_mt_usd != null && (
-                            <div className={order.premium_discount_per_mt_usd <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                                {order.premium_discount_per_mt_usd < 0 ? '-' : '+'}
-                                ${Math.abs(Number(order.premium_discount_per_mt_usd)).toFixed(2)}
-                            </div>
-                        )}
+                        <BenchmarkPriceBlock
+                            priceUsd={Number(order.price_per_mt_usd)}
+                            benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
+                            deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
+                        />
                     </td>
                 );
             case 'window':

@@ -222,8 +222,8 @@ describe('OrderPlaceModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
 
-    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.queryByText('orderPlaceModal.label.anonymous')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /orderPlaceModal.label.anonymous/i })).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '540' },
@@ -248,6 +248,44 @@ describe('OrderPlaceModal', () => {
     const payload = createOrderMock.mock.calls[0]?.[0];
     expect(payload?.certification_scheme).toBeUndefined();
   }, 15000);
+
+
+  it('submits buyer certification preferences as explicit checkbox selections', async () => {
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        side="BID"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'ISCC EU' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'REDcert EU' }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '542' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => {
+      expect(createOrderMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          side: 'BID',
+          certifications: ['ISCC EU', 'REDcert EU'],
+          is_anonymous: true,
+        })
+      );
+    });
+
+    const payload = createOrderMock.mock.calls[0]?.[0];
+    expect(payload?.certification_scheme).toBeUndefined();
+  });
 
   it('requires supplier certification declaration for ask orders', async () => {
     renderWithProviders(

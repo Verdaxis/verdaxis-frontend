@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { PriceAlert, Product, Subscription } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { useToast } from './Toast';
+import { getProductDisplayName, getProductDisplayNameFromReference } from '../utils/marketProduct';
 
 const FREE_TIER_LIMIT = 5;
 
@@ -38,8 +39,8 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
             ]);
             if (a.status === 'fulfilled') setAlerts(a.value);
             if (prods.status === 'fulfilled') {
+                setProducts(prods.value);
                 const active = prods.value.filter((p: Product) => p.is_active);
-                setProducts(active);
                 if (active.length > 0 && !formProductId) setFormProductId(active[0].id);
             }
             if (sub.status === 'fulfilled') setSubscription(sub.value);
@@ -93,8 +94,12 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
     const tier = subscription?.tier ?? 'free';
     const isAtLimit = tier === 'free' && alerts.length >= FREE_TIER_LIMIT;
 
-    const productName = (productId: string) =>
-        products.find(p => p.id === productId)?.name ?? productId;
+    const activeProducts = products.filter((product) => product.is_active);
+
+    const productName = (alert: PriceAlert) =>
+        alert.product_name
+            || (alert.market_product ? getProductDisplayNameFromReference(alert.market_product, products) : '')
+            || getProductDisplayNameFromReference(alert.product_id, products);
 
     return (
         <div style={{
@@ -285,8 +290,8 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                                 fontFamily: "'IBM Plex Mono', monospace",
                                             }}
                                         >
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            {activeProducts.map((product) => (
+                                                <option key={product.id} value={product.id}>{getProductDisplayName(product)}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -443,7 +448,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontSize: 11, color: 'var(--terminal-text)', marginBottom: 2 }}>
-                                                {productName(alert.product_id)}
+                                                {productName(alert)}
                                             </div>
                                             <div style={{ fontSize: 12, fontWeight: 700, color: dirColor }}>
                                                 {alert.direction === 'above' ? t('priceAlerts.directionAbove') : t('priceAlerts.directionBelow')} ${Number(alert.threshold_usd).toFixed(2)}

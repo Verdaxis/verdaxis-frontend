@@ -26,6 +26,7 @@ import {
     getAvailabilityWindowOptions,
 } from '../utils/availabilityWindow';
 import { getOrderDisplayName } from '../utils/marketProduct';
+import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 
 import { BenchmarkQuote, OrderBookOrder, OrderBookStatus } from '../types';
 
@@ -439,18 +440,12 @@ export const SupplierListingConsole: React.FC = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">${listing.price_per_mt_usd}</span>
-                                                    <span className="text-slate-500">/MT</span>
-                                                    <div className="mt-1 text-xs">
-                                                        {listing.premium_discount_per_mt_usd == null ? (
-                                                            <span className="text-slate-400">No benchmark</span>
-                                                        ) : (
-                                                            <span className={listing.premium_discount_per_mt_usd <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-                                                                {listing.premium_discount_per_mt_usd < 0 ? '-' : '+'}
-                                                                ${Math.abs(Number(listing.premium_discount_per_mt_usd)).toFixed(2)} vs benchmark
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                    <BenchmarkPriceBlock
+                                                        priceUsd={Number(listing.price_per_mt_usd)}
+                                                        benchmarkUsd={listing.benchmark_price_per_mt_usd == null ? null : Number(listing.benchmark_price_per_mt_usd)}
+                                                        deltaUsd={listing.premium_discount_per_mt_usd == null ? null : Number(listing.premium_discount_per_mt_usd)}
+                                                        align="right"
+                                                    />
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-center gap-1 flex-wrap">

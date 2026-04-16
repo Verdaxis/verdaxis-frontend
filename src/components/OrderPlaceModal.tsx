@@ -30,6 +30,7 @@ interface OrderFormData {
     price_per_mt_usd: number;
     availability_window: string;
     certification_scheme: string;
+    certifications: string[];
     certification_declared: boolean;
     specification_standard: string;
     msds_available: boolean;
@@ -67,6 +68,7 @@ function createInitialFormData(
         price_per_mt_usd: prefillPrice && prefillPrice > 0 ? prefillPrice : 0,
         availability_window: prefillAvailabilityWindow || SPOT_WINDOW,
         certification_scheme: side === 'BID' ? '' : CERTIFICATION_SCHEME_OPTIONS[0].value,
+        certifications: [],
         certification_declared: false,
         specification_standard: '',
         msds_available: false,
@@ -161,8 +163,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }), [selectedDeliveryPoint?.timezone]);
     const availabilitySummary = getAvailabilityWindowSummary(formData.availability_window, availabilityOptions);
 
-    const handleChange = (field: keyof OrderFormData, value: string | number | boolean) => {
+    const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const toggleBidCertification = (scheme: string) => {
+        setFormData((prev) => {
+            const certifications = prev.certifications.includes(scheme)
+                ? prev.certifications.filter((item) => item !== scheme)
+                : [...prev.certifications, scheme];
+            return {
+                ...prev,
+                certifications,
+            };
+        });
+    };
+
+    const clearBidCertificationPreferences = () => {
+        setFormData((prev) => ({
+            ...prev,
+            certifications: [],
+        }));
     };
 
     useEffect(() => {
@@ -205,6 +226,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 availability_window: formData.availability_window,
                 is_anonymous: true,
             };
+            if (side === 'BID' && formData.certifications.length > 0) {
+                payload.certifications = formData.certifications;
+            }
             if (formData.certification_scheme.trim()) {
                 payload.certification_scheme = formData.certification_scheme.trim();
             }
@@ -539,12 +563,53 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.certificationScheme')}</label>
-                                        <VerdaxisSelect
-                                            ariaLabel={t('orderPlaceModal.label.certificationScheme')}
-                                            value={formData.certification_scheme}
-                                            onChange={(value) => handleChange('certification_scheme', value)}
-                                            options={side === 'BID' ? [{ value: '', label: t('orderPlaceModal.option.anyCertifiedScheme') }, ...CERTIFICATION_SCHEME_OPTIONS] : CERTIFICATION_SCHEME_OPTIONS}
-                                        />
+                                        {side === 'BID' ? (
+                                            <div className="space-y-2">
+                                                <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2.5 bg-slate-50 dark:bg-slate-900">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.certifications.length === 0}
+                                                        onChange={() => clearBidCertificationPreferences()}
+                                                        aria-label={t('orderPlaceModal.option.anyCertifiedScheme')}
+                                                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+                                                    />
+                                                    <span>
+                                                        <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                            {t('orderPlaceModal.option.anyCertifiedScheme')}
+                                                        </span>
+                                                        <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                            Match any certified supplier listing in this slice.
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                                {CERTIFICATION_SCHEME_OPTIONS.map((option) => (
+                                                    <label key={option.value} className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2.5 bg-white dark:bg-slate-800">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.certifications.includes(option.value)}
+                                                            onChange={() => toggleBidCertification(option.value)}
+                                                            aria-label={option.label}
+                                                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+                                                        />
+                                                        <span>
+                                                            <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                                                                {option.label}
+                                                            </span>
+                                                            <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                {option.description}
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <VerdaxisSelect
+                                                ariaLabel={t('orderPlaceModal.label.certificationScheme')}
+                                                value={formData.certification_scheme}
+                                                onChange={(value) => handleChange('certification_scheme', value)}
+                                                options={CERTIFICATION_SCHEME_OPTIONS}
+                                            />
+                                        )}
                                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                             {t('orderPlaceModal.helper.certificationScheme')}
                                         </p>
