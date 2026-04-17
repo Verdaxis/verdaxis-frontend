@@ -6,11 +6,23 @@ import { useNamespace } from '../hooks/useNamespace';
 
 type VerifyState = 'loading' | 'success' | 'error';
 
+const ROLE_CARDS = [
+  { id: 'buyer',           emoji: '⛽', label: 'Fuel Buyer'        },
+  { id: 'supplier',        emoji: '🌿', label: 'Fuel Supplier'     },
+  { id: 'financier_other', emoji: '💼', label: 'Financier / Other' },
+] as const;
+type UseCase = typeof ROLE_CARDS[number]['id'];
+
 const VerifyEmailPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [state, setState] = useState<VerifyState>('loading');
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
   const { t, ready } = useNamespace('auth');
+
+  const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null);
+  const [referralSource, setReferralSource]   = useState('');
+  const [surveySubmitting, setSurveySubmitting] = useState(false);
+  const [surveyDone, setSurveyDone]           = useState(false);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -38,10 +50,33 @@ const VerifyEmailPage: React.FC = () => {
     verify();
   }, [searchParams]);
 
+  const handleSurveySubmit = async () => {
+    if (!selectedUseCase || !verifiedEmail) return;
+    setSurveySubmitting(true);
+    try {
+      await fetch(`${API_URL}/auth/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: verifiedEmail,
+          use_case: selectedUseCase,
+          referral_source: referralSource || undefined,
+        }),
+      });
+    } catch {
+      // Non-blocking — survey is best-effort
+    } finally {
+      setSurveyDone(true);
+      setSurveySubmitting(false);
+    }
+  };
+
   if (!ready) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden">
+      <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }`}</style>
+
       {/* Background Elements */}
       <div className="absolute inset-0 bg-[#0F172A] z-0"></div>
       <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
@@ -75,14 +110,66 @@ const VerifyEmailPage: React.FC = () => {
               <p className="text-slate-400">
                 {t('verifyEmail.success.message')}
               </p>
-              <div className="pt-2">
-                <Link
-                  to="/login"
-                  className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-6 py-2.5 rounded-lg transition-all"
-                >
-                  {t('verifyEmail.success.signIn')}
-                </Link>
-              </div>
+
+              {(surveyDone || !verifiedEmail) ? (
+                <div className="pt-2">
+                  <Link
+                    to="/login"
+                    className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-6 py-2.5 rounded-lg transition-all"
+                  >
+                    {t('verifyEmail.success.signIn')}
+                  </Link>
+                </div>
+              ) : (
+                <div className="pt-6 border-t border-slate-800 space-y-4 text-left" style={{animation: 'fadeIn 0.3s ease 0.15s both'}}>
+                  <p className="text-xs text-slate-400 uppercase tracking-widest">Quick question</p>
+
+                  {/* 3-column role cards */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {ROLE_CARDS.map(({ id, emoji, label }) => (
+                      <button
+                        key={id}
+                        onClick={() => setSelectedUseCase(id)}
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border transition-all duration-150 text-center ${
+                          selectedUseCase === id
+                            ? 'border-emerald-500 bg-emerald-500/10 text-white'
+                            : 'border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white hover:scale-[1.03]'
+                        }`}
+                      >
+                        <span className="text-xl">{emoji}</span>
+                        <span className="text-xs font-medium leading-tight">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Optional referral source */}
+                  <input
+                    type="text"
+                    placeholder="How did you hear about us? (optional)"
+                    value={referralSource}
+                    onChange={e => setReferralSource(e.target.value)}
+                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+                  />
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleSurveySubmit}
+                      disabled={!selectedUseCase || surveySubmitting}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
+                    >
+                      {surveySubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
+                      Continue
+                    </button>
+                    <button
+                      onClick={() => setSurveyDone(true)}
+                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
