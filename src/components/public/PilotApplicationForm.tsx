@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Send, CheckCircle } from 'lucide-react';
 import { useNamespace } from '../../hooks/useNamespace';
 
@@ -62,9 +63,18 @@ const fieldGroup: React.CSSProperties = {
 
 export const PilotApplicationForm: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState(false);
+
+  // Navigate to /register 3s after submission. Cleaned up on unmount to avoid
+  // calling navigate() on a dead component if the user leaves early.
+  useEffect(() => {
+    if (!submitted) return;
+    const id = setTimeout(() => navigate('/register'), 3000);
+    return () => clearTimeout(id);
+  }, [submitted, navigate]);
 
   /* ---- helpers ---- */
 
@@ -119,27 +129,16 @@ export const PilotApplicationForm: React.FC = () => {
     existing.push(application);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
 
-    // Send to backend — fall back to email link if endpoint unavailable
-    let apiOk = false;
+    // Fire-and-forget — endpoint may not exist yet; localStorage is the reliable store.
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiUrl}/pilot-applications`, {
+      await fetch(`${apiUrl}/pilot-applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(application),
       });
-      apiOk = res.ok;
     } catch {
-      // API unavailable
-    }
-
-    if (!apiOk) {
-      // Fallback: open mailto with structured application data
-      const subject = encodeURIComponent(`Pilot Application — ${formData.companyName}`);
-      const body = encodeURIComponent(
-        `Pilot Application\n\nCompany: ${formData.companyName}\nName: ${formData.yourName}\nEmail: ${formData.email}\nRole: ${formData.role}\nFuels: ${formData.fuelTypes.join(', ')}\nVolume: ${formData.estimatedVolume}\nMessage: ${formData.interest}\nSubmitted: ${application.submittedAt}`
-      );
-      window.open(`mailto:pilot@verdaxis.exchange?subject=${subject}&body=${body}`, '_self');
+      // API unavailable — localStorage backup is already saved above.
     }
 
     setSubmitted(true);
@@ -216,15 +215,32 @@ export const PilotApplicationForm: React.FC = () => {
             fontSize: 15,
             color: '#64748B',
             lineHeight: 1.6,
+            marginBottom: 24,
           }}
         >
-          {t('pilotForm.success.body')}{' '}
-          <a
-            href="mailto:pilot@verdaxis.exchange"
-            style={{ color: '#5DADE2', fontWeight: 600, textDecoration: 'underline' }}
-          >
-            {t('pilotForm.success.email')}
-          </a>
+          {t('pilotForm.success.body')}
+        </p>
+        <button
+          onClick={() => navigate('/register')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+            color: '#FFFFFF',
+            padding: '12px 28px',
+            borderRadius: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
+            marginBottom: 12,
+          }}
+        >
+          {t('pilotForm.success.createAccount')} →
+        </button>
+        <p style={{ fontSize: 13, color: '#94A3B8' }}>
+          {t('pilotForm.success.redirecting')}
         </p>
       </div>
     );

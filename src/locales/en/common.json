@@ -74,5 +74,13 @@
   "footer.copyright": "© {{year}} Verdaxis. All rights reserved.",
   "notifications.title": "Notifications",
   "notifications.empty": "No notifications",
-  "notifications.markAllRead": "Mark all read"
+  "notifications.markAllRead": "Mark all read",
+  "pilotForm": {
+    "success": {
+      "heading": "Application Received",
+      "body": "Thanks — we'll review your application and be in touch soon.",
+      "createAccount": "Create Your Account",
+      "redirecting": "Redirecting to registration in 3s…"
+    }
+  }
 }
