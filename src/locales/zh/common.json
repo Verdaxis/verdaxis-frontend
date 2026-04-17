@@ -74,5 +74,13 @@
   "footer.copyright": "© {{year}} Verdaxis. 保留所有权利。",
   "notifications.title": "通知",
   "notifications.empty": "暂无通知",
-  "notifications.markAllRead": "全部标为已读"
+  "notifications.markAllRead": "全部标为已读",
+  "pilotForm": {
+    "success": {
+      "heading": "申请已收到",
+      "body": "感谢您 — 我们将审核您的申请并尽快与您联系。",
+      "createAccount": "创建账户",
+      "redirecting": "3秒后跳转至注册页面…"
+    }
+  }
 }

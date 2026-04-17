@@ -597,6 +597,16 @@ export const api = {
         commissionSummary: async () => {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
         },
+        users: async (queryString?: string) => {
+            const q = queryString ? `?${queryString}` : '';
+            return fetchApi(`/admin/analytics/users${q}`, { headers: getHeaders() });
+        },
+        approveUser: async (userId: string) => {
+            return fetchApi(`/auth/approve/${userId}`, { method: 'PUT', headers: getHeaders() });
+        },
+        rejectUser: async (userId: string) => {
+            return fetchApi(`/admin/analytics/users/${userId}/reject`, { method: 'PUT', headers: getHeaders() });
+        },
     },
 
     curves: {
