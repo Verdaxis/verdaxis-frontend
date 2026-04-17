@@ -65,24 +65,27 @@ interface AuditLogEntry {
 }
 
 interface CommissionSummary {
-  total_commissions: number;
-  total_amount_usd: number;
   pending_count: number;
-  total_pending_usd: number;
+  total_pending_usd: number | string;
   invoiced_count: number;
-  total_invoiced_usd: number;
+  total_invoiced_usd: number | string;
   paid_count: number;
-  total_paid_usd: number;
+  total_paid_usd: number | string;
 }
 
 // ---------------------------------------------------------------------------
 // Formatting helpers
 // ---------------------------------------------------------------------------
 
-const fmt = (n: number, decimals = 0) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+const toNumber = (value: number | string | null | undefined): number => {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
-const fmtUsd = (n: number) => `$${fmt(n, 2)}`;
+const fmt = (n: number | string | null | undefined, decimals = 0) =>
+  toNumber(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+const fmtUsd = (n: number | string | null | undefined) => `$${fmt(n, 2)}`;
 
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
@@ -192,6 +195,12 @@ export const AdminDashboard: React.FC = () => {
     ...d,
     label: fmtDate(d.date),
   }));
+
+  const totalCommissionUsd = commission
+    ? toNumber(commission.total_pending_usd)
+      + toNumber(commission.total_invoiced_usd)
+      + toNumber(commission.total_paid_usd)
+    : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -368,7 +377,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-verdaxis-text-muted text-sm">{t('commission.totalEarned')}</span>
                 <span className="font-['Montserrat'] font-bold text-verdaxis-text">
-                  {fmtUsd(commission.total_amount_usd)}
+                  {fmtUsd(totalCommissionUsd)}
                 </span>
               </div>
               <hr className="border-verdaxis-border" />
