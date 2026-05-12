@@ -82,6 +82,9 @@
   "marketplace.modal.product": "产品",
   "marketplace.modal.price": "价格",
   "marketplace.modal.location": "地点",
+  "marketplace.demoListing.title": "Demo Listing",
+  "marketplace.demoListing.body": "此挂单为平台预览种子数据，并非用户发布的真实流动性。演示挂单不支持实时成交。",
+  "marketplace.demoListing.tradeDisabled": "Demo Listing",
 
   "orderBook.title": "实时订单簿",
   "orderBook.bids": "买单",
@@ -97,6 +100,7 @@
   "orderBook.qtyMt": "数量（公吨）",
   "orderBook.selectProduct.title": "选择燃料以显示订单簿",
   "orderBook.selectProduct.body": "请先在上方选择燃料，再加载买卖盘。",
+  "orderBook.demoListing.tooltip": "平台预览用演示挂单，并非用户发布的真实流动性。",
   "orderBook.clickToSell": "点击以此价格卖出",
   "orderBook.clickToBuy": "点击以此价格买入",
   "orderBook.live": "实时 · 10秒",

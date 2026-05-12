@@ -11,8 +11,10 @@ interface OrderBookProps {
     availability?: string;
     productLabel?: string;
     region?: string;
+    actionableSide?: 'BID' | 'ASK';
     onPriceClick?: (side: 'BID' | 'ASK', price: number, fuelType?: string) => void;
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
+    onLevelClick?: (order: OrderBookOrder) => void;
 }
 
 interface OrderBookRow extends OrderBookOrder {
@@ -30,7 +32,7 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, availability, productLabel, region, onPriceClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, availability, productLabel, region, actionableSide, onPriceClick, onInstantTrade, onLevelClick }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -180,15 +182,23 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
                                 {/* BID cell */}
                                 {bid ? (
                                     <div
-                                        onClick={() => onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType)}
+                                        onClick={() => {
+                                            onPriceClick?.('ASK', bid.price_per_mt_usd, fuelType);
+                                            if (!actionableSide || actionableSide === 'BID') onLevelClick?.(bid);
+                                        }}
                                         className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer ${
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                         title={t('orderBook.clickToSell')}
                                     >
                                         {bid.is_demo_listing && (
-                                            <Tooltip content="Demo listing seeded for platform preview. Not user-posted liquidity." position="top">
-                                                <span className="absolute left-1 top-1/2 -translate-y-1/2 z-20 text-amber-500 dark:text-amber-400">
+                                            <Tooltip
+                                                content={t('orderBook.demoListing.tooltip')}
+                                                position="left"
+                                                portal
+                                                className="absolute left-1 top-1/2 z-20 -translate-y-1/2"
+                                            >
+                                                <span aria-label="Demo bid listing" className="text-amber-500 dark:text-amber-400">
                                                     <AlertTriangle size={10} />
                                                 </span>
                                             </Tooltip>
@@ -228,7 +238,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
                                 {/* ASK cell */}
                                 {ask ? (
                                     <div
-                                        onClick={() => onPriceClick?.('BID', ask.price_per_mt_usd, fuelType)}
+                                        onClick={() => {
+                                            onPriceClick?.('BID', ask.price_per_mt_usd, fuelType);
+                                            if (!actionableSide || actionableSide === 'ASK') onLevelClick?.(ask);
+                                        }}
                                         className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors cursor-pointer ${
                                             askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
@@ -241,8 +254,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
                                             style={{ width: `${askDepth}%` }}
                                         />
                                         {ask.is_demo_listing && (
-                                            <Tooltip content="Demo listing seeded for platform preview. Not user-posted liquidity." position="right">
-                                                <span className="absolute right-1 top-1/2 -translate-y-1/2 z-20 text-amber-500 dark:text-amber-400">
+                                            <Tooltip
+                                                content={t('orderBook.demoListing.tooltip')}
+                                                position="right"
+                                                portal
+                                                className="absolute right-1 top-1/2 z-20 -translate-y-1/2"
+                                            >
+                                                <span aria-label="Demo ask listing" className="text-amber-500 dark:text-amber-400">
                                                     <AlertTriangle size={10} />
                                                 </span>
                                             </Tooltip>

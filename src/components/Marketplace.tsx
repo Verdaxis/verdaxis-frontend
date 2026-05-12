@@ -177,8 +177,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Client-side filters ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
-    const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
-
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
     const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
@@ -350,18 +348,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
 
     const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
-        setHighlightedOrderId(order.id);
-        setMarketTab('market');
+        setSelectedOrder(order);
+        setTradeQuantity(order.remaining_quantity_mt);
+        setTradeState('confirming');
+        setTradeError('');
     }, []);
-
-    useEffect(() => {
-        if (marketTab !== 'market' || !highlightedOrderId) return;
-        const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
-        if (!(node instanceof HTMLElement)) return;
-        requestAnimationFrame(() => {
-            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-    }, [filteredListings, highlightedOrderId, marketTab]);
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -428,6 +419,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const confirmTrade = async () => {
         if (!selectedOrder || tradeState === 'submitting') return;
+        if (selectedOrder.is_demo_listing) {
+            setTradeError(t('marketplace.demoListing.body'));
+            return;
+        }
         const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
         if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
             setTradeError('Enter a valid quantity within the remaining amount.');
@@ -1032,7 +1027,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             <tr
                                                 key={order.id}
                                                 data-order-id={order.id}
-                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
+                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1165,6 +1160,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                     </div>
 
+                                    {selectedOrder.is_demo_listing && (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
+                                            <div className="flex items-start gap-2">
+                                                <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                                                <div>
+                                                    <div className="font-bold">{t('marketplace.demoListing.title')}</div>
+                                                    <div className="mt-1 text-xs leading-5">{t('marketplace.demoListing.body')}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Quantity input */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
@@ -1202,11 +1209,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                     <button
                                         type="button"
                                         onClick={confirmTrade}
-                                        disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                        disabled={selectedOrder.is_demo_listing || !Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                        <span>{tradeState === 'submitting' ? t('marketplace.btn.submittingTrade') : t('marketplace.btn.submitTrade')}</span>
+                                        {selectedOrder.is_demo_listing ? (
+                                            <AlertCircle size={18} />
+                                        ) : tradeState === 'submitting' ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <CheckCircle2 size={18} />
+                                        )}
+                                        <span>
+                                            {selectedOrder.is_demo_listing
+                                                ? t('marketplace.demoListing.tradeDisabled')
+                                                : tradeState === 'submitting'
+                                                    ? t('marketplace.btn.submittingTrade')
+                                                    : t('marketplace.btn.submitTrade')}
+                                        </span>
                                     </button>
                                 </div>
                             </>

@@ -62,3 +62,9 @@
 - **Trigger:** The pilot page on prod drifted back to an older embedded-form version even though the agreed flow had already changed to a signup CTA.
 - **Rule:** When touching public pages during i18n or layout refactors, compare the live route against the most recently approved user flow, not just the current translation keys or component compile state.
 - **Why:** Public marketing routes can regress semantically without causing build failures, especially when old components still exist in the tree.
+
+### Orderbook demo markers need full interaction coverage
+- **Date:** 2026-05-12
+- **Trigger:** The demo-listing marker tooltip was clipped in the orderbook, ask-side marker placement was not mirrored, and the trade modal lacked demo-liquidity warning copy.
+- **Rule:** For dense orderbook annotations, test both bid and ask placement, tooltip overflow behavior, and the downstream trade modal state before calling the UI fixed.
+- **Why:** I validated the visible marker in isolation and missed container clipping plus the modal path opened from demo liquidity.

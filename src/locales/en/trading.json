@@ -82,6 +82,9 @@
   "marketplace.modal.product": "Product",
   "marketplace.modal.price": "Price",
   "marketplace.modal.location": "Location",
+  "marketplace.demoListing.title": "Demo Listing",
+  "marketplace.demoListing.body": "This listing is seeded for platform preview and is not user-posted liquidity. Live trade execution is disabled for demo listings.",
+  "marketplace.demoListing.tradeDisabled": "Demo Listing",
 
   "orderBook.title": "Live Orderbook",
   "orderBook.bids": "Bids",
@@ -97,6 +100,7 @@
   "orderBook.qtyMt": "Qty (MT)",
   "orderBook.selectProduct.title": "Select a fuel to show orderbook",
   "orderBook.selectProduct.body": "Choose a fuel above to load bids and asks.",
+  "orderBook.demoListing.tooltip": "Demo listing seeded for platform preview. Not user-posted liquidity.",
   "orderBook.clickToSell": "Click to sell at this price",
   "orderBook.clickToBuy": "Click to buy at this price",
   "orderBook.live": "LIVE · 10s",

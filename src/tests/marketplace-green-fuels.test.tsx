@@ -237,6 +237,35 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText(/exact same product, port, and window filters as listings/i)).toBeTruthy();
   });
 
+  it('anchors demo ask markers on the ask edge and blocks demo trade execution', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+    listAsks.mockResolvedValue([{ ...listingsResponse.items[0], is_demo_listing: true }]);
+    listBids.mockResolvedValue([]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    const marker = await screen.findByLabelText('Demo ask listing');
+    expect(marker.parentElement?.className).toContain('right-1');
+
+    fireEvent.click(screen.getByTitle(/click to buy at this price/i));
+
+    await waitFor(() => {
+      expect(screen.getByText(/not user-posted liquidity/i)).toBeTruthy();
+    });
+
+    expect(screen.queryByRole('button', { name: /submit trade/i })).toBeNull();
+    expect((screen.getByRole('button', { name: /demo listing/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
   it('asks the user to select a fuel before showing the orderbook when all products are selected', async () => {
     localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
     localStorage.removeItem('verdaxis_marketplace_product');
