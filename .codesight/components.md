@@ -22,10 +22,10 @@
 - **NeedsAttentionFeed** — props: trades, viewMode, onNavigate, onConfirmTrade, onPostOrder — `src/components/NeedsAttentionFeed.tsx`
 - **NewsCard** — `src/components/NewsCard.tsx`
 - **NewsFeed** — `src/components/NewsFeed.tsx`
-- **OrderBook** — props: fuelType, marketProduct, region, availability, actionableSide, onLevelClick, onInstantTrade — `src/components/OrderBook.tsx`
+- **OrderBook** — props: fuelType, region, onPriceClick, onInstantTrade — `src/components/OrderBook.tsx`
 - **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillPrice — `src/components/OrderPlaceModal.tsx`
 - **PriceAlertManager** — props: isOpen, onClose — `src/components/PriceAlertManager.tsx`
-- **RFQPanel** — props: role, sortBy, region, fuelType, availability — `src/components/RFQPanel.tsx`
+- **RFQPanel** — props: role, sortBy, onSortChange — `src/components/RFQPanel.tsx`
 - **ReferralsTab** — `src/components/ReferralsTab.tsx`
 - **Settings** — props: viewMode — `src/components/Settings.tsx`
 - **Stats** — `src/components/Stats.tsx`
@@ -75,10 +75,9 @@
 - **CircuitLines** — props: style, color — `src/components/public/motionUtils.tsx`
 - **GradientOrb** — props: style, color, size — `src/components/public/motionUtils.tsx`
 - **RFQOfferAlert** — props: onNavigateToRFQ — `src/components/rfq/RFQOfferAlert.tsx`
-- **CreateListingModal** — props: onSubmit, onCancel, isLoading — `src/components/supplier/CreateListingModal.tsx`
+- **CreateListingModal** — props: onSubmit, onCancel, isLoading, marketData — `src/components/supplier/CreateListingModal.tsx`
 - **CreateQuoteModal** — props: requestId, onClose, onSubmit — `src/components/supplier/CreateQuoteModal.tsx`
 - **OrderbookDepth** — props: bids, asks, fuelType, region — `src/components/trading/OrderbookDepth.tsx`
-- **MarketRadarPanel** — props: radar, events, loading, error, onOpenRadar — `src/components/watchlist/MarketRadarPanel.tsx`
 - **AuthProvider** — `src/context/AuthContext.tsx`
 - **CopilotProvider** — `src/context/CopilotContext.tsx`
 - **NotificationProvider** — `src/context/NotificationContext.tsx`

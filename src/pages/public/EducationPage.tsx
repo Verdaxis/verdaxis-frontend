@@ -301,8 +301,8 @@ export const EducationPage: React.FC = () => {
               <StaggerItem key={article.slug}>
                 <ArticleCard
                   article={article}
-                  readArticleLabel={t('education.readArticle')}
-                  minReadLabel={t('education.minRead')}
+                  readArticleLabel={t('education.articleCard.readArticle')}
+                  minReadLabel={t('education.articleCard.minRead')}
                 />
               </StaggerItem>
             ))}

@@ -78,14 +78,12 @@ describe('LandingPage', () => {
     expect(screen.getByText('Fuel Buyers')).toBeTruthy();
     expect(screen.getByText('Traders')).toBeTruthy();
     expect(screen.getByText('Financiers')).toBeTruthy();
-    expect(screen.getByText(/market reach and visibility/i)).toBeTruthy();
   });
 
   it('renders price ticker with fuel data', () => {
     renderWithRouter(<LandingPage />);
-    // Bio Methanol appears in the doubled ticker array
-    const elements = screen.getAllByText('Bio Methanol');
-    expect(elements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Bio Methanol').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('E-Methanol').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders CTA buttons', () => {

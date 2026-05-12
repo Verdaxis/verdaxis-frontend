@@ -11,10 +11,10 @@ interface MarketWatchTickerProps {
 
 // Initial placeholder state
 const PLACEHOLDERS: MarketWatchItem[] = [
-    { pair: 'Methanol (ARA)', val: 'Loading...', change: '--', up: true },
-    { pair: 'EUA Carbon', val: 'Loading...', change: '--', up: true },
-    { pair: 'Ammonia (AG)', val: 'Loading...', change: '--', up: true },
-    { pair: 'Biofuel (ARA)', val: 'Loading...', change: '--', up: false },
+    { pair: 'Bio Methanol (Rotterdam)', val: 'Loading...', change: '--', up: true },
+    { pair: 'e-Methanol (Singapore)', val: 'Loading...', change: '--', up: true },
+    { pair: 'Bio Ethanol (Santos)', val: 'Loading...', change: '--', up: true },
+    { pair: 'Synthetic Ethanol (Houston)', val: 'Loading...', change: '--', up: false },
 ];
 
 export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpen, onOpenPanel }) => {

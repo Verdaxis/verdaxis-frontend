@@ -1,26 +1,33 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
+    Search,
+    Ship,
     Loader2,
     MapPin,
     Shield,
     Calendar,
     RefreshCw,
     Plus,
+    ChevronDown,
+    X,
+    Filter,
     AlertCircle,
     CheckCircle2,
+    Newspaper,
+    Star,
     ClipboardList,
     Trash2,
-    Star,
-    Ship,
-    X,
-    ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
-import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow } from '../types';
 import { PORTS } from '../data';
+import { OrderBook } from './OrderBook';
+import { TradeTape } from './TradeTape';
+import { NewsFeed } from './NewsFeed';
+import { MatchSuggestions } from './MatchSuggestions';
+import { RFQPanel } from './RFQPanel';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
 import {
@@ -32,29 +39,20 @@ import {
     formatDeliveryWindow,
 } from '../utils/fuel';
 import { useNamespace } from '../hooks/useNamespace';
-import {
-    getAvailabilityWindowOptions,
-    normalizeAvailabilityWindow,
-} from '../utils/availabilityWindow';
-import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { useWatchlist } from '../hooks/useWatchlist';
-import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
-import { VerdaxisSelect } from './ui/VerdaxisSelect';
-import { OrderBook } from './OrderBook';
-import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
+import { Tooltip } from './ui/Tooltip';
+import {
+    MARKETPLACE_PRODUCT_OPTIONS,
+    MarketplaceProductFilter,
+    getMarketplaceProductLabel,
+    getMarketplaceProductOption,
+    isMarketplaceProductFilter,
+} from '../utils/marketProducts';
 
 // ─── Role Config ──────────────────────────────────────────────────
-type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
+type ColumnId = 'star' | 'side' | 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
 
 interface RoleConfigEntry {
-    fetchOrders: (params?: {
-        region?: string;
-        fuel_type?: string;
-        market_product?: string;
-        availability?: string;
-        skip?: number;
-        limit?: number;
-    }) => Promise<PaginatedResult<any>>;
     subtitleKey: string;
     primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
     counterAction: { labelKey: string };
@@ -63,35 +61,22 @@ interface RoleConfigEntry {
 
 const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
     BUYER: {
-        fetchOrders: api.orderbook.listAsksPaged,
         subtitleKey: 'marketplace.subtitle.buyer',
         primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
-        counterAction: { labelKey: 'marketplace.btn.hitAsk' },
-        columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
+        counterAction: { labelKey: 'marketplace.btn.inquire' },
+        columns: ['star', 'side', 'fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
-        fetchOrders: api.orderbook.listBidsPaged,
         subtitleKey: 'marketplace.subtitle.supplier',
         primaryAction: { labelKey: 'marketplace.btn.placeAsk', side: 'ASK' as const },
         counterAction: { labelKey: 'marketplace.btn.hitBid' },
-        columns: ['fuel', 'volume', 'price', 'window', 'status', 'action'],
+        columns: ['star', 'side', 'fuel', 'volume', 'price', 'window', 'status', 'action'],
     },
 };
 
-// ─── Product chip options ─────────────────────────────────────────
-const ALL_MARKET_PRODUCTS = 'All';
-const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
-const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
-const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
-
-function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
-    const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
-        ?? localStorage.getItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
-    return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
-}
-
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 const REFRESH_INTERVAL_MS = 60_000;
+const MARKET_SLICE_LIMIT = 100;
 
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
@@ -104,10 +89,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const { t, ready } = useNamespace('trading');
     const role = user?.role ?? 'BUYER';
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
-    const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
+
+    // ─── Watchlist state ────────────────────────────────────────
+    const {
+        isWatched,
+        toggleWatch,
+        loading: watchlistLoading,
+    } = useWatchlist();
+    const [starLoading, setStarLoading] = useState<string | null>(null);
+    const readStoredProductFilter = (): MarketplaceProductFilter => {
+        const stored = localStorage.getItem('verdaxis_marketplace_product');
+        return isMarketplaceProductFilter(stored) ? stored : 'All';
+    };
+
+    const handleStarToggle = useCallback(async (productId: string, deliveryPointId?: string) => {
+        const key = `${productId}::${deliveryPointId ?? ''}`;
+        setStarLoading(key);
+        try {
+            await toggleWatch(productId, deliveryPointId);
+        } catch { /* ignore */ }
+        setStarLoading(null);
+    }, [toggleWatch]);
 
     // ─── Column header labels (inside component to access t()) ────
     const COLUMN_HEADERS: Record<ColumnId, string> = {
+        star: '',
+        side: t('marketplace.col.side'),
         fuel: t('marketplace.col.fuel'),
         grade: t('marketplace.col.grade'),
         volume: t('marketplace.col.volume'),
@@ -128,14 +135,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
-    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
-    const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
-        const stored = localStorage.getItem('verdaxis_marketplace_window');
-        return stored ? normalizeAvailabilityWindow(stored) : '';
-    });
-    const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
-    const [filtersExpanded, setFiltersExpanded] = useState(false);
+    const [marketProduct, setMarketProduct] = useState<MarketplaceProductFilter>(readStoredProductFilter);
+    const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => (localStorage.getItem('verdaxis_marketplace_window') as AvailabilityWindow) || '');
     const [currentSkip, setCurrentSkip] = useState(0);
+    const selectedProductOption = getMarketplaceProductOption(marketProduct);
+    const selectedFuelType = selectedProductOption?.fuelType;
 
     // ─── Resolved port name (best match as user types) ─────────
     const resolvedPort = useMemo(() => {
@@ -147,41 +151,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         return match ? match.name : '';
     }, [portInput]);
 
-    const currentSliceTarget = useMemo(() => {
-        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
-
-        const matchingOrder = listings.find((order) => (
-            order.market_product === marketProduct
-            && order.availability_window === availability
-            && order.delivery_point_id
-            && (order.delivery_point_name === resolvedPort || order.region === resolvedPort)
-        ));
-
-        if (!matchingOrder?.delivery_point_id) return null;
-
-        return {
-            marketProductCode: marketProduct,
-            deliveryPointId: matchingOrder.delivery_point_id,
-            availabilityWindowCode: matchingOrder.availability_window,
-        };
-    }, [availability, listings, marketProduct, resolvedPort]);
-
-    const currentSliceKey = currentSliceTarget
-        ? getWatchlistSliceKeyFromParts(
-            currentSliceTarget.marketProductCode,
-            currentSliceTarget.deliveryPointId,
-            currentSliceTarget.availabilityWindowCode,
-        )
-        : '';
-    const isCurrentSliceTracked = Boolean(currentSliceTarget) && trackedSliceKeys.has(currentSliceKey);
-
     // ─── Client-side filters ──────────────────────────────────────
+    const [filterGrade, setFilterGrade] = useState<string>('All');
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
-    const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // ─── Port autocomplete ────────────────────────────────────────
+    const [suggestions, setSuggestions] = useState<Port[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
+    const [marketTab, setMarketTab] = useState<'market' | 'listings' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
@@ -189,16 +170,62 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [tradeError, setTradeError] = useState('');
 
     // ─── News panel toggle ──────────────────────────────────────
+    const [showNews, setShowNews] = useState(false);
 
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
+    const [orderModalPrefillPrice, setOrderModalPrefillPrice] = useState<number | undefined>(undefined);
 
-    // ─── Fuel counts for chips ────────────────────────────────────
-    const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
+    const handleOrderBookPriceClick = useCallback((side: 'BID' | 'ASK', price: number, clickedFuelType?: string) => {
+        setOrderModalSide(side);
+        setOrderModalPrefillPrice(price);
+    }, []);
+
+    // ─── Instant trade (Buy Now / Sell Now from order book) ─────
+    // Opens the existing trade confirmation modal pre-filled with order details
+    const handleInstantTrade = useCallback((orderId: string, _side: 'BID' | 'ASK', price: number, quantity: number) => {
+        // Find the matching order from current listings or build a minimal OrderBookOrder
+        const matchedOrder = listings.find(o => o.id === orderId);
+        const order: OrderBookOrder = matchedOrder || {
+            id: orderId,
+            side: _side === 'BID' ? 'ASK' : 'BID', // counter-side: if we're buying, the order is an ask
+            market_product: marketProduct !== 'All' ? marketProduct : undefined,
+            product_name: marketProduct !== 'All' ? getMarketplaceProductLabel(marketProduct, selectedFuelType) : undefined,
+            fuel_type: selectedFuelType || '',
+            fuel_grade: 'Green' as const,
+            region: portInput || '',
+            quantity_mt: quantity,
+            remaining_quantity_mt: quantity,
+            price_per_mt_usd: price,
+            availability_window: 'Spot' as const,
+            certifications: [],
+            is_verdaxis_verified: false,
+            tier_label: 'INDEPENDENT' as const,
+            status: 'OPEN' as const,
+            created_at: new Date().toISOString(),
+        };
+        setSelectedOrder(order);
+        setTradeQuantity(quantity);
+        setTradeState('confirming');
+        setTradeError('');
+    }, [listings, marketProduct, portInput, selectedFuelType]);
+
+    // ─── Product counts for chips ────────────────────────────────
+    const productCounts = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const order of listings) {
+            const key = order.market_product || order.fuel_type;
+            counts[key] = (counts[key] || 0) + 1;
+        }
+        return counts;
+    }, [listings]);
 
     // ─── Client-side filter + sort ────────────────────────────────
     const filteredListings = useMemo(() => {
-        const result = [...listings];
+        let result = [...listings];
+        if (filterGrade !== 'All') {
+            result = result.filter(l => l.fuel_grade === filterGrade);
+        }
         switch (sortBy) {
             case 'price_asc': result.sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd); break;
             case 'price_desc': result.sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd); break;
@@ -206,8 +233,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             case 'newest': result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
         }
         return result;
-    }, [listings, sortBy]);
+    }, [listings, filterGrade, sortBy]);
+    const pagedListings = useMemo(
+        () => filteredListings.slice(currentSkip, currentSkip + PAGE_SIZE),
+        [filteredListings, currentSkip]
+    );
 
+    const activeFilterCount = (filterGrade !== 'All' ? 1 : 0) + (sortBy !== 'price_asc' ? 1 : 0);
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
@@ -216,16 +248,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setError(null);
 
         try {
-            const data = await configBase.fetchOrders({
+            const params = {
                 region: resolvedPort || undefined,
-                market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
+                fuel_type: selectedFuelType,
+                market_product: marketProduct === 'All' ? undefined : marketProduct,
                 availability: availability || undefined,
-                skip,
-                limit: PAGE_SIZE,
-            });
-            setListings(data.items);
-            setTotalCount(data.total);
-            setCurrentSkip(data.skip);
+                skip: 0,
+                limit: MARKET_SLICE_LIMIT,
+            };
+            const [bids, asks] = await Promise.all([
+                api.orderbook.listBidsPaged(params),
+                api.orderbook.listAsksPaged(params),
+            ]);
+            const merged = [...(bids.items ?? []), ...(asks.items ?? [])];
+            setListings(merged);
+            setTotalCount(merged.length);
+            setCurrentSkip(skip);
         } catch (err: any) {
             console.error('Marketplace fetch error:', err);
             setError(err.message || 'Failed to load listings. Please try again.');
@@ -233,9 +271,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [configBase, resolvedPort, marketProduct, availability]);
+    }, [availability, marketProduct, resolvedPort, selectedFuelType]);
 
-    // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
+    // Fetch on mount + whenever filters change (fuelType, portInput, availability, role)
     useEffect(() => {
         fetchData(false, 0);
     }, [fetchData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -255,14 +293,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 view: 'Marketplace',
                 role,
                 total_listings: totalCount,
-                fuel_filter: marketProduct,
+                market_product_filter: marketProduct,
+                fuel_filter: selectedFuelType || 'All',
                 region_filter: resolvedPort || 'Any',
                 availability_filter: availability || 'Any',
                 page_skip: currentSkip,
                 summary: t(configBase.subtitleKey),
             });
         }
-    }, [listings, loading, marketProduct, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
+    }, [availability, configBase.subtitleKey, currentSkip, listings, loading, marketProduct, resolvedPort, role, selectedFuelType, setPageContext, t, totalCount]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -270,98 +309,64 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     }, [portInput]);
 
     useEffect(() => {
-        localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
-        localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
+        localStorage.setItem('verdaxis_marketplace_product', marketProduct);
     }, [marketProduct]);
 
     useEffect(() => {
-        let cancelled = false;
+        localStorage.setItem('verdaxis_marketplace_window', availability);
+    }, [availability]);
 
-        const fetchMarketProductCounts = async () => {
-            try {
-                const totals = await Promise.all(
-                    MARKET_PRODUCTS.map(async (productCode) => {
-                        const response = await configBase.fetchOrders({
-                            region: resolvedPort || undefined,
-                            market_product: productCode,
-                            availability: availability || undefined,
-                            skip: 0,
-                            limit: 1,
-                        });
-                        return [productCode, response.total ?? response.items?.length ?? 0] as const;
-                    }),
-                );
+    // ─── Port autocomplete handlers ───────────────────────────────
+    const handlePortInput = (text: string) => {
+        setPortInput(text);
+        if (text.length > 1) {
+            const matches = PORTS.filter(p => p.name.toLowerCase().includes(text.toLowerCase()));
+            setSuggestions(matches);
+            setShowSuggestions(true);
+        } else {
+            setShowSuggestions(false);
+        }
+    };
 
-                if (cancelled) return;
+    const selectSuggestion = (portName: string) => {
+        setPortInput(portName);
+        setShowSuggestions(false);
+    };
 
-                setMarketProductCounts(Object.fromEntries(totals));
-            } catch {
-                if (!cancelled) {
-                    setMarketProductCounts({});
-                }
+    // ─── Search handlers ──────────────────────────────────────────
+    const handleSearch = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        // Auto-select the closest matching port on Enter
+        if (portInput.trim()) {
+            const query = portInput.trim().toLowerCase();
+            const exactMatch = PORTS.find(p => p.name.toLowerCase() === query);
+            if (exactMatch) {
+                setPortInput(exactMatch.name);
+                setShowSuggestions(false);
+                return; // useEffect will re-fetch when portInput changes
             }
-        };
-
-        fetchMarketProductCounts();
-        return () => {
-            cancelled = true;
-        };
-    }, [availability, configBase, resolvedPort]);
-
-
-    const portOptions = useMemo(() => ([
-        { value: '', label: 'All ports' },
-        ...PORTS.map((port) => ({ value: port.name, label: port.name, description: port.country })),
-    ]), []);
-
-    const sliceSummary = useMemo(() => {
-        const parts = [
-            marketProduct === ALL_MARKET_PRODUCTS ? 'All products' : formatMarketProduct(marketProduct),
-            resolvedPort || 'All ports',
-            availability || 'Any window',
-        ];
-        return parts.join(' · ');
-    }, [availability, marketProduct, resolvedPort]);
-
-    const totalMarketProductCount = useMemo(
-        () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
-        [marketProductCounts],
-    );
-
-    const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
-
-    const clearMarketFilters = useCallback(() => {
-        setMarketProduct(ALL_MARKET_PRODUCTS);
-        setPortInput('');
-        setAvailability('');
-        setCurrentSkip(0);
-    }, []);
+            const partialMatch = PORTS.find(p => p.name.toLowerCase().startsWith(query))
+                || PORTS.find(p => p.name.toLowerCase().includes(query));
+            if (partialMatch) {
+                setPortInput(partialMatch.name);
+                setShowSuggestions(false);
+                return; // useEffect will re-fetch when portInput changes
+            }
+            setShowSuggestions(false);
+        }
+        // Only manually fetch if no port resolution happened (e.g. empty input or no match)
+        fetchData(false, 0);
+    };
 
     const handlePageChange = (newSkip: number) => {
         fetchData(false, newSkip);
     };
 
-    const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
-
-    const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
-        setMarketProduct(productCode);
+    const handleFuelChipClick = (product: MarketplaceProductFilter) => {
+        setMarketProduct(product);
     };
 
     // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
-
-    const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
-        setHighlightedOrderId(order.id);
-        setMarketTab('market');
-    }, []);
-
-    useEffect(() => {
-        if (marketTab !== 'market' || !highlightedOrderId) return;
-        const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
-        if (!(node instanceof HTMLElement)) return;
-        requestAnimationFrame(() => {
-            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        });
-    }, [filteredListings, highlightedOrderId, marketTab]);
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -388,29 +393,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         if (marketTab === 'my_orders') fetchMyOrders();
     }, [marketTab, fetchMyOrders]);
 
-    const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
-        order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
-    )), [myOrders]);
-
-    const filteredMyOrders = useMemo(() => outstandingMyOrders.filter((order) => {
-        if (marketProduct !== ALL_MARKET_PRODUCTS && order.market_product !== marketProduct) {
-            return false;
-        }
-
-        if (availability && order.availability_window !== availability) {
-            return false;
-        }
-
-        if (resolvedPort) {
-            const orderPort = order.delivery_point_name || order.region || '';
-            if (orderPort !== resolvedPort) {
-                return false;
-            }
-        }
-
-        return true;
-    }), [availability, marketProduct, outstandingMyOrders, resolvedPort]);
-
     const handleCancelOrder = async (orderId: string) => {
         try {
             await api.orderbook.cancel(orderId);
@@ -428,17 +410,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     const confirmTrade = async () => {
         if (!selectedOrder || tradeState === 'submitting') return;
-        const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
-        if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
-            setTradeError('Enter a valid quantity within the remaining amount.');
-            setTradeState('error');
-            return;
-        }
         setTradeState('submitting');
         try {
             await api.trades.initiate({
                 order_id: selectedOrder.id,
-                quantity_mt: normalizedTradeQuantity,
+                quantity_mt: tradeQuantity || selectedOrder.quantity_mt,
             });
             setTradeState('success');
             // Auto-close after 2s and refresh
@@ -457,6 +433,48 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     // ─── Column renderer ──────────────────────────────────────────
     const renderCell = (col: ColumnId, order: OrderBookOrder): React.ReactNode => {
         switch (col) {
+            case 'star': {
+                const productId = order.product_id;
+                const deliveryPointId = order.delivery_point_id;
+                if (!productId) return <td key={col} className="px-2 py-2 w-8" />;
+                const watched = isWatched(productId, deliveryPointId);
+                const loadingKey = `${productId}::${deliveryPointId ?? ''}`;
+                const isLoading = starLoading === loadingKey;
+                return (
+                    <td key={col} className="px-2 py-2 w-8">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleStarToggle(productId, deliveryPointId); }}
+                            disabled={isLoading}
+                            className={`p-1 rounded transition-colors ${
+                                watched
+                                    ? 'text-amber-500 hover:text-amber-600'
+                                    : 'text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400'
+                            } disabled:opacity-50`}
+                            title={watched ? 'Remove from watchlist' : 'Add to watchlist'}
+                        >
+                            {isLoading ? (
+                                <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                                <Star size={14} fill={watched ? 'currentColor' : 'none'} />
+                            )}
+                        </button>
+                    </td>
+                );
+            }
+            case 'side': {
+                const isBid = order.side === 'BID';
+                return (
+                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            isBid
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400'
+                        }`}>
+                            {order.side}
+                        </span>
+                    </td>
+                );
+            }
             case 'fuel': {
                 const badgeClasses = getFuelBadgeClasses(order.fuel_type);
                 const stickyBg = getFuelStickyBg(order.fuel_type);
@@ -464,15 +482,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <td key={col} className={`px-4 py-2 sticky left-0 z-20 ${stickyBg} whitespace-nowrap min-w-[180px]`}>
                         <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
-                                {getOrderDisplayName(order)}
+                                {order.product_name || order.fuel_type}
                             </span>
+                            {order.is_demo_listing && (
+                                <Tooltip
+                                    content="Demo listing seeded for platform preview. Not user-posted liquidity."
+                                    position="top"
+                                >
+                                    <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+                                        Demo Listing
+                                    </span>
+                                </Tooltip>
+                            )}
                             {order.is_verdaxis_verified && (
                                 <Shield size={12} className="text-emerald-500 flex-shrink-0" />
-                            )}
-                            {order.off_spec && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                                    Off-spec
-                                </span>
                             )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
@@ -488,7 +511,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                            {order.certification_declared ? 'Declared cert' : 'Cert missing'}
+                            {order.fuel_grade}
                         </span>
                     </td>
                 );
@@ -500,12 +523,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 );
             case 'price':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-xs">
-                        <BenchmarkPriceBlock
-                            priceUsd={Number(order.price_per_mt_usd)}
-                            benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
-                            deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
-                        />
+                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                        ${order.price_per_mt_usd.toLocaleString()}
                     </td>
                 );
             case 'window':
@@ -547,44 +566,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 );
             }
             case 'action': {
-                const isExecutable = order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED';
-                const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
-                const isPinned = pinnedOrderIds.has(order.id);
+                const isOpen = order.status === 'OPEN';
+                const isCounterpartyOrder = (role === 'BUYER' && order.side === 'ASK')
+                    || (role === 'SUPPLIER' && order.side === 'BID');
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-2">
-                            {isExecutable ? (
-                                <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
-                                    className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
-                                >
-                                    {t(configBase.counterAction.labelKey)}
-                                </button>
-                            ) : (
-                                <span className="text-xs text-slate-400 font-medium">
-                                    {order.status === 'FILLED'
-                                        ? t('marketplace.status.filled')
-                                        : order.status === 'PARTIALLY_FILLED'
-                                            ? t('marketplace.status.partial')
-                                            : t('marketplace.status.closed')}
-                                </span>
-                            )}
-                            {pinnable && (
-                                <button
-                                    type="button"
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        await togglePin(order.id);
-                                    }}
-                                    aria-pressed={isPinned}
-                                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
-                                >
-                                    <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
-                                </button>
-                            )}
-                        </div>
+                        {isOpen && isCounterpartyOrder ? (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
+                                className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
+                            >
+                                {t(configBase.counterAction.labelKey)}
+                            </button>
+                        ) : isOpen ? (
+                            <span className="text-xs text-slate-400 font-medium">
+                                {order.side === 'BID' ? 'Bid' : 'Ask'}
+                            </span>
+                        ) : (
+                            <span className="text-xs text-slate-400 font-medium">
+                                {order.status === 'FILLED'
+                                    ? t('marketplace.status.filled')
+                                    : order.status === 'PARTIALLY_FILLED'
+                                        ? t('marketplace.status.partial')
+                                        : t('marketplace.status.closed')}
+                            </span>
+                        )}
                     </td>
                 );
             }
@@ -610,178 +616,187 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden">
-            {/* Header */}
-            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0 relative z-[80]">
+        <div className="h-full flex flex-col overflow-y-auto" onClick={() => setShowSuggestions(false)}>
+            {/* Header — compact single bar */}
+            <div className="flex-shrink-0 px-4 lg:px-6 pt-2 pb-0">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-                        <div>
-                            <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <h1 className="text-lg font-bold v-heading whitespace-nowrap">{t('marketplace.title')}</h1>
+                        <div className="flex items-center gap-2">
                             <button
-                                type="button"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
-                                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-lg transition-colors"
                             >
-                                <Plus size={16} />
+                                <Plus size={14} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
                             <button
-                                type="button"
                                 onClick={() => fetchData(false, currentSkip)}
-                                className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
+                                className="p-1.5 text-slate-500 hover:text-emerald-500 transition-colors"
                             >
-                                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                                <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!currentSliceTarget) return;
-                                    await toggleSlice(currentSliceTarget);
-                                }}
-                                disabled={!currentSliceTarget}
-                                aria-pressed={isCurrentSliceTracked}
-                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${currentSliceTarget ? (isCurrentSliceTracked ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-600 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-200') : 'cursor-not-allowed border-slate-200 text-slate-300 dark:border-slate-800 dark:text-slate-600'}`}
-                            >
-                                <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
-                                <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
+                                <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
                             </button>
                         </div>
                     </div>
 
-
-                    {/* Unified filter rail */}
-                    <div className="v-glass p-4 mb-4 relative z-[90]">
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                    <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.products')}</span>
-                                        <span className="text-xs text-slate-400">{t('marketplace.metrics.productsHint')}</span>
-                                    </div>
-                                    <div className="flex flex-1 flex-wrap gap-2">
-                                        {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                            const isActive = marketProduct === productCode;
-                                            const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
-                                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
-                                            return (
-                                                <button
-                                                    type="button"
-                                                    key={productCode}
-                                                    onClick={() => handleProductChipClick(productCode)}
-                                                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
-                                                        isActive
-                                                            ? 'bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900'
-                                                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
-                                                    }`}
-                                                >
-                                                    {label}{count > 0 ? ` (${count})` : ''}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                    {/* Filter Bar — compact inline */}
+                    <div className="v-glass p-2 mb-2 relative z-20">
+                        <form onSubmit={handleSearch} className="flex flex-row gap-2 items-end">
+                            {/* Port autocomplete */}
+                            <div className="relative flex-1 min-w-0">
+                                <div className="relative">
+                                    <Ship className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                    <input
+                                        type="text"
+                                        value={portInput}
+                                        onChange={(e) => handlePortInput(e.target.value)}
+                                        className="w-full px-3 py-2 pl-8 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none text-sm text-verdaxis-text"
+                                        placeholder="Port (e.g. Singapore)"
+                                        autoComplete="off"
+                                    />
                                 </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setFiltersExpanded((expanded) => !expanded)}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
-                                >
-                                    <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
-                                    <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
-                                </button>
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 w-full bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 mt-1 z-30 overflow-hidden max-h-60 overflow-y-auto">
+                                        {suggestions.map(port => (
+                                            <div
+                                                key={port.id}
+                                                className="px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex items-center space-x-2 transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); selectSuggestion(port.name); }}
+                                            >
+                                                <MapPin size={14} className="text-slate-400" />
+                                                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{port.name}, {port.country}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
-                            {filtersExpanded && (
-                                <>
-                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.port')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.port')}
-                                                value={portInput}
-                                                onChange={setPortInput}
-                                                options={portOptions}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.window')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.window')}
-                                                value={availability}
-                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
-                                                options={[
-                                                    { value: '', label: 'Any window' },
-                                                    ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
-                                                ]}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="v-label">{t('marketplace.filter.sortBy')}</label>
-                                            <VerdaxisSelect
-                                                ariaLabel={t('marketplace.filter.sortBy')}
-                                                value={sortBy}
-                                                onChange={(value) => setSortBy(value as typeof sortBy)}
-                                                options={[
-                                                    { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
-                                                    { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
-                                                    { value: 'quantity_desc', label: t('marketplace.sort.largestQty') },
-                                                    { value: 'newest', label: t('marketplace.sort.newest') },
-                                                ]}
-                                                triggerClassName="v-input min-h-[42px] py-2.5"
-                                            />
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.currentSlice')}</div>
-                                            <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {totalCount.toLocaleString()} {t(totalCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
-                                            </div>
-                                            <div className="mt-1 text-xs text-slate-400">{sliceSummary}</div>
-                                            <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-400">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                                {t('marketplace.metrics.currentSliceHint')}
-                                            </div>
-                                        </div>
-                                    </div>
+                            {/* Delivery Window */}
+                            <div className="w-36">
+                                <select
+                                    value={availability}
+                                    onChange={(e) => setAvailability(e.target.value as any)}
+                                    className="w-full px-3 py-2 bg-verdaxis-input border border-verdaxis-border rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none text-sm text-verdaxis-text appearance-none"
+                                >
+                                    <option value="">Any</option>
+                                    <option value="Spot">Spot</option>
+                                    <option value="Q2 2026">Apr-26 (M1)</option>
+                                    <option value="Q2 2026">May-26 (M2)</option>
+                                    <option value="Q2 2026">Jun-26 (M3)</option>
+                                    <option value="Q3 2026">Q3-26</option>
+                                    <option value="Q4 2026">Q4-26</option>
+                                    <option value="Forward 2027">Cal-27</option>
+                                    <option value="Q1 2027">Q1-27</option>
+                                    <option value="Q2 2027">Q2-27</option>
+                                    <option value="Q3 2027">Q3-27</option>
+                                    <option value="Q4 2027">Q4-27</option>
+                                    <option value="Forward 2028">Cal-28</option>
+                                    <option value="Forward 2029">Cal-29</option>
+                                    <option value="Forward 2030">Cal-30</option>
+                                </select>
+                            </div>
 
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                                                {sliceSummary}
-                                            </div>
-                                        </div>
-                                        <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:border-sky-900/60 dark:bg-sky-950/30 dark:text-sky-200">
-                                            <span className="font-bold uppercase tracking-[0.14em]">{t('marketplace.legend.title')}</span>
-                                            <span className="ml-2">{t('marketplace.legend.body')}</span>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
+                            {/* Search + Filter toggle */}
+                            <div className="flex gap-1.5">
+                                <button type="submit" className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-lg transition-colors flex items-center gap-1">
+                                    <Search size={14} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                                        showFilters
+                                            ? 'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
+                                            : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    <Filter size={16} />
+                                    {activeFilterCount > 0 && (
+                                        <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full">{activeFilterCount}</span>
+                                    )}
+                                    <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* Client-side filter panel */}
+                        {showFilters && (
+                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.grade')}</label>
+                                    <select
+                                        value={filterGrade}
+                                        onChange={(e) => setFilterGrade(e.target.value)}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="All">{t('marketplace.filter.allGrades')}</option>
+                                        <option value="Green">Green</option>
+                                        <option value="Bio">Bio</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">{t('marketplace.filter.sortBy')}</label>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value as any)}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:border-emerald-500"
+                                    >
+                                        <option value="price_asc">{t('marketplace.sort.priceAsc')}</option>
+                                        <option value="price_desc">{t('marketplace.sort.priceDesc')}</option>
+                                        <option value="quantity_desc">{t('marketplace.sort.largestQty')}</option>
+                                        <option value="newest">{t('marketplace.sort.newest')}</option>
+                                    </select>
+                                </div>
+                                {activeFilterCount > 0 && (
+                                    <button
+                                        onClick={() => { setFilterGrade('All'); setSortBy('price_asc'); }}
+                                        className="ml-auto flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-colors"
+                                    >
+                                        <X size={12} /> {t('marketplace.btn.clear')}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Product pills + count + tabs — single compact row */}
+                    <div className="flex items-center gap-1.5 mb-1 overflow-x-auto scrollbar-thin">
+                        {MARKETPLACE_PRODUCT_OPTIONS.map(option => {
+                            const isActive = marketProduct === option.value;
+                            const count = option.value === 'All' ? totalCount : (productCounts[option.value] || 0);
+                            return (
+                                <button
+                                    key={option.value}
+                                    onClick={() => handleFuelChipClick(option.value)}
+                                    className={`px-2.5 py-1 rounded text-[11px] font-bold cursor-pointer transition-all whitespace-nowrap flex-shrink-0 ${
+                                        isActive
+                                            ? 'bg-white/90 dark:bg-slate-700/90 text-slate-900 dark:text-white shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                    }`}
+                                >
+                                    {option.label}{count > 0 ? ` ${count}` : ''}
+                                </button>
+                            );
+                        })}
+                        <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-[10px] text-slate-500 font-medium">LIVE</span>
                         </div>
                     </div>
 
-                    {/* Tab Switcher: Market | Orderbook | My Listings */}
-                    <div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
+                    {/* Tab Switcher: Market | Listings | My Orders — fluid sliding indicator */}
+                    <div className="relative flex mb-2 bg-white/30 dark:bg-slate-800/30 rounded-lg p-0.5 backdrop-blur-sm border border-white/20 dark:border-slate-700/40 w-fit">
+                        {/* Sliding glass indicator */}
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
-                                left: marketTab === 'market'
-                                    ? '2px'
-                                    : marketTab === 'orderbook'
-                                        ? 'calc(33.333% + 1px)'
-                                        : 'calc(66.666% + 1px)',
-                                width: 'calc(33.333% - 2px)',
+                                left: marketTab === 'market' ? '2px' : marketTab === 'listings' ? 'calc(33.33%)' : 'calc(66.66%)',
+                                width: 'calc(33.33% - 2px)',
                             }}
                         />
                         <button
                             onClick={() => setMarketTab('market')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
                                 marketTab === 'market'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -790,9 +805,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             {t('marketplace.tab.market')}
                         </button>
                         <button
-                            onClick={() => setMarketTab('orderbook')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
-                                marketTab === 'orderbook'
+                            onClick={() => setMarketTab('listings')}
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
+                                marketTab === 'listings'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
@@ -801,7 +816,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         </button>
                         <button
                             onClick={() => setMarketTab('my_orders')}
-                            className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
+                            className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-24 ${
                                 marketTab === 'my_orders'
                                     ? 'text-slate-900 dark:text-white'
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -809,18 +824,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                         >
                             <span className="flex items-center gap-1 justify-center">
                                 <ClipboardList size={12} />
-                                {t('marketplace.tab.myOrders')}
+                                My Orders
                             </span>
                         </button>
                     </div>
-
-                    <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
-                        {marketTab === 'market'
-                            ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
-                            : marketTab === 'orderbook'
-                                ? t('marketplace.viewHint.orderbook')
-                                : t('marketplace.viewHint.myOrders')}
-                    </p>
 
                 </div>
             </div>
@@ -846,70 +853,94 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {marketTab === 'orderbook' && !error && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="min-h-[520px]">
-                            {orderbookRequiresProductSelection ? (
-                                <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
-                                    <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
-                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
-                                    <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
+            {/* Market tab: OrderBook + TradeTape side by side, full height */}
+            {marketTab === 'market' && (
+                <div className="flex-1 min-h-[450px] px-4 lg:px-10 pb-6">
+                    {(!portInput || marketProduct === 'All') ? (
+                        <div className="max-w-7xl mx-auto h-full flex items-center justify-center">
+                            <div className="text-center p-8">
+                                <div className="text-slate-400 dark:text-slate-500 mb-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                                 </div>
-                            ) : (
-                                <OrderBook
-                                    marketProduct={marketProduct}
-                                    region={resolvedPort || undefined}
-                                    availability={availability || undefined}
-                                    actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                                    onLevelClick={handleOrderbookLevelClick}
-                                />
-                            )}
+                                <h3 className="text-lg font-bold text-slate-600 dark:text-slate-300 mb-2">Select a port and product</h3>
+                                <p className="text-sm text-slate-400 dark:text-slate-500 max-w-md">
+                                    The order book shows live bids and asks for a specific product at a specific port. Select a port above and filter by product to view the order book.
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="max-w-[1600px] mx-auto h-full flex flex-col">
+                            <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
+                                <div className={showNews ? 'md:w-[45%] md:h-full' : 'md:w-[60%] md:h-full'}>
+                                    <div className="h-full flex flex-col">
+                                        <OrderBook
+                                            fuelType={selectedFuelType}
+                                            marketProduct={marketProduct !== 'All' ? marketProduct : undefined}
+                                            productLabel={marketProduct !== 'All' ? getMarketplaceProductLabel(marketProduct, selectedFuelType) : undefined}
+                                            availability={availability || undefined}
+                                            region={resolvedPort || undefined}
+                                            onPriceClick={handleOrderBookPriceClick}
+                                            onInstantTrade={handleInstantTrade}
+                                        />
+                                    </div>
+                                </div>
+                                <div className={showNews ? 'md:w-[30%] md:h-full' : 'md:w-[40%] md:h-full'}>
+                                    <div className="h-full flex flex-col">
+                                        <div className="flex items-center justify-end mb-2">
+                                            <button
+                                                onClick={() => setShowNews(!showNews)}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                                    showNews
+                                                        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                                        : 'bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                                }`}
+                                            >
+                                                <Newspaper size={12} />
+                                                News
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 min-h-0">
+                                            <TradeTape
+                                                fuelType={selectedFuelType}
+                                                marketProduct={marketProduct !== 'All' ? marketProduct : undefined}
+                                                availability={availability || undefined}
+                                                region={resolvedPort || undefined}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                {showNews && (
+                                    <div className="md:w-[25%] md:h-full">
+                                        <NewsFeed />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* My Listings tab: user's outstanding orders */}
+            {/* My Orders tab: user's open/active orders */}
             {marketTab === 'my_orders' && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         {myOrdersLoading ? (
                             <div className="flex items-center justify-center py-20 text-slate-400">
-                                <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
+                                <Loader2 className="animate-spin mr-2" size={20} /> Loading your orders...
                             </div>
-                        ) : outstandingMyOrders.length === 0 ? (
+                        ) : myOrders.length === 0 ? (
                             <div className="text-center py-20">
                                 <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.none.title')}</h3>
+                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">No open orders</h3>
                                 <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
-                                    {role === 'SUPPLIER'
-                                        ? t('marketplace.myOrders.empty.none.supplier')
-                                        : t('marketplace.myOrders.empty.none.buyer')}
+                                    {role === 'SUPPLIER' ? 'Post supply to attract buyers' : 'Post a bid to start trading'}
                                 </p>
                                 <button
-                                    type="button"
                                     onClick={() => setOrderModalSide(role === 'SUPPLIER' ? 'ASK' : 'BID')}
                                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors font-medium text-sm"
                                 >
-                                    {role === 'SUPPLIER' ? t('marketplace.btn.placeAsk') : t('marketplace.btn.placeBid')}
+                                    {role === 'SUPPLIER' ? 'Post Supply' : 'Post a Bid'}
                                 </button>
-                            </div>
-                        ) : filteredMyOrders.length === 0 ? (
-                            <div className="text-center py-20">
-                                <ClipboardList size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400 mb-2">{t('marketplace.myOrders.empty.filtered.title')}</h3>
-                                <p className="text-sm text-slate-400 dark:text-slate-500 mb-4">
-                                    {t('marketplace.myOrders.empty.filtered.body', { slice: sliceSummary })}
-                                </p>
-                                {hasActiveSliceFilters && (
-                                    <button
-                                        onClick={clearMarketFilters}
-                                        className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 transition-colors font-medium text-sm"
-                                    >
-                                        {t('marketplace.btn.clear')}
-                                    </button>
-                                )}
                             </div>
                         ) : (
                             <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -928,7 +959,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredMyOrders.map((order) => {
+                                        {myOrders.map((order) => {
                                             const isBid = order.side === 'BID';
                                             const filled = order.status === 'FILLED' || order.status === 'CANCELLED' || order.status === 'EXPIRED';
                                             return (
@@ -944,7 +975,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
-                                                        {getOrderDisplayName(order)}
+                                                        {order.product_name || order.fuel_type}
+                                                        {order.fuel_grade && order.fuel_grade !== 'Conventional' && (
+                                                            <span className="ml-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">{order.fuel_grade}</span>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
@@ -974,7 +1008,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                     <td className="px-4 py-3 text-center">
                                                         {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
                                                             <button
-                                                                type="button"
                                                                 onClick={() => handleCancelOrder(order.id)}
                                                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                                                 title="Cancel order"
@@ -1003,8 +1036,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 </div>
             )}
 
-            {/* Market tab: listings table */}
-            {marketTab === 'market' && !error && (
+            {/* RFQ panel archived — orderbook is the single source of truth
+               Re-enable via VITE_ENABLE_RFQ=true if needed for specific use cases */}
+            {import.meta.env.VITE_ENABLE_RFQ === 'true' && marketTab === 'rfq' && (
+                <div className="md:flex-1 md:overflow-y-auto px-4 lg:px-10 pb-6">
+                    <div className="max-w-7xl mx-auto">
+                        <RFQPanel role={role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER'} sortBy={sortBy} onSortChange={setSortBy} />
+                    </div>
+                </div>
+            )}
+
+            {/* Listings tab: full table with sticky thead */}
+            {marketTab === 'listings' && !error && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
@@ -1027,12 +1070,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <tbody>
                                     {loading ? (
                                         <SkeletonRows />
-                                    ) : filteredListings.length > 0 ? (
-                                        filteredListings.map(order => (
+                                    ) : pagedListings.length > 0 ? (
+                                        pagedListings.map(order => (
                                             <tr
                                                 key={order.id}
-                                                data-order-id={order.id}
-                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
+                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1053,10 +1095,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 </tbody>
                             </table>
                             {/* Pagination */}
-                            {!loading && totalCount > 0 && (
+                            {!loading && filteredListings.length > 0 && (
                                 <div className="border-t border-slate-200 dark:border-slate-700 px-4">
                                     <Pagination
-                                        total={totalCount}
+                                        total={filteredListings.length}
                                         skip={currentSkip}
                                         limit={PAGE_SIZE}
                                         onPageChange={handlePageChange}
@@ -1074,16 +1116,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
-                                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                    <CheckCircle2 size={24} />
+                                {/* Animated success ring */}
+                                <div className="relative mx-auto w-16 h-16 mb-4">
+                                    <div className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" style={{ animationDuration: '1.5s' }} />
+                                    <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                                        <CheckCircle2 size={28} className="text-white" />
+                                    </div>
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('marketplace.modal.tradeInitiated')}</h3>
+                                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mb-1">Trade Executed</h3>
                                 {selectedOrder && (
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Product</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder)}</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.product_name || selectedOrder.fuel_type}</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Port</span>
@@ -1100,14 +1146,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                                             <span className="text-xs text-slate-400">Total</span>
-                                            <span className="text-base font-bold text-slate-900 dark:text-white">
+                                            <span className="text-base font-extrabold text-slate-900 dark:text-white">
                                                 ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     </div>
                                 )}
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-                                    {role === 'BUYER' ? t('marketplace.modal.tradeInitiated.buyer') : t('marketplace.modal.tradeInitiated.supplier')}
+                                    Executed at the maker&apos;s listed price. View in Trade History.
                                 </p>
                             </div>
                         ) : tradeState === 'error' ? (
@@ -1118,7 +1164,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
                                 <button
-                                    type="button"
                                     onClick={closeTradeModal}
                                     className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors"
                                 >
@@ -1130,14 +1175,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 {/* Header */}
                                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
                                     <div>
-                                        <h3 className="text-xl font-bold text-[#334155] dark:text-white">
+                                        <h3 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">
                                             {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
+                                            {selectedOrder.fuel_type} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button type="button" aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -1148,7 +1193,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
                                             <span className="font-bold text-slate-800 dark:text-slate-200">
-                                                {getOrderDisplayName(selectedOrder)}
+                                                {selectedOrder.product_name || selectedOrder.fuel_type} ({selectedOrder.fuel_grade})
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center mb-2">
@@ -1165,13 +1210,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                     </div>
 
+                                    {selectedOrder.is_demo_listing && (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+                                            <div className="font-bold uppercase tracking-wide text-[11px] mb-1">Demo Listing</div>
+                                            <div>This order was seeded for platform preview and is not user-posted liquidity.</div>
+                                        </div>
+                                    )}
+
                                     {/* Quantity input */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
                                         <div className="relative">
                                             <input
                                                 type="number"
-                                                value={Number.isFinite(tradeQuantity) ? tradeQuantity : ''}
+                                                value={tradeQuantity}
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
                                                 max={selectedOrder.remaining_quantity_mt}
                                                 min={1}
@@ -1181,7 +1233,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                         </div>
                                         <p className="text-xs text-slate-400 mt-1 text-right">
                                             {t('marketplace.modal.maxAvailable')} {selectedOrder.remaining_quantity_mt.toLocaleString()} MT
-                                            {Number.isFinite(tradeQuantity) && tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
+                                            {tradeQuantity > 0 && selectedOrder.price_per_mt_usd > 0 && (
                                                 <span className="ml-2 text-emerald-500 font-bold">
                                                     {t('marketplace.modal.total')} ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString()}
                                                 </span>
@@ -1193,16 +1245,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 {/* Actions */}
                                 <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
                                     <button
-                                        type="button"
                                         onClick={closeTradeModal}
                                         className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                                     >
                                         {t('marketplace.btn.cancel')}
                                     </button>
                                     <button
-                                        type="button"
                                         onClick={confirmTrade}
-                                        disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                        disabled={tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                         className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
@@ -1218,13 +1268,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
+                onClose={() => { setOrderModalSide(null); setOrderModalPrefillPrice(undefined); fetchData(true, currentSkip); }}
                 side={orderModalSide || configBase.primaryAction.side}
-                prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
+                prefillFuelType={marketProduct !== 'All' ? getMarketplaceProductLabel(marketProduct, selectedFuelType) : undefined}
                 prefillRegion={portInput || undefined}
-                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
-                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
-                prefillAvailabilityWindow={availability || undefined}
+                prefillPrice={orderModalPrefillPrice}
             />
         </div>
     );

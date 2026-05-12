@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 import {
   CheckCircle,
   Clock,
@@ -8,9 +9,9 @@ import {
   TrendingUp,
   Handshake,
   Calendar,
+  ArrowRight,
   Mail,
 } from 'lucide-react';
-import { PilotApplicationForm } from '../../components/public/PilotApplicationForm';
 import {
   Reveal,
   HoverCard,
@@ -28,6 +29,20 @@ import { useNamespace } from '../../hooks/useNamespace';
 
 const sectionPadding: React.CSSProperties = {
   padding: '72px 24px',
+};
+
+const primaryButton: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+  color: '#FFFFFF',
+  padding: '14px 28px',
+  borderRadius: 8,
+  fontSize: 16,
+  fontWeight: 600,
+  textDecoration: 'none',
 };
 
 const sectionTitle: React.CSSProperties = {
@@ -156,6 +171,24 @@ export const PilotPage: React.FC = () => {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}
         >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 12px',
+              borderRadius: 999,
+              background: 'rgba(148, 163, 184, 0.14)',
+              border: '1px solid rgba(148, 163, 184, 0.24)',
+              color: '#CBD5E1',
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: 0.2,
+              marginBottom: 18,
+            }}
+          >
+            {t('pilot.hero.eyebrow')}
+          </div>
           <h1
             style={{
               fontSize: 42,
@@ -179,6 +212,14 @@ export const PilotPage: React.FC = () => {
           >
             {t('pilot.hero.subtitle')}
           </p>
+          <div style={{ marginTop: 28 }}>
+            <HoverButton>
+              <Link to="/register" style={primaryButton}>
+                {t('pilot.hero.button')}
+                <ArrowRight size={18} />
+              </Link>
+            </HoverButton>
+          </div>
         </motion.div>
       </section>
 
@@ -351,31 +392,8 @@ export const PilotPage: React.FC = () => {
         </StaggerGrid>
       </section>
 
-      {/* ---- Section 4: Application Form ---- */}
+      {/* ---- Section 4: Timeline ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <Reveal>
-          <h2 style={sectionTitle}>{t('pilot.applyForm.title')}</h2>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>{t('pilot.applyForm.subtitle')}</p>
-        </Reveal>
-
-        <Reveal delay={0.2}>
-          <div
-            style={{
-              maxWidth: 600,
-              margin: '0 auto',
-              ...card,
-              padding: 40,
-            }}
-          >
-            <PilotApplicationForm />
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ---- Section 5: Timeline ---- */}
-      <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
           <Reveal>
             <div
@@ -445,7 +463,7 @@ export const PilotPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ---- Section 6: CTA ---- */}
+      {/* ---- Section 5: CTA ---- */}
       <section
         style={{
           background: '#0F172A',

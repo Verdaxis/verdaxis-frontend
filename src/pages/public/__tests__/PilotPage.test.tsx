@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PilotPage } from '../PilotPage';
 
@@ -27,7 +27,6 @@ Object.defineProperty(globalThis, 'localStorage', { value: storageMock, writable
 describe('PilotPage', () => {
   beforeEach(() => {
     storageMock.clear();
-    vi.stubGlobal('open', vi.fn());
   });
 
   it('renders page title', () => {
@@ -67,76 +66,17 @@ describe('PilotPage', () => {
     expect(screen.getByText(/top-tier shippers or producers/i)).toBeTruthy();
   });
 
-  it('renders application form with all fields', () => {
+  it('renders signup CTA above the fold instead of the legacy application form', () => {
     renderWithRouter(<PilotPage />);
-    expect(screen.getByLabelText(/company name/i)).toBeTruthy();
-    expect(screen.getByLabelText(/your name/i)).toBeTruthy();
-    expect(screen.getByLabelText(/email/i)).toBeTruthy();
-    expect(screen.getByLabelText(/^role$/i)).toBeTruthy();
-    expect(screen.getByLabelText(/estimated annual volume/i)).toBeTruthy();
-    expect(screen.getByLabelText(/what interests you about verdaxis/i)).toBeTruthy();
-
-    // Fuel type checkboxes
-    expect(screen.getByLabelText('Methanol')).toBeTruthy();
-    expect(screen.getByLabelText('Ethanol')).toBeTruthy();
-    expect(screen.getByLabelText('SAF')).toBeTruthy();
-    expect(screen.getByLabelText('Ammonia')).toBeTruthy();
-    expect(screen.getByLabelText('Biofuel')).toBeTruthy();
-    expect(screen.getByLabelText('Other')).toBeTruthy();
-
-    // Submit button
-    expect(screen.getByRole('button', { name: /submit application/i })).toBeTruthy();
+    const cta = screen.getByRole('link', { name: /go to signup/i });
+    expect(cta.getAttribute('href')).toBe('/register');
+    expect(screen.queryByLabelText(/company name/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /submit application/i })).toBeNull();
   });
 
-  it('shows validation on empty submit', () => {
+  it('renders timeline copy from the current locale keys', () => {
     renderWithRouter(<PilotPage />);
-    const submitButton = screen.getByRole('button', { name: /submit application/i });
-    fireEvent.click(submitButton);
-
-    // Should not show success message
-    expect(screen.queryByText(/thank you/i)).toBeNull();
-  });
-
-  it('saves to localStorage on valid submit', async () => {
-    renderWithRouter(<PilotPage />);
-
-    fireEvent.change(screen.getByLabelText(/company name/i), {
-      target: { value: 'Acme Fuels' },
-    });
-    fireEvent.change(screen.getByLabelText(/your name/i), {
-      target: { value: 'Jane Doe' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'jane@acme.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
-
-    await screen.findByText(/thank you! we'll be in touch within 48 hours/i);
-
-    const stored = JSON.parse(localStorage.getItem('verdaxis_pilot_applications') || '[]');
-    expect(stored.length).toBe(1);
-    expect(stored[0].companyName).toBe('Acme Fuels');
-    expect(stored[0].yourName).toBe('Jane Doe');
-    expect(stored[0].email).toBe('jane@acme.com');
-  });
-
-  it('shows success message after submit', async () => {
-    renderWithRouter(<PilotPage />);
-
-    fireEvent.change(screen.getByLabelText(/company name/i), {
-      target: { value: 'Acme Fuels' },
-    });
-    fireEvent.change(screen.getByLabelText(/your name/i), {
-      target: { value: 'Jane Doe' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'jane@acme.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
-
-    expect(await screen.findByText(/thank you! we'll be in touch within 48 hours/i)).toBeTruthy();
-    expect(await screen.findByText(/pilot@verdaxis.exchange/i)).toBeTruthy();
+    expect(screen.getByText(/limited onboarding/i)).toBeTruthy();
+    expect(screen.getByText(/full launch follows successful pilot validation/i)).toBeTruthy();
   });
 });

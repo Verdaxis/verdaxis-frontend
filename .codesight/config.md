@@ -5,6 +5,7 @@
 - `VITE_API_URL` (has default) — .env.example
 - `VITE_AUTHENTIK_CLIENT_ID` (has default) — .env.example
 - `VITE_AUTHENTIK_URL` (has default) — .env.example
+- `VITE_ENABLE_RFQ` **required** — src/components/Marketplace.tsx
 
 ## Config Files
 

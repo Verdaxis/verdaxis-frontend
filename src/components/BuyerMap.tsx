@@ -12,6 +12,8 @@ import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
+import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
+import { filterPortsByActiveDeliveryPoints } from '../utils/marketPorts';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -19,90 +21,12 @@ interface BuyerMapProps {
     onOrderClick?: (port: Port) => void;
 }
 
-// Aggregate port market data from the orderbook aggregated endpoint
-interface PortMarketData {
-    totalVolume: number;
-    fuelRows: Array<{
-        fuel_type: string;
-        bestBid: number | null;
-        bestAsk: number | null;
-        orderCount: number;
-        spreadPct: number; // Spread as % of mid-price for THIS fuel
-    }>;
-    spreadPct: number; // Spread for the selected/best fuel (NOT averaged across fuels)
-}
-
-const computePortMarketData = (
-    aggregated: AggregatedOrderbook[],
-    portName: string,
-    portCountry: string,
-    selectedFuelType?: string
-): PortMarketData => {
-    // Match by region (could be port name or country)
-    const portRows = aggregated.filter(
-        a => a.delivery_point_name === portName || a.region === portName || a.region === portCountry
-    );
-
-    // Group by fuel_type — green fuels only
-    const byFuel: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
-    portRows.forEach(row => {
-        if (!isGreenFuel(row.fuel_type)) return;
-        if (!byFuel[row.fuel_type]) byFuel[row.fuel_type] = { bids: [], asks: [] };
-        if (row.side === 'BID') byFuel[row.fuel_type].bids.push(row);
-        else byFuel[row.fuel_type].asks.push(row);
-    });
-
-    let totalVolume = 0;
-    const fuelRows = Object.entries(byFuel).map(([fuel_type, { bids, asks }]) => {
-        const bestBid = bids.length > 0 ? Math.max(...bids.map(b => Number(b.max_price))) : null;
-        const bestAsk = asks.length > 0 ? Math.min(...asks.map(a => Number(a.min_price))) : null;
-        const orderCount = bids.reduce((s, b) => s + Number(b.order_count), 0) + asks.reduce((s, a) => s + Number(a.order_count), 0);
-        totalVolume += bids.reduce((s, b) => s + Number(b.total_quantity), 0) + asks.reduce((s, a) => s + Number(a.total_quantity), 0);
-
-        let spreadPct = 999;
-        if (bestBid !== null && bestAsk !== null) {
-            const mid = (bestBid + bestAsk) / 2;
-            if (mid > 0) spreadPct = ((bestAsk - bestBid) / mid) * 100;
-        }
-
-        return { fuel_type, bestBid, bestAsk, orderCount, spreadPct };
-    }).filter(r => r.orderCount > 0);
-
-    // Pick the spread for the circle color: use the selected fuel type if provided,
-    // otherwise pick the fuel with the tightest (lowest) spread.
-    // Averaging across independent fuel types is meaningless.
-    let spreadPct = 999;
-    if (fuelRows.length > 0) {
-        if (selectedFuelType) {
-            const match = fuelRows.find(r => r.fuel_type === selectedFuelType);
-            if (match) {
-                spreadPct = match.spreadPct;
-            } else {
-                // Selected fuel not present at this port — use tightest available
-                spreadPct = Math.min(...fuelRows.map(r => r.spreadPct));
-            }
-        } else {
-            // No fuel selected — show the tightest spread (most tradeable fuel)
-            spreadPct = Math.min(...fuelRows.map(r => r.spreadPct));
-        }
-    }
-
-    return { totalVolume, fuelRows, spreadPct };
-};
-
 // Port circle radius: proportional to volume, clamped 6-20px
 const getPortRadius = (volume: number, maxVolume: number): number => {
     if (maxVolume <= 0 || volume <= 0) return 6;
     const ratio = volume / maxVolume;
     return Math.round(6 + ratio * 14); // 6..20
 };
-
-// Green fuels only — fossil fuels (LNG, MGO, VLSFO, LSMGO) are suppressed platform-wide
-const GREEN_FUELS = new Set(['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane']);
-const isGreenFuel = (fuel: string) => GREEN_FUELS.has(fuel) || GREEN_FUELS.has(
-    // Handle variants like "Green Methanol", "Bio-Methanol", "Biofuel B24"
-    Array.from(GREEN_FUELS).find(g => fuel.toLowerCase().includes(g.toLowerCase())) ?? ''
-);
 
 // Border color by spread tightness
 const getSpreadColor = (spreadPct: number): string => {
@@ -122,7 +46,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [showOverlays, setShowOverlays] = useState(true);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
-    const [selectedFuelType, setSelectedFuelType] = useState<string | undefined>(undefined);
+    const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -132,19 +56,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [portsData, listingsData, aggData] = await Promise.all([
+                const [portsData, deliveryPointsData, listingsData, aggData] = await Promise.all([
                     api.ports.list(),
+                    api.catalog.deliveryPoints().catch(() => null),
                     api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
                     api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
-                setPorts(portsData);
+                const marketPorts = filterPortsByActiveDeliveryPoints(portsData, deliveryPointsData);
+                setPorts(marketPorts);
                 setListings(listingsData);
                 setAggregatedData(aggData);
                 setPageContext({
                     view: 'Global Intelligence Map',
-                    available_ports: portsData.length,
-                    port_names: portsData.map((p: Port) => p.name),
-                    summary: "User is viewing the global interactive map showing methanol availability and vessel movements."
+                    available_ports: marketPorts.length,
+                    port_names: marketPorts.map((p: Port) => p.name),
+                    summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
                 });
             } catch (e) {
                 console.error("Failed to load map data", e);
@@ -166,18 +92,18 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const portMarketMap = useMemo(() => {
         const map: Record<string, PortMarketData> = {};
         ports.forEach(port => {
-            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country, selectedFuelType);
+            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country, selectedProduct);
         });
         return map;
-    }, [ports, aggregatedData, selectedFuelType]);
+    }, [ports, aggregatedData, selectedProduct]);
 
-    // All distinct fuel types across all ports (for fuel filter selector)
-    const availableFuelTypes = useMemo(() => {
-        const fuels = new Set<string>();
+    // All distinct market products across all ports (for product filter selector)
+    const availableProducts = useMemo(() => {
+        const products = new Set<string>();
         Object.values(portMarketMap).forEach(mkt => {
-            mkt.fuelRows.forEach(r => fuels.add(r.fuel_type));
+            mkt.fuelRows.forEach(row => products.add(row.key));
         });
-        return Array.from(fuels).sort();
+        return Array.from(products).sort();
     }, [portMarketMap]);
 
     // Max volume across all ports (for radius scaling)
@@ -371,7 +297,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             + '<th style="text-align:right;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px">#</th>'
                             + '</tr></thead><tbody>'
                             + mkt.fuelRows.map((row, i) =>'<tr style="border-bottom:' + (i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none') + '">'
-                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + row.fuel_type + '</td>'
+                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + row.label + '</td>'
                                 + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#10B981;font-weight:600">' + (row.bestBid !== null ? '$' + row.bestBid.toFixed(0) : '--') + '</td>'
                                 + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#EF4444;font-weight:600">' + (row.bestAsk !== null ? '$' + row.bestAsk.toFixed(0) : '--') + '</td>'
                                 + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
@@ -380,20 +306,26 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No live orders at this port</div>';
 
                     // Market intelligence section
-                    const spotPrice = port.priceMethanol ? '$' + port.priceMethanol : '--';
-                    const availability = port.methanolSupply || 'Medium';
-                    const availColor = availability === 'High' ? '#10B981' : availability === 'Medium' ? '#F59E0B' : '#EF4444';
+                    const spotPrice = port.priceMethanol > 0 ? '$' + port.priceMethanol : '--';
+                    const availabilityLabel = port.methanolSupply && port.methanolSupply !== 'Unknown' ? port.methanolSupply : '--';
+                    const availColor = availabilityLabel === 'High'
+                        ? '#10B981'
+                        : availabilityLabel === 'Medium'
+                            ? '#F59E0B'
+                            : availabilityLabel === 'Low'
+                                ? '#EF4444'
+                                : '#94A3B8';
                     const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
-                    const congestion = port.details?.congestionLevel || '--';
-                    const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : '#EF4444';
+                    const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
+                    const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
                     const lastDone = port.details?.lastDone || '';
 
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Spot + Availability row
                         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
                         + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Spot</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Avail</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availability + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Avail</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
                         + '</div>'
                         // Platts & Swap box
                         + '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
@@ -581,7 +513,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             <div className="pointer-events-auto w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-4 hidden lg:block">
                                 <div className="flex items-center space-x-2 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
                                     <BarChart3 size={16} className="text-emerald-600" />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.methanolAvails')}</span>
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.marketAvails')}</span>
                                 </div>
                                 <div className="space-y-3">
                                     {availsByRegion.length > 0 ? (
@@ -600,21 +532,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                             </div>
                                         ))
                                     ) : (
-                                        // Fallback to port-based display when no listings
-                                        ports.filter(p => p.details).slice(0, 5).map((p) => (
-                                            <div key={p.id}>
-                                                <div className="flex justify-between text-[10px] mb-1 font-bold text-slate-500 dark:text-slate-400">
-                                                    <span>{p.name}</span>
-                                                    <span>{p.methanolSupply}</span>
-                                                </div>
-                                                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5">
-                                                    <div
-                                                        className={`h-1.5 rounded-full ${p.methanolSupply === 'High' ? 'bg-emerald-500' : p.methanolSupply === 'Medium' ? 'bg-amber-400' : 'bg-red-400'}`}
-                                                        style={{ width: p.methanolSupply === 'High' ? '90%' : p.methanolSupply === 'Medium' ? '60%' : '30%' }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        ))
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            No live asks available yet.
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -670,31 +590,31 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         </span>
                     </button>
 
-                    {/* Fuel type filter — controls which fuel's spread colors the port circles */}
-                    {availableFuelTypes.length > 0 && (
+                    {/* Product filter — controls which product's spread colors the port circles */}
+                    {availableProducts.length > 0 && (
                         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex items-center gap-1">
                             <Layers size={14} className="text-slate-400 ml-1" />
                             <button
-                                onClick={() => setSelectedFuelType(undefined)}
+                                onClick={() => setSelectedProduct(undefined)}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                                    !selectedFuelType
+                                    !selectedProduct
                                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                 }`}
                             >
                                 All
                             </button>
-                            {availableFuelTypes.map(fuel => (
+                            {availableProducts.map(product => (
                                 <button
-                                    key={fuel}
-                                    onClick={() => setSelectedFuelType(fuel)}
+                                    key={product}
+                                    onClick={() => setSelectedProduct(product)}
                                     className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                                        selectedFuelType === fuel
+                                        selectedProduct === product
                                             ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                                             : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                                 >
-                                    {fuel}
+                                    {product}
                                 </button>
                             ))}
                         </div>

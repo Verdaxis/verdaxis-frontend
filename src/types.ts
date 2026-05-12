@@ -5,10 +5,10 @@ export interface GeoLocation {
 }
 
 export interface PortDetails {
-    congestionLevel: 'Low' | 'Moderate' | 'High';
+    congestionLevel: 'Low' | 'Moderate' | 'High' | 'Unknown';
     avgWaitingTime: number; // hours
     activeBarges: number;
-    forecastSupply: 'Tight' | 'Balanced' | 'Surplus';
+    forecastSupply: 'Tight' | 'Balanced' | 'Surplus' | 'Unknown';
     priceHistory: number[]; // Last 7 days
     // New Financial Data
     plattsPrice?: number;
@@ -27,8 +27,8 @@ export interface Port {
     name: string;
     location: GeoLocation;
     country: string;
-    methanolSupply: 'High' | 'Medium' | 'Low';
-    biofuelSupply: 'High' | 'Medium' | 'Low';
+    methanolSupply: 'High' | 'Medium' | 'Low' | 'Unknown';
+    biofuelSupply: 'High' | 'Medium' | 'Low' | 'Unknown';
     priceMethanol: number; // USD per MT
     priceTrend: number; // Percentage change
     details?: PortDetails; // Dynamic intelligence data
@@ -90,16 +90,6 @@ export interface InventoryItem {
     incomingStock: number;
     pricePerMt: number;
     status: 'Available' | 'Low Stock' | 'Out of Stock';
-    certification_declared?: boolean;
-    certification_scheme?: string | null;
-    specification_standard?: string | null;
-    msds_available?: boolean;
-    carbon_intensity_gco2_mj?: number | null;
-    carbon_intensity_method?: string | null;
-    feedstock?: string | null;
-    origin?: string | null;
-    off_spec?: boolean;
-    off_spec_notes?: string | null;
 }
 
 export interface TraceEvent {
@@ -133,19 +123,10 @@ export interface MarketWatchItem {
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============
-export const MARKET_PRODUCTS = [
-    'BIO_METHANOL',
-    'E_METHANOL',
-    'BIO_ETHANOL',
-    'SYNTHETIC_ETHANOL',
-] as const;
-
-export type MarketProduct = typeof MARKET_PRODUCTS[number];
-
 export interface Product {
     id: string;
     name: string;
-    market_product?: MarketProduct | null;
+    market_product?: MarketProduct;
     fuel_type: string;
     fuel_grade: string;
     unit: string;
@@ -163,8 +144,17 @@ export interface DeliveryPoint {
 }
 
 // ============== Order Marketplace Types ==============
-export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'E' | 'Synthetic';
-export type AvailabilityWindow = string; // Canonical API codes: SPOT, YYYY-MM, YYYY-QN, and legacy YYYY-CAL
+export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
+export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
+
+export const MARKET_PRODUCTS = [
+    'BIO_METHANOL',
+    'E_METHANOL',
+    'BIO_ETHANOL',
+    'SYNTHETIC_ETHANOL',
+] as const;
+
+export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
 // ============== Unified Orderbook Types ==============
@@ -180,10 +170,10 @@ export interface OrderBookOrder {
     // Product/DeliveryPoint FK fields (new model)
     product_id?: string;
     product_name?: string;
-    market_product?: MarketProduct | null;
     delivery_point_id?: string;
     delivery_point_name?: string;
     // Denormalized fields from product/delivery_point (always present in API responses)
+    market_product?: MarketProduct;
     fuel_type: string;
     fuel_grade: FuelGrade;
     region: string;
@@ -193,46 +183,18 @@ export interface OrderBookOrder {
     remaining_quantity_mt: number;
     price_per_mt_usd: number;
     availability_window: AvailabilityWindow;
+    delivery_window_start?: string;
+    delivery_window_end?: string;
     certifications: string[];
-    certification_declared?: boolean;
-    certification_scheme?: string | null;
-    specification_standard?: string | null;
-    msds_available?: boolean;
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;
-    carbon_intensity_method?: string | null;
-    feedstock?: string | null;
-    origin?: string | null;
-    off_spec?: boolean;
-    off_spec_notes?: string | null;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
     created_at: string;
+    is_demo_listing?: boolean;
     updated_at?: string;
     trade_count?: number; // Only in "my" view
-    benchmark_price_per_mt_usd?: number | null;
-    premium_discount_per_mt_usd?: number | null;
-    benchmark_source?: string | null;
-}
-
-export interface SupplierListingTemplate {
-    product_id: string;
-    delivery_point_id: string;
-    quantity_mt: number;
-    price_per_mt_usd: number;
-    availability_window: AvailabilityWindow;
-    certifications: string[];
-    certification_declared: boolean;
-    certification_scheme?: string | null;
-    specification_standard?: string | null;
-    msds_available?: boolean;
-    carbon_intensity_gco2_mj?: number | null;
-    carbon_intensity_method?: string | null;
-    feedstock?: string | null;
-    origin?: string | null;
-    off_spec?: boolean;
-    off_spec_notes?: string | null;
 }
 
 export interface Trade {
@@ -260,9 +222,10 @@ export interface Trade {
     // Denormalized from order product/delivery_point
     product_id?: string;
     product_name?: string;
-    market_product?: MarketProduct | null;
     delivery_point_id?: string;
     delivery_point_name?: string;
+    availability_window?: AvailabilityWindow;
+    market_product?: string | Product;
     fuel_type: string;
     fuel_grade?: FuelGrade;
     region: string;
@@ -281,13 +244,7 @@ export interface AggregatedOrderbook {
 
 // ============== Price Discovery Types ==============
 export interface PriceSummary {
-    product_id?: string;
-    product_name?: string;
-    market_product?: MarketProduct | null;
     fuel_type: string;
-    delivery_point_id?: string;
-    delivery_point_name?: string | null;
-    availability_window?: AvailabilityWindow | string;
     region: string;
     last_price: number | null;
     avg_price_24h: number | null;
@@ -301,21 +258,6 @@ export interface PriceSummary {
 
 export interface PriceDiscoveryResponse {
     summaries: PriceSummary[];
-    generated_at: string;
-}
-
-export interface BenchmarkQuote {
-    market_product: MarketProduct;
-    delivery_point_id: string;
-    delivery_point_name: string;
-    availability_window: AvailabilityWindow;
-    benchmark_price_per_mt_usd: number;
-    source: string;
-    generated_at: string;
-}
-
-export interface BenchmarkQuoteResponse {
-    items: BenchmarkQuote[];
     generated_at: string;
 }
 
@@ -388,7 +330,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'DATA_ANALYTICS' | 'WATCHLISTS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -403,8 +345,7 @@ export interface ForwardCurvePoint {
 
 export interface ForwardCurveResponse {
     product_id: string;
-    product_name?: string;
-    delivery_point_id?: string | null;
+    product_name: string;
     curve: ForwardCurvePoint[];
     generated_at: string;
 }
@@ -413,7 +354,7 @@ export interface PriceAlert {
     id: string;
     product_id: string;
     product_name?: string;
-    market_product?: MarketProduct | null;
+    market_product?: string | Product;
     delivery_point_id?: string;
     direction: 'above' | 'below';
     threshold_usd: number;
@@ -473,7 +414,7 @@ export interface RFQ {
 // ============== Trade Tape Types ==============
 export interface TradeTapeEntry {
     id: string;
-    market_product?: MarketProduct | null;
+    market_product?: MarketProduct;
     fuel_type: string;
     fuel_grade?: string;
     region: string;
@@ -490,69 +431,20 @@ export interface TradeTapeResponse {
 }
 
 // ============== Watchlist Types ==============
-export type WatchlistTargetType = 'SLICE' | 'PIN';
-
-export interface WatchlistTarget {
+export interface WatchlistEntry {
     id: string;
-    target_type: WatchlistTargetType;
-    market_product_code?: MarketProduct | null;
-    delivery_point_id?: string | null;
-    delivery_point_name?: string | null;
-    availability_window_code?: string | null;
-    order_id?: string | null;
-    snapshot_price_per_mt_usd?: number | null;
-    snapshot_quantity_mt?: number | null;
-    snapshot_remaining_quantity_mt?: number | null;
-    snapshot_status?: string | null;
-    snapshot_side?: OrderSide | string | null;
-    snapshot_market_product?: string | null;
-    snapshot_delivery_point_name?: string | null;
-    snapshot_availability_window?: string | null;
-    snapshot_counterparty_label?: string | null;
-    active_order_count: number;
-    unread_event_count: number;
-    latest_event_at?: string | null;
+    product_id: string;
+    product_name?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
+    best_bid?: number;
+    best_ask?: number;
     created_at: string;
 }
 
-export interface WatchlistSlice {
-    id: string;
-    target_type: 'SLICE';
-    market_product_code: MarketProduct;
-    delivery_point_id: string;
-    delivery_point_name?: string | null;
-    availability_window_code: string;
-    active_order_count: number;
-    unread_event_count: number;
-    latest_event_at?: string | null;
-    pins: WatchlistTarget[];
-    created_at: string;
-}
-
-export interface WatchlistSummary {
+export interface Watchlist {
     id: string;
     name: string;
-    kind: string;
-    unread_event_count: number;
-    latest_event_at?: string | null;
-    total_slice_count: number;
-    has_more_slices: boolean;
-    slices: WatchlistSlice[];
+    entries: WatchlistEntry[];
     created_at: string;
-}
-
-export interface WatchlistEvent {
-    id: string;
-    watchlist_id: string;
-    watchlist_target_id: string;
-    target_type: WatchlistTargetType;
-    event_type: string;
-    event_payload: Record<string, unknown>;
-    is_read: boolean;
-    created_at: string;
-}
-
-export interface WatchlistEventsPage {
-    items: WatchlistEvent[];
-    next_cursor?: string | null;
 }

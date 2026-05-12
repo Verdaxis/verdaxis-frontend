@@ -69,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="w-11 h-11 bg-white rounded-lg p-1.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                         {!logoError ? (
                             <img
-                                src="https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/verdaxis_logo_no_words.png"
+                                src="/verdaxis-logo-no-words.png"
                                 alt="Verdaxis"
                                 className="w-full h-full object-contain transform hover:scale-105 transition-transform duration-300"
                                 onError={() => setLogoError(true)}

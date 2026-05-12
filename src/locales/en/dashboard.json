@@ -44,7 +44,7 @@
   },
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
-    "methanolAvails": "Methanol Avails (Top Ports)",
+    "marketAvails": "Live Market Avails",
     "lastDone": "Last Done",
     "recentActivity": "Recent Activity",
     "recentTrades": "Recent Trades",

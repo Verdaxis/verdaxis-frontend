@@ -1,76 +1,68 @@
 import { describe, expect, it } from 'vitest';
-
-import { buildTradePerformanceModel, normalizeTradeLifecycleStatus } from '../utils/tradeAnalytics';
 import type { Trade } from '../types';
+import { buildTradePerformanceModel, tradeSliceKey } from '../utils/tradeAnalytics';
 
-const baseTrade = {
-  buyer_id: 'buyer-org',
-  seller_id: 'seller-org',
+const baseTrade: Trade = {
+  id: 'trade-1',
+  buyer_id: 'buyer',
+  seller_id: 'seller',
   buyer_name: 'Buyer',
   seller_name: 'Seller',
   initiated_by: 'BUYER',
   is_anonymous: false,
-  fuel_type: 'Methanol',
-  region: 'Asia',
-} satisfies Partial<Trade>;
+  quantity_mt: 100,
+  price_per_mt_usd: 700,
+  status: 'CONFIRMED',
+  commission_rate_pct: 0.5,
+  created_at: '2026-04-15T00:00:00Z',
+  product_id: 'bio-methanol',
+  product_name: 'Bio Methanol',
+  delivery_point_id: 'sg-sin',
+  delivery_point_name: 'Singapore',
+  fuel_type: 'Bio Methanol',
+  region: 'Singapore',
+};
 
 describe('tradeAnalytics', () => {
-  it('normalizes delivered and paid trades to confirmed for UI purposes', () => {
-    expect(normalizeTradeLifecycleStatus('DELIVERED')).toBe('CONFIRMED');
-    expect(normalizeTradeLifecycleStatus('PAID')).toBe('CONFIRMED');
-    expect(normalizeTradeLifecycleStatus('DECLINED')).toBe('DECLINED');
+  it('keys trades by product and delivery point for reference prices', () => {
+    expect(tradeSliceKey(baseTrade)).toBe('bio-methanol|sg-sin');
   });
 
-  it('builds numeric performance metrics from decimal-like API payloads', () => {
-    const trades = [
-      {
-        ...baseTrade,
-        id: 't-1',
-        status: 'CONFIRMED',
-        quantity_mt: '1000',
-        price_per_mt_usd: '1050',
-        created_at: '2026-04-10T00:00:00Z',
-        product_name: 'Bio Methanol',
-        market_product: 'BIO_METHANOL',
-        delivery_point_id: 'dp-singapore',
-        delivery_point_name: 'Singapore',
-        availability_window: 'SPOT',
-      },
-      {
-        ...baseTrade,
-        id: 't-2',
-        status: 'PAID',
-        quantity_mt: '500',
-        price_per_mt_usd: '1100',
-        final_quantity_mt: '500',
-        final_price_per_mt: '1090',
-        created_at: '2026-03-05T00:00:00Z',
-        product_name: 'Bio Methanol',
-        market_product: 'BIO_METHANOL',
-        delivery_point_id: 'dp-singapore',
-        delivery_point_name: 'Singapore',
-        availability_window: 'SPOT',
-      },
-    ] as unknown as Trade[];
+  it('builds weighted performance and benchmark comparisons', () => {
+    const secondTrade: Trade = {
+      ...baseTrade,
+      id: 'trade-2',
+      quantity_mt: 300,
+      price_per_mt_usd: 740,
+      confirmed_at: '2026-04-16T00:00:00Z',
+    };
 
     const model = buildTradePerformanceModel(
-      trades,
-      {
-        'BIO_METHANOL::dp-singapore::SPOT': 1060,
-      },
-      new Date('2026-04-16T00:00:00Z')
+      [baseTrade, secondTrade],
+      { 'bio-methanol|sg-sin': 720 }
     );
 
     expect(model.totalTrades).toBe(2);
-    expect(model.totalVolumeMt).toBe(1500);
-    expect(model.grossNotionalUsd).toBe(1595000);
-    expect(model.weightedAveragePriceUsd).toBeCloseTo(1063.33, 2);
+    expect(model.totalVolumeMt).toBe(400);
+    expect(model.weightedAveragePriceUsd).toBe(730);
+    expect(model.grossNotionalUsd).toBe(292000);
+    expect(model.volumeByFuel).toEqual([{ fuel: 'Bio Methanol', volumeMt: 400 }]);
     expect(model.fuelComparisons[0]).toMatchObject({
       fuel: 'Bio Methanol',
-      weightedExecutionUsd: 1063.33,
-      weightedBenchmarkUsd: 1060,
-      differenceUsd: 3.33,
+      weightedExecutionUsd: 730,
+      weightedBenchmarkUsd: 720,
+      differenceUsd: 10,
     });
-    expect(model.monthlyTradeCounts.map((entry) => entry.label)).toEqual(['Feb 2026', 'Mar 2026', 'Apr 2026']);
+  });
+
+  it('excludes cancelled and declined trades from analytics', () => {
+    const model = buildTradePerformanceModel([
+      baseTrade,
+      { ...baseTrade, id: 'trade-2', status: 'CANCELLED', quantity_mt: 900 },
+      { ...baseTrade, id: 'trade-3', status: 'DECLINED', quantity_mt: 900 },
+    ]);
+
+    expect(model.totalTrades).toBe(1);
+    expect(model.totalVolumeMt).toBe(100);
   });
 });

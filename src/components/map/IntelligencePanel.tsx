@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, Sparkles, RefreshCw, GraduationCap, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Sparkles, RefreshCw, Shield } from 'lucide-react';
 import { Port, Page, Product, ForwardCurvePoint } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
@@ -51,6 +51,31 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
 
     // Real forward curve data from API
     const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: string }[]>([]);
+
+    const marketPriceLabel = selectedPort && selectedPort.priceMethanol > 0
+        ? `$${selectedPort.priceMethanol}`
+        : '--';
+    const availabilityLabel = selectedPort && selectedPort.methanolSupply !== 'Unknown'
+        ? selectedPort.methanolSupply
+        : '--';
+    const availabilityTone = availabilityLabel === 'High'
+        ? 'text-emerald-500'
+        : availabilityLabel === 'Medium'
+            ? 'text-amber-500'
+            : availabilityLabel === 'Low'
+                ? 'text-red-500'
+                : 'text-slate-400 dark:text-slate-500';
+    const availabilityDotTone = availabilityLabel === 'High'
+        ? 'bg-emerald-500 animate-pulse'
+        : availabilityLabel === 'Medium'
+            ? 'bg-amber-500'
+            : availabilityLabel === 'Low'
+                ? 'bg-red-500'
+                : 'bg-slate-400';
+    const hasPriceHistory = Boolean(selectedPort?.details?.priceHistory?.length);
+    const congestionLabel = selectedPort?.details?.congestionLevel && selectedPort.details.congestionLevel !== 'Unknown'
+        ? selectedPort.details.congestionLevel
+        : '--';
 
     useEffect(() => {
         let cancelled = false;
@@ -120,7 +145,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
 
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
                 {/* Context Aware Content */}
-                {selectedPort && selectedPort.details ? (
+                {selectedPort ? (
                     <>
                         {/* AI Narrative — hidden until AI integration is live */}
 
@@ -129,8 +154,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('intelligencePanel.marketPrice')}</div>
                                 <div className="text-2xl font-['Montserrat'] font-bold text-slate-800 dark:text-slate-100 flex items-center">
-                                    ${selectedPort.priceMethanol}
-                                    {selectedPort.priceTrend !== undefined && (
+                                    {marketPriceLabel}
+                                    {selectedPort.priceMethanol > 0 && selectedPort.priceTrend !== undefined && (
                                         <span className={`text-xs font-medium ${selectedPort.priceTrend >= 0 ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'text-red-500 bg-red-50 dark:bg-red-900/20'} px-1.5 py-0.5 rounded ml-2 flex items-center`}>
                                             {selectedPort.priceTrend >= 0 ? <TrendingUp size={10} className="mr-0.5" /> : <TrendingDown size={10} className="mr-0.5" />}
                                             {selectedPort.priceTrend >= 0 ? '+' : ''}{selectedPort.priceTrend.toFixed(1)}%
@@ -140,23 +165,23 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <div className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase mb-1">{t('intelligencePanel.availability')}</div>
-                                <div className={`text-xl font-bold flex items-center ${selectedPort.methanolSupply === 'High' ? 'text-emerald-500' : 'text-amber-500'}`}>
-                                    {selectedPort.methanolSupply}
-                                    <div className={`ml-2 w-3 h-3 rounded-full ${selectedPort.methanolSupply === 'High' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                                <div className={`text-xl font-bold flex items-center ${availabilityTone}`}>
+                                    {availabilityLabel}
+                                    <div className={`ml-2 w-3 h-3 rounded-full ${availabilityDotTone}`}></div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Port Specific Data — auto-hidden when no real data */}
-                        {(selectedPort.details.avgWaitingTime > 0 || selectedPort.details.activeBarges > 0) && (
+                        {selectedPort.details && (selectedPort.details.avgWaitingTime > 0 || selectedPort.details.activeBarges > 0) && (
                             <div className="grid grid-cols-2 gap-3">
                                 {selectedPort.details.avgWaitingTime > 0 && (
                                     <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
                                             <Anchor size={10} /> {t('intelligencePanel.congestion')}
                                         </div>
-                                        <div className={`text-sm font-bold ${selectedPort.details.congestionLevel === 'High' ? 'text-red-500' : 'text-green-600'}`}>
-                                            {selectedPort.details.congestionLevel}
+                                        <div className={`text-sm font-bold ${congestionLabel === 'High' ? 'text-red-500' : congestionLabel === 'Moderate' ? 'text-amber-500' : 'text-green-600'}`}>
+                                            {congestionLabel}
                                         </div>
                                         <div className="text-[10px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.waitAvg', { hours: selectedPort.details.avgWaitingTime })}</div>
                                     </div>
@@ -174,7 +199,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         )}
 
                         {/* Compliance & Future Projects */}
-                        {selectedPort.details.upcomingProjects && (
+                        {selectedPort.details?.upcomingProjects && selectedPort.details.upcomingProjects.length > 0 && (
                             <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
                                 <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
                                     <Shield size={16} className="text-blue-500" /> {t('intelligencePanel.futurePipeline')}
@@ -198,8 +223,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         {/* Mock Price Chart */}
                         <div className="border border-slate-100 dark:border-slate-700 rounded-lg p-4">
                             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3">{t('intelligencePanel.methanolPrice7Day')}</h3>
-                            <div className="h-24 flex items-end space-x-1">
-                                {selectedPort.details.priceHistory.map((price, i) => {
+                            {hasPriceHistory ? (
+                                <div className="h-24 flex items-end space-x-1">
+                                    {selectedPort.details!.priceHistory.map((price, i) => {
                                     const h = (price / 600) * 100; // Normalize roughly
                                     return (
                                         <div key={i} className="flex-1 bg-blue-100 rounded-t hover:bg-[#5DADE2] transition-colors relative group">
@@ -209,8 +235,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                             <div style={{ height: `${h}%` }}></div>
                                         </div>
                                     )
-                                })}
-                            </div>
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-[11px] text-slate-500 dark:text-slate-400">No live port intelligence history yet.</div>
+                            )}
                         </div>
 
                         {/* CTA */}
@@ -227,63 +256,32 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <>
                         {/* Arbitrage Opportunity hidden — pending real data integration */}
 
-                        {/* Forward Curves */}
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
-                                <LineChart size={14} className="text-slate-400" />
-                            </div>
-                            <div className="space-y-3">
-                                {curveProducts.length === 0 && (
-                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">Loading curve data...</div>
-                                )}
-                                {curveProducts.map((item, i) => (
-                                    <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
-                                            <div className={`text-xs font-bold ${item.up ? 'text-green-600' : 'text-red-500'}`}>
-                                                {item.change}
+                        {curveProducts.length > 0 && (
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
+                                    <LineChart size={14} className="text-slate-400" />
+                                </div>
+                                <div className="space-y-3">
+                                    {curveProducts.map((item, i) => (
+                                        <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
+                                                <div className={`text-xs font-bold ${item.up ? 'text-green-600' : 'text-red-500'}`}>
+                                                    {item.change}
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">{item.price}</div>
+                                                <div className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
+                                                    {item.curve}
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <div className="text-xs text-slate-500 dark:text-slate-400">{item.price}</div>
-                                            <div className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                                                {item.curve}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-
-                        {/* Education */}
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
-                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
-                                <GraduationCap size={16} className="text-emerald-500" /> Education
-                            </h3>
-                            <div className="space-y-2">
-                                <button
-                                    onClick={() => onNavigate('TRAINING')}
-                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
-                                >
-                                    <Info size={12} className="text-emerald-500 shrink-0" />
-                                    <div>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">FuelEU & EU ETS Basics</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Regulation overview for operators</div>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => onNavigate('TRAINING')}
-                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
-                                >
-                                    <Info size={12} className="text-emerald-500 shrink-0" />
-                                    <div>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">Alternative Fuel Guide</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Methanol, ammonia, biofuel comparison</div>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
+                        )}
                     </>
                 )}
 

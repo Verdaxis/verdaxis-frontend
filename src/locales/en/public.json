@@ -696,8 +696,10 @@
   },
   "pilot": {
     "hero": {
+      "eyebrow": "Pilot programme",
       "title": "Pilot Programme",
-      "subtitle": "We are deliberately onboarding select producers, buyers, and traders to ensure a professional, error-free launch. Quality over quantity."
+      "subtitle": "We are deliberately onboarding select producers, buyers, and traders to ensure a professional, error-free launch. Quality over quantity.",
+      "button": "Go to Signup"
     },
     "includes": {
       "title": "What the Pilot Includes",

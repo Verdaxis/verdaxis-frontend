@@ -44,7 +44,7 @@
   },
   "buyerMap": {
     "loading": "正在加载情报地图...",
-    "methanolAvails": "甲醇供应（主要港口）",
+    "marketAvails": "实时市场供给",
     "lastDone": "最新成交",
     "recentActivity": "近期活动",
     "recentTrades": "近期交易",

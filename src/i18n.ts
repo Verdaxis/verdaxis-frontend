@@ -40,6 +40,8 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    supportedLngs: SUPPORTED_LANGS,
+    nonExplicitSupportedLngs: true,
     defaultNS: 'common',
     ns: namespaces,
     interpolation: { escapeValue: false },

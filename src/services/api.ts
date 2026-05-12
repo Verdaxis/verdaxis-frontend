@@ -1,18 +1,104 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, BenchmarkQuoteResponse, SupplierListingTemplate, WatchlistSummary, WatchlistEventsPage, WatchlistTarget, MarketProduct, OrderSide, OrderBookOrder } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
 import { API_URL } from './config';
-import { getAccessToken } from './authToken';
+
+export const mapPortResponse = (p: any): Port => ({
+    ...p,
+    location: { lat: p.lat, lng: p.lng },
+    priceMethanol: Number(p.intelligence?.methanol_price_avg ?? 0),
+    priceTrend: Number(p.intelligence?.price_trend ?? 0),
+    methanolSupply: 'Unknown',
+    biofuelSupply: 'Unknown',
+    details: {
+        ...p.details,
+        plattsPrice: p.intelligence?.methanol_price_avg ?? undefined,
+        ffaPrice: p.intelligence?.biofuel_price_avg ?? undefined,
+        priceHistory: Array.isArray(p.details?.priceHistory) ? p.details.priceHistory : [],
+        congestionLevel: p.intelligence?.congestion_level ?? 'Unknown',
+        avgWaitingTime: Number(p.details?.avgWaitingTime ?? 0),
+        activeBarges: Number(p.details?.activeBarges ?? 0),
+        forecastSupply: p.details?.forecastSupply ?? 'Unknown',
+        upcomingProjects: Array.isArray(p.details?.upcomingProjects) ? p.details.upcomingProjects : [],
+        swapPrice: p.details?.swapPrice ?? undefined,
+        lastDone: p.details?.lastDone ?? undefined,
+    }
+});
 
 // Helper to get auth header
+const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+
 const getHeaders = () => {
-    const token = getAccessToken();
-    return token
-        ? {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+    const token = getToken();
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    };
+};
+
+const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+const refreshAccessToken = async (): Promise<string | null> => {
+    if (refreshInFlight) return refreshInFlight;
+
+    refreshInFlight = (async () => {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (!refreshToken) return null;
+        try {
+            const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh_token: refreshToken }),
+            }, 15000);
+            if (!res.ok) return null;
+            const data = await res.json();
+            if (!data?.access_token) return null;
+            localStorage.setItem('token', data.access_token);
+            if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+            return data.access_token as string;
+        } catch {
+            return null;
         }
-        : {
-            'Content-Type': 'application/json',
-        };
+    })();
+
+    try {
+        return await refreshInFlight;
+    } finally {
+        refreshInFlight = null;
+    }
+};
+
+const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Headers => {
+    const merged = new Headers(headers);
+    if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
+    const authToken = token || getToken();
+    if (authToken) {
+        merged.set('Authorization', `Bearer ${authToken}`);
+    } else {
+        merged.delete('Authorization');
+    }
+    return merged;
+};
+
+const formatApiErrorDetail = (detail: unknown): string => {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+        const messages = detail
+            .map((item) => {
+                if (typeof item === 'string') return item;
+                if (item && typeof item === 'object' && 'msg' in item) {
+                    return String((item as { msg?: unknown }).msg ?? '');
+                }
+                return '';
+            })
+            .filter(Boolean);
+        if (messages.length > 0) return messages.join('; ');
+    }
+    if (detail && typeof detail === 'object') {
+        if ('msg' in detail) return String((detail as { msg?: unknown }).msg ?? 'Request failed');
+        return JSON.stringify(detail);
+    }
+    return '';
 };
 
 const handleResponse = async (res: Response) => {
@@ -20,22 +106,13 @@ const handleResponse = async (res: Response) => {
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.detail || res.statusText);
+            throw new Error(formatApiErrorDetail(errorJson.detail) || res.statusText);
         } catch (e) {
             if (e instanceof Error && e.message !== errorText) throw e;
             throw new Error(errorText || res.statusText);
         }
     }
-
-    if (res.status === 204 || res.status === 205) {
-        return null;
-    }
-
-    const text = await res.text();
-    if (!text) {
-        return null;
-    }
-    return JSON.parse(text);
+    return res.json();
 };
 
 // Fetch with timeout to prevent indefinite loading spinners
@@ -54,7 +131,26 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
 const fetchApi = async (path: string, options?: RequestInit) => {
     // Mutations get a longer timeout (30s) since they must not be silently dropped
     const isMutation = options?.method && options.method !== 'GET';
-    const res = await fetchWithTimeout(`${API_URL}${path}`, options, isMutation ? 30000 : 15000);
+    const timeout = isMutation ? 30000 : 15000;
+    const url = `${API_URL}${path}`;
+    const initialOptions: RequestInit = {
+        ...options,
+        headers: withAuthHeader(options?.headers),
+    };
+
+    let res = await fetchWithTimeout(url, initialOptions, timeout);
+
+    if (res.status === 401 && !shouldSkipRefresh(path)) {
+        const refreshedToken = await refreshAccessToken();
+        if (refreshedToken) {
+            const retryOptions: RequestInit = {
+                ...options,
+                headers: withAuthHeader(options?.headers, refreshedToken),
+            };
+            res = await fetchWithTimeout(url, retryOptions, timeout);
+        }
+    }
+
     return handleResponse(res);
 };
 
@@ -71,26 +167,7 @@ export const api = {
         list: async (): Promise<Port[]> => {
             const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
             const data = await handleResponse(res);
-            // Transform backend data to frontend Port interface
-            return data.map((p: any) => ({
-                ...p,
-                location: { lat: p.lat, lng: p.lng },
-                // Ensure default values for missing intelligence/details if necessary
-                priceMethanol: p.intelligence?.methanol_price_avg || 0,
-                priceTrend: p.intelligence?.price_trend ?? 0,
-                methanolSupply: p.intelligence?.congestion_level || 'Medium', // Use congestion as proxy or default
-                details: {
-                    ...p.details,
-                    plattsPrice: p.intelligence?.methanol_price_avg,
-                    ffaPrice: p.intelligence?.biofuel_price_avg,
-                    priceHistory: p.details?.priceHistory || [500, 510, 505, 520, 515, 525, 530], // Mock history if missing
-                    congestionLevel: p.intelligence?.congestion_level || 'Low',
-                    avgWaitingTime: 0,
-                    activeBarges: 0,
-                    forecastSupply: 'Balanced',
-                    upcomingProjects: []
-                }
-            }));
+            return data.map(mapPortResponse);
         },
         getById: async (id: string): Promise<Port | undefined> => {
             const res = await fetchWithTimeout(`${API_URL}/ports/${id}`, { headers: getHeaders() });
@@ -305,25 +382,27 @@ export const api = {
     },
 
     orderbook: {
-        listWithCI: async (params?: { region?: string; fuel_type?: string; side?: string }) => {
+        listWithCI: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.side) searchParams.append('side', params.side);
             const query = searchParams.toString();
             return fetchApi(`/orderbook/with-ci${query ? `?${query}` : ''}`);
         },
-        list: async (params?: { region?: string; fuel_type?: string; side?: string; availability?: string }) => {
+        list: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
+            if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.side) searchParams.append('side', params.side);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
-        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string }) => {
+        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -334,7 +413,7 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<OrderBookOrder>> => {
+        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -345,7 +424,7 @@ export const api = {
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
         },
         // Backward-compatible: returns array
-        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string }) => {
+        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -356,7 +435,7 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: MarketProduct; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<OrderBookOrder>> => {
+        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -369,29 +448,17 @@ export const api = {
         myOrders: async () => {
             return fetchApi('/orderbook/my', { headers: getHeaders() });
         },
-        latestAskTemplate: async (): Promise<SupplierListingTemplate | null> => {
-            return fetchApi('/orderbook/my/latest-ask-template', { headers: getHeaders() });
-        },
         create: async (data: {
-            side: OrderSide;
+            side: string;
             product_id: string;
-            delivery_point_id: string;
+            delivery_point_id?: string;
             quantity_mt: number;
             price_per_mt_usd: number;
             availability_window: string;
             is_anonymous?: boolean;
+            delivery_window_start?: string;
+            delivery_window_end?: string;
             expires_at?: string;
-            certifications?: string[];
-            certification_declared?: boolean;
-            certification_scheme?: string | null;
-            specification_standard?: string | null;
-            msds_available?: boolean;
-            carbon_intensity_gco2_mj?: number | null;
-            carbon_intensity_method?: string | null;
-            feedstock?: string | null;
-            origin?: string | null;
-            off_spec?: boolean;
-            off_spec_notes?: string | null;
         }) => {
             return fetchApi('/orderbook', {
                 method: 'POST',
@@ -424,16 +491,10 @@ export const api = {
     },
 
     prices: {
-        getSummaries: async (params?: {
-            market_product?: MarketProduct;
-            delivery_point_id?: string;
-            availability_window?: string;
-            fuel_type?: string;
-            region?: string;
-            hours?: number;
-        }): Promise<PriceDiscoveryResponse> => {
+        getSummaries: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; hours?: number }): Promise<PriceDiscoveryResponse> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.product_id) searchParams.append('product_id', params.product_id);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
@@ -442,44 +503,19 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/prices${query ? `?${query}` : ''}`);
         },
-        getReference: async (params?: {
-            market_product?: MarketProduct;
-            delivery_point_id?: string;
-            availability_window?: string;
-            fuel_type?: string;
-            region?: string;
-            visibility?: 'internal' | 'external';
-        }): Promise<{ prices: Array<{ market_product?: MarketProduct | null; fuel_type: string; delivery_point_id?: string; delivery_point_name?: string | null; availability_window?: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.product_id) searchParams.append('product_id', params.product_id);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
             if (params?.visibility) searchParams.append('visibility', params.visibility);
+            if (params?.date_from) searchParams.append('date_from', params.date_from);
+            if (params?.date_to) searchParams.append('date_to', params.date_to);
             const query = searchParams.toString();
             return fetchApi(`/prices/reference${query ? `?${query}` : ''}`);
-        },
-    },
-
-    benchmarks: {
-        lookup: async (params: {
-            market_product: string;
-            delivery_point_id: string;
-            availability_window: string;
-        }): Promise<BenchmarkQuoteResponse> => {
-            const searchParams = new URLSearchParams();
-            searchParams.append('market_product', params.market_product);
-            searchParams.append('delivery_point_id', params.delivery_point_id);
-            searchParams.append('availability_window', params.availability_window);
-            const data = await fetchApi(`/benchmarks?${searchParams.toString()}`);
-            return {
-                ...data,
-                items: (data.items || []).map((item: any) => ({
-                    ...item,
-                    benchmark_price_per_mt_usd: Number(item.benchmark_price_per_mt_usd),
-                })),
-            };
         },
     },
 
@@ -616,10 +652,9 @@ export const api = {
             if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             return fetchApi(`/curves/forward?${searchParams.toString()}`);
         },
-        exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
+        exportCsvUrl: (product_id: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);
-            if (delivery_point_id) searchParams.append('delivery_point_id', delivery_point_id);
             searchParams.append('format', 'csv');
             return `${API_URL}/curves/forward/export?${searchParams.toString()}`;
         },
@@ -631,7 +666,7 @@ export const api = {
         },
         create: async (data: {
             product_id: string;
-            delivery_point_id: string;
+            delivery_point_id?: string;
             direction: 'above' | 'below';
             threshold_usd: number;
         }): Promise<import('../types').PriceAlert> => {
@@ -663,15 +698,12 @@ export const api = {
     },
 
     rfq: {
-        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; expires_in_hours?: number }) => {
+        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; is_anonymous?: boolean; expires_in_hours?: number }) => {
             return fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },
-        list: async (params?: { status?: string; skip?: number; limit?: number; region?: string; fuel_type?: string; availability_window?: string }) => {
+        list: async (params?: { status?: string; skip?: number; limit?: number }) => {
             const sp = new URLSearchParams();
             if (params?.status) sp.append('status', params.status);
-            if (params?.region) sp.append('region', params.region);
-            if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
-            if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('skip', String(params?.skip ?? 0));
             sp.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() });
@@ -704,12 +736,12 @@ export const api = {
     },
 
     tradeTape: {
-        list: async (params?: { fuel_type?: string; market_product?: MarketProduct; region?: string; availability?: string; limit?: number; skip?: number }) => {
+        list: async (params?: { fuel_type?: string; market_product?: string; region?: string; availability_window?: string; limit?: number; skip?: number }) => {
             const sp = new URLSearchParams();
             if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
             if (params?.market_product) sp.append('market_product', params.market_product);
             if (params?.region) sp.append('region', params.region);
-            if (params?.availability) sp.append('availability_window', params.availability);
+            if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('limit', String(params?.limit ?? 20));
             sp.append('skip', String(params?.skip ?? 0));
             return fetchApi(`/trade-tape?${sp.toString()}`);
@@ -717,33 +749,16 @@ export const api = {
     },
 
     watchlists: {
-        getRadar: async (): Promise<WatchlistSummary> => fetchApi('/watchlists/me', { headers: getHeaders() }),
-        getDetail: async (watchlistId: string): Promise<WatchlistSummary> => fetchApi(`/watchlists/${watchlistId}`, { headers: getHeaders() }),
-        createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<WatchlistTarget> => {
-            return fetchApi(`/watchlists/${watchlistId}/targets`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ target_type: 'SLICE', ...data }),
-            });
+        list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
+        create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
+        addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
+            return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },
-        createPinTarget: async (watchlistId: string, orderId: string): Promise<WatchlistTarget> => {
-            return fetchApi(`/watchlists/${watchlistId}/targets`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ target_type: 'PIN', order_id: orderId }),
-            });
+        removeEntry: async (watchlistId: string, entryId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}/entries/${entryId}`, { method: 'DELETE', headers: getHeaders() });
         },
-        removeTarget: async (watchlistId: string, targetId: string): Promise<void> => {
-            await fetchApi(`/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
-        },
-        listEvents: async (watchlistId: string, params?: { cursor?: string | null; limit?: number }): Promise<WatchlistEventsPage> => {
-            const sp = new URLSearchParams();
-            if (params?.cursor) sp.append('cursor', params.cursor);
-            sp.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/watchlists/${watchlistId}/events?${sp.toString()}`, { headers: getHeaders() });
-        },
-        markEventRead: async (watchlistId: string, eventId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
+        delete: async (watchlistId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
         },
     },
 
