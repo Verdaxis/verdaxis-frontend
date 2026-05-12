@@ -33,6 +33,9 @@ import {
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
+export const getTerminalFuelType = (value: string | null | undefined): string | undefined =>
+    getMarketplaceFuelType(value) || value || undefined;
+
 // --- Types ---
 interface TerminalRow {
     id: string;
