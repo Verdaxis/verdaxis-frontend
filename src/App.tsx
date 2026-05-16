@@ -86,22 +86,19 @@ const PartnerLandingPage = lazyNamed(() => import('./pages/public/PartnerLanding
 const PrivacyPage = lazyNamed(() => import('./pages/public/PrivacyPage'), 'PrivacyPage');
 const TermsPage = lazyNamed(() => import('./pages/public/TermsPage'), 'TermsPage');
 
-const prefetchPlatformScreens = () => {
+const prefetchActivationScreens = () => {
   void Promise.all([
-    import('./components/BuyerMap'),
     import('./components/Marketplace'),
-    import('./components/MarketTerminal'),
-    import('./components/ForwardCurve'),
     import('./components/OrderPlaceModal'),
   ]).catch(() => undefined);
 };
 
 const schedulePlatformPrefetch = () => {
   if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(prefetchPlatformScreens, { timeout: 3000 });
+    window.requestIdleCallback(prefetchActivationScreens, { timeout: 3000 });
     return;
   }
-  window.setTimeout(prefetchPlatformScreens, 1000);
+  window.setTimeout(prefetchActivationScreens, 1000);
 };
 
 const prefetchDashboardPage = (page: Page) => {

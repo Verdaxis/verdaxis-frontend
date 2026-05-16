@@ -76,4 +76,31 @@ describe('platform regression guards', () => {
     expect(appSource).toContain('<Suspense fallback={<DashboardContentLoading />}>');
     expect(appSource).toContain('<Suspense fallback={null}>');
   });
+
+  it('keeps global dashboard prefetch focused on activation, not heavy map and chart chunks', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const globalPrefetch = appSource.slice(
+      appSource.indexOf('const prefetchActivationScreens'),
+      appSource.indexOf('const schedulePlatformPrefetch')
+    );
+
+    expect(globalPrefetch).toContain("import('./components/Marketplace')");
+    expect(globalPrefetch).toContain("import('./components/OrderPlaceModal')");
+    expect(globalPrefetch).not.toContain("import('./components/BuyerMap')");
+    expect(globalPrefetch).not.toContain("import('./components/MarketTerminal')");
+    expect(globalPrefetch).not.toContain("import('./components/ForwardCurve')");
+    expect(appSource).toContain("case 'MAP':");
+    expect(appSource).toContain("case 'TERMINAL':");
+  });
+
+  it('keeps unrelated map and chart vendors split by the surfaces that use them', () => {
+    const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8');
+
+    expect(viteConfig).toContain("'vendor-lightweight-charts': ['lightweight-charts']");
+    expect(viteConfig).toContain("'vendor-recharts': ['recharts']");
+    expect(viteConfig).toContain("'vendor-maplibre': ['maplibre-gl']");
+    expect(viteConfig).toContain("'vendor-leaflet': ['leaflet', 'react-leaflet']");
+    expect(viteConfig).not.toContain("'vendor-charts': ['lightweight-charts', 'recharts']");
+    expect(viteConfig).not.toContain("'vendor-maps': ['maplibre-gl', 'leaflet', 'react-leaflet']");
+  });
 });
