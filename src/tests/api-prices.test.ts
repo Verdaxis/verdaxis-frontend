@@ -101,6 +101,32 @@ describe('price discovery API client', () => {
         expect(String(fetchMock.mock.calls[1]?.[0])).toContain('visibility=external');
     });
 
+    it('sends delivery point filters to orderbook side-specific reads', async () => {
+        fetchMock
+            .mockResolvedValueOnce(jsonResponse({ items: [], total: 0, skip: 0, limit: 100 }))
+            .mockResolvedValueOnce(jsonResponse({ items: [], total: 0, skip: 0, limit: 100 }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await api.orderbook.listBids({
+            market_product: 'BIO_METHANOL',
+            delivery_point_id: 'port-123',
+        });
+        await api.orderbook.listAsks({
+            market_product: 'BIO_METHANOL',
+            delivery_point_id: 'port-123',
+        });
+
+        const urls = fetchMock.mock.calls.map(([url]) => String(url));
+        expect(urls[0]).toContain('/orderbook/bids?');
+        expect(urls[0]).toContain('market_product=BIO_METHANOL');
+        expect(urls[0]).toContain('delivery_point_id=port-123');
+        expect(urls[0]).toContain('limit=100');
+        expect(urls[1]).toContain('/orderbook/asks?');
+        expect(urls[1]).toContain('market_product=BIO_METHANOL');
+        expect(urls[1]).toContain('delivery_point_id=port-123');
+        expect(urls[1]).toContain('limit=100');
+    });
+
     it('does not cache failed market-data reads', async () => {
         fetchMock
             .mockResolvedValueOnce(new Response('upstream failed', { status: 500 }))

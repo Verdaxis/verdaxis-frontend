@@ -93,12 +93,14 @@ export const terminalWindowMatches = (orderWindow: string | null | undefined, co
 
 type TerminalOrdersCacheEntry = {
     authScope: string;
+    sliceKey: string;
     orders: OrderBookOrder[];
     updatedAt: number;
 };
 
 type TerminalOrdersRequest = {
     authScope: string;
+    sliceKey: string;
     request: Promise<OrderBookOrder[]>;
 };
 
@@ -112,12 +114,20 @@ let terminalDeliveryPointsCache: DeliveryPoint[] | null = null;
 const isTerminalOrdersCacheFresh = (
     cache: TerminalOrdersCacheEntry | null,
     authScope: string,
+    sliceKey: string,
     now = Date.now()
 ) => Boolean(
     cache
     && cache.authScope === authScope
+    && cache.sliceKey === sliceKey
     && now - cache.updatedAt < TERMINAL_ORDERBOOK_CACHE_TTL_MS
 );
+
+const getTerminalOrdersSliceKey = (
+    selectedProduct: MarketProduct,
+    selectedDeliveryPointId: string | undefined,
+    selectedPort: string
+) => `${selectedProduct}:${selectedDeliveryPointId ? `dp:${selectedDeliveryPointId}` : `region:${selectedPort.toLowerCase()}`}`;
 
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
@@ -221,7 +231,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const { theme } = useTheme();
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const authScope = `${user?.id ?? 'anonymous'}:${user?.organization_id ?? 'none'}:${user?.role ?? 'none'}`;
-    const hasInitialOrdersCache = isTerminalOrdersCacheFresh(terminalOrdersCache, authScope);
 
     // Port & Fuel selectors
     const [selectedPort, setSelectedPort] = useState<string>(() => {
@@ -236,9 +245,19 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
 
     // Orders from API (orderbook sync)
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>(() => terminalDeliveryPointsCache ?? []);
+    const selectedProductOption = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === selectedProduct);
+    const selectedFuelType = selectedProductOption?.fuelType || getMarketplaceFuelType(selectedProduct) || 'Methanol';
+    const selectedProductLabel = getMarketplaceProductLabel(selectedProduct, selectedFuelType);
+    const selectedDeliveryPoint = useMemo(
+        () => deliveryPoints.find((point) => point.name.toLowerCase() === selectedPort.toLowerCase()),
+        [deliveryPoints, selectedPort]
+    );
+    const selectedDeliveryPointId = selectedDeliveryPoint?.id;
+    const terminalOrdersSliceKey = getTerminalOrdersSliceKey(selectedProduct, selectedDeliveryPointId, selectedPort);
+    const hasInitialOrdersCache = isTerminalOrdersCacheFresh(terminalOrdersCache, authScope, terminalOrdersSliceKey);
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => hasInitialOrdersCache ? terminalOrdersCache?.orders ?? [] : []);
     const [loading, setLoading] = useState(!hasInitialOrdersCache);
-    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>(() => terminalDeliveryPointsCache ?? []);
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
@@ -249,6 +268,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const tvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const orderbookRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const authScopeRef = useRef(authScope);
+    const terminalOrdersSliceKeyRef = useRef(terminalOrdersSliceKey);
 
     // Responsive grid width
     const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -285,24 +305,44 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [authScope]);
 
     useEffect(() => {
+        terminalOrdersSliceKeyRef.current = terminalOrdersSliceKey;
+    }, [terminalOrdersSliceKey]);
+
+    useEffect(() => {
         localStorage.setItem('verdaxis_marketplace_product', selectedProduct);
     }, [selectedProduct]);
 
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
     const fetchOrders = useCallback(async (silent = false, options: { force?: boolean } = {}) => {
-        if (!options.force && isTerminalOrdersCacheFresh(terminalOrdersCache, authScope)) {
+        if (!options.force && isTerminalOrdersCacheFresh(terminalOrdersCache, authScope, terminalOrdersSliceKey)) {
             setAllOrders(terminalOrdersCache?.orders ?? []);
             setLoading(false);
             return;
         }
         if (!silent) setLoading(true);
         try {
-            if (!terminalOrdersInFlight || options.force || terminalOrdersInFlight.authScope !== authScope) {
-                const request = api.orderbook.list()
-                    .then((data) => {
+            if (
+                !terminalOrdersInFlight
+                || options.force
+                || terminalOrdersInFlight.authScope !== authScope
+                || terminalOrdersInFlight.sliceKey !== terminalOrdersSliceKey
+            ) {
+                const orderbookParams = {
+                    market_product: selectedProduct,
+                    ...(selectedDeliveryPointId
+                        ? { delivery_point_id: selectedDeliveryPointId }
+                        : { region: selectedPort }),
+                };
+                const request = Promise.all([
+                    api.orderbook.listBids(orderbookParams),
+                    api.orderbook.listAsks(orderbookParams),
+                ])
+                    .then(([bids, asks]) => {
+                        const data = [...bids, ...asks];
                         if (terminalOrdersInFlight?.request === request) {
                             terminalOrdersCache = {
                                 authScope,
+                                sliceKey: terminalOrdersSliceKey,
                                 orders: data,
                                 updatedAt: Date.now(),
                             };
@@ -314,23 +354,23 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             terminalOrdersInFlight = null;
                         }
                     });
-                terminalOrdersInFlight = { authScope, request };
+                terminalOrdersInFlight = { authScope, sliceKey: terminalOrdersSliceKey, request };
             }
             const data = await terminalOrdersInFlight.request;
-            if (authScopeRef.current === authScope) {
+            if (authScopeRef.current === authScope && terminalOrdersSliceKeyRef.current === terminalOrdersSliceKey) {
                 setAllOrders(data);
             }
         } catch (e) {
             console.error('Failed to load orderbook for terminal', e);
         } finally {
-            if (!silent && authScopeRef.current === authScope) setLoading(false);
+            if (!silent && authScopeRef.current === authScope && terminalOrdersSliceKeyRef.current === terminalOrdersSliceKey) setLoading(false);
         }
-    }, [authScope]);
+    }, [authScope, selectedDeliveryPointId, selectedPort, selectedProduct, terminalOrdersSliceKey]);
 
     // Initial fetch on mount (no polling — SSE handles updates)
     useEffect(() => {
-        fetchOrders(isTerminalOrdersCacheFresh(terminalOrdersCache, authScope));
-    }, [authScope, fetchOrders]);
+        fetchOrders(isTerminalOrdersCacheFresh(terminalOrdersCache, authScope, terminalOrdersSliceKey));
+    }, [authScope, fetchOrders, terminalOrdersSliceKey]);
 
     useEffect(() => {
         let cancelled = false;
@@ -397,14 +437,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Fetch real price summaries from price discovery API
     const [priceSummaries, setPriceSummaries] = useState<PriceSummary[]>([]);
-    const selectedProductOption = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === selectedProduct);
-    const selectedFuelType = selectedProductOption?.fuelType || getMarketplaceFuelType(selectedProduct) || 'Methanol';
-    const selectedProductLabel = getMarketplaceProductLabel(selectedProduct, selectedFuelType);
-    const selectedDeliveryPoint = useMemo(
-        () => deliveryPoints.find((point) => point.name.toLowerCase() === selectedPort.toLowerCase()),
-        [deliveryPoints, selectedPort]
-    );
-    const selectedDeliveryPointId = selectedDeliveryPoint?.id;
 
     useEffect(() => {
         const fetchPrices = async () => {

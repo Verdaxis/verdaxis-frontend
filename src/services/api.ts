@@ -504,64 +504,70 @@ export const api = {
     },
 
     orderbook: {
-        listWithCI: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string }) => {
+        listWithCI: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; side?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.side) searchParams.append('side', params.side);
             const query = searchParams.toString();
             return fetchApi(`/orderbook/with-ci${query ? `?${query}` : ''}`);
         },
-        list: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }) => {
+        list: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; side?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.side) searchParams.append('side', params.side);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
-        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
             const res = await fetchApi(`/orderbook/bids?${searchParams.toString()}`);
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
         },
         // Backward-compatible: returns array
-        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
             const res = await fetchApi(`/orderbook/asks?${searchParams.toString()}`);
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; delivery_point_id?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));

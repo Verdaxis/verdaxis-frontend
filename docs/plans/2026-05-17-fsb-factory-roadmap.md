@@ -79,6 +79,38 @@ Verdaxis should converge on one clear product model:
 - Frontend `verify` now checks the production build artifact after `build:prod`, proving the split vendor chunks exist, legacy grouped chunks are absent, and initial HTML does not eagerly reference the heavy map/chart vendors.
 - Dashboard page switches now emit passive route-commit timing through `performance.measure`, a `verdaxis:dashboard-navigation` browser event, and the bounded `window.__VERDAXIS_NAV_METRICS__` buffer. `npm run smoke:navigation` layers page-specific usability waits on top of those route metrics so Intelligence Map waits for MapLibre load, Marketplace waits for listings/error completion, and Market Terminal waits for the embedded Forward Curve. It writes cold/warm timing summaries under `dogfood/`.
 - First local production-build navigation smoke against the staging API showed the route commit itself is fast, but true usable timings are still slow: Terminal/Forward Curve switches are commonly around 5 seconds and Map readiness around 2-4.5 seconds. This points the next optimization loop at forward-curve/catalog/API waits and MapLibre/tile initialization rather than React route switching.
+- Market Terminal now reads the active product plus delivery-point orderbook slice through `/orderbook/bids` and `/orderbook/asks` instead of blocking readiness on the unfiltered full `/orderbook` response. Live staging timing before the change was about 5.37s for full orderbook vs about 0.15-0.16s per side-specific slice request.
+
+## Grill Resolution — Terminal Navigation Latency
+
+### Proceed Decision
+
+Proceed with Terminal-first slice-aware orderbook reads.
+
+### Canonical Terms
+
+- Active market slice: one canonical market product plus delivery point, optionally narrowed by availability window.
+
+### Assumptions
+
+- Market Terminal is a monitoring surface for the selected product-port context, not a second source of truth.
+- Bid/ask detail is still needed for the existing depth panel and terminal rows, so aggregate-only data is not a drop-in replacement yet.
+
+### Resolved Decisions
+
+- Replace the blocking full-orderbook Terminal fetch with product plus delivery-point bid/ask reads.
+- Scope the Terminal cache and in-flight dedupe by auth scope and active market slice so quick product/port switches cannot repaint stale liquidity.
+- Keep the SSE refresh debounced. If events do not include enough slice metadata, refresh the active slice rather than trying to infer affected slices client-side.
+
+### Open Decisions
+
+- Backend: add or harden a purpose-built terminal-slice or aggregate endpoint for best bid/ask by window, with pagination and price ordering guarantees.
+- Dogfood: tighten navigation smoke budgets only after live staging shows Terminal usable timing under target on repeated runs.
+
+### Documentation Updates
+
+- `CONTEXT.md`: not needed; existing Market Terminal glossary still applies.
+- ADRs: deferred; this is reversible endpoint selection, not a hard-to-reverse architecture decision.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 
