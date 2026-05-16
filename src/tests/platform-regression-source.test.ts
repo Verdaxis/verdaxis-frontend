@@ -95,6 +95,7 @@ describe('platform regression guards', () => {
 
   it('keeps unrelated map and chart vendors split by the surfaces that use them', () => {
     const viteConfig = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8');
+    const packageJson = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8');
 
     expect(viteConfig).toContain("'vendor-lightweight-charts': ['lightweight-charts']");
     expect(viteConfig).toContain("'vendor-recharts': ['recharts']");
@@ -102,5 +103,7 @@ describe('platform regression guards', () => {
     expect(viteConfig).toContain("'vendor-leaflet': ['leaflet', 'react-leaflet']");
     expect(viteConfig).not.toContain("'vendor-charts': ['lightweight-charts', 'recharts']");
     expect(viteConfig).not.toContain("'vendor-maps': ['maplibre-gl', 'leaflet', 'react-leaflet']");
+    expect(packageJson).toContain('"build:check": "node scripts/check-build-artifacts.mjs"');
+    expect(packageJson).toContain('npm run build:prod && npm run build:check');
   });
 });

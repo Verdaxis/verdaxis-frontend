@@ -76,6 +76,7 @@ Verdaxis should converge on one clear product model:
 - Market Terminal orderbook reads now use auth-scoped short-lived freshness, in-flight dedupe, and debounced SSE refreshes so rapid platform switching and bursty orderbook events do not produce redundant full-orderbook requests.
 - Price-summary, reference-price, and forward-curve reads now use token-scoped, endpoint-specific freshness windows with in-flight dedupe: 15s for summaries, 60s for reference prices, and 10s for orderbook-derived forward curves. Local order mutations and orderbook SSE invalidate curves; trade lifecycle mutations and trade SSE invalidate price reads.
 - Map and chart vendor bundles are now split by actual surface: MapLibre vs Leaflet, and lightweight-charts vs Recharts. Dashboard idle prefetch is limited to the activation path so every app session does not automatically download map/chart-heavy chunks.
+- Frontend `verify` now checks the production build artifact after `build:prod`, proving the split vendor chunks exist, legacy grouped chunks are absent, and initial HTML does not eagerly reference the heavy map/chart vendors.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 
