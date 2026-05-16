@@ -19,6 +19,7 @@ interface SidebarProps {
     viewMode: ViewMode;
     currentPage: Page;
     onNavigate: (page: Page) => void;
+    onPrefetchPage?: (page: Page) => void;
     isCollapsed: boolean;
     onToggleCollapse: () => void;
     isMobileOpen: boolean;
@@ -31,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     viewMode,
     currentPage,
     onNavigate,
+    onPrefetchPage,
     isCollapsed,
     onToggleCollapse,
     isMobileOpen,
@@ -100,6 +102,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <div className="px-3 pt-4 pb-2">
                 <button
+                    onMouseEnter={() => onPrefetchPage?.('MARKETPLACE')}
+                    onFocus={() => onPrefetchPage?.('MARKETPLACE')}
                     onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
@@ -113,6 +117,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip key={item.key} content={isCollapsed ? item.label : ''} position="right">
                         <button
                             data-tour={`nav-${item.key}`}
+                            onMouseEnter={() => onPrefetchPage?.(item.page)}
+                            onFocus={() => onPrefetchPage?.(item.page)}
                             onClick={() => handleNavigate(item.page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentPage === item.page

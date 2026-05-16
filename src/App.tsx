@@ -89,6 +89,51 @@ const schedulePlatformPrefetch = () => {
   window.setTimeout(prefetchPlatformScreens, 1000);
 };
 
+const prefetchDashboardPage = (page: Page) => {
+  switch (page) {
+    case 'MAP':
+      void import('./components/BuyerMap').catch(() => undefined);
+      break;
+    case 'MARKETPLACE':
+    case 'DEMAND_FEED':
+      void Promise.all([
+        import('./components/Marketplace'),
+        import('./components/OrderPlaceModal'),
+      ]).catch(() => undefined);
+      break;
+    case 'TERMINAL':
+      void Promise.all([
+        import('./components/MarketTerminal'),
+        import('./components/ForwardCurve'),
+      ]).catch(() => undefined);
+      break;
+    case 'DATA_ANALYTICS':
+      void import('./components/DataAnalytics').catch(() => undefined);
+      break;
+    case 'ANALYTICS':
+      void import('./components/SupplierAnalytics').catch(() => undefined);
+      break;
+    case 'COMPLIANCE':
+      void import('./components/Compliance').catch(() => undefined);
+      break;
+    case 'WATCHLISTS':
+      void import('./components/WatchlistPage').catch(() => undefined);
+      break;
+    case 'TRADES':
+      void import('./components/TradeHistoryPage').catch(() => undefined);
+      break;
+    case 'SETTINGS':
+      void import('./components/Settings').catch(() => undefined);
+      break;
+    case 'ADMIN':
+      void import('./components/admin/AdminDashboard').catch(() => undefined);
+      break;
+    default:
+      void import('./components/CommandCenter').catch(() => undefined);
+      break;
+  }
+};
+
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -280,6 +325,7 @@ const Dashboard: React.FC = () => {
       onSwitchView={handleSwitchView}
       currentPage={currentPage}
       onNavigate={handleNavigate}
+      onPrefetchPage={prefetchDashboardPage}
       onPrimaryAction={() => setSidebarModalSide(viewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
       <GuidedTutorial viewMode={viewMode} />
