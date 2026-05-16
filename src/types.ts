@@ -160,6 +160,10 @@ export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER'
 export interface DemandSignal {
     fuel_type: string;
     region: string;
+    market_product_code?: MarketProduct | string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
     volume_mt: number | string;
     max_price_per_mt: number | string;
     urgency: 'HIGH' | 'MEDIUM' | 'LOW';

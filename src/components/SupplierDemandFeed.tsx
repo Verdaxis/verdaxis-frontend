@@ -3,6 +3,8 @@ import { AlertCircle, ArrowRight, Loader2, PackagePlus, Search, TrendingUp } fro
 
 import { DemandSignal, Page } from '../types';
 import { api } from '../services/api';
+import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { formatMarketProduct } from '../utils/marketProduct';
 
 interface SupplierDemandFeedProps {
     onNavigate: (page: Page) => void;
@@ -19,6 +21,19 @@ const formatNumber = (value: number | string): string => {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 'n/a';
     return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
+};
+
+const openMarketplaceForSignal = (signal: DemandSignal, onNavigate: (page: Page) => void) => {
+    if (signal.market_product_code) {
+        localStorage.setItem('verdaxis_marketplace_product', String(signal.market_product_code));
+    }
+    if (signal.delivery_point_name) {
+        localStorage.setItem('verdaxis_marketplace_port', signal.delivery_point_name);
+    }
+    if (signal.availability_window_code) {
+        localStorage.setItem('verdaxis_marketplace_window', signal.availability_window_code);
+    }
+    onNavigate('MARKETPLACE');
 };
 
 export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNavigate, onPostAsk }) => {
@@ -115,9 +130,11 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <h3 className="font-black text-slate-900 dark:text-white">{signal.fuel_type}</h3>
+                                    <h3 className="font-black text-slate-900 dark:text-white">
+                                        {signal.market_product_code ? formatMarketProduct(signal.market_product_code) : signal.fuel_type}
+                                    </h3>
                                     <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                        {signal.region || 'All regions'} · {signal.earliest_delivery}
+                                        {signal.delivery_point_name || signal.region || 'All regions'} · {signal.availability_window_code ? formatAvailabilityWindow(signal.availability_window_code) : signal.earliest_delivery}
                                     </div>
                                 </div>
                                 <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${URGENCY_CLASS[signal.urgency]}`}>
@@ -140,7 +157,7 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
                             </div>
                             <button
                                 type="button"
-                                onClick={() => onNavigate('MARKETPLACE')}
+                                onClick={() => openMarketplaceForSignal(signal, onNavigate)}
                                 className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 transition-colors hover:text-emerald-600 dark:text-emerald-300"
                             >
                                 View live bids <ArrowRight size={12} />
