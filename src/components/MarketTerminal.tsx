@@ -370,6 +370,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: debounce bursty SSE updates before refetching.
+        api.marketData.invalidateForwardCurves();
         scheduleOrderbookRefresh();
     }, [scheduleOrderbookRefresh]);
 
@@ -377,6 +378,12 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // --- SSE: Trade events (replaces tick-based simulation) ---
     const handleTradeEvent = useCallback((event: string, data: any) => {
+        if (event === 'trade_confirmed' || event === 'trade_delivered' || event === 'trade_paid' || event === 'trade_auto_matched') {
+            api.marketData.invalidatePrices();
+        }
+        if (event === 'trade_auto_matched') {
+            api.marketData.invalidateForwardCurves();
+        }
         if (event === 'trade_created' || event === 'trade_auto_matched' || event === 'trade_confirmed') {
             const trade = sseTradeToEvent(event, data);
             setTradeEvents(prev => [trade, ...prev].slice(0, 50));

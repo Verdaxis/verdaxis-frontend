@@ -97,6 +97,8 @@ describe('MarketTerminal trading taxonomy', () => {
         expect(source).toContain('const TERMINAL_SSE_REFETCH_DEBOUNCE_MS = 600');
         expect(source).toContain('isTerminalOrdersCacheFresh(terminalOrdersCache, authScope)');
         expect(source).toContain('fetchOrders(true, { force: true })');
+        expect(source).toContain('api.marketData.invalidateForwardCurves()');
+        expect(source).toContain('api.marketData.invalidatePrices()');
         expect(handleOrderbookEvent).toContain('scheduleOrderbookRefresh()');
         expect(handleOrderbookEvent).not.toContain('fetchOrders(true)');
     });

@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, DemandSignal, WatchlistEvent, WatchlistEventsPage, WatchlistSummary, WatchlistTarget } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, DemandSignal, WatchlistEvent, WatchlistEventsPage, WatchlistSummary, WatchlistTarget, ForwardCurveResponse } from '../types';
 import { API_URL } from './config';
 import { clearAccessToken, getAccessToken, setAccessToken } from './authToken';
 
@@ -171,20 +171,105 @@ type ReadCacheEntry<T> = {
     updatedAt: number;
 };
 
+type ReferencePricesResponse = {
+    prices: Array<{
+        product_id?: string;
+        product_name?: string;
+        market_product?: string | null;
+        delivery_point_id?: string;
+        delivery_point_name?: string | null;
+        availability_window?: string;
+        fuel_type: string;
+        region: string;
+        vwap_usd: number;
+        total_volume_mt: number;
+        trade_count: number;
+        date: string;
+        visibility: string;
+    }>;
+    generated_at: string;
+};
+
 const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+const PRICE_SUMMARY_CACHE_TTL_MS = 15_000;
+const REFERENCE_PRICE_CACHE_TTL_MS = 60_000;
+const FORWARD_CURVE_CACHE_TTL_MS = 10_000;
 
 let productsCache: ReadCacheEntry<Product[]> | null = null;
 let productsInFlight: Promise<Product[]> | null = null;
 let deliveryPointsCache: ReadCacheEntry<DeliveryPoint[]> | null = null;
 let deliveryPointsInFlight: Promise<DeliveryPoint[]> | null = null;
+const priceSummariesCache = new Map<string, ReadCacheEntry<PriceDiscoveryResponse>>();
+const priceSummariesInFlight = new Map<string, Promise<PriceDiscoveryResponse>>();
+const referencePricesCache = new Map<string, ReadCacheEntry<ReferencePricesResponse>>();
+const referencePricesInFlight = new Map<string, Promise<ReferencePricesResponse>>();
+const forwardCurveCache = new Map<string, ReadCacheEntry<ForwardCurveResponse>>();
+const forwardCurveInFlight = new Map<string, Promise<ForwardCurveResponse>>();
 
 const isReadCacheFresh = (updatedAt: number, ttlMs: number, now = Date.now()) => now - updatedAt < ttlMs;
+
+type CacheOptions = {
+    force?: boolean;
+};
+
+const fetchCachedRead = async <T>(
+    cache: Map<string, ReadCacheEntry<T>>,
+    inFlight: Map<string, Promise<T>>,
+    path: string,
+    ttlMs: number,
+    options: CacheOptions = {}
+): Promise<T> => {
+    const key = `${getToken() || 'anonymous'}:${path}`;
+    const cached = cache.get(key);
+    if (!options.force && cached && isReadCacheFresh(cached.updatedAt, ttlMs)) {
+        return cached.value;
+    }
+
+    const existing = inFlight.get(key);
+    if (!options.force && existing) return existing;
+
+    const request = fetchApi(path)
+        .then((value: T) => {
+            if (inFlight.get(key) === request) {
+                cache.set(key, {
+                    value,
+                    updatedAt: Date.now(),
+                });
+            }
+            return value;
+        })
+        .finally(() => {
+            if (inFlight.get(key) === request) {
+                inFlight.delete(key);
+            }
+        });
+    inFlight.set(key, request);
+    return request;
+};
+
+const clearPriceReadCaches = () => {
+    priceSummariesCache.clear();
+    priceSummariesInFlight.clear();
+    referencePricesCache.clear();
+    referencePricesInFlight.clear();
+};
+
+const clearForwardCurveReadCaches = () => {
+    forwardCurveCache.clear();
+    forwardCurveInFlight.clear();
+};
+
+const clearMarketDataReadCaches = () => {
+    clearPriceReadCaches();
+    clearForwardCurveReadCaches();
+};
 
 export const __resetApiReadCachesForTests = () => {
     productsCache = null;
     productsInFlight = null;
     deliveryPointsCache = null;
     deliveryPointsInFlight = null;
+    clearMarketDataReadCaches();
 };
 
 export const api = {
@@ -497,24 +582,30 @@ export const api = {
             delivery_window_end?: string;
             expires_at?: string;
         }) => {
-            return fetchApi('/orderbook', {
+            const result = await fetchApi('/orderbook', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
             });
+            clearForwardCurveReadCaches();
+            return result;
         },
         update: async (id: string, data: any) => {
-            return fetchApi(`/orderbook/${id}`, {
+            const result = await fetchApi(`/orderbook/${id}`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
             });
+            clearForwardCurveReadCaches();
+            return result;
         },
         cancel: async (id: string) => {
-            return fetchApi(`/orderbook/${id}`, {
+            const result = await fetchApi(`/orderbook/${id}`, {
                 method: 'DELETE',
                 headers: getHeaders(),
             });
+            clearForwardCurveReadCaches();
+            return result;
         },
         aggregated: async () => {
             return fetchApi('/orderbook/aggregated');
@@ -528,7 +619,7 @@ export const api = {
     },
 
     prices: {
-        getSummaries: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; hours?: number }): Promise<PriceDiscoveryResponse> => {
+        getSummaries: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; hours?: number }, options: CacheOptions = {}): Promise<PriceDiscoveryResponse> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -538,9 +629,10 @@ export const api = {
             if (params?.region) searchParams.append('region', params.region);
             if (params?.hours) searchParams.append('hours', String(params.hours));
             const query = searchParams.toString();
-            return fetchApi(`/prices${query ? `?${query}` : ''}`);
+            const path = `/prices${query ? `?${query}` : ''}`;
+            return fetchCachedRead(priceSummariesCache, priceSummariesInFlight, path, PRICE_SUMMARY_CACHE_TTL_MS, options);
         },
-        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }): Promise<{ prices: Array<{ product_id?: string; product_name?: string; market_product?: string | null; delivery_point_id?: string; delivery_point_name?: string | null; availability_window?: string; fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, options: CacheOptions = {}): Promise<ReferencePricesResponse> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -549,20 +641,23 @@ export const api = {
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);
             if (params?.visibility) searchParams.append('visibility', params.visibility);
-            if (params?.date_from) searchParams.append('date_from', params.date_from);
-            if (params?.date_to) searchParams.append('date_to', params.date_to);
+            if (params?.date_from) searchParams.append('from', params.date_from);
+            if (params?.date_to) searchParams.append('to', params.date_to);
             const query = searchParams.toString();
-            return fetchApi(`/prices/reference${query ? `?${query}` : ''}`);
+            const path = `/prices/reference${query ? `?${query}` : ''}`;
+            return fetchCachedRead(referencePricesCache, referencePricesInFlight, path, REFERENCE_PRICE_CACHE_TTL_MS, options);
         },
     },
 
     trades: {
         initiate: async (data: { order_id: string; quantity_mt: number }) => {
-            return fetchApi('/trades/', {
+            const result = await fetchApi('/trades/', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
             });
+            clearForwardCurveReadCaches();
+            return result;
         },
         // Backward-compatible: returns array
         myTrades: async () => {
@@ -577,29 +672,37 @@ export const api = {
             return fetchApi(`/trades/my?${searchParams.toString()}`, { headers: getHeaders() });
         },
         confirm: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/confirm`, {
+            const result = await fetchApi(`/trades/${tradeId}/confirm`, {
                 method: 'PUT',
                 headers: getHeaders(),
             });
+            clearPriceReadCaches();
+            return result;
         },
         decline: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/decline`, {
+            const result = await fetchApi(`/trades/${tradeId}/decline`, {
                 method: 'PUT',
                 headers: getHeaders(),
             });
+            clearForwardCurveReadCaches();
+            return result;
         },
         deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }) => {
-            return fetchApi(`/trades/${tradeId}/deliver`, {
+            const result = await fetchApi(`/trades/${tradeId}/deliver`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
             });
+            clearPriceReadCaches();
+            return result;
         },
         pay: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/pay`, {
+            const result = await fetchApi(`/trades/${tradeId}/pay`, {
                 method: 'POST',
                 headers: getHeaders(),
             });
+            clearPriceReadCaches();
+            return result;
         },
     },
 
@@ -683,18 +786,26 @@ export const api = {
     },
 
     curves: {
-        forward: async (params: { product_id: string; delivery_point_id?: string }): Promise<import('../types').ForwardCurveResponse> => {
+        forward: async (params: { product_id: string; delivery_point_id?: string }, options: CacheOptions = {}): Promise<ForwardCurveResponse> => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', params.product_id);
             if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
-            return fetchApi(`/curves/forward?${searchParams.toString()}`);
+            const path = `/curves/forward?${searchParams.toString()}`;
+            return fetchCachedRead(forwardCurveCache, forwardCurveInFlight, path, FORWARD_CURVE_CACHE_TTL_MS, options);
         },
-        exportCsvUrl: (product_id: string): string => {
+        exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);
+            if (delivery_point_id) searchParams.append('delivery_point_id', delivery_point_id);
             searchParams.append('format', 'csv');
             return `${API_URL}/curves/forward/export?${searchParams.toString()}`;
         },
+    },
+
+    marketData: {
+        invalidatePrices: clearPriceReadCaches,
+        invalidateForwardCurves: clearForwardCurveReadCaches,
+        invalidateAll: clearMarketDataReadCaches,
     },
 
     alerts: {

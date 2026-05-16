@@ -174,7 +174,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         ? deliveryPoints.find(dp => dp.name.toLowerCase() === deliveryPointName.toLowerCase())?.id
         : undefined;
 
-    const fetchCurve = useCallback(async () => {
+    const fetchCurve = useCallback(async (options: { force?: boolean } = {}) => {
         if (!selectedProductId) return;
         if (deliveryPointName && !resolvedDpId) {
             curveRequestRef.current += 1;
@@ -187,10 +187,13 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         curveRequestRef.current = requestId;
         setLoading(true);
         try {
-            const data = await api.curves.forward({
+            const curveParams = {
                 product_id: selectedProductId,
                 delivery_point_id: resolvedDpId,
-            });
+            };
+            const data = options.force
+                ? await api.curves.forward(curveParams, { force: true })
+                : await api.curves.forward(curveParams);
             if (curveRequestRef.current !== requestId) return;
             setCurveData(data);
             setLastRefresh(new Date());
@@ -564,7 +567,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                         )}
 
                         <button
-                            onClick={fetchCurve}
+                            onClick={() => fetchCurve({ force: true })}
                             disabled={loading}
                             title={t('forwardCurve.refresh')}
                             style={{
