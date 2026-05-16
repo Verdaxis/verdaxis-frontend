@@ -81,4 +81,23 @@ describe('MarketTerminal trading taxonomy', () => {
         expect(source).toContain('delivery_point_id: selectedDeliveryPointId');
         expect(source).not.toContain('region: selectedPort');
     });
+
+    it('coalesces terminal orderbook loads and debounces bursty SSE refreshes', () => {
+        const source = readFileSync(resolve(process.cwd(), 'src/components/MarketTerminal.tsx'), 'utf8');
+        const handleOrderbookEvent = source.slice(
+            source.indexOf('const handleOrderbookEvent'),
+            source.indexOf("const { isConnected: orderbookConnected }")
+        );
+
+        expect(source).toContain('const TERMINAL_ORDERBOOK_CACHE_TTL_MS = 15_000');
+        expect(source).toContain('let terminalOrdersInFlight: TerminalOrdersRequest | null = null');
+        expect(source).toContain('authScope: string');
+        expect(source).toContain('terminalOrdersInFlight?.request === request');
+        expect(source).toContain('authScopeRef.current === authScope');
+        expect(source).toContain('const TERMINAL_SSE_REFETCH_DEBOUNCE_MS = 600');
+        expect(source).toContain('isTerminalOrdersCacheFresh(terminalOrdersCache, authScope)');
+        expect(source).toContain('fetchOrders(true, { force: true })');
+        expect(handleOrderbookEvent).toContain('scheduleOrderbookRefresh()');
+        expect(handleOrderbookEvent).not.toContain('fetchOrders(true)');
+    });
 });

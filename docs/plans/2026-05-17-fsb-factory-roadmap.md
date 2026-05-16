@@ -73,6 +73,7 @@ Verdaxis should converge on one clear product model:
 - Platform navigation now keeps the app shell mounted while lazy Map, Marketplace, and Market Terminal chunks load, reducing perceived blank-screen latency during screen switches.
 - Marketplace read requests now use short-lived in-memory freshness and in-flight dedupe so repeated Map-to-Marketplace switches do not immediately repeat the listing request plus four product-count probes.
 - Shared catalog product and delivery-point reads now use short-lived in-flight dedupe and reuse so Terminal, Forward Curve, order modals, and map panels do not each refetch the same static catalog on rapid screen changes.
+- Market Terminal orderbook reads now use auth-scoped short-lived freshness, in-flight dedupe, and debounced SSE refreshes so rapid platform switching and bursty orderbook events do not produce redundant full-orderbook requests.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 

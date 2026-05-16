@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { DeliveryPoint, MarketProduct, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
@@ -90,8 +91,33 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
 export const terminalWindowMatches = (orderWindow: string | null | undefined, configWindow: string): boolean =>
     normalizeAvailabilityWindow(orderWindow) === normalizeAvailabilityWindow(configWindow);
 
-let terminalOrdersCache: OrderBookOrder[] | null = null;
+type TerminalOrdersCacheEntry = {
+    authScope: string;
+    orders: OrderBookOrder[];
+    updatedAt: number;
+};
+
+type TerminalOrdersRequest = {
+    authScope: string;
+    request: Promise<OrderBookOrder[]>;
+};
+
+const TERMINAL_ORDERBOOK_CACHE_TTL_MS = 15_000;
+const TERMINAL_SSE_REFETCH_DEBOUNCE_MS = 600;
+
+let terminalOrdersCache: TerminalOrdersCacheEntry | null = null;
+let terminalOrdersInFlight: TerminalOrdersRequest | null = null;
 let terminalDeliveryPointsCache: DeliveryPoint[] | null = null;
+
+const isTerminalOrdersCacheFresh = (
+    cache: TerminalOrdersCacheEntry | null,
+    authScope: string,
+    now = Date.now()
+) => Boolean(
+    cache
+    && cache.authScope === authScope
+    && now - cache.updatedAt < TERMINAL_ORDERBOOK_CACHE_TTL_MS
+);
 
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
@@ -190,9 +216,12 @@ interface MarketTerminalProps {
 
 export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) => {
     const { setPageContext } = useCopilotContext();
+    const { user } = useAuth();
     const { t } = useNamespace('trading');
     const { theme } = useTheme();
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const authScope = `${user?.id ?? 'anonymous'}:${user?.organization_id ?? 'none'}:${user?.role ?? 'none'}`;
+    const hasInitialOrdersCache = isTerminalOrdersCacheFresh(terminalOrdersCache, authScope);
 
     // Port & Fuel selectors
     const [selectedPort, setSelectedPort] = useState<string>(() => {
@@ -207,8 +236,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
 
     // Orders from API (orderbook sync)
-    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => terminalOrdersCache ?? []);
-    const [loading, setLoading] = useState(!terminalOrdersCache);
+    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => hasInitialOrdersCache ? terminalOrdersCache?.orders ?? [] : []);
+    const [loading, setLoading] = useState(!hasInitialOrdersCache);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>(() => terminalDeliveryPointsCache ?? []);
 
     // Alert panel state
@@ -218,6 +247,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const tvChartContainerRef = useRef<HTMLDivElement>(null);
     const tvChartRef = useRef<IChartApi | null>(null);
     const tvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const orderbookRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const authScopeRef = useRef(authScope);
 
     // Responsive grid width
     const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -250,27 +281,56 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [selectedPort]);
 
     useEffect(() => {
+        authScopeRef.current = authScope;
+    }, [authScope]);
+
+    useEffect(() => {
         localStorage.setItem('verdaxis_marketplace_product', selectedProduct);
     }, [selectedProduct]);
 
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
-    const fetchOrders = useCallback(async (silent = false) => {
+    const fetchOrders = useCallback(async (silent = false, options: { force?: boolean } = {}) => {
+        if (!options.force && isTerminalOrdersCacheFresh(terminalOrdersCache, authScope)) {
+            setAllOrders(terminalOrdersCache?.orders ?? []);
+            setLoading(false);
+            return;
+        }
         if (!silent) setLoading(true);
         try {
-            const data = await api.orderbook.list();
-            terminalOrdersCache = data;
-            setAllOrders(data);
+            if (!terminalOrdersInFlight || options.force || terminalOrdersInFlight.authScope !== authScope) {
+                const request = api.orderbook.list()
+                    .then((data) => {
+                        if (terminalOrdersInFlight?.request === request) {
+                            terminalOrdersCache = {
+                                authScope,
+                                orders: data,
+                                updatedAt: Date.now(),
+                            };
+                        }
+                        return data;
+                    })
+                    .finally(() => {
+                        if (terminalOrdersInFlight?.request === request) {
+                            terminalOrdersInFlight = null;
+                        }
+                    });
+                terminalOrdersInFlight = { authScope, request };
+            }
+            const data = await terminalOrdersInFlight.request;
+            if (authScopeRef.current === authScope) {
+                setAllOrders(data);
+            }
         } catch (e) {
             console.error('Failed to load orderbook for terminal', e);
         } finally {
-            if (!silent) setLoading(false);
+            if (!silent && authScopeRef.current === authScope) setLoading(false);
         }
-    }, []);
+    }, [authScope]);
 
     // Initial fetch on mount (no polling — SSE handles updates)
     useEffect(() => {
-        fetchOrders(Boolean(terminalOrdersCache));
-    }, [fetchOrders]);
+        fetchOrders(isTerminalOrdersCacheFresh(terminalOrdersCache, authScope));
+    }, [authScope, fetchOrders]);
 
     useEffect(() => {
         let cancelled = false;
@@ -292,10 +352,26 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, []);
 
     // --- SSE: Orderbook updates (replaces 30s polling) ---
-    const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
-        // Any orderbook change: refetch the full orderbook
-        fetchOrders(true);
+    const scheduleOrderbookRefresh = useCallback(() => {
+        if (orderbookRefreshTimeoutRef.current) {
+            clearTimeout(orderbookRefreshTimeoutRef.current);
+        }
+        orderbookRefreshTimeoutRef.current = setTimeout(() => {
+            orderbookRefreshTimeoutRef.current = null;
+            fetchOrders(true, { force: true });
+        }, TERMINAL_SSE_REFETCH_DEBOUNCE_MS);
     }, [fetchOrders]);
+
+    useEffect(() => () => {
+        if (orderbookRefreshTimeoutRef.current) {
+            clearTimeout(orderbookRefreshTimeoutRef.current);
+        }
+    }, []);
+
+    const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
+        // Any orderbook change: debounce bursty SSE updates before refetching.
+        scheduleOrderbookRefresh();
+    }, [scheduleOrderbookRefresh]);
 
     const { isConnected: orderbookConnected } = useSSE('orderbook', handleOrderbookEvent);
 
