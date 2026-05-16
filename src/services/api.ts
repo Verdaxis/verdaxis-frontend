@@ -166,6 +166,27 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
+type ReadCacheEntry<T> = {
+    value: T;
+    updatedAt: number;
+};
+
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+
+let productsCache: ReadCacheEntry<Product[]> | null = null;
+let productsInFlight: Promise<Product[]> | null = null;
+let deliveryPointsCache: ReadCacheEntry<DeliveryPoint[]> | null = null;
+let deliveryPointsInFlight: Promise<DeliveryPoint[]> | null = null;
+
+const isReadCacheFresh = (updatedAt: number, ttlMs: number, now = Date.now()) => now - updatedAt < ttlMs;
+
+export const __resetApiReadCachesForTests = () => {
+    productsCache = null;
+    productsInFlight = null;
+    deliveryPointsCache = null;
+    deliveryPointsInFlight = null;
+};
+
 export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
@@ -358,10 +379,42 @@ export const api = {
 
     catalog: {
         products: async (): Promise<Product[]> => {
-            return fetchApi('/catalog/products', { headers: getHeaders() });
+            if (productsCache && isReadCacheFresh(productsCache.updatedAt, CATALOG_CACHE_TTL_MS)) {
+                return productsCache.value;
+            }
+            if (productsInFlight) return productsInFlight;
+
+            productsInFlight = fetchApi('/catalog/products', { headers: getHeaders() })
+                .then((products) => {
+                    productsCache = {
+                        value: products,
+                        updatedAt: Date.now(),
+                    };
+                    return products;
+                })
+                .finally(() => {
+                    productsInFlight = null;
+                });
+            return productsInFlight;
         },
         deliveryPoints: async (): Promise<DeliveryPoint[]> => {
-            return fetchApi('/catalog/delivery-points', { headers: getHeaders() });
+            if (deliveryPointsCache && isReadCacheFresh(deliveryPointsCache.updatedAt, CATALOG_CACHE_TTL_MS)) {
+                return deliveryPointsCache.value;
+            }
+            if (deliveryPointsInFlight) return deliveryPointsInFlight;
+
+            deliveryPointsInFlight = fetchApi('/catalog/delivery-points', { headers: getHeaders() })
+                .then((deliveryPoints) => {
+                    deliveryPointsCache = {
+                        value: deliveryPoints,
+                        updatedAt: Date.now(),
+                    };
+                    return deliveryPoints;
+                })
+                .finally(() => {
+                    deliveryPointsInFlight = null;
+                });
+            return deliveryPointsInFlight;
         },
     },
 
