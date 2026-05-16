@@ -18,14 +18,14 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
     const hiddenCount = Math.max((radar?.total_slice_count ?? allSlices.length) - slices.length, 0);
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <section data-tour="market-radar-panel" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                     <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                         <BellRing size={14} className="text-emerald-500" />
-                        Watchlist
+                        Market Radar
                     </div>
-                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Watchlist summary</h2>
+                    <h2 className="text-xl font-black text-slate-900 dark:text-white">Market Radar summary</h2>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Track market slices and keep tactical pins on live orders without leaving the main orderbook flow.
                     </p>
@@ -34,7 +34,7 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                     onClick={onOpenRadar}
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-200 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200"
                 >
-                    Open Watchlist
+                    Open Market Radar
                     <ArrowRight size={15} />
                 </button>
             </div>
@@ -47,11 +47,11 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                 </div>
             ) : error ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-8 text-center text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                    Watchlist is unavailable right now. Open the full Watchlist view to retry.
+                    Market Radar is unavailable right now. Open the full Market Radar view to retry.
                 </div>
             ) : slices.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                    Track a slice from Marketplace to start building your Watchlist here.
+                    Track a slice from Marketplace to start building your Market Radar here.
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -77,7 +77,7 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                                     <span className="inline-flex items-center gap-1"><Pin size={12} /> {slice.pins.length} pinned</span>
                                 </div>
                                 <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No recent Watchlist activity for this slice.'}
+                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No recent Market Radar activity for this slice.'}
                                 </div>
                             </div>
                         );

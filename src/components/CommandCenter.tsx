@@ -157,6 +157,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <p className="text-slate-500 dark:text-slate-400 mb-6">{t('commandCenter.subtitle')}</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
+                        data-tour="command-center-primary-action"
                         onClick={() => setOrderModalOpen(true)}
                         className="group relative overflow-hidden rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700"
                     >

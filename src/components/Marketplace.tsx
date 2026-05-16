@@ -656,6 +656,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                         </div>
                         <div className="flex items-center gap-3">
                             <button
+                                data-tour="marketplace-primary-action"
                                 type="button"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
@@ -825,6 +826,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             {t('marketplace.tab.listings')}
                         </button>
                         <button
+                            data-tour="marketplace-orderbook-tab"
                             onClick={() => setMarketTab('orderbook')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'orderbook'
@@ -884,7 +886,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             {marketTab === 'orderbook' && !error && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
                     <div className="max-w-7xl mx-auto">
-                        <div className="min-h-[520px]">
+                        <div data-tour="marketplace-orderbook-surface" className="min-h-[520px]">
                             {orderbookRequiresProductSelection ? (
                                 <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />

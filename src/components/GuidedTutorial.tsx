@@ -1,75 +1,74 @@
 import React, { useCallback } from 'react';
 import Joyride, { CallBackProps, STATUS, EVENTS, ACTIONS, Step } from 'react-joyride';
 import { useTutorial } from '../context/TutorialContext';
-import { ViewMode } from '../types';
+import { Page, ViewMode } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 
 interface GuidedTutorialProps {
     viewMode: ViewMode;
 }
 
-// Maps step index -> data-tour ID of the nav item to click on transition
-const BUYER_NAV_MAP: Record<number, string> = {
-    1: 'nav-DASHBOARD',
-    2: 'nav-MAP',
-    3: 'nav-MARKETPLACE',
-    4: 'nav-TERMINAL',
-    // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
-    8: 'nav-WATCHLISTS',
-    9: 'nav-COMPLIANCE',
-    10: 'nav-TRADES',
+type TourPlacement = 'center' | 'right' | 'top' | 'bottom';
+
+export interface TourStepDefinition {
+    target: string;
+    placement: TourPlacement;
+    route?: Page;
+    activateTarget?: string;
+}
+
+export const TOUR_DEFINITIONS: Record<ViewMode, TourStepDefinition[]> = {
+    BUYER: [
+        { target: 'body', placement: 'center' },
+        { target: '[data-tour="command-center-primary-action"]', placement: 'bottom', route: 'DASHBOARD' },
+        { target: '[data-tour="market-radar-panel"]', placement: 'top' },
+        { target: '[data-tour="marketplace-primary-action"]', placement: 'bottom', route: 'MARKETPLACE' },
+        {
+            target: '[data-tour="marketplace-orderbook-surface"]',
+            placement: 'top',
+            activateTarget: '[data-tour="marketplace-orderbook-tab"]',
+        },
+        { target: '[data-tour="terminal-header"]', placement: 'right', route: 'TERMINAL' },
+        { target: '[data-tour="terminal-forward-curve"]', placement: 'top' },
+        { target: '[data-tour="terminal-activity-feed"]', placement: 'top' },
+        { target: '[data-tour="terminal-price-alerts"]', placement: 'bottom' },
+        { target: '[data-tour="nav-WATCHLISTS"]', placement: 'right', route: 'WATCHLISTS' },
+        { target: '[data-tour="nav-COMPLIANCE"]', placement: 'right', route: 'COMPLIANCE' },
+        { target: '[data-tour="nav-TRADES"]', placement: 'right', route: 'TRADES' },
+        { target: '[data-tour="notification-bell"]', placement: 'bottom' },
+    ],
+    SUPPLIER: [
+        { target: 'body', placement: 'center' },
+        { target: '[data-tour="command-center-primary-action"]', placement: 'bottom', route: 'DASHBOARD' },
+        { target: '[data-tour="market-radar-panel"]', placement: 'top' },
+        { target: '[data-tour="marketplace-primary-action"]', placement: 'bottom', route: 'MARKETPLACE' },
+        {
+            target: '[data-tour="marketplace-orderbook-surface"]',
+            placement: 'top',
+            activateTarget: '[data-tour="marketplace-orderbook-tab"]',
+        },
+        { target: '[data-tour="terminal-header"]', placement: 'right', route: 'TERMINAL' },
+        { target: '[data-tour="terminal-forward-curve"]', placement: 'top' },
+        { target: '[data-tour="terminal-activity-feed"]', placement: 'top' },
+        { target: '[data-tour="terminal-price-alerts"]', placement: 'bottom' },
+        { target: '[data-tour="nav-WATCHLISTS"]', placement: 'right', route: 'WATCHLISTS' },
+        { target: '[data-tour="nav-COMPLIANCE"]', placement: 'right', route: 'COMPLIANCE' },
+        { target: '[data-tour="nav-ANALYTICS"]', placement: 'right', route: 'ANALYTICS' },
+        { target: '[data-tour="nav-TRADES"]', placement: 'right', route: 'TRADES' },
+        { target: '[data-tour="notification-bell"]', placement: 'bottom' },
+    ],
 };
 
-const SUPPLIER_NAV_MAP: Record<number, string> = {
-    1: 'nav-DASHBOARD',
-    2: 'nav-MAP',
-    3: 'nav-MARKETPLACE',
-    4: 'nav-TERMINAL',
-    // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
-    8: 'nav-WATCHLISTS',
-    9: 'nav-COMPLIANCE',
-    10: 'nav-ANALYTICS',
-    11: 'nav-TRADES',
+const clickRouteNav = (page: Page) => {
+    const el = document.querySelector(`[data-tour="nav-${page}"]`) as HTMLButtonElement | null;
+    el?.click();
 };
 
-const BUYER_STEP_TARGETS = [
-    'body',
-    '[data-tour="nav-DASHBOARD"]',
-    '[data-tour="nav-MAP"]',
-    '[data-tour="nav-MARKETPLACE"]',
-    '[data-tour="nav-TERMINAL"]',
-    '[data-tour="terminal-forward-curve"]',
-    '[data-tour="terminal-activity-feed"]',
-    '[data-tour="terminal-price-alerts"]',
-    '[data-tour="nav-WATCHLISTS"]',
-    '[data-tour="nav-COMPLIANCE"]',
-    '[data-tour="nav-TRADES"]',
-    '[data-tour="notification-bell"]',
-];
-
-const BUYER_PLACEMENTS = [
-    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'bottom',
-] as const;
-
-const SUPPLIER_STEP_TARGETS = [
-    'body',
-    '[data-tour="nav-DASHBOARD"]',
-    '[data-tour="nav-MAP"]',
-    '[data-tour="nav-MARKETPLACE"]',
-    '[data-tour="nav-TERMINAL"]',
-    '[data-tour="terminal-forward-curve"]',
-    '[data-tour="terminal-activity-feed"]',
-    '[data-tour="terminal-price-alerts"]',
-    '[data-tour="nav-WATCHLISTS"]',
-    '[data-tour="nav-COMPLIANCE"]',
-    '[data-tour="nav-ANALYTICS"]',
-    '[data-tour="nav-TRADES"]',
-    '[data-tour="notification-bell"]',
-];
-
-const SUPPLIER_PLACEMENTS = [
-    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'right', 'bottom',
-] as const;
+const activateTourTarget = (selector?: string) => {
+    if (!selector) return;
+    const el = document.querySelector(selector) as HTMLButtonElement | null;
+    el?.click();
+};
 
 export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
     const { isRunning, complete } = useTutorial();
@@ -84,11 +83,12 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
         }
 
         if (type === EVENTS.STEP_AFTER && action === ACTIONS.NEXT) {
-            const navMap = viewMode === 'BUYER' ? BUYER_NAV_MAP : SUPPLIER_NAV_MAP;
-            const tourId = navMap[index + 1];
-            if (tourId) {
-                const el = document.querySelector(`[data-tour="${tourId}"]`) as HTMLButtonElement | null;
-                el?.click();
+            const nextStep = TOUR_DEFINITIONS[viewMode][index + 1];
+            if (nextStep?.route) {
+                clickRouteNav(nextStep.route);
+                window.setTimeout(() => activateTourTarget(nextStep.activateTarget), 0);
+            } else {
+                activateTourTarget(nextStep?.activateTarget);
             }
         }
     }, [viewMode, complete]);
@@ -96,18 +96,17 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
     if (!ready) return null;
 
     const prefix = viewMode === 'BUYER' ? 'buyer' : 'supplier';
-    const targets = viewMode === 'BUYER' ? BUYER_STEP_TARGETS : SUPPLIER_STEP_TARGETS;
-    const placements = viewMode === 'BUYER' ? BUYER_PLACEMENTS : SUPPLIER_PLACEMENTS;
+    const definitions = TOUR_DEFINITIONS[viewMode];
 
-    const steps: Step[] = targets.map((target, i) => ({
-        target,
+    const steps: Step[] = definitions.map((definition, i) => ({
+        target: definition.target,
         content: (
             <div>
                 <h3 style={{ fontWeight: 700, marginBottom: 8, fontSize: 16 }}>{t(`${prefix}.${i}.title`)}</h3>
                 <p style={{ lineHeight: 1.6 }}>{t(`${prefix}.${i}.content`)}</p>
             </div>
         ),
-        placement: placements[i],
+        placement: definition.placement,
         disableBeacon: true,
     }));
 
