@@ -32,6 +32,39 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+export function getExecutableCrossState(bids: OrderBookRow[], asks: OrderBookRow[]) {
+    const realBids = bids.filter(order => !order.is_demo_listing);
+    const realAsks = asks.filter(order => !order.is_demo_listing);
+    const bidIds = new Set<string>();
+    const askIds = new Set<string>();
+
+    for (const bid of realBids) {
+        for (const ask of realAsks) {
+            if (bid.price_per_mt_usd >= ask.price_per_mt_usd) {
+                bidIds.add(bid.id);
+                askIds.add(ask.id);
+            }
+        }
+    }
+
+    const bestRealBid = realBids[0] ?? null;
+    const bestRealAsk = realAsks[0] ?? null;
+    const spread = bestRealBid && bestRealAsk
+        ? bestRealAsk.price_per_mt_usd - bestRealBid.price_per_mt_usd
+        : null;
+    const spreadPct = bestRealBid && spread != null && bestRealBid.price_per_mt_usd > 0
+        ? (spread / bestRealBid.price_per_mt_usd) * 100
+        : null;
+
+    return {
+        bidIds,
+        askIds,
+        hasCross: bidIds.size > 0 && askIds.size > 0,
+        spread,
+        spreadPct,
+    };
+}
+
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, availability, productLabel, region, actionableSide, onPriceClick, onInstantTrade, onLevelClick }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
@@ -92,6 +125,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
     }, [bids, asks]);
 
     const maxRows = Math.max(bids.length, asks.length);
+    const executableCross = React.useMemo(() => getExecutableCrossState(bids, asks), [bids, asks]);
 
     if (!ready) return null;
 
@@ -174,8 +208,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
                         const ask = asks[i] ?? null;
                         const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
                         const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
-                        const bidCrossed = bid ? (bid as any).is_crossed === true : false;
-                        const askCrossed = ask ? (ask as any).is_crossed === true : false;
+                        const bidCrossed = bid ? executableCross.bidIds.has(bid.id) : false;
+                        const askCrossed = ask ? executableCross.askIds.has(ask.id) : false;
 
                         return (
                             <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
@@ -309,21 +343,20 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, a
 
             {/* Spread footer */}
             {bids.length > 0 && asks.length > 0 && (() => {
-                const bestBid = bids[0].price_per_mt_usd;
-                const bestAsk = asks[0].price_per_mt_usd;
-                const spread = bestAsk - bestBid;
-                const spreadPct = bestBid > 0 ? (spread / bestBid) * 100 : 0;
+                const spread = executableCross.spread ?? (asks[0].price_per_mt_usd - bids[0].price_per_mt_usd);
+                const spreadPct = executableCross.spreadPct ?? (bids[0].price_per_mt_usd > 0 ? (spread / bids[0].price_per_mt_usd) * 100 : 0);
+                const isExecutableCross = executableCross.hasCross;
                 return (
                     <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
                         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
-                        <span className={`text-xs font-mono font-bold ${spread <= 0 ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {spread <= 0 ? (
+                        <span className={`text-xs font-mono font-bold ${isExecutableCross ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {isExecutableCross ? (
                                 <span className="flex items-center gap-1">
                                     <Zap size={10} className="text-amber-500" />
                                     {t('orderBook.crossed')}
                                 </span>
                             ) : (
-                                `${formatPrice(spread)} (${spreadPct.toFixed(2)}%)`
+                                `${formatPrice(Math.max(spread, 0))} (${Math.max(spreadPct, 0).toFixed(2)}%)`
                             )}
                         </span>
                     </div>

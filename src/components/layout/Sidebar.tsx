@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
             </div>
 
-            <nav className="flex-1 py-2 space-y-1 px-3">
+            <nav className="flex-1 min-h-0 py-2 space-y-1 px-3 overflow-y-auto overscroll-contain">
                 {sidebarItems.map((item) => (
                     <Tooltip key={item.key} content={isCollapsed ? item.label : ''} position="right">
                         <button

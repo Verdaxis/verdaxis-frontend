@@ -207,6 +207,8 @@ const Dashboard: React.FC = () => {
                 return <MarketTerminal onNavigate={handleNavigate} />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
+            case 'COMPLIANCE':
+                return <Compliance />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} />;

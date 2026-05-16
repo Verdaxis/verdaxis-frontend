@@ -71,7 +71,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 
     return (
         <div 
             ref={triggerRef}
-            className={`relative flex items-center ${className}`}
+            className={`${portal ? '' : 'relative '}flex items-center ${className}`}
             onMouseEnter={() => setIsVisible(true)}
             onMouseLeave={() => setIsVisible(false)}
         >

@@ -15,18 +15,21 @@ const BUYER_NAV_MAP: Record<number, string> = {
     3: 'nav-MARKETPLACE',
     4: 'nav-TERMINAL',
     // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
-    8: 'nav-TRADES',
+    8: 'nav-WATCHLISTS',
+    9: 'nav-COMPLIANCE',
+    10: 'nav-TRADES',
 };
 
 const SUPPLIER_NAV_MAP: Record<number, string> = {
     1: 'nav-DASHBOARD',
-    2: 'nav-QUOTES',
+    2: 'nav-MAP',
     3: 'nav-MARKETPLACE',
     4: 'nav-TERMINAL',
     // 5-7: Forward Curve, Activity Feed, Price Alerts — in-page, no nav click
-    8: 'nav-INVENTORY',
-    9: 'nav-ANALYTICS',
-    10: 'nav-TRADES',
+    8: 'nav-WATCHLISTS',
+    9: 'nav-COMPLIANCE',
+    10: 'nav-ANALYTICS',
+    11: 'nav-TRADES',
 };
 
 const BUYER_STEP_TARGETS = [
@@ -38,31 +41,34 @@ const BUYER_STEP_TARGETS = [
     '[data-tour="terminal-forward-curve"]',
     '[data-tour="terminal-activity-feed"]',
     '[data-tour="terminal-price-alerts"]',
+    '[data-tour="nav-WATCHLISTS"]',
+    '[data-tour="nav-COMPLIANCE"]',
     '[data-tour="nav-TRADES"]',
     '[data-tour="notification-bell"]',
 ];
 
 const BUYER_PLACEMENTS = [
-    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'bottom',
+    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'bottom',
 ] as const;
 
 const SUPPLIER_STEP_TARGETS = [
     'body',
     '[data-tour="nav-DASHBOARD"]',
-    '[data-tour="nav-QUOTES"]',
+    '[data-tour="nav-MAP"]',
     '[data-tour="nav-MARKETPLACE"]',
     '[data-tour="nav-TERMINAL"]',
     '[data-tour="terminal-forward-curve"]',
     '[data-tour="terminal-activity-feed"]',
     '[data-tour="terminal-price-alerts"]',
-    '[data-tour="nav-INVENTORY"]',
+    '[data-tour="nav-WATCHLISTS"]',
+    '[data-tour="nav-COMPLIANCE"]',
     '[data-tour="nav-ANALYTICS"]',
     '[data-tour="nav-TRADES"]',
     '[data-tour="notification-bell"]',
 ];
 
 const SUPPLIER_PLACEMENTS = [
-    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'bottom',
+    'center', 'right', 'right', 'right', 'right', 'top', 'top', 'bottom', 'right', 'right', 'right', 'right', 'bottom',
 ] as const;
 
 export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {

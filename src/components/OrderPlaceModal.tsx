@@ -270,7 +270,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
-    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1";
+    const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
 
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'error') {
         return (
@@ -373,7 +373,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-lg w-full max-h-screen sm:max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-screen sm:max-h-[85vh] overflow-hidden flex flex-col">
                 <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
                         <div className="flex items-center gap-3">
@@ -401,8 +401,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
-                    <div className="p-4 space-y-3">
+                <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col bg-white dark:bg-slate-800">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
@@ -456,7 +456,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{getProductDisplayName(selectedProduct)}</div>
                                     </div>
                                     <div>
-                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">Market Product</span>
+                                        <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.marketProduct')}</span>
                                         <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{formatMarketProduct(selectedProduct.market_product)}</div>
                                     </div>
                                     <div>
@@ -634,7 +634,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                 </span>
                                             </label>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className={labelClass}>{t('orderPlaceModal.label.specificationStandard')}</label>
                                                     <input
@@ -659,7 +659,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
                                                     <label className={labelClass}>{t('orderPlaceModal.label.feedstock')}</label>
                                                     <input
@@ -765,7 +765,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0">
+                    <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
                         <button
                             type="button"
                             onClick={handleClose}

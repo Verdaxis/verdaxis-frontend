@@ -13,7 +13,7 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { MarketProduct, Port, OrderBookOrder, PriceSummary } from '../types';
+import { MarketProduct, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
@@ -23,6 +23,7 @@ import { ForwardCurve } from './ForwardCurve';
 import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
+import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { GridLayout } from 'react-grid-layout';
 import {
     ACTIVE_MARKETPLACE_PRODUCT_OPTIONS,
@@ -30,11 +31,19 @@ import {
     getMarketplaceProductLabel,
     getMarketplaceProductValue,
 } from '../utils/marketProducts';
+import { APPROVED_TRADING_PORTS } from '../data';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 export const getTerminalFuelType = (value: string | null | undefined): string | undefined =>
     getMarketplaceFuelType(value) || value || undefined;
+
+const DEFAULT_TRADING_PORT = 'Singapore';
+
+export const getTerminalPort = (value: string | null | undefined): string => {
+    const match = APPROVED_TRADING_PORTS.find((port) => port.toLowerCase() === value?.toLowerCase());
+    return match || DEFAULT_TRADING_PORT;
+};
 
 // --- Types ---
 interface TerminalRow {
@@ -63,20 +72,23 @@ interface TradeEvent {
 
 // Map availability windows to terminal periods
 const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type'] }[] = [
-    { window: 'Spot', period: 'SPOT', type: 'SPOT' },
-    { window: 'Q1 2026', period: 'Q1 26', type: 'QTR' },
-    { window: 'Q2 2026', period: 'Q2 26', type: 'QTR' },
-    { window: 'Q3 2026', period: 'Q3 26', type: 'QTR' },
-    { window: 'Q4 2026', period: 'Q4 26', type: 'QTR' },
-    { window: 'Forward 2027', period: 'CAL 27', type: 'YEAR' },
-    { window: 'Q1 2027', period: 'Q1 27', type: 'QTR' },
-    { window: 'Q2 2027', period: 'Q2 27', type: 'QTR' },
-    { window: 'Q3 2027', period: 'Q3 27', type: 'QTR' },
-    { window: 'Q4 2027', period: 'Q4 27', type: 'QTR' },
-    { window: 'Forward 2028', period: 'CAL 28', type: 'YEAR' },
-    { window: 'Forward 2029', period: 'CAL 29', type: 'YEAR' },
-    { window: 'Forward 2030', period: 'CAL 30', type: 'YEAR' },
+    { window: 'SPOT', period: 'SPOT', type: 'SPOT' },
+    { window: '2026-Q1', period: 'Q1 26', type: 'QTR' },
+    { window: '2026-Q2', period: 'Q2 26', type: 'QTR' },
+    { window: '2026-Q3', period: 'Q3 26', type: 'QTR' },
+    { window: '2026-Q4', period: 'Q4 26', type: 'QTR' },
+    { window: '2027-CAL', period: 'CAL 27', type: 'YEAR' },
+    { window: '2027-Q1', period: 'Q1 27', type: 'QTR' },
+    { window: '2027-Q2', period: 'Q2 27', type: 'QTR' },
+    { window: '2027-Q3', period: 'Q3 27', type: 'QTR' },
+    { window: '2027-Q4', period: 'Q4 27', type: 'QTR' },
+    { window: '2028-CAL', period: 'CAL 28', type: 'YEAR' },
+    { window: '2029-CAL', period: 'CAL 29', type: 'YEAR' },
+    { window: '2030-CAL', period: 'CAL 30', type: 'YEAR' },
 ];
+
+export const terminalWindowMatches = (orderWindow: string | null | undefined, configWindow: string): boolean =>
+    normalizeAvailabilityWindow(orderWindow) === normalizeAvailabilityWindow(configWindow);
 
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
@@ -180,8 +192,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Port & Fuel selectors
-    const [ports, setPorts] = useState<Port[]>([]);
-    const [selectedPort, setSelectedPort] = useState<string>('Singapore');
+    const [selectedPort, setSelectedPort] = useState<string>(() => {
+        return getTerminalPort(localStorage.getItem('verdaxis_marketplace_port'));
+    });
     const [selectedProduct, setSelectedProduct] = useState<MarketProduct>(() => {
         const storedProduct = localStorage.getItem('verdaxis_marketplace_product');
         const storedFuel = localStorage.getItem('verdaxis_marketplace_fuel');
@@ -228,10 +241,13 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const prevPrices = useRef<Record<string, { bid: number | null; ask: number | null }>>({});
     const tradeScrollRef = useRef<HTMLDivElement>(null);
 
-    // Fetch ports for the selector
     useEffect(() => {
-        api.ports.list().then(setPorts).catch(console.error);
-    }, []);
+        localStorage.setItem('verdaxis_marketplace_port', selectedPort);
+    }, [selectedPort]);
+
+    useEffect(() => {
+        localStorage.setItem('verdaxis_marketplace_product', selectedProduct);
+    }, [selectedProduct]);
 
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
     const fetchOrders = useCallback(async () => {
@@ -392,10 +408,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const terminalData: TerminalRow[] = useMemo(() => {
         return PERIOD_CONFIG.map((config, idx) => {
             const periodAsks = filteredAsks.filter(
-                o => o.availability_window === config.window
+                o => terminalWindowMatches(o.availability_window, config.window)
             );
             const periodBids = filteredBids.filter(
-                o => o.availability_window === config.window
+                o => terminalWindowMatches(o.availability_window, config.window)
             );
 
             const askPrices = periodAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
@@ -463,8 +479,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Build chart data from orderbook by period
     const chartData = useMemo(() => {
         return PERIOD_CONFIG.map((config, idx) => {
-            const periodAsksForChart = filteredAsks.filter(o => o.availability_window === config.window);
-            const periodBidsForChart = filteredBids.filter(o => o.availability_window === config.window);
+            const periodAsksForChart = filteredAsks.filter(o => terminalWindowMatches(o.availability_window, config.window));
+            const periodBidsForChart = filteredBids.filter(o => terminalWindowMatches(o.availability_window, config.window));
 
             const askPricesChart = periodAsksForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
             const bidPricesChart = periodBidsForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
@@ -624,17 +640,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const hasRealData = useCallback((row: TerminalRow) => {
         const config = PERIOD_CONFIG.find(p => p.period === row.period);
         if (!config) return false;
-        return filteredOrders.some(o => o.availability_window === config.window);
+        return filteredOrders.some(o => terminalWindowMatches(o.availability_window, config.window));
     }, [filteredOrders]);
 
-    // Unique port names from ports list
-    const portNames = useMemo(() => {
-        const names = ports.map(p => p.name);
-        allOrders.forEach(o => {
-            if (!names.includes(o.region)) names.push(o.region);
-        });
-        return [...new Set(names)].sort();
-    }, [ports, allOrders]);
+    const portNames = APPROVED_TRADING_PORTS;
 
     const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS;
 
@@ -778,6 +787,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                     ) : (
                         <div
                             ref={tvChartContainerRef}
+                            className="verdaxis-chart-container"
                             style={{ width: '100%', height: '80%', cursor: 'pointer' }}
                         />
                     )}
@@ -837,7 +847,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             // Count offers for this period
                             const periodConfig = PERIOD_CONFIG.find(p => p.period === row.period);
                             const offerCount = periodConfig
-                                ? filteredOrders.filter(o => o.availability_window === periodConfig.window).length
+                                ? filteredOrders.filter(o => terminalWindowMatches(o.availability_window, periodConfig.window)).length
                                 : 0;
 
                             // Determine if this is a quarterly row under a Cal year
@@ -1018,8 +1028,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             <div data-tour="terminal-forward-curve" style={{ padding: '4px', height: 'calc(100% - 24px)' }}>
                                 <ForwardCurve
                                     fuelType={selectedFuelType}
-                                    marketProduct={selectedProduct}
+                                    marketProductCode={selectedProduct}
                                     deliveryPointName={selectedPort}
+                                    embedded
                                     onPeriodClick={(window) => {
                                         if (onNavigate) {
                                             localStorage.setItem('verdaxis_marketplace_port', selectedPort);

@@ -21,13 +21,21 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const fetchNotifications = async () => {
         if (!user) return;
-        try {
-            const data = await api.notifications.list();
-            setNotifications(data);
-            const count = await api.notifications.getUnreadCount();
-            setUnreadCount(count);
-        } catch (error) {
-            console.error("Failed to fetch notifications", error);
+        const [listResult, countResult] = await Promise.allSettled([
+            api.notifications.list(),
+            api.notifications.getUnreadCount(),
+        ]);
+
+        if (listResult.status === 'fulfilled') {
+            setNotifications(listResult.value);
+        } else {
+            console.error("Failed to fetch notifications", listResult.reason);
+        }
+
+        if (countResult.status === 'fulfilled') {
+            setUnreadCount(countResult.value);
+        } else {
+            console.error("Failed to fetch unread notification count", countResult.reason);
         }
     };
 

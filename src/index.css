@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body,
+#root {
+  min-height: 100vh;
+  background: #0f172a;
+}
+
+body {
+  background: #0f172a;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+/* Hide lightweight-charts attribution only inside Verdaxis chart panels. */
+.verdaxis-chart-container a[href*="tradingview"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* ============================================
    Theme CSS custom properties — light and dark
    ============================================ */

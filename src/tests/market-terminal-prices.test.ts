@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { getTerminalFuelType } from '../components/MarketTerminal';
+import { getTerminalFuelType, getTerminalPort, terminalWindowMatches } from '../components/MarketTerminal';
 import { APPROVED_TRADING_PORTS } from '../data';
 
 describe('MarketTerminal price data integration', () => {
@@ -35,6 +37,41 @@ describe('MarketTerminal trading taxonomy', () => {
     });
 
     it('uses the approved trading port set for terminal selectors', () => {
-        expect(APPROVED_TRADING_PORTS).toEqual(['Singapore', 'Shanghai', 'Dalian', 'Amsterdam', 'Rotterdam', 'Antwerp']);
+        expect(APPROVED_TRADING_PORTS).toEqual([
+            'Dalian',
+            'Busan',
+            'Shanghai',
+            'Singapore',
+            'Rotterdam',
+            'Houston',
+            'Los Angeles',
+            'Santos',
+        ]);
+    });
+
+    it('normalizes stale or unsupported saved terminal ports to the default market port', () => {
+        expect(getTerminalPort('Rotterdam')).toBe('Rotterdam');
+        expect(getTerminalPort('rotterdam')).toBe('Rotterdam');
+        expect(getTerminalPort('Amsterdam')).toBe('Singapore');
+        expect(getTerminalPort(null)).toBe('Singapore');
+    });
+
+    it('matches canonical and legacy availability windows for terminal rows', () => {
+        expect(terminalWindowMatches('SPOT', 'SPOT')).toBe(true);
+        expect(terminalWindowMatches('Spot', 'SPOT')).toBe(true);
+        expect(terminalWindowMatches('2026-Q1', 'Q1 2026')).toBe(true);
+        expect(terminalWindowMatches('Forward 2027', '2027-CAL')).toBe(true);
+        expect(terminalWindowMatches('2028-CAL', 'Forward 2028')).toBe(true);
+        expect(terminalWindowMatches('FORWARD_2029', '2029-CAL')).toBe(true);
+        expect(terminalWindowMatches('Forward 2030', '2030-CAL')).toBe(true);
+    });
+
+    it('passes the selected canonical product into the embedded forward curve', () => {
+        const source = readFileSync(resolve(process.cwd(), 'src/components/MarketTerminal.tsx'), 'utf8');
+
+        expect(source).toContain('marketProductCode={selectedProduct}');
+        expect(source).toContain('const portNames = APPROVED_TRADING_PORTS');
+        expect(source).toContain('embedded');
+        expect(source).not.toContain('marketProduct={selectedProduct}');
     });
 });

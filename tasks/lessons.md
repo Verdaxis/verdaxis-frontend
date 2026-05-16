@@ -68,3 +68,45 @@
 - **Trigger:** The demo-listing marker tooltip was clipped in the orderbook, ask-side marker placement was not mirrored, and the trade modal lacked demo-liquidity warning copy.
 - **Rule:** For dense orderbook annotations, test both bid and ask placement, tooltip overflow behavior, and the downstream trade modal state before calling the UI fixed.
 - **Why:** I validated the visible marker in isolation and missed container clipping plus the modal path opened from demo liquidity.
+
+### Admin entitlements must bypass commercial paywalls
+- **Date:** 2026-05-14
+- **Trigger:** An admin account still saw the Data & Analytics premium lock overlay.
+- **Rule:** When a surface is commercially paywalled for normal users, explicitly check admin-role access instead of assuming subscription tier alone captures internal entitlements.
+- **Why:** I gated the screen on subscription state only and ignored the separate admin authorization path.
+
+### Avoid conflicting positioning utilities on orderbook markers
+- **Date:** 2026-05-14
+- **Trigger:** Ask-side demo warning icons still appeared on the left side of ask rows even though the marker wrapper included `right-1`.
+- **Rule:** When a wrapper accepts external absolute-positioning classes, do not also apply default `relative` positioning on that same element; tests must assert absence of conflicting position classes, not just presence of the desired one.
+- **Why:** The shared tooltip trigger added `relative`, which could override `absolute` in Tailwind's generated CSS and leave the marker in normal flow.
+
+### Guard prop wiring on embedded market widgets
+- **Date:** 2026-05-14
+- **Trigger:** The terminal embedded forward curve looked empty even though the backend returned demo-derived curve points.
+- **Rule:** When passing canonical market filters into embedded widgets, test the exact prop name used by the child component and keep terminal port/product filters aligned with Marketplace localStorage.
+- **Why:** Vite did not type-check the JSX prop mismatch, so `marketProduct={selectedProduct}` was silently ignored by `ForwardCurve`, which expects `marketProductCode`.
+
+### Render terminal widgets in embedded mode
+- **Date:** 2026-05-14
+- **Trigger:** The terminal forward curve still appeared empty and the lightweight-charts TradingView logo was visible.
+- **Rule:** When placing standalone widgets inside terminal/grid panels, use their embedded mode and verify visual chrome/attribution does not consume the chart area.
+- **Why:** The full ForwardCurve card was rendered inside a short terminal cell, clipping the actual chart, and the main terminal chart did not hide lightweight-charts attribution.
+
+### Share approved market selectors across views
+- **Date:** 2026-05-14
+- **Trigger:** The Market Terminal port selector still showed backend catalog ports that users cannot trade on, and a stale saved port could leave the forward curve empty.
+- **Rule:** Trading selectors must use the shared approved market list and sanitize persisted selections before fetching dependent widgets.
+- **Why:** The terminal populated ports from the generic `/ports` catalog, while Marketplace used the restricted trading-port set.
+
+### Verify translated dense forms visually
+- **Date:** 2026-05-17
+- **Trigger:** The Place Ask modal showed raw i18n keys and overlapping labels in certification metadata fields.
+- **Rule:** When adding fields to dense modals, add all locale keys and verify the longest rendered labels inside the actual modal width.
+- **Why:** New ask metadata fields were wired before their translations existed, and the modal was too narrow for two-column metadata on desktop-sized viewports.
+
+### Keep staging cache policy aligned with production
+- **Date:** 2026-05-17
+- **Trigger:** Users reported seeing older signup screens after recent deploys.
+- **Rule:** SPA staging hosts must use the same no-store HTML cache policy as production, while keeping hashed assets immutable.
+- **Why:** Production had explicit HTML cache headers, but staging served the SPA shell without equivalent cache controls.

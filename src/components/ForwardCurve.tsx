@@ -116,6 +116,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
     const fcMidSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     // Custom tooltip element ref
     const fcTooltipRef = useRef<HTMLDivElement>(null);
+    const curveRequestRef = useRef(0);
 
     // Load products on mount
     useEffect(() => {
@@ -123,8 +124,13 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             .then(prods => {
                 const active = prods.filter(p => p.is_active);
                 setProducts(active);
-                if (!selectedProductId && active.length > 0) {
-                    setSelectedProductId(active[0].id);
+                if (active.length > 0) {
+                    const controlledMatch = marketProductCode
+                        ? active.find((product) => product.market_product === marketProductCode)
+                        : fuelType
+                        ? active.find((product) => product.fuel_type.toLowerCase() === fuelType.toLowerCase())
+                        : undefined;
+                    setSelectedProductId((previous) => controlledMatch?.id || previous || active[0].id);
                 }
             })
             .catch(console.error);
@@ -138,7 +144,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         api.subscriptions.me()
             .then(setSubscription)
             .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
-    }, []);
+    }, [fuelType, marketProductCode]);
 
     // When marketProductCode prop changes, auto-select the matching product
     useEffect(() => {
@@ -152,6 +158,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
 
     // When fuelType prop changes, auto-select the matching product
     useEffect(() => {
+        if (marketProductCode) return;
         if (fuelType && products.length > 0) {
             const match = products.find(p =>
                 p.fuel_type.toLowerCase() === fuelType.toLowerCase()
@@ -169,18 +176,32 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
 
     const fetchCurve = useCallback(async () => {
         if (!selectedProductId) return;
+        if (deliveryPointName && !resolvedDpId) {
+            curveRequestRef.current += 1;
+            setCurveData(null);
+            setLastRefresh(null);
+            setLoading(false);
+            return;
+        }
+        const requestId = curveRequestRef.current + 1;
+        curveRequestRef.current = requestId;
         setLoading(true);
         try {
             const data = await api.curves.forward({
                 product_id: selectedProductId,
                 delivery_point_id: resolvedDpId,
             });
+            if (curveRequestRef.current !== requestId) return;
             setCurveData(data);
             setLastRefresh(new Date());
         } catch (e) {
-            console.error('Failed to load forward curve', e);
+            if (curveRequestRef.current === requestId) {
+                console.error('Failed to load forward curve', e);
+            }
         } finally {
-            setLoading(false);
+            if (curveRequestRef.current === requestId) {
+                setLoading(false);
+            }
         }
     }, [selectedProductId, resolvedDpId]);
 
@@ -354,8 +375,9 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         const hideTradingViewAttribution = () => {
             container.querySelectorAll('a').forEach((node) => {
                 const anchor = node as HTMLAnchorElement;
-                if (anchor.href?.includes('tradingview.com')) {
+                if (anchor.href?.includes('tradingview')) {
                     (anchor as HTMLElement).style.display = 'none';
+                    (anchor as HTMLElement).style.pointerEvents = 'none';
                 }
             });
         };
@@ -595,9 +617,10 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                     </div>
                 </div>
             ) : (
-                <div style={{ position: 'relative', height: chartHeight, cursor: onPeriodClick ? 'pointer' : undefined }}>
+                <div style={{ position: 'relative', height: chartHeight, minHeight: embedded ? 150 : undefined, cursor: onPeriodClick ? 'pointer' : undefined }}>
                     <div
                         ref={fcChartContainerRef}
+                        className="verdaxis-chart-container"
                         style={{ width: '100%', height: '100%' }}
                     />
                     <div

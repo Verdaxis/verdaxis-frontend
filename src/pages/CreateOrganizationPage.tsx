@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 
-const COUNTRIES = [
+const FALLBACK_COUNTRIES = [
   { code: 'SG', name: 'Singapore' }, { code: 'CN', name: 'China' }, { code: 'JP', name: 'Japan' },
   { code: 'KR', name: 'South Korea' }, { code: 'HK', name: 'Hong Kong' }, { code: 'TW', name: 'Taiwan' },
   { code: 'MY', name: 'Malaysia' }, { code: 'TH', name: 'Thailand' }, { code: 'ID', name: 'Indonesia' },
@@ -30,25 +31,61 @@ const COUNTRIES = [
   { code: 'LK', name: 'Sri Lanka' }, { code: 'MM', name: 'Myanmar' }, { code: 'KH', name: 'Cambodia' },
 ];
 
+type CountryOption = { code: string; name: string };
+
+const ISO_COUNTRY_CODES = [
+  'AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS', 'AT', 'AU', 'AW', 'AX', 'AZ',
+  'BA', 'BB', 'BD', 'BE', 'BF', 'BG', 'BH', 'BI', 'BJ', 'BL', 'BM', 'BN', 'BO', 'BQ', 'BR', 'BS',
+  'BT', 'BV', 'BW', 'BY', 'BZ', 'CA', 'CC', 'CD', 'CF', 'CG', 'CH', 'CI', 'CK', 'CL', 'CM', 'CN',
+  'CO', 'CR', 'CU', 'CV', 'CW', 'CX', 'CY', 'CZ', 'DE', 'DJ', 'DK', 'DM', 'DO', 'DZ', 'EC', 'EE',
+  'EG', 'EH', 'ER', 'ES', 'ET', 'FI', 'FJ', 'FK', 'FM', 'FO', 'FR', 'GA', 'GB', 'GD', 'GE', 'GF',
+  'GG', 'GH', 'GI', 'GL', 'GM', 'GN', 'GP', 'GQ', 'GR', 'GS', 'GT', 'GU', 'GW', 'GY', 'HK', 'HM',
+  'HN', 'HR', 'HT', 'HU', 'ID', 'IE', 'IL', 'IM', 'IN', 'IO', 'IQ', 'IR', 'IS', 'IT', 'JE', 'JM',
+  'JO', 'JP', 'KE', 'KG', 'KH', 'KI', 'KM', 'KN', 'KP', 'KR', 'KW', 'KY', 'KZ', 'LA', 'LB', 'LC',
+  'LI', 'LK', 'LR', 'LS', 'LT', 'LU', 'LV', 'LY', 'MA', 'MC', 'MD', 'ME', 'MF', 'MG', 'MH', 'MK',
+  'ML', 'MM', 'MN', 'MO', 'MP', 'MQ', 'MR', 'MS', 'MT', 'MU', 'MV', 'MW', 'MX', 'MY', 'MZ', 'NA',
+  'NC', 'NE', 'NF', 'NG', 'NI', 'NL', 'NO', 'NP', 'NR', 'NU', 'NZ', 'OM', 'PA', 'PE', 'PF', 'PG',
+  'PH', 'PK', 'PL', 'PM', 'PN', 'PR', 'PS', 'PT', 'PW', 'PY', 'QA', 'RE', 'RO', 'RS', 'RU', 'RW',
+  'SA', 'SB', 'SC', 'SD', 'SE', 'SG', 'SH', 'SI', 'SJ', 'SK', 'SL', 'SM', 'SN', 'SO', 'SR', 'SS',
+  'ST', 'SV', 'SX', 'SY', 'SZ', 'TC', 'TD', 'TF', 'TG', 'TH', 'TJ', 'TK', 'TL', 'TM', 'TN', 'TO',
+  'TR', 'TT', 'TV', 'TW', 'TZ', 'UA', 'UG', 'UM', 'US', 'UY', 'UZ', 'VA', 'VC', 'VE', 'VG', 'VI',
+  'VN', 'VU', 'WF', 'WS', 'YE', 'YT', 'ZA', 'ZM', 'ZW',
+];
+
+export function getAvailableCountries(locale = 'en'): CountryOption[] {
+  if (typeof Intl.DisplayNames !== 'function') {
+    return FALLBACK_COUNTRIES;
+  }
+
+  const displayNames = new Intl.DisplayNames([locale], { type: 'region' });
+  const countries = ISO_COUNTRY_CODES
+    .map(code => ({ code, name: displayNames.of(code) || code }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale));
+
+  return countries.length > FALLBACK_COUNTRIES.length ? countries : FALLBACK_COUNTRIES;
+}
+
 interface CountryDropdownProps {
   value: string;
   onChange: (code: string) => void;
   placeholder: string;
   searchPlaceholder: string;
   noResults: string;
+  locale?: string;
 }
 
-const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, placeholder, searchPlaceholder, noResults }) => {
+const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, placeholder, searchPlaceholder, noResults, locale = 'en' }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const countries = getAvailableCountries(locale);
 
-  const filtered = COUNTRIES.filter(c =>
+  const filtered = countries.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.code.toLowerCase().includes(search.toLowerCase())
   );
 
-  const selected = COUNTRIES.find(c => c.code === value);
+  const selected = countries.find(c => c.code === value);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -119,6 +156,7 @@ const CreateOrganizationPage: React.FC = () => {
   const location = useLocation();
   const { checkAuth } = useAuth();
   const { t, ready } = useNamespace('auth');
+  const { i18n } = useTranslation();
 
   const registrationToken = location.state?.registration_token;
 
@@ -235,18 +273,18 @@ const CreateOrganizationPage: React.FC = () => {
   const selectedOrgType = ORG_TYPES.find(t => t.value === formData.type);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-slate-950 text-white relative overflow-y-auto py-6 sm:py-10 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className="absolute inset-0 bg-[#0F172A] z-0"></div>
       <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
 
-      <div className="w-full max-w-lg p-8 relative z-10">
-        <div className="text-center mb-10">
+      <div className="w-full max-w-lg px-4 sm:px-8 relative z-10">
+        <div className="text-center mb-6 sm:mb-10">
           <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
           <p className="text-slate-400">{t('createOrg.subtitle')}</p>
         </div>
 
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 sm:p-8 shadow-2xl">
           {registeredEmail ? (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">
@@ -353,6 +391,7 @@ const CreateOrganizationPage: React.FC = () => {
                     placeholder={t('createOrg.countryPlaceholder')}
                     searchPlaceholder={t('createOrg.countrySearch')}
                     noResults={t('createOrg.countryNoResults')}
+                    locale={i18n.resolvedLanguage || i18n.language || 'en'}
                   />
                 </div>
 

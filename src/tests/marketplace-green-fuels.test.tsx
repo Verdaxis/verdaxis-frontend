@@ -254,6 +254,8 @@ describe('Marketplace green fuels surface', () => {
 
     const marker = await screen.findByLabelText('Demo ask listing');
     expect(marker.parentElement?.className).toContain('right-1');
+    expect(marker.parentElement?.className).toContain('absolute');
+    expect(marker.parentElement?.className).not.toContain('relative');
 
     fireEvent.click(screen.getByTitle(/click to buy at this price/i));
 
