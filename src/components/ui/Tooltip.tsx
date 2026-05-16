@@ -14,6 +14,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 
     const triggerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const [portalStyle, setPortalStyle] = useState<React.CSSProperties>({});
+    const hasContent = content.trim().length > 0;
 
     const positionClasses = {
         top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',
@@ -72,11 +73,13 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 
         <div 
             ref={triggerRef}
             className={`${portal ? '' : 'relative '}flex items-center ${className}`}
-            onMouseEnter={() => setIsVisible(true)}
+            onMouseEnter={() => {
+                if (hasContent) setIsVisible(true);
+            }}
             onMouseLeave={() => setIsVisible(false)}
         >
             {children}
-            {isVisible && (portal ? createPortal(tooltip, document.body) : tooltip)}
+            {isVisible && hasContent && (portal ? createPortal(tooltip, document.body) : tooltip)}
         </div>
     );
 };
