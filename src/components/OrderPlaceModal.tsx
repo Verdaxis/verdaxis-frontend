@@ -10,6 +10,7 @@ import {
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
+import { getWatchlistSliceKey, getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -104,6 +105,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
+    const [trackingState, setTrackingState] = useState<'idle' | 'tracking' | 'error'>('idle');
+    const [trackingError, setTrackingError] = useState('');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -112,6 +115,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
+        setTrackingState('idle');
+        setTrackingError('');
         setAdvancedOpen(side === 'ASK');
 
         setCatalogLoading(true);
@@ -160,6 +165,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
+    const trackableMarketSlice = useMemo(() => {
+        if (!selectedProduct?.market_product || !selectedDeliveryPoint?.id || !formData.availability_window) return null;
+        return {
+            marketProductCode: selectedProduct.market_product,
+            deliveryPointId: selectedDeliveryPoint.id,
+            availabilityWindowCode: formData.availability_window,
+        };
+    }, [formData.availability_window, selectedDeliveryPoint?.id, selectedProduct?.market_product]);
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({
         timeZone: selectedDeliveryPoint?.timezone || 'UTC',
     }), [selectedDeliveryPoint?.timezone]);
@@ -217,6 +230,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
         setModalState('submitting');
         setErrorMessage('');
+        setTrackingState('idle');
+        setTrackingError('');
 
         try {
             const payload: Record<string, any> = {
@@ -265,6 +280,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
+        setTrackingState('idle');
+        setTrackingError('');
         setAdvancedOpen(side === 'ASK');
         onClose();
     };
@@ -272,6 +289,40 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const handlePostActionNavigate = (page: Page) => {
         handleClose();
         onNavigate?.(page);
+    };
+
+    const handleTrackMarket = async () => {
+        if (!trackableMarketSlice || !onNavigate) return;
+        setTrackingState('tracking');
+        setTrackingError('');
+
+        const sliceKey = getWatchlistSliceKeyFromParts(
+            trackableMarketSlice.marketProductCode,
+            trackableMarketSlice.deliveryPointId,
+            trackableMarketSlice.availabilityWindowCode,
+        );
+
+        try {
+            const radar = await api.watchlists.getRadar();
+            const alreadyTracked = radar.slices.some((slice) => getWatchlistSliceKey(slice) === sliceKey);
+            if (!alreadyTracked) {
+                await api.watchlists.createSliceTarget(radar.id, {
+                    market_product_code: trackableMarketSlice.marketProductCode,
+                    delivery_point_id: trackableMarketSlice.deliveryPointId,
+                    availability_window_code: trackableMarketSlice.availabilityWindowCode,
+                });
+            }
+            sessionStorage.setItem('verdaxis_watchlist_focus', sliceKey);
+            handlePostActionNavigate('WATCHLISTS');
+        } catch (err: any) {
+            if (String(err?.message || '').toLowerCase().includes('duplicate')) {
+                sessionStorage.setItem('verdaxis_watchlist_focus', sliceKey);
+                handlePostActionNavigate('WATCHLISTS');
+                return;
+            }
+            setTrackingError(err?.message || t('orderPlaceModal.next.trackError'));
+            setTrackingState('error');
+        }
     };
 
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
@@ -417,14 +468,22 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </button>
                             )}
                         </div>
-                        {modalState === 'success' && onNavigate && (
+                        {modalState === 'success' && onNavigate && trackableMarketSlice && (
                             <button
                                 type="button"
-                                onClick={() => handlePostActionNavigate('WATCHLISTS')}
+                                onClick={handleTrackMarket}
+                                disabled={trackingState === 'tracking'}
                                 className="mt-3 w-full py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold rounded-lg transition-colors"
                             >
-                                {t('orderPlaceModal.next.action.watchlists')}
+                                {trackingState === 'tracking'
+                                    ? t('orderPlaceModal.next.action.tracking')
+                                    : t('orderPlaceModal.next.action.watchlists')}
                             </button>
+                        )}
+                        {trackingError && (
+                            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                                {trackingError}
+                            </p>
                         )}
                     </div>
                 </div>

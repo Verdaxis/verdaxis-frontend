@@ -60,6 +60,14 @@ _Avoid_: private negotiation log
 The consolidated monitoring surface for one selected product and delivery point.
 _Avoid_: separate trading model
 
+**Watchlist**:
+A user-owned surveillance layer for market slices and pinned orders.
+_Avoid_: second orderbook, matchmaking source, generic bookmark list
+
+**Market Radar**:
+The default Watchlist container automatically used to monitor market-slice changes and pinned order updates.
+_Avoid_: custom watchlist, saved search, trading engine
+
 **RFQ**:
 A bilateral negotiation workflow that is not the primary Verdaxis market model because buyer intent should normally be posted as a bid.
 _Avoid_: primary buying flow
@@ -75,6 +83,7 @@ _Avoid_: broad region, aggregate bucket
 - An **Order** is either one **Bid** or one **Ask**.
 - A **Benchmark** belongs to one **Market Slice**.
 - A **Forward Curve** is composed of benchmark points for one product and delivery point across future availability windows.
+- A **Watchlist** observes **Market Slices** and pinned **Orders**; it does not change matching or execution rules.
 - A **Demo Listing** may appear in market-intelligence surfaces but must not be presented as user-posted liquidity or executable production activity.
 - **RFQ** may exist for future optional workflows, but the primary user journey must route buyer intent into **Bids** and supplier intent into **Asks**.
 

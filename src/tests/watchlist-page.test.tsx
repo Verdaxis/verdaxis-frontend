@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
@@ -90,6 +90,10 @@ vi.mock('../hooks/useWatchlist', () => ({
 }));
 
 describe('WatchlistPage', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
   it('renders market slices, pinned orders, and event feed', () => {
     renderWithProviders(<WatchlistPage />);
 
@@ -98,5 +102,16 @@ describe('WatchlistPage', () => {
     expect(screen.queryByText(/No Watchlist activity yet/i)).toBeNull();
     expect(screen.getAllByText(/Pinned order partially filled/i).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: /mark read/i }).length).toBeGreaterThan(0);
+  });
+
+  it('highlights a market slice passed from the post-order tracking action', () => {
+    sessionStorage.setItem('verdaxis_watchlist_focus', 'BIO_METHANOL::dp-1::SPOT');
+
+    renderWithProviders(<WatchlistPage />);
+
+    const sliceHeading = screen.getAllByText(/Bio Methanol · Singapore · Spot/i)[0];
+    const sliceCard = sliceHeading.closest('article');
+    expect(sliceCard?.className).toContain('ring-2');
+    expect(sessionStorage.getItem('verdaxis_watchlist_focus')).toBeNull();
   });
 });

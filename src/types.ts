@@ -454,3 +454,62 @@ export interface Watchlist {
     entries: WatchlistEntry[];
     created_at: string;
 }
+
+export interface WatchlistTarget {
+    id: string;
+    target_type: 'SLICE' | 'PIN';
+    market_product_code?: MarketProduct | string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
+    order_id?: string | null;
+    snapshot_price_per_mt_usd?: number | null;
+    snapshot_quantity_mt?: number | null;
+    snapshot_remaining_quantity_mt?: number | null;
+    snapshot_status?: string | null;
+    snapshot_side?: string | null;
+    snapshot_market_product?: string | null;
+    snapshot_delivery_point_name?: string | null;
+    snapshot_availability_window?: string | null;
+    snapshot_counterparty_label?: string | null;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    created_at: string;
+}
+
+export interface WatchlistSlice extends WatchlistTarget {
+    target_type: 'SLICE';
+    market_product_code: MarketProduct | string;
+    delivery_point_id: string;
+    availability_window_code: string;
+    pins: WatchlistTarget[];
+}
+
+export interface WatchlistSummary {
+    id: string;
+    name: string;
+    kind: string;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    total_slice_count: number;
+    has_more_slices: boolean;
+    slices: WatchlistSlice[];
+    created_at: string;
+}
+
+export interface WatchlistEvent {
+    id: string;
+    watchlist_id: string;
+    watchlist_target_id: string;
+    target_type: 'SLICE' | 'PIN';
+    event_type: string;
+    event_payload: Record<string, unknown>;
+    is_read: boolean;
+    created_at: string;
+}
+
+export interface WatchlistEventsPage {
+    items: WatchlistEvent[];
+    next_cursor?: string | null;
+}

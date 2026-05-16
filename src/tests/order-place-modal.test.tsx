@@ -8,6 +8,8 @@ import { OrderPlaceModal } from '../components/OrderPlaceModal';
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
 const createOrderMock = vi.fn();
+const getRadarMock = vi.fn();
+const createSliceTargetMock = vi.fn();
 
 vi.mock('../hooks/useNamespace', () => ({
   useNamespace: () => ({
@@ -36,6 +38,10 @@ vi.mock('../services/api', () => ({
     orderbook: {
       create: (...args: unknown[]) => createOrderMock(...args),
     },
+    watchlists: {
+      getRadar: (...args: unknown[]) => getRadarMock(...args),
+      createSliceTarget: (...args: unknown[]) => createSliceTargetMock(...args),
+    },
   },
 }));
 
@@ -44,11 +50,15 @@ describe('OrderPlaceModal', () => {
     productsMock.mockReset();
     deliveryPointsMock.mockReset();
     createOrderMock.mockReset();
+    getRadarMock.mockReset();
+    createSliceTargetMock.mockReset();
+    sessionStorage.clear();
 
     productsMock.mockResolvedValue([
       {
         id: 'prod-1',
         name: 'Green Methanol',
+        market_product: 'BIO_METHANOL',
         fuel_type: 'Methanol',
         fuel_grade: 'Green',
         unit: 'MT',
@@ -67,6 +77,27 @@ describe('OrderPlaceModal', () => {
       },
     ]);
     createOrderMock.mockResolvedValue({ trades: [] });
+    getRadarMock.mockResolvedValue({
+      id: 'radar-1',
+      name: 'Market Radar',
+      kind: 'RADAR_DEFAULT',
+      unread_event_count: 0,
+      total_slice_count: 0,
+      has_more_slices: false,
+      slices: [],
+      created_at: '2026-04-13T00:00:00Z',
+    });
+    createSliceTargetMock.mockResolvedValue({
+      id: 'slice-1',
+      target_type: 'SLICE',
+      market_product_code: 'BIO_METHANOL',
+      delivery_point_id: 'dp-1',
+      availability_window_code: 'SPOT',
+      active_order_count: 0,
+      unread_event_count: 0,
+      pins: [],
+      created_at: '2026-04-13T00:00:00Z',
+    });
   });
 
   it('resets to the new canonical slice when reopened', async () => {
@@ -317,6 +348,101 @@ describe('OrderPlaceModal', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onNavigate).toHaveBeenCalledWith('TRADES');
+  });
+
+  it('tracks the submitted market slice before opening Watchlist', async () => {
+    const onClose = vi.fn();
+    const onNavigate = vi.fn();
+
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={onClose}
+        onNavigate={onNavigate}
+        side="BID"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '540' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('orderPlaceModal.next.liveOrder')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.next.action.watchlists' }));
+
+    await waitFor(() => {
+      expect(createSliceTargetMock).toHaveBeenCalledWith('radar-1', {
+        market_product_code: 'BIO_METHANOL',
+        delivery_point_id: 'dp-1',
+        availability_window_code: 'SPOT',
+      });
+      expect(onNavigate).toHaveBeenCalledWith('WATCHLISTS');
+    });
+    expect(sessionStorage.getItem('verdaxis_watchlist_focus')).toBe('BIO_METHANOL::dp-1::SPOT');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not untrack an existing market slice from the post-order Watchlist action', async () => {
+    const onNavigate = vi.fn();
+    getRadarMock.mockResolvedValue({
+      id: 'radar-1',
+      name: 'Market Radar',
+      kind: 'RADAR_DEFAULT',
+      unread_event_count: 0,
+      total_slice_count: 1,
+      has_more_slices: false,
+      slices: [
+        {
+          id: 'slice-1',
+          target_type: 'SLICE',
+          market_product_code: 'BIO_METHANOL',
+          delivery_point_id: 'dp-1',
+          availability_window_code: 'SPOT',
+          active_order_count: 1,
+          unread_event_count: 0,
+          pins: [],
+          created_at: '2026-04-13T00:00:00Z',
+        },
+      ],
+      created_at: '2026-04-13T00:00:00Z',
+    });
+
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={() => undefined}
+        onNavigate={onNavigate}
+        side="BID"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '540' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('orderPlaceModal.next.liveOrder')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.next.action.watchlists' }));
+
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('WATCHLISTS'));
+    expect(createSliceTargetMock).not.toHaveBeenCalled();
   });
 
 

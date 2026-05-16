@@ -76,3 +76,5 @@ This session moved from interview mode into autonomous grill mode with a reviewe
 - Accepted reviewer pushback that demo liquidity execution was only half-enforced; auto-match now skips demo orders entirely.
 - Began Factory Loop 2 activation work by adding post-order next-step actions to the order placement success state.
 - Accepted reviewer pushback that activation guidance must be wired from Marketplace, Command Center, and the global sidebar post-order entry point; added routing coverage for all three.
+- Accepted reviewer pushback that "Track this market" must be an idempotent Market Radar mutation, not a navigation-only CTA or toggle that could untrack an existing slice.
+- Resolved Watchlist terminology in `CONTEXT.md`: Watchlist/Market Radar observes market slices and pinned orders, and must not become a second orderbook or matching source.

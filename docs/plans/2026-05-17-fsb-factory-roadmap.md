@@ -67,6 +67,7 @@ Verdaxis should converge on one clear product model:
 - Demo liquidity is now preview-only for auto-match as well as manual trade creation; demo orders do not auto-execute, even demo-vs-demo.
 - Order placement success states now show the submitted market slice and action CTAs from Marketplace, Command Center, and the global sidebar post-order entry point.
 - Instant-match success states now route users to Trade History, while live unmatched orders route users to the live orderbook or watchlist tracking.
+- Watchlist tracking from post-order success is now an idempotent Market Radar action: existing slices stay tracked, missing slices are created through the slice-first API, and the Watchlist page highlights the tracked slice.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 

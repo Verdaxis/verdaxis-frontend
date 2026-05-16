@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
 
 import { useWatchlist } from '../hooks/useWatchlist';
-import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget } from '../utils/watchlist';
+import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget, getWatchlistSliceKey } from '../utils/watchlist';
 
 export const WatchlistPage: React.FC = () => {
     const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
+    const [focusSliceKey] = useState(() => sessionStorage.getItem('verdaxis_watchlist_focus'));
     const {
         radar,
         events,
@@ -27,6 +28,12 @@ export const WatchlistPage: React.FC = () => {
         }
         return labels;
     }, [radar]);
+
+    useEffect(() => {
+        if (focusSliceKey) {
+            sessionStorage.removeItem('verdaxis_watchlist_focus');
+        }
+    }, [focusSliceKey]);
 
     const handleRemoveTarget = async (targetId: string, label: string) => {
         if (!window.confirm(`Remove ${label} from Watchlist?`)) return;
@@ -95,8 +102,12 @@ export const WatchlistPage: React.FC = () => {
                 <section className="grid gap-4 lg:grid-cols-2">
                     {(radar?.slices ?? []).map((slice) => {
                         const latestEvent = getLatestEventForSlice(slice, events);
+                        const isFocusedSlice = Boolean(focusSliceKey) && getWatchlistSliceKey(slice) === focusSliceKey;
                         return (
-                            <article key={slice.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                            <article
+                                key={slice.id}
+                                className={`rounded-2xl border bg-white p-5 shadow-sm dark:bg-slate-900 ${isFocusedSlice ? 'border-emerald-300 ring-2 ring-emerald-200 dark:border-emerald-700 dark:ring-emerald-900/60' : 'border-slate-200 dark:border-slate-800'}`}
+                            >
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
                                         <h2 className="text-lg font-black text-slate-900 dark:text-white">{formatWatchlistSliceLabel(slice)}</h2>
