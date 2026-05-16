@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
-import { Marketplace } from '../components/Marketplace';
+import { Marketplace, __resetMarketplaceReadCachesForTests } from '../components/Marketplace';
 
 const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradesInitiate } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' },
@@ -115,6 +115,7 @@ const listingsResponse = {
 
 describe('Marketplace green fuels surface', () => {
   beforeEach(() => {
+    __resetMarketplaceReadCachesForTests();
     vi.clearAllMocks();
     userRole.current = 'BUYER';
     localStorage.clear();
@@ -154,6 +155,59 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
+  });
+
+  it('coalesces fresh marketplace listing and product-count reads across remounts', async () => {
+    const firstRender = renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
+
+    expect(listAsksPaged).toHaveBeenCalledTimes(5);
+
+    firstRender.unmount();
+    vi.clearAllMocks();
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
+
+    expect(listAsksPaged).not.toHaveBeenCalled();
+  });
+
+  it('bypasses the fresh marketplace page cache on manual refresh', async () => {
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
+    expect(listAsksPaged).toHaveBeenCalledTimes(5);
+
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledTimes(6);
+    });
+  });
+
+  it('uses a separate marketplace page cache key when the product filter changes', async () => {
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
+    expect(listAsksPaged).toHaveBeenCalledTimes(5);
+
+    fireEvent.click(screen.getByRole('button', { name: /^e-Methanol/i }));
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        market_product: 'E_METHANOL',
+      }));
+    });
   });
 
 

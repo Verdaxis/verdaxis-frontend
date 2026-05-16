@@ -66,4 +66,14 @@ describe('platform regression guards', () => {
     expect(demandFeedSource).toContain('api.demand.signals');
     expect(demandFeedSource).not.toContain('api.orderbook.listBids');
   });
+
+  it('keeps platform navigation from blanking the app shell while lazy screens load', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+
+    expect(appSource).toContain('useTransition');
+    expect(appSource).toContain('startPageTransition(() => setCurrentPage(page))');
+    expect(appSource).toContain('const DashboardContentLoading');
+    expect(appSource).toContain('<Suspense fallback={<DashboardContentLoading />}>');
+    expect(appSource).toContain('<Suspense fallback={null}>');
+  });
 });

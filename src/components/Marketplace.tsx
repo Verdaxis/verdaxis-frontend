@@ -97,9 +97,33 @@ type MarketplaceCacheEntry = {
     items: OrderBookOrder[];
     total: number;
     skip: number;
+    updatedAt: number;
 };
 
+type MarketplaceProductCountsCacheEntry = {
+    counts: Record<string, number>;
+    updatedAt: number;
+};
+
+const MARKETPLACE_READ_CACHE_TTL_MS = 30_000;
+
 const marketplaceCache = new Map<string, MarketplaceCacheEntry>();
+const marketplaceInFlight = new Map<string, Promise<MarketplaceCacheEntry>>();
+const marketplaceProductCountsCache = new Map<string, MarketplaceProductCountsCacheEntry>();
+const marketplaceProductCountsInFlight = new Map<string, Promise<Record<string, number>>>();
+
+const isFresh = (updatedAt: number, now = Date.now()) => now - updatedAt < MARKETPLACE_READ_CACHE_TTL_MS;
+
+const clearMarketplaceReadCaches = () => {
+    marketplaceCache.clear();
+    marketplaceProductCountsCache.clear();
+};
+
+export const __resetMarketplaceReadCachesForTests = () => {
+    clearMarketplaceReadCaches();
+    marketplaceInFlight.clear();
+    marketplaceProductCountsInFlight.clear();
+};
 
 const getMarketplaceCacheKey = (
     role: string,
@@ -113,6 +137,16 @@ const getMarketplaceCacheKey = (
     marketProduct || '*',
     availability || '*',
     skip,
+].join('|');
+
+const getMarketplaceProductCountsCacheKey = (
+    role: string,
+    region: string,
+    availability: AvailabilityWindow | '',
+) => [
+    role,
+    region || '*',
+    availability || '*',
 ].join('|');
 
 // ─── Props ────────────────────────────────────────────────────────
@@ -231,9 +265,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
 
     // ─── Data fetching ────────────────────────────────────────────
-    const fetchData = useCallback(async (silent = false, skip = 0) => {
+    const fetchData = useCallback(async (silent = false, skip = 0, options: { force?: boolean } = {}) => {
         const cacheKey = getMarketplaceCacheKey(role, resolvedPort, marketProduct, availability, skip);
         const cached = marketplaceCache.get(cacheKey);
+        const now = Date.now();
+
+        if (cached && isFresh(cached.updatedAt, now) && !options.force) {
+            setListings(cached.items);
+            setTotalCount(cached.total);
+            setCurrentSkip(cached.skip);
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
 
         if (cached && !silent) {
             setListings(cached.items);
@@ -249,18 +293,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         setError(null);
 
         try {
-            const data = await configBase.fetchOrders({
-                region: resolvedPort || undefined,
-                market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
-                availability: availability || undefined,
-                skip,
-                limit: PAGE_SIZE,
-            });
-            marketplaceCache.set(cacheKey, {
-                items: data.items,
-                total: data.total,
-                skip: data.skip,
-            });
+            let request = marketplaceInFlight.get(cacheKey);
+            if (!request || options.force) {
+                request = configBase.fetchOrders({
+                    region: resolvedPort || undefined,
+                    market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
+                    availability: availability || undefined,
+                    skip,
+                    limit: PAGE_SIZE,
+                }).then((data) => {
+                    const entry = {
+                        items: data.items,
+                        total: data.total,
+                        skip: data.skip,
+                        updatedAt: Date.now(),
+                    };
+                    marketplaceCache.set(cacheKey, entry);
+                    return entry;
+                }).finally(() => {
+                    if (marketplaceInFlight.get(cacheKey) === request) {
+                        marketplaceInFlight.delete(cacheKey);
+                    }
+                });
+                marketplaceInFlight.set(cacheKey, request);
+            }
+
+            const data = await request;
             setListings(data.items);
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
@@ -281,7 +339,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     // 60s auto-refresh (silent)
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchData(true, currentSkip);
+            fetchData(true, currentSkip, { force: true });
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
@@ -316,23 +374,45 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         let cancelled = false;
 
         const fetchMarketProductCounts = async () => {
+            const cacheKey = getMarketplaceProductCountsCacheKey(role, resolvedPort, availability);
+            const cached = marketplaceProductCountsCache.get(cacheKey);
+            if (cached && isFresh(cached.updatedAt)) {
+                setMarketProductCounts(cached.counts);
+                return;
+            }
+
             try {
-                const totals = await Promise.all(
-                    MARKET_PRODUCTS.map(async (productCode) => {
-                        const response = await configBase.fetchOrders({
-                            region: resolvedPort || undefined,
-                            market_product: productCode,
-                            availability: availability || undefined,
-                            skip: 0,
-                            limit: 1,
+                let request = marketplaceProductCountsInFlight.get(cacheKey);
+                if (!request) {
+                    request = Promise.all(
+                        MARKET_PRODUCTS.map(async (productCode) => {
+                            const response = await configBase.fetchOrders({
+                                region: resolvedPort || undefined,
+                                market_product: productCode,
+                                availability: availability || undefined,
+                                skip: 0,
+                                limit: 1,
+                            });
+                            return [productCode, response.total ?? response.items?.length ?? 0] as const;
+                        }),
+                    ).then((totals) => {
+                        const counts = Object.fromEntries(totals);
+                        marketplaceProductCountsCache.set(cacheKey, {
+                            counts,
+                            updatedAt: Date.now(),
                         });
-                        return [productCode, response.total ?? response.items?.length ?? 0] as const;
-                    }),
-                );
+                        return counts;
+                    }).finally(() => {
+                        if (marketplaceProductCountsInFlight.get(cacheKey) === request) {
+                            marketplaceProductCountsInFlight.delete(cacheKey);
+                        }
+                    });
+                    marketplaceProductCountsInFlight.set(cacheKey, request);
+                }
 
+                const counts = await request;
                 if (cancelled) return;
-
-                setMarketProductCounts(Object.fromEntries(totals));
+                setMarketProductCounts(counts);
             } catch {
                 if (!cancelled) {
                     setMarketProductCounts({});
@@ -344,7 +424,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         return () => {
             cancelled = true;
         };
-    }, [availability, configBase, resolvedPort]);
+    }, [availability, configBase, resolvedPort, role]);
 
 
     const portOptions = useMemo(() => ([
@@ -445,7 +525,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     const handleCancelOrder = async (orderId: string) => {
         try {
             await api.orderbook.cancel(orderId);
+            clearMarketplaceReadCaches();
             setMyOrders(prev => prev.filter(o => o.id !== orderId));
+            fetchData(true, currentSkip, { force: true });
         } catch {
             // Silently fail — order may already be filled/cancelled
         }
@@ -479,7 +561,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             // Auto-close after 2s and refresh
             setTimeout(() => {
                 closeTradeModal();
-                fetchData(true, currentSkip);
+                clearMarketplaceReadCaches();
+                fetchData(true, currentSkip, { force: true });
             }, 2000);
         } catch (err: any) {
             setTradeError(err.message || 'Trade initiation failed');
@@ -666,7 +749,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             </button>
                             <button
                                 type="button"
-                                onClick={() => fetchData(false, currentSkip)}
+                                onClick={() => fetchData(false, currentSkip, { force: true })}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -873,7 +956,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">{t('marketplace.error.title')}</p>
                             <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 max-w-md">{error}</p>
                             <button
-                                onClick={() => fetchData(false, 0)}
+                                onClick={() => fetchData(false, 0, { force: true })}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                             >
                                 {t('marketplace.btn.tryAgain')}
@@ -1279,7 +1362,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
+                onClose={() => { setOrderModalSide(null); clearMarketplaceReadCaches(); fetchData(true, currentSkip, { force: true }); }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useTransition, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -16,6 +16,21 @@ const lazyNamed = <T extends React.ComponentType<any>>(loader: () => Promise<Rec
 const LoadingScreen = () => (
   <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center text-emerald-400">
     Loading...
+  </div>
+);
+
+const DashboardContentLoading = () => (
+  <div className="h-full w-full bg-slate-50 p-6 dark:bg-slate-900">
+    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
+      <div className="h-8 w-56 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+      <div className="h-4 w-80 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" />
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" />
+    </div>
   </div>
 );
 
@@ -217,18 +232,24 @@ const Dashboard: React.FC = () => {
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
+  const [, startPageTransition] = useTransition();
+
+  const setDashboardPage = useCallback((page: Page) => {
+    startPageTransition(() => setCurrentPage(page));
+    sessionStorage.setItem('verdaxis_currentPage', page);
+  }, [startPageTransition]);
 
   useEffect(() => {
       if (location.state) {
         const state = location.state as any;
         if (state.targetPage) {
-            setCurrentPage(sanitizeDashboardPage(state.targetPage));
+            setDashboardPage(sanitizeDashboardPage(state.targetPage));
         }
         if (state.openOrderId) {
             setOpenOrderId(state.openOrderId);
         }
       }
-  }, [location]);
+  }, [location, setDashboardPage]);
 
   useEffect(() => {
       schedulePlatformPrefetch();
@@ -237,26 +258,24 @@ const Dashboard: React.FC = () => {
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
     const defaultPage = 'DASHBOARD';
-    setCurrentPage(defaultPage);
+    setDashboardPage(defaultPage);
     sessionStorage.setItem('verdaxis_viewMode', mode);
-    sessionStorage.setItem('verdaxis_currentPage', defaultPage);
   };
 
   const handleNavigate = (page: Page) => {
     const nextPage = sanitizeDashboardPage(page);
-    setCurrentPage(nextPage);
-    sessionStorage.setItem('verdaxis_currentPage', nextPage);
+    setDashboardPage(nextPage);
   };
 
   const handlePortSelect = (port: Port) => {
     setSelectedPort(port);
-    setCurrentPage('MARKETPLACE');
+    setDashboardPage('MARKETPLACE');
   };
 
   const handleOrderClick = (port: Port) => {
     // Redirect to Marketplace with port selected
     setSelectedPort(port);
-    setCurrentPage('MARKETPLACE');
+    setDashboardPage('MARKETPLACE');
   };
 
   const renderContent = () => {
@@ -326,16 +345,22 @@ const Dashboard: React.FC = () => {
       onPrefetchPage={prefetchDashboardPage}
       onPrimaryAction={() => setSidebarModalSide(viewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
-      <GuidedTutorial viewMode={viewMode} />
-      <ErrorBoundary>
-        {renderContent()}
-      </ErrorBoundary>
-      <OrderPlaceModal
-        isOpen={sidebarModalSide !== null}
-        onClose={() => setSidebarModalSide(null)}
-        side={sidebarModalSide || 'BID'}
-        onNavigate={handleNavigate}
-      />
+      <Suspense fallback={null}>
+        <GuidedTutorial viewMode={viewMode} />
+      </Suspense>
+      <Suspense fallback={<DashboardContentLoading />}>
+        <ErrorBoundary>
+          {renderContent()}
+        </ErrorBoundary>
+      </Suspense>
+      <Suspense fallback={null}>
+        <OrderPlaceModal
+          isOpen={sidebarModalSide !== null}
+          onClose={() => setSidebarModalSide(null)}
+          side={sidebarModalSide || 'BID'}
+          onNavigate={handleNavigate}
+        />
+      </Suspense>
     </Layout>
   );
 };
