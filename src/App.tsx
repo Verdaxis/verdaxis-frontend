@@ -1,68 +1,93 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
-import { GuidedTutorial } from './components/GuidedTutorial';
-import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
-import { TradeNotifier } from './components/TradeNotifier';
-import RegisterPage from './pages/RegisterPage';
-import { InvitePage } from './pages/InvitePage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import { OnboardingPage } from './pages/OnboardingPage';
-import CreateOrganizationPage from './pages/CreateOrganizationPage';
-import VerifyEmailPage from './pages/VerifyEmailPage';
-import KycPage from './pages/KycPage';
-import { Layout } from './components/Layout';
-import { BuyerMap } from './components/BuyerMap';
-import { BuyerDashboard, SupplierDashboard } from './components/CommandCenter';
-import { SupplierQuotes } from './components/SupplierQuotes';
-import { DataAnalytics } from './components/DataAnalytics';
-import { Compliance } from './components/Compliance';
-import { Training } from './components/Training';
-import { Settings } from './components/Settings';
-import { Stats } from './components/Stats';
-import { MyTrades } from './components/MyTrades';
-import { TradeHistoryPage } from './components/TradeHistoryPage';
-import { MarketTerminal } from './components/MarketTerminal';
-import { Marketplace } from './components/Marketplace';
-import { WatchlistPage } from './components/WatchlistPage';
-import { SupplierStats } from './components/SupplierStats';
-import { SupplierAnalytics } from './components/SupplierAnalytics';
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, Port } from './types';
-import { PublicLayout } from './components/public/PublicLayout';
-import LanguageRedirect from './components/public/LanguageRedirect';
-import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
-import LegacyRedirect from './components/public/LegacyRedirect';
-import { LandingPage } from './pages/public/LandingPage';
-import { HowItWorksPage } from './pages/public/HowItWorksPage';
-import { FuelCoveragePage } from './pages/public/FuelCoveragePage';
-import { ComplianceInfoPage } from './pages/public/ComplianceInfoPage';
-import { ProducerUseCasePage } from './pages/public/ProducerUseCasePage';
-import { BuyerUseCasePage } from './pages/public/BuyerUseCasePage';
-import { TraderUseCasePage } from './pages/public/TraderUseCasePage';
-import { FinancierUseCasePage } from './pages/public/FinancierUseCasePage';
-import { GovernancePage } from './pages/public/GovernancePage';
-import { PilotPage } from './pages/public/PilotPage';
-import { EducationPage } from './pages/public/EducationPage';
-import { PartnersPage } from './pages/public/PartnersPage';
-import { EducationArticlePage } from './pages/public/EducationArticlePage';
-import { RoadmapPage } from './pages/public/RoadmapPage';
-import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
-import { ProducerMapPage } from './pages/public/ProducerMapPage';
-import { PartnerShowcasePage } from './pages/public/PartnerShowcasePage';
-import { PartnerLandingPage } from './pages/public/PartnerLandingPage';
-import { PrivacyPage } from './pages/public/PrivacyPage';
-import { TermsPage } from './pages/public/TermsPage';
-import { NotFoundPage } from './pages/public/NotFoundPage';
+
+const lazyNamed = <T extends React.ComponentType<any>>(loader: () => Promise<Record<string, any>>, exportName: string) =>
+  lazy(async () => ({ default: (await loader())[exportName] as T }));
+
+const LoadingScreen = () => (
+  <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center text-emerald-400">
+    Loading...
+  </div>
+);
+
+const GuidedTutorial = lazyNamed(() => import('./components/GuidedTutorial'), 'GuidedTutorial');
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const TradeNotifier = lazyNamed(() => import('./components/TradeNotifier'), 'TradeNotifier');
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const InvitePage = lazyNamed(() => import('./pages/InvitePage'), 'InvitePage');
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const OnboardingPage = lazyNamed(() => import('./pages/OnboardingPage'), 'OnboardingPage');
+const CreateOrganizationPage = lazy(() => import('./pages/CreateOrganizationPage'));
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
+const KycPage = lazy(() => import('./pages/KycPage'));
+const Layout = lazyNamed(() => import('./components/Layout'), 'Layout');
+const BuyerMap = lazyNamed(() => import('./components/BuyerMap'), 'BuyerMap');
+const BuyerDashboard = lazyNamed(() => import('./components/CommandCenter'), 'BuyerDashboard');
+const SupplierDashboard = lazyNamed(() => import('./components/CommandCenter'), 'SupplierDashboard');
+const SupplierQuotes = lazyNamed(() => import('./components/SupplierQuotes'), 'SupplierQuotes');
+const DataAnalytics = lazyNamed(() => import('./components/DataAnalytics'), 'DataAnalytics');
+const Compliance = lazyNamed(() => import('./components/Compliance'), 'Compliance');
+const Training = lazyNamed(() => import('./components/Training'), 'Training');
+const Settings = lazyNamed(() => import('./components/Settings'), 'Settings');
+const TradeHistoryPage = lazyNamed(() => import('./components/TradeHistoryPage'), 'TradeHistoryPage');
+const MarketTerminal = lazyNamed(() => import('./components/MarketTerminal'), 'MarketTerminal');
+const Marketplace = lazyNamed(() => import('./components/Marketplace'), 'Marketplace');
+const WatchlistPage = lazyNamed(() => import('./components/WatchlistPage'), 'WatchlistPage');
+const SupplierAnalytics = lazyNamed(() => import('./components/SupplierAnalytics'), 'SupplierAnalytics');
+const AdminDashboard = lazyNamed(() => import('./components/admin/AdminDashboard'), 'AdminDashboard');
+const OrderPlaceModal = lazyNamed(() => import('./components/OrderPlaceModal'), 'OrderPlaceModal');
+const PublicLayout = lazyNamed(() => import('./components/public/PublicLayout'), 'PublicLayout');
+const LanguageRedirect = lazy(() => import('./components/public/LanguageRedirect'));
+const PublicLanguageWrapper = lazy(() => import('./components/public/PublicLanguageWrapper'));
+const LegacyRedirect = lazy(() => import('./components/public/LegacyRedirect'));
+const LandingPage = lazyNamed(() => import('./pages/public/LandingPage'), 'LandingPage');
+const HowItWorksPage = lazyNamed(() => import('./pages/public/HowItWorksPage'), 'HowItWorksPage');
+const FuelCoveragePage = lazyNamed(() => import('./pages/public/FuelCoveragePage'), 'FuelCoveragePage');
+const ComplianceInfoPage = lazyNamed(() => import('./pages/public/ComplianceInfoPage'), 'ComplianceInfoPage');
+const ProducerUseCasePage = lazyNamed(() => import('./pages/public/ProducerUseCasePage'), 'ProducerUseCasePage');
+const BuyerUseCasePage = lazyNamed(() => import('./pages/public/BuyerUseCasePage'), 'BuyerUseCasePage');
+const TraderUseCasePage = lazyNamed(() => import('./pages/public/TraderUseCasePage'), 'TraderUseCasePage');
+const FinancierUseCasePage = lazyNamed(() => import('./pages/public/FinancierUseCasePage'), 'FinancierUseCasePage');
+const GovernancePage = lazyNamed(() => import('./pages/public/GovernancePage'), 'GovernancePage');
+const PilotPage = lazyNamed(() => import('./pages/public/PilotPage'), 'PilotPage');
+const EducationPage = lazyNamed(() => import('./pages/public/EducationPage'), 'EducationPage');
+const PartnersPage = lazyNamed(() => import('./pages/public/PartnersPage'), 'PartnersPage');
+const EducationArticlePage = lazyNamed(() => import('./pages/public/EducationArticlePage'), 'EducationArticlePage');
+const RoadmapPage = lazyNamed(() => import('./pages/public/RoadmapPage'), 'RoadmapPage');
+const EnergyCalculatorPage = lazyNamed(() => import('./pages/public/EnergyCalculatorPage'), 'EnergyCalculatorPage');
+const ProducerMapPage = lazyNamed(() => import('./pages/public/ProducerMapPage'), 'ProducerMapPage');
+const PartnerShowcasePage = lazyNamed(() => import('./pages/public/PartnerShowcasePage'), 'PartnerShowcasePage');
+const PartnerLandingPage = lazyNamed(() => import('./pages/public/PartnerLandingPage'), 'PartnerLandingPage');
+const PrivacyPage = lazyNamed(() => import('./pages/public/PrivacyPage'), 'PrivacyPage');
+const TermsPage = lazyNamed(() => import('./pages/public/TermsPage'), 'TermsPage');
+
+const prefetchPlatformScreens = () => {
+  void Promise.all([
+    import('./components/BuyerMap'),
+    import('./components/Marketplace'),
+    import('./components/MarketTerminal'),
+    import('./components/ForwardCurve'),
+    import('./components/OrderPlaceModal'),
+  ]).catch(() => undefined);
+};
+
+const schedulePlatformPrefetch = () => {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(prefetchPlatformScreens, { timeout: 3000 });
+    return;
+  }
+  window.setTimeout(prefetchPlatformScreens, 1000);
+};
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -160,6 +185,10 @@ const Dashboard: React.FC = () => {
         }
       }
   }, [location]);
+
+  useEffect(() => {
+      schedulePlatformPrefetch();
+  }, []);
 
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
@@ -276,6 +305,7 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
+                <Suspense fallback={<LoadingScreen />}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<LoginPage />} />
@@ -366,9 +396,12 @@ const App: React.FC = () => {
                     {/* Fallback */}
                     <Route path="*" element={<PublicLayout />} />
                 </Routes>
+                </Suspense>
             </BrowserRouter>
         </TutorialProvider>
-        <TradeNotifier />
+        <Suspense fallback={null}>
+          <TradeNotifier />
+        </Suspense>
         </NotificationProvider>
         </ToastProvider>
       </AuthProvider>

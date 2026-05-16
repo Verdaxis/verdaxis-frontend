@@ -90,6 +90,8 @@ const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type']
 export const terminalWindowMatches = (orderWindow: string | null | undefined, configWindow: string): boolean =>
     normalizeAvailabilityWindow(orderWindow) === normalizeAvailabilityWindow(configWindow);
 
+let terminalOrdersCache: OrderBookOrder[] | null = null;
+
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
 // These are ARA mid-market prices; region modifiers adjust per port
@@ -204,8 +206,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
 
     // Orders from API (orderbook sync)
-    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => terminalOrdersCache ?? []);
+    const [loading, setLoading] = useState(!terminalOrdersCache);
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
@@ -250,27 +252,28 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [selectedProduct]);
 
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
-    const fetchOrders = useCallback(async () => {
-        setLoading(true);
+    const fetchOrders = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const data = await api.orderbook.list();
+            terminalOrdersCache = data;
             setAllOrders(data);
         } catch (e) {
             console.error('Failed to load orderbook for terminal', e);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
     // Initial fetch on mount (no polling — SSE handles updates)
     useEffect(() => {
-        fetchOrders();
+        fetchOrders(Boolean(terminalOrdersCache));
     }, [fetchOrders]);
 
     // --- SSE: Orderbook updates (replaces 30s polling) ---
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: refetch the full orderbook
-        fetchOrders();
+        fetchOrders(true);
     }, [fetchOrders]);
 
     const { isConnected: orderbookConnected } = useSSE('orderbook', handleOrderbookEvent);

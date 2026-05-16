@@ -21,6 +21,16 @@ export default defineConfig(({ mode }) => {
       build: {
         // SECURITY: Disable source maps in production to prevent source code exposure
         sourcemap: false,
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+              'vendor-i18n': ['i18next', 'i18next-browser-languagedetector', 'react-i18next'],
+              'vendor-charts': ['lightweight-charts', 'recharts'],
+              'vendor-maps': ['maplibre-gl', 'leaflet', 'react-leaflet'],
+            },
+          },
+        },
       },
       resolve: {
         alias: {

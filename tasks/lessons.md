@@ -110,3 +110,13 @@
 - **Trigger:** Users reported seeing older signup screens after recent deploys.
 - **Rule:** SPA staging hosts must use the same no-store HTML cache policy as production, while keeping hashed assets immutable.
 - **Why:** Production had explicit HTML cache headers, but staging served the SPA shell without equivalent cache controls.
+### Separate Correctness Fixes From Performance Fixes
+- **Date:** 2026-05-17
+- **Trigger:** User asked "what about the slow loading?" after a release summary focused on stale state, deploy cache, and market data correctness.
+- **Rule:** When the user reports slow loading, explicitly verify bundle size, code splitting, render waterfalls, and API latency; do not treat stale-data fixes as performance work unless measured.
+- **Why:** Correctness and cache fixes can reduce perceived slowness, but they do not address large initial bundles or component/API loading paths.
+### Validate the Specific Slow Interaction
+- **Date:** 2026-05-17
+- **Trigger:** User clarified the slow loading is specifically switching between Intelligence Map, Marketplace, and Forward Curve.
+- **Rule:** For performance reports, identify whether the complaint is initial page load, first navigation to a heavy module, repeated tab switching, or API refresh latency before choosing a fix.
+- **Why:** Route code-splitting improves initial load but can make first navigation to heavy tabs slower unless platform-critical chunks are prefetched or kept warm.

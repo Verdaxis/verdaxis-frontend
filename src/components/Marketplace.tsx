@@ -93,6 +93,28 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
 const PAGE_SIZE = 10;
 const REFRESH_INTERVAL_MS = 60_000;
 
+type MarketplaceCacheEntry = {
+    items: OrderBookOrder[];
+    total: number;
+    skip: number;
+};
+
+const marketplaceCache = new Map<string, MarketplaceCacheEntry>();
+
+const getMarketplaceCacheKey = (
+    role: string,
+    region: string,
+    marketProduct: typeof ALL_MARKET_PRODUCTS | MarketProduct,
+    availability: AvailabilityWindow | '',
+    skip: number,
+) => [
+    role,
+    region || '*',
+    marketProduct || '*',
+    availability || '*',
+    skip,
+].join('|');
+
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
@@ -209,8 +231,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
-        if (silent) setRefreshing(true);
-        else setLoading(true);
+        const cacheKey = getMarketplaceCacheKey(role, resolvedPort, marketProduct, availability, skip);
+        const cached = marketplaceCache.get(cacheKey);
+
+        if (cached && !silent) {
+            setListings(cached.items);
+            setTotalCount(cached.total);
+            setCurrentSkip(cached.skip);
+            setLoading(false);
+            setRefreshing(true);
+        } else if (silent) {
+            setRefreshing(true);
+        } else {
+            setLoading(true);
+        }
         setError(null);
 
         try {
@@ -220,6 +254,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 availability: availability || undefined,
                 skip,
                 limit: PAGE_SIZE,
+            });
+            marketplaceCache.set(cacheKey, {
+                items: data.items,
+                total: data.total,
+                skip: data.skip,
             });
             setListings(data.items);
             setTotalCount(data.total);
@@ -231,7 +270,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [configBase, resolvedPort, marketProduct, availability]);
+    }, [availability, configBase, marketProduct, resolvedPort, role]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
