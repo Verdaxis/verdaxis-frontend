@@ -65,6 +65,8 @@ Verdaxis should converge on one clear product model:
 - Live smoke now checks slice-aware orderbook bids/asks, price summaries, reference prices, and invalid price-filter validation.
 - Aggregated orderbook now supports product, delivery point, region/name, market product, and availability-window filters instead of ignoring slice query params.
 - Demo liquidity is now preview-only for auto-match as well as manual trade creation; demo orders do not auto-execute, even demo-vs-demo.
+- Order placement success states now show the submitted market slice and action CTAs from Marketplace, Command Center, and the global sidebar post-order entry point.
+- Instant-match success states now route users to Trade History, while live unmatched orders route users to the live orderbook or watchlist tracking.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 

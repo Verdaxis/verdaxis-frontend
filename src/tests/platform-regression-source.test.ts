@@ -43,4 +43,14 @@ describe('platform regression guards', () => {
     expect(rfqSource).not.toContain("localStorage.getItem('token')");
     expect(rfqAlertSource).not.toContain("localStorage.getItem('token')");
   });
+
+  it('wires post-order guidance actions from every primary order entry point', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const commandCenterSource = readFileSync(resolve(process.cwd(), 'src/components/CommandCenter.tsx'), 'utf8');
+    const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');
+
+    expect(appSource).toContain('onNavigate={handleNavigate}');
+    expect(commandCenterSource).toContain('onNavigate={onNavigate}');
+    expect(marketplaceSource).toContain('onNavigate={onNavigate}');
+  });
 });

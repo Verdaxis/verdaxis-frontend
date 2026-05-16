@@ -249,6 +249,76 @@ describe('OrderPlaceModal', () => {
     expect(payload?.certification_scheme).toBeUndefined();
   }, 15000);
 
+  it('shows post-order next-step actions for live unmatched orders', async () => {
+    const onClose = vi.fn();
+    const onNavigate = vi.fn();
+
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={onClose}
+        onNavigate={onNavigate}
+        side="BID"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '540' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('orderPlaceModal.next.title')).toBeTruthy();
+      expect(screen.getByText('orderPlaceModal.next.liveOrder')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.next.action.marketplace' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
+  });
+
+  it('routes instantly matched orders to trade history', async () => {
+    const onClose = vi.fn();
+    const onNavigate = vi.fn();
+    createOrderMock.mockResolvedValue({
+      trades: [{ quantity_mt: 250, price_per_mt_usd: 535 }],
+    });
+
+    renderWithProviders(
+      <OrderPlaceModal
+        isOpen
+        onClose={onClose}
+        onNavigate={onNavigate}
+        side="BID"
+      />
+    );
+
+    await waitFor(() => {
+      expect(productsMock).toHaveBeenCalled();
+      expect(deliveryPointsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
+      target: { value: '540' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('orderPlaceModal.next.autoMatched')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.next.action.trades' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onNavigate).toHaveBeenCalledWith('TRADES');
+  });
+
 
   it('submits buyer certification preferences as explicit checkbox selections', async () => {
     renderWithProviders(

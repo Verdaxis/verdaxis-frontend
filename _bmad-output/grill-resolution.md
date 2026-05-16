@@ -74,3 +74,5 @@ This session moved from interview mode into autonomous grill mode with a reviewe
 - Accepted reviewer pushback that live smoke was too shallow; expanded smoke coverage to orderbook bid/ask slices, price summaries, reference prices, and invalid filter validation.
 - Accepted reviewer pushback that `/orderbook/aggregated` ignored market-slice query params; added slice filters and regression coverage.
 - Accepted reviewer pushback that demo liquidity execution was only half-enforced; auto-match now skips demo orders entirely.
+- Began Factory Loop 2 activation work by adding post-order next-step actions to the order placement success state.
+- Accepted reviewer pushback that activation guidance must be wired from Marketplace, Command Center, and the global sidebar post-order entry point; added routing coverage for all three.

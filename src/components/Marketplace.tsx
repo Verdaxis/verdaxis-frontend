@@ -19,7 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, Page } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -118,9 +118,10 @@ const getMarketplaceCacheKey = (
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
+    onNavigate?: (page: Page) => void;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigate }) => {
     const { user } = useAuth();
     const { setPageContext } = useCopilotContext();
     const { t, ready } = useNamespace('trading');
@@ -1283,6 +1284,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                 prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
                 prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
                 prefillAvailabilityWindow={availability || undefined}
+                onNavigate={onNavigate}
             />
         </div>
     );

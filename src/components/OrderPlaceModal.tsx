@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
-import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct } from '../types';
+import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, Page } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
     SPOT_WINDOW,
@@ -21,6 +21,7 @@ interface OrderPlaceModalProps {
     prefillDeliveryPointId?: string;
     prefillAvailabilityWindow?: AvailabilityWindow;
     prefillPrice?: number;
+    onNavigate?: (page: Page) => void;
 }
 
 interface OrderFormData {
@@ -90,6 +91,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillDeliveryPointId,
     prefillAvailabilityWindow,
     prefillPrice,
+    onNavigate,
 }) => {
     const { t, ready } = useNamespace('trading');
     const [products, setProducts] = useState<Product[]>([]);
@@ -267,6 +269,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         onClose();
     };
 
+    const handlePostActionNavigate = (page: Page) => {
+        handleClose();
+        onNavigate?.(page);
+    };
+
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
@@ -358,13 +365,67 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </p>
                             </>
                         )}
-                        <button
-                            type="button"
-                            onClick={handleClose}
-                            className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
-                        >
-                            {t('orderPlaceModal.btn.close')}
-                        </button>
+                        {modalState !== 'error' && (
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70 p-4 text-left mb-5">
+                                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2">
+                                    {t('orderPlaceModal.next.title')}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                    <div>
+                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.product')}</div>
+                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{selectedProduct ? getProductDisplayName(selectedProduct) : '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.deliveryPoint')}</div>
+                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{selectedDeliveryPoint?.name || '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.availability')}</div>
+                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{availabilitySummary}</div>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                    {modalState === 'auto_matched'
+                                        ? t('orderPlaceModal.next.autoMatched')
+                                        : t('orderPlaceModal.next.liveOrder')}
+                                </p>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={handleClose}
+                                className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
+                            >
+                                {t('orderPlaceModal.btn.close')}
+                            </button>
+                            {modalState !== 'error' && onNavigate && (
+                                <button
+                                    type="button"
+                                    onClick={() => handlePostActionNavigate(modalState === 'auto_matched' ? 'TRADES' : 'MARKETPLACE')}
+                                    className={`w-full py-3 text-white font-bold rounded-lg transition-colors ${
+                                        modalState === 'auto_matched'
+                                            ? 'bg-violet-600 hover:bg-violet-500'
+                                            : side === 'BID'
+                                                ? 'bg-emerald-600 hover:bg-emerald-500'
+                                                : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
+                                    }`}
+                                >
+                                    {modalState === 'auto_matched'
+                                        ? t('orderPlaceModal.next.action.trades')
+                                        : t('orderPlaceModal.next.action.marketplace')}
+                                </button>
+                            )}
+                        </div>
+                        {modalState === 'success' && onNavigate && (
+                            <button
+                                type="button"
+                                onClick={() => handlePostActionNavigate('WATCHLISTS')}
+                                className="mt-3 w-full py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold rounded-lg transition-colors"
+                            >
+                                {t('orderPlaceModal.next.action.watchlists')}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -285,7 +285,7 @@ const Dashboard: React.FC = () => {
                 return <Compliance />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
-                return <Marketplace initialPort={selectedPort} />;
+                return <Marketplace initialPort={selectedPort} onNavigate={handleNavigate} />;
             case 'TRADES':
                 return <TradeHistoryPage />;
             case 'WATCHLISTS':
@@ -301,7 +301,7 @@ const Dashboard: React.FC = () => {
       case 'DASHBOARD':
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
-        return <Marketplace initialPort={selectedPort} />;
+        return <Marketplace initialPort={selectedPort} onNavigate={handleNavigate} />;
       case 'TERMINAL':
         return <MarketTerminal onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
@@ -336,6 +336,7 @@ const Dashboard: React.FC = () => {
         isOpen={sidebarModalSide !== null}
         onClose={() => setSidebarModalSide(null)}
         side={sidebarModalSide || 'BID'}
+        onNavigate={handleNavigate}
       />
     </Layout>
   );

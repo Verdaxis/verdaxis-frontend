@@ -233,6 +233,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 isOpen={orderModalOpen}
                 onClose={() => setOrderModalOpen(false)}
                 side={cta.primary.side}
+                onNavigate={onNavigate}
             />
 
             <ConfirmModal
