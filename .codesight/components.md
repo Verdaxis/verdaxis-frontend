@@ -2,7 +2,7 @@
 
 - **LoadingScreen** — props: page, viewMode — `src/App.tsx`
 - **ActivityFeed** — `src/components/ActivityFeed.tsx`
-- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick — `src/components/BuyerMap.tsx`
+- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick, isActive — `src/components/BuyerMap.tsx`
 - **CommandCenter** — props: viewMode, onNavigate, openOrderId — `src/components/CommandCenter.tsx`
 - **BuyerDashboard** — `src/components/CommandCenter.tsx`
 - **SupplierDashboard** — `src/components/CommandCenter.tsx`

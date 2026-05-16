@@ -114,6 +114,19 @@ describe('platform regression guards', () => {
     expect(curveSource).toContain("data-navigation-ready={isNavigationReady ? 'FORWARD_CURVE' : undefined}");
   });
 
+  it('keeps the intelligence map mounted after first visit to avoid repeated MapLibre startup', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const mapSource = readFileSync(resolve(process.cwd(), 'src/components/BuyerMap.tsx'), 'utf8');
+
+    expect(appSource).toContain('const [shouldKeepMapMounted, setShouldKeepMapMounted]');
+    expect(appSource).toContain("if (page === 'MAP')");
+    expect(appSource).toContain('setShouldKeepMapMounted(true)');
+    expect(appSource).toContain("className={currentPage === 'MAP' ? 'h-full w-full' : 'hidden'}");
+    expect(appSource).toContain('isActive={currentPage === \'MAP\'}');
+    expect(mapSource).toContain('isActive?: boolean');
+    expect(mapSource).toContain('mapRef.current?.resize()');
+  });
+
   it('keeps global dashboard prefetch focused on activation, not heavy map and chart chunks', () => {
     const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     const globalPrefetch = appSource.slice(

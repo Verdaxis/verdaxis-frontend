@@ -80,6 +80,38 @@ Verdaxis should converge on one clear product model:
 - Dashboard page switches now emit passive route-commit timing through `performance.measure`, a `verdaxis:dashboard-navigation` browser event, and the bounded `window.__VERDAXIS_NAV_METRICS__` buffer. `npm run smoke:navigation` layers page-specific usability waits on top of those route metrics so Intelligence Map waits for MapLibre load, Marketplace waits for listings/error completion, and Market Terminal waits for the embedded Forward Curve. It writes cold/warm timing summaries under `dogfood/`.
 - First local production-build navigation smoke against the staging API showed the route commit itself is fast, but true usable timings are still slow: Terminal/Forward Curve switches are commonly around 5 seconds and Map readiness around 2-4.5 seconds. This points the next optimization loop at forward-curve/catalog/API waits and MapLibre/tile initialization rather than React route switching.
 - Market Terminal now reads the active product plus delivery-point orderbook slice through `/orderbook/bids` and `/orderbook/asks` instead of blocking readiness on the unfiltered full `/orderbook` response. Live staging timing before the change was about 5.37s for full orderbook vs about 0.15-0.16s per side-specific slice request.
+- Intelligence Map now stays mounted after the first visit, hidden between page switches and resized when shown again, so repeated returns do not recreate MapLibre, reload Carto base tiles, and refetch vessel/map overlays.
+
+## Grill Resolution — Intelligence Map Navigation Latency
+
+### Proceed Decision
+
+Proceed with persistent-after-first-visit map mounting.
+
+### Canonical Terms
+
+- Warm map return: navigating back to Intelligence Map after the map was already loaded once in the current authenticated session.
+
+### Assumptions
+
+- The first Intelligence Map visit may still require external map tiles; the immediate user pain is repeated tab switching between Map, Marketplace, and Terminal.
+- Non-map sessions should not eagerly download the MapLibre bundle or initialize the map.
+
+### Resolved Decisions
+
+- Keep the map lazy-loaded, but once the user visits it, retain the mounted MapLibre instance while other dashboard pages render.
+- Hide the map with dashboard state rather than unmounting it; call `map.resize()` when it becomes active again.
+- Do not loosen the map readiness marker just to improve smoke numbers. Readiness should still reflect MapLibre load.
+
+### Open Decisions
+
+- Map provider: evaluate self-hosted/vector tiles or a lighter base layer to reduce cold first-visit dependence on Carto tile latency.
+- Map data: move Fuel Avails / Last Done widgets away from broad `/orderbook/asks?limit=100` if smoke still shows API wait after remounting is removed.
+
+### Documentation Updates
+
+- `CONTEXT.md`: not needed; no domain glossary change.
+- ADRs: deferred; the decision is reversible UI lifecycle management, not a hard-to-reverse architecture choice.
 
 ## Grill Resolution — Terminal Navigation Latency
 

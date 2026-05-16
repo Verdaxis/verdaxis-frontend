@@ -145,4 +145,3 @@ Before exploring the tree, read:
 
 Only open full source files after consulting the wiki first.
 <!-- codesight-local:end -->
-

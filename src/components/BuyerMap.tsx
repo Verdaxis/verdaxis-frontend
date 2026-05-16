@@ -19,6 +19,7 @@ interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
+    isActive?: boolean;
 }
 
 type BuyerMapDataCache = {
@@ -43,7 +44,7 @@ const getSpreadColor = (spreadPct: number): string => {
     return '#EF4444';                      // red
 };
 
-export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
+export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick, isActive = true }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
     const { setPageContext } = useCopilotContext();
@@ -405,6 +406,14 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             map.once('load', addPortLayers);
         }
     }, [ports, portMarketMap, maxVolume, handleMarkerClick]);
+
+    useEffect(() => {
+        if (!isActive || !mapRef.current) return;
+        const frame = window.requestAnimationFrame(() => {
+            mapRef.current?.resize();
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [isActive]);
 
     // Vessel markers layer
     useEffect(() => {

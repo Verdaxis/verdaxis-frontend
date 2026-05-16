@@ -242,12 +242,16 @@ const Dashboard: React.FC = () => {
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
   const [currentPage, setCurrentPage] = useState<Page>(() => sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
+  const [shouldKeepMapMounted, setShouldKeepMapMounted] = useState(() => currentPage === 'MAP');
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
   const [, startPageTransition] = useTransition();
 
   const setDashboardPage = useCallback((page: Page) => {
+    if (page === 'MAP') {
+      setShouldKeepMapMounted(true);
+    }
     if (page !== currentPage) {
       recordDashboardNavigationStart(currentPage, page, viewMode);
     }
@@ -306,7 +310,7 @@ const Dashboard: React.FC = () => {
     if (viewMode === 'SUPPLIER') {
         switch (currentPage) {
             case 'MAP':
-                return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
+                return null;
             case 'DASHBOARD':
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
@@ -330,7 +334,7 @@ const Dashboard: React.FC = () => {
 
     switch (currentPage) {
       case 'MAP':
-        return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
+        return null;
       case 'DASHBOARD':
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
@@ -367,7 +371,22 @@ const Dashboard: React.FC = () => {
       <Suspense fallback={<DashboardContentLoading />}>
         <ErrorBoundary>
           <DashboardContentReady page={currentPage} viewMode={viewMode}>
-            {renderContent()}
+            <>
+              {shouldKeepMapMounted && (
+                <div
+                  className={currentPage === 'MAP' ? 'h-full w-full' : 'hidden'}
+                  aria-hidden={currentPage !== 'MAP'}
+                >
+                  <BuyerMap
+                    onPortSelect={handlePortSelect}
+                    onNavigate={handleNavigate}
+                    onOrderClick={handleOrderClick}
+                    isActive={currentPage === 'MAP'}
+                  />
+                </div>
+              )}
+              {currentPage !== 'MAP' && renderContent()}
+            </>
           </DashboardContentReady>
         </ErrorBoundary>
       </Suspense>

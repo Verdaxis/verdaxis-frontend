@@ -4,7 +4,7 @@
 
 > 120 routes | 91 models | 116 components | 26 lib files | 4 env vars | 3 middleware | 4% test coverage
 > **Token savings:** this file is ~13,200 tokens. Without it, AI exploration would cost ~152,800 tokens. **Saves ~139,500 tokens per conversation.**
-> **Last scanned:** 2026-05-16 23:11 — re-run after significant changes
+> **Last scanned:** 2026-05-16 23:21 — re-run after significant changes
 
 ---
 
@@ -898,7 +898,7 @@
 
 - **LoadingScreen** — props: page, viewMode — `src/App.tsx`
 - **ActivityFeed** — `src/components/ActivityFeed.tsx`
-- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick — `src/components/BuyerMap.tsx`
+- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick, isActive — `src/components/BuyerMap.tsx`
 - **CommandCenter** — props: viewMode, onNavigate, openOrderId — `src/components/CommandCenter.tsx`
 - **BuyerDashboard** — `src/components/CommandCenter.tsx`
 - **SupplierDashboard** — `src/components/CommandCenter.tsx`
