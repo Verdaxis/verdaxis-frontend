@@ -68,6 +68,10 @@ _Avoid_: second orderbook, matchmaking source, generic bookmark list
 The default Watchlist container automatically used to monitor market-slice changes and pinned order updates.
 _Avoid_: custom watchlist, saved search, trading engine
 
+**Demand Signal**:
+An anonymized aggregate of buyer bid interest by fuel family, region, and availability urgency.
+_Avoid_: executable order, RFQ, named buyer lead
+
 **RFQ**:
 A bilateral negotiation workflow that is not the primary Verdaxis market model because buyer intent should normally be posted as a bid.
 _Avoid_: primary buying flow
@@ -84,6 +88,7 @@ _Avoid_: broad region, aggregate bucket
 - A **Benchmark** belongs to one **Market Slice**.
 - A **Forward Curve** is composed of benchmark points for one product and delivery point across future availability windows.
 - A **Watchlist** observes **Market Slices** and pinned **Orders**; it does not change matching or execution rules.
+- A **Demand Signal** summarizes buyer interest for supplier activation; execution still happens in the **Qualified Executable Orderbook**.
 - A **Demo Listing** may appear in market-intelligence surfaces but must not be presented as user-posted liquidity or executable production activity.
 - **RFQ** may exist for future optional workflows, but the primary user journey must route buyer intent into **Bids** and supplier intent into **Asks**.
 

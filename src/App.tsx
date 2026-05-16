@@ -95,7 +95,6 @@ const prefetchDashboardPage = (page: Page) => {
       void import('./components/BuyerMap').catch(() => undefined);
       break;
     case 'MARKETPLACE':
-    case 'DEMAND_FEED':
       void Promise.all([
         import('./components/Marketplace'),
         import('./components/OrderPlaceModal'),
@@ -202,7 +201,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
   if (!page) return 'DASHBOARD';
-  if (page === 'ORDERBOOK') return 'MARKETPLACE';
+  if (page === 'ORDERBOOK' || page === 'DEMAND_FEED') return 'MARKETPLACE';
   return page as Page;
 };
 
@@ -284,7 +283,6 @@ const Dashboard: React.FC = () => {
             case 'COMPLIANCE':
                 return <Compliance />;
             case 'MARKETPLACE':
-            case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} onNavigate={handleNavigate} />;
             case 'TRADES':
                 return <TradeHistoryPage />;

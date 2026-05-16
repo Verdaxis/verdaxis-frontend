@@ -11,6 +11,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
+import { SupplierDemandFeed } from './SupplierDemandFeed';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
@@ -213,6 +214,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             </div> */}
 
             <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
+
+            {viewMode === 'SUPPLIER' && (
+                <SupplierDemandFeed onNavigate={onNavigate} onPostAsk={() => setOrderModalOpen(true)} />
+            )}
 
             {/* ─── Needs Attention ─── */}
             <div>

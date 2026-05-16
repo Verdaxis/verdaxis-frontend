@@ -53,4 +53,17 @@ describe('platform regression guards', () => {
     expect(commandCenterSource).toContain('onNavigate={onNavigate}');
     expect(marketplaceSource).toContain('onNavigate={onNavigate}');
   });
+
+  it('keeps supplier demand as a signal panel instead of a marketplace alias', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const commandCenterSource = readFileSync(resolve(process.cwd(), 'src/components/CommandCenter.tsx'), 'utf8');
+    const demandFeedSource = readFileSync(resolve(process.cwd(), 'src/components/SupplierDemandFeed.tsx'), 'utf8');
+
+    expect(appSource).not.toContain("case 'DEMAND_FEED'");
+    expect(appSource).toContain("page === 'ORDERBOOK' || page === 'DEMAND_FEED'");
+    expect(commandCenterSource).toContain('<SupplierDemandFeed');
+    expect(commandCenterSource).toContain("viewMode === 'SUPPLIER'");
+    expect(demandFeedSource).toContain('api.demand.signals');
+    expect(demandFeedSource).not.toContain('api.orderbook.listBids');
+  });
 });

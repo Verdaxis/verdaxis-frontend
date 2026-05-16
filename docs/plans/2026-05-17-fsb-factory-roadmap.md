@@ -68,6 +68,7 @@ Verdaxis should converge on one clear product model:
 - Order placement success states now show the submitted market slice and action CTAs from Marketplace, Command Center, and the global sidebar post-order entry point.
 - Instant-match success states now route users to Trade History, while live unmatched orders route users to the live orderbook or watchlist tracking.
 - Watchlist tracking from post-order success is now an idempotent Market Radar action: existing slices stay tracked, missing slices are created through the slice-first API, and the Watchlist page highlights the tracked slice.
+- Supplier Command Center now includes a buyer demand signal panel backed by `api.demand.signals`; stale `DEMAND_FEED` sessions are normalized to Marketplace rather than maintaining a second marketplace alias.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 

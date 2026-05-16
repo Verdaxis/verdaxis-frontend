@@ -78,3 +78,4 @@ This session moved from interview mode into autonomous grill mode with a reviewe
 - Accepted reviewer pushback that activation guidance must be wired from Marketplace, Command Center, and the global sidebar post-order entry point; added routing coverage for all three.
 - Accepted reviewer pushback that "Track this market" must be an idempotent Market Radar mutation, not a navigation-only CTA or toggle that could untrack an existing slice.
 - Resolved Watchlist terminology in `CONTEXT.md`: Watchlist/Market Radar observes market slices and pinned orders, and must not become a second orderbook or matching source.
+- Accepted reviewer pushback that supplier demand should be an activation signal panel, not a resurrected Marketplace alias. Command Center now consumes anonymized demand signals while Marketplace remains the execution surface.

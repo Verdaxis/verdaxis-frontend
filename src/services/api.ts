@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, WatchlistEvent, WatchlistEventsPage, WatchlistSummary, WatchlistTarget } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, DemandSignal, WatchlistEvent, WatchlistEventsPage, WatchlistSummary, WatchlistTarget } from '../types';
 import { API_URL } from './config';
 import { clearAccessToken, getAccessToken, setAccessToken } from './authToken';
 
@@ -579,7 +579,7 @@ export const api = {
     },
 
     demand: {
-        signals: async (params?: { fuel_type?: string; region?: string }): Promise<any[]> => {
+        signals: async (params?: { fuel_type?: string; region?: string }): Promise<DemandSignal[]> => {
             const searchParams = new URLSearchParams();
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.region) searchParams.append('region', params.region);

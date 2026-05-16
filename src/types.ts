@@ -157,6 +157,17 @@ export const MARKET_PRODUCTS = [
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
+export interface DemandSignal {
+    fuel_type: string;
+    region: string;
+    volume_mt: number | string;
+    max_price_per_mt: number | string;
+    urgency: 'HIGH' | 'MEDIUM' | 'LOW';
+    bid_count: number;
+    earliest_delivery: string;
+    created_at: string;
+}
+
 // ============== Unified Orderbook Types ==============
 export type OrderSide = 'BID' | 'ASK';
 export type OrderBookStatus = 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'EXPIRED';
@@ -336,7 +347,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {

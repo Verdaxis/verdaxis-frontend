@@ -8,7 +8,7 @@
 | Question | Decision | Rationale |
 |----------|----------|-----------|
 | OrderBook visibility | Both roles | Full transparency, like Baltic Exchange/Venetian |
-| Demand signal cards | Dropped | Orderbook already communicates depth; saves API call + screen real estate |
+| Demand signal cards | Dropped from Marketplace; retained in Supplier Command Center | Orderbook remains the execution surface, while suppliers still get a compact activation panel backed by anonymized demand signals |
 | Order placement | Role-gated (B for now, C later) | Buyers: Place Bid. Suppliers: Place Ask. Config-driven, future TRADER role unlocks both |
 | Page title | "Marketplace" | Neutral, matches sidebar for both roles |
 | Trade modal | Simple (quantity + confirm) | Drop dead `buyDate` field. Extensible later for delivery dates, notes |
@@ -134,9 +134,10 @@ Bundled into the rewrite (CSS-only, no architecture changes):
 | Create | `src/utils/fuel.ts` |
 | Rewrite | `src/components/Marketplace.tsx` |
 | Modify | `src/components/layout/Sidebar.tsx` (unify page ID) |
-| Modify | `src/App.tsx` (remove SupplierDemandFeed, merge routing) |
+| Modify | `src/App.tsx` (merge routing; normalize legacy `DEMAND_FEED` sessions to Marketplace) |
+| Modify | `src/components/CommandCenter.tsx` (render supplier demand signal panel) |
 | Modify | `src/components/OrderBook.tsx` (minor wiring check) |
-| Delete | `src/components/SupplierDemandFeed.tsx` |
+| Modify | `src/components/SupplierDemandFeed.tsx` (supplier activation panel using anonymized demand signals) |
 | Modify | `src/types.ts` (remove DemandSignal) |
 
 **Net result:** ~1,251 lines → ~700 lines. One component. One mental model. One place to fix bugs.

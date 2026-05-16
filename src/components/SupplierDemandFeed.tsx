@@ -1,103 +1,154 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, ShoppingCart, ArrowRight, TrendingUp } from 'lucide-react';
-import { OrderBookOrder, Page } from '../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AlertCircle, ArrowRight, Loader2, PackagePlus, Search, TrendingUp } from 'lucide-react';
+
+import { DemandSignal, Page } from '../types';
 import { api } from '../services/api';
 
 interface SupplierDemandFeedProps {
     onNavigate: (page: Page) => void;
+    onPostAsk: () => void;
 }
 
-export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNavigate }) => {
-    const [bids, setBids] = useState<OrderBookOrder[]>([]);
-    const [loading, setLoading] = useState(true);
+const URGENCY_CLASS: Record<DemandSignal['urgency'], string> = {
+    HIGH: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/60',
+    MEDIUM: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/60',
+    LOW: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700',
+};
 
-    const fetchBids = useCallback(async () => {
+const formatNumber = (value: number | string): string => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 'n/a';
+    return numeric.toLocaleString(undefined, { maximumFractionDigits: 0 });
+};
+
+export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNavigate, onPostAsk }) => {
+    const [signals, setSignals] = useState<DemandSignal[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchSignals = useCallback(async () => {
+        setError(null);
         try {
-            const data = await api.orderbook.listBids();
-            const openBids = (Array.isArray(data) ? data : []).filter(
-                (b: OrderBookOrder) => b.status === 'OPEN' || b.status === 'PARTIALLY_FILLED'
-            );
-            setBids(openBids.slice(0, 5));
-        } catch {
-            // Silently fail — demand feed is non-critical
+            const data = await api.demand.signals();
+            setSignals(data.slice(0, 4));
+        } catch (err: any) {
+            setError(err?.message || 'Demand signals are unavailable right now.');
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchBids();
-        const interval = setInterval(fetchBids, 30_000);
-        return () => clearInterval(interval);
-    }, [fetchBids]);
-
-    if (loading) {
-        return (
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Buyer Demand</h3>
-                <div className="flex justify-center py-4">
-                    <Loader2 size={20} className="animate-spin text-emerald-500" />
-                </div>
-            </div>
-        );
-    }
+        fetchSignals();
+        const interval = window.setInterval(fetchSignals, 60_000);
+        return () => window.clearInterval(interval);
+    }, [fetchSignals]);
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Buyer Demand</h3>
-                {bids.length > 0 && (
-                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <TrendingUp size={12} />
-                        {bids.length} active bid{bids.length !== 1 ? 's' : ''}
-                    </span>
-                )}
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
+                        <TrendingUp size={14} />
+                        Buyer Demand
+                    </div>
+                    <h2 className="mt-1 text-lg font-black text-slate-900 dark:text-white">Where buyers are looking</h2>
+                </div>
+                <button
+                    type="button"
+                    onClick={onPostAsk}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500"
+                >
+                    <PackagePlus size={14} />
+                    Post Ask
+                </button>
             </div>
 
-            {bids.length === 0 ? (
-                <div className="text-center py-6">
-                    <ShoppingCart className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
-                    <p className="text-sm text-slate-400 dark:text-slate-500">
-                        No buyer demand matching your profile yet. Post supply to attract buyers.
-                    </p>
+            {loading ? (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-8 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    <Loader2 size={18} className="animate-spin" />
+                    Loading demand signals...
+                </div>
+            ) : error ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                    <div className="flex items-center gap-2 font-bold">
+                        <AlertCircle size={16} />
+                        Demand signals unavailable
+                    </div>
+                    <p className="mt-1">{error}</p>
+                    <button
+                        type="button"
+                        onClick={() => onNavigate('MARKETPLACE')}
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-900 underline-offset-4 hover:underline dark:text-amber-100"
+                    >
+                        Browse live bids <ArrowRight size={12} />
+                    </button>
+                </div>
+            ) : signals.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    No aggregated buyer demand is visible yet. Post an ask or open Marketplace to inspect live bids directly.
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={onPostAsk}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-500"
+                        >
+                            <PackagePlus size={14} />
+                            Post Ask
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onNavigate('MARKETPLACE')}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200"
+                        >
+                            <Search size={14} />
+                            Browse bids
+                        </button>
+                    </div>
                 </div>
             ) : (
-                <div className="space-y-2">
-                    {bids.map(bid => (
-                        <button
-                            key={bid.id}
-                            onClick={() => onNavigate('MARKETPLACE')}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 border border-slate-100 dark:border-slate-700/50 transition-colors group text-left"
+                <div className="grid gap-3 md:grid-cols-2">
+                    {signals.map((signal) => (
+                        <article
+                            key={`${signal.fuel_type}-${signal.region}-${signal.earliest_delivery}`}
+                            className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40"
                         >
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">{bid.fuel_type}</span>
-                                    {bid.fuel_grade && bid.fuel_grade !== 'Conventional' && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
-                                            {bid.fuel_grade}
-                                        </span>
-                                    )}
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="font-black text-slate-900 dark:text-white">{signal.fuel_type}</h3>
+                                    <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                        {signal.region || 'All regions'} · {signal.earliest_delivery}
+                                    </div>
                                 </div>
-                                <div className="text-sm text-slate-700 dark:text-slate-300">
-                                    <span className="font-medium">{Number(bid.quantity_mt).toLocaleString()} MT</span>
-                                    <span className="text-slate-400 mx-1.5">at</span>
-                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">${Number(bid.price_per_mt_usd).toFixed(0)}/MT</span>
-                                </div>
-                                <div className="text-xs text-slate-400 mt-0.5">{bid.region} • {bid.availability_window}</div>
+                                <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${URGENCY_CLASS[signal.urgency]}`}>
+                                    {signal.urgency}
+                                </span>
                             </div>
-                            <ArrowRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors flex-shrink-0 ml-2" />
-                        </button>
+                            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                                <div>
+                                    <div className="font-semibold text-slate-400">Volume</div>
+                                    <div className="mt-1 font-black text-slate-800 dark:text-slate-100">{formatNumber(signal.volume_mt)} MT</div>
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-slate-400">Top bid</div>
+                                    <div className="mt-1 font-black text-slate-800 dark:text-slate-100">${formatNumber(signal.max_price_per_mt)}</div>
+                                </div>
+                                <div>
+                                    <div className="font-semibold text-slate-400">Bids</div>
+                                    <div className="mt-1 font-black text-slate-800 dark:text-slate-100">{signal.bid_count}</div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onNavigate('MARKETPLACE')}
+                                className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 transition-colors hover:text-emerald-600 dark:text-emerald-300"
+                            >
+                                View live bids <ArrowRight size={12} />
+                            </button>
+                        </article>
                     ))}
-                    {bids.length >= 5 && (
-                        <button
-                            onClick={() => onNavigate('MARKETPLACE')}
-                            className="w-full text-center text-xs text-emerald-600 dark:text-emerald-400 font-medium py-2 hover:underline"
-                        >
-                            View all demand in Orderbook
-                        </button>
-                    )}
                 </div>
             )}
-        </div>
+        </section>
     );
 };
