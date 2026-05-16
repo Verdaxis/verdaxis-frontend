@@ -1,5 +1,6 @@
 import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
 import { API_URL } from './config';
+import { clearAccessToken, getAccessToken, setAccessToken } from './authToken';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -23,8 +24,9 @@ export const mapPortResponse = (p: any): Port => ({
     }
 });
 
-// Helper to get auth header
-const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
+// Helper to get auth header. Access tokens live in memory; refresh is handled by
+// the backend's HttpOnly refresh cookie.
+const getToken = () => getAccessToken();
 
 const getHeaders = () => {
     const token = getToken();
@@ -42,21 +44,23 @@ const refreshAccessToken = async (): Promise<string | null> => {
     if (refreshInFlight) return refreshInFlight;
 
     refreshInFlight = (async () => {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) return null;
         try {
             const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: refreshToken }),
+                credentials: 'include',
+                body: JSON.stringify({}),
             }, 15000);
-            if (!res.ok) return null;
+            if (!res.ok) {
+                clearAccessToken();
+                return null;
+            }
             const data = await res.json();
             if (!data?.access_token) return null;
-            localStorage.setItem('token', data.access_token);
-            if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+            setAccessToken(data.access_token);
             return data.access_token as string;
         } catch {
+            clearAccessToken();
             return null;
         }
     })();
@@ -165,20 +169,17 @@ export interface PaginatedResult<T> {
 export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
-            const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
-            const data = await handleResponse(res);
+            const data = await fetchApi('/ports');
             return data.map(mapPortResponse);
         },
         getById: async (id: string): Promise<Port | undefined> => {
-            const res = await fetchWithTimeout(`${API_URL}/ports/${id}`, { headers: getHeaders() });
-            return handleResponse(res);
+            return fetchApi(`/ports/${id}`);
         }
     },
 
     vessels: {
         list: async (): Promise<Vessel[]> => {
-            const res = await fetchWithTimeout(`${API_URL}/vessels`, { headers: getHeaders() });
-            const data = await handleResponse(res);
+            const data = await fetchApi('/vessels');
             // Varied mock voyage/status data keyed by IMO suffix
             const voyageData: Record<string, { status: string; nextVoyage: string; nextDryDock: string }> = {
                 '9919475': { status: 'At Sea', nextVoyage: 'Colombo → Rotterdam (ETA: 12 Days)', nextDryDock: 'Mar 2027' },
@@ -210,31 +211,26 @@ export const api = {
         },
         updateStatus: async (id: string, status: 'At Sea' | 'In Port'): Promise<Vessel> => {
            console.warn("Vessel status update not strictly implemented in backend yet");
-           const res = await fetchWithTimeout(`${API_URL}/vessels/${id}`, { headers: getHeaders() });
-           return handleResponse(res);
+           return fetchApi(`/vessels/${id}`);
         }
     },
 
     compliance: {
         fleet: async () => {
-            const res = await fetchWithTimeout(`${API_URL}/compliance/fleet`, { headers: getHeaders() });
-            return handleResponse(res);
+            return fetchApi('/compliance/fleet');
         },
         vesselScore: async (vesselId: string) => {
-            const res = await fetchWithTimeout(`${API_URL}/compliance/vessels/${vesselId}/score`, { headers: getHeaders() });
-            return handleResponse(res);
+            return fetchApi(`/compliance/vessels/${vesselId}/score`);
         },
         scenario: async (vesselId: string, fuelMix: Record<string, string>, year: number = 2026) => {
-            const res = await fetchWithTimeout(`${API_URL}/compliance/scenario`, {
+            return fetchApi('/compliance/scenario', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({ vessel_id: vesselId, fuel_mix: fuelMix, year }),
-            }, 30000);
-            return handleResponse(res);
+            });
         },
         fuels: async () => {
-            const res = await fetchWithTimeout(`${API_URL}/compliance/fuels`);
-            return handleResponse(res);
+            return fetchApi('/compliance/fuels');
         },
     },
 
@@ -246,8 +242,7 @@ export const api = {
 
     inventory: {
         list: async (): Promise<InventoryItem[]> => {
-            const res = await fetchWithTimeout(`${API_URL}/inventory`, { headers: getHeaders() });
-            const data = await handleResponse(res);
+            const data = await fetchApi('/inventory');
             return data.map((item: any) => {
                 let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
                 const currentStock = Number(item.current_stock_mt);
@@ -270,29 +265,23 @@ export const api = {
             });
         },
         publish: async (itemId: string): Promise<any> => {
-            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}/publish`, {
+            return fetchApi(`/inventory/${itemId}/publish`, {
                 method: 'POST',
                 headers: getHeaders()
-            }, 30000);
-            return handleResponse(res);
+            });
         },
         update: async (itemId: string, data: any): Promise<any> => {
-            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}`, {
+            return fetchApi(`/inventory/${itemId}`, {
                 method: 'PATCH',
                 headers: getHeaders(),
                 body: JSON.stringify(data)
-            }, 30000);
-            return handleResponse(res);
+            });
         },
         delete: async (itemId: string): Promise<void> => {
-            const res = await fetchWithTimeout(`${API_URL}/inventory/${itemId}`, {
+            await fetchApi(`/inventory/${itemId}`, {
                 method: 'DELETE',
                 headers: getHeaders()
-            }, 30000);
-            if (!res.ok) {
-                const error = await res.text();
-                throw new Error(error || "Failed to delete inventory item");
-            }
+            });
         },
         add: async (item: Omit<InventoryItem, 'id'>): Promise<InventoryItem> => {
             const payload = {
@@ -303,12 +292,11 @@ export const api = {
                 incoming_stock_mt: item.incomingStock,
                 price_per_mt_usd: item.pricePerMt
             };
-            const res = await fetchWithTimeout(`${API_URL}/inventory`, {
+            const data = await fetchApi('/inventory', {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(payload)
-            }, 30000);
-            const data = await handleResponse(res);
+            });
             let status: 'Available' | 'Low Stock' | 'Out of Stock' = 'Available';
             const currentStock = Number(data.current_stock_mt);
             if (currentStock <= 0) {
@@ -331,27 +319,23 @@ export const api = {
 
     notifications: {
         list: async (): Promise<Notification[]> => {
-            const res = await fetchWithTimeout(`${API_URL}/notifications`, { headers: getHeaders() });
-            return handleResponse(res);
+            return fetchApi('/notifications');
         },
         getUnreadCount: async (): Promise<number> => {
-            const res = await fetchWithTimeout(`${API_URL}/notifications/unread-count`, { headers: getHeaders() });
-            const data = await handleResponse(res);
+            const data = await fetchApi('/notifications/unread-count');
             return data.count;
         },
         markRead: async (id: string): Promise<any> => {
-            const res = await fetchWithTimeout(`${API_URL}/notifications/${id}/read`, {
+            return fetchApi(`/notifications/${id}/read`, {
                 method: 'PATCH',
                 headers: getHeaders()
-            }, 30000);
-            return handleResponse(res);
+            });
         },
         markAllRead: async (): Promise<any> => {
-            const res = await fetchWithTimeout(`${API_URL}/notifications/read-all`, {
+            return fetchApi('/notifications/read-all', {
                 method: 'PATCH',
                 headers: getHeaders()
-            }, 30000);
-            return handleResponse(res);
+            });
         }
     },
 
@@ -503,7 +487,7 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/prices${query ? `?${query}` : ''}`);
         },
-        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }): Promise<{ prices: Array<{ product_id?: string; product_name?: string; market_product?: string | null; delivery_point_id?: string; delivery_point_name?: string | null; availability_window?: string; fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -677,11 +661,10 @@ export const api = {
             });
         },
         delete: async (alertId: string): Promise<void> => {
-            const res = await fetchWithTimeout(`${API_URL}/alerts/${alertId}`, {
+            await fetchApi(`/alerts/${alertId}`, {
                 method: 'DELETE',
                 headers: getHeaders(),
-            }, 30000);
-            if (!res.ok) throw new Error(await res.text() || 'Failed to delete alert');
+            });
         },
     },
 

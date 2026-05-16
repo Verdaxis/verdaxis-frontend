@@ -13,7 +13,7 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { MarketProduct, OrderBookOrder, PriceSummary } from '../types';
+import { DeliveryPoint, MarketProduct, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
@@ -91,6 +91,7 @@ export const terminalWindowMatches = (orderWindow: string | null | undefined, co
     normalizeAvailabilityWindow(orderWindow) === normalizeAvailabilityWindow(configWindow);
 
 let terminalOrdersCache: OrderBookOrder[] | null = null;
+let terminalDeliveryPointsCache: DeliveryPoint[] | null = null;
 
 // Base prices by fuel type for simulation
 // Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
@@ -208,6 +209,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Orders from API (orderbook sync)
     const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => terminalOrdersCache ?? []);
     const [loading, setLoading] = useState(!terminalOrdersCache);
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>(() => terminalDeliveryPointsCache ?? []);
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
@@ -270,6 +272,25 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchOrders(Boolean(terminalOrdersCache));
     }, [fetchOrders]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const fetchDeliveryPoints = async () => {
+            if (terminalDeliveryPointsCache) return;
+            try {
+                const points = await api.catalog.deliveryPoints();
+                if (cancelled) return;
+                terminalDeliveryPointsCache = points;
+                setDeliveryPoints(points);
+            } catch (e) {
+                console.error('Failed to load delivery points for terminal', e);
+            }
+        };
+        fetchDeliveryPoints();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // --- SSE: Orderbook updates (replaces 30s polling) ---
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: refetch the full orderbook
@@ -296,14 +317,23 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const selectedProductOption = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === selectedProduct);
     const selectedFuelType = selectedProductOption?.fuelType || getMarketplaceFuelType(selectedProduct) || 'Methanol';
     const selectedProductLabel = getMarketplaceProductLabel(selectedProduct, selectedFuelType);
+    const selectedDeliveryPoint = useMemo(
+        () => deliveryPoints.find((point) => point.name.toLowerCase() === selectedPort.toLowerCase()),
+        [deliveryPoints, selectedPort]
+    );
+    const selectedDeliveryPointId = selectedDeliveryPoint?.id;
 
     useEffect(() => {
         const fetchPrices = async () => {
+            if (!selectedDeliveryPointId) {
+                setPriceSummaries([]);
+                return;
+            }
             try {
                 const resp = await api.prices.getSummaries({
                     fuel_type: selectedFuelType,
                     market_product: selectedProduct,
-                    region: selectedPort,
+                    delivery_point_id: selectedDeliveryPointId,
                 });
                 setPriceSummaries(resp.summaries);
             } catch (e) {
@@ -313,18 +343,22 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchPrices();
         const interval = setInterval(fetchPrices, 30000);
         return () => clearInterval(interval);
-    }, [selectedFuelType, selectedProduct, selectedPort]);
+    }, [selectedFuelType, selectedProduct, selectedDeliveryPointId]);
 
     // Fetch VWAP reference prices (internal vs external split)
     const [vwapData, setVwapData] = useState<{ vwap_usd: number; total_volume_mt: number; trade_count: number; visibility: string } | null>(null);
 
     useEffect(() => {
         const fetchVwap = async () => {
+            if (!selectedDeliveryPointId) {
+                setVwapData(null);
+                return;
+            }
             try {
                 const resp = await api.prices.getReference({
                     fuel_type: selectedFuelType,
                     market_product: selectedProduct,
-                    region: selectedPort,
+                    delivery_point_id: selectedDeliveryPointId,
                     visibility: 'internal',
                 });
                 if (resp.prices.length > 0) {
@@ -339,7 +373,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         fetchVwap();
         const interval = setInterval(fetchVwap, 30000);
         return () => clearInterval(interval);
-    }, [selectedFuelType, selectedProduct, selectedPort]);
+    }, [selectedFuelType, selectedProduct, selectedDeliveryPointId]);
 
     // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
     useEffect(() => {
@@ -434,10 +468,15 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
             const hasAnyRealData = realBid !== null || realAsk !== null;
 
                         // Only show last/change on SPOT row (price summaries are not per-period)
-            const matchingSummary = config.type === 'SPOT' ? priceSummaries.find(
-                s => s.fuel_type.toLowerCase().includes(selectedFuelType.toLowerCase())
-                  && s.region.toLowerCase().includes(selectedPort.toLowerCase())
-            ) : null;
+            const matchingSummary = config.type === 'SPOT' ? priceSummaries.find((summary) => {
+                const matchesProduct = summary.market_product
+                    ? summary.market_product === selectedProduct
+                    : summary.fuel_type.toLowerCase().includes(selectedFuelType.toLowerCase());
+                const matchesDeliveryPoint = selectedDeliveryPointId
+                    ? summary.delivery_point_id === selectedDeliveryPointId
+                    : summary.delivery_point_name?.toLowerCase() === selectedPort.toLowerCase();
+                return matchesProduct && matchesDeliveryPoint;
+            }) : null;
             const last = hasAnyRealData && matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : null;
             const change = hasAnyRealData && matchingSummary?.price_change_pct
                 ? Number(matchingSummary.price_change_pct)
@@ -455,7 +494,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, priceSummaries, selectedFuelType, selectedPort]);
+    }, [filteredAsks, filteredBids, priceSummaries, selectedFuelType, selectedProduct, selectedPort, selectedDeliveryPointId]);
 
     // Flash rows whose bid or ask changed on each tick
     useEffect(() => {

@@ -33,15 +33,19 @@ Local development should use `.env` with:
 VITE_API_URL=/api
 ```
 
-The Vite proxy forwards `/api/*` to the backend. Production builds use `.env.production`, currently pointing at `https://api.verdaxis.exchange/api`.
+The Vite proxy forwards `/api/*` to the backend. Production builds use `.env.production` and staging builds use `.env.staging`.
 
 ## Useful Commands
 
 ```bash
 npm run build
+npm run build:prod
+npm run build:staging
 npm run test
 npm run test:watch
 npm run i18n:check
+npm run smoke:live
+npm run verify
 ```
 
 ## Project Structure
@@ -59,3 +63,4 @@ npm run i18n:check
 - Auth uses Verdaxis JWTs stored in `localStorage`, validated through `/api/auth/me`.
 - RFQ UI code is retained but hidden unless `VITE_ENABLE_RFQ=true`; orderbook/listing flows are the default market workflow.
 - Historical Authentik docs remain in `docs/` only for reference. Do not reintroduce Authentik into runtime auth.
+- Production is served from `/home/verdaxis-prod/verdaxis/prod/fe/dist`; staging is served from `/home/verdaxis-prod/verdaxis/staging/fe/dist`.

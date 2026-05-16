@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Tag, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { API_URL } from '../../services/config';
+import { useAuth } from '../../context/AuthContext';
 
 type AlertType = 'quote' | 'counter' | 'trade_confirmed' | 'declined' | 'withdrawn' | 'superseded' | 'revised';
 
@@ -26,6 +27,7 @@ interface RFQOfferAlertProps {
 }
 
 export const RFQOfferAlert: React.FC<RFQOfferAlertProps> = ({ onNavigateToRFQ }) => {
+    const { token } = useAuth();
     const [alert, setAlert] = useState<OfferAlert | null>(null);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -40,7 +42,6 @@ export const RFQOfferAlert: React.FC<RFQOfferAlertProps> = ({ onNavigateToRFQ })
     };
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
         if (!token) return;
 
         const url = `${API_URL}/stream/activity?token=${encodeURIComponent(token)}`;
@@ -71,7 +72,7 @@ export const RFQOfferAlert: React.FC<RFQOfferAlertProps> = ({ onNavigateToRFQ })
             source.close();
             if (timerRef.current) clearTimeout(timerRef.current);
         };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [token]);
 
     if (!alert) return null;
 

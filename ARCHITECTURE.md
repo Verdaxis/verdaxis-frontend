@@ -91,8 +91,9 @@ src/
     *.test.ts                      # Unit tests (utils, pricing, matchmaking, map, etc.)
 
 scripts/
-  deploy.sh                       # Production deploy script
-  start-frontend.sh               # Start dev/preview server
+  deploy.sh                       # Static prod/staging build script with API-target validation
+  smoke-live.mjs                  # Prod/staging live smoke checks
+  start-frontend.sh               # Local development server helper
   seed_listings.sh                 # Seed marketplace data
   geocode_projects.py             # Geocode producer project locations
 

@@ -74,4 +74,11 @@ describe('MarketTerminal trading taxonomy', () => {
         expect(source).toContain('embedded');
         expect(source).not.toContain('marketProduct={selectedProduct}');
     });
+
+    it('queries price discovery by delivery point id rather than using port names as regions', () => {
+        const source = readFileSync(resolve(process.cwd(), 'src/components/MarketTerminal.tsx'), 'utf8');
+
+        expect(source).toContain('delivery_point_id: selectedDeliveryPointId');
+        expect(source).not.toContain('region: selectedPort');
+    });
 });

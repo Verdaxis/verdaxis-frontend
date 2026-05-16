@@ -51,7 +51,7 @@ interface RFQPanelProps {
 }
 
 export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', region, fuelType, availability }) => {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const [rfqs, setRfqs] = useState<RFQ[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,6 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', 
 
     // SSE real-time (<2s)
     useEffect(() => {
-        const token = localStorage.getItem('token');
         if (!token) return;
         const url = `${API_URL}/stream/activity?token=${encodeURIComponent(token)}`;
         const source = new EventSource(url);
@@ -115,7 +114,7 @@ export const RFQPanel: React.FC<RFQPanelProps> = ({ role, sortBy = 'price_asc', 
         source.addEventListener('quote_superseded', () => { fetchRFQs(true); });
 
         return () => source.close();
-    }, [fetchRFQs, showToast]);
+    }, [fetchRFQs, showToast, token]);
 
     useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
 

@@ -64,24 +64,41 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 ## Deployment
 
 **Server:** `verdaxis-prod@144.126.151.136`
-**Site:** `app.verdaxis.exchange` (served by Caddy from `~/verdaxis-frontend/dist`)
+**Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
+**Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
 **API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
+**Staging API:** `api-staging.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8001`)
 
-### Deploy command (from local machine)
+### Build commands
 
 ```bash
-ssh verdaxis-prod@144.126.151.136 "cd ~/verdaxis-frontend && git pull && rm -rf dist && npm run build"
+npm run build:prod
+npm run build:staging
 ```
 
-**IMPORTANT:** Always `rm -rf dist` before `npm run build`. Vite generates hashed JS filenames on each build. If stale `dist/index.html` references an old hash, the site breaks with:
+### Deploy command
+
+Build a verified artifact, then rsync `dist/` into the Caddy-served folder for the target environment.
+
+```bash
+bash ./scripts/deploy.sh prod
+rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/prod/fe/dist/
+npm run smoke:live -- prod
+
+bash ./scripts/deploy.sh staging
+rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/staging/fe/dist/
+npm run smoke:live -- staging
+```
+
+**IMPORTANT:** Deploy with `rsync -a --delete dist/ .../dist/` so stale hashed assets are removed. Vite generates hashed JS filenames on each build. If stale `dist/index.html` references an old hash, the site breaks with:
 > "Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"
 
 ### Verify deployment
 
 ```bash
-ssh verdaxis-prod@144.126.151.136 "grep 'src=\"/assets' ~/verdaxis-frontend/dist/index.html && ls ~/verdaxis-frontend/dist/assets/*.js"
+npm run smoke:live
 ```
-Both should show the same filename hash.
+This checks prod and staging HTML, hashed bundle API targets, backend health, the four market products, the eight delivery points, and the forward-curve endpoint with required params.
 
 ## Local Development
 
@@ -93,13 +110,14 @@ npm run dev
 
 ## Environment Configuration
 
-Production API URL is set in `.env.production` (committed to git). Vite automatically uses this file during `vite build`, so the correct URL is always baked in regardless of what `.env` exists on the server.
+Production API URL is set in `.env.production` and staging API URL is set in `.env.staging`. Vite loads the correct file from `vite build --mode production` or `vite build --mode staging`, and `scripts/deploy.sh` also passes the target API URL explicitly.
 
 - **`.env`** — local dev only (`VITE_API_URL=/api`), gitignored
 - **`.env.production`** — production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
+- **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
 
-**Never set `VITE_API_URL` in the server's `.env` file.** The `.env.production` file handles it automatically. Setting it in `.env` on the server risks mixed-content errors if the value is wrong.
+**Never rely on the server's `.env` file for production/staging builds.** Use the explicit build mode or `scripts/deploy.sh`; otherwise the wrong API can be baked into the bundle.
 
 ## Known Gotchas
 
