@@ -488,6 +488,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
     if (!ready) return null;
 
     const chartHeight = embedded ? '100%' : 220;
+    const isNavigationReady = ready && Boolean(selectedProductId) && !loading;
 
     return (
         <div style={{
@@ -497,7 +498,9 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
             padding: embedded ? 0 : '16px',
             fontFamily: "'IBM Plex Mono', monospace",
             height: embedded ? '100%' : undefined,
-        }}>
+        }}
+            data-navigation-ready={isNavigationReady ? 'FORWARD_CURVE' : undefined}
+        >
             {!embedded && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>

@@ -77,6 +77,8 @@ Verdaxis should converge on one clear product model:
 - Price-summary, reference-price, and forward-curve reads now use token-scoped, endpoint-specific freshness windows with in-flight dedupe: 15s for summaries, 60s for reference prices, and 10s for orderbook-derived forward curves. Local order mutations and orderbook SSE invalidate curves; trade lifecycle mutations and trade SSE invalidate price reads.
 - Map and chart vendor bundles are now split by actual surface: MapLibre vs Leaflet, and lightweight-charts vs Recharts. Dashboard idle prefetch is limited to the activation path so every app session does not automatically download map/chart-heavy chunks.
 - Frontend `verify` now checks the production build artifact after `build:prod`, proving the split vendor chunks exist, legacy grouped chunks are absent, and initial HTML does not eagerly reference the heavy map/chart vendors.
+- Dashboard page switches now emit passive route-commit timing through `performance.measure`, a `verdaxis:dashboard-navigation` browser event, and the bounded `window.__VERDAXIS_NAV_METRICS__` buffer. `npm run smoke:navigation` layers page-specific usability waits on top of those route metrics so Intelligence Map waits for MapLibre load, Marketplace waits for listings/error completion, and Market Terminal waits for the embedded Forward Curve. It writes cold/warm timing summaries under `dogfood/`.
+- First local production-build navigation smoke against the staging API showed the route commit itself is fast, but true usable timings are still slow: Terminal/Forward Curve switches are commonly around 5 seconds and Map readiness around 2-4.5 seconds. This points the next optimization loop at forward-curve/catalog/API waits and MapLibre/tile initialization rather than React route switching.
 
 ## Factory Loop 0 — Source Of Truth And Deploy Reliability
 
@@ -177,6 +179,8 @@ Verification:
 
 - Core user flows pass keyboard and screen-reader smoke checks.
 - Bundle and API timing budgets are measured before/after.
+- Dashboard navigation timing is observable during dogfood through browser performance entries or `window.__VERDAXIS_NAV_METRICS__`.
+- `npm run smoke:navigation -- --target local|staging|prod` reports cold and warm p95 for Map, Marketplace, and Terminal/Forward Curve usable transitions when provided smoke credentials or a local smoke token. Use `npm run smoke:navigation:setup` on fresh hosts.
 - CI covers tests, i18n, build, and smoke checks.
 
 ## Loop Rules

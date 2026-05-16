@@ -55,6 +55,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [listings, setListings] = useState<OrderBookOrder[]>(() => buyerMapDataCache?.listings ?? []);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>(() => buyerMapDataCache?.aggregatedData ?? []);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
+    const [mapLoaded, setMapLoaded] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -217,10 +218,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         });
 
         map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+        map.once('load', () => setMapLoaded(true));
 
         mapRef.current = map;
 
-        return () => { map.remove(); mapRef.current = null; };
+        return () => { map.remove(); mapRef.current = null; setMapLoaded(false); };
     }, [loading, theme]);
 
     // Port markers layer
@@ -531,7 +533,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     return (
-        <div className="relative w-full h-full flex overflow-hidden">
+        <div
+            data-navigation-ready={mapLoaded ? 'MAP' : undefined}
+            className="relative w-full h-full flex overflow-hidden"
+        >
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />

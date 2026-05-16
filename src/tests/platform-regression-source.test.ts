@@ -77,6 +77,43 @@ describe('platform regression guards', () => {
     expect(appSource).toContain('<Suspense fallback={null}>');
   });
 
+  it('keeps dashboard navigation timing instrumented for dogfood and monitoring', () => {
+    const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    const headerSource = readFileSync(resolve(process.cwd(), 'src/components/layout/Header.tsx'), 'utf8');
+    const layoutSource = readFileSync(resolve(process.cwd(), 'src/components/Layout.tsx'), 'utf8');
+    const perfSource = readFileSync(resolve(process.cwd(), 'src/utils/navigationPerformance.ts'), 'utf8');
+    const packageJson = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8');
+
+    expect(appSource).toContain('recordDashboardNavigationStart(currentPage, page, viewMode)');
+    expect(appSource).toContain('<DashboardContentReady page={currentPage} viewMode={viewMode}>');
+    expect(headerSource).toContain('data-tour="mobile-menu"');
+    expect(layoutSource).toContain('data-dashboard-page={currentPage}');
+    expect(perfSource).toContain('route commit timing');
+    expect(perfSource).toContain("'verdaxis:dashboard-navigation'");
+    expect(perfSource).toContain('__VERDAXIS_NAV_METRICS__');
+    expect(perfSource).toContain('performance.measure');
+    expect(packageJson).toContain('"smoke:navigation:setup"');
+    expect(packageJson).toContain('"smoke:navigation": "python3 scripts/smoke_navigation.py"');
+  });
+
+  it('keeps navigation smoke measuring page-specific usability markers, not only React commit', () => {
+    const scriptSource = readFileSync(resolve(process.cwd(), 'scripts/smoke_navigation.py'), 'utf8');
+    const mapSource = readFileSync(resolve(process.cwd(), 'src/components/BuyerMap.tsx'), 'utf8');
+    const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');
+    const terminalSource = readFileSync(resolve(process.cwd(), 'src/components/MarketTerminal.tsx'), 'utf8');
+    const curveSource = readFileSync(resolve(process.cwd(), 'src/components/ForwardCurve.tsx'), 'utf8');
+
+    expect(scriptSource).toContain('def wait_for_usable');
+    expect(scriptSource).toContain("data-navigation-ready='FORWARD_CURVE'");
+    expect(scriptSource).toContain('"routeCommitMs"');
+    expect(scriptSource).toContain('"durationMs": round(float(completed_at - started_at), 1)');
+    expect(scriptSource).toContain('page.goto(f"{base_url}/login"');
+    expect(mapSource).toContain("data-navigation-ready={mapLoaded ? 'MAP' : undefined}");
+    expect(marketplaceSource).toContain("data-navigation-ready={!loading ? 'MARKETPLACE' : undefined}");
+    expect(terminalSource).toContain("data-navigation-ready={!loading ? 'TERMINAL' : undefined}");
+    expect(curveSource).toContain("data-navigation-ready={isNavigationReady ? 'FORWARD_CURVE' : undefined}");
+  });
+
   it('keeps global dashboard prefetch focused on activation, not heavy map and chart chunks', () => {
     const appSource = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
     const globalPrefetch = appSource.slice(

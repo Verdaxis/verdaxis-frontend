@@ -774,7 +774,11 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     return (
         <>
-        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono transition-colors" onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}>
+        <div
+            data-navigation-ready={!loading ? 'TERMINAL' : undefined}
+            className="flex flex-col min-h-full bg-slate-50 dark:bg-[#050505] text-slate-800 dark:text-[#e5e5e5] font-mono transition-colors"
+            onClick={() => { setShowPortDropdown(false); setShowFuelDropdown(false); }}
+        >
 
             {/* Top Section: Header & Chart */}
             <div className="h-auto lg:h-64 border-b border-slate-200 dark:border-[#222] flex flex-col lg:flex-row">

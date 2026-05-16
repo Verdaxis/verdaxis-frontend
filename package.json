@@ -13,6 +13,8 @@
     "test:watch": "vitest",
     "i18n:check": "npx tsx scripts/check-translations.ts",
     "build:check": "node scripts/check-build-artifacts.mjs",
+    "smoke:navigation:setup": "python3 -m pip install -r scripts/requirements-navigation-smoke.txt && python3 -m playwright install chromium",
+    "smoke:navigation": "python3 scripts/smoke_navigation.py",
     "smoke:live": "node scripts/smoke-live.mjs",
     "verify": "npm run test && npm run i18n:check && npm run build:prod && npm run build:check"
   },

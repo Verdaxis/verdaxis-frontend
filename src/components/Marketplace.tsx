@@ -728,7 +728,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden">
+        <div
+            data-navigation-ready={!loading ? 'MARKETPLACE' : undefined}
+            className="h-full flex flex-col overflow-y-auto md:overflow-hidden"
+        >
             {/* Header */}
             <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0 relative z-[80]">
                 <div className="max-w-7xl mx-auto">

@@ -35,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
         <header className="h-16 bg-[#343E50] dark:bg-[#0f172a] border-b border-[#2A3344] dark:border-[#1e293b] flex items-center justify-between px-4 md:px-6 shadow-sm z-[50] relative transition-colors duration-200">
             <div className="flex items-center flex-1">
                 <button
+                    data-tour="mobile-menu"
                     className="md:hidden mr-4 text-slate-500 hover:text-verdaxis-dark"
                     onClick={onOpenMobileSidebar}
                 >

@@ -9,6 +9,10 @@ import { TutorialProvider } from './context/TutorialContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { ViewMode, Page, Port } from './types';
+import {
+  recordDashboardContentReady,
+  recordDashboardNavigationStart,
+} from './utils/navigationPerformance';
 
 const lazyNamed = <T extends React.ComponentType<any>>(loader: () => Promise<Record<string, any>>, exportName: string) =>
   lazy(async () => ({ default: (await loader())[exportName] as T }));
@@ -33,6 +37,18 @@ const DashboardContentLoading = () => (
     </div>
   </div>
 );
+
+const DashboardContentReady: React.FC<{ page: Page; viewMode: ViewMode; children: React.ReactNode }> = ({
+  page,
+  viewMode,
+  children,
+}) => {
+  useEffect(() => {
+    recordDashboardContentReady(page, viewMode);
+  }, [page, viewMode]);
+
+  return <>{children}</>;
+};
 
 const GuidedTutorial = lazyNamed(() => import('./components/GuidedTutorial'), 'GuidedTutorial');
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -232,9 +248,12 @@ const Dashboard: React.FC = () => {
   const [, startPageTransition] = useTransition();
 
   const setDashboardPage = useCallback((page: Page) => {
+    if (page !== currentPage) {
+      recordDashboardNavigationStart(currentPage, page, viewMode);
+    }
     startPageTransition(() => setCurrentPage(page));
     sessionStorage.setItem('verdaxis_currentPage', page);
-  }, [startPageTransition]);
+  }, [currentPage, startPageTransition, viewMode]);
 
   useEffect(() => {
       if (location.state) {
@@ -347,7 +366,9 @@ const Dashboard: React.FC = () => {
       </Suspense>
       <Suspense fallback={<DashboardContentLoading />}>
         <ErrorBoundary>
-          {renderContent()}
+          <DashboardContentReady page={currentPage} viewMode={viewMode}>
+            {renderContent()}
+          </DashboardContentReady>
         </ErrorBoundary>
       </Suspense>
       <Suspense fallback={null}>

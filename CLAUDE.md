@@ -17,7 +17,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
 - **AI Copilot:** Chat UI and tool-calling loop backed by backend `/api/ai/chat`; no client-side Gemini key
-- **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
+- **Auth:** short-lived access tokens kept in memory, restored through backend `/api/auth/refresh` with an HttpOnly refresh cookie, then validated through `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
 - **Linting:** No ESLint configuration present. Consider adding one for consistency.
 
@@ -37,7 +37,7 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Every request includes `Authorization: Bearer <token>` from `localStorage`.
+- **Auth:** Every authenticated request includes `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
@@ -100,6 +100,8 @@ npm run smoke:live
 ```
 This checks prod and staging HTML, hashed bundle API targets, backend health, the four market products, the eight delivery points, and the forward-curve endpoint with required params.
 
+For dashboard navigation dogfood, install the browser harness once with `npm run smoke:navigation:setup`, then run `npm run smoke:navigation -- --target local|staging|prod` with `VERDAXIS_SMOKE_EMAIL` and `VERDAXIS_SMOKE_PASSWORD`. `VERDAXIS_SMOKE_TOKEN` is supported for local/generated-token runs, but live prod/staging smoke should prefer UI login credentials so access tokens are not placed in app URLs.
+
 ## Local Development
 
 ```bash
@@ -143,3 +145,4 @@ Before exploring the tree, read:
 
 Only open full source files after consulting the wiki first.
 <!-- codesight-local:end -->
+

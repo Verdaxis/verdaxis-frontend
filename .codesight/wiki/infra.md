@@ -2,13 +2,17 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Infra subsystem handles **2 routes**.
+The Infra subsystem handles **4 routes**.
 
 ## Routes
 
 - `GET` `/`
   `openapi.json`
 - `GET` `/health`
+  `openapi.json`
+- `GET` `/health/live`
+  `openapi.json`
+- `GET` `/health/ready`
   `openapi.json`
 
 ## Source Files
