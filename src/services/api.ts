@@ -616,6 +616,14 @@ export const api = {
             if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             return fetchApi(`/curves/forward?${searchParams.toString()}`);
         },
+        board: async (params?: { availability_window?: string; focus_market_product?: string; focus_delivery_point_id?: string }): Promise<import('../types').ForwardCurveBoardResponse> => {
+            const searchParams = new URLSearchParams();
+            if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
+            if (params?.focus_market_product) searchParams.append('focus_market_product', params.focus_market_product);
+            if (params?.focus_delivery_point_id) searchParams.append('focus_delivery_point_id', params.focus_delivery_point_id);
+            const query = searchParams.toString();
+            return fetchApi(`/curves/forward/board${query ? `?${query}` : ''}`);
+        },
         exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);

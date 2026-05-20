@@ -30,6 +30,7 @@ import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { MyTrades } from './components/MyTrades';
 import { TradeHistoryPage } from './components/TradeHistoryPage';
+import { ForwardCurveWorkspace } from './components/ForwardCurveWorkspace';
 import { Marketplace } from './components/Marketplace';
 import { WatchlistPage } from './components/WatchlistPage';
 import { SupplierStats } from './components/SupplierStats';
@@ -204,6 +205,8 @@ const Dashboard: React.FC = () => {
                 return <SupplierQuotes />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
+            case 'FORWARD_CURVE':
+                return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
                 return <Marketplace initialPort={selectedPort} />;
@@ -223,6 +226,8 @@ const Dashboard: React.FC = () => {
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} />;
+      case 'FORWARD_CURVE':
+        return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
         return <DataAnalytics />;
       case 'COMPLIANCE':
