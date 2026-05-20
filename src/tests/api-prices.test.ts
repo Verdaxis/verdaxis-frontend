@@ -59,4 +59,25 @@ describe('price discovery API client', () => {
         expect(String(url)).toContain('availability_window=2026-Q3');
         expect(String(url)).toContain('visibility=internal');
     });
+
+    it('wires admin user listing and review endpoints', async () => {
+        fetchMock.mockImplementation(() => Promise.resolve(
+            new Response(JSON.stringify({ items: [], total: 0 }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        ));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await api.admin.users('limit=100&status=APPROVED');
+        await api.admin.approveUser('user-123');
+        await api.admin.rejectUser('user-456');
+
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/admin/analytics/users?limit=100&status=APPROVED');
+        expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/auth/approve/user-123');
+        expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: 'PUT' });
+        expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/admin/analytics/users/user-456/reject');
+        expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: 'PUT' });
+    });
 });
