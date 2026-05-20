@@ -330,7 +330,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -347,6 +347,64 @@ export interface ForwardCurveResponse {
     product_id: string;
     product_name: string;
     curve: ForwardCurvePoint[];
+    generated_at: string;
+}
+
+export interface ForwardCurveBoardProduct {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+}
+
+export interface ForwardCurveBoardDepthLevel {
+    price_per_mt_usd: number;
+    quantity_mt: number;
+    order_count: number;
+}
+
+export interface ForwardCurveBoardCell {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    benchmark_mid: number | null;
+    benchmark_source: string | null;
+    is_demo_benchmark: boolean;
+    best_bid: number | null;
+    best_ask: number | null;
+    spread: number | null;
+    volume_mt: number;
+    order_count: number;
+}
+
+export interface ForwardCurveBoardPort {
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    cells: ForwardCurveBoardCell[];
+}
+
+export interface ForwardCurveBoardFocus {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    curve: ForwardCurveBoardCell[];
+    depth_bids: ForwardCurveBoardDepthLevel[];
+    depth_asks: ForwardCurveBoardDepthLevel[];
+}
+
+export interface ForwardCurveBoardResponse {
+    availability_window: string;
+    products: ForwardCurveBoardProduct[];
+    ports: ForwardCurveBoardPort[];
+    focus: ForwardCurveBoardFocus;
     generated_at: string;
 }
 

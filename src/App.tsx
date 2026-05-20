@@ -41,6 +41,7 @@ const Training = lazyNamed(() => import('./components/Training'), 'Training');
 const Settings = lazyNamed(() => import('./components/Settings'), 'Settings');
 const TradeHistoryPage = lazyNamed(() => import('./components/TradeHistoryPage'), 'TradeHistoryPage');
 const MarketTerminal = lazyNamed(() => import('./components/MarketTerminal'), 'MarketTerminal');
+const ForwardCurveWorkspace = lazyNamed(() => import('./components/ForwardCurveWorkspace'), 'ForwardCurveWorkspace');
 const Marketplace = lazyNamed(() => import('./components/Marketplace'), 'Marketplace');
 const WatchlistPage = lazyNamed(() => import('./components/WatchlistPage'), 'WatchlistPage');
 const SupplierAnalytics = lazyNamed(() => import('./components/SupplierAnalytics'), 'SupplierAnalytics');
@@ -76,6 +77,7 @@ const prefetchPlatformScreens = () => {
     import('./components/BuyerMap'),
     import('./components/Marketplace'),
     import('./components/MarketTerminal'),
+    import('./components/ForwardCurveWorkspace'),
     import('./components/ForwardCurve'),
     import('./components/OrderPlaceModal'),
   ]).catch(() => undefined);
@@ -279,6 +281,8 @@ const Dashboard: React.FC = () => {
                 return <SupplierQuotes />;
             case 'TERMINAL':
                 return <MarketTerminal onNavigate={handleNavigate} />;
+            case 'FORWARD_CURVE':
+                return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
             case 'COMPLIANCE':
@@ -304,6 +308,8 @@ const Dashboard: React.FC = () => {
         return <Marketplace initialPort={selectedPort} />;
       case 'TERMINAL':
         return <MarketTerminal onNavigate={handleNavigate} />;
+      case 'FORWARD_CURVE':
+        return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
         return <DataAnalytics />;
       case 'COMPLIANCE':
