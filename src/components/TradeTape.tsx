@@ -3,15 +3,20 @@ import { Activity, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { TradeTapeEntry } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
-import { getMarketplaceProductLabel } from '../utils/marketProducts';
+import { formatMarketProduct } from '../utils/marketProduct';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
+    BIO_METHANOL: 'bg-violet-500',
+    E_METHANOL: 'bg-cyan-500',
+    BIO_ETHANOL: 'bg-orange-500',
+    SYNTHETIC_ETHANOL: 'bg-amber-500',
     methanol: 'bg-violet-500',
     ethanol: 'bg-orange-500',
 };
 
-function getDotColor(fuelType: string): string {
-    return FUEL_DOT_COLORS[fuelType.toLowerCase()] ?? 'bg-slate-400';
+function getDotColor(entry: TradeTapeEntry): string {
+    if (entry.market_product && FUEL_DOT_COLORS[entry.market_product]) return FUEL_DOT_COLORS[entry.market_product];
+    return FUEL_DOT_COLORS[entry.fuel_type.toLowerCase()] ?? 'bg-slate-400';
 }
 
 function shortFuel(fuelType: string): string {
@@ -52,7 +57,7 @@ interface TradeTapeProps {
 export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region }) => {
     const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
-    const [marketOpen, setMarketOpen] = useState(false);
+    const [marketOpen, setMarketOpen] = useState(true);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -69,7 +74,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];
             setTrades(Array.isArray(items) ? items : []);
-            setMarketOpen(data.market_hours ?? false);
+            setMarketOpen(data.market_hours ?? true);
             setTotal(data.total ?? items.length ?? 0);
         } catch {
             // Silently fail — tape is informational
@@ -129,9 +134,9 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                     {trades.map(t2 => (
                         <div key={t2.id} className="flex items-center justify-between px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                             <div className="flex items-center gap-2 min-w-0">
-                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getDotColor(t2.fuel_type)}`} />
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getDotColor(t2)}`} />
                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
-                                    {t2.market_product ? getMarketplaceProductLabel(t2.market_product, t2.fuel_type) : shortFuel(t2.fuel_type)}
+                                    {t2.market_product ? formatMarketProduct(t2.market_product) : shortFuel(t2.fuel_type)}
                                     {t2.fuel_grade && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
                                     )}
