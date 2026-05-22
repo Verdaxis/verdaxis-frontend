@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
-import { TradeTape } from './TradeTape';
 
 interface OrderBookProps {
     fuelType?: string;
@@ -98,7 +97,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();
         const tooltipWidth = 320;
-        const tooltipHeight = 152;
+        const tooltipHeight = order.is_demo_listing ? 196 : 152;
         const padding = 16;
         const preferredX = rect.right + 14;
         const fallbackX = rect.left - tooltipWidth - 14;
@@ -129,7 +128,6 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }
 
     return (
-        <div className="space-y-4">
         <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
@@ -226,6 +224,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                     >
+                                        {bid.is_demo_listing && (
+                                            <span
+                                                className="absolute left-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
+                                                aria-hidden="true"
+                                            >
+                                                <AlertTriangle size={10} />
+                                            </span>
+                                        )}
                                         <div
                                             className={`absolute inset-y-0 right-0 pointer-events-none ${
                                                 bidCrossed ? 'bg-amber-200/40 dark:bg-amber-700/20' : 'bg-emerald-100/60 dark:bg-emerald-900/20'
@@ -286,6 +292,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             }`}
                                             style={{ width: `${askDepth}%` }}
                                         />
+                                        {ask.is_demo_listing && (
+                                            <span
+                                                className="absolute right-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
+                                                aria-hidden="true"
+                                            >
+                                                <AlertTriangle size={10} />
+                                            </span>
+                                        )}
                                         <span className={`relative z-10 text-xs font-mono font-bold ${
                                             askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
                                         }`}>
@@ -342,6 +356,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                 {hoverTooltip.order.side}
                             </span>
                         </div>
+                        {hoverTooltip.order.is_demo_listing && (
+                            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
+                                Demo listing seeded for platform preview. Not user-posted liquidity.
+                            </div>
+                        )}
                         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-600 dark:text-slate-300">
                             <div>
                                 <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Certification</span>
@@ -390,13 +409,6 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     </div>
                 );
             })()}
-        </div>
-            <TradeTape
-                fuelType={fuelType}
-                marketProduct={marketProduct}
-                region={region}
-                availability={availability}
-            />
         </div>
     );
 };

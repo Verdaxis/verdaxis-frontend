@@ -7,19 +7,21 @@ import {
     RefreshCw,
     Plus,
     AlertCircle,
+    AlertTriangle,
     CheckCircle2,
     ClipboardList,
     Trash2,
     Star,
     Ship,
     X,
+    XCircle,
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -41,6 +43,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { OrderBook } from './OrderBook';
+import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 
 // ─── Role Config ──────────────────────────────────────────────────
@@ -96,13 +99,18 @@ const REFRESH_INTERVAL_MS = 60_000;
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
+    viewMode?: ViewMode;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode }) => {
     const { user } = useAuth();
     const { setPageContext } = useCopilotContext();
     const { t, ready } = useNamespace('trading');
-    const role = user?.role ?? 'BUYER';
+    const role: ViewMode = user?.role === 'ADMIN'
+        ? (viewMode ?? 'BUYER')
+        : user?.role === 'SUPPLIER'
+            ? 'SUPPLIER'
+            : 'BUYER';
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
 
@@ -185,7 +193,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
-    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
+    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
 
     // ─── News panel toggle ──────────────────────────────────────
@@ -341,7 +349,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         fetchData(false, newSkip);
     };
 
-    const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
+    const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
+    const hasExactPort = Boolean(resolvedPort);
+    const hasExactAvailability = Boolean(availability);
+    const orderbookRequiresExactSlice = !hasExactProduct || !hasExactPort || !hasExactAvailability;
+    const selectedAvailabilityLabel = availabilityOptions.find(option => option.value === availability)?.label || availability;
+    const orderbookSliceRequirements = [
+        {
+            key: 'product',
+            label: t('orderBook.requirement.product'),
+            value: hasExactProduct ? formatMarketProduct(marketProduct) : t('orderBook.requirement.anyProduct'),
+            complete: hasExactProduct,
+        },
+        {
+            key: 'port',
+            label: t('orderBook.requirement.port'),
+            value: hasExactPort ? resolvedPort : t('orderBook.requirement.anyPort'),
+            complete: hasExactPort,
+        },
+        {
+            key: 'window',
+            label: t('orderBook.requirement.window'),
+            value: hasExactAvailability ? selectedAvailabilityLabel : t('orderBook.requirement.anyWindow'),
+            complete: hasExactAvailability,
+        },
+    ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -426,14 +458,38 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
         setTradeError('');
     };
 
-    const confirmTrade = async () => {
-        if (!selectedOrder || tradeState === 'submitting') return;
+    const validateTradeQuantity = () => {
+        if (!selectedOrder || tradeState === 'submitting') return null;
         const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
         if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
             setTradeError('Enter a valid quantity within the remaining amount.');
             setTradeState('error');
+            return null;
+        }
+        return normalizedTradeQuantity;
+    };
+
+    const reviewTrade = () => {
+        if (!selectedOrder) return;
+        if (selectedOrder.is_demo_listing) {
+            setTradeError(t('marketplace.demo.blocked'));
+            setTradeState('error');
             return;
         }
+        if (validateTradeQuantity() == null) return;
+        setTradeError('');
+        setTradeState('reviewing');
+    };
+
+    const confirmTrade = async () => {
+        if (!selectedOrder || tradeState === 'submitting') return;
+        if (selectedOrder.is_demo_listing) {
+            setTradeError(t('marketplace.demo.blocked'));
+            setTradeState('error');
+            return;
+        }
+        const normalizedTradeQuantity = validateTradeQuantity();
+        if (normalizedTradeQuantity == null) return;
         setTradeState('submitting');
         try {
             await api.trades.initiate({
@@ -472,6 +528,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                             {order.off_spec && (
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
                                     Off-spec
+                                </span>
+                            )}
+                            {order.is_demo_listing && (
+                                <span
+                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                                    title={t('marketplace.demo.tooltip')}
+                                >
+                                    <AlertCircle size={11} />
+                                    {t('marketplace.demo.label')}
                                 </span>
                             )}
                         </div>
@@ -848,22 +913,58 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
 
             {marketTab === 'orderbook' && !error && (
                 <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
+                    <div className="max-w-[1600px] mx-auto">
                         <div className="min-h-[520px]">
-                            {orderbookRequiresProductSelection ? (
+                            {orderbookRequiresExactSlice ? (
                                 <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
                                     <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
                                     <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
+                                        <div className="mt-6 w-full max-w-md space-y-2 text-left">
+                                            {orderbookSliceRequirements.map((requirement) => {
+                                                const Icon = requirement.complete ? CheckCircle2 : XCircle;
+                                                return (
+                                                    <div
+                                                        key={requirement.key}
+                                                        aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
+                                                        className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 ${
+                                                            requirement.complete
+                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+                                                                : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+                                                        }`}
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <div className="text-xs font-bold uppercase tracking-[0.16em] opacity-70">
+                                                                {requirement.label}
+                                                            </div>
+                                                            <div className="mt-0.5 truncate text-sm font-bold">
+                                                                {requirement.value}
+                                                            </div>
+                                                        </div>
+                                                        <Icon size={20} className="flex-shrink-0" aria-hidden="true" />
+                                                        <span className="sr-only">
+                                                            {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                 </div>
                             ) : (
-                                <OrderBook
-                                    marketProduct={marketProduct}
-                                    region={resolvedPort || undefined}
-                                    availability={availability || undefined}
-                                    actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                                    onLevelClick={handleOrderbookLevelClick}
-                                />
+                                <div className="grid min-h-[520px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
+                                    <OrderBook
+                                        marketProduct={marketProduct}
+                                        region={resolvedPort || undefined}
+                                        availability={availability || undefined}
+                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
+                                        onLevelClick={handleOrderbookLevelClick}
+                                    />
+                                    <TradeTape
+                                        marketProduct={marketProduct}
+                                        availability={availability || undefined}
+                                        region={resolvedPort || undefined}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1143,11 +1244,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                 </div>
 
                                 <div className="p-6 space-y-5">
+                                    {selectedOrder.is_demo_listing && (
+                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                                            <div className="flex items-start gap-2">
+                                                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-bold">{t('marketplace.demo.modalTitle')}</div>
+                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.demo.modalBody')}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Order summary */}
                                     <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
-                                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                                            <span className="flex items-center gap-2 text-right font-bold text-slate-800 dark:text-slate-200">
+                                                {selectedOrder.is_demo_listing && (
+                                                    <AlertCircle size={14} className="text-amber-500" aria-label={t('marketplace.demo.label')} />
+                                                )}
                                                 {getOrderDisplayName(selectedOrder)}
                                             </span>
                                         </div>
@@ -1175,7 +1291,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
                                                 max={selectedOrder.remaining_quantity_mt}
                                                 min={1}
-                                                className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                                disabled={tradeState === 'reviewing' || tradeState === 'submitting' || selectedOrder.is_demo_listing}
+                                                className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-400"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
@@ -1188,26 +1305,54 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort }) => {
                                             )}
                                         </p>
                                     </div>
+                                    {tradeState === 'reviewing' && (
+                                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                                            <div className="flex items-start gap-2">
+                                                <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="font-bold">{t('marketplace.confirm.title')}</div>
+                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.confirm.body')}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Actions */}
                                 <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
                                     <button
                                         type="button"
-                                        onClick={closeTradeModal}
+                                        onClick={tradeState === 'reviewing' ? () => setTradeState('confirming') : closeTradeModal}
                                         className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                                     >
-                                        {t('marketplace.btn.cancel')}
+                                        {tradeState === 'reviewing' ? t('marketplace.btn.back') : t('marketplace.btn.cancel')}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={confirmTrade}
-                                        disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
-                                        className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                                        <span>{tradeState === 'submitting' ? t('marketplace.btn.submitting') : t('marketplace.btn.confirm')}</span>
-                                    </button>
+                                    {selectedOrder.is_demo_listing ? (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className="px-6 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-lg flex items-center gap-2 disabled:cursor-not-allowed dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30"
+                                        >
+                                            <AlertCircle size={18} />
+                                            <span>{t('marketplace.demo.disabledButton')}</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
+                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                            className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                            <span>
+                                                {tradeState === 'submitting'
+                                                    ? t('marketplace.btn.submitting')
+                                                    : tradeState === 'reviewing'
+                                                        ? t('marketplace.btn.confirmFinal')
+                                                        : t('marketplace.btn.confirm')}
+                                            </span>
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}
