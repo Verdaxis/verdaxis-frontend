@@ -54,14 +54,16 @@ Only the four approved market products:
 
 ### Supported ports
 
-Only the six approved ports:
+Only the eight approved ports:
 
-- `Singapore`
-- `Shanghai`
 - `Dalian`
-- `Amsterdam`
+- `Busan`
+- `Shanghai`
+- `Singapore`
 - `Rotterdam`
-- `Antwerp`
+- `Houston`
+- `Los Angeles`
+- `Santos`
 
 No aggregate delivery buckets:
 

@@ -60,6 +60,46 @@ describe('price discovery API client', () => {
         expect(String(url)).toContain('visibility=internal');
     });
 
+    it('sends forward curve board filters', async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({
+                availability_window: 'SPOT',
+                products: [],
+                ports: [],
+                focus: {
+                    product_id: 'prod-1',
+                    market_product: 'BIO_METHANOL',
+                    product_name: 'Bio Methanol',
+                    delivery_point_id: 'dp-1',
+                    delivery_point_name: 'Singapore',
+                    region: 'Asia',
+                    availability_window: 'SPOT',
+                    curve: [],
+                    depth_bids: [],
+                    depth_asks: [],
+                },
+                generated_at: '2026-04-14T00:00:00Z',
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            })
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        await api.curves.board({
+            availability_window: '2026-Q3',
+            focus_market_product: 'BIO_METHANOL',
+            focus_delivery_point_id: 'dp-1',
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const [url] = fetchMock.mock.calls[0] ?? [];
+        expect(String(url)).toContain('/curves/forward/board?');
+        expect(String(url)).toContain('availability_window=2026-Q3');
+        expect(String(url)).toContain('focus_market_product=BIO_METHANOL');
+        expect(String(url)).toContain('focus_delivery_point_id=dp-1');
+    });
+
     it('wires admin user listing and review endpoints', async () => {
         fetchMock.mockImplementation(() => Promise.resolve(
             new Response(JSON.stringify({ items: [], total: 0 }), {

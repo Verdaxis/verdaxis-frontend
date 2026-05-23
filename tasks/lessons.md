@@ -209,6 +209,12 @@
 - **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
 - **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
 
+### Check all sidebar sources before calling navigation removed
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that Compliance and Education should also be removed after I only checked the primary sidebar navigation.
+- **Rule:** When removing sidebar navigation, inspect primary items, footer/admin items, and secondary partner/link sections before deciding the sidebar is clean.
+- **Why:** The Verdaxis sidebar is assembled from multiple arrays, so a removed page can still appear through partner links or secondary navigation.
+
 
 ### Dogfood narrated walkthrough flows before declaring them ready
 - **Date:** 2026-04-15
@@ -240,3 +246,51 @@
 - **Trigger:** Buyer and supplier sidebars drifted in label text and ordering because each role had its own hardcoded nav array.
 - **Rule:** When two roles share the same app shell, build the primary navigation from one shared config with role-specific page routing only where necessary.
 - **Why:** Duplicate nav definitions drift quickly and create avoidable UX inconsistency.
+
+### Audit Vertical Rhythm When Replacing Forms
+- **Date:** 2026-05-05
+- **Trigger:** The pilot page form was replaced with a CTA, and the user pointed out that the surrounding section spacing also needed optimization.
+- **Rule:** When removing or replacing a tall form, rebalance the section padding, grid column widths, card padding, and adjacent vertical gaps in the same pass.
+- **Why:** A functional component swap can leave an awkward visual footprint if the old component's height still dictates the layout rhythm.
+
+### Keep Product Labels Separate From Stored Taxonomy
+- **Date:** 2026-05-06
+- **Trigger:** The user corrected the signup label from `Shipping Line` to `Ship Owner` while asking how disruptive a backend rename would be.
+- **Rule:** Prefer label-only changes when the stored enum already anchors seeded data, tests, and permissions; rename stored values only with a deliberate compatibility migration.
+- **Why:** User-facing terminology can move faster than internal taxonomy, and conflating the two creates unnecessary migration risk.
+
+### Grill Dirty Marketplace Diffs Before Rebuilding
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that the Marketplace regression fix should also review unrelated dirty Marketplace logic before deciding what to keep, fix, or discard.
+- **Rule:** When a live regression is caused by stale deployment but the working tree contains broad Marketplace edits, classify each behavior change with the user before rebuilding or deploying the dirty source.
+- **Why:** A rebuild can accidentally promote unrelated UI, watchlist, filter, or trade-flow regressions if the dirty diff is treated as a simple restore.
+
+### Do Not Show Trade Tape As Market Closed
+- **Date:** 2026-05-19
+- **Trigger:** The user corrected the Trade Tape status because Verdaxis should present physical fuel market activity as 24-hour, not exchange-session open/closed.
+- **Rule:** Market activity badges should say `Live · 7D history` or an outage-style unavailable state, not `Market Closed`, unless Verdaxis later defines formal trading sessions.
+- **Why:** A closed-market badge implies users cannot transact and conflicts with the intended operating model.
+
+### Keep Trading And Monitoring Surfaces Separate
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that the Braemar/Bloomberg-style dashboard vision applies to the current Forward Curve page, not the Market Terminal trading page.
+- **Rule:** Treat Market Terminal as the execution/trading surface and Forward Curve, unless renamed later, as the market monitoring workspace candidate. Do not revamp or merge Market Terminal when designing configurable dashboards.
+- **Why:** Combining execution and monitoring would muddy the product model and risk destabilizing the current trade workflow.
+
+### Keep Experimental Forward Curve Work On Staging
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that this Forward Curve monitoring feature should be worked on in staging for now.
+- **Rule:** For exploratory Forward Curve/dashboard iterations, build, deploy, and dogfood staging only unless the user explicitly asks to promote the change to production.
+- **Why:** The monitoring workspace is still being shaped, and production should not receive half-formed trader workflow changes by default.
+
+### Use Diagnostic Empty States For Required Market Slices
+- **Date:** 2026-05-22
+- **Trigger:** The Orderbook exact-slice gate used a static instruction after the user wanted clear feedback on which filter was still missing.
+- **Rule:** When a market surface requires multiple filters, show a dynamic checklist with selected/missing status for each requirement instead of only a generic instruction.
+- **Why:** Static copy makes users guess which control is blocking the view, especially when some filters are already correctly selected.
+
+### Derive Market Monitoring Taxonomy From Catalog
+- **Date:** 2026-05-23
+- **Trigger:** The user clarified that Forward Curve should use canonical products dynamically where possible instead of hardcoding the visible markets.
+- **Rule:** Market monitoring surfaces should derive fuel, port, and window options from the same canonical marketplace/catalog sources, with static constants only as a narrow fallback.
+- **Why:** Hardcoded market lists drift from executable marketplace surfaces and make users see products or ports they cannot actually list against.

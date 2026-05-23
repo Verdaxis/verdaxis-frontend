@@ -51,7 +51,7 @@ Focus areas:
 - more consistent spread relationships
 - more believable forward windows and curve shape
 - trade tape chronology that matches the displayed market
-- balanced distribution across the four approved products and six approved ports
+- balanced distribution across the four approved products and eight approved ports
 
 ### 4. Terminal / Curve UX Polish
 

@@ -194,13 +194,13 @@ const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean }> =
     <section className="border border-slate-800 bg-[#080c13]">
         <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Trade Tape</span>
-            <span className="text-[10px] text-emerald-400">Live 24h</span>
+            <span className="text-[10px] text-emerald-400">Live · 7D history</span>
         </div>
         <div className="divide-y divide-slate-900">
             {loading ? (
                 <div className="px-3 py-8 text-center text-[11px] text-slate-500">Loading recent prints...</div>
             ) : trades.length === 0 ? (
-                <div className="px-3 py-8 text-center text-[11px] text-slate-500">No recent trades for this selected slice.</div>
+                <div className="px-3 py-8 text-center text-[11px] text-slate-500">No confirmed trades yet for this selected slice.</div>
             ) : trades.map(trade => (
                 <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
                     <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>

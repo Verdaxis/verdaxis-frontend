@@ -1,62 +1,71 @@
-import type { MarketProduct, OrderBookOrder, Product } from '../types';
+import type { Product } from '../types';
 
-export const MARKET_PRODUCT_LABELS: Record<MarketProduct, string> = {
-    BIO_METHANOL: 'Bio Methanol',
-    E_METHANOL: 'e-Methanol',
-    BIO_ETHANOL: 'Bio Ethanol',
-    SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
+export type ProductReference = string | Product | null | undefined;
+
+const MARKET_PRODUCT_LABELS: Record<string, string> = {
+  BIO_METHANOL: 'Bio Methanol',
+  BIO_ETHANOL: 'Bio Ethanol',
+  E_METHANOL: 'E-Methanol',
+  SYNTHETIC_METHANOL: 'Synthetic Methanol',
+  E_ETHANOL: 'E-Ethanol',
+  SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
+  CONVENTIONAL_METHANOL: 'Conventional Methanol',
+  GREEN_ETHANOL: 'Green Ethanol',
 };
 
-const LEGACY_PRODUCT_LABELS: Record<string, string> = {
-    'methanol green': 'Bio Methanol',
-    'green methanol': 'Bio Methanol',
-    'ethanol green': 'Bio Ethanol',
-    'green ethanol': 'Bio Ethanol',
-    'e-methanol': 'e-Methanol',
-};
+export function formatMarketProduct(value: string | null | undefined): string {
+  if (!value) return '';
 
-export function formatMarketProduct(value: MarketProduct | string | null | undefined): string {
-    if (!value) return '';
-    return MARKET_PRODUCT_LABELS[value as MarketProduct] ?? String(value);
+  const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (MARKET_PRODUCT_LABELS[normalized]) return MARKET_PRODUCT_LABELS[normalized];
+  if (normalized === 'GREEN_METHANOL' || normalized === 'BIOMETHANOL') {
+    return MARKET_PRODUCT_LABELS.BIO_METHANOL;
+  }
+  if (normalized === 'GREEN_ETHANOL') {
+    return MARKET_PRODUCT_LABELS.BIO_ETHANOL;
+  }
+
+  return value
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function normalizeProductDisplayName(value: string | null | undefined): string {
-    if (!value) return '';
-    const normalized = value.trim().toLowerCase();
-    return LEGACY_PRODUCT_LABELS[normalized] ?? value;
-}
+export function getProductDisplayName(product: ProductReference): string {
+  if (!product) return '';
+  if (typeof product === 'string') return product;
 
-export function getProductDisplayName(product: Partial<Product> | null | undefined): string {
-    if (!product) return '';
-    if (product.market_product) return formatMarketProduct(product.market_product);
-    if (product.name) return normalizeProductDisplayName(product.name);
-    return '';
+  const name = product.name || product.fuel_type || product.id;
+  if (!product.fuel_grade) return name;
+
+  return name.toLowerCase().includes(product.fuel_grade.toLowerCase())
+    ? name
+    : `${product.fuel_grade} ${name}`;
 }
 
 export function getProductDisplayNameFromReference(
-    value: string | null | undefined,
-    products: Array<Partial<Product>> = [],
+  reference: ProductReference,
+  products: Product[] = []
 ): string {
-    if (!value) return '';
+  if (!reference) return '';
+  if (typeof reference !== 'string') return getProductDisplayName(reference);
 
-    const byId = products.find((product) => product.id === value);
-    if (byId) return getProductDisplayName(byId);
+  const product = products.find((candidate) => (
+    candidate.id === reference
+    || candidate.name === reference
+    || candidate.fuel_type === reference
+  ));
 
-    const byMarketProduct = products.find((product) => product.market_product === value);
-    if (byMarketProduct) return getProductDisplayName(byMarketProduct);
-
-    const formattedMarketProduct = formatMarketProduct(value);
-    if (formattedMarketProduct !== String(value)) return formattedMarketProduct;
-
-    return normalizeProductDisplayName(value);
+  return product ? getProductDisplayName(product) : formatMarketProduct(reference);
 }
 
-export function getOrderDisplayName(order: Partial<OrderBookOrder> | null | undefined): string {
-    if (!order) return '';
-    if (order.market_product) return formatMarketProduct(order.market_product);
-    if (order.product_name) return normalizeProductDisplayName(order.product_name);
-
-    const fuelType = order.fuel_type ?? '';
-    const fuelGrade = order.fuel_grade ?? '';
-    return [fuelGrade !== 'Conventional' ? fuelGrade : '', fuelType].filter(Boolean).join(' ').trim();
+export function getOrderDisplayName(order: {
+  product_name?: string;
+  market_product?: string;
+  fuel_type?: string;
+}): string {
+  return order.product_name
+    || formatMarketProduct(order.market_product)
+    || order.fuel_type
+    || 'Unknown product';
 }

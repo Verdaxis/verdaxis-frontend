@@ -1,5 +1,22 @@
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeAll, vi } from 'vitest';
+import { loadNamespace } from '../i18n';
+
+beforeAll(async () => {
+  await Promise.all([
+    'public',
+    'auth',
+    'trading',
+    'compliance',
+    'dashboard',
+    'fleet',
+    'ai',
+    'education',
+    'admin',
+    'settings',
+    'tutorial',
+  ].map((ns) => loadNamespace(ns)));
+});
 
 afterEach(() => {
   cleanup();

@@ -35,6 +35,6 @@ describe('MarketTerminal trading taxonomy', () => {
     });
 
     it('uses the approved trading port set for terminal selectors', () => {
-        expect(APPROVED_TRADING_PORTS).toEqual(['Singapore', 'Shanghai', 'Dalian', 'Amsterdam', 'Rotterdam', 'Antwerp']);
+        expect(APPROVED_TRADING_PORTS).toEqual(['Dalian', 'Busan', 'Shanghai', 'Singapore', 'Rotterdam', 'Houston', 'Los Angeles', 'Santos']);
     });
 });

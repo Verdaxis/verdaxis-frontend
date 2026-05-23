@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
 import {
-    GraduationCap,
     Settings as SettingsIcon,
     ChevronsLeft,
     ChevronsRight,
-    FileText,
     Hexagon,
     ShieldCheck,
-    ExternalLink,
     Plus,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -41,11 +38,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
 
-    const partnerLinks: { id: string; label: string; icon: any; href: string; logo?: string }[] = [
-        { id: 'COMPLIANCE_EXT', label: 'Compliance', icon: FileText, href: 'https://marinachain.io', logo: 'https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/mc_logo_icon.png' },
-        { id: 'TRAINING_EXT', label: 'Education', icon: GraduationCap, href: 'https://greenmarine.dk/', logo: 'https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/green_marine_icon.png' },
-    ];
-
     const sidebarItems = buildPrimarySidebarItems(t, viewMode);
 
     const handleNavigate = (page: Page) => {
@@ -69,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="w-11 h-11 bg-white rounded-lg p-1.5 flex items-center justify-center flex-shrink-0 shadow-inner">
                         {!logoError ? (
                             <img
-                                src="https://marinachain-image-hosting.s3.ap-southeast-1.amazonaws.com/miscellaneous/verdaxis_logo_no_words.png"
+                                src="/verdaxis-logo-no-words.png"
                                 alt="Verdaxis"
                                 className="w-full h-full object-contain transform hover:scale-105 transition-transform duration-300"
                                 onError={() => setLogoError(true)}
@@ -128,36 +120,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </Tooltip>
                 ))}
             </nav>
-
-            {viewMode === 'BUYER' && (
-                <div className={`px-3 pb-3 ${isCollapsed ? '' : 'border-t border-[#2A3344] pt-3 mx-3'}`}>
-                    {!isCollapsed && (
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Partners</div>
-                    )}
-                    {partnerLinks.map((link) => (
-                        <Tooltip key={link.id} content={isCollapsed ? link.label : ''} position="right">
-                            <a
-                                href={link.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`w-full flex items-center px-3 py-2 rounded-lg transition-all duration-200 group text-slate-400 hover:bg-[#2A3344] hover:text-white ${isCollapsed ? 'justify-center' : 'space-x-3'}`}
-                            >
-                                {link.logo ? (
-                                    <img src={link.logo} alt={link.label} className="w-5 h-5 rounded-sm object-contain flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                ) : (
-                                    <link.icon size={20} className="flex-shrink-0 text-slate-500 group-hover:text-white" />
-                                )}
-                                {!isCollapsed && (
-                                    <span className="font-medium truncate text-sm flex items-center gap-1.5">
-                                        {link.label}
-                                        <ExternalLink size={11} className="text-slate-600" />
-                                    </span>
-                                )}
-                            </a>
-                        </Tooltip>
-                    ))}
-                </div>
-            )}
 
             <div className="p-4 border-t border-[#2A3344] space-y-1">
                 {userRole === 'ADMIN' && (

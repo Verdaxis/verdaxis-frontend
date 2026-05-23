@@ -9,6 +9,7 @@ import { TutorialProvider } from './context/TutorialContext';
 import { GuidedTutorial } from './components/GuidedTutorial';
 import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import RegisterPage from './pages/RegisterPage';
@@ -30,6 +31,7 @@ import { Settings } from './components/Settings';
 import { Stats } from './components/Stats';
 import { MyTrades } from './components/MyTrades';
 import { TradeHistoryPage } from './components/TradeHistoryPage';
+import { MarketTerminal } from './components/MarketTerminal';
 import { ForwardCurveWorkspace } from './components/ForwardCurveWorkspace';
 import { Marketplace } from './components/Marketplace';
 import { WatchlistPage } from './components/WatchlistPage';
@@ -132,7 +134,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
   if (!page) return 'DASHBOARD';
-  if (page === 'ORDERBOOK' || page === 'TERMINAL') return 'MARKETPLACE';
+  if (page === 'ORDERBOOK') return 'MARKETPLACE';
   return page as Page;
 };
 
@@ -203,13 +205,15 @@ const Dashboard: React.FC = () => {
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
-            case 'ANALYTICS':
-                return <SupplierAnalytics />;
+            case 'TERMINAL':
+                return <MarketTerminal onNavigate={handleNavigate} />;
             case 'FORWARD_CURVE':
                 return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
+            case 'ANALYTICS':
+                return <SupplierAnalytics />;
             case 'MARKETPLACE':
             case 'DEMAND_FEED':
-                return <Marketplace initialPort={selectedPort} />;
+                return <Marketplace initialPort={selectedPort} viewMode={viewMode} />;
             case 'TRADES':
                 return <TradeHistoryPage />;
             case 'WATCHLISTS':
@@ -225,7 +229,9 @@ const Dashboard: React.FC = () => {
       case 'DASHBOARD':
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
-        return <Marketplace initialPort={selectedPort} />;
+        return <Marketplace initialPort={selectedPort} viewMode={viewMode} />;
+      case 'TERMINAL':
+        return <MarketTerminal onNavigate={handleNavigate} />;
       case 'FORWARD_CURVE':
         return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
@@ -355,7 +361,9 @@ const App: React.FC = () => {
                         <ProtectedRoute>
                             <RequireOrganization>
                                 <RequireProfile>
-                                    <Dashboard />
+                                    <MobileDesktopGate>
+                                        <Dashboard />
+                                    </MobileDesktopGate>
                                 </RequireProfile>
                             </RequireOrganization>
                         </ProtectedRoute>

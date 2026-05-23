@@ -101,15 +101,16 @@ describe('ForwardCurve', () => {
     });
   });
 
-  it('shows the indicative title and empty-state hint when no curve exists for the selected product and port', async () => {
+  it('shows the forward curve title and empty-state hint when no curve exists for the selected product and port', async () => {
     renderWithProviders(
       <ForwardCurve marketProductCode="BIO_METHANOL" deliveryPointName="Singapore" />,
     );
 
-    expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Indicative only')).toBeTruthy();
 
     await waitFor(() => {
-      expect(screen.getByText('No indicative curve is available for this product and port yet.')).toBeTruthy();
+      expect(screen.getByText('No forward curve data available')).toBeTruthy();
     });
 
     expect(screen.getByText('Check Marketplace or Orderbook for live spot and near-dated liquidity.')).toBeTruthy();
@@ -121,10 +122,10 @@ describe('ForwardCurve', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('No indicative curve is available for this product and port yet.')).toBeTruthy();
+      expect(screen.getByText('No forward curve data available')).toBeTruthy();
     });
 
-    expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
+    expect(screen.queryByText('Forward Curve')).toBeNull();
     expect(screen.queryByText('Benchmark mid with soft bid/ask context')).toBeNull();
   });
 });

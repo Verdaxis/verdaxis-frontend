@@ -51,26 +51,29 @@ Trade Tape is the public evidence layer for recent market activity.
 - it is filtered by canonical market slice fields
 - it should reflect recent, believable chronology
 - it is not a negotiation log or private workflow record
+- in Marketplace, it sits alongside the Orderbook so users can compare visible depth with recent prints for the same slice
 
 ## Terminal Role
 
-Market Terminal is the live monitoring surface for one selected product-port context.
+Market Terminal is the trading-oriented terminal surface.
 
-- it inherits the approved product taxonomy and approved port list
-- it shows benchmark context, book depth, activity, and curve context together
-- it is a market-intelligence surface, not a separate trading model
-- clicking a forward point should hand the user into the matching Marketplace slice
+- it supports users working a selected product-port context
+- it can show benchmark context, book depth, activity, and curve context
+- it must remain distinct from the broader Forward Curve monitoring workspace
+- trading actions should remain explicit and route through the established market workflow
 
 ## Forward Curve Role
 
-Forward Curve V1 is **indicative only**.
+Forward Curve V1 is the broader market monitoring workspace and is **indicative only**.
 
 - it is keyed by `market_product + delivery_point`
+- it can scan multiple approved product-port contexts at once
 - it shows benchmark mid with soft bid/ask context
 - it is not tradable forward depth
-- it should read as a plausible forward market shape for the selected port and product
+- it should read as a plausible forward market shape for the selected product-port focus
 - it should use the same approved products and ports as Marketplace and Terminal
 - no aggregate buckets like `ARA` should appear
+- selecting a monitored context should update the monitoring focus; opening Marketplace should be an explicit CTA
 
 ## Screen Semantics
 
@@ -79,7 +82,10 @@ Each surface has a distinct job:
 - `Listings`: actionable filtered rows for the selected slice
 - `Orderbook`: two-sided depth for the same slice
 - `Trade Tape`: recent public prints
-- `Market Terminal`: consolidated market monitoring
-- `Forward Curve`: indicative future price path with click-through into action surfaces
+- `My Listings`: the user's own outstanding resting bids and asks for the active slice
+- `Market Terminal`: trading-oriented terminal surface
+- `Forward Curve`: market monitoring workspace with explicit handoff into action surfaces
 
 These screens should agree on taxonomy, port set, and slice identity even when they present different abstractions of the same market.
+
+Orderbook rows are inspection shortcuts, not execution buttons. Selecting an actionable depth row should take the user to the matching row in `Listings`; trade initiation remains an explicit row action in the Listings view.

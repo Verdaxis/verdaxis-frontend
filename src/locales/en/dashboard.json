@@ -36,15 +36,9 @@
       "errorMessagePrefix": "Failed to confirm trade: "
     }
   },
-  "activityFeed": {
-    "title": "Activity Feed",
-    "events": "{{count}} events",
-    "noActivity": "No live activity yet",
-    "noActivityHint": "This panel shows listing alerts, price crossings, and other live market signals after they are emitted."
-  },
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
-    "methanolAvails": "Methanol Avails (Top Ports)",
+    "marketAvails": "Live Market Avails",
     "lastDone": "Last Done",
     "recentActivity": "Recent Activity",
     "recentTrades": "Recent Trades",
@@ -405,10 +399,12 @@
     "events": "{{count}} events"
   },
   "forwardCurve": {
-    "title": "Indicative Forward Curve",
+    "title": "Forward Curve",
+    "indicativeOnly": "Indicative only",
     "subtitle": "Benchmark mid with soft bid/ask context",
+    "clickHint": "Click a period to filter the orderbook.",
     "loading": "Loading...",
-    "noData": "No indicative curve is available for this product and port yet.",
+    "noData": "No forward curve data available",
     "noDataHint": "Check Marketplace or Orderbook for live spot and near-dated liquidity.",
     "exportCsv": "Export CSV",
     "upgrade": "Upgrade",
@@ -416,11 +412,9 @@
     "spread": "Spread:",
     "vol": "Vol:",
     "orders": "orders",
-    "bestBid": "Indicative Bid",
-    "bestAsk": "Indicative Ask",
-    "midPrice": "Benchmark Mid",
-    "indicativeOnly": "Indicative only",
-    "clickHint": "Click a point to open the matching market slice."
+    "bestBid": "Best Bid",
+    "bestAsk": "Best Ask",
+    "midPrice": "Mid Price"
   },
   "priceAlerts": {
     "title": "Price Alerts",

@@ -37,12 +37,14 @@ src/
 
   components/
     Layout.tsx                     # App shell: sidebar + header + copilot overlay
+    MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
     BuyerMap.tsx                   # Leaflet intelligence map with port/vessel markers
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
-    MarketTerminal.tsx             # Bloomberg-style price terminal (bid/ask, charts)
+    MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
+    ForwardCurveWorkspace.tsx      # Dense market monitoring board (ports x products, hybrid curve)
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
     Training.tsx                   # Crew training courses
@@ -82,7 +84,7 @@ src/
 
   data/
     producerProjects.ts            # Static producer project dataset (locations, capacities)
-    fuelPrices.ts                  # Reference fuel price data
+    fuelPrices.ts                  # MarinaPulse fuel benchmark adapter for public ticker
     calculatorDefaults.ts          # Defaults for energy calculator
     educationArticles.ts           # Education article content/metadata
 
@@ -135,8 +137,12 @@ index.html --> index.tsx --> App.tsx
 
 **State-based in-app navigation:** The `/app` route renders a `Dashboard` component that uses
 `currentPage` state (not URL routes) to switch between views. The `Page` type enum
-(`MAP | MARKETPLACE | FLEET | TERMINAL | ...`) drives `renderContent()`. New authenticated
+(`MAP | MARKETPLACE | FLEET | TERMINAL | FORWARD_CURVE | ...`) drives `renderContent()`. New authenticated
 views should add a `Page` value, not a new react-router route.
+
+**Desktop-only platform workspace:** The authenticated `/app` route is wrapped in
+`MobileDesktopGate`, which shows a desktop-required notice below 768px. Public marketing,
+auth, and onboarding routes remain available on mobile.
 
 **Dual-role view mode:** `viewMode` (`BUYER | SUPPLIER`) determines which sidebar items and
 page components render. Supplier users default to `SUPPLIER`; buyers to `BUYER`. The header
@@ -159,6 +165,11 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
+
+**Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
+`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve scans approved ports and
+products, shows hybrid benchmark/orderbook context, and hands a selected slice to Marketplace
+through an explicit CTA.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
