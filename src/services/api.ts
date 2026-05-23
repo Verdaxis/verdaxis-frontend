@@ -80,33 +80,12 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
     return merged;
 };
 
-const formatApiErrorDetail = (detail: unknown): string => {
-    if (typeof detail === 'string') return detail;
-    if (Array.isArray(detail)) {
-        const messages = detail
-            .map((item) => {
-                if (typeof item === 'string') return item;
-                if (item && typeof item === 'object' && 'msg' in item) {
-                    return String((item as { msg?: unknown }).msg ?? '');
-                }
-                return '';
-            })
-            .filter(Boolean);
-        if (messages.length > 0) return messages.join('; ');
-    }
-    if (detail && typeof detail === 'object') {
-        if ('msg' in detail) return String((detail as { msg?: unknown }).msg ?? 'Request failed');
-        return JSON.stringify(detail);
-    }
-    return '';
-};
-
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
-            throw new Error(formatApiErrorDetail(errorJson.detail) || res.statusText);
+            throw new Error(errorJson.detail || res.statusText);
         } catch (e) {
             if (e instanceof Error && e.message !== errorText) throw e;
             throw new Error(errorText || res.statusText);
@@ -620,6 +599,21 @@ export const api = {
         overview: async () => {
             return fetchApi('/admin/analytics/overview', { headers: getHeaders() });
         },
+        users: async (query?: string) => {
+            return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
+        },
+        approveUser: async (userId: string) => {
+            return fetchApi(`/auth/approve/${userId}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+            });
+        },
+        rejectUser: async (userId: string) => {
+            return fetchApi(`/admin/analytics/users/${userId}/reject`, {
+                method: 'PUT',
+                headers: getHeaders(),
+            });
+        },
         daily: async (days: number = 30) => {
             return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });
         },
@@ -632,16 +626,6 @@ export const api = {
         },
         commissionSummary: async () => {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
-        },
-        users: async (queryString?: string) => {
-            const q = queryString ? `?${queryString}` : '';
-            return fetchApi(`/admin/analytics/users${q}`, { headers: getHeaders() });
-        },
-        approveUser: async (userId: string) => {
-            return fetchApi(`/auth/approve/${userId}`, { method: 'PUT', headers: getHeaders() });
-        },
-        rejectUser: async (userId: string) => {
-            return fetchApi(`/admin/analytics/users/${userId}/reject`, { method: 'PUT', headers: getHeaders() });
         },
     },
 

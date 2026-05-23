@@ -13,21 +13,12 @@ import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
-import { filterPortsByActiveDeliveryPoints } from '../utils/marketPorts';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
 }
-
-type BuyerMapDataCache = {
-    ports: Port[];
-    listings: OrderBookOrder[];
-    aggregatedData: AggregatedOrderbook[];
-};
-
-let buyerMapDataCache: BuyerMapDataCache | null = null;
 
 // Port circle radius: proportional to volume, clamped 6-20px
 const getPortRadius = (volume: number, maxVolume: number): number => {
@@ -47,71 +38,44 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
     const { setPageContext } = useCopilotContext();
-    const [ports, setPorts] = useState<Port[]>(() => buyerMapDataCache?.ports ?? []);
-    const [loading, setLoading] = useState(!buyerMapDataCache);
+    const [ports, setPorts] = useState<Port[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showOverlays, setShowOverlays] = useState(true);
-    const [listings, setListings] = useState<OrderBookOrder[]>(() => buyerMapDataCache?.listings ?? []);
-    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>(() => buyerMapDataCache?.aggregatedData ?? []);
+    const [listings, setListings] = useState<OrderBookOrder[]>([]);
+    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
 
-    // Fetch ports first so the map can render, then refresh liquidity overlays.
+    // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
-        let cancelled = false;
-
-        const applyData = (data: BuyerMapDataCache) => {
-            if (cancelled) return;
-            buyerMapDataCache = data;
-            setPorts(data.ports);
-            setListings(data.listings);
-            setAggregatedData(data.aggregatedData);
-            setPageContext({
-                view: 'Global Intelligence Map',
-                available_ports: data.ports.length,
-                port_names: data.ports.map((p: Port) => p.name),
-                summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
-            });
-        };
-
         const fetchData = async () => {
             try {
-                const [portsData, deliveryPointsData] = await Promise.all([
+                const [portsData, listingsData, aggData] = await Promise.all([
                     api.ports.list(),
-                    api.catalog.deliveryPoints().catch(() => null),
-                ]);
-                const marketPorts = filterPortsByActiveDeliveryPoints(portsData, deliveryPointsData);
-                if (!cancelled) {
-                    setPorts(marketPorts);
-                    setLoading(false);
-                }
-
-                const [listingsData, aggData] = await Promise.all([
                     api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
                     api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
-                applyData({ ports: marketPorts, listings: listingsData, aggregatedData: aggData });
+                setPorts(portsData);
+                setListings(listingsData);
+                setAggregatedData(aggData);
+                setPageContext({
+                    view: 'Global Intelligence Map',
+                    available_ports: portsData.length,
+                    port_names: portsData.map((p: Port) => p.name),
+                    summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
+                });
             } catch (e) {
                 console.error("Failed to load map data", e);
             } finally {
-                if (!cancelled) setLoading(false);
+                setLoading(false);
             }
         };
-
-        if (buyerMapDataCache) {
-            applyData(buyerMapDataCache);
-            void fetchData();
-        } else {
-            void fetchData();
-        }
-
-        return () => {
-            cancelled = true;
-        };
+        fetchData();
     }, []);
 
     const selectedPort = ports.find(p => p.id === selectedPortId);

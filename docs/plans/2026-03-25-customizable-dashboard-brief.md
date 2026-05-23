@@ -1,7 +1,7 @@
-# Customizable Trading Dashboard — Design Brief
+# Forward Curve Monitoring Workspace — Design Brief
 
 **Date:** 2026-03-25
-**Status:** Future Sprint
+**Status:** Updated for V1 direction on 2026-05-19
 **Priority:** Phase 2/3
 **Reference:** Braemar trading platform screenshots (March 2026)
 
@@ -9,7 +9,9 @@
 
 ## Vision
 
-Build a Braemar-style customizable multi-panel trading workstation where users can arrange order books, charts, trade tape, and news feeds in a drag-and-drop layout. Each user saves their preferred dashboard configuration.
+Build a Braemar-style market monitoring workspace under the existing `Forward Curve` product surface. The existing Market Terminal remains the trading-oriented terminal; this page is for scanning markets, reading hybrid benchmark/orderbook context, and explicitly handing a selected market slice into Marketplace.
+
+V1 is a fixed, sales-ready preset workspace rather than a drag-and-drop dashboard. Saved layouts, user-defined widgets, news, regulations, compliance, and education panels remain later work.
 
 ## Reference: What Braemar Does
 
@@ -21,33 +23,33 @@ From the screenshots analyzed:
 - **Top bar:** Dashboard selector ("Create Dashboard"), view toggles (Home, Chart, Grid, Dashboard)
 - **Key UX:** Drag-and-drop panel layout, multiple instruments side-by-side, saved layouts, real-time price streaming with green/red flash
 
-## Recommended Approach: TradingView Embed + react-grid-layout
+## Recommended V1 Approach: In-House Fixed Workspace
 
 ### Why This Approach
 
-TradingView's Advanced Charts widget handles the hardest 60% of the work (candlestick rendering, indicators, drawing tools, timeframe switching, responsive resizing). Braemar itself embeds TradingView — the TV logo is visible in their charts. We provide our own price data via TradingView's Datafeed API.
-
-`react-grid-layout` (used by Grafana, Kibana, Metabase) handles drag-and-drop resizable panel arrangement with layout persistence.
+The immediate product need is a credible monitoring screen, not a layout-builder. Verdaxis should avoid TradingView-branded UI in V1 and use its existing charting/UI stack so the page looks in-house built. `react-grid-layout` and saved dashboard CRUD can be revisited after users validate the fixed board.
 
 ### Architecture
 
 ```
-DashboardBuilder (page)
-├── DashboardToolbar
-│   ├── Dashboard name + rename
-│   ├── "Add Widget" button → widget picker modal
-│   ├── "Save Layout" button
-│   └── Dashboard switcher dropdown (named layouts)
-├── ReactGridLayout (drag-and-drop container)
-│   ├── Widget[] (each widget is a resizable panel)
-│   │   ├── WidgetHeader (title, instrument selector, close button, drag handle)
-│   │   └── WidgetContent (one of the widget types below)
-│   └── Layout JSON (persisted per user in DB)
-└── StatusBar (bottom)
-    └── Connection status, last update time
+ForwardCurveWorkspace (page)
+├── Toolbar
+│   ├── availability window selector
+│   ├── refresh
+│   └── explicit Open Marketplace CTA
+├── Market Matrix
+│   └── 8 approved ports × 4 public market products
+├── Focus Panels
+│   ├── hybrid forward curve
+│   ├── selected-slice depth
+│   └── trade tape
+└── Source legend
+    └── benchmark/demo/orderbook context labels
 ```
 
-### Widget Types
+### Deferred Widget Types
+
+The widget list below is a future direction for a configurable workspace. It is not V1 scope.
 
 | Widget | Content | Data Source |
 |--------|---------|-------------|
@@ -60,7 +62,9 @@ DashboardBuilder (page)
 | **Watchlist** | Starred fuel×port combos with live best bid/ask | `GET /api/watchlists` + aggregated orderbook |
 | **Compliance Summary** | FuelEU gap, CII grade, IMO 2030 progress | `GET /api/compliance/summary` |
 
-### TradingView Integration
+### Deferred TradingView Integration
+
+Do not use TradingView-branded widgets in V1. This section is retained as a future option only if Verdaxis chooses a licensed or white-labelled charting path.
 
 - Use TradingView's **Advanced Charts** library (free tier available, or paid for white-label)
 - Implement `IDatafeedChartApi` interface to feed our price data:
@@ -70,7 +74,9 @@ DashboardBuilder (page)
 - Indicators available out of the box: SMA, EMA, MACD, RSI, Volume, Bollinger Bands
 - Drawing tools (trend lines, fibonaccis) come free with TradingView
 
-### Layout Persistence
+### Deferred Layout Persistence
+
+Do not add layout persistence in V1.
 
 New backend model:
 ```

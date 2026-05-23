@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { screen } from '@testing-library/react';
+import React from 'react';
 
 import { buildPrimarySidebarItems } from '../components/layout/sidebarConfig';
+import { Sidebar } from '../components/layout/Sidebar';
+import { renderWithProviders } from './test-utils';
 
 const t = (key: string) => key;
 
@@ -19,5 +23,30 @@ describe('sidebar config', () => {
 
     expect(buyerAnalytics?.page).toBe('DATA_ANALYTICS');
     expect(supplierAnalytics?.page).toBe('ANALYTICS');
+  });
+
+  it('routes Forward Curve to the monitoring workspace, not the trading terminal', () => {
+    const forwardCurve = buildPrimarySidebarItems(t as any, 'BUYER').find((item) => item.key === 'FORWARD_CURVE');
+
+    expect(forwardCurve?.page).toBe('FORWARD_CURVE');
+    expect(forwardCurve?.label).toBe('sidebar.marketTerminal');
+  });
+
+  it('does not render deferred compliance or education sidebar links', () => {
+    renderWithProviders(
+      React.createElement(Sidebar, {
+        viewMode: 'BUYER',
+        currentPage: 'DASHBOARD',
+        onNavigate: () => undefined,
+        isCollapsed: false,
+        onToggleCollapse: () => undefined,
+        isMobileOpen: false,
+        onMobileClose: () => undefined,
+      }),
+    );
+
+    expect(screen.queryByText('Partners')).toBeNull();
+    expect(screen.queryByText('Compliance')).toBeNull();
+    expect(screen.queryByText('Education')).toBeNull();
   });
 });

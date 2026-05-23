@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Sparkles, RefreshCw, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, Sparkles, RefreshCw, GraduationCap, Shield } from 'lucide-react';
 import { Port, Page, Product, ForwardCurvePoint } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
@@ -256,32 +256,63 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <>
                         {/* Arbitrage Opportunity hidden — pending real data integration */}
 
-                        {curveProducts.length > 0 && (
-                            <div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
-                                    <LineChart size={14} className="text-slate-400" />
-                                </div>
-                                <div className="space-y-3">
-                                    {curveProducts.map((item, i) => (
-                                        <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
-                                                <div className={`text-xs font-bold ${item.up ? 'text-green-600' : 'text-red-500'}`}>
-                                                    {item.change}
-                                                </div>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">{item.price}</div>
-                                                <div className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
-                                                    {item.curve}
-                                                </div>
+                        {/* Forward Curves */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
+                                <LineChart size={14} className="text-slate-400" />
+                            </div>
+                            <div className="space-y-3">
+                                {curveProducts.length === 0 && (
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">Loading curve data...</div>
+                                )}
+                                {curveProducts.map((item, i) => (
+                                    <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{item.label}</div>
+                                            <div className={`text-xs font-bold ${item.up ? 'text-green-600' : 'text-red-500'}`}>
+                                                {item.change}
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="text-xs text-slate-500 dark:text-slate-400">{item.price}</div>
+                                            <div className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
+                                                {item.curve}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
+
+                        {/* Education */}
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
+                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
+                                <GraduationCap size={16} className="text-emerald-500" /> Education
+                            </h3>
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => onNavigate('TRAINING')}
+                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <Info size={12} className="text-emerald-500 shrink-0" />
+                                    <div>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">FuelEU & EU ETS Basics</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Regulation overview for operators</div>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => onNavigate('TRAINING')}
+                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
+                                >
+                                    <Info size={12} className="text-emerald-500 shrink-0" />
+                                    <div>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200">Alternative Fuel Guide</div>
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Methanol, ammonia, biofuel comparison</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
                     </>
                 )}
 

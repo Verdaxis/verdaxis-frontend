@@ -15,26 +15,11 @@ export interface PortMarketData {
     spreadPct: number;
 }
 
-const SUPPORTED_PRODUCTS = new Set([
-    'Bio Methanol',
-    'e-Methanol',
-    'Bio Ethanol',
-    'Synthetic Ethanol',
-]);
+const GREEN_FUELS = new Set(['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane']);
 
-const LEGACY_FUEL_ALIASES: Record<string, string[]> = {
-    Methanol: ['Bio Methanol', 'e-Methanol'],
-    Ethanol: ['Bio Ethanol', 'Synthetic Ethanol'],
-};
-
-export const isGreenFuel = (fuel: string): boolean => {
-    if (SUPPORTED_PRODUCTS.has(fuel)) return true;
-    return Object.entries(LEGACY_FUEL_ALIASES).some(([legacyFuel, mappedProducts]) => (
-        fuel === legacyFuel
-        || fuel.toLowerCase().includes(legacyFuel.toLowerCase())
-        || mappedProducts.some((product) => fuel.toLowerCase().includes(product.toLowerCase()))
-    ));
-};
+export const isGreenFuel = (fuel: string): boolean => GREEN_FUELS.has(fuel) || GREEN_FUELS.has(
+    Array.from(GREEN_FUELS).find(greenFuel => fuel.toLowerCase().includes(greenFuel.toLowerCase())) ?? ''
+);
 
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],

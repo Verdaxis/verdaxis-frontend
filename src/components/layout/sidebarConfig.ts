@@ -4,7 +4,6 @@ import {
     LayoutDashboard,
     LineChart,
     Map as MapIcon,
-    Scale,
     ShoppingCart,
     Star,
     type LucideIcon,
@@ -33,7 +32,6 @@ const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
     { key: 'MARKETPLACE', page: 'MARKETPLACE', labelKey: 'sidebar.marketplace', icon: ShoppingCart },
     { key: 'FORWARD_CURVE', page: 'FORWARD_CURVE', labelKey: 'sidebar.marketTerminal', icon: LineChart },
     { key: 'WATCHLISTS', page: 'WATCHLISTS', labelKey: 'sidebar.watchlists', icon: Star },
-    { key: 'COMPLIANCE', page: 'COMPLIANCE', labelKey: 'sidebar.regulations', icon: Scale },
     {
         key: 'ANALYTICS',
         page: (viewMode: ViewMode) => (viewMode === 'BUYER' ? 'DATA_ANALYTICS' : 'ANALYTICS'),
