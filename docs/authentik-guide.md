@@ -6,7 +6,7 @@ Follow these steps to apply the Verdaxis branding to your Authentik login screen
 
 - You must be logged in as an **Admin** (`akadmin`).
 - You have the file `docs/authentik-theme.css` from this repository.
-- You have the logo file `public/verdaxis_logo_no_words.png` ready to upload.
+- You have the logo file `public/verdaxis-logo-words-right.png` and favicon file `public/verdaxis-logo-no-words.png` ready to upload.
 
 ## Steps
 
@@ -27,9 +27,9 @@ Follow these steps to apply the Verdaxis branding to your Authentik login screen
 **Important**: Do not just type the file path. Authentik cannot see your local project files.
 
 1.  **Logo**: Click inside the **Logo** field (or the icon next to it) to open the file picker.
-2.  Select the file `public/verdaxis_logo_no_words.png` from your computer to **upload** it to Authentik.
+2.  Select the file `public/verdaxis-logo-words-right.png` from your computer to **upload** it to Authentik.
 3.  **Favicon**: Do the same for the Favicon field.
-4.  If the file picker doesn't appear, use this full URL: `http://144.126.151.136:5173/verdaxis_logo_no_words.png` (assuming your frontend is running).
+4.  Select `public/verdaxis-logo-no-words.png` for the favicon. If the file picker doesn't appear, use this full URL: `http://144.126.151.136:5173/verdaxis-logo-no-words.png` (assuming your frontend is running).
 
 ### 4. Apply Custom CSS
 

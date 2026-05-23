@@ -38,6 +38,51 @@ interface CountryDropdownProps {
   noResults: string;
 }
 
+export const CREATE_ORGANIZATION_ORG_TYPES = [
+  { value: 'SHIPPING_LINE', side: 'BUYER', labelKey: 'shippingLine', descriptionKey: 'shippingLineDesc' },
+  { value: 'SHIP_MANAGER', side: 'BUYER', labelKey: 'shipManager', descriptionKey: 'shipManagerDesc' },
+  { value: 'FUEL_BUYER', side: 'BUYER', labelKey: 'fuelBuyer', descriptionKey: 'fuelBuyerDesc' },
+  { value: 'CHARTERER', side: 'BUYER', labelKey: 'charterer', descriptionKey: 'chartererDesc' },
+  { value: 'FUEL_SUPPLIER', side: 'SELLER', labelKey: 'fuelSupplier', descriptionKey: 'fuelSupplierDesc' },
+] as const;
+
+type OrganizationSide = 'BUYER' | 'SELLER';
+
+interface OrganizationTypeOption {
+  value: string;
+  side: OrganizationSide;
+  label: string;
+  description: string;
+}
+
+interface OrganizationTypeDropdownProps {
+  value: string;
+  options: OrganizationTypeOption[];
+  buyerLabel: string;
+  sellerLabel: string;
+  onChange: (value: string) => void;
+}
+
+export function formatApiErrorDetail(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => formatApiErrorDetail(item, ''))
+      .filter(Boolean);
+    return messages.length > 0 ? messages.join(' ') : fallback;
+  }
+
+  if (detail && typeof detail === 'object') {
+    const record = detail as Record<string, unknown>;
+    if (typeof record.msg === 'string' && record.msg.trim()) return record.msg;
+    if (typeof record.message === 'string' && record.message.trim()) return record.message;
+    if (typeof record.error === 'string' && record.error.trim()) return record.error;
+  }
+
+  return fallback;
+}
+
 const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, placeholder, searchPlaceholder, noResults }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -114,6 +159,92 @@ const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, plac
   );
 };
 
+const sideStyles: Record<OrganizationSide, { pill: string; dot: string; header: string }> = {
+  BUYER: {
+    pill: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+    dot: 'bg-blue-400',
+    header: 'text-blue-300',
+  },
+  SELLER: {
+    pill: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+    dot: 'bg-emerald-400',
+    header: 'text-emerald-300',
+  },
+};
+
+const OrganizationTypeDropdown: React.FC<OrganizationTypeDropdownProps> = ({
+  value,
+  options,
+  buyerLabel,
+  sellerLabel,
+  onChange,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(option => option.value === value);
+  const groupedOptions: Array<{ side: OrganizationSide; label: string; options: OrganizationTypeOption[] }> = [
+    { side: 'BUYER', label: buyerLabel, options: options.filter(option => option.side === 'BUYER') },
+    { side: 'SELLER', label: sellerLabel, options: options.filter(option => option.side === 'SELLER') },
+  ];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-10 py-2.5 text-left flex items-center justify-between gap-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
+      >
+        <span className="truncate">{selected?.label}</span>
+        {selected && (
+          <span className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${sideStyles[selected.side].pill}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${sideStyles[selected.side].dot}`} />
+            {selected.side === 'BUYER' ? buyerLabel : sellerLabel}
+          </span>
+        )}
+      </button>
+      <Building2 className="absolute left-3 top-3 text-slate-500 pointer-events-none" size={18} />
+      <ChevronDown size={16} className="absolute right-3 top-3.5 text-slate-500 pointer-events-none" />
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+          {groupedOptions.map((group, groupIndex) => (
+            <div key={group.side} className={groupIndex > 0 ? 'border-t border-slate-700/80' : undefined}>
+              <div className={`px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] bg-slate-900/70 ${sideStyles[group.side].header}`}>
+                {group.label}
+              </div>
+              {group.options.map(option => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => { onChange(option.value); setOpen(false); }}
+                  className={`w-full px-3 py-2.5 text-left hover:bg-slate-700 transition-colors ${value === option.value ? 'bg-emerald-500/5' : ''}`}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-slate-200">{option.label}</span>
+                    <span className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${sideStyles[option.side].pill}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${sideStyles[option.side].dot}`} />
+                      {option.side === 'BUYER' ? buyerLabel : sellerLabel}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-xs text-slate-500">{option.description}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CreateOrganizationPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -150,18 +281,12 @@ const CreateOrganizationPage: React.FC = () => {
 
   if (!ready) return null;
 
-  const ORG_TYPES = [
-    { value: 'SHIPPING_LINE', label: t('createOrg.orgType.shippingLine'), description: t('createOrg.orgType.shippingLineDesc') },
-    { value: 'SHIP_MANAGER', label: t('createOrg.orgType.shipManager'), description: t('createOrg.orgType.shipManagerDesc') },
-    { value: 'FUEL_SUPPLIER', label: t('createOrg.orgType.fuelSupplier'), description: t('createOrg.orgType.fuelSupplierDesc') },
-    { value: 'BUNKER_BROKER', label: t('createOrg.orgType.bunkerBroker'), description: t('createOrg.orgType.bunkerBrokerDesc') },
-    { value: 'PORT_AUTHORITY', label: t('createOrg.orgType.portAuthority'), description: t('createOrg.orgType.portAuthorityDesc') },
-    { value: 'FUEL_TRADER', label: t('createOrg.orgType.fuelTrader'), description: t('createOrg.orgType.fuelTraderDesc') },
-    { value: 'CHARTERER', label: t('createOrg.orgType.charterer'), description: t('createOrg.orgType.chartererDesc') },
-    { value: 'FINANCIER', label: t('createOrg.orgType.financier'), description: t('createOrg.orgType.financierDesc') },
-    { value: 'INSURER', label: t('createOrg.orgType.insurer'), description: t('createOrg.orgType.insurerDesc') },
-    { value: 'INDUSTRY_ASSOC', label: t('createOrg.orgType.industryAssoc'), description: t('createOrg.orgType.industryAssocDesc') },
-  ];
+  const ORG_TYPES = CREATE_ORGANIZATION_ORG_TYPES.map((type) => ({
+    value: type.value,
+    side: type.side,
+    label: t(`createOrg.orgType.${type.labelKey}`),
+    description: t(`createOrg.orgType.${type.descriptionKey}`),
+  }));
 
   const startCooldown = () => {
     setResendCooldown(60);
@@ -221,8 +346,8 @@ const CreateOrganizationPage: React.FC = () => {
         setRegisteredEmail(data.email || '');
         startCooldown();
       } else {
-        const errData = await res.json();
-        setError(errData.detail || t('createOrg.error.failed'));
+        const errData = await res.json().catch(() => null);
+        setError(formatApiErrorDetail(errData?.detail ?? errData, t('createOrg.error.failed')));
       }
     } catch (err) {
       console.error(err);
@@ -327,22 +452,26 @@ const CreateOrganizationPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.orgType')}</label>
-                  <div className="relative">
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={e => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all appearance-none"
-                    >
-                      {ORG_TYPES.map(orgType => (
-                        <option key={orgType.value} value={orgType.value}>{orgType.label}</option>
-                      ))}
-                    </select>
-                    <Building2 className="absolute left-3 top-3 text-slate-500" size={18} />
-                  </div>
+                  <OrganizationTypeDropdown
+                    value={formData.type}
+                    options={ORG_TYPES}
+                    buyerLabel={t('createOrg.side.buyer')}
+                    sellerLabel={t('createOrg.side.seller')}
+                    onChange={type => setFormData({ ...formData, type })}
+                  />
                   {selectedOrgType && (
                     <p className="mt-1.5 text-xs text-slate-500">{selectedOrgType.description}</p>
                   )}
+                  <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                      {t('createOrg.side.buyer')}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      {t('createOrg.side.seller')}
+                    </span>
+                  </div>
                 </div>
 
                 <div>

@@ -749,14 +749,25 @@
       "title": "Apply for the Pilot",
       "subtitle": "Fill in the form below and our team will review your application within 48 hours."
     },
+    "applyCta": {
+      "title": "Start pilot onboarding",
+      "subtitle": "Create an account in the Verdaxis app and set up your organization. Our team will review new pilot accounts directly from the platform.",
+      "points": {
+        "0": "Create your user account",
+        "1": "Set up or join your organization",
+        "2": "Access the pilot workspace after review"
+      },
+      "primaryButton": "Create Account",
+      "secondaryButton": "Speak to the Team"
+    },
     "timeline": {
       "title": "Pilot Phase: Q1-Q2 2026",
       "point0": "Limited onboarding — we are working with select participants to ensure platform quality",
       "point1": "Full launch follows successful pilot validation"
     },
     "cta": {
-      "title": "Have questions before applying?",
-      "button": "Speak to the Team"
+      "title": "Ready to join the pilot?",
+      "button": "Create Account"
     }
   },
   "education": {

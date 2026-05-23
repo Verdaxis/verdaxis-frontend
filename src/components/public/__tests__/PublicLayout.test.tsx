@@ -17,11 +17,10 @@ const renderWithRouter = (route = '/') => {
 };
 
 describe('PublicLayout', () => {
-  it('renders navigation with "Verdaxis" brand', () => {
+  it('renders navigation with Verdaxis brand logo', () => {
     renderWithRouter('/');
-    // "Verdaxis" appears in both nav and footer
-    const elements = screen.getAllByText('Verdaxis');
-    expect(elements.length).toBeGreaterThanOrEqual(1);
+    const logos = screen.getAllByRole('img', { name: 'Verdaxis' });
+    expect(logos.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders key nav links', () => {

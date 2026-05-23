@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PilotPage } from '../PilotPage';
 
@@ -11,23 +11,9 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/pilot' } = {}) => 
   );
 };
 
-/* ---- localStorage mock ---- */
-const storageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-
-Object.defineProperty(globalThis, 'localStorage', { value: storageMock, writable: true });
-
 describe('PilotPage', () => {
   beforeEach(() => {
-    storageMock.clear();
-    vi.stubGlobal('open', vi.fn());
+    Object.defineProperty(window, 'open', { value: vi.fn(), writable: true });
   });
 
   it('renders page title', () => {
@@ -67,76 +53,19 @@ describe('PilotPage', () => {
     expect(screen.getByText(/top-tier shippers or producers/i)).toBeTruthy();
   });
 
-  it('renders application form with all fields', () => {
+  it('renders onboarding CTAs instead of the old application form', () => {
     renderWithRouter(<PilotPage />);
-    expect(screen.getByLabelText(/company name/i)).toBeTruthy();
-    expect(screen.getByLabelText(/your name/i)).toBeTruthy();
-    expect(screen.getByLabelText(/email/i)).toBeTruthy();
-    expect(screen.getByLabelText(/^role$/i)).toBeTruthy();
-    expect(screen.getByLabelText(/estimated annual volume/i)).toBeTruthy();
-    expect(screen.getByLabelText(/what interests you about verdaxis/i)).toBeTruthy();
+    expect(screen.getByText(/start pilot onboarding/i)).toBeTruthy();
+    expect(screen.getByText(/create your user account/i)).toBeTruthy();
+    expect(screen.getByText(/set up or join your organization/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/company name/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /submit application/i })).toBeNull();
 
-    // Fuel type checkboxes
-    expect(screen.getByLabelText('Methanol')).toBeTruthy();
-    expect(screen.getByLabelText('Ethanol')).toBeTruthy();
-    expect(screen.getByLabelText('SAF')).toBeTruthy();
-    expect(screen.getByLabelText('Ammonia')).toBeTruthy();
-    expect(screen.getByLabelText('Biofuel')).toBeTruthy();
-    expect(screen.getByLabelText('Other')).toBeTruthy();
+    const createAccountLinks = screen.getAllByRole('link', { name: /create account/i });
+    expect(createAccountLinks.length).toBeGreaterThan(0);
+    expect(createAccountLinks[0].getAttribute('href')).toBe('https://app.verdaxis.exchange/register');
 
-    // Submit button
-    expect(screen.getByRole('button', { name: /submit application/i })).toBeTruthy();
-  });
-
-  it('shows validation on empty submit', () => {
-    renderWithRouter(<PilotPage />);
-    const submitButton = screen.getByRole('button', { name: /submit application/i });
-    fireEvent.click(submitButton);
-
-    // Should not show success message
-    expect(screen.queryByText(/thank you/i)).toBeNull();
-  });
-
-  it('saves to localStorage on valid submit', async () => {
-    renderWithRouter(<PilotPage />);
-
-    fireEvent.change(screen.getByLabelText(/company name/i), {
-      target: { value: 'Acme Fuels' },
-    });
-    fireEvent.change(screen.getByLabelText(/your name/i), {
-      target: { value: 'Jane Doe' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'jane@acme.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
-
-    await screen.findByText(/thank you! we'll be in touch within 48 hours/i);
-
-    const stored = JSON.parse(localStorage.getItem('verdaxis_pilot_applications') || '[]');
-    expect(stored.length).toBe(1);
-    expect(stored[0].companyName).toBe('Acme Fuels');
-    expect(stored[0].yourName).toBe('Jane Doe');
-    expect(stored[0].email).toBe('jane@acme.com');
-  });
-
-  it('shows success message after submit', async () => {
-    renderWithRouter(<PilotPage />);
-
-    fireEvent.change(screen.getByLabelText(/company name/i), {
-      target: { value: 'Acme Fuels' },
-    });
-    fireEvent.change(screen.getByLabelText(/your name/i), {
-      target: { value: 'Jane Doe' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'jane@acme.com' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
-
-    expect(await screen.findByText(/thank you! we'll be in touch within 48 hours/i)).toBeTruthy();
-    expect(await screen.findByText(/pilot@verdaxis.exchange/i)).toBeTruthy();
+    const teamLink = screen.getByRole('link', { name: /speak to the team/i });
+    expect(teamLink.getAttribute('href')).toBe('mailto:info@verdaxis.exchange');
   });
 });

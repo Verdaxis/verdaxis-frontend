@@ -92,25 +92,17 @@ export const PublicFooter: React.FC = () => {
         {/* Brand Column */}
         <div>
           <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 16 }}>
-            <div
+            <img
+              src="/verdaxis-logo-words-right.png"
+              alt="Verdaxis"
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: `linear-gradient(135deg, ${BLUE}, #4CAF50)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 18,
+                width: 154,
+                height: 42,
+                objectFit: 'contain',
+                objectPosition: 'left center',
+                filter: 'brightness(0) invert(1)',
               }}
-            >
-              V
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
-              Verdaxis
-            </span>
+            />
           </Link>
           <p style={{ fontSize: 14, lineHeight: 1.7, color: '#94A3B8', maxWidth: 280 }}>
             {t('footer.tagline')}

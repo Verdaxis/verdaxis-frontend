@@ -215,11 +215,25 @@ export const PilotApplicationForm: React.FC = () => {
             fontSize: 15,
             color: '#64748B',
             lineHeight: 1.6,
-            marginBottom: 24,
+            marginBottom: 10,
           }}
         >
           {t('pilotForm.success.body')}
         </p>
+        <a
+          href={`mailto:${t('pilotForm.success.email')}`}
+          style={{
+            display: 'inline-block',
+            color: '#2E7D32',
+            fontSize: 14,
+            fontWeight: 600,
+            textDecoration: 'none',
+            marginBottom: 24,
+          }}
+        >
+          {t('pilotForm.success.email')}
+        </a>
+        <br />
         <button
           onClick={() => navigate('/register')}
           style={{

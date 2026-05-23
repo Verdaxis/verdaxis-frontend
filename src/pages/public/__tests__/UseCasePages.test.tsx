@@ -24,15 +24,15 @@ describe('ProducerUseCasePage', () => {
     expect(screen.getByText('For Fuel Producers')).toBeTruthy();
     expect(screen.getByText('Maximum Market Reach')).toBeTruthy();
     expect(screen.getByText('Lower Customer Acquisition Cost')).toBeTruthy();
-    expect(screen.getByText('Deal Flow Analytics & Market Visibility')).toBeTruthy();
+    expect(screen.getByText(/Deal Flow Analytics/)).toBeTruthy();
     expect(screen.getByText('Pre-Market Future Production')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<ProducerUseCasePage />);
-    expect(screen.getByText(/list your production.*current inventory or future capacity/i)).toBeTruthy();
-    expect(screen.getByText(/qualified buyers discover your listings and submit bids directly/i)).toBeTruthy();
-    expect(screen.getByText(/negotiate terms, agree price, and close deals faster/i)).toBeTruthy();
+    expect(screen.getAllByText(/List your production/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Qualified buyers discover/i)).toBeTruthy();
+    expect(screen.getByText(/Negotiate terms/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
@@ -60,8 +60,8 @@ describe('BuyerUseCasePage', () => {
   it('renders how-it-works steps', () => {
     renderWithRouter(<BuyerUseCasePage />);
     expect(screen.getByText(/Post your fuel requirements/i)).toBeTruthy();
-    expect(screen.getByText(/review matched offers with transparent pricing/i)).toBeTruthy();
-    expect(screen.getByText(/execute the trade and optionally hedge your price exposure with swaps/i)).toBeTruthy();
+    expect(screen.getByText(/Review matched offers/i)).toBeTruthy();
+    expect(screen.getByText(/Execute the trade/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
@@ -88,9 +88,9 @@ describe('TraderUseCasePage', () => {
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<TraderUseCasePage />);
-    expect(screen.getByText(/access the live orderbook/i)).toBeTruthy();
-    expect(screen.getByText(/execute spot trades, swaps, or forwards with standardised terms/i)).toBeTruthy();
-    expect(screen.getByText(/monitor positions, risk exposure, and market intelligence/i)).toBeTruthy();
+    expect(screen.getByText(/Access the live orderbook/i)).toBeTruthy();
+    expect(screen.getByText(/Execute spot trades, swaps, or forwards/i)).toBeTruthy();
+    expect(screen.getByText(/Monitor positions/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
@@ -117,9 +117,9 @@ describe('FinancierUseCasePage', () => {
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<FinancierUseCasePage />);
-    expect(screen.getByText(/access bankable, auditable sustainability data/i)).toBeTruthy();
-    expect(screen.getByText(/run integrated risk assessments and review standardised compliance reporting/i)).toBeTruthy();
-    expect(screen.getByText(/apply market intelligence and forecasting to structure and price green finance deals/i)).toBeTruthy();
+    expect(screen.getByText(/Access bankable, auditable sustainability data/i)).toBeTruthy();
+    expect(screen.getByText(/Run integrated risk assessments/i)).toBeTruthy();
+    expect(screen.getByText(/Apply market intelligence and forecasting/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {

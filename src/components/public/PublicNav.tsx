@@ -7,7 +7,6 @@ import { type SupportedLang } from '../../i18n';
 import { useLocalePath } from '../../hooks/useLocalePath';
 
 const BLUE = '#5DADE2';
-const GREEN = '#22D37A';
 const DARK = '#0F172A';
 
 interface DropdownItem {
@@ -137,34 +136,16 @@ export const PublicNav: React.FC = () => {
       >
         {/* Logo */}
         <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-          <div
+          <img
+            src="/verdaxis-logo-words-right.png"
+            alt="Verdaxis"
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: `linear-gradient(135deg, ${BLUE}, ${GREEN})`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: 18,
-              fontFamily: 'system-ui, -apple-system, sans-serif',
+              width: 152,
+              height: 42,
+              objectFit: 'contain',
+              objectPosition: 'left center',
             }}
-          >
-            V
-          </div>
-          <span
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: DARK,
-              letterSpacing: '-0.02em',
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-            }}
-          >
-            Verdaxis
-          </span>
+          />
         </Link>
 
         {/* Desktop Nav */}
