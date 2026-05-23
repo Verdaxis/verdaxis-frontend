@@ -1,7 +1,5 @@
 # Authentik Branding Guide
 
-> Deprecated reference: Verdaxis runtime auth now uses the backend JWT flow. Keep this file only for historical Authentik branding reference; do not use it as implementation guidance for the current platform.
-
 Follow these steps to apply the Verdaxis branding to your Authentik login screen.
 
 ## Prerequisites

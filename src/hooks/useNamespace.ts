@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadNamespace } from '../i18n';
+import { isSupportedLang, loadNamespace } from '../i18n';
 
 function resourceLanguage(i18n: ReturnType<typeof useTranslation>['i18n']): string {
-  return i18n.resolvedLanguage || i18n.language?.split('-')[0] || 'en';
+  const resolved = i18n.resolvedLanguage?.split('-')[0];
+  if (resolved && isSupportedLang(resolved)) return resolved;
+
+  const current = i18n.language?.split('-')[0];
+  if (current && isSupportedLang(current)) return current;
+
+  return 'en';
 }
 
 export function useNamespace(ns: string) {
