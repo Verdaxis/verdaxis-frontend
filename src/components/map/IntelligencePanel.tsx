@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, Info, LineChart, ArrowRight, Sparkles, RefreshCw, GraduationCap, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Sparkles, RefreshCw, Shield } from 'lucide-react';
 import { Port, Page, Product, ForwardCurvePoint } from '../../types';
 import { generateMarketNarrative, generateArbitrageInsight } from '../../services/ai';
 import { api } from '../../services/api';
@@ -282,35 +282,6 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-                        </div>
-
-                        {/* Education */}
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg p-3">
-                            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-2 flex items-center gap-2">
-                                <GraduationCap size={16} className="text-emerald-500" /> Education
-                            </h3>
-                            <div className="space-y-2">
-                                <button
-                                    onClick={() => onNavigate('TRAINING')}
-                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
-                                >
-                                    <Info size={12} className="text-emerald-500 shrink-0" />
-                                    <div>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">FuelEU & EU ETS Basics</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Regulation overview for operators</div>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => onNavigate('TRAINING')}
-                                    className="w-full flex items-center gap-2 text-xs bg-white dark:bg-slate-800 p-2 rounded border border-slate-100 dark:border-slate-700 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left"
-                                >
-                                    <Info size={12} className="text-emerald-500 shrink-0" />
-                                    <div>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200">Alternative Fuel Guide</div>
-                                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Methanol, ammonia, biofuel comparison</div>
-                                    </div>
-                                </button>
                             </div>
                         </div>
                     </>

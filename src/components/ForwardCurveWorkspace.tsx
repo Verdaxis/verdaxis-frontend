@@ -161,7 +161,7 @@ const DepthPanel: React.FC<{ board: ForwardCurveBoardResponse }> = ({ board }) =
     const rowCount = Math.max(bids.length, asks.length, 5);
 
     return (
-        <section className="border border-slate-800 bg-[#080c13]">
+        <section data-tour="forward-depth-panel" className="border border-slate-800 bg-[#080c13]">
             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected Slice Depth</span>
                 <span className="text-[10px] text-slate-500">{formatAvailabilityWindowPeriod(board.availability_window)}</span>
@@ -191,7 +191,7 @@ const DepthPanel: React.FC<{ board: ForwardCurveBoardResponse }> = ({ board }) =
 };
 
 const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean }> = ({ trades, loading }) => (
-    <section className="border border-slate-800 bg-[#080c13]">
+    <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
         <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Trade Tape</span>
             <span className="text-[10px] text-emerald-400">Live · 7D history</span>
@@ -204,7 +204,10 @@ const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean }> =
             ) : trades.map(trade => (
                 <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
                     <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="truncate text-slate-300">{quantity(trade.quantity_mt)}</span>
+                    <span className="truncate text-slate-300">
+                        {quantity(trade.quantity_mt)}
+                        {trade.is_demo_trade && <span className="ml-1 text-[9px] font-bold uppercase text-amber-300">Demo</span>}
+                    </span>
                     <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
                 </div>
             ))}
@@ -333,6 +336,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             Refresh
                         </button>
                         <button
+                            data-tour="forward-open-marketplace"
                             onClick={openMarketplace}
                             disabled={!board}
                             className="flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
@@ -350,7 +354,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 <div className="flex h-96 items-center justify-center text-xs text-slate-500">Loading Forward Curve board...</div>
             ) : (
                 <div className="grid gap-3 p-3 xl:grid-cols-[minmax(620px,1fr)_420px]">
-                    <section className="border border-slate-800 bg-[#080c13] xl:col-span-2">
+                    <section data-tour="forward-curve-chart" className="border border-slate-800 bg-[#080c13] xl:col-span-2">
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2">
                             <div className="flex items-center gap-2">
                                 <TrendingUp size={13} className="text-blue-300" />
@@ -370,8 +374,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         </div>
                     </section>
 
-                    <section className="overflow-hidden border border-slate-800 bg-[#080c13]">
-                        <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
+                    <section data-tour="forward-market-matrix" className="overflow-hidden border border-slate-800 bg-[#080c13]">
+                        <div data-tour="forward-market-matrix-header" className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                             <div>
                                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market Matrix</div>
                                 <div className="text-[10px] text-slate-500">Window: {formatAvailabilityWindowPeriod(board.availability_window)}</div>
@@ -444,7 +448,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     </section>
 
                     <div className="grid gap-3">
-                        <section className="border border-slate-800 bg-[#080c13]">
+                        <section data-tour="forward-focus-panel" className="border border-slate-800 bg-[#080c13]">
                             <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
                                 <div>
                                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">

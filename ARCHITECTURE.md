@@ -40,11 +40,13 @@ src/
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
-    BuyerMap.tsx                   # Leaflet intelligence map with port/vessel markers
+    BuyerMap.tsx                   # MapLibre intelligence map using approved trading ports plus live API intelligence
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
+    OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
     ForwardCurveWorkspace.tsx      # Dense market monitoring board (ports x products, hybrid curve)
+    GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
     Training.tsx                   # Crew training courses
@@ -79,7 +81,7 @@ src/
     LoginPage.tsx                  # Email/password login
     RegisterPage.tsx               # User registration
     OnboardingPage.tsx             # Post-registration role selection + profile setup
-    CreateOrganizationPage.tsx     # Organization creation/join flow
+    CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
     public/                        # 15 marketing pages (landing, education, use cases, etc.)
 
   data/
@@ -165,11 +167,19 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
+Demo liquidity is labelled and blocked from execution, and crossed-market indicators only consider
+real resting orders so seeded preview prices do not look executable.
+
+**Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
+Joyride's footer controls, while workflow steps hide the footer and advance only after the user
+clicks the highlighted in-app tab, button, row, or modal control. The tutorial stops at submit/confirm
+boundaries and does not place real bids, asks, listings, or trades.
 
 **Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
 `ForwardCurveWorkspace` is the broader monitoring page. Forward Curve scans approved ports and
 products, shows hybrid benchmark/orderbook context, and hands a selected slice to Marketplace
-through an explicit CTA.
+through an explicit CTA. Trade tape entries can carry `is_demo_trade` so generated preview
+activity is labelled without exposing party identities.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +

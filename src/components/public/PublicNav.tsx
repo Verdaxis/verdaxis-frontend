@@ -70,6 +70,7 @@ export const PublicNav: React.FC = () => {
   const lp = useLocalePath();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
 
   const handleLanguageChange = (newLang: SupportedLang) => {
     const rest = pathname.replace(/^\/[a-z]{2}/, '');
@@ -254,7 +255,7 @@ export const PublicNav: React.FC = () => {
             {t('btn.applyPilot')}
           </Link>
           <a
-            href="https://app.verdaxis.exchange/login"
+            href={appLoginUrl}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -400,7 +401,7 @@ export const PublicNav: React.FC = () => {
               {t('btn.applyPilot')}
             </Link>
             <a
-              href="https://app.verdaxis.exchange/login"
+              href={appLoginUrl}
               onClick={() => setMobileOpen(false)}
               style={{
                 padding: '12px 0',

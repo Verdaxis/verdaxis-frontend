@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
 
                 {/* Notifications Dropdown */}
                 <div className="relative" data-tour="notification-bell">
-                    <Tooltip content="View Notifications" position="bottom">
+                    <Tooltip content={t('header.viewNotifications')} position="bottom">
                         <NotificationBell />
                     </Tooltip>
                 </div>
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                     >
                         <div className="text-right hidden md:block">
                             <div className="text-sm font-bold text-white">
-                                {user ? `${user.first_name} ${user.last_name}` : 'Guest User'}
+                                {user ? `${user.first_name} ${user.last_name}` : t('header.guestUser')}
                             </div>
                             <div className="text-xs text-slate-400">
                                 {user && user.role === 'BUYER'
@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                     ? t('header.roleSupplier')
                                     : user && user.role === 'ADMIN'
                                     ? t('header.roleAdmin')
-                                    : 'Guest'}
+                                    : t('header.guest')}
                             </div>
                         </div>
                         <div className="h-10 w-10 bg-[#2A3344] rounded-full flex items-center justify-center border border-[#3A4A60] text-slate-400">
@@ -105,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                             {user?.role === 'ADMIN' && (
                                 <>
                                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                                        <p className="text-xs font-bold text-slate-400 uppercase">Role Switcher</p>
+                                        <p className="text-xs font-bold text-slate-400 uppercase">{t('header.roleSwitcher')}</p>
                                     </div>
                                     <button
                                         onClick={() => {
@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                         }}
                                         className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'BUYER' ? 'text-verdaxis font-bold' : 'text-slate-600 dark:text-slate-300'}`}
                                     >
-                                        <span>{t('header.roleBuyer')} View</span>
+                                        <span>{t('header.roleView', { role: t('header.roleBuyer') })}</span>
                                         {viewMode === 'BUYER' && <div className="w-2 h-2 bg-verdaxis rounded-full"></div>}
                                     </button>
                                     <button
@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                         }}
                                         className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${viewMode === 'SUPPLIER' ? 'text-verdaxis-green font-bold' : 'text-slate-600 dark:text-slate-300'}`}
                                     >
-                                        <span>{t('header.roleSupplier')} View</span>
+                                        <span>{t('header.roleView', { role: t('header.roleSupplier') })}</span>
                                         {viewMode === 'SUPPLIER' && <div className="w-2 h-2 bg-verdaxis-green rounded-full"></div>}
                                     </button>
                                 </>

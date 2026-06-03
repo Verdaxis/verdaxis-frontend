@@ -13,6 +13,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
+import { PORTS as APPROVED_MAP_PORTS } from '../data';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -32,6 +33,32 @@ const getSpreadColor = (spreadPct: number): string => {
     if (spreadPct < 5) return '#10B981';  // green
     if (spreadPct < 15) return '#F59E0B'; // amber
     return '#EF4444';                      // red
+};
+
+const resolveApprovedMapPorts = (apiPorts: Port[]): Port[] => {
+    const portsById = new Map(apiPorts.map(port => [port.id, port]));
+    const portsByName = new Map(apiPorts.map(port => [port.name.toLowerCase(), port]));
+
+    return APPROVED_MAP_PORTS.map(canonicalPort => {
+        const livePort = portsById.get(canonicalPort.id) || portsByName.get(canonicalPort.name.toLowerCase());
+        if (!livePort) return canonicalPort;
+
+        return {
+            ...canonicalPort,
+            priceMethanol: livePort.priceMethanol > 0 ? livePort.priceMethanol : canonicalPort.priceMethanol,
+            priceTrend: livePort.priceTrend || canonicalPort.priceTrend,
+            methanolSupply: livePort.methanolSupply !== 'Unknown' ? livePort.methanolSupply : canonicalPort.methanolSupply,
+            biofuelSupply: livePort.biofuelSupply !== 'Unknown' ? livePort.biofuelSupply : canonicalPort.biofuelSupply,
+            details: {
+                ...canonicalPort.details,
+                ...livePort.details,
+                priceHistory: livePort.details?.priceHistory?.length
+                    ? livePort.details.priceHistory
+                    : canonicalPort.details?.priceHistory,
+                upcomingProjects: canonicalPort.details?.upcomingProjects,
+            },
+        };
+    });
 };
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
@@ -60,13 +87,14 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
                     api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
-                setPorts(portsData);
+                const approvedPorts = resolveApprovedMapPorts(portsData);
+                setPorts(approvedPorts);
                 setListings(listingsData);
                 setAggregatedData(aggData);
                 setPageContext({
                     view: 'Global Intelligence Map',
-                    available_ports: portsData.length,
-                    port_names: portsData.map((p: Port) => p.name),
+                    available_ports: approvedPorts.length,
+                    port_names: approvedPorts.map((p: Port) => p.name),
                     summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
                 });
             } catch (e) {

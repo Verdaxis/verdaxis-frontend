@@ -104,7 +104,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
     }
 
     return (
-        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
+        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col" data-tour="trade-tape">
             {/* Header bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2">
@@ -139,6 +139,14 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                     {t2.market_product ? formatMarketProduct(t2.market_product) : shortFuel(t2.fuel_type)}
                                     {t2.fuel_grade && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
+                                    )}
+                                    {t2.is_demo_trade && (
+                                        <span
+                                            className="ml-1 rounded border border-amber-300/60 bg-amber-50 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
+                                            title="Demo trade seeded for platform preview. Not user-posted liquidity."
+                                        >
+                                            Demo
+                                        </span>
                                     )}
                                 </span>
                             </div>

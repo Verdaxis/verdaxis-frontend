@@ -480,6 +480,7 @@ export interface TradeTapeEntry {
     price_per_mt_usd: number;
     confirmed_at: string;
     availability_window?: string;
+    is_demo_trade?: boolean;
 }
 
 export interface TradeTapeResponse {

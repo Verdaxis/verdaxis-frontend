@@ -247,7 +247,7 @@ describe('Marketplace green fuels surface', () => {
     });
 
     expect(screen.getByText(/one exact product, port, and availability window/i)).toBeTruthy();
-    expect(screen.getByText('Trade Tape')).toBeTruthy();
+    expect(await screen.findByText('Trade Tape')).toBeTruthy();
   });
 
   it('asks the user to select an exact slice before showing the orderbook', async () => {

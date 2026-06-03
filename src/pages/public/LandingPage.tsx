@@ -21,6 +21,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -102,6 +103,7 @@ const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = (
 
 export const LandingPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const howSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -150,7 +152,7 @@ export const LandingPage: React.FC = () => {
     {
       icon: Factory,
       title: t('landing.roles.cards.0.title'),
-      path: '/for-producers',
+      path: localePath('/for-producers'),
       bullets: [
         t('landing.roles.cards.0.bullets.0'),
         t('landing.roles.cards.0.bullets.1'),
@@ -160,7 +162,7 @@ export const LandingPage: React.FC = () => {
     {
       icon: Ship,
       title: t('landing.roles.cards.1.title'),
-      path: '/for-buyers',
+      path: localePath('/for-buyers'),
       bullets: [
         t('landing.roles.cards.1.bullets.0'),
         t('landing.roles.cards.1.bullets.1'),
@@ -170,7 +172,7 @@ export const LandingPage: React.FC = () => {
     {
       icon: ArrowLeftRight,
       title: t('landing.roles.cards.2.title'),
-      path: '/for-traders',
+      path: localePath('/for-traders'),
       bullets: [
         t('landing.roles.cards.2.bullets.0'),
         t('landing.roles.cards.2.bullets.1'),
@@ -180,7 +182,7 @@ export const LandingPage: React.FC = () => {
     {
       icon: Landmark,
       title: t('landing.roles.cards.3.title'),
-      path: '/for-financiers',
+      path: localePath('/for-financiers'),
       bullets: [
         t('landing.roles.cards.3.bullets.0'),
         t('landing.roles.cards.3.bullets.1'),
@@ -408,7 +410,7 @@ export const LandingPage: React.FC = () => {
               {t('landing.how.subtitle')}
             </p>
             <Link
-              to="/how-it-works"
+              to={localePath('/how-it-works')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -514,7 +516,7 @@ export const LandingPage: React.FC = () => {
               </div>
             ))}
             <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <Link to="/how-it-works" style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Link to={localePath('/how-it-works')} style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {t('landing.how.seeFullProcess')} <ArrowRight size={16} />
               </Link>
             </div>
@@ -794,7 +796,7 @@ export const LandingPage: React.FC = () => {
             >
               <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <Link
-                  to="/pilot"
+                  to={localePath('/pilot')}
                   className="cta-gradient"
                   style={{
                     background: 'linear-gradient(135deg, #4CAF50, #5DADE2)',

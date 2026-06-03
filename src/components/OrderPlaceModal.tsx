@@ -373,7 +373,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-screen sm:max-h-[85vh] overflow-hidden flex flex-col">
+            <div data-tour="order-modal" className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[100dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col">
                 <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
                         <div className="flex items-center gap-3">
@@ -394,16 +394,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
                     <button
                         type="button"
+                        data-tour="order-modal-close"
                         onClick={handleClose}
                         className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                        aria-label={t('orderPlaceModal.btn.close')}
                     >
                         <X size={24} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col bg-white dark:bg-slate-800">
+                <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
                             <div>
                                 <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
                                 {catalogLoading ? (
@@ -530,6 +532,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                             <button
                                 type="button"
+                                data-tour="order-modal-advanced-toggle"
                                 onClick={() => setAdvancedOpen(open => !open)}
                                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-left"
                             >
@@ -547,7 +550,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </button>
                             {advancedOpen && (
-                                <div className="p-4 space-y-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                                <div className="p-4 space-y-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700" data-tour="order-modal-advanced-fields">
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
                                         <VerdaxisSelect
@@ -616,7 +619,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
 
                                     {side === 'ASK' && (
-                                        <>
+                                        <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
                                                 <input
                                                     type="checkbox"
@@ -698,7 +701,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     </span>
                                                 </span>
                                             </label>
-                                        </>
+                                        </div>
                                     )}
 
                                     <div>
@@ -768,6 +771,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
                         <button
                             type="button"
+                            data-tour="order-modal-cancel"
                             onClick={handleClose}
                             className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors"
                         >
@@ -775,6 +779,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </button>
                         <button
                             type="submit"
+                            data-tour="order-modal-submit-boundary"
                             disabled={!isValid || modalState === 'submitting'}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
                                 isValid && modalState !== 'submitting'

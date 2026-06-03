@@ -12,6 +12,20 @@ export function isSupportedLang(lang: string): lang is SupportedLang {
   return (SUPPORTED_LANGS as readonly string[]).includes(lang);
 }
 
+function applyDocumentLanguage(lng?: string) {
+  if (typeof document === 'undefined') return;
+
+  const normalized = lng?.split('-')[0];
+  const lang = normalized && isSupportedLang(normalized) ? normalized : 'en';
+  document.documentElement.lang = lang;
+
+  try {
+    localStorage.setItem('verdaxis-lang', lang);
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
+}
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -27,16 +41,15 @@ i18n
     ns: ['common'],
     interpolation: { escapeValue: false },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['querystring', 'localStorage', 'navigator'],
+      lookupQuerystring: 'lang',
       lookupLocalStorage: 'verdaxis-lang',
       caches: ['localStorage'],
     },
-  });
+  })
+  .then(() => applyDocumentLanguage(i18n.language));
 
-i18n.on('languageChanged', (lng) => {
-  document.documentElement.lang = lng;
-  localStorage.setItem('verdaxis-lang', lng);
-});
+i18n.on('languageChanged', applyDocumentLanguage);
 
 const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
   en: {

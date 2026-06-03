@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from './test-utils';
 import { OrderPlaceModal } from '../components/OrderPlaceModal';
+import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
@@ -70,6 +71,9 @@ describe('OrderPlaceModal', () => {
   });
 
   it('resets to the new canonical slice when reopened', async () => {
+    const prefillWindow = getAvailabilityWindowOptions({ timeZone: 'Europe/Amsterdam' })
+      .find((option) => option.kind === 'quarter')?.value ?? 'SPOT';
+
     productsMock.mockResolvedValue([
       {
         id: 'prod-bio',
@@ -145,7 +149,7 @@ describe('OrderPlaceModal', () => {
         side="ASK"
         prefillMarketProduct="E_METHANOL"
         prefillDeliveryPointId="dp-rotterdam"
-        prefillAvailabilityWindow="2026-05"
+        prefillAvailabilityWindow={prefillWindow}
       />
     );
 
@@ -179,7 +183,7 @@ describe('OrderPlaceModal', () => {
         expect.objectContaining({
           product_id: 'prod-e',
           delivery_point_id: 'dp-rotterdam',
-          availability_window: '2026-05',
+          availability_window: prefillWindow,
         })
       );
     });

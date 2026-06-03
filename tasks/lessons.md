@@ -294,3 +294,105 @@
 - **Trigger:** The user clarified that Forward Curve should use canonical products dynamically where possible instead of hardcoding the visible markets.
 - **Rule:** Market monitoring surfaces should derive fuel, port, and window options from the same canonical marketplace/catalog sources, with static constants only as a narrow fallback.
 - **Why:** Hardcoded market lists drift from executable marketplace surfaces and make users see products or ports they cannot actually list against.
+
+### Verify Themed Selector Contrast
+- **Date:** 2026-05-29
+- **Trigger:** The language selector was functionally present but nearly invisible on both the pale public nav and dark app header until hover exposed the dropdown.
+- **Rule:** When changing shared selector or language controls, explicitly verify the closed trigger contrast on every surface that uses it, not only the opened dropdown state.
+- **Why:** Shared theme variants can invert meaning across contexts, making a control look missing even though its interaction still works.
+
+### Keep Tutorial Navigation Bidirectional
+- **Date:** 2026-06-02
+- **Trigger:** User reported that Back on the Post a Bid tutorial step bounced back to the same step, and that the tooltip X behaved like a hidden force-next control.
+- **Rule:** Guided tours must make click-required steps explicit with Back plus a labelled Skip Step action, remove ambiguous close/X controls, and make missing-target fallback respect whether the user was moving backward or forward.
+- **Why:** State-changing tour steps can remove prior targets from the DOM; always jumping forward on target-not-found traps the user and makes Back feel broken.
+
+### Undo Modal Side Effects On Tutorial Back
+- **Date:** 2026-06-02
+- **Trigger:** User reported that the Place Bid / Place Ask modal stayed open when pressing Back in the guided tutorial.
+- **Rule:** When Back crosses from a modal-backed tutorial segment to a page-level segment, close the active modal before changing the tour step.
+- **Why:** Joyride step navigation only moves the tooltip; it does not automatically undo UI side effects caused by earlier highlighted clicks.
+
+### Keep One Vertical Scroll Owner Per App Page
+- **Date:** 2026-06-02
+- **Trigger:** User reported that Marketplace content was cut off at the bottom for some users and that switching to Listings pushed the top controls offscreen with no way to scroll back up.
+- **Rule:** Authenticated app pages should let the shell `<main>` own vertical scrolling; page components must not add desktop `overflow-hidden` roots plus nested vertical `overflow-auto` tab bodies unless they are full-screen canvas tools.
+- **Why:** Competing scroll containers trap wheel/trackpad input and can make headers or lower content unreachable on smaller viewports.
+
+### Keep Tutorial Escape Controls Visible
+- **Date:** 2026-05-27
+- **Trigger:** The guided tutorial got stuck on an order-form step because click-driven steps hid the footer and targeted a footer cancel control instead of an always-visible modal close control.
+- **Rule:** Click-to-advance tutorial steps must still expose Back, Skip, and Close controls, and modal-exit steps should target always-visible close affordances.
+- **Why:** A tour that disables normal navigation while waiting for a specific click can trap users when the highlighted control is off-screen, covered, or not the control they expect.
+
+### Anchor Tutorial Steps To Stable Surfaces
+- **Date:** 2026-06-02
+- **Trigger:** The guided tutorial skipped the orderbook/trade-modal steps when product, port, or window was missing because `orderbook-actionable-level` did not exist yet.
+- **Rule:** Tutorial targets must point at elements that exist in every relevant state; use a separate `advanceOnSelector` for optional executable child controls.
+- **Why:** Joyride treats missing targets as `TARGET_NOT_FOUND`, so state-dependent anchors can silently advance past the lesson the user needed.
+
+### Guide Tutorial Prerequisites Before Dependent Surfaces
+- **Date:** 2026-06-02
+- **Trigger:** The orderbook tutorial stopped on a stable panel when the user had not selected fuel, port, and window, leaving them without a guided way to satisfy the checklist.
+- **Rule:** If a tutorial step depends on required UI state, add explicit prior click steps that guide the user through creating that state.
+- **Why:** Stable targets prevent skipping, but they can still dead-end when the user has not been walked through prerequisite controls.
+
+### Cap Pinned Marketplace Controls
+- **Date:** 2026-06-02
+- **Trigger:** User clarified that pinned Marketplace controls must never consume so much vertical space that only a few rows remain visible.
+- **Rule:** When pinning Marketplace filters/search/tabs, cap the pinned region to half the page height and put scrolling inside the lower market pane, with pagination fixed outside the row scroller.
+- **Why:** Pinned controls improve orientation, but without a hard cap they can starve the actual trading/listing surface on shorter displays.
+
+### Validate Tutorial State, Not Just Clicks
+- **Date:** 2026-06-02
+- **Trigger:** User found an edge case where Back plus Hide Filters let the guided tutorial skip prerequisite selection and land on a stuck orderbook step.
+- **Rule:** Click-driven tutorial steps must advance only after the expected post-click state is true, and selected sample values must be validated explicitly.
+- **Why:** Selector-only waits and timeout fallback let reversible controls, closed dropdown portals, or wrong option selections move the tour into impossible states.
+
+### Give Optional Liquidity Steps Explicit Fallbacks
+- **Date:** 2026-06-02
+- **Trigger:** The guided tutorial could still stall on the orderbook click step if the selected slice had no clickable bid or ask level.
+- **Rule:** Tutorial steps that depend on live or seeded market liquidity need an explicit, user-initiated fallback path to the next safe workflow.
+- **Why:** Market data availability is not a stable UI invariant, even when the product, port, and window state is valid.
+
+### Do Not Spotlight Portal Options
+- **Date:** 2026-06-03
+- **Trigger:** User reported the guided tutorial got stuck after selecting Shanghai because the required Singapore option portal closed, the highlighted option disappeared, and Skip Step had no recoverable target.
+- **Rule:** Guided tutorial steps for dropdowns must anchor to the stable trigger, advance on the required option click, and provide a fallback that reopens the trigger before selecting the required option.
+- **Why:** Portal-rendered dropdown options are transient DOM nodes; targeting them directly makes Joyride positioning fragile and traps users after wrong selections.
+
+### Offset Tutorial Tooltips From Dropdown Menus
+- **Date:** 2026-06-03
+- **Trigger:** User reported the port dropdown remained hard to select because the tutorial tooltip was still occupying the vertical area used by the opened menu.
+- **Rule:** Dropdown tutorial steps should use side placement by default and keep the dropdown menu above the tour overlay z-index.
+- **Why:** Moving the tooltip above or below a selector can still collide with portal menus; side placement preserves the option list path.
+
+### Keep Boundary Targets Visible
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Submit Boundary tutorial instructions covered the Place Bid button, hiding the exact boundary being explained.
+- **Rule:** Informational boundary steps should place tooltips to the side of the highlighted control, especially for dangerous or submit actions that must remain visible but unclicked.
+- **Why:** A boundary warning loses meaning if it hides the button or state transition it is warning about.
+
+### Scroll Modal Targets Before Spotlighting
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Submit Boundary tutorial still errored because the Place Bid button required scrolling inside the modal to become visible.
+- **Rule:** Before moving Joyride to a modal target, scroll the target's nearest scrollable container and the document viewport so the target is visible before measuring the spotlight.
+- **Why:** Mounted-but-offscreen controls inside modal scroll layouts can still trigger missing or misplaced tutorial steps if Joyride measures before the target is visible.
+
+### Cap Modals Without Forcing Height
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Place Bid modal had a large empty area after the modal was changed to fixed `dvh` height.
+- **Rule:** Use viewport `max-height` plus an internal scroll body for modals; do not force a fixed viewport-relative height unless the content is intentionally full-screen.
+- **Why:** Fixed modal height prevents offscreen footers but creates large empty panels for compact forms; max-height preserves compact layout while still allowing overflow to scroll.
+
+### Do Not Scroll Visible Tour Targets
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Forward Curve tutorial pushed the whole terminal page upward when the Market Matrix tooltip overflowed below the viewport.
+- **Rule:** Tutorial helpers should scroll only when the target is actually outside the visible viewport, and dense terminal steps should anchor to compact headers instead of full-height panels.
+- **Why:** Centering already-visible or very tall targets makes Joyride move the workspace to fit the tooltip, which is disorienting in fixed terminal layouts.
+
+### Include Admin Overrides In Entitlement Gates
+- **Date:** 2026-06-03
+- **Trigger:** User reported that admin accounts were still paywalled on the Analytics page.
+- **Rule:** Feature gates should check both subscription entitlement and explicit role overrides such as `ADMIN`.
+- **Why:** Subscription-only gates incorrectly block operational/admin accounts that need full platform visibility independent of billing tier.
