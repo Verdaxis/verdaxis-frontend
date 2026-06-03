@@ -31,6 +31,11 @@ const TUTORIAL_SAMPLE_WINDOW = 'SPOT';
 const TUTORIAL_SAMPLE_PRODUCT_SELECTOR = `[data-tour-market-product="${TUTORIAL_SAMPLE_PRODUCT}"]`;
 const TUTORIAL_SAMPLE_PRODUCT_PORT_SELECTOR = `[data-tour-market-product="${TUTORIAL_SAMPLE_PRODUCT}"][data-tour-port="${TUTORIAL_SAMPLE_PORT}"]`;
 const TUTORIAL_SAMPLE_SLICE_SELECTOR = `[data-tour-market-product="${TUTORIAL_SAMPLE_PRODUCT}"][data-tour-port="${TUTORIAL_SAMPLE_PORT}"][data-tour-window="${TUTORIAL_SAMPLE_WINDOW}"]`;
+const TOOLTIP_VIEWPORT_PADDING = 16;
+const TOOLTIP_TARGET_GAP = 14;
+const TOOLTIP_MAX_WIDTH = 360;
+const TOOLTIP_INFO_HEIGHT = 235;
+const TOOLTIP_CLICK_HEIGHT = 305;
 
 const buyerSteps: TutorialStepDefinition[] = [
     { target: 'body', titleKey: 'buyer.0.title', contentKey: 'buyer.0.content', placement: 'center' },
@@ -161,6 +166,57 @@ function scrollTargetIntoView(selector: string) {
     }
 }
 
+export function getBasePlacement(placement: Step['placement']): string {
+    return String(placement || '').split('-')[0];
+}
+
+export function uniquePlacements(placements: Step['placement'][]): Step['placement'][] {
+    return placements.filter((placement, index) => placements.indexOf(placement) === index);
+}
+
+export function getPlacementCandidates(preferred: Step['placement']): Step['placement'][] {
+    const base = getBasePlacement(preferred);
+    if (base === 'center' || base === 'auto') return [preferred];
+
+    if (base === 'left') return uniquePlacements([preferred, 'right', 'bottom', 'top', 'center']);
+    if (base === 'right') return uniquePlacements([preferred, 'left', 'bottom', 'top', 'center']);
+    if (base === 'top') return uniquePlacements([preferred, 'bottom', 'right', 'left', 'center']);
+    if (base === 'bottom') {
+        const opposite = String(preferred).includes('-start') ? 'top-start' : String(preferred).includes('-end') ? 'top-end' : 'top';
+        return uniquePlacements([preferred, opposite as Step['placement'], 'right', 'left', 'center']);
+    }
+
+    return uniquePlacements([preferred, 'bottom', 'top', 'right', 'left', 'center']);
+}
+
+export function placementFitsViewport(placement: Step['placement'], targetRect: DOMRect, mode?: TutorialStepMode): boolean {
+    const base = getBasePlacement(placement);
+    if (base === 'center' || base === 'auto') return true;
+
+    const tooltipWidth = Math.min(TOOLTIP_MAX_WIDTH, window.innerWidth - (TOOLTIP_VIEWPORT_PADDING * 2));
+    const tooltipHeight = mode === 'click' ? TOOLTIP_CLICK_HEIGHT : TOOLTIP_INFO_HEIGHT;
+    const requiredHorizontal = tooltipWidth + TOOLTIP_TARGET_GAP + TOOLTIP_VIEWPORT_PADDING;
+    const requiredVertical = tooltipHeight + TOOLTIP_TARGET_GAP + TOOLTIP_VIEWPORT_PADDING;
+
+    if (base === 'left') return targetRect.left >= requiredHorizontal;
+    if (base === 'right') return window.innerWidth - targetRect.right >= requiredHorizontal;
+    if (base === 'top') return targetRect.top >= requiredVertical;
+    if (base === 'bottom') return window.innerHeight - targetRect.bottom >= requiredVertical;
+    return true;
+}
+
+export function resolveViewportAwarePlacement(definition: TutorialStepDefinition): Step['placement'] {
+    if (definition.target === 'body' || definition.placement === 'center') return definition.placement;
+    if (typeof window === 'undefined') return definition.placement;
+
+    const target = findTarget(definition.target);
+    if (!(target instanceof HTMLElement)) return definition.placement;
+
+    const targetRect = target.getBoundingClientRect();
+    const candidates = getPlacementCandidates(definition.placement);
+    return candidates.find(candidate => placementFitsViewport(candidate, targetRect, definition.mode)) || 'center';
+}
+
 type TutorialSurface = 'order-modal' | 'trade-modal' | 'page';
 
 function getTutorialSurface(definition?: TutorialStepDefinition): TutorialSurface {
@@ -274,6 +330,7 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
     const { isRunning, complete } = useTutorial();
     const { t, ready } = useNamespace('tutorial');
     const [stepIndex, setStepIndex] = useState(0);
+    const [placementRefreshKey, setPlacementRefreshKey] = useState(0);
     const navigationDirection = useRef<'forward' | 'backward'>('forward');
 
     const definitions = useMemo(() => getGuidedTutorialStepDefinitions(viewMode), [viewMode]);
@@ -289,9 +346,31 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
         if (!isRunning || !activeDefinition) return;
 
         scrollTargetIntoView(activeDefinition.target);
-        const timer = window.setTimeout(() => scrollTargetIntoView(activeDefinition.target), CLICK_ADVANCE_DELAY_MS);
+        setPlacementRefreshKey(key => key + 1);
+        const timer = window.setTimeout(() => {
+            scrollTargetIntoView(activeDefinition.target);
+            setPlacementRefreshKey(key => key + 1);
+        }, CLICK_ADVANCE_DELAY_MS);
         return () => window.clearTimeout(timer);
     }, [activeDefinition, isRunning]);
+
+    useEffect(() => {
+        if (!isRunning) return;
+
+        let frame = 0;
+        const refreshPlacement = () => {
+            window.cancelAnimationFrame(frame);
+            frame = window.requestAnimationFrame(() => setPlacementRefreshKey(key => key + 1));
+        };
+
+        window.addEventListener('resize', refreshPlacement);
+        window.addEventListener('scroll', refreshPlacement, true);
+        return () => {
+            window.cancelAnimationFrame(frame);
+            window.removeEventListener('resize', refreshPlacement);
+            window.removeEventListener('scroll', refreshPlacement, true);
+        };
+    }, [isRunning]);
 
     const advanceTo = useCallback((nextIndex: number) => {
         if (nextIndex >= definitions.length) {
@@ -432,6 +511,7 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
 
     const steps: Step[] = definitions.map((definition, index) => {
         const clickStep = definition.mode === 'click';
+        const placement = index === stepIndex ? resolveViewportAwarePlacement(definition) : definition.placement;
         return {
             target: definition.target,
             content: (
@@ -440,7 +520,7 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
                     <p style={{ lineHeight: 1.6 }}>{t(definition.contentKey)}</p>
                 </div>
             ),
-            placement: definition.placement,
+            placement,
             data: {
                 mode: definition.mode,
                 clickHint: clickStep ? t('locale.clickTargetToContinue') : undefined,
@@ -483,6 +563,8 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
                     borderRadius: '10px',
                     padding: '20px',
                     maxWidth: '360px',
+                    width: 'min(360px, calc(100vw - 32px))',
+                    boxSizing: 'border-box',
                 },
                 buttonNext: {
                     backgroundColor: '#0066FF',

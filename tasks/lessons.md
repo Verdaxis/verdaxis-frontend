@@ -396,3 +396,9 @@
 - **Trigger:** User reported that admin accounts were still paywalled on the Analytics page.
 - **Rule:** Feature gates should check both subscription entitlement and explicit role overrides such as `ADMIN`.
 - **Why:** Subscription-only gates incorrectly block operational/admin accounts that need full platform visibility independent of billing tier.
+
+### Make Guided Tour Placement Viewport-Aware
+- **Date:** 2026-06-03
+- **Trigger:** User reported Joyride instructions still being cut off on smaller screens after previous tutorial fixes.
+- **Rule:** Guided tour steps must compute placement against the current target rect and viewport, then flip or center when the preferred side cannot fit.
+- **Why:** Fixed Joyride placements can pass desktop testing but still overflow on smaller viewport widths or heights.
