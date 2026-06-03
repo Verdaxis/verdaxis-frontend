@@ -402,3 +402,9 @@
 - **Trigger:** User reported the Vercel URL showed only favicon/title and a blank white page.
 - **Rule:** Static React/Vite deployments must include a minimal HTML loading shell inside #root so slow JS downloads do not look like a broken site.
 - **Why:** The app is client-rendered and has a large initial bundle; on low bandwidth, users can stare at an empty root before React mounts.
+
+### Keep Public CTA Links Host-Relative
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Vercel landing page Sign In link sent users back to app.verdaxis.exchange.
+- **Rule:** Public navigation and CTA links into the app should use host-relative routes unless deliberately crossing to a separate deployment domain.
+- **Why:** Hardcoded app hostnames break parallel hosting and staged migrations by pulling users off the environment they are testing.

@@ -63,7 +63,7 @@ describe('PilotPage', () => {
 
     const createAccountLinks = screen.getAllByRole('link', { name: /create account/i });
     expect(createAccountLinks.length).toBeGreaterThan(0);
-    expect(createAccountLinks[0].getAttribute('href')).toBe('https://app.verdaxis.exchange/register?lang=en');
+    expect(createAccountLinks[0].getAttribute('href')).toBe('/register?lang=en');
 
     const teamLink = screen.getByRole('link', { name: /speak to the team/i });
     expect(teamLink.getAttribute('href')).toBe('mailto:info@verdaxis.exchange');

@@ -70,7 +70,7 @@ export const PublicNav: React.FC = () => {
   const lp = useLocalePath();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
+  const appLoginUrl = `/login?lang=${lang || 'en'}`;
 
   const handleLanguageChange = (newLang: SupportedLang) => {
     const rest = pathname.replace(/^\/[a-z]{2}/, '');
