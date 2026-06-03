@@ -113,6 +113,12 @@ describe('platform regression guards', () => {
     expect(tutorialSource).toContain('targetInsideParent');
     expect(tutorialSource).toContain('disableScrolling');
     expect(tutorialSource).toContain('disableScrollParentFix');
+    expect(tutorialSource).toContain('resolveViewportAwarePlacement');
+    expect(tutorialSource).toContain('getPlacementCandidates');
+    expect(tutorialSource).toContain('placementFitsViewport');
+    expect(tutorialSource).toContain("width: 'min(360px, calc(100vw - 32px))'");
+    expect(tutorialSource).toContain("window.addEventListener('resize', refreshPlacement)");
+    expect(tutorialSource).toContain("window.addEventListener('scroll', refreshPlacement, true)");
     expect(tutorialSource).not.toContain('scrollToFirstStep');
     expect(tutorialSource).toContain('getTutorialSurface');
     expect(tutorialSource).toContain('clickIfPresent');
