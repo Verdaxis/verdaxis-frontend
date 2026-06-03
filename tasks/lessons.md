@@ -408,3 +408,9 @@
 - **Trigger:** User reported the Vercel landing page Sign In link sent users back to app.verdaxis.exchange.
 - **Rule:** Public navigation and CTA links into the app should use host-relative routes unless deliberately crossing to a separate deployment domain.
 - **Why:** Hardcoded app hostnames break parallel hosting and staged migrations by pulling users off the environment they are testing.
+
+### Treat Vercel As The Hosting Constraint
+- **Date:** 2026-06-04
+- **Trigger:** User corrected an attempted DNS rollback after Vercel returned bot-challenge 403s to the uptime monitor.
+- **Rule:** When Vercel is the chosen production frontend host, adapt monitoring and diagnostics around Vercel edge behavior instead of rolling production DNS back to the VPS.
+- **Why:** The incident was a monitor-client challenge response from Vercel, not a decision to abandon the Vercel migration.
