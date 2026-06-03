@@ -26,3 +26,4 @@ dist-ssr
 
 # Backup files (may contain credentials)
 *.bak
+.vercel
