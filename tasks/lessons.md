@@ -396,3 +396,9 @@
 - **Trigger:** User reported Joyride instructions still being cut off on smaller screens after previous tutorial fixes.
 - **Rule:** Guided tour steps must compute placement against the current target rect and viewport, then flip or center when the preferred side cannot fit.
 - **Why:** Fixed Joyride placements can pass desktop testing but still overflow on smaller viewport widths or heights.
+
+### Avoid Blank Shell On Slow Frontend Loads
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Vercel URL showed only favicon/title and a blank white page.
+- **Rule:** Static React/Vite deployments must include a minimal HTML loading shell inside #root so slow JS downloads do not look like a broken site.
+- **Why:** The app is client-rendered and has a large initial bundle; on low bandwidth, users can stare at an empty root before React mounts.
