@@ -1,4 +1,5 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import {
   ArrowRight,
@@ -85,14 +86,14 @@ const responsiveStyles = `
   }
 `;
 
-const appRegisterUrl = 'https://app.verdaxis.exchange/register';
-
 /* ================================================================== */
 /*  PilotPage                                                          */
 /* ================================================================== */
 
 export const PilotPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const { lang } = useParams<{ lang: string }>();
+  const appRegisterUrl = `https://app.verdaxis.exchange/register?lang=${lang || 'en'}`;
   if (!ready) return null;
 
   const enabledFeatures = [

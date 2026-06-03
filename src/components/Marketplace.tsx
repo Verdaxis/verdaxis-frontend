@@ -37,6 +37,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
+    SPOT_WINDOW,
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -93,7 +94,7 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 const REFRESH_INTERVAL_MS = 60_000;
 
 // ─── Props ────────────────────────────────────────────────────────
@@ -319,7 +320,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
     const portOptions = useMemo(() => ([
         { value: '', label: 'All ports' },
-        ...PORTS.map((port) => ({ value: port.name, label: port.name, description: port.country })),
+        ...PORTS.map((port) => ({
+            value: port.name,
+            label: port.name,
+            description: port.country,
+            tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
+        })),
     ]), []);
 
     const sliceSummary = useMemo(() => {
@@ -621,6 +627,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                             {isExecutable ? (
                                 <button
                                     type="button"
+                                    data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
@@ -675,11 +682,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
     // ─── Render ───────────────────────────────────────────────────
     return (
-        <div className="h-full flex flex-col overflow-y-auto md:overflow-hidden">
+        <div
+            className="h-full min-h-0 flex flex-col overflow-hidden"
+            data-tour-market-product={marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
+            data-tour-port={resolvedPort}
+            data-tour-window={availability}
+            data-tour-tab={marketTab}
+        >
             {/* Header */}
-            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0 relative z-[80]">
+            <div className="flex-none max-h-[50%] overflow-y-auto overscroll-contain px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80]">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
@@ -687,6 +700,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                         <div className="flex items-center gap-3">
                             <button
                                 type="button"
+                                data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
@@ -719,7 +733,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
 
                     {/* Unified filter rail */}
-                    <div className="v-glass p-4 mb-4 relative z-[90]">
+                    <div className="v-glass p-3 mb-3 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -727,7 +741,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.products')}</span>
                                         <span className="text-xs text-slate-400">{t('marketplace.metrics.productsHint')}</span>
                                     </div>
-                                    <div className="flex flex-1 flex-wrap gap-2">
+                                    <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
                                             const isActive = marketProduct === productCode;
                                             const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
@@ -736,6 +750,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                                 <button
                                                     type="button"
                                                     key={productCode}
+                                                    data-tour={productCode === MARKET_PRODUCTS[0] ? 'marketplace-product-sample' : undefined}
+                                                    data-market-product={productCode}
+                                                    aria-pressed={isActive}
                                                     onClick={() => handleProductChipClick(productCode)}
                                                     className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
                                                         isActive
@@ -752,6 +769,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
                                 <button
                                     type="button"
+                                    data-tour="marketplace-filter-toggle"
+                                    aria-expanded={filtersExpanded}
+                                    aria-controls="marketplace-advanced-filters"
                                     onClick={() => setFiltersExpanded((expanded) => !expanded)}
                                     className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
                                 >
@@ -762,7 +782,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
                             {filtersExpanded && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
+                                    <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
                                             <label className="v-label">{t('marketplace.filter.port')}</label>
                                             <VerdaxisSelect
@@ -770,6 +790,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                                 value={portInput}
                                                 onChange={setPortInput}
                                                 options={portOptions}
+                                                triggerTourId="marketplace-port-select"
                                                 triggerClassName="v-input min-h-[42px] py-2.5"
                                             />
                                         </div>
@@ -781,8 +802,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                                 onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
                                                 options={[
                                                     { value: '', label: 'Any window' },
-                                                    ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                                    ...availabilityOptions.map(option => ({
+                                                        value: option.value,
+                                                        label: option.label,
+                                                        tourId: option.value === SPOT_WINDOW ? 'marketplace-window-option-spot' : undefined,
+                                                    })),
                                                 ]}
+                                                triggerTourId="marketplace-window-select"
                                                 triggerClassName="v-input min-h-[42px] py-2.5"
                                             />
                                         </div>
@@ -845,6 +871,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                             }}
                         />
                         <button
+                            data-tour="marketplace-tab-market"
                             onClick={() => setMarketTab('market')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'market'
@@ -855,6 +882,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                             {t('marketplace.tab.market')}
                         </button>
                         <button
+                            data-tour="marketplace-tab-orderbook"
                             onClick={() => setMarketTab('orderbook')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'orderbook'
@@ -865,6 +893,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                             {t('marketplace.tab.listings')}
                         </button>
                         <button
+                            data-tour="marketplace-tab-my-orders"
                             onClick={() => setMarketTab('my_orders')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'my_orders'
@@ -879,7 +908,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                         </button>
                     </div>
 
-                    <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                         {marketTab === 'market'
                             ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
                             : marketTab === 'orderbook'
@@ -892,7 +921,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
             {/* Error state */}
             {error && !loading && (
-                <div className="flex-shrink-0 px-4 lg:px-10">
+                <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div className="v-card p-8 flex flex-col items-center text-center">
                             <div className="p-4 bg-red-500/10 rounded-full mb-4">
@@ -912,46 +941,62 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             )}
 
             {marketTab === 'orderbook' && !error && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-[1600px] mx-auto">
-                        <div className="min-h-[520px]">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
+                        <div
+                            data-tour="marketplace-market-scope"
+                            className="mb-3 flex-none rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/80"
+                            aria-label={t('marketScope.title')}
+                        >
+                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                <div className="min-w-0">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                        {t('marketScope.title')}
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t('marketScope.ready')}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[720px]">
+                                    {orderbookSliceRequirements.map((requirement) => {
+                                        const Icon = requirement.complete ? CheckCircle2 : XCircle;
+                                        return (
+                                            <div
+                                                key={requirement.key}
+                                                aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
+                                                className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 ${
+                                                    requirement.complete
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+                                                        : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+                                                }`}
+                                            >
+                                                <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">
+                                                        {requirement.label}
+                                                    </div>
+                                                    <div className="mt-0.5 truncate text-sm font-bold">
+                                                        {requirement.value}
+                                                    </div>
+                                                </div>
+                                                <span className="sr-only">
+                                                    {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
                             {orderbookRequiresExactSlice ? (
-                                <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
+                                <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
                                     <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
                                     <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
-                                        <div className="mt-6 w-full max-w-md space-y-2 text-left">
-                                            {orderbookSliceRequirements.map((requirement) => {
-                                                const Icon = requirement.complete ? CheckCircle2 : XCircle;
-                                                return (
-                                                    <div
-                                                        key={requirement.key}
-                                                        aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
-                                                        className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 ${
-                                                            requirement.complete
-                                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
-                                                                : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
-                                                        }`}
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <div className="text-xs font-bold uppercase tracking-[0.16em] opacity-70">
-                                                                {requirement.label}
-                                                            </div>
-                                                            <div className="mt-0.5 truncate text-sm font-bold">
-                                                                {requirement.value}
-                                                            </div>
-                                                        </div>
-                                                        <Icon size={20} className="flex-shrink-0" aria-hidden="true" />
-                                                        <span className="sr-only">
-                                                            {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
                                 </div>
                             ) : (
-                                <div className="grid min-h-[520px] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
+                                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
                                     <OrderBook
                                         marketProduct={marketProduct}
                                         region={resolvedPort || undefined}
@@ -973,8 +1018,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
             {/* My Listings tab: user's outstanding orders */}
             {marketTab === 'my_orders' && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
                         {myOrdersLoading ? (
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
@@ -1013,19 +1058,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                 )}
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <table className="w-full border-collapse text-sm">
+                            <div className="min-h-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
+                                <table className="w-full min-w-[980px] border-collapse text-sm">
                                     <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                         <tr>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
-                                            <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
+                                            <th className="text-center px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1037,32 +1082,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                                     key={order.id}
                                                     className={`border-t border-slate-100 dark:border-slate-700 ${filled ? 'opacity-50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
                                                 >
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-3 py-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                                                             isBid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                                                         }`}>
                                                             {order.side}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
                                                         {getOrderDisplayName(order)}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">
+                                                    <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
                                                         ${Number(order.price_per_mt_usd).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {Number(order.quantity_mt).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {Number(order.remaining_quantity_mt).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
                                                         {order.availability_window}
                                                     </td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-3 py-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                                             order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
                                                             order.status === 'PARTIALLY_FILLED' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
@@ -1072,7 +1117,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                                             {order.status.replaceAll('_', ' ')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-center">
+                                                    <td className="px-3 py-2 text-center">
                                                         {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
                                                             <button
                                                                 type="button"
@@ -1092,7 +1137,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                 </table>
                             </div>
                         )}
-                        <div className="flex justify-end mt-3">
+                        <div className="flex-none flex justify-end pt-3">
                             <button
                                 onClick={fetchMyOrders}
                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
@@ -1106,16 +1151,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
             {/* Market tab: listings table */}
             {marketTab === 'market' && !error && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <table className="w-full border-collapse text-sm">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-7xl mx-auto">
+                        <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
+                            <div className="min-h-0 flex-1 overflow-auto">
+                            <table className="w-full min-w-[980px] border-collapse text-sm">
                                 <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                     <tr>
                                         {configBase.columns.map((col) => (
                                             <th
                                                 key={col}
-                                                className={`text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
+                                                className={`text-left px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
                                                     col === 'star' ? 'w-8 px-2' :
                                                     col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' : ''
                                                 }`}
@@ -1133,7 +1179,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                             <tr
                                                 key={order.id}
                                                 data-order-id={order.id}
-                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
+                                                data-tour="marketplace-listing-row"
+                                                className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1153,9 +1200,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                             {/* Pagination */}
                             {!loading && totalCount > 0 && (
-                                <div className="border-t border-slate-200 dark:border-slate-700 px-4">
+                                <div className="flex-none border-t border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-900">
                                     <Pagination
                                         total={totalCount}
                                         skip={currentSkip}
@@ -1172,7 +1220,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
             {selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" data-tour="trade-modal">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -1238,14 +1286,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                             {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button type="button" aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button type="button" aria-label="Close trade modal" data-tour="trade-modal-close" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
 
                                 <div className="p-6 space-y-5">
                                     {selectedOrder.is_demo_listing && (
-                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                                        <div data-tour="trade-demo-warning" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                                             <div className="flex items-start gap-2">
                                                 <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
                                                 <div>
@@ -1257,7 +1305,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                     )}
 
                                     {/* Order summary */}
-                                    <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
+                                    <div data-tour="trade-modal-summary" className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
                                             <span className="flex items-center gap-2 text-right font-bold text-slate-800 dark:text-slate-200">
@@ -1306,7 +1354,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         </p>
                                     </div>
                                     {tradeState === 'reviewing' && (
-                                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                                        <div data-tour="trade-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
                                             <div className="flex items-start gap-2">
                                                 <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
                                                 <div>
@@ -1331,6 +1379,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         <button
                                             type="button"
                                             disabled
+                                            data-tour="trade-demo-disabled-button"
                                             className="px-6 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-lg flex items-center gap-2 disabled:cursor-not-allowed dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30"
                                         >
                                             <AlertCircle size={18} />
@@ -1340,6 +1389,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         <button
                                             type="button"
                                             onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
+                                            data-tour={tradeState === 'reviewing' ? 'trade-final-confirm-button' : 'trade-review-button'}
                                             disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
                                             className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >

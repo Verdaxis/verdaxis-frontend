@@ -455,6 +455,7 @@
       "euEtsCost": "EU ETS Cost",
       "fuelEu": "FuelEU",
       "ciiProxy": "CII Proxy",
+      "pricePerGJ": "Price / GJ",
       "totalCost": "Total Cost",
       "lowerCost": "Lower Cost",
       "compliant": "Compliant",

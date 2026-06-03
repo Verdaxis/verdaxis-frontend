@@ -85,18 +85,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {!isCollapsed && (
                 <div className="px-6 mt-6 mb-2 text-xs text-slate-400 uppercase tracking-wider font-bold truncate flex items-center justify-between">
-                    <span>{viewMode === 'BUYER' ? 'Buyer Platform' : 'Supplier Platform'}</span>
+                    <span>{viewMode === 'BUYER' ? t('sidebar.buyerPlatform') : t('sidebar.supplierPlatform')}</span>
                     <div className={`w-2 h-2 rounded-full ${viewMode === 'BUYER' ? 'bg-verdaxis' : 'bg-[#22D37A]'}`}></div>
                 </div>
             )}
 
             <div className="px-3 pt-4 pb-2">
                 <button
+                    data-tour="sidebar-primary-action"
                     onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
                     <Plus size={18} />
-                    {!isCollapsed && (viewMode === 'BUYER' ? 'Post a Bid' : 'Post Supply')}
+                    {!isCollapsed && (viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply'))}
                 </button>
             </div>
 

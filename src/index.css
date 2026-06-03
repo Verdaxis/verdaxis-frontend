@@ -165,6 +165,13 @@
   }
 }
 
+/* Hide lightweight-charts attribution affordances so the terminal reads as Verdaxis-native. */
+a[href*="tradingview"],
+a[href*="github.io/tradingview"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* ============================================
    Page Transitions
    ============================================ */

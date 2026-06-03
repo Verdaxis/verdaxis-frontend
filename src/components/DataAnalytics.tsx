@@ -3,6 +3,7 @@ import { Database, TrendingUp, Ship, Factory, Lock, BarChart3 } from 'lucide-rea
 import { producerProjects, fuelTypeColors } from '../data/producerProjects';
 import { api } from '../services/api';
 import { Subscription } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 // Fallback demand data (used while API loads)
 const DEMAND_FLEET_FALLBACK = [
@@ -16,6 +17,7 @@ const DEMAND_FLEET_FALLBACK = [
 interface FleetEntry { fuel: string; orderedVessels: number; deliveredVessels: number; avgConsumptionMt: number; color: string }
 
 export const DataAnalytics: React.FC = () => {
+    const { user } = useAuth();
     const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [demandFleet, setDemandFleet] = useState<FleetEntry[]>(DEMAND_FLEET_FALLBACK);
     const [fleetSources, setFleetSources] = useState<string[]>([]);
@@ -41,7 +43,7 @@ export const DataAnalytics: React.FC = () => {
             })
             .catch(() => { /* keep fallback */ });
     }, []);
-    const isPremium = subscription && subscription.tier !== 'free';
+    const hasPremiumAccess = user?.role === 'ADMIN' || !!(subscription && subscription.tier !== 'free');
     const DEMAND_FLEET = demandFleet;
     const supplyByStatus = useMemo(() => {
         const map: Record<string, { count: number; capacity: number }> = {};
@@ -109,7 +111,7 @@ export const DataAnalytics: React.FC = () => {
 
             {/* Detailed data — blurred for free tier with paywall overlay */}
             <div className="relative">
-            <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6${isPremium ? '' : ' select-none pointer-events-none'}`} style={isPremium ? undefined : { filter: 'blur(4px)' }}>
+            <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6${hasPremiumAccess ? '' : ' select-none pointer-events-none'}`} style={hasPremiumAccess ? undefined : { filter: 'blur(4px)' }}>
                 {/* Supply: Producer Pipeline */}
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg overflow-hidden shadow-sm dark:shadow-none">
                     <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 flex items-center gap-2">
@@ -231,7 +233,7 @@ export const DataAnalytics: React.FC = () => {
             </div>
 
             {/* Paywall overlay — only shown for free tier */}
-            {!isPremium && (
+            {!hasPremiumAccess && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="p-6 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-verdaxis/30 shadow-xl text-center max-w-sm">
                     <Lock size={24} className="mx-auto mb-3 text-verdaxis" />

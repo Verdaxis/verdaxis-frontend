@@ -23,6 +23,37 @@ interface OrderBookRow extends OrderBookOrder {
 const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
+export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+    const realBids = bids
+        .filter(order => !order.is_demo_listing)
+        .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd);
+    const realAsks = asks
+        .filter(order => !order.is_demo_listing)
+        .sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd);
+
+    const bestBid = realBids[0];
+    const bestAsk = realAsks[0];
+    const hasCross = Boolean(bestBid && bestAsk && bestBid.price_per_mt_usd >= bestAsk.price_per_mt_usd);
+    const bidIds = new Set<string>();
+    const askIds = new Set<string>();
+
+    if (hasCross && bestBid && bestAsk) {
+        realBids
+            .filter(order => order.price_per_mt_usd >= bestAsk.price_per_mt_usd)
+            .forEach(order => bidIds.add(order.id));
+        realAsks
+            .filter(order => order.price_per_mt_usd <= bestBid.price_per_mt_usd)
+            .forEach(order => askIds.add(order.id));
+    }
+
+    return {
+        hasCross,
+        bidIds,
+        askIds,
+        spread: bestBid && bestAsk ? bestAsk.price_per_mt_usd - bestBid.price_per_mt_usd : null,
+    };
+}
+
 function formatPrice(price: number): string {
     return `$${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
@@ -65,8 +96,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
-            setBids(sortedBids);
-            setAsks(sortedAsks);
+            const crossState = getExecutableCrossState(sortedBids, sortedAsks);
+
+            setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
+            setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
         } catch (err: any) {
             if (!silent) setError(err?.message || 'Failed to load orderbook');
         } finally {
@@ -128,7 +161,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }
 
     return (
-        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
+        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col" data-tour="orderbook-panel">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">
@@ -209,6 +242,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         onFocus={(event) => showTooltipFromElement(bid, event.currentTarget)}
                                         onBlur={() => setHoverTooltip(null)}
                                         onClick={() => { if (bidInteractive) onLevelClick?.(bid); }}
+                                        data-tour={bidInteractive ? 'orderbook-actionable-level' : undefined}
                                         onKeyDown={(event) => {
                                             if (!bidInteractive) return;
                                             if (event.key === 'Enter' || event.key === ' ') {
@@ -271,6 +305,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         onFocus={(event) => showTooltipFromElement(ask, event.currentTarget)}
                                         onBlur={() => setHoverTooltip(null)}
                                         onClick={() => { if (askInteractive) onLevelClick?.(ask); }}
+                                        data-tour={askInteractive ? 'orderbook-actionable-level' : undefined}
                                         onKeyDown={(event) => {
                                             if (!askInteractive) return;
                                             if (event.key === 'Enter' || event.key === ' ') {
