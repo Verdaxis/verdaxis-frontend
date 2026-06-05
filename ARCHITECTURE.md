@@ -27,6 +27,7 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    backendAvailability.ts         # Shared backend outage event/status helpers
     ai.ts                          # Re-exports from ai-engine/
     ai-engine/
       config.ts                    # Gemini API key + GoogleGenAI client init
@@ -80,6 +81,7 @@ src/
   pages/
     LoginPage.tsx                  # Email/password login
     RegisterPage.tsx               # User registration
+    MaintenancePage.tsx            # Backend-unavailable fallback for auth/platform flows
     OnboardingPage.tsx             # Post-registration role selection + profile setup
     CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
     public/                        # 15 marketing pages (landing, education, use cases, etc.)
@@ -197,6 +199,13 @@ must resolve to canonical month/quarter codes before requests are sent.
 **Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
 `AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
 while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
+
+**Backend outage fallback:** `AuthContext` owns the global backend availability flag. Auth/bootstrap
+requests preserve existing tokens and show `MaintenancePage` when the backend returns gateway errors
+or becomes unreachable. The shared API client emits the same outage signal on network failures,
+timeouts, and 502/503/504 responses so authenticated workflows fail into a single maintenance screen
+instead of scattered component errors. Public marketing pages remain available because they are static
+and Vercel-hosted.
 
 ## Entry Points
 

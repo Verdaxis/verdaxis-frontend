@@ -1,5 +1,6 @@
 import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
 import { API_URL } from './config';
+import { isBackendUnavailableStatus, notifyBackendUnavailable } from './backendAvailability';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -82,6 +83,9 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
 
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
+        if (isBackendUnavailableStatus(res.status)) {
+            notifyBackendUnavailable(`HTTP ${res.status}`);
+        }
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
@@ -100,7 +104,11 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     return fetch(url, { ...options, signal: controller.signal })
         .catch((err) => {
-            if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            if (err.name === 'AbortError') {
+                notifyBackendUnavailable('request timeout');
+                throw new Error('Request timed out. Please try again.');
+            }
+            notifyBackendUnavailable(err?.message || 'network failure');
             throw err;
         })
         .finally(() => clearTimeout(timeout));

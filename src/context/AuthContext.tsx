@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
 import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
+import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 
@@ -24,6 +25,7 @@ interface AuthContextType {
   logout: () => void;
   isAuthenticated: boolean;
   checkAuth: () => Promise<void>;
+  isBackendUnavailable: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(getAccessToken());
     const [isLoading, setIsLoading] = useState(true);
+    const [isBackendUnavailable, setIsBackendUnavailable] = useState(false);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -91,14 +94,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 });
 
                 if (res.ok) {
+                    setIsBackendUnavailable(false);
                     const data = await res.json();
                     applyAccessToken(data.access_token);
                     scheduleRefresh(data.access_token);
+                } else if (isBackendUnavailableStatus(res.status)) {
+                    setIsBackendUnavailable(true);
                 } else {
                     logout();
                 }
             } catch {
-                logout();
+                setIsBackendUnavailable(true);
             }
         }, refreshIn);
     }, [applyAccessToken, logout]);
@@ -134,9 +140,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 headers: { 'Authorization': `Bearer ${accessToken}` },
             });
             if (res.ok) {
+                setIsBackendUnavailable(false);
                 setUser(await res.json());
+            } else if (isBackendUnavailableStatus(res.status)) {
+                setIsBackendUnavailable(true);
             }
-        } catch { /* checkAuth will retry on next mount */ }
+        } catch {
+            setIsBackendUnavailable(true);
+        }
         finally {
             setIsLoading(false);
         }
@@ -144,6 +155,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // --- Check auth on mount / token change ---
     const checkAuth = useCallback(async () => {
+        setIsLoading(true);
         const currentToken = getAccessToken();
         if (!currentToken) {
             try {
@@ -154,10 +166,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     body: JSON.stringify({}),
                 });
                 if (!refreshRes.ok) {
+                    if (isBackendUnavailableStatus(refreshRes.status)) {
+                        setIsBackendUnavailable(true);
+                        return;
+                    }
+                    setIsBackendUnavailable(false);
                     clearTokens();
                     return;
                 }
 
+                setIsBackendUnavailable(false);
                 const data = await refreshRes.json();
                 applyAccessToken(data.access_token);
                 scheduleRefresh(data.access_token);
@@ -166,13 +184,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     headers: { 'Authorization': `Bearer ${data.access_token}` },
                 });
                 if (userRes.ok) {
+                    setIsBackendUnavailable(false);
                     setUser(await userRes.json());
+                } else if (isBackendUnavailableStatus(userRes.status)) {
+                    setIsBackendUnavailable(true);
                 } else {
+                    setIsBackendUnavailable(false);
                     clearTokens();
                 }
             } catch (err) {
                 console.error('Error refreshing auth session:', err);
-                clearTokens();
+                setIsBackendUnavailable(true);
             } finally {
                 setIsLoading(false);
             }
@@ -185,9 +207,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
 
             if (res.ok) {
+                setIsBackendUnavailable(false);
                 const userData = await res.json();
                 setUser(userData);
                 scheduleRefresh(currentToken);
+            } else if (isBackendUnavailableStatus(res.status)) {
+                setIsBackendUnavailable(true);
             } else if (res.status === 401) {
                 // Try refresh before giving up
                 const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
@@ -197,28 +222,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     body: JSON.stringify({}),
                 });
                 if (refreshRes.ok) {
+                    setIsBackendUnavailable(false);
                     const data = await refreshRes.json();
                     applyAccessToken(data.access_token);
                     const userRes = await fetch(`${API_URL}/auth/me`, {
                         headers: { 'Authorization': `Bearer ${data.access_token}` },
                     });
                     if (userRes.ok) {
+                        setIsBackendUnavailable(false);
                         setUser(await userRes.json());
                         scheduleRefresh(data.access_token);
+                    } else if (isBackendUnavailableStatus(userRes.status)) {
+                        setIsBackendUnavailable(true);
                     } else {
+                        setIsBackendUnavailable(false);
                         clearTokens();
                     }
+                } else if (isBackendUnavailableStatus(refreshRes.status)) {
+                    setIsBackendUnavailable(true);
                 } else {
+                    setIsBackendUnavailable(false);
                     clearTokens();
                 }
+            } else {
+                setIsBackendUnavailable(false);
             }
         } catch (err) {
             console.error('Error fetching user profile:', err);
-            clearTokens();
+            setIsBackendUnavailable(true);
         } finally {
             setIsLoading(false);
         }
     }, [applyAccessToken, scheduleRefresh, clearTokens]);
+
+    useEffect(() => {
+        const handleBackendUnavailable = () => setIsBackendUnavailable(true);
+        window.addEventListener(BACKEND_UNAVAILABLE_EVENT, handleBackendUnavailable);
+        return () => window.removeEventListener(BACKEND_UNAVAILABLE_EVENT, handleBackendUnavailable);
+    }, []);
 
     // Capture tokens from OAuth redirect URL params
     useEffect(() => {
@@ -246,6 +287,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         isAuthenticated: !!user,
         checkAuth,
+        isBackendUnavailable,
     };
 
     return (

@@ -16,6 +16,7 @@ import RegisterPage from './pages/RegisterPage';
 import { InvitePage } from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import MaintenancePage from './pages/MaintenancePage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import CreateOrganizationPage from './pages/CreateOrganizationPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
@@ -77,8 +78,12 @@ const ScrollToTop: React.FC = () => {
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
+
+    if (isBackendUnavailable) {
+        return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
+    }
 
     if (isLoading) {
         return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">Loading...</div>;
@@ -86,6 +91,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+};
+
+const BackendRequiredRoute = ({ children }: { children: React.ReactElement }) => {
+    const { isBackendUnavailable, isLoading, checkAuth } = useAuth();
+
+    if (isBackendUnavailable) {
+        return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
     }
 
     return children;
@@ -282,13 +297,13 @@ const App: React.FC = () => {
                 <ScrollToTop />
                 <Routes>
                     {/* Auth routes */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/invite/:code" element={<InvitePage />} />
+                    <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />
+                    <Route path="/register" element={<BackendRequiredRoute><RegisterPage /></BackendRequiredRoute>} />
+                    <Route path="/invite/:code" element={<BackendRequiredRoute><InvitePage /></BackendRequiredRoute>} />
                     <Route path="/invite" element={<Navigate to="/register" replace />} />
-                    <Route path="/verify-email" element={<VerifyEmailPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/verify-email" element={<BackendRequiredRoute><VerifyEmailPage /></BackendRequiredRoute>} />
+                    <Route path="/forgot-password" element={<BackendRequiredRoute><ForgotPasswordPage /></BackendRequiredRoute>} />
+                    <Route path="/reset-password" element={<BackendRequiredRoute><ResetPasswordPage /></BackendRequiredRoute>} />
 
                     {/* Root → detect language → redirect */}
                     <Route path="/" element={<LanguageRedirect />} />
@@ -349,7 +364,7 @@ const App: React.FC = () => {
                         </ProtectedRoute>
                     } />
 
-                    <Route path="/create-organization" element={<CreateOrganizationPage />} />
+                    <Route path="/create-organization" element={<BackendRequiredRoute><CreateOrganizationPage /></BackendRequiredRoute>} />
 
                     <Route path="/kyc" element={
                         <ProtectedRoute>
