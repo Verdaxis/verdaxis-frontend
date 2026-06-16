@@ -74,8 +74,9 @@ Acceptance:
 
 Acceptance:
 
-- Clicking a matrix cell still updates the selected period.
-- The selected period panel has a clear `Expand period` action that opens a larger drilldown.
+- Clicking a matrix cell updates the selected period without opening the drilldown, so traders can scan the board quickly.
+- The selected period panel has a clear `Expand period` action that is the explicit entry point into the larger drilldown.
+- Chart and depth panels suppress stale data while the backend focus for the newly selected slice is still refreshing.
 - The drilldown has accessible close behavior and can be dismissed with Escape or the close button.
 - The drilldown labels every signal by source/readiness and never claims unavailable indications, stems, or fair-value bands.
 - Tests cover opening/closing the drilldown, selected-slice labels, unavailable signal copy, and no fake signal labels.
@@ -99,7 +100,7 @@ Backend dependency:
 
 ### Single-period graph drilldown
 
-Clicking a matrix number should open a focused view for that period:
+The selected-period `Expand period` action should open a focused view for that period:
 
 - Selected port, product, and window.
 - Recent bids/asks/indications.

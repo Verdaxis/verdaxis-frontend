@@ -84,7 +84,11 @@ function makePath(points: Array<{ x: number; y: number }>) {
     return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
 }
 
-const CurveChart: React.FC<{ points: ForwardCurveBoardCell[] }> = ({ points }) => {
+const CurveChart: React.FC<{
+    points: ForwardCurveBoardCell[];
+    loading?: boolean;
+    unavailable?: boolean;
+}> = ({ points, loading = false, unavailable = false }) => {
     const chart = useMemo(() => {
         const visible = points.filter(point => (
             numberOrNull(point.benchmark_mid) != null
@@ -127,6 +131,25 @@ const CurveChart: React.FC<{ points: ForwardCurveBoardCell[] }> = ({ points }) =
         };
     }, [points]);
 
+    if (unavailable) {
+        return (
+            <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-xs text-slate-500">
+                Selected slice is not available in this window.
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] text-xs text-slate-500">
+                <span className="inline-flex items-center gap-2">
+                    <RefreshCw size={13} className="animate-spin" aria-hidden="true" />
+                    Refreshing curve for selected slice...
+                </span>
+            </div>
+        );
+    }
+
     if (!chart.visible.length) {
         return (
             <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] text-xs text-slate-500">
@@ -163,7 +186,7 @@ const CurveChart: React.FC<{ points: ForwardCurveBoardCell[] }> = ({ points }) =
     );
 };
 
-const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null }> = ({ cell }) => {
+const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMessage?: string }> = ({ cell, emptyMessage = 'Select a matrix cell to inspect a single market period.' }) => {
     const graph = useMemo(() => {
         if (!cell) return null;
 
@@ -196,7 +219,7 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null }> = ({ c
     if (!cell || !graph) {
         return (
             <div data-tour="forward-period-detail" className="border-t border-slate-800 px-3 py-4 text-[11px] text-slate-500">
-                Select a matrix cell to inspect a single market period.
+                {emptyMessage}
             </div>
         );
     }
@@ -317,6 +340,7 @@ const PeriodDrilldownDialog: React.FC<{
     onClose: () => void;
 }> = ({ cell, depthBids, depthAsks, depthReady, trades, tradesReady, open, onClose }) => {
     const titleId = useId();
+    const dialogRef = useRef<HTMLDivElement | null>(null);
     const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
@@ -324,7 +348,35 @@ const PeriodDrilldownDialog: React.FC<{
         const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         window.setTimeout(() => closeButtonRef.current?.focus(), 0);
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose();
+            if (event.key === 'Escape') {
+                onClose();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+
+            const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            ) ?? []).filter(element => element.offsetParent !== null || element === closeButtonRef.current);
+
+            if (!focusable.length) {
+                event.preventDefault();
+                closeButtonRef.current?.focus();
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+            if (!dialogRef.current?.contains(active)) {
+                event.preventDefault();
+                first.focus();
+            } else if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => {
@@ -395,7 +447,7 @@ const PeriodDrilldownDialog: React.FC<{
                 aria-hidden="true"
                 onClick={onClose}
             />
-            <div className="relative z-[1] flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden border border-slate-700 bg-[#05070b] text-slate-100 shadow-2xl">
+            <div ref={dialogRef} className="relative z-[1] flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden border border-slate-700 bg-[#05070b] text-slate-100 shadow-2xl">
                 <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-4 py-3">
                     <div>
                         <div id={titleId} className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Single-Period Drilldown</div>
@@ -439,49 +491,68 @@ const PeriodDrilldownDialog: React.FC<{
     );
 };
 
-const DepthPanel: React.FC<{ board: ForwardCurveBoardResponse }> = ({ board }) => {
-    const bids = board.focus.depth_bids;
-    const asks = board.focus.depth_asks;
+const DepthPanel: React.FC<{
+    availabilityWindow: string;
+    bids: ForwardCurveBoardResponse['focus']['depth_bids'];
+    asks: ForwardCurveBoardResponse['focus']['depth_asks'];
+    ready: boolean;
+    unavailable?: boolean;
+}> = ({ availabilityWindow, bids, asks, ready, unavailable = false }) => {
     const rowCount = Math.max(bids.length, asks.length, 5);
 
     return (
         <section data-tour="forward-depth-panel" className="border border-slate-800 bg-[#080c13]">
             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected Slice Depth</span>
-                <span className="text-[10px] text-slate-500">{formatAvailabilityWindowPeriod(board.availability_window)}</span>
+                <span className="text-[10px] text-slate-500">{formatAvailabilityWindowPeriod(availabilityWindow)}</span>
             </div>
             <div className="grid grid-cols-[1fr_1fr] gap-px bg-slate-900 text-[10px]">
                 <div className="bg-[#080c13] px-3 py-1 font-bold uppercase tracking-widest text-emerald-400">Bids</div>
                 <div className="bg-[#080c13] px-3 py-1 text-right font-bold uppercase tracking-widest text-rose-400">Asks</div>
             </div>
-            <div>
-                {Array.from({ length: rowCount }).map((_, index) => {
-                    const bid = bids[index];
-                    const ask = asks[index];
-                    return (
-                        <div key={index} className="grid grid-cols-[1fr_1fr] gap-px bg-slate-900 text-[11px]">
-                            <div className="bg-[#080c13] px-3 py-1.5 font-mono text-emerald-300">
-                                {bid ? `${currency(bid.price_per_mt_usd)} / ${quantity(bid.quantity_mt)}` : '--'}
+            {unavailable ? (
+                <div className="flex min-h-32 items-center justify-center bg-[#080c13] px-3 py-8 text-center text-[11px] text-slate-500">
+                    Selected slice is not available in this window.
+                </div>
+            ) : !ready ? (
+                <div className="flex min-h-32 items-center justify-center bg-[#080c13] px-3 py-8 text-center text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-2">
+                        <RefreshCw size={13} className="animate-spin" aria-hidden="true" />
+                        Refreshing depth for selected slice...
+                    </span>
+                </div>
+            ) : (
+                <div>
+                    {Array.from({ length: rowCount }).map((_, index) => {
+                        const bid = bids[index];
+                        const ask = asks[index];
+                        return (
+                            <div key={index} className="grid grid-cols-[1fr_1fr] gap-px bg-slate-900 text-[11px]">
+                                <div className="bg-[#080c13] px-3 py-1.5 font-mono text-emerald-300">
+                                    {bid ? `${currency(bid.price_per_mt_usd)} / ${quantity(bid.quantity_mt)}` : '--'}
+                                </div>
+                                <div className="bg-[#080c13] px-3 py-1.5 text-right font-mono text-rose-300">
+                                    {ask ? `${currency(ask.price_per_mt_usd)} / ${quantity(ask.quantity_mt)}` : '--'}
+                                </div>
                             </div>
-                            <div className="bg-[#080c13] px-3 py-1.5 text-right font-mono text-rose-300">
-                                {ask ? `${currency(ask.price_per_mt_usd)} / ${quantity(ask.quantity_mt)}` : '--'}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
         </section>
     );
 };
 
-const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean }> = ({ trades, loading }) => (
+const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; unavailable?: boolean }> = ({ trades, loading, unavailable = false }) => (
     <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
         <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Trade Tape</span>
             <span className="text-[10px] text-slate-500">24h market · 7D confirmed trades</span>
         </div>
         <div className="divide-y divide-slate-900">
-            {loading ? (
+            {unavailable ? (
+                <div className="px-3 py-8 text-center text-[11px] text-slate-500">Selected slice is not available in this window.</div>
+            ) : loading ? (
                 <div className="px-3 py-8 text-center text-[11px] text-slate-500">Loading recent prints...</div>
             ) : trades.length === 0 ? (
                 <div className="px-3 py-8 text-center text-[11px] text-slate-500">No confirmed trades in the last 7 days for this selected slice.</div>
@@ -517,10 +588,14 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const [tradeLoading, setTradeLoading] = useState(false);
     const [tradeDataSliceKey, setTradeDataSliceKey] = useState<string | null>(null);
     const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
+    const boardRequestIdRef = useRef(0);
     const windowOptions = useMemo(() => buildWindowOptions(), []);
     const closePeriodDialog = useCallback(() => setPeriodDialogOpen(false), []);
 
     const fetchBoard = useCallback(async () => {
+        const requestId = boardRequestIdRef.current + 1;
+        boardRequestIdRef.current = requestId;
+        const isCurrentRequest = () => requestId === boardRequestIdRef.current;
         setLoading(true);
         setError(null);
         try {
@@ -529,16 +604,18 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 focus_market_product: focusMarketProduct,
                 focus_delivery_point_id: focusDeliveryPointId,
             });
+            if (!isCurrentRequest()) return;
             setBoard(response);
             if (!focusDeliveryPointId) {
                 setFocusDeliveryPointId(response.focus.delivery_point_id);
                 localStorage.setItem(DELIVERY_POINT_STORAGE_KEY, response.focus.delivery_point_id);
             }
         } catch (err) {
+            if (!isCurrentRequest()) return;
             console.error('Failed to load forward curve board', err);
             setError('Forward Curve board is unavailable.');
         } finally {
-            setLoading(false);
+            if (isCurrentRequest()) setLoading(false);
         }
     }, [focusDeliveryPointId, focusMarketProduct, selectedWindow]);
 
@@ -554,15 +631,17 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const focusedCell = useMemo(() => {
         if (!board) return null;
 
-        const selectedDeliveryPointId = focusDeliveryPointId ?? board.focus.delivery_point_id;
-        return board.ports
-            .flatMap(port => port.cells)
-            .find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === selectedDeliveryPointId)
-            ?? board.ports
-                .flatMap(port => port.cells)
-                .find(cell => cell.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id)
+        const cells = board.ports.flatMap(port => port.cells);
+        if (focusDeliveryPointId) {
+            return cells.find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === focusDeliveryPointId) ?? null;
+        }
+
+        return cells.find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === board.focus.delivery_point_id)
+            ?? cells.find(cell => cell.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id)
             ?? null;
     }, [board, focusDeliveryPointId, focusMarketProduct]);
+
+    const selectedSliceUnavailable = Boolean(board && focusDeliveryPointId && !focusedCell);
 
     const selectedDepthSliceKey = focusedCell
         ? marketSliceKey(focusedCell.market_product, focusedCell.delivery_point_id, focusedCell.availability_window)
@@ -570,7 +649,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const boardDepthSliceKey = board
         ? marketSliceKey(board.focus.market_product, board.focus.delivery_point_id, board.focus.availability_window)
         : null;
-    const depthReadyForSelected = Boolean(selectedDepthSliceKey && boardDepthSliceKey === selectedDepthSliceKey && !loading);
+    const boardMatchesSelectedSlice = Boolean(selectedDepthSliceKey && boardDepthSliceKey === selectedDepthSliceKey);
+    const depthReadyForSelected = Boolean(boardMatchesSelectedSlice && !loading);
     const selectedTradeSliceKey = focusedCell
         ? tradeSliceKey(focusedCell.market_product, focusedCell.delivery_point_name, focusedCell.availability_window)
         : null;
@@ -578,12 +658,22 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const visibleTrades = tradesReadyForSelected ? trades : [];
 
     useEffect(() => {
+        if (periodDialogOpen && !focusedCell) setPeriodDialogOpen(false);
+    }, [focusedCell, periodDialogOpen]);
+
+    useEffect(() => {
         let cancelled = false;
         const fetchTrades = async () => {
             if (!board) return;
-            const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
-            const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
-            const availabilityWindow = focusedCell?.availability_window ?? board.availability_window;
+            if (!focusedCell) {
+                setTrades([]);
+                setTradeDataSliceKey(null);
+                setTradeLoading(false);
+                return;
+            }
+            const marketProduct = focusedCell.market_product;
+            const deliveryPointName = focusedCell.delivery_point_name;
+            const availabilityWindow = focusedCell.availability_window;
             const sliceKey = tradeSliceKey(marketProduct, deliveryPointName, availabilityWindow);
             setTradeLoading(true);
             setTradeDataSliceKey(null);
@@ -612,10 +702,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         return () => {
             cancelled = true;
         };
-    }, [board, focusedCell?.availability_window, focusedCell?.delivery_point_name, focusedCell?.market_product]);
+    }, [board, focusedCell]);
 
     const openMarketplace = () => {
-        if (!board) return;
+        if (!board || selectedSliceUnavailable) return;
         const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
         const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
         localStorage.setItem('verdaxis_marketplace_port', deliveryPointName);
@@ -625,10 +715,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         onNavigate?.('MARKETPLACE');
     };
 
-    const selectCell = (cell: ForwardCurveBoardCell, expand = false) => {
+    const selectCell = (cell: ForwardCurveBoardCell) => {
         setFocusMarketProduct(cell.market_product);
         setFocusDeliveryPointId(cell.delivery_point_id);
-        if (expand) setPeriodDialogOpen(true);
     };
 
     return (
@@ -665,7 +754,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         <button
                             data-tour="forward-open-marketplace"
                             onClick={openMarketplace}
-                            disabled={!board}
+                            disabled={!board || selectedSliceUnavailable}
                             className="flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         >
                             Open Marketplace
@@ -697,7 +786,11 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             </div>
                         </div>
                         <div className="p-3">
-                            <CurveChart points={board.focus.curve} />
+                            <CurveChart
+                                points={boardMatchesSelectedSlice ? board.focus.curve : []}
+                                loading={!boardMatchesSelectedSlice && !selectedSliceUnavailable}
+                                unavailable={selectedSliceUnavailable}
+                            />
                         </div>
                     </section>
 
@@ -737,11 +830,11 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             return (
                                                 <button
                                                     key={`${port.delivery_point_id}-${product.market_product}`}
-                                                    onClick={() => cell && selectCell(cell, true)}
+                                                    onClick={() => cell && selectCell(cell)}
                                                     disabled={!cell}
                                                     aria-pressed={Boolean(selected)}
                                                     aria-label={cell
-                                                        ? `Open period detail for ${formatMarketProduct(cell.market_product)} at ${cell.delivery_point_name}, ${formatAvailabilityWindowPeriod(cell.availability_window)}`
+                                                        ? `Select period detail for ${formatMarketProduct(cell.market_product)} at ${cell.delivery_point_name}, ${formatAvailabilityWindowPeriod(cell.availability_window)}`
                                                         : `No market for ${formatMarketProduct(product.market_product)} at ${port.delivery_point_name}`}
                                                     className={`min-h-[88px] bg-[#080c13] px-3 py-2 text-left transition-colors hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
                                                         selected ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
@@ -783,13 +876,17 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                         Selected Period
                                     </div>
                                     <div className="mt-1 text-lg font-bold text-slate-100">
-                                        {formatMarketProduct(focusedCell?.market_product ?? board.focus.market_product)} - {focusedCell?.delivery_point_name ?? board.focus.delivery_point_name}
+                                        {focusedCell
+                                            ? `${formatMarketProduct(focusedCell.market_product)} - ${focusedCell.delivery_point_name}`
+                                            : selectedSliceUnavailable
+                                                ? 'Selected period unavailable'
+                                                : `${formatMarketProduct(board.focus.market_product)} - ${board.focus.delivery_point_name}`}
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-2 text-right text-[10px] uppercase tracking-wider text-slate-500">
                                     <div>
                                         <div>{formatAvailabilityWindowPeriod(board.availability_window)}</div>
-                                        <div>{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark) : 'Reference'}</div>
+                                        <div>{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark) : selectedSliceUnavailable ? 'No market' : 'Reference'}</div>
                                     </div>
                                     <button
                                         data-tour="forward-expand-period"
@@ -817,10 +914,19 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                     <div className="mt-1 font-mono text-xl font-bold text-rose-300">{currency(focusedCell?.best_ask)}</div>
                                 </div>
                             </div>
-                            <PeriodDetailGraph cell={focusedCell} />
+                            <PeriodDetailGraph
+                                cell={focusedCell}
+                                emptyMessage={selectedSliceUnavailable ? 'Selected slice is not available in this window.' : undefined}
+                            />
                         </section>
-                        <DepthPanel board={board} />
-                        <TradeTapePanel trades={visibleTrades} loading={tradeLoading || !tradesReadyForSelected} />
+                        <DepthPanel
+                            availabilityWindow={focusedCell?.availability_window ?? board.availability_window}
+                            bids={boardMatchesSelectedSlice ? board.focus.depth_bids : []}
+                            asks={boardMatchesSelectedSlice ? board.focus.depth_asks : []}
+                            ready={boardMatchesSelectedSlice}
+                            unavailable={selectedSliceUnavailable}
+                        />
+                        <TradeTapePanel trades={visibleTrades} loading={tradeLoading || !tradesReadyForSelected} unavailable={selectedSliceUnavailable} />
                     </div>
                     <PeriodDrilldownDialog
                         open={periodDialogOpen}

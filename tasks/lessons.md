@@ -408,3 +408,9 @@
 - **Trigger:** User clarified new Verdaxis feedback work should go into a new branch and deploy to staging only, not production.
 - **Rule:** For feedback batches that users need to vet, create a dedicated branch based on the current staging branch, deploy only to staging, and wait for explicit production approval.
 - **Why:** Main and staging can diverge, and deploying feedback directly to production risks exposing unvetted UX/product changes to users.
+
+### Use Requested Frontier Model For Factory Review Agents
+- **Date:** 2026-06-16
+- **Trigger:** User corrected subagent model choice after I spawned feedback/planning reviewers on GPT 5.4 mini.
+- **Rule:** When the user explicitly asks for GPT 5.5 on factory-loop planning or review agents, use GPT 5.5 for subsequent subagents instead of cheaper mini models.
+- **Why:** The user is optimizing for maximum-quality adversarial review, not model cost or speed, in this feedback loop.
