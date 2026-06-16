@@ -418,6 +418,7 @@
     "title": "市场监控",
     "liveFeed": "近期数据",
     "mixed": "混合来源",
+    "demo": "演示数据",
     "reference": "参考数据",
     "connecting": "连接中...",
     "offline": "不可用",
@@ -434,6 +435,7 @@
     "source": {
       "live": "近期",
       "stale": "滞后",
+      "demo": "演示",
       "reference": "参考",
       "unavailable": "无数据"
     }

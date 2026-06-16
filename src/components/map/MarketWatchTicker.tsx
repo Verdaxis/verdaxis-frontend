@@ -15,8 +15,8 @@ interface MarketWatchTickerProps {
     ports?: Port[];
 }
 
-type RowStatus = 'LOADING' | 'LIVE' | 'STALE' | 'REFERENCE' | 'UNAVAILABLE';
-type HeaderStatus = 'LOADING' | 'LIVE' | 'MIXED' | 'REFERENCE' | 'UNAVAILABLE';
+type RowStatus = 'LOADING' | 'LIVE' | 'STALE' | 'DEMO' | 'REFERENCE' | 'UNAVAILABLE';
+type HeaderStatus = 'LOADING' | 'LIVE' | 'MIXED' | 'DEMO' | 'REFERENCE' | 'UNAVAILABLE';
 
 interface TickerPreferences {
     product: MarketProduct;
@@ -117,8 +117,16 @@ const getSummaryPrice = (summary: PriceSummary) => {
 };
 
 const getSummaryStatus = (summary: PriceSummary): RowStatus => {
-    if (!summary.last_trade_at) return 'STALE';
-    const timestamp = Date.parse(summary.last_trade_at);
+    if (summary.source_kind === 'DEMO_SEED' || summary.demo_status === 'DEMO_ONLY') {
+        return 'DEMO';
+    }
+    if (summary.is_reference || summary.source_kind === 'BENCHMARK_REFERENCE') {
+        return 'REFERENCE';
+    }
+    if (summary.source_kind === 'NO_DATA') return 'UNAVAILABLE';
+    const observedAt = summary.observed_at || summary.last_trade_at;
+    if (!observedAt) return 'STALE';
+    const timestamp = Date.parse(observedAt);
     if (!Number.isFinite(timestamp)) return 'STALE';
     const hoursOld = (Date.now() - timestamp) / (1000 * 60 * 60);
     return hoursOld <= 24 ? 'LIVE' : 'STALE';
@@ -293,6 +301,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
         if (rows.every(row => row.status === 'LIVE')) return 'LIVE';
         if (rows.some(row => row.status === 'LIVE')) return 'MIXED';
+        if (rows.every(row => row.status === 'DEMO')) return 'DEMO';
         if (rows.every(row => row.status === 'REFERENCE')) return 'REFERENCE';
         if (rows.every(row => row.status === 'UNAVAILABLE')) return 'UNAVAILABLE';
         return 'MIXED';
@@ -312,6 +321,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     const statusLabel = (status: RowStatus) => {
         if (status === 'LIVE') return t('marketWatch.source.live');
         if (status === 'STALE') return t('marketWatch.source.stale');
+        if (status === 'DEMO') return t('marketWatch.source.demo');
         if (status === 'REFERENCE') return t('marketWatch.source.reference');
         if (status === 'UNAVAILABLE') return t('marketWatch.source.unavailable');
         return t('marketWatch.connecting');
@@ -320,6 +330,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     const headerStatusLabel = (status: HeaderStatus) => {
         if (status === 'LIVE') return t('marketWatch.liveFeed');
         if (status === 'MIXED') return t('marketWatch.mixed');
+        if (status === 'DEMO') return t('marketWatch.demo');
         if (status === 'REFERENCE') return t('marketWatch.reference');
         if (status === 'UNAVAILABLE') return t('marketWatch.offline');
         return t('marketWatch.connecting');
@@ -332,7 +343,9 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
             <div className="flex items-center gap-4 overflow-x-auto">
                 <div className="flex min-w-fit items-center space-x-2 border-r border-slate-200 pr-4 dark:border-slate-700">
                     {headerStatus === 'LIVE' && <Activity size={18} className="text-green-600" />}
-                    {(headerStatus === 'MIXED' || headerStatus === 'REFERENCE') && <FlaskConical size={18} className="text-blue-500" />}
+                    {headerStatus === 'MIXED' && <FlaskConical size={18} className="text-blue-500" />}
+                    {headerStatus === 'REFERENCE' && <FlaskConical size={18} className="text-blue-500" />}
+                    {headerStatus === 'DEMO' && <FlaskConical size={18} className="text-amber-500" />}
                     {headerStatus === 'LOADING' && <RefreshCw size={18} className="text-verdaxis animate-spin" />}
                     {headerStatus === 'UNAVAILABLE' && <WifiOff size={18} className="text-red-500" />}
 
@@ -355,6 +368,8 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                             <span className={`text-sm font-bold ${
                                 row.status === 'UNAVAILABLE' || row.status === 'LOADING'
                                     ? 'text-slate-400 dark:text-slate-500'
+                                    : row.status === 'DEMO'
+                                        ? 'text-amber-700 dark:text-amber-300'
                                     : row.status === 'REFERENCE' || row.status === 'STALE'
                                         ? 'text-blue-700 dark:text-blue-300'
                                         : 'text-sky-700 dark:text-sky-300'
@@ -370,6 +385,8 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                         <span className={`mt-0.5 text-[9px] font-bold uppercase tracking-wider ${
                             row.status === 'LIVE'
                                 ? 'text-green-600'
+                                : row.status === 'DEMO'
+                                    ? 'text-amber-600'
                                 : row.status === 'UNAVAILABLE'
                                     ? 'text-red-500'
                                     : 'text-blue-500'

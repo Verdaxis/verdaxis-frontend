@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
 
 import { useWatchlist } from '../hooks/useWatchlist';
-import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget } from '../utils/watchlist';
+import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget, getWatchlistEventActivity } from '../utils/watchlist';
+import { MarketActivityBadge } from './trading/MarketActivityBadge';
 
 export const WatchlistPage: React.FC = () => {
     const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
@@ -121,7 +122,12 @@ export const WatchlistPage: React.FC = () => {
                                 </div>
 
                                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
-                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No Watchlist signals have landed for this slice yet.'}
+                                    {latestEvent ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span>{describeWatchlistEvent(latestEvent)}</span>
+                                            <MarketActivityBadge activity={getWatchlistEventActivity(latestEvent)} />
+                                        </div>
+                                    ) : 'No Watchlist signals have landed for this slice yet.'}
                                 </div>
 
                                 <div className="mt-4 space-y-2">
@@ -155,8 +161,9 @@ export const WatchlistPage: React.FC = () => {
                                                             {pendingRemovalId === pinTarget.id ? "Removing..." : "Unpin"}
                                                         </button>
                                                     </div>
-                                                    <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                                                        {pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}
+                                                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                                        <span>{pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}</span>
+                                                        {pinEvent && <MarketActivityBadge activity={getWatchlistEventActivity(pinEvent)} />}
                                                     </div>
                                                 </div>
                                             );
@@ -186,7 +193,10 @@ export const WatchlistPage: React.FC = () => {
                                             <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
                                                 {targetLabels.get(event.watchlist_target_id) || event.target_type}
                                             </div>
-                                            <div className="mt-1 text-sm text-slate-700 dark:text-slate-200">{describeWatchlistEvent(event)}</div>
+                                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                                <span>{describeWatchlistEvent(event)}</span>
+                                                <MarketActivityBadge activity={getWatchlistEventActivity(event)} />
+                                            </div>
                                             <div className="mt-2 text-[11px] text-slate-400">{new Date(event.created_at).toLocaleString()}</div>
                                         </div>
                                         {!event.is_read && (

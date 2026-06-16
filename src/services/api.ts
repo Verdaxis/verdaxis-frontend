@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import { API_URL } from './config';
 
 export const mapPortResponse = (p: any): Port => ({
@@ -749,7 +749,36 @@ export const api = {
 
     watchlists: {
         list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
+        getRadar: async (): Promise<import('../types').WatchlistSummary> => {
+            return fetchApi('/watchlists/me', { headers: getHeaders() });
+        },
         create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
+        createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<import('../types').WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'SLICE', ...data }),
+            });
+        },
+        createPinTarget: async (watchlistId: string, orderId: string): Promise<import('../types').WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'PIN', order_id: orderId }),
+            });
+        },
+        removeTarget: async (watchlistId: string, targetId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+        listEvents: async (watchlistId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').WatchlistEventsPage> => {
+            const sp = new URLSearchParams();
+            if (params?.cursor) sp.append('cursor', params.cursor);
+            sp.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/watchlists/${watchlistId}/events?${sp.toString()}`, { headers: getHeaders() });
+        },
+        markEventRead: async (watchlistId: string, eventId: string): Promise<import('../types').WatchlistEvent> => {
+            return fetchApi(`/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
+        },
         addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
             return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },

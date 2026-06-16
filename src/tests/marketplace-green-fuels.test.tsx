@@ -178,7 +178,8 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByText(/vs benchmark \$1,092.00\/MT/i)).toBeTruthy();
+    expect(screen.getByText(/Bench \$1,092.00/i)).toBeTruthy();
+    expect(screen.getByTitle(/vs benchmark \$1,092.00\/MT/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 

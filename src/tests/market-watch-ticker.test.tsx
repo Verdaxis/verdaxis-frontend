@@ -120,6 +120,25 @@ describe('MarketWatchTicker', () => {
     expect(screen.queryByText(/REFERENCE/)).toBeNull();
   });
 
+  it('labels demo-seeded summaries as demo data instead of reference data', async () => {
+    priceSummariesMock.mockImplementation(({ delivery_point_id }) => Promise.resolve({
+      summaries: delivery_point_id === 'dp-singapore-uuid'
+        ? [makeSummary({ source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' })]
+        : [],
+      generated_at: new Date().toISOString(),
+    }));
+
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('$777')).toBeTruthy();
+    });
+
+    expect(screen.getByText('Demo')).toBeTruthy();
+    expect(screen.getByText(/MIXED SOURCES|DEMO DATA/)).toBeTruthy();
+    expect(screen.queryByText(/REFERENCE/)).toBeNull();
+  });
+
   it('recovers from malformed preferences and persists sanitized defaults', async () => {
     localStorage.setItem(STORAGE_KEY, '{bad-json');
 

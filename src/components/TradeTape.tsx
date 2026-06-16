@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import type { TradeTapeEntry } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
+import { describeMarketActivity } from '../utils/marketActivity';
+import { MarketActivityBadge } from './trading/MarketActivityBadge';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
     BIO_METHANOL: 'bg-violet-500',
@@ -36,8 +38,9 @@ function gradeTag(grade?: string): string {
     return grade.slice(0, 4);
 }
 
-function isDemoTapeEntry(entry: TradeTapeEntry): boolean {
-    return entry.is_demo_trade === true || entry.provenance_kind === 'DEMO_SEED';
+function shouldShowActivityBadge(entry: TradeTapeEntry): boolean {
+    const descriptor = describeMarketActivity(entry);
+    return descriptor.tone !== 'live' && descriptor.tone !== 'empty';
 }
 
 function relativeTime(dateStr: string): string {
@@ -49,6 +52,18 @@ function relativeTime(dateStr: string): string {
     if (hrs < 24) return `${hrs}h`;
     const days = Math.floor(hrs / 24);
     return `${days}d`;
+}
+
+function formatQuantityMt(value: number | string): string {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatPriceUsd(value: number | string): string {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
 interface TradeTapeProps {
@@ -144,23 +159,15 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                     {t2.fuel_grade && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
                                     )}
-                                    {isDemoTapeEntry(t2) && (
-                                        <span
-                                            className="ml-1 rounded border border-amber-300/60 bg-amber-50 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
-                                            aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
-                                            title="Demo trade seeded for platform preview. Not user-posted liquidity."
-                                        >
-                                            Demo
-                                        </span>
-                                    )}
+                                    {shouldShowActivityBadge(t2) && <MarketActivityBadge activity={t2} className="ml-1" />}
                                 </span>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                    {t2.quantity_mt.toLocaleString()} MT
+                                    {formatQuantityMt(t2.quantity_mt)} MT
                                 </span>
                                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    ${t2.price_per_mt_usd.toLocaleString()}/MT
+                                    ${formatPriceUsd(t2.price_per_mt_usd)}/MT
                                 </span>
                                 <span className="text-[10px] text-slate-400 w-8 text-right">
                                     {relativeTime(t2.confirmed_at)}

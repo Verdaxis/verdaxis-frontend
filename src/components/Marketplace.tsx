@@ -614,7 +614,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             }
             case 'grade':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
                             {order.certification_declared ? 'Declared cert' : 'Cert missing'}
                         </span>
@@ -628,7 +628,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                 );
             case 'price':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-xs">
+                    <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
                         <BenchmarkPriceBlock
                             priceUsd={Number(order.price_per_mt_usd)}
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
@@ -638,19 +638,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                 );
             case 'window':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">
                         {formatDeliveryWindow(order)}
                     </td>
                 );
             case 'expiry':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         {formatExpiry(order)}
                     </td>
                 );
             case 'cert':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         <div className="flex flex-wrap gap-1">
                             {order.certifications.map(cert => (
                                 <span
@@ -679,8 +679,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-2">
+                    <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
+                        <div className="flex flex-col items-end gap-2">
                             {isExecutable ? (
                                 <button
                                     type="button"
@@ -707,10 +707,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         await togglePin(order.id);
                                     }}
                                     aria-pressed={isPinned}
+                                    aria-label={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
+                                    title={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
                                     className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
                                 >
                                     <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
+                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.watchListing')}
                                 </button>
                             )}
                         </div>
@@ -728,7 +730,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             {[...Array(4)].map((_, i) => (
                 <tr key={i} className="border-b border-slate-200/50 dark:border-slate-700/50">
                     {configBase.columns.map((col, ci) => (
-                        <td key={ci} className="px-4 py-3">
+                        <td key={ci} className={`px-4 py-3 ${col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' : ''}`}>
                             <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 w-full" />
                         </td>
                     ))}
@@ -1214,15 +1216,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                     <div className="h-full min-h-0 max-w-7xl mx-auto">
                         <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
                             <div className="min-h-0 flex-1 overflow-auto">
-                            <table className="w-full min-w-[980px] border-collapse text-sm">
+                            <table className="w-full min-w-[680px] border-collapse text-sm xl:min-w-[900px]">
                                 <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                     <tr>
                                         {configBase.columns.map((col) => (
                                             <th
                                                 key={col}
-                                                className={`text-left px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
+                                                className={`${col === 'action' ? 'text-right' : 'text-left'} px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
                                                     col === 'star' ? 'w-8 px-2' :
-                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' : ''
+                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' :
+                                                    col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' :
+                                                    col === 'action' ? 'sticky right-0 z-40 min-w-[108px] bg-slate-100 text-right shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] dark:bg-slate-800' : ''
                                                 }`}
                                             >
                                                 {COLUMN_HEADERS[col]}

@@ -158,6 +158,18 @@ export const MARKET_PRODUCTS = [
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
+export type MarketSourceKind =
+    | 'CONFIRMED_TRADE'
+    | 'LIVE_ORDER'
+    | 'DEMO_SEED'
+    | 'BENCHMARK_REFERENCE'
+    | 'MIXED_SOURCE'
+    | 'NO_DATA'
+    | 'UNKNOWN';
+
+export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
+export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
+
 // ============== Unified Orderbook Types ==============
 export type OrderSide = 'BID' | 'ASK';
 export type OrderBookStatus = 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLED' | 'EXPIRED';
@@ -263,8 +275,16 @@ export interface PriceSummary {
     low_24h: number | null;
     volume_24h: number;
     trade_count_24h: number;
+    real_trade_count_24h?: number;
+    demo_trade_count_24h?: number;
+    unknown_trade_count_24h?: number;
     price_change_pct: number | null;
     last_trade_at: string | null;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    is_reference?: boolean;
+    observed_at?: string | null;
 }
 
 export interface PriceDiscoveryResponse {
@@ -384,6 +404,21 @@ export interface ForwardCurveBoardCell {
     benchmark_mid: number | null;
     benchmark_source: string | null;
     is_demo_benchmark: boolean;
+    order_source_kind?: MarketSourceKind;
+    benchmark_source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    real_order_count?: number;
+    demo_order_count?: number;
+    unknown_order_count?: number;
+    real_best_bid?: number | null;
+    real_best_ask?: number | null;
+    demo_best_bid?: number | null;
+    demo_best_ask?: number | null;
+    best_bid_source_kind?: MarketSourceKind;
+    best_ask_source_kind?: MarketSourceKind;
+    order_observed_at?: string | null;
+    benchmark_observed_at?: string | null;
     best_bid: number | null;
     best_ask: number | null;
     spread: number | null;
@@ -490,13 +525,16 @@ export interface TradeTapeEntry {
     delivery_point_id?: string;
     delivery_point_name?: string;
     region: string;
-    quantity_mt: number;
-    price_per_mt_usd: number;
+    quantity_mt: number | string;
+    price_per_mt_usd: number | string;
     confirmed_at: string;
     availability_window?: string;
     is_demo_trade?: boolean;
-    scope?: 'DELIVERY_POINT' | 'REGION' | 'UNKNOWN';
+    scope?: MarketScope;
     provenance_kind?: 'CONFIRMED_TRADE' | 'DEMO_SEED';
+    source_kind?: MarketSourceKind;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
 }
 
 export interface TradeTapeResponse {
@@ -522,4 +560,78 @@ export interface Watchlist {
     name: string;
     entries: WatchlistEntry[];
     created_at: string;
+}
+
+export interface WatchlistTarget {
+    id: string;
+    target_type: 'SLICE' | 'PIN';
+    market_product_code?: string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
+    order_id?: string | null;
+    snapshot_price_per_mt_usd?: number | null;
+    snapshot_quantity_mt?: number | null;
+    snapshot_remaining_quantity_mt?: number | null;
+    snapshot_status?: string | null;
+    snapshot_side?: string | null;
+    snapshot_market_product?: string | null;
+    snapshot_delivery_point_name?: string | null;
+    snapshot_availability_window?: string | null;
+    snapshot_counterparty_label?: string | null;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    created_at: string;
+}
+
+export interface WatchlistSlice {
+    id: string;
+    target_type: 'SLICE';
+    market_product_code: string;
+    delivery_point_id: string;
+    delivery_point_name?: string | null;
+    availability_window_code: string;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    pins: WatchlistTarget[];
+    created_at: string;
+}
+
+export interface WatchlistSummary {
+    id: string;
+    name: string;
+    kind: string;
+    unread_event_count: number;
+    latest_event_at?: string | null;
+    total_slice_count: number;
+    has_more_slices: boolean;
+    slices: WatchlistSlice[];
+    created_at: string;
+}
+
+export interface WatchlistEvent {
+    id: string;
+    watchlist_id: string;
+    watchlist_target_id: string;
+    target_type: 'SLICE' | 'PIN';
+    event_type: string;
+    event_payload: Record<string, unknown>;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
+    market_product_code?: string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
+    order_id?: string | null;
+    is_read: boolean;
+    created_at: string;
+}
+
+export interface WatchlistEventsPage {
+    items: WatchlistEvent[];
+    next_cursor?: string | null;
 }

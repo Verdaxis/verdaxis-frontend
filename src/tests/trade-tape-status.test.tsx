@@ -72,8 +72,8 @@ describe('TradeTape status copy', () => {
         fuel_type: 'Methanol',
         fuel_grade: 'Bio',
         region: 'Singapore',
-        quantity_mt: 1200,
-        price_per_mt_usd: 710,
+        quantity_mt: '1200.50',
+        price_per_mt_usd: '710.25',
         confirmed_at: new Date().toISOString(),
         availability_window: 'SPOT',
         provenance_kind: 'DEMO_SEED',
@@ -89,7 +89,9 @@ describe('TradeTape status copy', () => {
     });
 
     expect(screen.getByText('Demo')).toBeTruthy();
-    expect(screen.getByLabelText('Demo trade seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
+    expect(screen.getByText('1,200.5 MT')).toBeTruthy();
+    expect(screen.getByText('$710.25/MT')).toBeTruthy();
+    expect(screen.getByLabelText('Demo activity seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
     expect(screen.queryByText('Unavailable')).toBeNull();
   });
 });

@@ -418,6 +418,7 @@
     "title": "Market Watch",
     "liveFeed": "RECENT FEED",
     "mixed": "MIXED SOURCES",
+    "demo": "DEMO DATA",
     "reference": "REFERENCE",
     "connecting": "CONNECTING...",
     "offline": "UNAVAILABLE",
@@ -434,6 +435,7 @@
     "source": {
       "live": "Recent",
       "stale": "Stale",
+      "demo": "Demo",
       "reference": "Reference",
       "unavailable": "No data"
     }

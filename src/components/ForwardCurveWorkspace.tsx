@@ -7,6 +7,7 @@ import type { ForwardCurveBoardCell, ForwardCurveBoardResponse, MarketProduct, P
 import { useNamespace } from '../hooks/useNamespace';
 import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions, normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { formatMarketProduct } from '../utils/marketProduct';
+import { describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
@@ -41,14 +42,21 @@ const quantity = (value: number | string | null | undefined) => {
     return `${numberValue.toLocaleString()} MT`;
 };
 
-const isDemoTapeEntry = (entry: TradeTapeEntry) =>
-    entry.is_demo_trade === true || entry.provenance_kind === 'DEMO_SEED';
-
-const sourceLabel = (source: string | null | undefined, isDemo: boolean) => {
-    if (isDemo) return 'Demo reference';
+const sourceLabel = (source: string | null | undefined, isDemo: boolean, sourceKind?: string | null) => {
+    if (isDemo || sourceKind === 'DEMO_SEED') return 'Demo reference';
+    if (sourceKind === 'BENCHMARK_REFERENCE') return 'Benchmark reference';
+    if (sourceKind === 'NO_DATA') return 'No reference';
     if (!source) return 'No reference';
     return source.replace(/_/g, ' ');
 };
+
+const orderContextLabel = (cell: ForwardCurveBoardCell) => describeMarketActivity({
+    source_kind: cell.order_source_kind,
+    demo_status: cell.demo_status,
+});
+
+const sideContextLabel = (sourceKind: ForwardCurveBoardCell['best_bid_source_kind'] | ForwardCurveBoardCell['best_ask_source_kind']) =>
+    describeMarketActivity({ source_kind: sourceKind });
 
 const marketSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
     [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
@@ -293,7 +301,7 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMes
                 <div className="bg-[#080c13] p-2">
                     <div className="text-[9px] uppercase tracking-widest text-slate-500">Benchmark Source</div>
                     <div className="mt-1 truncate text-[10px] font-bold uppercase text-slate-300">
-                        {sourceLabel(cell.benchmark_source, cell.is_demo_benchmark)}
+                        {sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind)}
                     </div>
                 </div>
             </div>
@@ -397,17 +405,17 @@ const PeriodDrilldownDialog: React.FC<{
             {
                 label: 'Benchmark',
                 status: numberOrNull(cell.benchmark_mid) == null ? 'empty' : 'available',
-                detail: sourceLabel(cell.benchmark_source, cell.is_demo_benchmark),
+                detail: sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind),
             },
             {
                 label: 'Latest bid context',
                 status: numberOrNull(cell.best_bid) == null ? 'empty' : 'available',
-                detail: numberOrNull(cell.best_bid) == null ? 'No bid context for this period' : currency(cell.best_bid),
+                detail: numberOrNull(cell.best_bid) == null ? 'No bid context for this period' : `${currency(cell.best_bid)} · ${sideContextLabel(cell.best_bid_source_kind).label}`,
             },
             {
                 label: 'Latest ask context',
                 status: numberOrNull(cell.best_ask) == null ? 'empty' : 'available',
-                detail: numberOrNull(cell.best_ask) == null ? 'No ask context for this period' : currency(cell.best_ask),
+                detail: numberOrNull(cell.best_ask) == null ? 'No ask context for this period' : `${currency(cell.best_ask)} · ${sideContextLabel(cell.best_ask_source_kind).label}`,
             },
             {
                 label: 'Selected depth',
@@ -564,23 +572,28 @@ const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; una
                     <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.loadingRecent')}</div>
                 ) : trades.length === 0 ? (
                     <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.emptyMarketContext')}</div>
-                ) : trades.map(trade => (
-                    <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
-                        <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="truncate text-slate-300">
-                            {quantity(trade.quantity_mt)}
-                            {isDemoTapeEntry(trade) && (
-                                <span
-                                    className="ml-1 text-[9px] font-bold uppercase text-amber-300"
-                                    aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
-                                >
-                                    Demo
-                                </span>
-                            )}
-                        </span>
-                        <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
-                    </div>
-                ))}
+                ) : trades.map(trade => {
+                    const activity = describeMarketActivity(trade);
+                    const showBadge = activity.tone !== 'live' && activity.tone !== 'empty';
+                    return (
+                        <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
+                            <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="truncate text-slate-300">
+                                {quantity(trade.quantity_mt)}
+                                {showBadge && (
+                                    <span
+                                        className={`ml-1 text-[9px] font-bold uppercase ${marketActivityTextClass(activity.tone)}`}
+                                        aria-label={activity.detail}
+                                        title={activity.detail}
+                                    >
+                                        {activity.shortLabel}
+                                    </span>
+                                )}
+                            </span>
+                            <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
+                        </div>
+                    );
+                })}
             </div>
         </section>
     );
@@ -780,12 +793,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             ) : !board ? (
                 <div className="flex h-96 items-center justify-center text-xs text-slate-500">Loading Forward Curve board...</div>
             ) : (
-                <div className="grid gap-3 p-3 xl:grid-cols-[minmax(620px,1fr)_420px]">
+                <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.36fr)]">
                     <section data-tour="forward-curve-chart" className="border border-slate-800 bg-[#080c13] xl:col-span-2">
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2">
                             <div className="flex items-center gap-2">
                                 <TrendingUp size={13} className="text-blue-300" />
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Indicative Forward Curve</div>
                                     <div className="text-[10px] text-slate-500">Benchmark mid with visible orderbook context</div>
                                 </div>
@@ -838,6 +851,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             const cell = port.cells.find(item => item.market_product === product.market_product);
                                             const selectedDeliveryPointId = focusDeliveryPointId ?? board.focus.delivery_point_id;
                                             const selected = cell?.market_product === focusMarketProduct && cell.delivery_point_id === selectedDeliveryPointId;
+                                            const orderActivity = cell && cell.order_count > 0 ? orderContextLabel(cell) : null;
                                             return (
                                                 <button
                                                     key={`${port.delivery_point_id}-${product.market_product}`}
@@ -855,15 +869,22 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                         <>
                                                             <div className="flex items-center justify-between gap-2">
                                                                 <span className="font-mono text-base font-bold text-blue-300">{currency(cell.benchmark_mid)}</span>
-                                                                {cell.is_demo_benchmark && <span className="text-[9px] font-bold uppercase text-amber-300">Demo</span>}
+                                                                {(cell.is_demo_benchmark || cell.benchmark_source_kind === 'DEMO_SEED') && <span className="text-[9px] font-bold uppercase text-amber-300">Demo</span>}
                                                             </div>
                                                             <div className="mt-1 grid grid-cols-2 gap-2 font-mono text-[10px]">
                                                                 <span className="text-emerald-300">Bid {currency(cell.best_bid)}</span>
                                                                 <span className="text-right text-rose-300">Ask {currency(cell.best_ask)}</span>
                                                             </div>
-                                                            <div className="mt-2 flex items-center justify-between text-[9px] uppercase tracking-wider text-slate-500">
-                                                                <span>{cell.order_count} orders</span>
-                                                                <span>{sourceLabel(cell.benchmark_source, cell.is_demo_benchmark)}</span>
+                                                            <div className="mt-2 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider text-slate-500">
+                                                                <span className="inline-flex items-center gap-1">
+                                                                    <span>{cell.order_count} orders</span>
+                                                                    {orderActivity && (
+                                                                        <span className={`rounded border border-current/30 px-1 py-0.5 leading-none ${marketActivityTextClass(orderActivity.tone)}`}>
+                                                                            {orderActivity.shortLabel}
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                <span className="truncate text-right">{sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind)}</span>
                                                             </div>
                                                         </>
                                                     ) : (
@@ -897,7 +918,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 <div className="flex flex-col items-end gap-2 text-right text-[10px] uppercase tracking-wider text-slate-500">
                                     <div>
                                         <div>{formatAvailabilityWindowPeriod(board.availability_window)}</div>
-                                        <div>{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark) : selectedSliceUnavailable ? 'No market' : 'Reference'}</div>
+                                        <div className="break-words">{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark, focusedCell.benchmark_source_kind) : selectedSliceUnavailable ? 'No market' : 'Reference'}</div>
                                     </div>
                                     <button
                                         data-tour="forward-expand-period"

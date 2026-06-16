@@ -2,7 +2,8 @@ import React from 'react';
 import { ArrowRight, BellRing, Pin } from 'lucide-react';
 
 import type { WatchlistEvent, WatchlistSummary } from '../../types';
-import { describeWatchlistEvent, formatWatchlistSliceLabel, getLatestEventForSlice } from '../../utils/watchlist';
+import { describeWatchlistEvent, formatWatchlistSliceLabel, getLatestEventForSlice, getWatchlistEventActivity } from '../../utils/watchlist';
+import { MarketActivityBadge } from '../trading/MarketActivityBadge';
 
 interface MarketRadarPanelProps {
     radar: WatchlistSummary | null;
@@ -77,7 +78,12 @@ export const MarketRadarPanel: React.FC<MarketRadarPanelProps> = ({ radar, event
                                     <span className="inline-flex items-center gap-1"><Pin size={12} /> {slice.pins.length} pinned</span>
                                 </div>
                                 <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-                                    {latestEvent ? describeWatchlistEvent(latestEvent) : 'No recent Watchlist activity for this slice.'}
+                                    {latestEvent ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span>{describeWatchlistEvent(latestEvent)}</span>
+                                            <MarketActivityBadge activity={getWatchlistEventActivity(latestEvent)} />
+                                        </div>
+                                    ) : 'No recent Watchlist activity for this slice.'}
                                 </div>
                             </div>
                         );

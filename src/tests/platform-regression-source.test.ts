@@ -36,19 +36,21 @@ describe('platform regression guards', () => {
   it('keeps trade tape status 24-hour and history-scoped instead of market-hours based', () => {
     const tradeTapeSource = readFileSync(resolve(process.cwd(), 'src/components/TradeTape.tsx'), 'utf8');
     const forwardSource = readFileSync(resolve(process.cwd(), 'src/components/ForwardCurveWorkspace.tsx'), 'utf8');
+    const marketActivitySource = readFileSync(resolve(process.cwd(), 'src/utils/marketActivity.ts'), 'utf8');
     const tradingEn = readFileSync(resolve(process.cwd(), 'src/locales/en/trading.json'), 'utf8');
 
     expect(tradeTapeSource).toContain("t('tradeTape.status.deliveryPointHistory')");
     expect(tradeTapeSource).toContain("t('tradeTape.status.regionHistory')");
     expect(tradeTapeSource).toContain('Clock3');
-    expect(tradeTapeSource).toContain('Demo trade seeded for platform preview');
+    expect(tradeTapeSource).toContain('MarketActivityBadge');
+    expect(marketActivitySource).toContain('Demo activity seeded for platform preview');
     expect(tradeTapeSource).not.toContain('setMarketOpen');
     expect(tradeTapeSource).not.toContain('market_hours');
     expect(tradeTapeSource).not.toContain('tradeTape.market.open');
     expect(tradeTapeSource).not.toContain('tradeTape.market.closed');
     expect(forwardSource).toContain("t('tradeTape.status.deliveryPointHistory')");
     expect(forwardSource).toContain("t('tradeTape.emptyMarketContext')");
-    expect(forwardSource).toContain('Demo trade seeded for platform preview');
+    expect(forwardSource).toContain('describeMarketActivity');
     expect(forwardSource).not.toContain('Live · 7D history');
     expect(tradingEn).toContain('"tradeTape.empty": "No confirmed trades in the last 7 days"');
     expect(tradingEn).toContain('"tradeTape.emptyMarketContext": "No confirmed trades in the last 7 days for this selected market context."');

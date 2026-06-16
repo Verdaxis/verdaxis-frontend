@@ -1,5 +1,6 @@
 import type { WatchlistEvent, WatchlistSlice, WatchlistTarget } from '../types';
 import { formatAvailabilityWindow } from './availabilityWindow';
+import type { MarketActivityInput } from './marketActivity';
 import { formatMarketProduct } from './marketProduct';
 
 export function getWatchlistSliceKeyFromParts(
@@ -35,13 +36,15 @@ export function formatWatchlistSliceLabel(slice: {
 }
 
 function currency(value: unknown): string {
-    if (typeof value !== 'number') return 'n/a';
-    return `$${value.toFixed(2)}`;
+    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+    if (!Number.isFinite(numberValue)) return 'n/a';
+    return `$${numberValue.toFixed(2)}`;
 }
 
 function quantity(value: unknown): string {
-    if (typeof value !== 'number') return 'n/a';
-    return `${value.toLocaleString()} MT`;
+    const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+    if (!Number.isFinite(numberValue)) return 'n/a';
+    return `${numberValue.toLocaleString()} MT`;
 }
 
 export function describeWatchlistEvent(event: WatchlistEvent): string {
@@ -70,6 +73,14 @@ export function describeWatchlistEvent(event: WatchlistEvent): string {
         default:
             return event.event_type.replaceAll('_', ' ');
     }
+}
+
+export function getWatchlistEventActivity(event: WatchlistEvent): MarketActivityInput {
+    const payload = event.event_payload || {};
+    return {
+        source_kind: event.source_kind ?? (typeof payload.source_kind === 'string' ? payload.source_kind as MarketActivityInput['source_kind'] : undefined),
+        demo_status: event.demo_status ?? (typeof payload.demo_status === 'string' ? payload.demo_status as MarketActivityInput['demo_status'] : undefined),
+    };
 }
 
 export function getLatestEventForSlice(

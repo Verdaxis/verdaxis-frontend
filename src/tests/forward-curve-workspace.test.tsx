@@ -432,7 +432,7 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Demo trade seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
+      expect(screen.getByLabelText('Demo activity seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
     });
     expect(tradeTapeMock).toHaveBeenCalledWith({
       market_product: 'BIO_METHANOL',

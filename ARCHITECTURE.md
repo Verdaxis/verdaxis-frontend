@@ -13,6 +13,7 @@ src/
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
+  utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
   utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
   utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
@@ -71,6 +72,7 @@ src/
     notifications/{NotificationBell,NotificationList}.tsx
     fleet/VesselDetailModal.tsx
     ui/{Tooltip,MarkdownRenderer,ConfirmModal,VerdaxisSelect}.tsx
+    trading/MarketActivityBadge.tsx # Compact provenance badge for demo/reference/mixed market activity
     watchlist/MarketRadarPanel.tsx # Command-center radar summary for tracked slices
     # Public site
     public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
@@ -167,8 +169,9 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
-Demo liquidity is labelled and blocked from execution, and crossed-market indicators only consider
-real resting orders so seeded preview prices do not look executable.
+Demo liquidity is labelled and blocked from execution, row watchlist controls use compact visible
+copy with explicit accessible labels, and crossed-market indicators only consider real resting orders
+so seeded preview prices do not look executable.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
@@ -178,13 +181,17 @@ boundaries and does not place real bids, asks, listings, or trades.
 **Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
 `ForwardCurveWorkspace` is the broader monitoring page. Forward Curve scans approved ports and
 products, shows hybrid benchmark/orderbook context, and hands a selected slice to Marketplace
-through an explicit CTA. Trade tape entries can carry `is_demo_trade` so generated preview
-activity is labelled without exposing party identities.
+through an explicit CTA. Price summaries, forward-board cells, watchlist events, and trade tape
+entries carry `source_kind`, `scope`, `demo_status`, and `observed_at` where available; the frontend
+normalizes those through `utils/marketActivity.ts` so demo-seeded, benchmark-reference, mixed-source,
+and live activity are labelled consistently without exposing party identities.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
 availability_window`), `CommandCenter` shows compact radar cards, and `WatchlistPage` persists pinned live
-orders plus the event feed.
+orders plus the event feed. The frontend API client uses the target/event endpoints directly
+(`GET /watchlists/me`, `POST /watchlists/{id}/targets`, event listing, event read state) rather than
+legacy product-entry adapters.
 
 **Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
 forms should use it instead of browser-native `<select>` elements unless there is a strong
