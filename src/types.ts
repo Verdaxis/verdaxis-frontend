@@ -483,15 +483,20 @@ export interface RFQ {
 // ============== Trade Tape Types ==============
 export interface TradeTapeEntry {
     id: string;
+    product_id?: string;
     market_product?: MarketProduct;
     fuel_type: string;
     fuel_grade?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
     region: string;
     quantity_mt: number;
     price_per_mt_usd: number;
     confirmed_at: string;
     availability_window?: string;
     is_demo_trade?: boolean;
+    scope?: 'DELIVERY_POINT' | 'REGION' | 'UNKNOWN';
+    provenance_kind?: 'CONFIRMED_TRADE' | 'DEMO_SEED';
 }
 
 export interface TradeTapeResponse {

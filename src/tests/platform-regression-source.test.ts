@@ -38,20 +38,22 @@ describe('platform regression guards', () => {
     const forwardSource = readFileSync(resolve(process.cwd(), 'src/components/ForwardCurveWorkspace.tsx'), 'utf8');
     const tradingEn = readFileSync(resolve(process.cwd(), 'src/locales/en/trading.json'), 'utf8');
 
-    expect(tradeTapeSource).toContain("t('tradeTape.status.history')");
+    expect(tradeTapeSource).toContain("t('tradeTape.status.deliveryPointHistory')");
+    expect(tradeTapeSource).toContain("t('tradeTape.status.regionHistory')");
     expect(tradeTapeSource).toContain('Clock3');
     expect(tradeTapeSource).toContain('Demo trade seeded for platform preview');
     expect(tradeTapeSource).not.toContain('setMarketOpen');
     expect(tradeTapeSource).not.toContain('market_hours');
     expect(tradeTapeSource).not.toContain('tradeTape.market.open');
     expect(tradeTapeSource).not.toContain('tradeTape.market.closed');
-    expect(forwardSource).toContain("t('tradeTape.status.history')");
+    expect(forwardSource).toContain("t('tradeTape.status.deliveryPointHistory')");
     expect(forwardSource).toContain("t('tradeTape.emptyMarketContext')");
     expect(forwardSource).toContain('Demo trade seeded for platform preview');
     expect(forwardSource).not.toContain('Live · 7D history');
     expect(tradingEn).toContain('"tradeTape.empty": "No confirmed trades in the last 7 days"');
     expect(tradingEn).toContain('"tradeTape.emptyMarketContext": "No confirmed trades in the last 7 days for this selected market context."');
-    expect(tradingEn).toContain('"tradeTape.status.history": "24h market · 7D region/window history"');
+    expect(tradingEn).toContain('"tradeTape.status.deliveryPointHistory"');
+    expect(tradingEn).toContain('"tradeTape.status.regionHistory"');
     expect(tradingEn).not.toContain('tradeTape.market.open');
     expect(tradingEn).not.toContain('tradeTape.market.closed');
   });
@@ -63,12 +65,12 @@ describe('platform regression guards', () => {
     expect(parameters).toEqual(expect.arrayContaining([
       'fuel_type',
       'market_product',
+      'delivery_point_id',
       'region',
       'availability_window',
       'skip',
       'limit',
     ]));
-    expect(parameters).not.toContain('delivery_point_id');
   });
 
   it('keeps interactive guided tour anchors wired to current market surfaces', () => {

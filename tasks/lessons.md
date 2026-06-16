@@ -420,3 +420,9 @@
 - **Trigger:** User challenged source-level tests that locked simple cart-icon replacements into the suite.
 - **Rule:** Prefer behavior, data-contract, accessibility, and provenance tests; avoid source-grep tests for simple cosmetic choices unless a regression has real product or safety impact.
 - **Why:** Over-specific cosmetic tests add maintenance bloat and make harmless UI refinements harder without materially improving product stability.
+
+### Include Browser Dogfooding In UI Reviews
+- **Date:** 2026-06-17
+- **Trigger:** User corrected that reviewers should visually dogfood UI changes in the browser, not only inspect code.
+- **Rule:** For UI-facing review passes, include browser dogfooding on the affected pages and viewport sizes before declaring the review clean.
+- **Why:** Code review and unit tests can miss visual regressions, blocked interactions, viewport overflow, and misleading copy in the actual rendered app.

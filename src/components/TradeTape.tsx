@@ -36,6 +36,10 @@ function gradeTag(grade?: string): string {
     return grade.slice(0, 4);
 }
 
+function isDemoTapeEntry(entry: TradeTapeEntry): boolean {
+    return entry.is_demo_trade === true || entry.provenance_kind === 'DEMO_SEED';
+}
+
 function relativeTime(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60_000);
@@ -52,9 +56,10 @@ interface TradeTapeProps {
     marketProduct?: string;
     availability?: string;
     region?: string;
+    deliveryPointId?: string;
 }
 
-export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region }) => {
+export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region, deliveryPointId }) => {
     const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
     const [total, setTotal] = useState(0);
@@ -66,7 +71,8 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             const data = await api.tradeTape.list({
                 fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
                 market_product: marketProduct,
-                region: region || undefined,
+                delivery_point_id: deliveryPointId || undefined,
+                region: deliveryPointId ? undefined : region || undefined,
                 availability_window: availability || undefined,
                 limit: 20,
             });
@@ -80,7 +86,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [availability, fuelType, marketProduct, region]);
+    }, [availability, deliveryPointId, fuelType, marketProduct, region]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -117,7 +123,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                 <div className="flex items-center gap-1.5">
                     <Clock3 size={11} className="text-slate-400" aria-hidden="true" />
                     <span className="text-[10px] text-slate-400 font-medium">
-                        {t('tradeTape.status.history')}
+                        {deliveryPointId ? t('tradeTape.status.deliveryPointHistory') : t('tradeTape.status.regionHistory')}
                     </span>
                 </div>
             </div>
@@ -138,7 +144,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                     {t2.fuel_grade && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
                                     )}
-                                    {t2.is_demo_trade && (
+                                    {isDemoTapeEntry(t2) && (
                                         <span
                                             className="ml-1 rounded border border-amber-300/60 bg-amber-50 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
                                             aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."

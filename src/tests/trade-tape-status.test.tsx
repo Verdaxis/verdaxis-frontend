@@ -25,7 +25,7 @@ describe('TradeTape status copy', () => {
     renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />);
 
     await waitFor(() => {
-      expect(screen.getByText('24h market · 7D region/window history')).toBeTruthy();
+      expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
     });
 
     expect(screen.getByText('No confirmed trades in the last 7 days')).toBeTruthy();
@@ -34,9 +34,33 @@ describe('TradeTape status copy', () => {
     expect(tradeTapeList).toHaveBeenCalledWith({
       fuel_type: undefined,
       market_product: 'BIO_METHANOL',
+      delivery_point_id: undefined,
       region: 'Singapore',
       availability_window: 'SPOT',
       limit: 20,
+    });
+  });
+
+  it('uses exact delivery point filtering when a catalog delivery point id is available', async () => {
+    renderWithProviders(
+      <TradeTape
+        marketProduct="BIO_METHANOL"
+        deliveryPointId="dp-singapore"
+        region="Singapore"
+        availability="SPOT"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('24h market · 7D delivery-point history')).toBeTruthy();
+      expect(tradeTapeList).toHaveBeenCalledWith({
+        fuel_type: undefined,
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'dp-singapore',
+        region: undefined,
+        availability_window: 'SPOT',
+        limit: 20,
+      });
     });
   });
 
@@ -52,7 +76,7 @@ describe('TradeTape status copy', () => {
         price_per_mt_usd: 710,
         confirmed_at: new Date().toISOString(),
         availability_window: 'SPOT',
-        is_demo_trade: true,
+        provenance_kind: 'DEMO_SEED',
       }],
       total: 1,
       market_hours: false,
@@ -61,7 +85,7 @@ describe('TradeTape status copy', () => {
     renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />);
 
     await waitFor(() => {
-      expect(screen.getByText('24h market · 7D region/window history')).toBeTruthy();
+      expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
     });
 
     expect(screen.getByText('Demo')).toBeTruthy();

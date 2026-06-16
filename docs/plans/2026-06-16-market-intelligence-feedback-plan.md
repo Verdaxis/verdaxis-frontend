@@ -17,7 +17,7 @@ Implementation note, 2026-06-16:
 Implementation note, 2026-06-16 follow-up:
 
 - Marketplace orderbook depth now receives the resolved catalog delivery point ID, so bid/ask depth uses the same canonical slice as the listings table once the catalog is available.
-- Trade tape requests remain on the documented `market_product + region + availability_window` contract. Exact delivery-point tape filtering is a backend follow-up because current OpenAPI does not expose `delivery_point_id` for `/api/trade-tape`.
+- Trade tape requests now use `delivery_point_id` when a canonical catalog delivery point is available. The backend `/api/trade-tape` contract exposes `delivery_point_id`, delivery-point response fields, `scope`, and `provenance_kind`; `region` remains a fallback for non-catalog contexts.
 - The Intelligence Map compliance estimator exposes key fuel-price, EUA, ETS coverage, and total-cost assumptions in the UI, without adding a backend compliance endpoint or certifying output.
 - The Intelligence Map compliance estimator stores a catalog delivery-point UUID only when the map port has been resolved against catalog data; local map slugs are not written as canonical marketplace IDs.
 - Listing-derived map widgets are labelled as recent listing indications and static map-popup prices are labelled as reference values, not confirmed trades.
@@ -79,8 +79,8 @@ Acceptance:
 - Marketplace trade tape no longer displays `Live` or `Unavailable` based on `market_hours`.
 - Forward Curve trade tape no longer claims a live feed when it only has empty history.
 - Empty tape copy is clear about the last-7-days scope.
-- API calls remain on the existing `market_product + region + availability_window` contract unless the backend adds canonical `delivery_point_id` support.
-- Empty tape copy must not imply exact delivery-point filtering until `/api/trade-tape` supports and returns delivery-point IDs.
+- API calls use `delivery_point_id` for catalog-backed exact market slices, and only fall back to `region` when no delivery-point ID exists.
+- Empty tape copy may refer to the selected delivery-point context only when `/api/trade-tape` supports and returns delivery-point IDs.
 
 ### Make selected matrix cells expand into a single-period drilldown
 
@@ -122,14 +122,14 @@ The selected-period `Expand period` action should open a focused view for that p
 
 - Selected port, product, and window.
 - Recent bids/asks/indications.
-- Trade tape for the selected market context. Until the backend supports `delivery_point_id`, this is not an exact delivery-point tape.
+- Trade tape for the selected market context, exact when the client sends a canonical `delivery_point_id` and region-scoped otherwise.
 - Fair-value band if enough inputs exist.
 - Physical stems if available.
 
 Backend dependency:
 
 - Needs a consistent market-event feed model for orders, indications, stems, benchmarks, and trades.
-- Trade tape needs `delivery_point_id` query support plus delivery-point fields in `TradeTapeEntry` before the frontend can label prints as exact selected delivery-point history.
+- Trade tape now has `delivery_point_id` query support plus delivery-point fields in `TradeTapeEntry`. Remaining work is to add richer market-event provenance for orders, indications, stems, benchmark refs, and fair-value bands.
 
 ### Intelligence Map FuelEU / EU ETS estimator
 

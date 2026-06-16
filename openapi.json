@@ -5052,7 +5052,7 @@
           "referrals"
         ],
         "summary": "Resolve Referral Code",
-        "description": "Public endpoint — validate a referral code and return referrer info.",
+        "description": "Public endpoint \u2014 validate a referral code and return referrer info.",
         "operationId": "resolve_referral_code_api_referrals_resolve__code__get",
         "parameters": [
           {
@@ -5095,7 +5095,7 @@
           "trade-tape"
         ],
         "summary": "Get Trade Tape",
-        "description": "Public trade tape — anonymized confirmed trades from the last 7 days.\n\nConfirmed trades are shown without an exchange-hours delay; the lookback\nwindow is intentionally kept separate from market availability semantics.",
+        "description": "Public trade tape \u2014 anonymized confirmed trades from the last 7 days.\n\nConfirmed trades are shown without an exchange-hours delay; the lookback\nwindow is intentionally kept separate from market availability semantics.",
         "operationId": "get_trade_tape_api_trade_tape_get",
         "parameters": [
           {
@@ -5133,6 +5133,25 @@
               "title": "Market Product"
             },
             "description": "Filter by canonical market product"
+          },
+          {
+            "name": "delivery_point_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by exact delivery point ID",
+              "title": "Delivery Point Id"
+            },
+            "description": "Filter by exact delivery point ID"
           },
           {
             "name": "region",
@@ -6365,7 +6384,7 @@
           "negotiations"
         ],
         "summary": "Accept Negotiation",
-        "description": "Accept the current proposed price — creates a confirmed trade.",
+        "description": "Accept the current proposed price \u2014 creates a confirmed trade.",
         "operationId": "accept_negotiation_api_negotiations__negotiation_id__accept_post",
         "security": [
           {
@@ -6414,7 +6433,7 @@
           "negotiations"
         ],
         "summary": "Decline Negotiation",
-        "description": "Decline the negotiation — no trade created.",
+        "description": "Decline the negotiation \u2014 no trade created.",
         "operationId": "decline_negotiation_api_negotiations__negotiation_id__decline_post",
         "security": [
           {
@@ -6746,7 +6765,7 @@
     "/health/live": {
       "get": {
         "summary": "Health Live",
-        "description": "Minimal liveness probe — is the process up?",
+        "description": "Minimal liveness probe \u2014 is the process up?",
         "operationId": "health_live_health_live_get",
         "responses": {
           "200": {
@@ -6763,7 +6782,7 @@
     "/health/ready": {
       "get": {
         "summary": "Health Ready",
-        "description": "Readiness probe — checks DB connectivity.",
+        "description": "Readiness probe \u2014 checks DB connectivity.",
         "operationId": "health_ready_health_ready_get",
         "responses": {
           "200": {
@@ -9183,7 +9202,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -9251,8 +9270,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000,
-                "exclusiveMinimum": 0
+                "maximum": 100000.0,
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -9265,7 +9284,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -9288,8 +9307,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 72,
-            "minimum": 1,
+            "maximum": 72.0,
+            "minimum": 1.0,
             "title": "Expires In Hours",
             "default": 1
           }
@@ -9640,7 +9659,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0.0
               },
               {
                 "type": "string",
@@ -9741,7 +9760,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -9754,7 +9773,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -10748,7 +10767,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -10764,7 +10783,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -10855,7 +10874,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0
+                "minimum": 0.0
               },
               {
                 "type": "string",
@@ -11786,8 +11805,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000,
-                "exclusiveMinimum": 0
+                "maximum": 100000.0,
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -11800,7 +11819,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -11836,8 +11855,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 168,
-            "minimum": 1,
+            "maximum": 168.0,
+            "minimum": 1.0,
             "title": "Expires In Hours",
             "default": 24
           }
@@ -11876,7 +11895,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -12876,7 +12895,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -12900,7 +12919,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -12913,7 +12932,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "exclusiveMinimum": 0.0
               },
               {
                 "type": "string",
@@ -13202,6 +13221,18 @@
             "type": "string",
             "title": "Id"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
           "market_product": {
             "anyOf": [
               {
@@ -13220,6 +13251,29 @@
           "fuel_grade": {
             "type": "string",
             "title": "Fuel Grade"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
           },
           "region": {
             "type": "string",
@@ -13253,6 +13307,25 @@
             "type": "boolean",
             "title": "Is Demo Trade",
             "default": false
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "DELIVERY_POINT",
+              "REGION",
+              "UNKNOWN"
+            ],
+            "title": "Scope",
+            "default": "UNKNOWN"
+          },
+          "provenance_kind": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED_TRADE",
+              "DEMO_SEED"
+            ],
+            "title": "Provenance Kind",
+            "default": "CONFIRMED_TRADE"
           }
         },
         "type": "object",

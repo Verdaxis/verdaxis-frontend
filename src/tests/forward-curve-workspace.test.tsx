@@ -123,7 +123,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('Demo').length).toBeGreaterThanOrEqual(32);
     expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
     expect(screen.getByText('Indicative Period Range')).toBeTruthy();
-    expect(screen.getByText('24h market · 7D region/window history')).toBeTruthy();
+    expect(screen.getByText('24h market · 7D delivery-point history')).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('No confirmed trades in the last 7 days for this selected market context.')).toBeTruthy();
     });
@@ -423,7 +423,7 @@ describe('ForwardCurveWorkspace', () => {
         price_per_mt_usd: 712,
         confirmed_at: new Date().toISOString(),
         availability_window: 'SPOT',
-        is_demo_trade: true,
+        provenance_kind: 'DEMO_SEED',
       }],
       total: 1,
       market_hours: false,
@@ -433,6 +433,12 @@ describe('ForwardCurveWorkspace', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText('Demo trade seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
+    });
+    expect(tradeTapeMock).toHaveBeenCalledWith({
+      market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-singapore',
+      availability_window: 'SPOT',
+      limit: 8,
     });
   });
 

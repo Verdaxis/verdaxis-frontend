@@ -260,14 +260,43 @@ describe('Marketplace green fuels surface', () => {
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        delivery_point_id: 'dp-1',
+        region: undefined,
         availability_window: 'SPOT',
         limit: 20,
       });
     });
 
     expect(screen.getByText(/one exact product, port, and availability window/i)).toBeTruthy();
+    expect(screen.getByText(/delivery-point trade tape history/i)).toBeTruthy();
     expect(await screen.findByText('Trade Tape')).toBeTruthy();
+  });
+
+  it('labels trade tape as region-level when the selected port has no resolved delivery point', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+    deliveryPoints.mockResolvedValue([
+      { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
+    ]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    await waitFor(() => {
+      expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
+        delivery_point_id: undefined,
+        region: 'Singapore',
+      }));
+    });
+
+    expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
+    expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
   });
 
   it('asks the user to select an exact slice before showing the orderbook', async () => {

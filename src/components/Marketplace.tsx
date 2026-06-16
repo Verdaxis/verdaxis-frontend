@@ -200,6 +200,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         )
         : '';
     const isCurrentSliceTracked = Boolean(currentSliceTarget) && trackedSliceKeys.has(currentSliceKey);
+    const marketScopeReadyCopyKey = resolvedDeliveryPointId
+        ? 'marketScope.ready'
+        : 'marketScope.readyRegionTape';
 
     // ─── Client-side filters ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
@@ -1008,7 +1011,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         {t('marketScope.title')}
                                     </div>
                                     <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
-                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t('marketScope.ready')}
+                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t(marketScopeReadyCopyKey)}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[720px]">
@@ -1062,7 +1065,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                     <TradeTape
                                         marketProduct={marketProduct}
                                         availability={availability || undefined}
-                                        region={resolvedPort || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
+                                        region={resolvedDeliveryPointId ? undefined : resolvedPort || undefined}
                                     />
                                 </div>
                             )}

@@ -41,6 +41,9 @@ const quantity = (value: number | string | null | undefined) => {
     return `${numberValue.toLocaleString()} MT`;
 };
 
+const isDemoTapeEntry = (entry: TradeTapeEntry) =>
+    entry.is_demo_trade === true || entry.provenance_kind === 'DEMO_SEED';
+
 const sourceLabel = (source: string | null | undefined, isDemo: boolean) => {
     if (isDemo) return 'Demo reference';
     if (!source) return 'No reference';
@@ -50,8 +53,8 @@ const sourceLabel = (source: string | null | undefined, isDemo: boolean) => {
 const marketSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
     [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
 
-const tradeSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointName: string | undefined, availabilityWindow: string | undefined) =>
-    [marketProduct || '', deliveryPointName || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
+const tradeSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
+    [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
 
 function getStoredWindow() {
     if (typeof window === 'undefined') return 'SPOT';
@@ -552,7 +555,7 @@ const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; una
         <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('tradeTape.title')}</span>
-                <span className="text-[10px] text-slate-500">{t('tradeTape.status.history')}</span>
+                <span className="text-[10px] text-slate-500">{t('tradeTape.status.deliveryPointHistory')}</span>
             </div>
             <div className="divide-y divide-slate-900">
                 {unavailable ? (
@@ -566,7 +569,7 @@ const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; una
                         <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
                         <span className="truncate text-slate-300">
                             {quantity(trade.quantity_mt)}
-                            {trade.is_demo_trade && (
+                            {isDemoTapeEntry(trade) && (
                                 <span
                                     className="ml-1 text-[9px] font-bold uppercase text-amber-300"
                                     aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
@@ -658,7 +661,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const boardMatchesSelectedSlice = Boolean(selectedDepthSliceKey && boardDepthSliceKey === selectedDepthSliceKey);
     const depthReadyForSelected = Boolean(boardMatchesSelectedSlice && !loading);
     const selectedTradeSliceKey = focusedCell
-        ? tradeSliceKey(focusedCell.market_product, focusedCell.delivery_point_name, focusedCell.availability_window)
+        ? tradeSliceKey(focusedCell.market_product, focusedCell.delivery_point_id, focusedCell.availability_window)
         : null;
     const tradesReadyForSelected = Boolean(selectedTradeSliceKey && tradeDataSliceKey === selectedTradeSliceKey && !tradeLoading);
     const visibleTrades = tradesReadyForSelected ? trades : [];
@@ -678,15 +681,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 return;
             }
             const marketProduct = focusedCell.market_product;
-            const deliveryPointName = focusedCell.delivery_point_name;
+            const deliveryPointId = focusedCell.delivery_point_id;
             const availabilityWindow = focusedCell.availability_window;
-            const sliceKey = tradeSliceKey(marketProduct, deliveryPointName, availabilityWindow);
+            const sliceKey = tradeSliceKey(marketProduct, deliveryPointId, availabilityWindow);
             setTradeLoading(true);
             setTradeDataSliceKey(null);
             try {
                 const response = await api.tradeTape.list({
                     market_product: marketProduct,
-                    region: deliveryPointName,
+                    delivery_point_id: deliveryPointId,
                     availability_window: availabilityWindow,
                     limit: 8,
                 });
