@@ -209,6 +209,18 @@
 - **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
 - **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
 
+### Frontend backlog reviews need browser evidence
+- **Date:** 2026-06-17
+- **Trigger:** User corrected a Verdaxis frontend feedback backlog review that only inspected code and tests.
+- **Rule:** For frontend feedback backlog planning, visually dogfood the relevant UI in a browser and include screenshot paths, viewports, and console/network observations; if browser dogfood is blocked, mark the review as FAIL.
+- **Why:** Code inspection can miss actual rendered layout, auth state, stale deployed assets, and browser-only failures.
+
+### Make UI Reviewers Browser-Dogfood Before Passing
+- **Date:** 2026-06-17
+- **Trigger:** The user corrected the review process: reviewers should visually dogfood the browser UI, not just inspect code.
+- **Rule:** For any UI-facing reviewer gate, require live browser dogfood evidence with screenshots across relevant viewport sizes before accepting the review as a pass.
+- **Why:** Code review can miss layout, z-index, overflow, visual hierarchy, and interaction regressions that only show up in the rendered app.
+
 ### Check all sidebar sources before calling navigation removed
 - **Date:** 2026-05-19
 - **Trigger:** The user clarified that Compliance and Education should also be removed after I only checked the primary sidebar navigation.
@@ -426,3 +438,9 @@
 - **Trigger:** User corrected that reviewers should visually dogfood UI changes in the browser, not only inspect code.
 - **Rule:** For UI-facing review passes, include browser dogfooding on the affected pages and viewport sizes before declaring the review clean.
 - **Why:** Code review and unit tests can miss visual regressions, blocked interactions, viewport overflow, and misleading copy in the actual rendered app.
+
+### Fail UI Reviews When Browser Dogfooding Is Blocked
+- **Date:** 2026-06-17
+- **Trigger:** User corrected the review process to require agent-browser dogfooding, viewport checks, screenshot paths, and explicit FAIL status if browser dogfooding cannot run.
+- **Rule:** For design/product UI reviews, capture browser screenshots for the relevant staging surfaces and viewports; if browser automation or screenshots are blocked, mark the review as FAIL with the blocker instead of substituting code inspection.
+- **Why:** A design review without rendered evidence can miss visual defects and overstate confidence.

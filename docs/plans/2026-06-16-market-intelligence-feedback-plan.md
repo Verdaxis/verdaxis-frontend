@@ -23,6 +23,13 @@ Implementation note, 2026-06-16 follow-up:
 - Listing-derived map widgets are labelled as recent listing indications and static map-popup prices are labelled as reference values, not confirmed trades.
 - The global Intelligence Panel forward-curve preview is labelled as product-level indicative reference data with no selected delivery-point filter.
 
+Implementation note, 2026-06-17 follow-up:
+
+- Marketplace benchmark labels must stay provenance-safe. Benchmark deltas are reference context for the visible market slice, not proof of live liquidity.
+- Empty benchmark states should say `No benchmark reference`, not `No live benchmark`.
+- Compact benchmark labels should use `Benchmark ref` or equivalent wording rather than implying a confirmed live price source.
+- UI review gates for this surface require browser dogfood screenshots across relevant viewports; code-only review is not enough for a pass.
+
 ### Remove ecommerce cart language
 
 - Replace the Marketplace sidebar `ShoppingCart` icon with a trading/procurement-native `Handshake` icon.
@@ -81,6 +88,20 @@ Acceptance:
 - Empty tape copy is clear about the last-7-days scope.
 - API calls use `delivery_point_id` for catalog-backed exact market slices, and only fall back to `region` when no delivery-point ID exists.
 - Empty tape copy may refer to the selected delivery-point context only when `/api/trade-tape` supports and returns delivery-point IDs.
+
+### Keep marketplace benchmark labels provenance-safe
+
+- Replace stale live-market copy in the listing price benchmark block.
+- Keep the component leaf-level; do not change marketplace listing, orderbook, or trade execution behavior.
+- Add a focused component test and a source regression guard so future edits do not reintroduce `live benchmark` language.
+- Dogfood the Marketplace listing view in the browser after deployment to staging and capture screenshots for desktop and tablet-ish widths.
+
+Acceptance:
+
+- Listing rows with benchmark context show `Benchmark ref $...` and keep the delta pill unchanged.
+- Listing rows without benchmark context show `No benchmark reference`.
+- No user-facing marketplace benchmark text claims a live benchmark.
+- Staging browser screenshots show the benchmark labels are not clipped and do not disrupt the existing bid/ask layout.
 
 ### Make selected matrix cells expand into a single-period drilldown
 

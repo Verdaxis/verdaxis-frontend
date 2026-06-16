@@ -242,6 +242,14 @@ describe('platform regression guards', () => {
     expect(tickerSource).toContain("status: 'UNAVAILABLE'");
   });
 
+  it('keeps marketplace benchmark labels framed as references instead of live liquidity', () => {
+    const benchmarkSource = readFileSync(resolve(process.cwd(), 'src/components/trading/BenchmarkPriceBlock.tsx'), 'utf8');
+
+    expect(benchmarkSource).toContain('Benchmark ref $');
+    expect(benchmarkSource).toContain('No benchmark reference');
+    expect(benchmarkSource).not.toMatch(/live benchmark/i);
+  });
+
   it('keeps the Intelligence Map compliance estimator local, indicative, and non-certifying', () => {
     const estimatorSource = readFileSync(resolve(process.cwd(), 'src/components/map/ComplianceEstimatorCard.tsx'), 'utf8');
     const estimatorModelSource = readFileSync(resolve(process.cwd(), 'src/utils/complianceEstimator.ts'), 'utf8');

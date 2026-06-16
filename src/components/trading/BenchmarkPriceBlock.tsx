@@ -22,8 +22,8 @@ export const BenchmarkPriceBlock: React.FC<BenchmarkPriceBlockProps> = ({
 }) => {
   const hasBenchmark = typeof benchmarkUsd === 'number' && Number.isFinite(benchmarkUsd);
   const hasDelta = typeof deltaUsd === 'number' && Number.isFinite(deltaUsd);
-  const benchmarkLabel = hasBenchmark ? `Bench $${formatUsd(benchmarkUsd!)}` : 'No live benchmark';
-  const benchmarkTitle = hasBenchmark ? `vs benchmark $${formatUsd(benchmarkUsd!)}/MT` : benchmarkLabel;
+  const benchmarkLabel = hasBenchmark ? `Benchmark ref $${formatUsd(benchmarkUsd!)}` : 'No benchmark reference';
+  const benchmarkTitle = hasBenchmark ? `vs benchmark reference $${formatUsd(benchmarkUsd!)}/MT` : benchmarkLabel;
   const deltaTone = !hasDelta || deltaUsd == null
     ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'
     : deltaUsd <= 0
