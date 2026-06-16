@@ -33,6 +33,27 @@ describe('platform regression guards', () => {
     expect(sidebarSource).toContain("key: 'FORWARD_CURVE'");
   });
 
+  it('keeps trade tape status 24-hour and history-scoped instead of market-hours based', () => {
+    const tradeTapeSource = readFileSync(resolve(process.cwd(), 'src/components/TradeTape.tsx'), 'utf8');
+    const forwardSource = readFileSync(resolve(process.cwd(), 'src/components/ForwardCurveWorkspace.tsx'), 'utf8');
+    const tradingEn = readFileSync(resolve(process.cwd(), 'src/locales/en/trading.json'), 'utf8');
+
+    expect(tradeTapeSource).toContain("t('tradeTape.status.history')");
+    expect(tradeTapeSource).toContain('Clock3');
+    expect(tradeTapeSource).toContain('Demo trade seeded for platform preview');
+    expect(tradeTapeSource).not.toContain('setMarketOpen');
+    expect(tradeTapeSource).not.toContain('market_hours');
+    expect(tradeTapeSource).not.toContain('tradeTape.market.open');
+    expect(tradeTapeSource).not.toContain('tradeTape.market.closed');
+    expect(forwardSource).toContain('24h market · 7D confirmed trades');
+    expect(forwardSource).toContain('No confirmed trades in the last 7 days for this selected slice.');
+    expect(forwardSource).toContain('Demo trade seeded for platform preview');
+    expect(forwardSource).not.toContain('Live · 7D history');
+    expect(tradingEn).toContain('"tradeTape.empty": "No confirmed trades in the last 7 days"');
+    expect(tradingEn).not.toContain('tradeTape.market.open');
+    expect(tradingEn).not.toContain('tradeTape.market.closed');
+  });
+
   it('keeps interactive guided tour anchors wired to current market surfaces', () => {
     const tutorialSource = readFileSync(resolve(process.cwd(), 'src/components/GuidedTutorial.tsx'), 'utf8');
     const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');

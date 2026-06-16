@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Activity, Loader2 } from 'lucide-react';
+import { Activity, Clock3, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { TradeTapeEntry } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
@@ -57,7 +57,6 @@ interface TradeTapeProps {
 export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region }) => {
     const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
-    const [marketOpen, setMarketOpen] = useState(true);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -74,7 +73,6 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];
             setTrades(Array.isArray(items) ? items : []);
-            setMarketOpen(data.market_hours ?? true);
             setTotal(data.total ?? items.length ?? 0);
         } catch {
             // Silently fail — tape is informational
@@ -117,9 +115,9 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${marketOpen ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                    <Clock3 size={11} className="text-slate-400" aria-hidden="true" />
                     <span className="text-[10px] text-slate-400 font-medium">
-                        {marketOpen ? t('tradeTape.market.open') : t('tradeTape.market.closed')}
+                        {t('tradeTape.status.history')}
                     </span>
                 </div>
             </div>
@@ -143,6 +141,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                     {t2.is_demo_trade && (
                                         <span
                                             className="ml-1 rounded border border-amber-300/60 bg-amber-50 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
+                                            aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
                                             title="Demo trade seeded for platform preview. Not user-posted liquidity."
                                         >
                                             Demo

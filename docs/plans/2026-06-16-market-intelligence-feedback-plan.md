@@ -49,6 +49,21 @@ Acceptance:
 - The ticker uses canonical market products and approved delivery points, not broad fuel-family string matching.
 - The compact map overlay remains keyboard accessible and does not block side-panel controls.
 
+### Make trade tape status 24-hour and provenance-safe
+
+- Remove `market open` / `market closed` semantics from active trade tape headers.
+- Present the trade tape as a 24-hour marketplace surface with a 7-day confirmed-trade history window.
+- When the selected slice has no prints, say that there are no confirmed trades in the last 7 days instead of implying the market is unavailable.
+- Keep demo trade tags visible when demo prints exist.
+- Do not change Market Terminal layout or the trade workflow.
+
+Acceptance:
+
+- Marketplace trade tape no longer displays `Live` or `Unavailable` based on `market_hours`.
+- Forward Curve trade tape no longer claims a live feed when it only has empty history.
+- Empty tape copy is clear about the last-7-days scope.
+- API calls remain on the existing `market_product + region + availability_window` contract unless the backend adds canonical `delivery_point_id` support.
+
 ## Larger Feature Tracks
 
 ### Forward Curve swaps matrix

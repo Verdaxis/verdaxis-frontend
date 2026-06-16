@@ -114,6 +114,9 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('Demo').length).toBeGreaterThanOrEqual(32);
     expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
     expect(screen.getByText('Indicative Period Range')).toBeTruthy();
+    expect(screen.getByText('24h market · 7D confirmed trades')).toBeTruthy();
+    expect(screen.getByText('No confirmed trades in the last 7 days for this selected slice.')).toBeTruthy();
+    expect(screen.queryByText('Live · 7D history')).toBeNull();
   });
 
   it('places the forward curve chart above the market matrix', async () => {
@@ -195,6 +198,31 @@ describe('ForwardCurveWorkspace', () => {
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
     expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
     expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
+  });
+
+  it('keeps demo trade provenance accessible in the forward curve trade tape', async () => {
+    tradeTapeMock.mockResolvedValue({
+      items: [{
+        id: 'demo-print-1',
+        market_product: 'BIO_METHANOL',
+        fuel_type: 'Methanol',
+        fuel_grade: 'Bio',
+        region: 'Singapore',
+        quantity_mt: 1400,
+        price_per_mt_usd: 712,
+        confirmed_at: new Date().toISOString(),
+        availability_window: 'SPOT',
+        is_demo_trade: true,
+      }],
+      total: 1,
+      market_hours: false,
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Demo trade seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
+    });
   });
 
   it('ignores stale stored filters that would make the board endpoint reject the request', async () => {
