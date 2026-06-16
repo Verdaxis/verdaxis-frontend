@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, ShoppingCart, ArrowRight, TrendingUp } from 'lucide-react';
+import { Loader2, Handshake, ArrowRight, TrendingUp } from 'lucide-react';
 import { OrderBookOrder, Page } from '../types';
 import { api } from '../services/api';
 
@@ -56,7 +56,7 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
 
             {bids.length === 0 ? (
                 <div className="text-center py-6">
-                    <ShoppingCart className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
+                    <Handshake className="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
                     <p className="text-sm text-slate-400 dark:text-slate-500">
                         No buyer demand matching your profile yet. Post supply to attract buyers.
                     </p>

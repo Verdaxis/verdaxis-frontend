@@ -153,6 +153,16 @@ describe('platform regression guards', () => {
     expect(tutorialSource).not.toContain('target: \'[data-tour="forward-market-matrix"]\', titleKey: \'supplier.20.title\'');
   });
 
+  it('keeps marketplace iconography out of ecommerce cart language', () => {
+    const sidebarSource = readFileSync(resolve(process.cwd(), 'src/components/layout/sidebarConfig.ts'), 'utf8');
+    const demandFeedSource = readFileSync(resolve(process.cwd(), 'src/components/SupplierDemandFeed.tsx'), 'utf8');
+
+    expect(sidebarSource).toContain('Handshake');
+    expect(demandFeedSource).toContain('Handshake');
+    expect(sidebarSource).not.toContain('ShoppingCart');
+    expect(demandFeedSource).not.toContain('ShoppingCart');
+  });
+
   it('keeps stale intelligence map education and legacy ticker labels out of active map surfaces', () => {
     const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
     const tickerSource = readFileSync(resolve(process.cwd(), 'src/components/map/MarketWatchTicker.tsx'), 'utf8');

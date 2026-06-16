@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { screen } from '@testing-library/react';
 import React from 'react';
+import { Handshake } from 'lucide-react';
 
 import { buildPrimarySidebarItems } from '../components/layout/sidebarConfig';
 import { Sidebar } from '../components/layout/Sidebar';
@@ -30,6 +31,12 @@ describe('sidebar config', () => {
 
     expect(forwardCurve?.page).toBe('FORWARD_CURVE');
     expect(forwardCurve?.label).toBe('sidebar.marketTerminal');
+  });
+
+  it('uses trading-native marketplace iconography instead of ecommerce cart framing', () => {
+    const marketplace = buildPrimarySidebarItems(t as any, 'BUYER').find((item) => item.key === 'MARKETPLACE');
+
+    expect(marketplace?.icon).toBe(Handshake);
   });
 
   it('does not render deferred compliance or education sidebar links', () => {

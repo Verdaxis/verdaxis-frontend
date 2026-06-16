@@ -402,3 +402,9 @@
 - **Trigger:** User reported Joyride instructions still being cut off on smaller screens after previous tutorial fixes.
 - **Rule:** Guided tour steps must compute placement against the current target rect and viewport, then flip or center when the preferred side cannot fit.
 - **Why:** Fixed Joyride placements can pass desktop testing but still overflow on smaller viewport widths or heights.
+
+### Stage Feedback Branches Before Production
+- **Date:** 2026-06-16
+- **Trigger:** User clarified new Verdaxis feedback work should go into a new branch and deploy to staging only, not production.
+- **Rule:** For feedback batches that users need to vet, create a dedicated branch based on the current staging branch, deploy only to staging, and wait for explicit production approval.
+- **Why:** Main and staging can diverge, and deploying feedback directly to production risks exposing unvetted UX/product changes to users.
