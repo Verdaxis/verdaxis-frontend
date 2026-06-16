@@ -18,6 +18,21 @@ Acceptance:
 - Supplier demand feed still renders empty/loading/populated states.
 - No cart/trolley import remains in active marketplace navigation or supplier demand feed.
 
+### Make forward matrix cell inspection explicit
+
+- Rename the monitoring chart to `Indicative Forward Curve` and the table to `Selected-Window Forward Matrix`.
+- Keep the existing guided-tour anchors stable while updating tour copy in English and Chinese.
+- Add a selected-period detail panel that updates immediately when a matrix price cell is clicked.
+- Visualize only fields already available on `ForwardCurveBoardCell`: benchmark, best bid, best ask, spread, volume, order count, and benchmark source/demo status.
+- Render missing benchmark/bid/ask/spread values as empty (`--`) instead of zero.
+- Add keyboard/focus-visible states and accessible labels for matrix cell selection.
+
+Acceptance:
+
+- Clicking a non-default matrix cell updates the selected-period rail and marketplace handoff.
+- Demo/provenance language remains explicit: benchmark source is labelled as benchmark source, not full-market provenance.
+- No stems, indications, fair-value bands, or confirmed-live claims are introduced without backend data.
+
 ## Larger Feature Tracks
 
 ### Forward Curve swaps matrix

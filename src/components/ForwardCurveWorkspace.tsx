@@ -21,12 +21,14 @@ const isMarketProduct = (value: string | null): value is MarketProduct =>
     MARKET_PRODUCTS.includes(value as MarketProduct);
 
 const currency = (value: number | string | null | undefined) => {
+    if (value == null || value === '') return '--';
     const numberValue = Number(value);
     if (!Number.isFinite(numberValue)) return '--';
     return `$${numberValue.toFixed(0)}`;
 };
 
 const numberOrNull = (value: number | string | null | undefined) => {
+    if (value == null || value === '') return null;
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : null;
 };
@@ -129,7 +131,7 @@ const CurveChart: React.FC<{ points: ForwardCurveBoardCell[] }> = ({ points }) =
 
     return (
         <div className="border border-slate-800 bg-[#05080d]">
-            <svg viewBox="0 0 760 240" className="w-full h-[260px]" role="img" aria-label="Hybrid forward curve">
+            <svg viewBox="0 0 760 240" className="w-full h-[260px]" role="img" aria-label="Indicative forward curve">
                 <rect x="0" y="0" width="760" height="240" fill="#05080d" />
                 {[0, 1, 2, 3].map(index => (
                     <line key={index} x1="36" x2="724" y1={24 + index * 48} y2={24 + index * 48} stroke="#182335" strokeWidth="1" />
@@ -151,6 +153,117 @@ const CurveChart: React.FC<{ points: ForwardCurveBoardCell[] }> = ({ points }) =
                 <text x="44" y="30" fill="#64748b" fontSize="10" fontFamily="monospace">{currency(chart.max)}</text>
                 <text x="44" y="196" fill="#64748b" fontSize="10" fontFamily="monospace">{currency(chart.min)}</text>
             </svg>
+        </div>
+    );
+};
+
+const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null }> = ({ cell }) => {
+    const graph = useMemo(() => {
+        if (!cell) return null;
+
+        const markers = [
+            { key: 'bid', label: 'Bid', value: numberOrNull(cell.best_bid), className: 'bg-emerald-300', textClassName: 'text-emerald-300' },
+            { key: 'benchmark', label: 'Benchmark', value: numberOrNull(cell.benchmark_mid), className: 'bg-blue-300', textClassName: 'text-blue-300' },
+            { key: 'ask', label: 'Ask', value: numberOrNull(cell.best_ask), className: 'bg-rose-300', textClassName: 'text-rose-300' },
+        ].filter((marker): marker is {
+            key: string;
+            label: string;
+            value: number;
+            className: string;
+            textClassName: string;
+        } => marker.value != null);
+
+        if (markers.length < 2) return { markers, min: null, max: null, range: 0 };
+
+        const rawMin = Math.min(...markers.map(marker => marker.value));
+        const rawMax = Math.max(...markers.map(marker => marker.value));
+        const padding = Math.max((rawMax - rawMin) * 0.16, 6);
+
+        return {
+            markers,
+            min: rawMin - padding,
+            max: rawMax + padding,
+            range: Math.max((rawMax + padding) - (rawMin - padding), 1),
+        };
+    }, [cell]);
+
+    if (!cell || !graph) {
+        return (
+            <div data-tour="forward-period-detail" className="border-t border-slate-800 px-3 py-4 text-[11px] text-slate-500">
+                Select a matrix cell to inspect a single market period.
+            </div>
+        );
+    }
+
+    return (
+        <div data-tour="forward-period-detail" className="border-t border-slate-800 px-3 py-3">
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Indicative Period Range</div>
+                    <div className="mt-1 text-[11px] text-slate-400">
+                        {formatMarketProduct(cell.market_product)} · {cell.delivery_point_name} · {formatAvailabilityWindowPeriod(cell.availability_window)}
+                    </div>
+                </div>
+                <div className="text-right text-[10px] uppercase tracking-wider text-slate-500">
+                    <div>{cell.order_count} orders</div>
+                    <div>{quantity(cell.volume_mt)}</div>
+                </div>
+            </div>
+
+            {graph.min == null || graph.max == null ? (
+                <div className="flex min-h-20 items-center justify-center border border-slate-800 bg-[#05080d] text-center text-[11px] text-slate-500">
+                    Not enough bid/ask context yet.
+                </div>
+            ) : (
+                <div className="border border-slate-800 bg-[#05080d] px-3 py-4">
+                    <div className="relative h-10">
+                        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-700" />
+                        {graph.markers.map(marker => {
+                            const left = ((marker.value - graph.min!) / graph.range) * 100;
+                            return (
+                                <div
+                                    key={marker.key}
+                                    className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+                                    style={{ left: `${Math.min(100, Math.max(0, left))}%` }}
+                                >
+                                    <div className={`mx-auto h-3 w-3 rounded-full ${marker.className}`} />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-5 flex items-center justify-between font-mono text-[10px] text-slate-500">
+                        <span>{currency(graph.min)}</span>
+                        <span>{currency(graph.max)}</span>
+                    </div>
+                </div>
+            )}
+
+            {graph.markers.length > 0 && (
+                <dl className="mt-3 grid grid-cols-3 gap-px bg-slate-900">
+                    {graph.markers.map(marker => (
+                        <div key={marker.key} className="min-w-0 bg-[#080c13] p-2">
+                            <dt className={`truncate text-[9px] font-bold uppercase tracking-wider ${marker.textClassName}`}>{marker.label}</dt>
+                            <dd className="mt-1 font-mono text-sm font-bold text-slate-100">{currency(marker.value)}</dd>
+                        </div>
+                    ))}
+                </dl>
+            )}
+            <div className="mt-3 grid grid-cols-3 gap-px bg-slate-900">
+                <div className="bg-[#080c13] p-2">
+                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Spread</div>
+                    <div className="mt-1 font-mono text-sm font-bold text-slate-200">{currency(cell.spread)}</div>
+                </div>
+                <div className="bg-[#080c13] p-2">
+                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Volume</div>
+                    <div className="mt-1 font-mono text-sm font-bold text-slate-200">{quantity(cell.volume_mt)}</div>
+                </div>
+                <div className="bg-[#080c13] p-2">
+                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Benchmark Source</div>
+                    <div className="mt-1 truncate text-[10px] font-bold uppercase text-slate-300">
+                        {sourceLabel(cell.benchmark_source, cell.is_demo_benchmark)}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -257,15 +370,30 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         return () => clearInterval(interval);
     }, [fetchBoard, focusDeliveryPointId, focusMarketProduct, selectedWindow]);
 
+    const focusedCell = useMemo(() => {
+        if (!board) return null;
+
+        const selectedDeliveryPointId = focusDeliveryPointId ?? board.focus.delivery_point_id;
+        return board.ports
+            .flatMap(port => port.cells)
+            .find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === selectedDeliveryPointId)
+            ?? board.ports
+                .flatMap(port => port.cells)
+                .find(cell => cell.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id)
+            ?? null;
+    }, [board, focusDeliveryPointId, focusMarketProduct]);
+
     useEffect(() => {
         let cancelled = false;
         const fetchTrades = async () => {
             if (!board) return;
             setTradeLoading(true);
             try {
+                const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
+                const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
                 const response = await api.tradeTape.list({
-                    market_product: board.focus.market_product,
-                    region: board.focus.delivery_point_name,
+                    market_product: marketProduct,
+                    region: deliveryPointName,
                     availability_window: board.availability_window,
                     limit: 8,
                 });
@@ -281,20 +409,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         return () => {
             cancelled = true;
         };
-    }, [board?.focus.market_product, board?.focus.delivery_point_name, board?.availability_window]);
-
-    const focusedCell = useMemo(() => {
-        if (!board) return null;
-        return board.ports
-            .flatMap(port => port.cells)
-            .find(cell => cell.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id) ?? null;
-    }, [board]);
+    }, [board, focusedCell?.market_product, focusedCell?.delivery_point_name]);
 
     const openMarketplace = () => {
         if (!board) return;
-        localStorage.setItem('verdaxis_marketplace_port', board.focus.delivery_point_name);
-        localStorage.setItem('verdaxis_marketplace_product', board.focus.market_product);
-        localStorage.setItem('verdaxis_marketplace_fuel', board.focus.market_product);
+        const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
+        const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
+        localStorage.setItem('verdaxis_marketplace_port', deliveryPointName);
+        localStorage.setItem('verdaxis_marketplace_product', marketProduct);
+        localStorage.setItem('verdaxis_marketplace_fuel', marketProduct);
         localStorage.setItem('verdaxis_marketplace_window', board.availability_window);
         onNavigate?.('MARKETPLACE');
     };
@@ -322,7 +445,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             aria-label="Availability window"
                             value={selectedWindow}
                             onChange={event => setSelectedWindow(normalizeAvailabilityWindow(event.target.value))}
-                            className="h-8 border border-slate-700 bg-[#05070b] px-2 text-[11px] font-bold text-slate-200 outline-none"
+                            className="h-8 border border-slate-700 bg-[#05070b] px-2 text-[11px] font-bold text-slate-200 outline-none focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
                             {windowOptions.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -330,7 +453,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         </select>
                         <button
                             onClick={fetchBoard}
-                            className="flex h-8 items-center gap-1 border border-slate-700 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300"
+                            className="flex h-8 items-center gap-1 border border-slate-700 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
                             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                             Refresh
@@ -339,7 +462,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             data-tour="forward-open-marketplace"
                             onClick={openMarketplace}
                             disabled={!board}
-                            className="flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                            className="flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         >
                             Open Marketplace
                             <ArrowRight size={13} />
@@ -359,8 +482,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             <div className="flex items-center gap-2">
                                 <TrendingUp size={13} className="text-blue-300" />
                                 <div>
-                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Hybrid Forward Curve</div>
-                                    <div className="text-[10px] text-slate-500">Benchmark mid with visible bid/ask context</div>
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Indicative Forward Curve</div>
+                                    <div className="text-[10px] text-slate-500">Benchmark mid with visible orderbook context</div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 text-[10px] text-slate-500">
@@ -377,8 +500,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     <section data-tour="forward-market-matrix" className="overflow-hidden border border-slate-800 bg-[#080c13]">
                         <div data-tour="forward-market-matrix-header" className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                             <div>
-                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market Matrix</div>
-                                <div className="text-[10px] text-slate-500">Window: {formatAvailabilityWindowPeriod(board.availability_window)}</div>
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected-Window Forward Matrix</div>
+                                <div className="text-[10px] text-slate-500">Click a price cell to inspect {formatAvailabilityWindowPeriod(board.availability_window)}</div>
                             </div>
                             <div className="flex items-center gap-3 text-[10px] text-slate-500">
                                 <span><span className="mr-1 inline-block h-2 w-2 bg-blue-400" />Benchmark</span>
@@ -399,26 +522,26 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 ))}
                                 {board.ports.map(port => (
                                     <React.Fragment key={port.delivery_point_id}>
-                                        <button
-                                            onClick={() => {
-                                                const firstCell = port.cells[0];
-                                                if (firstCell) selectCell(firstCell);
-                                            }}
-                                            className="bg-[#080c13] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:bg-[#0d1520]"
-                                        >
+                                        <div className="bg-[#080c13] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-300">
                                             {port.delivery_point_name}
                                             <span className="mt-1 block text-[9px] font-normal uppercase text-slate-600">{port.region}</span>
-                                        </button>
+                                        </div>
                                         {board.products.map(product => {
                                             const cell = port.cells.find(item => item.market_product === product.market_product);
-                                            const selected = cell?.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id;
+                                            const selectedDeliveryPointId = focusDeliveryPointId ?? board.focus.delivery_point_id;
+                                            const selected = cell?.market_product === focusMarketProduct && cell.delivery_point_id === selectedDeliveryPointId;
                                             return (
                                                 <button
                                                     key={`${port.delivery_point_id}-${product.market_product}`}
                                                     onClick={() => cell && selectCell(cell)}
-                                                    className={`min-h-[88px] bg-[#080c13] px-3 py-2 text-left transition-colors hover:bg-[#0d1520] ${
+                                                    disabled={!cell}
+                                                    aria-pressed={Boolean(selected)}
+                                                    aria-label={cell
+                                                        ? `Open period detail for ${formatMarketProduct(cell.market_product)} at ${cell.delivery_point_name}, ${formatAvailabilityWindowPeriod(cell.availability_window)}`
+                                                        : `No market for ${formatMarketProduct(product.market_product)} at ${port.delivery_point_name}`}
+                                                    className={`min-h-[88px] bg-[#080c13] px-3 py-2 text-left transition-colors hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
                                                         selected ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
-                                                    }`}
+                                                    } disabled:cursor-not-allowed disabled:text-slate-600`}
                                                 >
                                                     {cell ? (
                                                         <>
@@ -453,10 +576,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 <div>
                                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                         <Target size={12} />
-                                        Focus
+                                        Selected Period
                                     </div>
                                     <div className="mt-1 text-lg font-bold text-slate-100">
-                                        {formatMarketProduct(board.focus.market_product)} - {board.focus.delivery_point_name}
+                                        {formatMarketProduct(focusedCell?.market_product ?? board.focus.market_product)} - {focusedCell?.delivery_point_name ?? board.focus.delivery_point_name}
                                     </div>
                                 </div>
                                 <div className="text-right text-[10px] uppercase tracking-wider text-slate-500">
@@ -478,6 +601,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                     <div className="mt-1 font-mono text-xl font-bold text-rose-300">{currency(focusedCell?.best_ask)}</div>
                                 </div>
                             </div>
+                            <PeriodDetailGraph cell={focusedCell} />
                         </section>
                         <DepthPanel board={board} />
                         <TradeTapePanel trades={trades} loading={tradeLoading} />

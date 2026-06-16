@@ -63,6 +63,9 @@ describe('platform regression guards', () => {
     expect(orderModalSource).toContain('className="flex-1 overflow-y-auto p-4 space-y-3"');
     expect(forwardSource).toContain('forward-curve-chart');
     expect(forwardSource).toContain('forward-open-marketplace');
+    expect(forwardSource).toContain('data-tour="forward-period-detail"');
+    expect(forwardSource).toContain('aria-pressed={Boolean(selected)}');
+    expect(forwardSource).toContain('Benchmark Source');
     expect(tutorialSource).toContain('target: \'[data-tour="order-modal-submit-boundary"]\', titleKey: \'buyer.15.title\', contentKey: \'buyer.15.content\', placement: \'left\'');
     expect(tutorialSource).toContain('target: \'[data-tour="order-modal-submit-boundary"]\', titleKey: \'supplier.16.title\', contentKey: \'supplier.16.content\', placement: \'left\'');
   });

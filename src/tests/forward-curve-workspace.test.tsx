@@ -4,6 +4,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
 import { MARKET_PRODUCTS } from '../types';
+import type { MarketProduct } from '../types';
 import { renderWithProviders } from './test-utils';
 
 const boardMock = vi.fn();
@@ -37,7 +38,10 @@ const productName = (marketProduct: string) => marketProduct
   .replace(/\b\w/g, letter => letter.toUpperCase())
   .replace('E Methanol', 'e-Methanol');
 
-const makeBoard = () => {
+const makeBoard = (
+  focusMarketProduct: MarketProduct = 'BIO_METHANOL',
+  focusDeliveryPointId = 'dp-singapore'
+) => {
   const products = MARKET_PRODUCTS.map((marketProduct, index) => ({
     product_id: `prod-${index}`,
     market_product: marketProduct,
@@ -66,19 +70,22 @@ const makeBoard = () => {
     })),
   }));
 
+  const focusPort = ports.find(port => port.delivery_point_id === focusDeliveryPointId) ?? ports[3];
+  const focusCell = focusPort.cells.find(cell => cell.market_product === focusMarketProduct) ?? focusPort.cells[0];
+
   return {
     availability_window: 'SPOT',
     products,
     ports,
     focus: {
-      product_id: 'prod-0',
-      market_product: 'BIO_METHANOL',
-      product_name: 'Bio Methanol',
-      delivery_point_id: 'dp-singapore',
-      delivery_point_name: 'Singapore',
-      region: 'Asia',
+      product_id: focusCell.product_id,
+      market_product: focusCell.market_product,
+      product_name: focusCell.product_name,
+      delivery_point_id: focusCell.delivery_point_id,
+      delivery_point_name: focusCell.delivery_point_name,
+      region: focusCell.region,
       availability_window: 'SPOT',
-      curve: ports[3].cells.map((cell, index) => ({ ...cell, availability_window: index === 0 ? 'SPOT' : `2026-0${index}` })),
+      curve: focusPort.cells.map((cell, index) => ({ ...cell, availability_window: index === 0 ? 'SPOT' : `2026-0${index}` })),
       depth_bids: [{ price_per_mt_usd: 1048, quantity_mt: 5000, order_count: 1 }],
       depth_asks: [{ price_per_mt_usd: 1056, quantity_mt: 4000, order_count: 1 }],
     },
@@ -99,25 +106,79 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getByText('Market Matrix')).toBeTruthy();
+      expect(screen.getByText('Selected-Window Forward Matrix')).toBeTruthy();
     });
 
     expect(screen.getByText('Dalian')).toBeTruthy();
     expect(screen.getByText('Santos')).toBeTruthy();
     expect(screen.getAllByText('Demo').length).toBeGreaterThanOrEqual(32);
-    expect(screen.getByText('Hybrid Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
   });
 
   it('places the forward curve chart above the market matrix', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getByText('Market Matrix')).toBeTruthy();
+      expect(screen.getByText('Selected-Window Forward Matrix')).toBeTruthy();
     });
 
-    const curveTitle = screen.getByText('Hybrid Forward Curve');
-    const matrixTitle = screen.getByText('Market Matrix');
+    const curveTitle = screen.getByText('Indicative Forward Curve');
+    const matrixTitle = screen.getByText('Selected-Window Forward Matrix');
     expect(curveTitle.compareDocumentPosition(matrixTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('updates the selected-period detail when a matrix cell is clicked', async () => {
+    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
+      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
+      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
+    )));
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    const rotterdamMethanol = await screen.findByRole('button', {
+      name: 'Open period detail for E-Methanol at Rotterdam, SPOT',
+    });
+    expect(rotterdamMethanol.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(rotterdamMethanol);
+
+    await waitFor(() => {
+      expect(screen.getByText('E-Methanol - Rotterdam')).toBeTruthy();
+      expect(rotterdamMethanol.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
+    expect(screen.getAllByText('Demo reference').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('5.0k MT').length).toBeGreaterThan(0);
+  });
+
+  it('renders missing selected-period prices as empty instead of zero', async () => {
+    const board = makeBoard();
+    const singaporeBio = board.ports[3].cells[0];
+    singaporeBio.benchmark_mid = null;
+    singaporeBio.best_bid = null;
+    singaporeBio.best_ask = null;
+    singaporeBio.spread = null;
+    singaporeBio.volume_mt = 0;
+    singaporeBio.order_count = 0;
+    board.focus = {
+      ...board.focus,
+      ...singaporeBio,
+      curve: [singaporeBio],
+      depth_bids: [],
+      depth_asks: [],
+    };
+    boardMock.mockResolvedValue(board);
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Not enough bid/ask context yet.')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('$0')).toBeNull();
+    expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(3);
   });
 
   it('opens the focused slice in Marketplace through the explicit CTA', async () => {
