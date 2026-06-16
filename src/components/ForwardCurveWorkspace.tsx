@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, ArrowRight, RefreshCw, Target, TrendingUp } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Activity, ArrowRight, CheckCircle2, Maximize2, RefreshCw, Target, TrendingUp, X } from 'lucide-react';
 
 import { api } from '../services/api';
 import { MARKET_PRODUCTS } from '../types';
@@ -45,6 +45,12 @@ const sourceLabel = (source: string | null | undefined, isDemo: boolean) => {
     if (!source) return 'No reference';
     return source.replace(/_/g, ' ');
 };
+
+const marketSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
+    [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
+
+const tradeSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointName: string | undefined, availabilityWindow: string | undefined) =>
+    [marketProduct || '', deliveryPointName || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
 
 function getStoredWindow() {
     if (typeof window === 'undefined') return 'SPOT';
@@ -268,6 +274,171 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null }> = ({ c
     );
 };
 
+interface SignalStatus {
+    label: string;
+    status: 'available' | 'empty' | 'refreshing' | 'unavailable';
+    detail: string;
+}
+
+const SignalReadiness: React.FC<{ signals: SignalStatus[] }> = ({ signals }) => (
+    <div className="grid gap-px bg-slate-900">
+        {signals.map(signal => (
+            <div key={signal.label} className="grid grid-cols-[minmax(0,1fr)_112px] gap-3 bg-[#080c13] px-3 py-2 text-[11px]">
+                <div className="min-w-0">
+                    <div className="font-bold uppercase tracking-wider text-slate-300">{signal.label}</div>
+                    <div className="mt-0.5 text-slate-500">{signal.detail}</div>
+                </div>
+                <div className={`flex items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-wider ${
+                    signal.status === 'available'
+                        ? 'text-emerald-300'
+                        : signal.status === 'refreshing'
+                            ? 'text-blue-300'
+                            : signal.status === 'empty'
+                                ? 'text-slate-400'
+                                : 'text-amber-300'
+                }`}>
+                    {signal.status === 'available' && <CheckCircle2 size={12} aria-hidden="true" />}
+                    {signal.status === 'refreshing' && <RefreshCw size={12} className="animate-spin" aria-hidden="true" />}
+                    {signal.status === 'available' ? 'Available' : signal.status === 'refreshing' ? 'Refreshing' : signal.status === 'empty' ? 'No data' : 'No feed'}
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
+const PeriodDrilldownDialog: React.FC<{
+    cell: ForwardCurveBoardCell | null;
+    depthBids: ForwardCurveBoardResponse['focus']['depth_bids'];
+    depthAsks: ForwardCurveBoardResponse['focus']['depth_asks'];
+    depthReady: boolean;
+    trades: TradeTapeEntry[];
+    tradesReady: boolean;
+    open: boolean;
+    onClose: () => void;
+}> = ({ cell, depthBids, depthAsks, depthReady, trades, tradesReady, open, onClose }) => {
+    const titleId = useId();
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            previousFocus?.focus();
+        };
+    }, [onClose, open]);
+
+    const signals = useMemo<SignalStatus[]>(() => {
+        if (!cell) return [];
+        const depthCount = depthBids.length + depthAsks.length;
+
+        return [
+            {
+                label: 'Benchmark',
+                status: numberOrNull(cell.benchmark_mid) == null ? 'empty' : 'available',
+                detail: sourceLabel(cell.benchmark_source, cell.is_demo_benchmark),
+            },
+            {
+                label: 'Latest bid context',
+                status: numberOrNull(cell.best_bid) == null ? 'empty' : 'available',
+                detail: numberOrNull(cell.best_bid) == null ? 'No bid context for this period' : currency(cell.best_bid),
+            },
+            {
+                label: 'Latest ask context',
+                status: numberOrNull(cell.best_ask) == null ? 'empty' : 'available',
+                detail: numberOrNull(cell.best_ask) == null ? 'No ask context for this period' : currency(cell.best_ask),
+            },
+            {
+                label: 'Selected depth',
+                status: !depthReady ? 'refreshing' : depthCount > 0 ? 'available' : 'empty',
+                detail: !depthReady ? 'Refreshing selected slice depth' : depthCount > 0 ? `${depthCount} visible depth levels` : 'No depth levels for this selected slice',
+            },
+            {
+                label: 'Confirmed prints',
+                status: !tradesReady ? 'refreshing' : trades.length > 0 ? 'available' : 'empty',
+                detail: !tradesReady ? 'Refreshing confirmed 7-day prints' : trades.length > 0 ? `${trades.length} confirmed prints in last 7 days` : 'No confirmed trades in the last 7 days',
+            },
+            {
+                label: 'Indications',
+                status: 'unavailable',
+                detail: 'No indications feed connected yet',
+            },
+            {
+                label: 'Physical stems',
+                status: 'unavailable',
+                detail: 'No stems feed connected yet',
+            },
+            {
+                label: 'Fair-value band',
+                status: 'unavailable',
+                detail: 'No model-derived fair-value band yet',
+            },
+        ];
+    }, [cell, depthAsks.length, depthBids.length, depthReady, trades.length, tradesReady]);
+
+    if (!open || !cell) return null;
+
+    return (
+        <div
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+        >
+            <div
+                className="absolute inset-0 cursor-default"
+                aria-hidden="true"
+                onClick={onClose}
+            />
+            <div className="relative z-[1] flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden border border-slate-700 bg-[#05070b] text-slate-100 shadow-2xl">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-4 py-3">
+                    <div>
+                        <div id={titleId} className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Single-Period Drilldown</div>
+                        <div className="mt-1 text-xl font-bold">
+                            {formatMarketProduct(cell.market_product)} - {cell.delivery_point_name}
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-wider text-slate-500">
+                            {formatAvailabilityWindowPeriod(cell.availability_window)} · {cell.region}
+                        </div>
+                    </div>
+                    <button
+                        ref={closeButtonRef}
+                        type="button"
+                        onClick={onClose}
+                        className="rounded border border-slate-700 p-2 text-slate-400 hover:border-slate-500 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+                        aria-label="Close period drilldown"
+                    >
+                        <X size={15} />
+                    </button>
+                </div>
+
+                <div className="grid min-h-0 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+                    <section className="min-w-0 border border-slate-800 bg-[#080c13]">
+                        <div className="border-b border-slate-800 px-3 py-2">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Price Context</div>
+                            <div className="mt-0.5 text-[10px] text-slate-500">Benchmark, bid and ask context for the selected period.</div>
+                        </div>
+                        <PeriodDetailGraph cell={cell} />
+                    </section>
+
+                    <section className="min-w-0 border border-slate-800 bg-[#080c13]">
+                        <div className="border-b border-slate-800 px-3 py-2">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Signal Readiness</div>
+                            <div className="mt-0.5 text-[10px] text-slate-500">Unavailable signals are labelled as missing feeds, not inferred values.</div>
+                        </div>
+                        <SignalReadiness signals={signals} />
+                    </section>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const DepthPanel: React.FC<{ board: ForwardCurveBoardResponse }> = ({ board }) => {
     const bids = board.focus.depth_bids;
     const asks = board.focus.depth_asks;
@@ -344,7 +515,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const [error, setError] = useState<string | null>(null);
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
     const [tradeLoading, setTradeLoading] = useState(false);
+    const [tradeDataSliceKey, setTradeDataSliceKey] = useState<string | null>(null);
+    const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
     const windowOptions = useMemo(() => buildWindowOptions(), []);
+    const closePeriodDialog = useCallback(() => setPeriodDialogOpen(false), []);
 
     const fetchBoard = useCallback(async () => {
         setLoading(true);
@@ -390,24 +564,46 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             ?? null;
     }, [board, focusDeliveryPointId, focusMarketProduct]);
 
+    const selectedDepthSliceKey = focusedCell
+        ? marketSliceKey(focusedCell.market_product, focusedCell.delivery_point_id, focusedCell.availability_window)
+        : null;
+    const boardDepthSliceKey = board
+        ? marketSliceKey(board.focus.market_product, board.focus.delivery_point_id, board.focus.availability_window)
+        : null;
+    const depthReadyForSelected = Boolean(selectedDepthSliceKey && boardDepthSliceKey === selectedDepthSliceKey && !loading);
+    const selectedTradeSliceKey = focusedCell
+        ? tradeSliceKey(focusedCell.market_product, focusedCell.delivery_point_name, focusedCell.availability_window)
+        : null;
+    const tradesReadyForSelected = Boolean(selectedTradeSliceKey && tradeDataSliceKey === selectedTradeSliceKey && !tradeLoading);
+    const visibleTrades = tradesReadyForSelected ? trades : [];
+
     useEffect(() => {
         let cancelled = false;
         const fetchTrades = async () => {
             if (!board) return;
+            const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
+            const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
+            const availabilityWindow = focusedCell?.availability_window ?? board.availability_window;
+            const sliceKey = tradeSliceKey(marketProduct, deliveryPointName, availabilityWindow);
             setTradeLoading(true);
+            setTradeDataSliceKey(null);
             try {
-                const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
-                const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
                 const response = await api.tradeTape.list({
                     market_product: marketProduct,
                     region: deliveryPointName,
-                    availability_window: board.availability_window,
+                    availability_window: availabilityWindow,
                     limit: 8,
                 });
-                if (!cancelled) setTrades(response.items ?? []);
+                if (!cancelled) {
+                    setTrades(response.items ?? []);
+                    setTradeDataSliceKey(sliceKey);
+                }
             } catch (err) {
                 console.error('Failed to load forward curve trade tape', err);
-                if (!cancelled) setTrades([]);
+                if (!cancelled) {
+                    setTrades([]);
+                    setTradeDataSliceKey(sliceKey);
+                }
             } finally {
                 if (!cancelled) setTradeLoading(false);
             }
@@ -416,7 +612,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         return () => {
             cancelled = true;
         };
-    }, [board, focusedCell?.market_product, focusedCell?.delivery_point_name]);
+    }, [board, focusedCell?.availability_window, focusedCell?.delivery_point_name, focusedCell?.market_product]);
 
     const openMarketplace = () => {
         if (!board) return;
@@ -429,9 +625,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         onNavigate?.('MARKETPLACE');
     };
 
-    const selectCell = (cell: ForwardCurveBoardCell) => {
+    const selectCell = (cell: ForwardCurveBoardCell, expand = false) => {
         setFocusMarketProduct(cell.market_product);
         setFocusDeliveryPointId(cell.delivery_point_id);
+        if (expand) setPeriodDialogOpen(true);
     };
 
     return (
@@ -540,7 +737,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             return (
                                                 <button
                                                     key={`${port.delivery_point_id}-${product.market_product}`}
-                                                    onClick={() => cell && selectCell(cell)}
+                                                    onClick={() => cell && selectCell(cell, true)}
                                                     disabled={!cell}
                                                     aria-pressed={Boolean(selected)}
                                                     aria-label={cell
@@ -589,9 +786,21 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                         {formatMarketProduct(focusedCell?.market_product ?? board.focus.market_product)} - {focusedCell?.delivery_point_name ?? board.focus.delivery_point_name}
                                     </div>
                                 </div>
-                                <div className="text-right text-[10px] uppercase tracking-wider text-slate-500">
-                                    <div>{formatAvailabilityWindowPeriod(board.availability_window)}</div>
-                                    <div>{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark) : 'Reference'}</div>
+                                <div className="flex flex-col items-end gap-2 text-right text-[10px] uppercase tracking-wider text-slate-500">
+                                    <div>
+                                        <div>{formatAvailabilityWindowPeriod(board.availability_window)}</div>
+                                        <div>{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark) : 'Reference'}</div>
+                                    </div>
+                                    <button
+                                        data-tour="forward-expand-period"
+                                        type="button"
+                                        onClick={() => setPeriodDialogOpen(true)}
+                                        disabled={!focusedCell}
+                                        className="inline-flex h-7 items-center gap-1 border border-slate-700 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:border-blue-400/60 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+                                    >
+                                        <Maximize2 size={11} />
+                                        Expand period
+                                    </button>
                                 </div>
                             </div>
                             <div className="grid grid-cols-3 gap-px bg-slate-900">
@@ -611,8 +820,18 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             <PeriodDetailGraph cell={focusedCell} />
                         </section>
                         <DepthPanel board={board} />
-                        <TradeTapePanel trades={trades} loading={tradeLoading} />
+                        <TradeTapePanel trades={visibleTrades} loading={tradeLoading || !tradesReadyForSelected} />
                     </div>
+                    <PeriodDrilldownDialog
+                        open={periodDialogOpen}
+                        onClose={closePeriodDialog}
+                        cell={focusedCell}
+                        depthBids={depthReadyForSelected ? board.focus.depth_bids : []}
+                        depthAsks={depthReadyForSelected ? board.focus.depth_asks : []}
+                        depthReady={depthReadyForSelected}
+                        trades={visibleTrades}
+                        tradesReady={tradesReadyForSelected}
+                    />
                 </div>
             )}
         </div>

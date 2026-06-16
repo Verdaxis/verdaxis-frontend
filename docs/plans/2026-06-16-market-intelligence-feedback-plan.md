@@ -64,6 +64,22 @@ Acceptance:
 - Empty tape copy is clear about the last-7-days scope.
 - API calls remain on the existing `market_product + region + availability_window` contract unless the backend adds canonical `delivery_point_id` support.
 
+### Make selected matrix cells expand into a single-period drilldown
+
+- Add an explicit expanded drilldown for the selected Forward Curve matrix cell.
+- Use only current `ForwardCurveBoardCell`, selected-slice depth, and trade-tape data.
+- Show the available signals as benchmark, latest bid context, latest ask context, depth, and confirmed prints.
+- Show requested but unavailable future signals (`indications`, `physical stems`, `fair-value band`) as disabled/unavailable with clear copy, not as invented data.
+- Keep the existing chart-above-matrix layout and Market Terminal untouched.
+
+Acceptance:
+
+- Clicking a matrix cell still updates the selected period.
+- The selected period panel has a clear `Expand period` action that opens a larger drilldown.
+- The drilldown has accessible close behavior and can be dismissed with Escape or the close button.
+- The drilldown labels every signal by source/readiness and never claims unavailable indications, stems, or fair-value bands.
+- Tests cover opening/closing the drilldown, selected-slice labels, unavailable signal copy, and no fake signal labels.
+
 ## Larger Feature Tracks
 
 ### Forward Curve swaps matrix

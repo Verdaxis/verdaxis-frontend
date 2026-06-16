@@ -115,7 +115,9 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
     expect(screen.getByText('Indicative Period Range')).toBeTruthy();
     expect(screen.getByText('24h market · 7D confirmed trades')).toBeTruthy();
-    expect(screen.getByText('No confirmed trades in the last 7 days for this selected slice.')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('No confirmed trades in the last 7 days for this selected slice.')).toBeTruthy();
+    });
     expect(screen.queryByText('Live · 7D history')).toBeNull();
   });
 
@@ -147,13 +149,86 @@ describe('ForwardCurveWorkspace', () => {
     fireEvent.click(rotterdamMethanol);
 
     await waitFor(() => {
-      expect(screen.getByText('E-Methanol - Rotterdam')).toBeTruthy();
+      expect(screen.getAllByText('E-Methanol - Rotterdam').length).toBeGreaterThan(0);
       expect(rotterdamMethanol.getAttribute('aria-pressed')).toBe('true');
     });
 
-    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
+    expect(screen.getAllByText('Indicative Period Range').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo reference').length).toBeGreaterThan(0);
     expect(screen.getAllByText('5.0k MT').length).toBeGreaterThan(0);
+  });
+
+  it('opens a selected-period drilldown with honest unavailable signal labels', async () => {
+    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
+      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
+      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
+    )));
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    const rotterdamMethanol = await screen.findByRole('button', {
+      name: 'Open period detail for E-Methanol at Rotterdam, SPOT',
+    });
+
+    fireEvent.click(rotterdamMethanol);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
+    expect(dialog).toBeTruthy();
+    expect(screen.getByText('Signal Readiness')).toBeTruthy();
+    expect(screen.getByText('Indications')).toBeTruthy();
+    expect(screen.getByText('No indications feed connected yet')).toBeTruthy();
+    expect(screen.getByText('Physical stems')).toBeTruthy();
+    expect(screen.getByText('No stems feed connected yet')).toBeTruthy();
+    expect(screen.getByText('Fair-value band')).toBeTruthy();
+    expect(screen.getByText('No model-derived fair-value band yet')).toBeTruthy();
+    expect(screen.queryByText(/latest indications/i)).toBeNull();
+    expect(screen.queryByText(/physical stems available/i)).toBeNull();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
+    });
+  });
+
+  it('gates drilldown depth and prints while a newly selected slice is still refreshing', async () => {
+    boardMock
+      .mockResolvedValueOnce(makeBoard())
+      .mockImplementationOnce(() => new Promise(() => {}));
+
+    tradeTapeMock
+      .mockResolvedValueOnce({
+        items: [{
+          id: 'old-print',
+          market_product: 'BIO_METHANOL',
+          fuel_type: 'Methanol',
+          fuel_grade: 'Bio',
+          region: 'Singapore',
+          quantity_mt: 1400,
+          price_per_mt_usd: 712,
+          confirmed_at: new Date().toISOString(),
+          availability_window: 'SPOT',
+          is_demo_trade: true,
+        }],
+        total: 1,
+        market_hours: true,
+      })
+      .mockImplementationOnce(() => new Promise(() => {}));
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Selected-Window Forward Matrix');
+
+    const rotterdamMethanol = await screen.findByRole('button', {
+      name: 'Open period detail for E-Methanol at Rotterdam, SPOT',
+    });
+    fireEvent.click(rotterdamMethanol);
+
+    await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
+    expect(screen.getByText('Refreshing selected slice depth')).toBeTruthy();
+    expect(screen.getByText('Refreshing confirmed 7-day prints')).toBeTruthy();
+    expect(screen.queryByText('2 visible depth levels')).toBeNull();
+    expect(screen.queryByText('1 confirmed prints in last 7 days')).toBeNull();
   });
 
   it('renders missing selected-period prices as empty instead of zero', async () => {
