@@ -365,7 +365,24 @@
     "fleetAlertMessage": "船舶 {{name}} 的 {{alertType}} 状态为：{{status}}。CII 等级：{{grade}}。",
     "viewFleetStatus": "查看船队状态",
     "fleetStatus": "船队状态",
-    "allVesselsCompliant": "所有船舶均符合要求。目前无警报。"
+    "allVesselsCompliant": "所有船舶均符合要求。目前无警报。",
+    "estimator": {
+      "title": "FuelEU / EU ETS 估算器",
+      "subtitle": "用于航次敞口和绿色燃料掺混规划的参考估算",
+      "disclaimer": "仅为参考性规划估算。基于假设条件。并非合规申报或法律判断。",
+      "fuelPathway": "绿色燃料路径",
+      "voyageDays": "航次天数",
+      "dailyBurn": "每日燃耗（MT）",
+      "target": "目标 CI（gCO2e/MJ）",
+      "etsExposure": "EU ETS 估算",
+      "shortfall": "参考 FuelEU 缺口",
+      "blend": "绿色能量占比",
+      "greenVolume": "绿色燃料量",
+      "resultsSummary": "估算结果：EU ETS 估算 {{ets}}，参考 FuelEU 缺口 {{shortfall}}，绿色能量占比 {{blend}}，绿色燃料量 {{volume}}。",
+      "assumptions": "基于假设：{{product}}，CI {{fuelCi}} gCO2e/MJ，参考价格 ${{fuelPrice}}/MT，规划目标 {{target}} gCO2e/MJ，传统燃料 ETS 排放因子 {{emissionFactor}} tCO2/MT。",
+      "openMarketplace": "打开 {{port}} 现货市场",
+      "selectPort": "选择港口以打开市场"
+    }
   },
   "mapLegend": {
     "title": "地图情报图例",

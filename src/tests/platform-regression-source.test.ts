@@ -216,6 +216,30 @@ describe('platform regression guards', () => {
     expect(tickerSource).toContain("status: 'UNAVAILABLE'");
   });
 
+  it('keeps the Intelligence Map compliance estimator local, indicative, and non-certifying', () => {
+    const estimatorSource = readFileSync(resolve(process.cwd(), 'src/components/map/ComplianceEstimatorCard.tsx'), 'utf8');
+    const estimatorModelSource = readFileSync(resolve(process.cwd(), 'src/utils/complianceEstimator.ts'), 'utf8');
+    const dashboardEn = readFileSync(resolve(process.cwd(), 'src/locales/en/dashboard.json'), 'utf8');
+
+    expect(estimatorSource).toContain('estimateCompliancePlanning');
+    expect(estimatorSource).toContain('verdaxis_marketplace_delivery_point_id');
+    expect(estimatorSource).not.toContain('api.');
+    expect(estimatorSource).not.toContain('fetch(');
+    expect(estimatorModelSource.toLowerCase()).toContain('energy-weighted');
+    expect(dashboardEn).toContain('Indicative planning estimate only');
+    expect(dashboardEn).toContain('Not a compliance filing or legal determination');
+    [
+      'non-compliant',
+      'certified savings',
+      'tax due',
+      'penalty avoided',
+      'filing-ready',
+    ].forEach((phrase) => {
+      expect(estimatorSource.toLowerCase()).not.toContain(phrase);
+      expect(dashboardEn.toLowerCase()).not.toContain(phrase);
+    });
+  });
+
   it('anchors the orderbook tutorial step to a stable panel while advancing on executable levels', () => {
     const tutorialSource = readFileSync(resolve(process.cwd(), 'src/components/GuidedTutorial.tsx'), 'utf8');
     const tutorialEn = readFileSync(resolve(process.cwd(), 'src/locales/en/tutorial.json'), 'utf8');

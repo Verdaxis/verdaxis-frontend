@@ -6,6 +6,7 @@ import { api } from '../../services/api';
 import MarkdownRenderer from '../ui/MarkdownRenderer';
 import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
+import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
 
 interface IntelligencePanelProps {
     isOpen: boolean;
@@ -172,6 +173,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             </div>
                         </div>
 
+                        <ComplianceEstimatorCard
+                            selectedPort={selectedPort}
+                            onOpenMarketplace={onPortSelect}
+                        />
+
                         {/* Port Specific Data — auto-hidden when no real data */}
                         {selectedPort.details && (selectedPort.details.avgWaitingTime > 0 || selectedPort.details.activeBarges > 0) && (
                             <div className="grid grid-cols-2 gap-3">
@@ -255,6 +261,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     /* Global Default View */
                     <>
                         {/* Arbitrage Opportunity hidden — pending real data integration */}
+
+                        <ComplianceEstimatorCard
+                            selectedPort={selectedPort}
+                            onOpenMarketplace={onPortSelect}
+                        />
 
                         {/* Forward Curves */}
                         <div>

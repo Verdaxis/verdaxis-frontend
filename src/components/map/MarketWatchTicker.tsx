@@ -291,7 +291,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     if (!ready) return null;
 
     return (
-        <div className={`relative w-[min(calc(100vw-3rem),760px)] max-w-full rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95 ${isPanelOpen ? 'xl:w-[min(calc(100vw-33rem),700px)]' : ''}`}>
+        <div className={`relative w-[min(calc(100vw-3rem),760px)] max-w-full rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95 ${isPanelOpen ? 'md:w-[min(calc(100vw-26rem),700px)] xl:w-[min(calc(100vw-33rem),700px)]' : ''}`}>
             <div className="flex items-center gap-4 overflow-x-auto">
                 <div className="flex min-w-fit items-center space-x-2 border-r border-slate-200 pr-4 dark:border-slate-700">
                     {headerStatus === 'LIVE' && <Activity size={18} className="text-green-600" />}

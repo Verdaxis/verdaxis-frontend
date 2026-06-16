@@ -111,9 +111,19 @@ Backend dependency:
 
 - Needs a consistent market-event feed model for orders, indications, stems, benchmarks, and trades.
 
-### Intelligence Map FuelEU / EU ETS calculator
+### Intelligence Map FuelEU / EU ETS estimator
 
-The requested calculator should answer: "For this vessel and route, what is the conventional-fuel voyage cost, what compliance penalty/tax applies, and what minimum green-fuel volume makes the voyage FuelEU-compliant?"
+The requested estimator should answer a planning question: "For this vessel and route, what is the conventional-fuel voyage cost, what indicative EU ETS exposure and FuelEU-style shortfall might apply under stated assumptions, and what green-fuel blend would move weighted CI toward a selected planning target?"
+
+Staging implementation decision:
+
+- Ship this first as a local, indicative planning estimator inside the Intelligence Panel, not as a backend compliance endpoint.
+- Keep it off the map canvas. It should be a collapsed/expandable panel section so the map controls, ticker, legend, and selected-port intelligence remain usable.
+- Use a dedicated pure estimator model for energy-weighted blend math; do not extend the public energy calculator UI code or claim audited compliance.
+- Use a user-editable planning CI target seeded from the current public calculator assumption (`89.34 gCO2e/MJ`). Label it as a planning target, not a legal/statutory determination.
+- Show visible assumptions and copy: "Indicative planning estimate", "Based on assumptions", and "Not a compliance filing or legal determination".
+- Avoid certainty language such as compliant, non-compliant, certified savings, tax due, penalty avoided, or filing-ready.
+- The Marketplace CTA should prefill canonical market product, selected delivery point, and `SPOT`; it should not carry route/vessel assumptions into trading until Marketplace has an inquiry context model.
 
 Inputs:
 
@@ -127,16 +137,23 @@ Inputs:
 Outputs:
 
 - Fuel cost in EUR.
-- EU ETS tax in EUR.
-- FuelEU Maritime penalty in EUR.
+- Indicative EU ETS exposure in EUR.
+- FuelEU-style shortfall estimate in EUR.
 - Total voyage cost in EUR under conventional fuel.
-- Minimum compatible green fuel volume required for compliance.
+- Minimum compatible green fuel blend to move weighted CI toward the selected target.
 - CTA into Marketplace filtered to the chosen product and compatible delivery points.
 
 Backend dependency:
 
-- Compliance formulas and carbon-intensity assumptions should live server-side or in a shared audited model.
-- Marketplace handoff needs canonical market product + delivery point + availability window filters.
+- Future production-grade compliance formulas and carbon-intensity assumptions should live server-side or in a shared audited model.
+- Future Marketplace handoff should use canonical market product + delivery point + availability window filters directly.
+
+Acceptance for staging prototype:
+
+- Pure estimator tests cover energy-weighted blend ratio, green tonnes, no-feasible-blend cases, invalid input bounds, and price/ETS/FuelEU-style estimate calculations.
+- UI tests prove the estimator is collapsed/expandable, form controls are labelled, recalculated results are announced, disclaimer/provenance copy is visible, and forbidden compliance-certainty phrases are absent.
+- CTA tests prove localStorage receives `verdaxis_marketplace_product`, `verdaxis_marketplace_port`, `verdaxis_marketplace_delivery_point_id`, and `verdaxis_marketplace_window=SPOT`.
+- No backend mutation, schema, or new compliance API path is introduced for this slice.
 
 ### User-configurable live price ticker
 

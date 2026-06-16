@@ -365,7 +365,24 @@
     "fleetAlertMessage": "Vessel {{name}} has {{alertType}} status: {{status}}. CII Grade: {{grade}}.",
     "viewFleetStatus": "View Fleet Status",
     "fleetStatus": "Fleet Status",
-    "allVesselsCompliant": "All vessels are compliant. No alerts at this time."
+    "allVesselsCompliant": "All vessels are compliant. No alerts at this time.",
+    "estimator": {
+      "title": "FuelEU / EU ETS Estimator",
+      "subtitle": "Indicative voyage exposure and green-fuel blend planning",
+      "disclaimer": "Indicative planning estimate only. Based on assumptions. Not a compliance filing or legal determination.",
+      "fuelPathway": "Green fuel pathway",
+      "voyageDays": "Voyage days",
+      "dailyBurn": "Daily burn (MT)",
+      "target": "Target CI (gCO2e/MJ)",
+      "etsExposure": "EU ETS estimate",
+      "shortfall": "Indicative FuelEU gap",
+      "blend": "Green energy share",
+      "greenVolume": "Green fuel volume",
+      "resultsSummary": "Estimator results: {{ets}} EU ETS estimate, {{shortfall}} indicative FuelEU gap, {{blend}} green energy share, {{volume}} green fuel volume.",
+      "assumptions": "Based on assumptions: {{product}}, CI {{fuelCi}} gCO2e/MJ, reference price ${{fuelPrice}}/MT, planning target {{target}} gCO2e/MJ, conventional ETS factor {{emissionFactor}} tCO2/MT.",
+      "openMarketplace": "Open {{port}} spot market",
+      "selectPort": "Select a port to open Marketplace"
+    }
   },
   "mapLegend": {
     "title": "Map Intelligence Legend",
