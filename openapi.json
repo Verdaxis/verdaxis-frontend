@@ -3015,7 +3015,7 @@
             "description": "Filter by availability window"
           },
           {
-            "name": "from",
+            "name": "date_from",
             "in": "query",
             "required": false,
             "schema": {
@@ -3029,9 +3029,49 @@
                 }
               ],
               "description": "Start date (inclusive), e.g. 2026-01-01",
-              "title": "From"
+              "title": "Date From"
             },
             "description": "Start date (inclusive), e.g. 2026-01-01"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End date (inclusive), e.g. 2026-03-01",
+              "title": "Date To"
+            },
+            "description": "End date (inclusive), e.g. 2026-03-01"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Deprecated alias for date_from",
+              "deprecated": true,
+              "title": "From"
+            },
+            "description": "Deprecated alias for date_from",
+            "deprecated": true
           },
           {
             "name": "to",
@@ -3047,10 +3087,12 @@
                   "type": "null"
                 }
               ],
-              "description": "End date (inclusive), e.g. 2026-03-01",
+              "description": "Deprecated alias for date_to",
+              "deprecated": true,
               "title": "To"
             },
-            "description": "End date (inclusive), e.g. 2026-03-01"
+            "description": "Deprecated alias for date_to",
+            "deprecated": true
           },
           {
             "name": "visibility",
@@ -3099,7 +3141,7 @@
           "price-discovery"
         ],
         "summary": "Export Reference Prices Csv",
-        "description": "Export daily VWAP reference prices as a CSV download.\nNo auth required. Accepts the same filters as /reference.\nCSV columns: date, product_name, market_product, availability_window,\n             fuel_type, delivery_point_name, region, vwap_usd, volume_mt, trade_count",
+        "description": "Export daily VWAP reference prices as a CSV download.\nNo auth required. Accepts the same market filters as /reference and export-specific from_date/to_date date filters.\nCSV columns: date, product_name, market_product, availability_window,\n             fuel_type, delivery_point_name, region, vwap_usd, volume_mt, trade_count",
         "operationId": "export_reference_prices_csv_api_prices_reference_export_get",
         "parameters": [
           {
@@ -7274,6 +7316,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Generated At"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
           }
         },
         "type": "object",
@@ -8204,6 +8258,117 @@
             "type": "boolean",
             "title": "Is Demo Benchmark",
             "default": false
+          },
+          "order_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "benchmark_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "DELIVERY_POINT"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "NOT_APPLICABLE"
+          },
+          "real_order_count": {
+            "type": "integer",
+            "title": "Real Order Count",
+            "default": 0
+          },
+          "demo_order_count": {
+            "type": "integer",
+            "title": "Demo Order Count",
+            "default": 0
+          },
+          "unknown_order_count": {
+            "type": "integer",
+            "title": "Unknown Order Count",
+            "default": 0
+          },
+          "real_best_bid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Best Bid"
+          },
+          "real_best_ask": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Best Ask"
+          },
+          "demo_best_bid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Best Bid"
+          },
+          "demo_best_ask": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Best Ask"
+          },
+          "best_bid_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "best_ask_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "order_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Observed At"
+          },
+          "benchmark_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Observed At"
           },
           "best_bid": {
             "anyOf": [
@@ -9186,6 +9351,17 @@
         ],
         "title": "LeaderboardEntry"
       },
+      "MarketDemoStatus": {
+        "type": "string",
+        "enum": [
+          "REAL_ONLY",
+          "DEMO_ONLY",
+          "MIXED",
+          "UNKNOWN",
+          "NOT_APPLICABLE"
+        ],
+        "title": "MarketDemoStatus"
+      },
       "MarketProduct": {
         "type": "string",
         "enum": [
@@ -9196,13 +9372,36 @@
         ],
         "title": "MarketProduct"
       },
+      "MarketScope": {
+        "type": "string",
+        "enum": [
+          "DELIVERY_POINT",
+          "REGION",
+          "PRODUCT",
+          "UNKNOWN"
+        ],
+        "title": "MarketScope"
+      },
+      "MarketSourceKind": {
+        "type": "string",
+        "enum": [
+          "CONFIRMED_TRADE",
+          "LIVE_ORDER",
+          "DEMO_SEED",
+          "BENCHMARK_REFERENCE",
+          "MIXED_SOURCE",
+          "NO_DATA",
+          "UNKNOWN"
+        ],
+        "title": "MarketSourceKind"
+      },
       "NegotiationCounterRequest": {
         "properties": {
           "proposed_price": {
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9270,8 +9469,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000.0,
-                "exclusiveMinimum": 0.0
+                "maximum": 100000,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9284,7 +9483,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9307,8 +9506,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 72.0,
-            "minimum": 1.0,
+            "maximum": 72,
+            "minimum": 1,
             "title": "Expires In Hours",
             "default": 1
           }
@@ -9659,7 +9858,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0.0
+                "minimum": 0
               },
               {
                 "type": "string",
@@ -9760,7 +9959,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9773,7 +9972,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10767,7 +10966,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10783,7 +10982,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10874,7 +11073,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "minimum": 0.0
+                "minimum": 0
               },
               {
                 "type": "string",
@@ -11533,6 +11732,50 @@
               }
             ],
             "title": "Last Trade At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "UNKNOWN"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "UNKNOWN"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "UNKNOWN"
+          },
+          "is_reference": {
+            "type": "boolean",
+            "title": "Is Reference",
+            "default": false
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "real_trade_count_24h": {
+            "type": "integer",
+            "title": "Real Trade Count 24H",
+            "default": 0
+          },
+          "demo_trade_count_24h": {
+            "type": "integer",
+            "title": "Demo Trade Count 24H",
+            "default": 0
+          },
+          "unknown_trade_count_24h": {
+            "type": "integer",
+            "title": "Unknown Trade Count 24H",
+            "default": 0
           }
         },
         "type": "object",
@@ -11805,8 +12048,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000.0,
-                "exclusiveMinimum": 0.0
+                "maximum": 100000,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -11819,7 +12062,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -11855,8 +12098,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 168.0,
-            "minimum": 1.0,
+            "maximum": 168,
+            "minimum": 1,
             "title": "Expires In Hours",
             "default": 24
           }
@@ -11895,7 +12138,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -12895,7 +13138,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -12919,7 +13162,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -12932,7 +13175,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -14007,6 +14250,87 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Event Payload"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "UNKNOWN"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "UNKNOWN"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "UNKNOWN"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "market_product_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
+          },
+          "availability_window_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Window Code"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
           },
           "is_read": {
             "type": "boolean",

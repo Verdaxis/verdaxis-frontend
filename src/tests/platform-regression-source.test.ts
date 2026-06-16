@@ -75,6 +75,18 @@ describe('platform regression guards', () => {
     ]));
   });
 
+  it('keeps reference price date filtering aligned with the documented OpenAPI contract', () => {
+    const openapi = JSON.parse(readFileSync(resolve(process.cwd(), 'openapi.json'), 'utf8'));
+    const parameters = Object.fromEntries(
+      openapi.paths['/api/prices/reference'].get.parameters.map((param: { name: string; deprecated?: boolean }) => [param.name, param])
+    ) as Record<string, { deprecated?: boolean }>;
+
+    expect(parameters.date_from).toBeDefined();
+    expect(parameters.date_to).toBeDefined();
+    expect(parameters.from?.deprecated).toBe(true);
+    expect(parameters.to?.deprecated).toBe(true);
+  });
+
   it('keeps interactive guided tour anchors wired to current market surfaces', () => {
     const tutorialSource = readFileSync(resolve(process.cwd(), 'src/components/GuidedTutorial.tsx'), 'utf8');
     const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');

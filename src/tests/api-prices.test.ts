@@ -49,15 +49,22 @@ describe('price discovery API client', () => {
             delivery_point_id: 'port-456',
             availability_window: '2026-Q3',
             visibility: 'internal',
+            date_from: '2026-01-01',
+            date_to: '2026-03-01',
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url] = fetchMock.mock.calls[0] ?? [];
+        const parsedUrl = new URL(String(url));
         expect(String(url)).toContain('/prices/reference?');
         expect(String(url)).toContain('market_product=SYNTHETIC_ETHANOL');
         expect(String(url)).toContain('delivery_point_id=port-456');
         expect(String(url)).toContain('availability_window=2026-Q3');
         expect(String(url)).toContain('visibility=internal');
+        expect(parsedUrl.searchParams.get('date_from')).toBe('2026-01-01');
+        expect(parsedUrl.searchParams.get('date_to')).toBe('2026-03-01');
+        expect(parsedUrl.searchParams.get('from')).toBeNull();
+        expect(parsedUrl.searchParams.get('to')).toBeNull();
     });
 
     it('sends forward curve board filters', async () => {
