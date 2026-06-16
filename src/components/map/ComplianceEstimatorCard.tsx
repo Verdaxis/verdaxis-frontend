@@ -28,8 +28,16 @@ const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 
 const oneDecimalFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
 
 const eur = (value: number) => `€${numberFormatter.format(value)}`;
+const usd = (value: number) => `$${numberFormatter.format(value)}`;
 const tonnes = (value: number) => `${oneDecimalFormatter.format(value)} MT`;
 const pct = (value: number | null) => value == null ? '--' : `${Math.round(value * 100)}%`;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const setNumericState = (setter: React.Dispatch<React.SetStateAction<number>>) => (
+    event: React.ChangeEvent<HTMLInputElement>,
+) => {
+    const nextValue = Number(event.target.value);
+    setter(Number.isFinite(nextValue) ? nextValue : 0);
+};
 
 export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = ({ selectedPort, onOpenMarketplace }) => {
     const { t, ready } = useNamespace('dashboard');
@@ -37,6 +45,9 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
     const [open, setOpen] = useState(false);
     const [voyageDays, setVoyageDays] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.voyageDays);
     const [dailyConsumption, setDailyConsumption] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.conventionalDailyConsumptionMt);
+    const [conventionalPrice, setConventionalPrice] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.conventionalPriceUsdPerMt);
+    const [euaPrice, setEuaPrice] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.euaPriceEurPerTco2);
+    const [etsCoveragePct, setEtsCoveragePct] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.etsCoverage * 100);
     const [planningTarget, setPlanningTarget] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.planningTargetGco2ePerMj);
     const [selectedFuelProduct, setSelectedFuelProduct] = useState(GREEN_FUEL_ASSUMPTIONS[0].marketProduct);
 
@@ -51,17 +62,24 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
         ...DEFAULT_COMPLIANCE_ESTIMATOR_INPUT,
         voyageDays,
         conventionalDailyConsumptionMt: dailyConsumption,
+        conventionalPriceUsdPerMt: conventionalPrice,
+        euaPriceEurPerTco2: euaPrice,
+        etsCoverage: etsCoveragePct / 100,
         planningTargetGco2ePerMj: planningTarget,
         greenFuel: selectedFuel,
         greenPriceUsdPerMt: selectedFuel.referencePriceUsdPerMt,
-    }), [dailyConsumption, planningTarget, selectedFuel, voyageDays]);
+    }), [conventionalPrice, dailyConsumption, etsCoveragePct, euaPrice, planningTarget, selectedFuel, voyageDays]);
 
     const openMarketplace = () => {
         if (!selectedPort) return;
         localStorage.setItem(STORAGE_KEYS.product, selectedFuel.marketProduct);
         localStorage.removeItem(STORAGE_KEYS.legacyFuel);
         localStorage.setItem(STORAGE_KEYS.port, selectedPort.name);
-        localStorage.setItem(STORAGE_KEYS.deliveryPointId, selectedPort.id);
+        if (UUID_PATTERN.test(selectedPort.id)) {
+            localStorage.setItem(STORAGE_KEYS.deliveryPointId, selectedPort.id);
+        } else {
+            localStorage.removeItem(STORAGE_KEYS.deliveryPointId);
+        }
         localStorage.setItem(STORAGE_KEYS.window, 'SPOT');
         onOpenMarketplace(selectedPort);
     };
@@ -69,6 +87,8 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
     if (!ready) return null;
 
     const resultSummary = t('intelligencePanel.estimator.resultsSummary', {
+        fuelCost: eur(result.conventionalFuelCostEur),
+        total: eur(result.totalConventionalEstimateEur),
         ets: eur(result.indicativeEtsExposureEur),
         shortfall: eur(result.fuelEuStyleShortfallEur),
         blend: pct(result.blend.ratio),
@@ -135,7 +155,7 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
                                     min={1}
                                     max={120}
                                     value={voyageDays}
-                                    onChange={event => setVoyageDays(Number(event.target.value))}
+                                    onChange={setNumericState(setVoyageDays)}
                                     className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                                 />
                             </label>
@@ -146,7 +166,32 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
                                     min={1}
                                     max={200}
                                     value={dailyConsumption}
-                                    onChange={event => setDailyConsumption(Number(event.target.value))}
+                                    onChange={setNumericState(setDailyConsumption)}
+                                    className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                />
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                {t('intelligencePanel.estimator.conventionalPrice')}
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={2000}
+                                    value={conventionalPrice}
+                                    onChange={setNumericState(setConventionalPrice)}
+                                    className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                />
+                            </label>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                {t('intelligencePanel.estimator.euaPrice')}
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={300}
+                                    value={euaPrice}
+                                    onChange={setNumericState(setEuaPrice)}
                                     className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                                 />
                             </label>
@@ -160,7 +205,20 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
                                 max={120}
                                 step={0.1}
                                 value={planningTarget}
-                                onChange={event => setPlanningTarget(Number(event.target.value))}
+                                onChange={setNumericState(setPlanningTarget)}
+                                className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            />
+                        </label>
+
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            {t('intelligencePanel.estimator.etsCoverage')}
+                            <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={etsCoveragePct}
+                                onChange={setNumericState(setEtsCoveragePct)}
                                 className="mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-xs font-semibold normal-case tracking-normal text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                             />
                         </label>
@@ -168,6 +226,14 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
 
                     <div role="status" aria-live="polite" aria-atomic="true" className="grid grid-cols-2 gap-2">
                         <span className="sr-only">{resultSummary}</span>
+                        <div className="rounded-md border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+                            <div className="text-[11px] font-bold uppercase leading-snug text-slate-500">{t('intelligencePanel.estimator.fuelCost')}</div>
+                            <div className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{eur(result.conventionalFuelCostEur)}</div>
+                        </div>
+                        <div className="rounded-md border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
+                            <div className="text-[11px] font-bold uppercase leading-snug text-slate-500">{t('intelligencePanel.estimator.totalEstimate')}</div>
+                            <div className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{eur(result.totalConventionalEstimateEur)}</div>
+                        </div>
                         <div className="rounded-md border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-slate-900">
                             <div className="text-[11px] font-bold uppercase leading-snug text-slate-500">{t('intelligencePanel.estimator.etsExposure')}</div>
                             <div className="mt-1 text-sm font-bold text-slate-800 dark:text-slate-100">{eur(result.indicativeEtsExposureEur)}</div>
@@ -199,6 +265,9 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
                             product: formatMarketProduct(selectedFuel.marketProduct),
                             fuelCi: selectedFuel.carbonIntensityGco2ePerMj,
                             fuelPrice: selectedFuel.referencePriceUsdPerMt,
+                            conventionalPrice: usd(conventionalPrice),
+                            euaPrice: eur(euaPrice),
+                            etsCoverage: `${etsCoveragePct}%`,
                             target: planningTarget,
                             emissionFactor: DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.conventionalEmissionFactorTco2PerMt,
                         })}

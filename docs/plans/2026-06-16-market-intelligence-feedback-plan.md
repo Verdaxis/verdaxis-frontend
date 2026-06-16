@@ -14,6 +14,14 @@ Implementation note, 2026-06-16:
 - `openapi.json` was refreshed from staging so frontend API assumptions include the current forward board and delivery-point-aware orderbook contract.
 - The Intelligence Map ticker overlay sits below the side intelligence panel so its configuration popover cannot block panel controls.
 
+Implementation note, 2026-06-16 follow-up:
+
+- Marketplace orderbook depth now receives the resolved catalog delivery point ID, so bid/ask depth uses the same canonical slice as the listings table once the catalog is available.
+- Trade tape requests carry the resolved delivery point ID as an additive parameter while retaining the documented region fallback until the backend OpenAPI contract formally supports delivery-point filtering.
+- The Intelligence Map compliance estimator exposes key fuel-price, EUA, ETS coverage, and total-cost assumptions in the UI, without adding a backend compliance endpoint or certifying output.
+- Listing-derived map widgets are labelled as recent listing indications and static map-popup prices are labelled as reference values, not confirmed trades.
+- The global Intelligence Panel forward-curve preview is labelled as product-level indicative reference data with no selected delivery-point filter.
+
 ### Remove ecommerce cart language
 
 - Replace the Marketplace sidebar `ShoppingCart` icon with a trading/procurement-native `Handshake` icon.

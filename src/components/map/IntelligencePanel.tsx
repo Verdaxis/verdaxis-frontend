@@ -51,7 +51,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     }, [selectedPort?.id, ports.length]);
 
     // Real forward curve data from API
-    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: string }[]>([]);
+    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: string; sourceKey: 'productLevelReference' }[]>([]);
 
     const marketPriceLabel = selectedPort && selectedPort.priceMethanol > 0
         ? `$${selectedPort.priceMethanol}`
@@ -104,6 +104,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
                             up: isContango,
                             curve: isContango ? 'Contango' : 'Backwardation',
+                            sourceKey: 'productLevelReference',
                         };
                     })
                     .filter(Boolean) as typeof curveProducts;
@@ -267,15 +268,15 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             onOpenMarketplace={onPortSelect}
                         />
 
-                        {/* Forward Curves */}
+                        {/* Indicative forward references */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Forward Curves</h3>
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('intelligencePanel.indicativeForwardReferences')}</h3>
                                 <LineChart size={14} className="text-slate-400" />
                             </div>
                             <div className="space-y-3">
                                 {curveProducts.length === 0 && (
-                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">Loading curve data...</div>
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 italic">{t('intelligencePanel.loadingIndicativeCurveReferences')}</div>
                                 )}
                                 {curveProducts.map((item, i) => (
                                     <div key={i} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700">
@@ -286,10 +287,13 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <div className="text-xs text-slate-500 dark:text-slate-400">{item.price}</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400">{t('intelligencePanel.spotReference')} {item.price}</div>
                                             <div className="text-[10px] font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400">
                                                 {item.curve}
                                             </div>
+                                        </div>
+                                        <div className="mt-2 text-[10px] text-slate-400 dark:text-slate-500">
+                                            {t(`intelligencePanel.${item.sourceKey}`)} · {t('intelligencePanel.noDeliveryPointFilter')}
                                         </div>
                                     </div>
                                 ))}

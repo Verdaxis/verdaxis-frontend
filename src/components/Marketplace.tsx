@@ -1054,6 +1054,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                     <OrderBook
                                         marketProduct={marketProduct}
                                         region={resolvedPort || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
                                         availability={availability || undefined}
                                         actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
                                         onLevelClick={handleOrderbookLevelClick}
@@ -1062,6 +1063,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         marketProduct={marketProduct}
                                         availability={availability || undefined}
                                         region={resolvedPort || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
                                     />
                                 </div>
                             )}

@@ -10,6 +10,7 @@ interface OrderBookProps {
     fuelType?: string;
     marketProduct?: string;
     region?: string;
+    deliveryPointId?: string;
     availability?: string;
     actionableSide?: 'BID' | 'ASK';
     onLevelClick?: (order: OrderBookOrder) => void;
@@ -62,7 +63,7 @@ function formatQty(qty: number): string {
     return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, availability, actionableSide, onLevelClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -78,7 +79,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
             const params = {
                 fuel_type: fuelType,
                 market_product: marketProduct as any,
-                region,
+                region: deliveryPointId ? undefined : region,
+                delivery_point_id: deliveryPointId,
                 availability,
             };
             const [rawBids, rawAsks] = await Promise.all([
@@ -105,7 +107,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [fuelType, marketProduct, region, availability]);
+    }, [fuelType, marketProduct, region, deliveryPointId, availability]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {

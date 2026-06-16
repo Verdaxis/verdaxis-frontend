@@ -734,10 +734,11 @@ export const api = {
     },
 
     tradeTape: {
-        list: async (params?: { fuel_type?: string; market_product?: string; region?: string; availability_window?: string; limit?: number; skip?: number }) => {
+        list: async (params?: { fuel_type?: string; market_product?: string; region?: string; delivery_point_id?: string; availability_window?: string; limit?: number; skip?: number }) => {
             const sp = new URLSearchParams();
             if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
             if (params?.market_product) sp.append('market_product', params.market_product);
+            if (params?.delivery_point_id) sp.append('delivery_point_id', params.delivery_point_id);
             if (params?.region) sp.append('region', params.region);
             if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('limit', String(params?.limit ?? 20));

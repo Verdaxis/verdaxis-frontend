@@ -243,6 +243,52 @@ describe('platform regression guards', () => {
     });
   });
 
+  it('threads canonical delivery point IDs into Marketplace orderbook depth', () => {
+    const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');
+    const orderbookSource = readFileSync(resolve(process.cwd(), 'src/components/OrderBook.tsx'), 'utf8');
+    const tradeTapeSource = readFileSync(resolve(process.cwd(), 'src/components/TradeTape.tsx'), 'utf8');
+    const apiSource = readFileSync(resolve(process.cwd(), 'src/services/api.ts'), 'utf8');
+
+    expect(marketplaceSource).toContain('deliveryPointId={resolvedDeliveryPointId || undefined}');
+    expect(orderbookSource).toContain('deliveryPointId?: string');
+    expect(orderbookSource).toContain('region: deliveryPointId ? undefined : region');
+    expect(orderbookSource).toContain('delivery_point_id: deliveryPointId');
+    expect(tradeTapeSource).toContain('deliveryPointId?: string');
+    expect(tradeTapeSource).toContain('delivery_point_id: deliveryPointId');
+    expect(apiSource).toContain('delivery_point_id?: string; availability_window?: string');
+    expect(apiSource).toContain("sp.append('delivery_point_id', params.delivery_point_id)");
+  });
+
+  it('does not label listing-derived Intelligence Map prices as confirmed trades', () => {
+    const buyerMapSource = readFileSync(resolve(process.cwd(), 'src/components/BuyerMap.tsx'), 'utf8');
+    const mapLegendSource = readFileSync(resolve(process.cwd(), 'src/components/map/MapLegend.tsx'), 'utf8');
+    const dashboardEn = readFileSync(resolve(process.cwd(), 'src/locales/en/dashboard.json'), 'utf8');
+
+    expect(buyerMapSource).toContain('Recent listing indications');
+    expect(buyerMapSource).toContain("t('buyerMap.referenceSpot')");
+    expect(buyerMapSource).toContain("t('buyerMap.benchmarkReference')");
+    expect(buyerMapSource).toContain("t('buyerMap.noOpenListingIndications')");
+    expect(mapLegendSource).toContain("t('mapLegend.recentListings')");
+    expect(dashboardEn).toContain('"lastDone": "Recent Listings"');
+    expect(dashboardEn).toContain('Recent Listings — latest open listing indication');
+    expect(buyerMapSource).not.toContain('Last Done: derive from listings');
+    expect(buyerMapSource).not.toContain('most recent trade price');
+  });
+
+  it('labels global Intelligence Panel forward curves as indicative product references', () => {
+    const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
+    const dashboardEn = readFileSync(resolve(process.cwd(), 'src/locales/en/dashboard.json'), 'utf8');
+
+    expect(intelligencePanelSource).toContain("t('intelligencePanel.indicativeForwardReferences')");
+    expect(intelligencePanelSource).toContain("t(`intelligencePanel.${item.sourceKey}`)");
+    expect(intelligencePanelSource).toContain("t('intelligencePanel.noDeliveryPointFilter')");
+    expect(intelligencePanelSource).toContain("t('intelligencePanel.spotReference')");
+    expect(dashboardEn).toContain('Indicative Forward References');
+    expect(dashboardEn).toContain('Product-level reference');
+    expect(dashboardEn).toContain('no selected delivery point filter');
+    expect(dashboardEn).toContain('Spot ref');
+  });
+
   it('anchors the orderbook tutorial step to a stable panel while advancing on executable levels', () => {
     const tutorialSource = readFileSync(resolve(process.cwd(), 'src/components/GuidedTutorial.tsx'), 'utf8');
     const tutorialEn = readFileSync(resolve(process.cwd(), 'src/locales/en/tutorial.json'), 'utf8');

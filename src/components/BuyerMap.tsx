@@ -152,8 +152,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
-    // Last Done: derive from listings (most recent listing per region, all fuels)
-    const lastDoneByRegion = useMemo(() => {
+    // Recent listing indications: derive from open listings, not confirmed trades.
+    const recentListingsByRegion = useMemo(() => {
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
         listings.forEach(l => {
             const region = l.region;
@@ -344,29 +344,27 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
-                    const lastDone = port.details?.lastDone || '';
-
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Spot + Availability row
                         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Spot</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Avail</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceSpot') + '</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceAvailability') + '</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
                         + '</div>'
                         // Platts & Swap box
                         + '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
                         + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
-                        + '<span style="color:#E8373E;font-weight:600">Platts</span>'
+                        + '<span style="color:#E8373E;font-weight:600">' + t('buyerMap.benchmarkReference') + '</span>'
                         + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
                         + '</div>'
                         + '<div style="display:flex;justify-content:space-between;font-size:11px">'
-                        + '<span style="color:#94A3B8;font-weight:600">Swap</span>'
+                        + '<span style="color:#94A3B8;font-weight:600">' + t('buyerMap.swapReference') + '</span>'
                         + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
                         + '</div>'
                         + '</div>'
-                        // Congestion + Last Done row
+                        // Congestion row
                         + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
                         + '<div><span style="color:#94A3B8;font-weight:600">Congestion</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + congestion + '</span></div>'
-                        + (lastDone ? '<div><span style="color:#94A3B8;font-weight:600">Last</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + lastDone + '</span></div>' : '')
+                        + '<div><span style="color:#94A3B8;font-weight:600">' + t('buyerMap.source') + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + t('buyerMap.reference') + '</span></div>'
                         + '</div>'
                         + '</div>';
 
@@ -394,7 +392,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         } else {
             map.once('load', addPortLayers);
         }
-    }, [ports, portMarketMap, maxVolume, handleMarkerClick]);
+    }, [ports, portMarketMap, maxVolume, handleMarkerClick, t]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -564,15 +562,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                 </div>
                             </div>
 
-                            {/* 2. Last Done Widget (Right) */}
+                            {/* 2. Recent Listings Widget (Right) */}
                             <div className="pointer-events-auto w-48 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 hidden lg:block ml-auto">
                                 <div className="flex items-center space-x-1.5 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5">
                                     <History size={12} className="text-slate-500 dark:text-slate-400" />
                                     <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.lastDone')}</span>
                                 </div>
                                 <div className="space-y-1">
-                                    {lastDoneByRegion.length > 0 ? (
-                                        lastDoneByRegion.map((item) => (
+                                    {recentListingsByRegion.length > 0 ? (
+                                        recentListingsByRegion.map((item) => (
                                             <div key={item.region} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
@@ -582,15 +580,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                             </div>
                                         ))
                                     ) : (
-                                        ports.filter(p => p.details).slice(0, 4).map((p) => (
-                                            <div key={p.id} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors" onClick={() => handleMarkerClick(p.id)}>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                                                    <span className="font-bold text-slate-700 dark:text-slate-300">{p.name}</span>
-                                                </div>
-                                                <span className="font-mono text-emerald-600 text-[9px]">{p.details?.lastDone || '--'}</span>
-                                            </div>
-                                        ))
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            {t('buyerMap.noOpenListingIndications')}
+                                        </div>
                                     )}
                                 </div>
                             </div>

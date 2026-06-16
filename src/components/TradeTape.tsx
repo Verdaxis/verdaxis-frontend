@@ -52,9 +52,10 @@ interface TradeTapeProps {
     marketProduct?: string;
     availability?: string;
     region?: string;
+    deliveryPointId?: string;
 }
 
-export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region }) => {
+export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region, deliveryPointId }) => {
     const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
     const [total, setTotal] = useState(0);
@@ -66,6 +67,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             const data = await api.tradeTape.list({
                 fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
                 market_product: marketProduct,
+                delivery_point_id: deliveryPointId,
                 region: region || undefined,
                 availability_window: availability || undefined,
                 limit: 20,
@@ -80,7 +82,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [availability, fuelType, marketProduct, region]);
+    }, [availability, deliveryPointId, fuelType, marketProduct, region]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 

@@ -246,18 +246,21 @@ describe('Marketplace green fuels surface', () => {
       expect(listAsks).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        region: undefined,
+        delivery_point_id: 'dp-1',
         availability: 'SPOT',
       });
       expect(listBids).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        region: undefined,
+        delivery_point_id: 'dp-1',
         availability: 'SPOT',
       });
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
+        delivery_point_id: 'dp-1',
         region: 'Singapore',
         availability_window: 'SPOT',
         limit: 20,

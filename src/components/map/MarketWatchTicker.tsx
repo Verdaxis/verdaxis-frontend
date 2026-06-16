@@ -293,8 +293,9 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
         if (rows.every(row => row.status === 'LIVE')) return 'LIVE';
         if (rows.some(row => row.status === 'LIVE')) return 'MIXED';
-        if (rows.some(row => row.status === 'STALE' || row.status === 'REFERENCE')) return 'REFERENCE';
-        return 'UNAVAILABLE';
+        if (rows.every(row => row.status === 'REFERENCE')) return 'REFERENCE';
+        if (rows.every(row => row.status === 'UNAVAILABLE')) return 'UNAVAILABLE';
+        return 'MIXED';
     }, [rows]);
 
     const togglePort = (portId: string) => {

@@ -115,7 +115,9 @@ describe('MarketWatchTicker', () => {
     });
 
     expect(screen.getByText('Stale')).toBeTruthy();
+    expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
     expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.queryByText(/REFERENCE/)).toBeNull();
   });
 
   it('recovers from malformed preferences and persists sanitized defaults', async () => {

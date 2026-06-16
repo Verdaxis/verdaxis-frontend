@@ -22,7 +22,7 @@ describe('TradeTape status copy', () => {
   });
 
   it('uses 24-hour marketplace history copy instead of market-closed status', async () => {
-    renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />);
+    renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" deliveryPointId="dp-1" availability="SPOT" />);
 
     await waitFor(() => {
       expect(screen.getByText('24h market · 7D confirmed trades')).toBeTruthy();
@@ -34,6 +34,7 @@ describe('TradeTape status copy', () => {
     expect(tradeTapeList).toHaveBeenCalledWith({
       fuel_type: undefined,
       market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-1',
       region: 'Singapore',
       availability_window: 'SPOT',
       limit: 20,
