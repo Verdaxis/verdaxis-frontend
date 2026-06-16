@@ -386,7 +386,21 @@
     "connecting": "CONNECTING...",
     "offline": "OFFLINE",
     "viewFullAnalytics": "View Full Analytics →",
-    "retryConnection": "Retry Connection"
+    "retryConnection": "Retry Connection",
+    "configure": "Configure market watch",
+    "configureShort": "Configure",
+    "configureHelp": "Choose one market product and up to three delivery points. Rows are labelled by source.",
+    "closeConfigure": "Close market watch configuration",
+    "product": "Product",
+    "deliveryPoints": "Delivery Points",
+    "pinnedCount": "{{count}} points",
+    "pinLimit": "Select 1-3",
+    "source": {
+      "live": "Live",
+      "stale": "Stale",
+      "reference": "Reference",
+      "unavailable": "No data"
+    }
   },
   "vesselPopup": {
     "voyage": "Voyage:",

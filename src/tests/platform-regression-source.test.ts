@@ -176,10 +176,14 @@ describe('platform regression guards', () => {
     expect(tickerSource).not.toContain('Methanol (ARA)');
     expect(tickerSource).not.toContain('Biofuel (ARA)');
     expect(tickerSource).not.toContain('Ammonia (AG)');
-    expect(tickerSource).toContain('Bio Methanol (Rotterdam)');
-    expect(tickerSource).toContain('e-Methanol (Singapore)');
-    expect(tickerSource).toContain('Bio Ethanol (Santos)');
-    expect(tickerSource).toContain('Synthetic Ethanol (Houston)');
+    expect(tickerSource).toContain('MARKET_WATCH_PREFERENCES_KEY');
+    expect(tickerSource).toContain('ACTIVE_MARKETPLACE_PRODUCT_OPTIONS');
+    expect(tickerSource).toContain('api.prices.getSummaries');
+    expect(tickerSource).toContain('delivery_point_id: port.id');
+    expect(tickerSource).not.toContain('fetchLiveMarketData');
+    expect(tickerSource).not.toContain('region: port.name');
+    expect(tickerSource).toContain("status: 'REFERENCE'");
+    expect(tickerSource).toContain("status: 'UNAVAILABLE'");
   });
 
   it('anchors the orderbook tutorial step to a stable panel while advancing on executable levels', () => {

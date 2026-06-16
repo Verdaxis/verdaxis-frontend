@@ -33,6 +33,22 @@ Acceptance:
 - Demo/provenance language remains explicit: benchmark source is labelled as benchmark source, not full-market provenance.
 - No stems, indications, fair-value bands, or confirmed-live claims are introduced without backend data.
 
+### Make the Intelligence Map ticker configurable
+
+- Render the Market Watch ticker on the Intelligence Map instead of leaving it as dead code.
+- Let users select one canonical Verdaxis market product and 1-3 approved delivery points.
+- Persist the ticker preferences in a versioned localStorage key, with validation and recovery from malformed data.
+- Fetch price summaries through the typed API client per selected product/port/spot slice.
+- Label every row individually as `Live`, `Stale`, `Reference`, or `No data`.
+- Use exact reference fallbacks only for existing known reference pairs; do not synthesize prices for unsupported product/port combinations.
+
+Acceptance:
+
+- Mixed live/reference/no-data rows never inherit a global live badge.
+- User-selected ports remain capped at three and ordered by the chosen pins.
+- The ticker uses canonical market products and approved delivery points, not broad fuel-family string matching.
+- The compact map overlay remains keyboard accessible and does not block side-panel controls.
+
 ## Larger Feature Tracks
 
 ### Forward Curve swaps matrix

@@ -645,6 +645,16 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         </div>
                     )}
                 </div>
+
+                {showOverlays && (
+                    <div className="pointer-events-auto absolute left-6 top-20 z-[20] max-w-[calc(100%-3rem)] transition-all duration-300">
+                        <MarketWatchTicker
+                            isPanelOpen={isPanelOpen}
+                            onOpenPanel={() => setIsPanelOpen(true)}
+                            ports={ports}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Toggle Button (Visible when panel is closed) */}

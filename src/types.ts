@@ -244,6 +244,11 @@ export interface AggregatedOrderbook {
 
 // ============== Price Discovery Types ==============
 export interface PriceSummary {
+    market_product?: MarketProduct | string | null;
+    product_id?: string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window?: string | null;
     fuel_type: string;
     region: string;
     last_price: number | null;
