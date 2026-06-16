@@ -6,6 +6,14 @@ This plan captures the June feedback for the Marketplace, Forward Curve, and Int
 
 ## Immediate Staging Slice
 
+Implementation note, 2026-06-16:
+
+- The Intelligence Map ticker resolves approved local delivery-point labels to backend catalog delivery-point IDs before fetching price summaries. This keeps the UI on canonical products/ports while avoiding invalid slug IDs in API calls.
+- The ticker header now shows `LIVE`, `MIXED SOURCES`, `REFERENCE`, or `UNAVAILABLE` from the aggregate row provenance instead of showing a global live state when only one row is live.
+- Forward Curve to Marketplace handoff stores the canonical delivery point ID in `verdaxis_marketplace_delivery_point_id`; Marketplace consumes that ID and sends `delivery_point_id` to orderbook/listing APIs where available.
+- `openapi.json` was refreshed from staging so frontend API assumptions include the current forward board and delivery-point-aware orderbook contract.
+- The Intelligence Map ticker overlay sits below the side intelligence panel so its configuration popover cannot block panel controls.
+
 ### Remove ecommerce cart language
 
 - Replace the Marketplace sidebar `ShoppingCart` icon with a trading/procurement-native `Handshake` icon.

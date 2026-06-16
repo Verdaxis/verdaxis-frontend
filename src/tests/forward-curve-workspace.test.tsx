@@ -377,7 +377,9 @@ describe('ForwardCurveWorkspace', () => {
 
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
+    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-singapore');
     expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
+    expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
     expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
   });
 

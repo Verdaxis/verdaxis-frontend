@@ -399,6 +399,7 @@
   "marketWatch": {
     "title": "市场监控",
     "liveFeed": "实时数据",
+    "mixed": "混合来源",
     "reference": "参考数据",
     "connecting": "连接中...",
     "offline": "离线",

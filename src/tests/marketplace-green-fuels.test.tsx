@@ -5,7 +5,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
+const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
@@ -13,6 +13,7 @@ const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, li
   listAsks: vi.fn(),
   listBids: vi.fn(),
   myOrders: vi.fn(),
+  deliveryPoints: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
   tradeTapeList: vi.fn(),
@@ -69,6 +70,9 @@ vi.mock('../components/ui/Pagination', () => ({
 
 vi.mock('../services/api', () => ({
   api: {
+    catalog: {
+      deliveryPoints,
+    },
     orderbook: {
       listAsksPaged,
       listBidsPaged,
@@ -140,6 +144,11 @@ describe('Marketplace green fuels surface', () => {
     listAsks.mockResolvedValue(listingsResponse.items);
     listBids.mockResolvedValue([]);
     myOrders.mockResolvedValue([]);
+    deliveryPoints.mockResolvedValue([
+      { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
+      { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
+      { id: 'dp-3', name: 'Santos', region: 'South America', is_active: true },
+    ]);
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
@@ -197,6 +206,15 @@ describe('Marketplace green fuels surface', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /watching market/i })).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+        market_product: 'BIO_METHANOL',
+        availability: 'SPOT',
+      }));
     });
 
     fireEvent.click(screen.getByRole('button', { name: /watching market/i }));

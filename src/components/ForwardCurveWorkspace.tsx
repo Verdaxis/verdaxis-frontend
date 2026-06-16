@@ -707,10 +707,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const openMarketplace = () => {
         if (!board || selectedSliceUnavailable) return;
         const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
+        const deliveryPointId = focusedCell?.delivery_point_id ?? board.focus.delivery_point_id;
         const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
         localStorage.setItem('verdaxis_marketplace_port', deliveryPointName);
+        localStorage.setItem('verdaxis_marketplace_delivery_point_id', deliveryPointId);
         localStorage.setItem('verdaxis_marketplace_product', marketProduct);
-        localStorage.setItem('verdaxis_marketplace_fuel', marketProduct);
+        localStorage.removeItem('verdaxis_marketplace_fuel');
         localStorage.setItem('verdaxis_marketplace_window', board.availability_window);
         onNavigate?.('MARKETPLACE');
     };

@@ -399,6 +399,7 @@
   "marketWatch": {
     "title": "Market Watch",
     "liveFeed": "LIVE FEED",
+    "mixed": "MIXED SOURCES",
     "reference": "REFERENCE",
     "connecting": "CONNECTING...",
     "offline": "OFFLINE",

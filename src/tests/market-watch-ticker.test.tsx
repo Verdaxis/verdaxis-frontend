@@ -7,9 +7,13 @@ import { PORTS } from '../data';
 import { renderWithProviders } from './test-utils';
 
 const priceSummariesMock = vi.fn();
+const deliveryPointsMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
+    catalog: {
+      deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args),
+    },
     prices: {
       getSummaries: (...args: unknown[]) => priceSummariesMock(...args),
     },
@@ -17,10 +21,16 @@ vi.mock('../services/api', () => ({
 }));
 
 const STORAGE_KEY = 'verdaxis_market_watch_preferences_v1';
+const DELIVERY_POINTS = [
+  { id: 'dp-rotterdam-uuid', name: 'Rotterdam', region: 'Europe', is_active: true },
+  { id: 'dp-singapore-uuid', name: 'Singapore', region: 'Asia', is_active: true },
+  { id: 'dp-santos-uuid', name: 'Santos', region: 'South America', is_active: true },
+  { id: 'dp-shanghai-uuid', name: 'Shanghai', region: 'Asia', is_active: true },
+];
 
 const makeSummary = (overrides: Record<string, unknown> = {}) => ({
   market_product: 'BIO_METHANOL',
-  delivery_point_id: 'sg-sin',
+  delivery_point_id: 'dp-singapore-uuid',
   delivery_point_name: 'Singapore',
   availability_window: 'SPOT',
   fuel_type: 'Methanol',
@@ -39,13 +49,15 @@ const makeSummary = (overrides: Record<string, unknown> = {}) => ({
 describe('MarketWatchTicker', () => {
   beforeEach(() => {
     localStorage.clear();
+    deliveryPointsMock.mockReset();
+    deliveryPointsMock.mockResolvedValue(DELIVERY_POINTS);
     priceSummariesMock.mockReset();
     priceSummariesMock.mockResolvedValue({ summaries: [], generated_at: new Date().toISOString() });
   });
 
   it('renders mixed live, reference, and no-data rows with row-level source labels', async () => {
     priceSummariesMock.mockImplementation(({ delivery_point_id }) => Promise.resolve({
-      summaries: delivery_point_id === 'sg-sin' ? [makeSummary()] : [],
+      summaries: delivery_point_id === 'dp-singapore-uuid' ? [makeSummary()] : [],
       generated_at: new Date().toISOString(),
     }));
 
@@ -60,19 +72,22 @@ describe('MarketWatchTicker', () => {
     expect(screen.getByText('Live')).toBeTruthy();
     expect(screen.getByText('Reference')).toBeTruthy();
     expect(screen.getByText('No data')).toBeTruthy();
+    expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
+    expect(screen.queryByText(/LIVE FEED/)).toBeNull();
     expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({
       market_product: 'BIO_METHANOL',
-      delivery_point_id: 'sg-sin',
+      delivery_point_id: 'dp-singapore-uuid',
       availability_window: 'SPOT',
       hours: 168,
     }));
+    expect(priceSummariesMock).not.toHaveBeenCalledWith(expect.objectContaining({ delivery_point_id: 'sg-sin' }));
     expect(priceSummariesMock).not.toHaveBeenCalledWith(expect.objectContaining({ region: 'Singapore' }));
   });
 
   it('does not use generic fuel-family summaries for a different canonical product', async () => {
     priceSummariesMock.mockImplementation(({ delivery_point_id }) => Promise.resolve({
-      summaries: delivery_point_id === 'sg-sin'
-        ? [makeSummary({ market_product: 'E_METHANOL', delivery_point_id: 'sg-sin' })]
+      summaries: delivery_point_id === 'dp-singapore-uuid'
+        ? [makeSummary({ market_product: 'E_METHANOL', delivery_point_id: 'dp-singapore-uuid' })]
         : [],
       generated_at: new Date().toISOString(),
     }));
@@ -80,14 +95,14 @@ describe('MarketWatchTicker', () => {
     renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => {
-      expect(screen.queryByText('$777')).toBeNull();
+      expect(screen.getAllByText('No data').length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText('No data').length).toBeGreaterThan(0);
+    expect(screen.queryByText('$777')).toBeNull();
   });
 
   it('marks old seven-day summary trades as stale, not live', async () => {
     priceSummariesMock.mockImplementation(({ delivery_point_id }) => Promise.resolve({
-      summaries: delivery_point_id === 'sg-sin'
+      summaries: delivery_point_id === 'dp-singapore-uuid'
         ? [makeSummary({ trade_count_24h: 3, last_trade_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString() })]
         : [],
       generated_at: new Date().toISOString(),
@@ -143,11 +158,12 @@ describe('MarketWatchTicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
 
-    const shanghaiButton = screen.getByRole('button', { name: 'Shanghai' }) as HTMLButtonElement;
-    expect(shanghaiButton.getAttribute('aria-disabled')).toBe('true');
+    let shanghaiButton = screen.getByRole('button', { name: 'Shanghai' }) as HTMLButtonElement;
+    expect(shanghaiButton.disabled).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Rotterdam' }));
-    expect(shanghaiButton.getAttribute('aria-disabled')).toBe('false');
+    shanghaiButton = screen.getByRole('button', { name: 'Shanghai' }) as HTMLButtonElement;
+    expect(shanghaiButton.disabled).toBe(false);
 
     fireEvent.click(shanghaiButton);
     await waitFor(() => {

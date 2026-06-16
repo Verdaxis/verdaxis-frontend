@@ -647,7 +647,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 </div>
 
                 {showOverlays && (
-                    <div className="pointer-events-auto absolute left-6 top-20 z-[20] max-w-[calc(100%-3rem)] transition-all duration-300">
+                    <div className="pointer-events-auto absolute left-6 top-20 z-[8] max-w-[calc(100%-3rem)] transition-all duration-300">
                         <MarketWatchTicker
                             isPanelOpen={isPanelOpen}
                             onOpenPanel={() => setIsPanelOpen(true)}

@@ -4,7 +4,7 @@ import { Activity, Check, FlaskConical, RefreshCw, Settings2, WifiOff, X } from 
 import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
 import { api } from '../../services/api';
-import type { MarketProduct, Port, PriceSummary } from '../../types';
+import type { DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
 import { VerdaxisSelect } from '../ui/VerdaxisSelect';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
 import { formatMarketProduct } from '../../utils/marketProduct';
@@ -16,6 +16,7 @@ interface MarketWatchTickerProps {
 }
 
 type RowStatus = 'LOADING' | 'LIVE' | 'STALE' | 'REFERENCE' | 'UNAVAILABLE';
+type HeaderStatus = 'LOADING' | 'LIVE' | 'MIXED' | 'REFERENCE' | 'UNAVAILABLE';
 
 interface TickerPreferences {
     product: MarketProduct;
@@ -60,6 +61,9 @@ const currency = (value: number | null | undefined) => {
 };
 
 const getPortLabel = (port: Port) => port.name;
+const getCatalogDeliveryPointId = (port: Port, deliveryPoints: DeliveryPoint[]) => (
+    deliveryPoints.find(point => normalize(point.name) === normalize(port.name))?.id ?? null
+);
 
 const getDefaultPortIds = (availablePorts: Port[]) => {
     const namedDefaults = DEFAULT_PINNED_PORT_NAMES
@@ -97,10 +101,10 @@ const readStoredPreferences = (availablePorts: Port[]): TickerPreferences => {
     }
 };
 
-const findMatchingSummary = (summaries: PriceSummary[], product: MarketProduct, port: Port) => {
+const findMatchingSummary = (summaries: PriceSummary[], product: MarketProduct, deliveryPointId: string) => {
     return summaries.find(summary => (
         summary.market_product === product
-        && summary.delivery_point_id === port.id
+        && summary.delivery_point_id === deliveryPointId
         && normalize(summary.availability_window) === 'spot'
     ));
 };
@@ -186,10 +190,29 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     const [preferences, setPreferences] = useState<TickerPreferences>(() => readStoredPreferences(FALLBACK_PORTS));
     const [rows, setRows] = useState<TickerRow[]>([]);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[] | null>(null);
 
     useEffect(() => {
         setPreferences(current => sanitizePreferences(current, availablePorts));
     }, [availablePorts]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadDeliveryPoints = async () => {
+            try {
+                const response = await api.catalog.deliveryPoints();
+                if (!cancelled) setDeliveryPoints(response.filter(point => point.is_active !== false));
+            } catch (error) {
+                console.warn('Market watch delivery points unavailable', error);
+                if (!cancelled) setDeliveryPoints([]);
+            }
+        };
+
+        loadDeliveryPoints();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -237,15 +260,19 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         let cancelled = false;
         const loadRows = async () => {
             setRows(selectedPorts.map(port => buildLoadingRow(port, preferences.product)));
+            if (deliveryPoints === null) return;
             const nextRows = await Promise.all(selectedPorts.map(async (port) => {
+                const deliveryPointId = getCatalogDeliveryPointId(port, deliveryPoints);
+                if (!deliveryPointId) return buildReferenceRow(port, preferences.product);
+
                 try {
                     const response = await api.prices.getSummaries({
                         market_product: preferences.product,
-                        delivery_point_id: port.id,
+                        delivery_point_id: deliveryPointId,
                         availability_window: 'SPOT',
                         hours: 168,
                     });
-                    const summary = findMatchingSummary(response.summaries ?? [], preferences.product, port);
+                    const summary = findMatchingSummary(response.summaries ?? [], preferences.product, deliveryPointId);
                     const summaryRow = summary ? buildSummaryRow(port, preferences.product, summary) : null;
                     return summaryRow ?? buildReferenceRow(port, preferences.product);
                 } catch (error) {
@@ -260,11 +287,12 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         return () => {
             cancelled = true;
         };
-    }, [preferences.product, selectedPorts]);
+    }, [deliveryPoints, preferences.product, selectedPorts]);
 
-    const headerStatus = useMemo(() => {
+    const headerStatus: HeaderStatus = useMemo(() => {
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
-        if (rows.some(row => row.status === 'LIVE')) return 'LIVE';
+        if (rows.every(row => row.status === 'LIVE')) return 'LIVE';
+        if (rows.some(row => row.status === 'LIVE')) return 'MIXED';
         if (rows.some(row => row.status === 'STALE' || row.status === 'REFERENCE')) return 'REFERENCE';
         return 'UNAVAILABLE';
     }, [rows]);
@@ -288,6 +316,14 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         return t('marketWatch.connecting');
     };
 
+    const headerStatusLabel = (status: HeaderStatus) => {
+        if (status === 'LIVE') return t('marketWatch.liveFeed');
+        if (status === 'MIXED') return t('marketWatch.mixed');
+        if (status === 'REFERENCE') return t('marketWatch.reference');
+        if (status === 'UNAVAILABLE') return t('marketWatch.offline');
+        return t('marketWatch.connecting');
+    };
+
     if (!ready) return null;
 
     return (
@@ -295,7 +331,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
             <div className="flex items-center gap-4 overflow-x-auto">
                 <div className="flex min-w-fit items-center space-x-2 border-r border-slate-200 pr-4 dark:border-slate-700">
                     {headerStatus === 'LIVE' && <Activity size={18} className="text-green-600" />}
-                    {headerStatus === 'REFERENCE' && <FlaskConical size={18} className="text-blue-500" />}
+                    {(headerStatus === 'MIXED' || headerStatus === 'REFERENCE') && <FlaskConical size={18} className="text-blue-500" />}
                     {headerStatus === 'LOADING' && <RefreshCw size={18} className="text-verdaxis animate-spin" />}
                     {headerStatus === 'UNAVAILABLE' && <WifiOff size={18} className="text-red-500" />}
 
@@ -303,8 +339,8 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                         <span className="block whitespace-nowrap text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                             {t('marketWatch.title')}
                         </span>
-                        <span className="block whitespace-nowrap text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            {formatMarketProduct(preferences.product)} · {t('marketWatch.pinnedCount', { count: selectedPorts.length })}
+                        <span className="block whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            {formatMarketProduct(preferences.product)} · {t('marketWatch.pinnedCount', { count: selectedPorts.length })} · {headerStatusLabel(headerStatus)}
                         </span>
                     </div>
                 </div>
@@ -330,7 +366,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                                 </span>
                             )}
                         </div>
-                        <span className={`mt-0.5 text-[8px] font-bold uppercase tracking-wider ${
+                        <span className={`mt-0.5 text-[9px] font-bold uppercase tracking-wider ${
                             row.status === 'LIVE'
                                 ? 'text-green-600'
                                 : row.status === 'UNAVAILABLE'
@@ -432,7 +468,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                                             key={port.id}
                                             type="button"
                                             onClick={() => togglePort(port.id)}
-                                            aria-disabled={disabled}
+                                            disabled={disabled}
                                             aria-pressed={selected}
                                             className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
                                                 selected

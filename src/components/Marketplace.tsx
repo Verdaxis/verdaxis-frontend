@@ -21,7 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -53,6 +53,7 @@ type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'c
 interface RoleConfigEntry {
     fetchOrders: (params?: {
         region?: string;
+        delivery_point_id?: string;
         fuel_type?: string;
         market_product?: string;
         availability?: string;
@@ -87,6 +88,7 @@ const ALL_MARKET_PRODUCTS = 'All';
 const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
 const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
+const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
 
 function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
@@ -137,6 +139,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
+    const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         const stored = localStorage.getItem('verdaxis_marketplace_window');
@@ -156,6 +160,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         return match ? match.name : '';
     }, [portInput]);
 
+    const resolvedDeliveryPointId = useMemo(() => {
+        if (!resolvedPort) return '';
+        const q = resolvedPort.trim().toLowerCase();
+        const storedMatch = deliveryPoints.find(point => (
+            point.id === storedDeliveryPointId && point.name.trim().toLowerCase() === q
+        ));
+        if (storedMatch) return storedMatch.id;
+
+        return deliveryPoints.find(point => point.name.trim().toLowerCase() === q)?.id || '';
+    }, [deliveryPoints, resolvedPort, storedDeliveryPointId]);
+
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
 
@@ -163,7 +178,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             order.market_product === marketProduct
             && order.availability_window === availability
             && order.delivery_point_id
-            && (order.delivery_point_name === resolvedPort || order.region === resolvedPort)
+            && (resolvedDeliveryPointId
+                ? order.delivery_point_id === resolvedDeliveryPointId
+                : (order.delivery_point_name === resolvedPort || order.region === resolvedPort))
         ));
 
         if (!matchingOrder?.delivery_point_id) return null;
@@ -173,7 +190,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             deliveryPointId: matchingOrder.delivery_point_id,
             availabilityWindowCode: matchingOrder.availability_window,
         };
-    }, [availability, listings, marketProduct, resolvedPort]);
+    }, [availability, listings, marketProduct, resolvedDeliveryPointId, resolvedPort]);
 
     const currentSliceKey = currentSliceTarget
         ? getWatchlistSliceKeyFromParts(
@@ -217,6 +234,24 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         return result;
     }, [listings, sortBy]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loadDeliveryPoints = async () => {
+            try {
+                const response = await api.catalog.deliveryPoints();
+                if (!cancelled) setDeliveryPoints(response.filter(point => point.is_active !== false));
+            } catch (error) {
+                console.warn('Marketplace delivery points unavailable', error);
+                if (!cancelled) setDeliveryPoints([]);
+            }
+        };
+
+        loadDeliveryPoints();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
@@ -226,7 +261,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
         try {
             const data = await configBase.fetchOrders({
-                region: resolvedPort || undefined,
+                region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
+                delivery_point_id: resolvedDeliveryPointId || undefined,
                 market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
                 availability: availability || undefined,
                 skip,
@@ -242,7 +278,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             setLoading(false);
             setRefreshing(false);
         }
-    }, [configBase, resolvedPort, marketProduct, availability]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
@@ -279,6 +315,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     }, [portInput]);
 
     useEffect(() => {
+        if (resolvedDeliveryPointId) {
+            localStorage.setItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY, resolvedDeliveryPointId);
+        } else if (!resolvedPort) {
+            localStorage.removeItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY);
+        }
+    }, [resolvedDeliveryPointId, resolvedPort]);
+
+    useEffect(() => {
         localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
         localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
     }, [marketProduct]);
@@ -291,7 +335,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                 const totals = await Promise.all(
                     MARKET_PRODUCTS.map(async (productCode) => {
                         const response = await configBase.fetchOrders({
-                            region: resolvedPort || undefined,
+                            region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
+                            delivery_point_id: resolvedDeliveryPointId || undefined,
                             market_product: productCode,
                             availability: availability || undefined,
                             skip: 0,
@@ -315,7 +360,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         return () => {
             cancelled = true;
         };
-    }, [availability, configBase, resolvedPort]);
+    }, [availability, configBase, resolvedDeliveryPointId, resolvedPort]);
 
 
     const portOptions = useMemo(() => ([
@@ -347,7 +392,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     const clearMarketFilters = useCallback(() => {
         setMarketProduct(ALL_MARKET_PRODUCTS);
         setPortInput('');
+        setStoredDeliveryPointId('');
         setAvailability('');
+        setCurrentSkip(0);
+    }, []);
+
+    const handlePortChange = useCallback((value: string) => {
+        setPortInput(value);
+        setStoredDeliveryPointId('');
         setCurrentSkip(0);
     }, []);
 
@@ -440,14 +492,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         }
 
         if (resolvedPort) {
-            const orderPort = order.delivery_point_name || order.region || '';
-            if (orderPort !== resolvedPort) {
+            const matchesPort = resolvedDeliveryPointId
+                ? order.delivery_point_id === resolvedDeliveryPointId
+                : (order.delivery_point_name || order.region || '') === resolvedPort;
+            if (!matchesPort) {
                 return false;
             }
         }
 
         return true;
-    }), [availability, marketProduct, outstandingMyOrders, resolvedPort]);
+    }), [availability, marketProduct, outstandingMyOrders, resolvedDeliveryPointId, resolvedPort]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {
@@ -788,7 +842,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.port')}
                                                 value={portInput}
-                                                onChange={setPortInput}
+                                                onChange={handlePortChange}
                                                 options={portOptions}
                                                 triggerTourId="marketplace-port-select"
                                                 triggerClassName="v-input min-h-[42px] py-2.5"
