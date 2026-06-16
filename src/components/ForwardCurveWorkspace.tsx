@@ -4,6 +4,7 @@ import { Activity, ArrowRight, CheckCircle2, Maximize2, RefreshCw, Target, Trend
 import { api } from '../services/api';
 import { MARKET_PRODUCTS } from '../types';
 import type { ForwardCurveBoardCell, ForwardCurveBoardResponse, MarketProduct, Page, TradeTapeEntry } from '../types';
+import { useNamespace } from '../hooks/useNamespace';
 import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions, normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { formatMarketProduct } from '../utils/marketProduct';
 
@@ -543,39 +544,44 @@ const DepthPanel: React.FC<{
     );
 };
 
-const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; unavailable?: boolean }> = ({ trades, loading, unavailable = false }) => (
-    <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
-        <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Trade Tape</span>
-            <span className="text-[10px] text-slate-500">24h market · 7D confirmed trades</span>
-        </div>
-        <div className="divide-y divide-slate-900">
-            {unavailable ? (
-                <div className="px-3 py-8 text-center text-[11px] text-slate-500">Selected slice is not available in this window.</div>
-            ) : loading ? (
-                <div className="px-3 py-8 text-center text-[11px] text-slate-500">Loading recent prints...</div>
-            ) : trades.length === 0 ? (
-                <div className="px-3 py-8 text-center text-[11px] text-slate-500">No confirmed trades in the last 7 days for this selected slice.</div>
-            ) : trades.map(trade => (
-                <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
-                    <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-                    <span className="truncate text-slate-300">
-                        {quantity(trade.quantity_mt)}
-                        {trade.is_demo_trade && (
-                            <span
-                                className="ml-1 text-[9px] font-bold uppercase text-amber-300"
-                                aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
-                            >
-                                Demo
-                            </span>
-                        )}
-                    </span>
-                    <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
-                </div>
-            ))}
-        </div>
-    </section>
-);
+const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; unavailable?: boolean }> = ({ trades, loading, unavailable = false }) => {
+    const { t, ready } = useNamespace('trading');
+    if (!ready) return null;
+
+    return (
+        <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
+            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('tradeTape.title')}</span>
+                <span className="text-[10px] text-slate-500">{t('tradeTape.status.history')}</span>
+            </div>
+            <div className="divide-y divide-slate-900">
+                {unavailable ? (
+                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.unavailableMarketContext')}</div>
+                ) : loading ? (
+                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.loadingRecent')}</div>
+                ) : trades.length === 0 ? (
+                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.emptyMarketContext')}</div>
+                ) : trades.map(trade => (
+                    <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
+                        <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="truncate text-slate-300">
+                            {quantity(trade.quantity_mt)}
+                            {trade.is_demo_trade && (
+                                <span
+                                    className="ml-1 text-[9px] font-bold uppercase text-amber-300"
+                                    aria-label="Demo trade seeded for platform preview. Not user-posted liquidity."
+                                >
+                                    Demo
+                                </span>
+                            )}
+                        </span>
+                        <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+};
 
 export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate }) => {
     const [selectedWindow, setSelectedWindow] = useState(() => getStoredWindow());

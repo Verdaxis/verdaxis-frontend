@@ -55,7 +55,7 @@ describe('MarketWatchTicker', () => {
     priceSummariesMock.mockResolvedValue({ summaries: [], generated_at: new Date().toISOString() });
   });
 
-  it('renders mixed live, reference, and no-data rows with row-level source labels', async () => {
+  it('renders mixed recent, reference, and no-data rows with row-level source labels', async () => {
     priceSummariesMock.mockImplementation(({ delivery_point_id }) => Promise.resolve({
       summaries: delivery_point_id === 'dp-singapore-uuid' ? [makeSummary()] : [],
       generated_at: new Date().toISOString(),
@@ -69,11 +69,11 @@ describe('MarketWatchTicker', () => {
 
     expect(screen.getByText('$680')).toBeTruthy();
     expect(screen.getByText('--')).toBeTruthy();
-    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.getByText('Recent')).toBeTruthy();
     expect(screen.getByText('Reference')).toBeTruthy();
     expect(screen.getByText('No data')).toBeTruthy();
     expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
-    expect(screen.queryByText(/LIVE FEED/)).toBeNull();
+    expect(screen.queryByText(/RECENT FEED/)).toBeNull();
     expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({
       market_product: 'BIO_METHANOL',
       delivery_point_id: 'dp-singapore-uuid',
@@ -116,7 +116,7 @@ describe('MarketWatchTicker', () => {
 
     expect(screen.getByText('Stale')).toBeTruthy();
     expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
-    expect(screen.queryByText('Live')).toBeNull();
+    expect(screen.queryByText('Recent')).toBeNull();
     expect(screen.queryByText(/REFERENCE/)).toBeNull();
   });
 

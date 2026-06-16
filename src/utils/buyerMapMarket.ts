@@ -15,11 +15,27 @@ export interface PortMarketData {
     spreadPct: number;
 }
 
-const GREEN_FUELS = new Set(['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane']);
+const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
+    BIO_METHANOL: 'Bio Methanol',
+    E_METHANOL: 'e-Methanol',
+    BIO_ETHANOL: 'Bio Ethanol',
+    SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
+};
 
-export const isGreenFuel = (fuel: string): boolean => GREEN_FUELS.has(fuel) || GREEN_FUELS.has(
-    Array.from(GREEN_FUELS).find(greenFuel => fuel.toLowerCase().includes(greenFuel.toLowerCase())) ?? ''
+const canonicalProductLabels = new Map(
+    Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label])
 );
+
+const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
+    if (typeof row.market_product === 'string' && CANONICAL_PRODUCT_LABELS[row.market_product]) {
+        return CANONICAL_PRODUCT_LABELS[row.market_product];
+    }
+
+    const productName = row.product_name?.trim();
+    if (!productName) return null;
+
+    return canonicalProductLabels.get(productName.toLowerCase()) ?? null;
+};
 
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
@@ -33,8 +49,8 @@ export const computePortMarketData = (
 
     const byProduct: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
     portRows.forEach((row) => {
-        const productLabel = row.product_name || row.fuel_type;
-        if (!isGreenFuel(productLabel)) return;
+        const productLabel = resolveCanonicalProductLabel(row);
+        if (!productLabel) return;
         if (!byProduct[productLabel]) byProduct[productLabel] = { bids: [], asks: [] };
         if (row.side === 'BID') byProduct[productLabel].bids.push(row);
         else byProduct[productLabel].asks.push(row);

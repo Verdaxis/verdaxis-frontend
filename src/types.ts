@@ -24,6 +24,7 @@ export interface PortDetails {
 
 export interface Port {
     id: string;
+    catalogDeliveryPointId?: string;
     name: string;
     location: GeoLocation;
     country: string;
@@ -232,7 +233,12 @@ export interface Trade {
 }
 
 export interface AggregatedOrderbook {
-    delivery_point_name?: string;
+    product_id?: string;
+    product_name?: string;
+    market_product?: MarketProduct | string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window?: string;
     region: string;
     fuel_type: string;
     side: OrderSide;

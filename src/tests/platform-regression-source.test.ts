@@ -45,13 +45,30 @@ describe('platform regression guards', () => {
     expect(tradeTapeSource).not.toContain('market_hours');
     expect(tradeTapeSource).not.toContain('tradeTape.market.open');
     expect(tradeTapeSource).not.toContain('tradeTape.market.closed');
-    expect(forwardSource).toContain('24h market · 7D confirmed trades');
-    expect(forwardSource).toContain('No confirmed trades in the last 7 days for this selected slice.');
+    expect(forwardSource).toContain("t('tradeTape.status.history')");
+    expect(forwardSource).toContain("t('tradeTape.emptyMarketContext')");
     expect(forwardSource).toContain('Demo trade seeded for platform preview');
     expect(forwardSource).not.toContain('Live · 7D history');
     expect(tradingEn).toContain('"tradeTape.empty": "No confirmed trades in the last 7 days"');
+    expect(tradingEn).toContain('"tradeTape.emptyMarketContext": "No confirmed trades in the last 7 days for this selected market context."');
+    expect(tradingEn).toContain('"tradeTape.status.history": "24h market · 7D region/window history"');
     expect(tradingEn).not.toContain('tradeTape.market.open');
     expect(tradingEn).not.toContain('tradeTape.market.closed');
+  });
+
+  it('keeps trade tape filtering aligned with the documented OpenAPI contract', () => {
+    const openapi = JSON.parse(readFileSync(resolve(process.cwd(), 'openapi.json'), 'utf8'));
+    const parameters = openapi.paths['/api/trade-tape'].get.parameters.map((param: { name: string }) => param.name);
+
+    expect(parameters).toEqual(expect.arrayContaining([
+      'fuel_type',
+      'market_product',
+      'region',
+      'availability_window',
+      'skip',
+      'limit',
+    ]));
+    expect(parameters).not.toContain('delivery_point_id');
   });
 
   it('keeps interactive guided tour anchors wired to current market surfaces', () => {
@@ -186,16 +203,6 @@ describe('platform regression guards', () => {
     expect(tutorialSource).not.toContain('target: \'[data-tour="forward-market-matrix"]\', titleKey: \'supplier.20.title\'');
   });
 
-  it('keeps marketplace iconography out of ecommerce cart language', () => {
-    const sidebarSource = readFileSync(resolve(process.cwd(), 'src/components/layout/sidebarConfig.ts'), 'utf8');
-    const demandFeedSource = readFileSync(resolve(process.cwd(), 'src/components/SupplierDemandFeed.tsx'), 'utf8');
-
-    expect(sidebarSource).toContain('Handshake');
-    expect(demandFeedSource).toContain('Handshake');
-    expect(sidebarSource).not.toContain('ShoppingCart');
-    expect(demandFeedSource).not.toContain('ShoppingCart');
-  });
-
   it('keeps stale intelligence map education and legacy ticker labels out of active map surfaces', () => {
     const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
     const tickerSource = readFileSync(resolve(process.cwd(), 'src/components/map/MarketWatchTicker.tsx'), 'utf8');
@@ -241,22 +248,6 @@ describe('platform regression guards', () => {
       expect(estimatorSource.toLowerCase()).not.toContain(phrase);
       expect(dashboardEn.toLowerCase()).not.toContain(phrase);
     });
-  });
-
-  it('threads canonical delivery point IDs into Marketplace orderbook depth', () => {
-    const marketplaceSource = readFileSync(resolve(process.cwd(), 'src/components/Marketplace.tsx'), 'utf8');
-    const orderbookSource = readFileSync(resolve(process.cwd(), 'src/components/OrderBook.tsx'), 'utf8');
-    const tradeTapeSource = readFileSync(resolve(process.cwd(), 'src/components/TradeTape.tsx'), 'utf8');
-    const apiSource = readFileSync(resolve(process.cwd(), 'src/services/api.ts'), 'utf8');
-
-    expect(marketplaceSource).toContain('deliveryPointId={resolvedDeliveryPointId || undefined}');
-    expect(orderbookSource).toContain('deliveryPointId?: string');
-    expect(orderbookSource).toContain('region: deliveryPointId ? undefined : region');
-    expect(orderbookSource).toContain('delivery_point_id: deliveryPointId');
-    expect(tradeTapeSource).toContain('deliveryPointId?: string');
-    expect(tradeTapeSource).toContain('delivery_point_id: deliveryPointId');
-    expect(apiSource).toContain('delivery_point_id?: string; availability_window?: string');
-    expect(apiSource).toContain("sp.append('delivery_point_id', params.delivery_point_id)");
   });
 
   it('does not label listing-derived Intelligence Map prices as confirmed trades', () => {

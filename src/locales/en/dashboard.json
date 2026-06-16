@@ -416,11 +416,11 @@
   },
   "marketWatch": {
     "title": "Market Watch",
-    "liveFeed": "LIVE FEED",
+    "liveFeed": "RECENT FEED",
     "mixed": "MIXED SOURCES",
     "reference": "REFERENCE",
     "connecting": "CONNECTING...",
-    "offline": "OFFLINE",
+    "offline": "UNAVAILABLE",
     "viewFullAnalytics": "View Full Analytics →",
     "retryConnection": "Retry Connection",
     "configure": "Configure market watch",
@@ -432,7 +432,7 @@
     "pinnedCount": "{{count}} points",
     "pinLimit": "Select 1-3",
     "source": {
-      "live": "Live",
+      "live": "Recent",
       "stale": "Stale",
       "reference": "Reference",
       "unavailable": "No data"

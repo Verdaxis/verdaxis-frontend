@@ -1063,7 +1063,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                         marketProduct={marketProduct}
                                         availability={availability || undefined}
                                         region={resolvedPort || undefined}
-                                        deliveryPointId={resolvedDeliveryPointId || undefined}
                                     />
                                 </div>
                             )}

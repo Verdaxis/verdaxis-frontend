@@ -414,3 +414,9 @@
 - **Trigger:** User corrected subagent model choice after I spawned feedback/planning reviewers on GPT 5.4 mini.
 - **Rule:** When the user explicitly asks for GPT 5.5 on factory-loop planning or review agents, use GPT 5.5 for subsequent subagents instead of cheaper mini models.
 - **Why:** The user is optimizing for maximum-quality adversarial review, not model cost or speed, in this feedback loop.
+
+### Avoid Freezing Cosmetic Implementation Details In Tests
+- **Date:** 2026-06-16
+- **Trigger:** User challenged source-level tests that locked simple cart-icon replacements into the suite.
+- **Rule:** Prefer behavior, data-contract, accessibility, and provenance tests; avoid source-grep tests for simple cosmetic choices unless a regression has real product or safety impact.
+- **Why:** Over-specific cosmetic tests add maintenance bloat and make harmless UI refinements harder without materially improving product stability.

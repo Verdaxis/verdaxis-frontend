@@ -97,6 +97,21 @@ describe('ComplianceEstimatorCard', () => {
     expect(onOpenMarketplace).toHaveBeenCalledWith(selectedPort);
   });
 
+  it('writes the catalog delivery point ID when the map port has been resolved against the catalog', () => {
+    const onOpenMarketplace = vi.fn();
+    const selectedPort = {
+      ...PORTS[0],
+      catalogDeliveryPointId: '11111111-1111-1111-1111-111111111111',
+    };
+    renderWithProviders(<ComplianceEstimatorCard selectedPort={selectedPort} onOpenMarketplace={onOpenMarketplace} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
+    fireEvent.click(screen.getByRole('button', { name: `Open ${selectedPort.name} spot market` }));
+
+    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe(selectedPort.catalogDeliveryPointId);
+    expect(onOpenMarketplace).toHaveBeenCalledWith(selectedPort);
+  });
+
   it('disables Marketplace handoff until the user has selected a port', () => {
     renderWithProviders(<ComplianceEstimatorCard onOpenMarketplace={vi.fn()} />);
 

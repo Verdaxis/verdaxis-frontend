@@ -9,7 +9,7 @@ This plan captures the June feedback for the Marketplace, Forward Curve, and Int
 Implementation note, 2026-06-16:
 
 - The Intelligence Map ticker resolves approved local delivery-point labels to backend catalog delivery-point IDs before fetching price summaries. This keeps the UI on canonical products/ports while avoiding invalid slug IDs in API calls.
-- The ticker header now shows `LIVE`, `MIXED SOURCES`, `REFERENCE`, or `UNAVAILABLE` from the aggregate row provenance instead of showing a global live state when only one row is live.
+- The ticker header now shows `RECENT FEED`, `MIXED SOURCES`, `REFERENCE`, or `UNAVAILABLE` from row status instead of showing a global live state when only one row has recent data.
 - Forward Curve to Marketplace handoff stores the canonical delivery point ID in `verdaxis_marketplace_delivery_point_id`; Marketplace consumes that ID and sends `delivery_point_id` to orderbook/listing APIs where available.
 - `openapi.json` was refreshed from staging so frontend API assumptions include the current forward board and delivery-point-aware orderbook contract.
 - The Intelligence Map ticker overlay sits below the side intelligence panel so its configuration popover cannot block panel controls.
@@ -17,8 +17,9 @@ Implementation note, 2026-06-16:
 Implementation note, 2026-06-16 follow-up:
 
 - Marketplace orderbook depth now receives the resolved catalog delivery point ID, so bid/ask depth uses the same canonical slice as the listings table once the catalog is available.
-- Trade tape requests carry the resolved delivery point ID as an additive parameter while retaining the documented region fallback until the backend OpenAPI contract formally supports delivery-point filtering.
+- Trade tape requests remain on the documented `market_product + region + availability_window` contract. Exact delivery-point tape filtering is a backend follow-up because current OpenAPI does not expose `delivery_point_id` for `/api/trade-tape`.
 - The Intelligence Map compliance estimator exposes key fuel-price, EUA, ETS coverage, and total-cost assumptions in the UI, without adding a backend compliance endpoint or certifying output.
+- The Intelligence Map compliance estimator stores a catalog delivery-point UUID only when the map port has been resolved against catalog data; local map slugs are not written as canonical marketplace IDs.
 - Listing-derived map widgets are labelled as recent listing indications and static map-popup prices are labelled as reference values, not confirmed trades.
 - The global Intelligence Panel forward-curve preview is labelled as product-level indicative reference data with no selected delivery-point filter.
 
@@ -26,13 +27,13 @@ Implementation note, 2026-06-16 follow-up:
 
 - Replace the Marketplace sidebar `ShoppingCart` icon with a trading/procurement-native `Handshake` icon.
 - Replace the empty-state cart icon in `SupplierDemandFeed` with `Handshake`.
-- Add source-level regression coverage so `ShoppingCart` cannot return to these active marketplace surfaces without failing tests.
+- Do not keep source-level icon tests long-term. This was handled as a simple UI copy/icon correction; source-grep tests for a cosmetic icon choice were removed after user review to avoid test-suite bloat.
 
 Acceptance:
 
 - Marketplace still routes to `MARKETPLACE`.
 - Supplier demand feed still renders empty/loading/populated states.
-- No cart/trolley import remains in active marketplace navigation or supplier demand feed.
+- Active marketplace navigation and supplier demand feed no longer use cart/trolley framing.
 
 ### Make forward matrix cell inspection explicit
 
@@ -55,12 +56,12 @@ Acceptance:
 - Let users select one canonical Verdaxis market product and 1-3 approved delivery points.
 - Persist the ticker preferences in a versioned localStorage key, with validation and recovery from malformed data.
 - Fetch price summaries through the typed API client per selected product/port/spot slice.
-- Label every row individually as `Live`, `Stale`, `Reference`, or `No data`.
+- Label every row individually as `Recent`, `Stale`, `Reference`, or `No data` until backend price summaries expose confirmed/demo/reference provenance.
 - Use exact reference fallbacks only for existing known reference pairs; do not synthesize prices for unsupported product/port combinations.
 
 Acceptance:
 
-- Mixed live/reference/no-data rows never inherit a global live badge.
+- Mixed recent/reference/no-data rows never inherit a global recent-feed badge.
 - User-selected ports remain capped at three and ordered by the chosen pins.
 - The ticker uses canonical market products and approved delivery points, not broad fuel-family string matching.
 - The compact map overlay remains keyboard accessible and does not block side-panel controls.
@@ -69,7 +70,7 @@ Acceptance:
 
 - Remove `market open` / `market closed` semantics from active trade tape headers.
 - Present the trade tape as a 24-hour marketplace surface with a 7-day confirmed-trade history window.
-- When the selected slice has no prints, say that there are no confirmed trades in the last 7 days instead of implying the market is unavailable.
+- When the selected market context has no prints, say that there are no confirmed trades in the last 7 days instead of implying the market is unavailable.
 - Keep demo trade tags visible when demo prints exist.
 - Do not change Market Terminal layout or the trade workflow.
 
@@ -79,6 +80,7 @@ Acceptance:
 - Forward Curve trade tape no longer claims a live feed when it only has empty history.
 - Empty tape copy is clear about the last-7-days scope.
 - API calls remain on the existing `market_product + region + availability_window` contract unless the backend adds canonical `delivery_point_id` support.
+- Empty tape copy must not imply exact delivery-point filtering until `/api/trade-tape` supports and returns delivery-point IDs.
 
 ### Make selected matrix cells expand into a single-period drilldown
 
@@ -120,13 +122,14 @@ The selected-period `Expand period` action should open a focused view for that p
 
 - Selected port, product, and window.
 - Recent bids/asks/indications.
-- Trade tape for the selected slice.
+- Trade tape for the selected market context. Until the backend supports `delivery_point_id`, this is not an exact delivery-point tape.
 - Fair-value band if enough inputs exist.
 - Physical stems if available.
 
 Backend dependency:
 
 - Needs a consistent market-event feed model for orders, indications, stems, benchmarks, and trades.
+- Trade tape needs `delivery_point_id` query support plus delivery-point fields in `TradeTapeEntry` before the frontend can label prints as exact selected delivery-point history.
 
 ### Intelligence Map FuelEU / EU ETS estimator
 
@@ -169,7 +172,7 @@ Acceptance for staging prototype:
 
 - Pure estimator tests cover energy-weighted blend ratio, green tonnes, no-feasible-blend cases, invalid input bounds, and price/ETS/FuelEU-style estimate calculations.
 - UI tests prove the estimator is collapsed/expandable, form controls are labelled, recalculated results are announced, disclaimer/provenance copy is visible, and forbidden compliance-certainty phrases are absent.
-- CTA tests prove localStorage receives `verdaxis_marketplace_product`, `verdaxis_marketplace_port`, `verdaxis_marketplace_delivery_point_id`, and `verdaxis_marketplace_window=SPOT`.
+- CTA tests prove localStorage receives `verdaxis_marketplace_product`, `verdaxis_marketplace_port`, and `verdaxis_marketplace_window=SPOT`; `verdaxis_marketplace_delivery_point_id` is written only when the selected map port has been resolved to a catalog delivery-point UUID.
 - No backend mutation, schema, or new compliance API path is introduced for this slice.
 
 ### User-configurable live price ticker
@@ -180,7 +183,7 @@ Implementation direction:
 
 - Use existing `MarketWatchTicker` concepts, but let users select one market product and pinned delivery points.
 - Persist preferences per user when backend profile settings exist; localStorage is acceptable only as a temporary staging prototype.
-- Label values as live, indicative, demo, or stale based on provenance and timestamp.
+- Label values as recent, indicative, demo/reference, or stale based on provenance and timestamp. Do not claim `live` until backend price summaries expose provenance.
 
 Backend dependency:
 

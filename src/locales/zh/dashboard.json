@@ -416,11 +416,11 @@
   },
   "marketWatch": {
     "title": "市场监控",
-    "liveFeed": "实时数据",
+    "liveFeed": "近期数据",
     "mixed": "混合来源",
     "reference": "参考数据",
     "connecting": "连接中...",
-    "offline": "离线",
+    "offline": "不可用",
     "viewFullAnalytics": "查看完整分析 →",
     "retryConnection": "重试连接",
     "configure": "配置市场监控",
@@ -432,7 +432,7 @@
     "pinnedCount": "{{count}} 个点",
     "pinLimit": "选择 1-3 个",
     "source": {
-      "live": "实时",
+      "live": "近期",
       "stale": "滞后",
       "reference": "参考",
       "unavailable": "无数据"

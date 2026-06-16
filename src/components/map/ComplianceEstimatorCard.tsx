@@ -32,6 +32,10 @@ const usd = (value: number) => `$${numberFormatter.format(value)}`;
 const tonnes = (value: number) => `${oneDecimalFormatter.format(value)} MT`;
 const pct = (value: number | null) => value == null ? '--' : `${Math.round(value * 100)}%`;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const getCanonicalDeliveryPointId = (port: Port) => {
+    if (port.catalogDeliveryPointId && UUID_PATTERN.test(port.catalogDeliveryPointId)) return port.catalogDeliveryPointId;
+    return UUID_PATTERN.test(port.id) ? port.id : null;
+};
 const setNumericState = (setter: React.Dispatch<React.SetStateAction<number>>) => (
     event: React.ChangeEvent<HTMLInputElement>,
 ) => {
@@ -75,8 +79,9 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
         localStorage.setItem(STORAGE_KEYS.product, selectedFuel.marketProduct);
         localStorage.removeItem(STORAGE_KEYS.legacyFuel);
         localStorage.setItem(STORAGE_KEYS.port, selectedPort.name);
-        if (UUID_PATTERN.test(selectedPort.id)) {
-            localStorage.setItem(STORAGE_KEYS.deliveryPointId, selectedPort.id);
+        const deliveryPointId = getCanonicalDeliveryPointId(selectedPort);
+        if (deliveryPointId) {
+            localStorage.setItem(STORAGE_KEYS.deliveryPointId, deliveryPointId);
         } else {
             localStorage.removeItem(STORAGE_KEYS.deliveryPointId);
         }

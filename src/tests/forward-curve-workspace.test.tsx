@@ -123,9 +123,9 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('Demo').length).toBeGreaterThanOrEqual(32);
     expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
     expect(screen.getByText('Indicative Period Range')).toBeTruthy();
-    expect(screen.getByText('24h market · 7D confirmed trades')).toBeTruthy();
+    expect(screen.getByText('24h market · 7D region/window history')).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByText('No confirmed trades in the last 7 days for this selected slice.')).toBeTruthy();
+      expect(screen.getByText('No confirmed trades in the last 7 days for this selected market context.')).toBeTruthy();
     });
     expect(screen.queryByText('Live · 7D history')).toBeNull();
   });
@@ -379,6 +379,34 @@ describe('ForwardCurveWorkspace', () => {
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
     expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-singapore');
     expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
+    expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
+    expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
+  });
+
+  it('opens a selected non-default matrix cell in Marketplace with the exact product and delivery point', async () => {
+    const onNavigate = vi.fn();
+    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
+      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
+      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
+    )));
+
+    renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
+
+    const rotterdamMethanol = await screen.findByRole('button', {
+      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
+    });
+    fireEvent.click(rotterdamMethanol);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('E-Methanol - Rotterdam').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /open marketplace/i }));
+
+    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
+    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Rotterdam');
+    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-rotterdam');
+    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('E_METHANOL');
     expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
     expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
   });
