@@ -30,6 +30,12 @@ Implementation note, 2026-06-17 follow-up:
 - Compact benchmark labels should use `Benchmark ref` or equivalent wording rather than implying a confirmed live price source.
 - UI review gates for this surface require browser dogfood screenshots across relevant viewports; code-only review is not enough for a pass.
 
+Implementation note, 2026-06-17 ticker click hardening:
+
+- Browser dogfood found the Market Watch `Configure` button was visible but not pointer-clickable because `document.elementFromPoint()` at the button center returned the MapLibre canvas.
+- The ticker should sit above the map canvas and below the right intelligence panel. Raising only the ticker overlay stack inside the map pane preserves side-panel precedence while making real pointer clicks hit the button.
+- Acceptance requires real browser pointer clicks at desktop and tablet widths, not only DOM activation or unit-test clicks.
+
 ### Remove ecommerce cart language
 
 - Replace the Marketplace sidebar `ShoppingCart` icon with a trading/procurement-native `Handshake` icon.
@@ -72,6 +78,9 @@ Acceptance:
 - User-selected ports remain capped at three and ordered by the chosen pins.
 - The ticker uses canonical market products and approved delivery points, not broad fuel-family string matching.
 - The compact map overlay remains keyboard accessible and does not block side-panel controls.
+- Real browser clicks on `Configure market watch` open the editor, set `aria-expanded=true`, and make the `role="dialog"` editor visible at 1440px and 1024px widths.
+- `document.elementFromPoint()` at the Configure button center resolves to the button or one of its children, not the MapLibre canvas.
+- Escape and the close button dismiss the editor without changing ticker rows, source labels, or delivery-point-scoped price-summary requests.
 
 ### Make trade tape status 24-hour and provenance-safe
 

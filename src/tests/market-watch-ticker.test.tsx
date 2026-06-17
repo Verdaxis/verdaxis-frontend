@@ -179,6 +179,9 @@ describe('MarketWatchTicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
 
+    expect(screen.getByRole('button', { name: 'Configure market watch' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('dialog', { name: 'Configure market watch' })).toBeTruthy();
+
     let shanghaiButton = screen.getByRole('button', { name: 'Shanghai' }) as HTMLButtonElement;
     expect(shanghaiButton.disabled).toBe(true);
 

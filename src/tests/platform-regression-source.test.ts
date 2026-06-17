@@ -242,6 +242,16 @@ describe('platform regression guards', () => {
     expect(tickerSource).toContain("status: 'UNAVAILABLE'");
   });
 
+  it('keeps the Intelligence Map ticker clickable above the map canvas while preserving side-panel precedence', () => {
+    const buyerMapSource = readFileSync(resolve(process.cwd(), 'src/components/BuyerMap.tsx'), 'utf8');
+    const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
+
+    expect(buyerMapSource).toContain('flex-1 relative z-0');
+    expect(buyerMapSource).toContain('pointer-events-auto absolute left-6 top-20 z-[20]');
+    expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[8]');
+    expect(intelligencePanelSource).toContain('shadow-xl z-10 flex flex-col');
+  });
+
   it('keeps marketplace benchmark labels framed as references instead of live liquidity', () => {
     const benchmarkSource = readFileSync(resolve(process.cwd(), 'src/components/trading/BenchmarkPriceBlock.tsx'), 'utf8');
 
