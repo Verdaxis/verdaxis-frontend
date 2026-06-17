@@ -248,8 +248,10 @@ describe('platform regression guards', () => {
     const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
 
     expect(buyerMapSource).toContain('flex-1 relative z-0');
+    expect(buyerMapSource).toContain('absolute bottom-6 left-6 z-[8]');
     expect(buyerMapSource).toContain('pointer-events-auto absolute left-6 top-20 z-[9]');
     expect(buyerMapSource).toContain("isPanelOpen ? 'right-80 mr-6 max-w-none' : 'right-6 max-w-[calc(100%-3rem)]'");
+    expect(buyerMapSource).not.toContain('absolute bottom-6 left-6 z-[20]');
     expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[8]');
     expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[20]');
     expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[9] max-w-[calc(100%-3rem)]');

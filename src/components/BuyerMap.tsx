@@ -504,7 +504,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showOverlays && (
-                    <div className={`absolute bottom-6 left-6 z-[20] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
+                    <div className={`absolute bottom-6 left-6 z-[8] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
 
                         {/* Top Row: Widgets */}
                         <div className="flex justify-between items-end flex-wrap-reverse gap-4">
