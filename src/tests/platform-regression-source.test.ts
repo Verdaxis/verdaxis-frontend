@@ -244,12 +244,16 @@ describe('platform regression guards', () => {
 
   it('keeps the Intelligence Map ticker clickable above the map canvas while preserving side-panel precedence', () => {
     const buyerMapSource = readFileSync(resolve(process.cwd(), 'src/components/BuyerMap.tsx'), 'utf8');
+    const tickerSource = readFileSync(resolve(process.cwd(), 'src/components/map/MarketWatchTicker.tsx'), 'utf8');
     const intelligencePanelSource = readFileSync(resolve(process.cwd(), 'src/components/map/IntelligencePanel.tsx'), 'utf8');
 
     expect(buyerMapSource).toContain('flex-1 relative z-0');
     expect(buyerMapSource).toContain('pointer-events-auto absolute left-6 top-20 z-[9]');
+    expect(buyerMapSource).toContain("isPanelOpen ? 'right-80 mr-6 max-w-none' : 'right-6 max-w-[calc(100%-3rem)]'");
     expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[8]');
     expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[20]');
+    expect(buyerMapSource).not.toContain('pointer-events-auto absolute left-6 top-20 z-[9] max-w-[calc(100%-3rem)]');
+    expect(tickerSource).toContain('w-[min(calc(100vw-3rem),520px)] max-w-full');
     expect(intelligencePanelSource).toContain('shadow-xl z-10 flex flex-col');
   });
 

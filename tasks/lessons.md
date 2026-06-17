@@ -444,3 +444,9 @@
 - **Trigger:** User corrected the review process to require agent-browser dogfooding, viewport checks, screenshot paths, and explicit FAIL status if browser dogfooding cannot run.
 - **Rule:** For design/product UI reviews, capture browser screenshots for the relevant staging surfaces and viewports; if browser automation or screenshots are blocked, mark the review as FAIL with the blocker instead of substituting code inspection.
 - **Why:** A design review without rendered evidence can miss visual defects and overstate confidence.
+
+### Maintain A Sprint Checklist For FSB Loops
+- **Date:** 2026-06-17
+- **Trigger:** User asked to have the checklist-style status every sprint so the work stays trackable.
+- **Rule:** For Verdaxis FSB feedback loops, keep a durable sprint checklist that maps each feedback item to status, evidence, reviewer outcomes, and next action; update it at sprint close and when reviewer findings change scope.
+- **Why:** Long-running factory loops can lose the connection between screenshots, commits, deployments, and remaining work if status only lives in chat.

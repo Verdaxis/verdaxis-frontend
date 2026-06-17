@@ -431,7 +431,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
                     aria-modal="false"
                     aria-labelledby={titleId}
                     aria-describedby={helpId}
-                    className="absolute left-0 top-full z-[40] mt-2 w-[min(calc(100vw-3rem),520px)] rounded-lg border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-950"
+                    className="absolute left-0 top-full z-[40] mt-2 w-[min(calc(100vw-3rem),520px)] max-w-full rounded-lg border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-950"
                 >
                     <div className="flex items-start justify-between gap-3">
                         <div>
