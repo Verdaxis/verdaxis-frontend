@@ -179,8 +179,17 @@ describe('MarketWatchTicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
 
-    expect(screen.getByRole('button', { name: 'Configure market watch' }).getAttribute('aria-expanded')).toBe('true');
+    const configureButton = screen.getByRole('button', { name: 'Configure market watch' });
+    expect(configureButton.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('dialog', { name: 'Configure market watch' })).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(configureButton.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('dialog', { name: 'Configure market watch' })).toBeNull();
+    expect(document.activeElement).toBe(configureButton);
+
+    fireEvent.click(configureButton);
+    expect(configureButton.getAttribute('aria-expanded')).toBe('true');
 
     let shanghaiButton = screen.getByRole('button', { name: 'Shanghai' }) as HTMLButtonElement;
     expect(shanghaiButton.disabled).toBe(true);

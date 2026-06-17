@@ -33,7 +33,8 @@ Implementation note, 2026-06-17 follow-up:
 Implementation note, 2026-06-17 ticker click hardening:
 
 - Browser dogfood found the Market Watch `Configure` button was visible but not pointer-clickable because `document.elementFromPoint()` at the button center returned the MapLibre canvas.
-- The ticker should sit above the map canvas and below the right intelligence panel. Raising only the ticker overlay stack inside the map pane preserves side-panel precedence while making real pointer clicks hit the button.
+- The ticker should sit above the map canvas and below the right intelligence panel. Only the ticker overlay stack inside the map pane should be raised, preserving side-panel precedence while making real pointer clicks hit the button.
+- The `Configure` and analytics actions must stay outside the horizontally scrollable market-data strip. Only the market rows should scroll; the action cluster must stay visible at desktop and tablet widths.
 - Acceptance requires real browser pointer clicks at desktop and tablet widths, not only DOM activation or unit-test clicks.
 
 ### Remove ecommerce cart language

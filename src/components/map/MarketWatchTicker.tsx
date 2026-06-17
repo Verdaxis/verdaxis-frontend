@@ -340,85 +340,87 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
 
     return (
         <div className={`relative w-[min(calc(100vw-3rem),760px)] max-w-full rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/95 ${isPanelOpen ? 'md:w-[min(calc(100vw-26rem),700px)] xl:w-[min(calc(100vw-33rem),700px)]' : ''}`}>
-            <div className="flex items-center gap-4 overflow-x-auto">
-                <div className="flex min-w-fit items-center space-x-2 border-r border-slate-200 pr-4 dark:border-slate-700">
-                    {headerStatus === 'LIVE' && <Activity size={18} className="text-green-600" />}
-                    {headerStatus === 'MIXED' && <FlaskConical size={18} className="text-blue-500" />}
-                    {headerStatus === 'REFERENCE' && <FlaskConical size={18} className="text-blue-500" />}
-                    {headerStatus === 'DEMO' && <FlaskConical size={18} className="text-amber-500" />}
-                    {headerStatus === 'LOADING' && <RefreshCw size={18} className="text-verdaxis animate-spin" />}
-                    {headerStatus === 'UNAVAILABLE' && <WifiOff size={18} className="text-red-500" />}
+            <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto pr-1">
+                    <div className="flex min-w-fit items-center space-x-2 border-r border-slate-200 pr-4 dark:border-slate-700">
+                        {headerStatus === 'LIVE' && <Activity size={18} className="text-green-600" />}
+                        {headerStatus === 'MIXED' && <FlaskConical size={18} className="text-blue-500" />}
+                        {headerStatus === 'REFERENCE' && <FlaskConical size={18} className="text-blue-500" />}
+                        {headerStatus === 'DEMO' && <FlaskConical size={18} className="text-amber-500" />}
+                        {headerStatus === 'LOADING' && <RefreshCw size={18} className="text-verdaxis animate-spin" />}
+                        {headerStatus === 'UNAVAILABLE' && <WifiOff size={18} className="text-red-500" />}
 
-                    <div>
-                        <span className="block whitespace-nowrap text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                            {t('marketWatch.title')}
-                        </span>
-                        <span className="block whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                            {formatMarketProduct(preferences.product)} · {t('marketWatch.pinnedCount', { count: selectedPorts.length })} · {headerStatusLabel(headerStatus)}
-                        </span>
+                        <div>
+                            <span className="block whitespace-nowrap text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                {t('marketWatch.title')}
+                            </span>
+                            <span className="block whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                {formatMarketProduct(preferences.product)} · {t('marketWatch.pinnedCount', { count: selectedPorts.length })} · {headerStatusLabel(headerStatus)}
+                            </span>
+                        </div>
                     </div>
+
+                    {rows.map((row) => (
+                        <div key={row.key} className="flex min-w-[128px] flex-col">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-300">
+                                {getPortLabel(row.port)}
+                            </span>
+                            <div className="flex items-center space-x-2">
+                                <span className={`text-sm font-bold ${
+                                    row.status === 'UNAVAILABLE' || row.status === 'LOADING'
+                                        ? 'text-slate-400 dark:text-slate-500'
+                                        : row.status === 'DEMO'
+                                            ? 'text-amber-700 dark:text-amber-300'
+                                        : row.status === 'REFERENCE' || row.status === 'STALE'
+                                            ? 'text-blue-700 dark:text-blue-300'
+                                            : 'text-sky-700 dark:text-sky-300'
+                                }`}>
+                                    {row.value}
+                                </span>
+                                {row.change && row.status !== 'UNAVAILABLE' && row.status !== 'LOADING' && (
+                                    <span className={`text-xs font-bold ${row.up ? 'text-green-500' : 'text-red-500'}`}>
+                                        {row.change}
+                                    </span>
+                                )}
+                            </div>
+                            <span className={`mt-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                                row.status === 'LIVE'
+                                    ? 'text-green-600'
+                                    : row.status === 'DEMO'
+                                        ? 'text-amber-600'
+                                    : row.status === 'UNAVAILABLE'
+                                        ? 'text-red-500'
+                                        : 'text-blue-500'
+                            }`}>
+                                {statusLabel(row.status)}
+                            </span>
+                        </div>
+                    ))}
                 </div>
 
-                {rows.map((row) => (
-                    <div key={row.key} className="flex min-w-[128px] flex-col">
-                        <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-300">
-                            {getPortLabel(row.port)}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                            <span className={`text-sm font-bold ${
-                                row.status === 'UNAVAILABLE' || row.status === 'LOADING'
-                                    ? 'text-slate-400 dark:text-slate-500'
-                                    : row.status === 'DEMO'
-                                        ? 'text-amber-700 dark:text-amber-300'
-                                    : row.status === 'REFERENCE' || row.status === 'STALE'
-                                        ? 'text-blue-700 dark:text-blue-300'
-                                        : 'text-sky-700 dark:text-sky-300'
-                            }`}>
-                                {row.value}
-                            </span>
-                            {row.change && row.status !== 'UNAVAILABLE' && row.status !== 'LOADING' && (
-                                <span className={`text-xs font-bold ${row.up ? 'text-green-500' : 'text-red-500'}`}>
-                                    {row.change}
-                                </span>
-                            )}
-                        </div>
-                        <span className={`mt-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                            row.status === 'LIVE'
-                                ? 'text-green-600'
-                                : row.status === 'DEMO'
-                                    ? 'text-amber-600'
-                                : row.status === 'UNAVAILABLE'
-                                    ? 'text-red-500'
-                                    : 'text-blue-500'
-                        }`}>
-                            {statusLabel(row.status)}
-                        </span>
-                    </div>
-                ))}
+                <div className="flex shrink-0 items-center gap-2 border-l border-slate-200 pl-3 dark:border-slate-700">
+                    <button
+                        ref={triggerRef}
+                        type="button"
+                        onClick={() => setEditorOpen(current => !current)}
+                        className="flex min-w-fit items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:border-emerald-500/40 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 dark:border-slate-700 dark:text-slate-300"
+                        aria-expanded={editorOpen}
+                        aria-controls={editorId}
+                        aria-label={t('marketWatch.configure')}
+                    >
+                        <Settings2 size={13} />
+                        {t('marketWatch.configureShort')}
+                    </button>
 
-                <div className="flex-1" />
-
-                <button
-                    ref={triggerRef}
-                    type="button"
-                    onClick={() => setEditorOpen(current => !current)}
-                    className="flex min-w-fit items-center gap-1 rounded-md border border-slate-200 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 transition hover:border-emerald-500/40 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 dark:border-slate-700 dark:text-slate-300"
-                    aria-expanded={editorOpen}
-                    aria-controls={editorId}
-                    aria-label={t('marketWatch.configure')}
-                >
-                    <Settings2 size={13} />
-                    {t('marketWatch.configureShort')}
-                </button>
-
-                <button
-                    type="button"
-                    onClick={onOpenPanel}
-                    className="min-w-fit text-xs font-bold text-verdaxis hover:text-verdaxis-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
-                    aria-label={t('marketWatch.viewFullAnalytics')}
-                >
-                    {t('marketWatch.viewFullAnalytics')}
-                </button>
+                    <button
+                        type="button"
+                        onClick={onOpenPanel}
+                        className="min-w-fit text-xs font-bold text-verdaxis hover:text-verdaxis-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+                        aria-label={t('marketWatch.viewFullAnalytics')}
+                    >
+                        {t('marketWatch.viewFullAnalytics')}
+                    </button>
+                </div>
             </div>
 
             {editorOpen && (
