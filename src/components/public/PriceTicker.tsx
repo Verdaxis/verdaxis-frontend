@@ -53,9 +53,13 @@ export const PriceTicker: React.FC = () => {
 
   const doubled = [...prices, ...prices];
   const showStatus = status !== 'ready' || doubled.length === 0;
+  const midpoint = prices.length;
 
   return (
     <div
+      className="public-price-ticker"
+      tabIndex={showStatus ? undefined : 0}
+      aria-label={showStatus ? undefined : 'Market benchmark ticker. Focus or hover to pause scrolling.'}
       style={{
         background: '#0F172A',
         height: 42,
@@ -95,6 +99,8 @@ export const PriceTicker: React.FC = () => {
 
       {showStatus ? (
         <div
+          role="status"
+          aria-live="polite"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -106,22 +112,25 @@ export const PriceTicker: React.FC = () => {
           }}
         >
           <Activity size={13} color={status === 'loading' ? '#5DADE2' : '#64748B'} />
-          {status === 'loading' ? 'Loading market benchmarks' : 'Market benchmarks unavailable'}
+          {status === 'loading' ? 'Loading market benchmarks…' : 'Market benchmarks unavailable'}
         </div>
       ) : (
         <div
+          className="public-price-ticker__track"
           style={{
             display: 'flex',
             alignItems: 'center',
-            animation: 'ticker-scroll 40s linear infinite',
             whiteSpace: 'nowrap',
           }}
         >
           {doubled.map((fp, i) => {
             const isPositive = (fp.change ?? 0) >= 0;
+            const duplicate = i >= midpoint;
             return (
               <div
                 key={`${fp.fuel}-${fp.region}-${fp.priceDate}-${i}`}
+                aria-hidden={duplicate ? true : undefined}
+                data-ticker-sequence={duplicate ? 'duplicate' : 'primary'}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

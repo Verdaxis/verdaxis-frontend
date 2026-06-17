@@ -165,6 +165,43 @@
   }
 }
 
+/* ============================================
+   Public Benchmark Ticker
+   ============================================ */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.public-price-ticker:focus-visible {
+  outline: 2px solid #5DADE2;
+  outline-offset: -4px;
+}
+
+.public-price-ticker__track {
+  animation: ticker-scroll 40s linear infinite;
+  will-change: transform;
+}
+
+.public-price-ticker:hover .public-price-ticker__track,
+.public-price-ticker:focus .public-price-ticker__track,
+.public-price-ticker:focus-within .public-price-ticker__track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-price-ticker {
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+  }
+
+  .public-price-ticker__track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+
 /* Hide lightweight-charts attribution affordances so the terminal reads as Verdaxis-native. */
 a[href*="tradingview"],
 a[href*="github.io/tradingview"] {
