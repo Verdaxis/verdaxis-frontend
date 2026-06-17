@@ -93,6 +93,7 @@ describe('platform regression guards', () => {
     const orderbookSource = readFileSync(resolve(process.cwd(), 'src/components/OrderBook.tsx'), 'utf8');
     const orderModalSource = readFileSync(resolve(process.cwd(), 'src/components/OrderPlaceModal.tsx'), 'utf8');
     const forwardSource = readFileSync(resolve(process.cwd(), 'src/components/ForwardCurveWorkspace.tsx'), 'utf8');
+    const marketActivitySource = readFileSync(resolve(process.cwd(), 'src/utils/marketActivity.ts'), 'utf8');
 
     [
       'marketplace-primary-action',
@@ -123,6 +124,13 @@ describe('platform regression guards', () => {
     expect(forwardSource).toContain('Benchmark Source');
     expect(forwardSource).toContain('Single-Period Drilldown');
     expect(forwardSource).toContain('Signal Readiness');
+    expect(forwardSource).toContain('createPortal(dialog, document.body)');
+    expect(forwardSource).toContain('formatIndicationDetail');
+    expect(forwardSource).toContain('formatPhysicalStemDetail');
+    expect(forwardSource).toContain('formatFairBandDetail');
+    expect(forwardSource).toContain('Verdaxis fair-value band');
+    expect(marketActivitySource).toContain('describeForwardCurveSignal');
+    expect(marketActivitySource).toContain('Sanitized market indication feed for monitoring');
     expect(forwardSource).toContain('No indications feed connected yet');
     expect(forwardSource).toContain('No stems feed connected yet');
     expect(forwardSource).toContain('No model-derived fair-value band yet');

@@ -1,13 +1,24 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Activity, ArrowRight, CheckCircle2, Maximize2, RefreshCw, Target, TrendingUp, X } from 'lucide-react';
 
 import { api } from '../services/api';
 import { MARKET_PRODUCTS } from '../types';
-import type { ForwardCurveBoardCell, ForwardCurveBoardResponse, MarketProduct, Page, TradeTapeEntry } from '../types';
+import type {
+    ForwardCurveBoardCell,
+    ForwardCurveBoardFairPriceBand,
+    ForwardCurveBoardIndicationSummary,
+    ForwardCurveBoardPhysicalStemSummary,
+    ForwardCurveBoardResponse,
+    ForwardCurveSignalProvenance,
+    MarketProduct,
+    Page,
+    TradeTapeEntry,
+} from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions, normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { formatMarketProduct } from '../utils/marketProduct';
-import { describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
+import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
@@ -57,6 +68,61 @@ const orderContextLabel = (cell: ForwardCurveBoardCell) => describeMarketActivit
 
 const sideContextLabel = (sourceKind: ForwardCurveBoardCell['best_bid_source_kind'] | ForwardCurveBoardCell['best_ask_source_kind']) =>
     describeMarketActivity({ source_kind: sourceKind });
+
+const signalContextLabel = (provenance: ForwardCurveSignalProvenance | null | undefined) => describeForwardCurveSignal({
+    signal_type: provenance?.signal_type,
+    signal_source_kind: provenance?.signal_source_kind,
+    demo_status: provenance?.demo_status,
+});
+
+const countLabel = (count: number, singular: string, plural: string = `${singular}s`) =>
+    `${count} ${count === 1 ? singular : plural}`;
+
+const positiveNumberOrNull = (value: number | string | null | undefined) => {
+    const parsed = numberOrNull(value);
+    return parsed != null && parsed > 0 ? parsed : null;
+};
+
+const formatIndicationDetail = (summary: ForwardCurveBoardIndicationSummary | null | undefined) => {
+    if (!summary || summary.indication_count <= 0) return 'No indications feed connected yet';
+
+    const detailParts = [
+        countLabel(summary.indication_count, 'indication'),
+        numberOrNull(summary.latest_bid_price_per_mt_usd) == null ? null : `Bid ${currency(summary.latest_bid_price_per_mt_usd)}`,
+        numberOrNull(summary.latest_ask_price_per_mt_usd) == null ? null : `Ask ${currency(summary.latest_ask_price_per_mt_usd)}`,
+        numberOrNull(summary.latest_mid_price_per_mt_usd) == null ? null : `Mid ${currency(summary.latest_mid_price_per_mt_usd)}`,
+        positiveNumberOrNull(summary.total_quantity_mt) == null ? null : quantity(summary.total_quantity_mt),
+        signalContextLabel(summary.provenance).label,
+    ].filter((part): part is string => Boolean(part));
+
+    return detailParts.join(' · ');
+};
+
+const formatPhysicalStemDetail = (summary: ForwardCurveBoardPhysicalStemSummary | null | undefined) => {
+    if (!summary || summary.stem_count <= 0) return 'No stems feed connected yet';
+
+    const detailParts = [
+        countLabel(summary.stem_count, 'stem'),
+        positiveNumberOrNull(summary.available_quantity_mt) == null ? null : `Available ${quantity(summary.available_quantity_mt)}`,
+        positiveNumberOrNull(summary.tentative_quantity_mt) == null ? null : `Tentative ${quantity(summary.tentative_quantity_mt)}`,
+        signalContextLabel(summary.provenance).label,
+    ].filter((part): part is string => Boolean(part));
+
+    return detailParts.join(' · ');
+};
+
+const formatFairBandDetail = (
+    band: ForwardCurveBoardFairPriceBand | null | undefined,
+    provenance: ForwardCurveSignalProvenance | null | undefined
+) => {
+    if (!band) return 'No model-derived fair-value band yet';
+
+    return [
+        `${currency(band.low_price_per_mt_usd)}-${currency(band.high_price_per_mt_usd)}`,
+        `Mid ${currency(band.mid_price_per_mt_usd)}`,
+        signalContextLabel(band.provenance ?? provenance).label,
+    ].join(' · ');
+};
 
 const marketSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
     [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
@@ -206,6 +272,10 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMes
             { key: 'bid', label: 'Bid', value: numberOrNull(cell.best_bid), className: 'bg-emerald-300', textClassName: 'text-emerald-300' },
             { key: 'benchmark', label: 'Benchmark', value: numberOrNull(cell.benchmark_mid), className: 'bg-blue-300', textClassName: 'text-blue-300' },
             { key: 'ask', label: 'Ask', value: numberOrNull(cell.best_ask), className: 'bg-rose-300', textClassName: 'text-rose-300' },
+            { key: 'ind-bid', label: 'Ind bid', value: numberOrNull(cell.indication_summary?.latest_bid_price_per_mt_usd), className: 'bg-amber-300', textClassName: 'text-amber-300' },
+            { key: 'ind-mid', label: 'Ind mid', value: numberOrNull(cell.indication_summary?.latest_mid_price_per_mt_usd), className: 'bg-amber-200', textClassName: 'text-amber-200' },
+            { key: 'ind-ask', label: 'Ind ask', value: numberOrNull(cell.indication_summary?.latest_ask_price_per_mt_usd), className: 'bg-orange-300', textClassName: 'text-orange-300' },
+            { key: 'fair-mid', label: 'Fair mid', value: numberOrNull(cell.fair_price_band?.mid_price_per_mt_usd), className: 'bg-fuchsia-300', textClassName: 'text-fuchsia-300' },
         ].filter((marker): marker is {
             key: string;
             label: string;
@@ -214,17 +284,35 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMes
             textClassName: string;
         } => marker.value != null);
 
-        if (markers.length < 2) return { markers, min: null, max: null, range: 0 };
+        const fairLow = numberOrNull(cell.fair_price_band?.low_price_per_mt_usd);
+        const fairHigh = numberOrNull(cell.fair_price_band?.high_price_per_mt_usd);
+        const values = [
+            ...markers.map(marker => marker.value),
+            fairLow,
+            fairHigh,
+        ].filter((value): value is number => value != null);
 
-        const rawMin = Math.min(...markers.map(marker => marker.value));
-        const rawMax = Math.max(...markers.map(marker => marker.value));
+        if (values.length < 2) return { markers, fairBand: null, min: null, max: null, range: 0 };
+
+        const rawMin = Math.min(...values);
+        const rawMax = Math.max(...values);
         const padding = Math.max((rawMax - rawMin) * 0.16, 6);
+        const min = rawMin - padding;
+        const max = rawMax + padding;
+        const range = Math.max(max - min, 1);
+        const fairBand = fairLow != null && fairHigh != null
+            ? {
+                left: ((Math.min(fairLow, fairHigh) - min) / range) * 100,
+                width: (Math.abs(fairHigh - fairLow) / range) * 100,
+            }
+            : null;
 
         return {
             markers,
-            min: rawMin - padding,
-            max: rawMax + padding,
-            range: Math.max((rawMax + padding) - (rawMin - padding), 1),
+            fairBand,
+            min,
+            max,
+            range,
         };
     }, [cell]);
 
@@ -259,6 +347,16 @@ const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMes
                 <div className="border border-slate-800 bg-[#05080d] px-3 py-4">
                     <div className="relative h-10">
                         <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-700" />
+                        {graph.fairBand && (
+                            <div
+                                className="absolute top-1/2 h-3 -translate-y-1/2 border border-fuchsia-300/40 bg-fuchsia-300/15"
+                                style={{
+                                    left: `${Math.min(100, Math.max(0, graph.fairBand.left))}%`,
+                                    width: `${Math.min(100, Math.max(1.5, graph.fairBand.width))}%`,
+                                }}
+                                aria-label="Verdaxis fair-value band"
+                            />
+                        )}
                         {graph.markers.map(marker => {
                             const left = ((marker.value - graph.min!) / graph.range) * 100;
                             return (
@@ -400,6 +498,9 @@ const PeriodDrilldownDialog: React.FC<{
     const signals = useMemo<SignalStatus[]>(() => {
         if (!cell) return [];
         const depthCount = depthBids.length + depthAsks.length;
+        const indicationCount = cell.indication_summary?.indication_count ?? 0;
+        const physicalStemCount = cell.physical_stem_summary?.stem_count ?? 0;
+        const hasFairBand = Boolean(cell.fair_price_band);
 
         return [
             {
@@ -429,25 +530,25 @@ const PeriodDrilldownDialog: React.FC<{
             },
             {
                 label: 'Indications',
-                status: 'unavailable',
-                detail: 'No indications feed connected yet',
+                status: indicationCount > 0 ? 'available' : 'unavailable',
+                detail: formatIndicationDetail(cell.indication_summary),
             },
             {
                 label: 'Physical stems',
-                status: 'unavailable',
-                detail: 'No stems feed connected yet',
+                status: physicalStemCount > 0 ? 'available' : 'unavailable',
+                detail: formatPhysicalStemDetail(cell.physical_stem_summary),
             },
             {
                 label: 'Fair-value band',
-                status: 'unavailable',
-                detail: 'No model-derived fair-value band yet',
+                status: hasFairBand ? 'available' : 'unavailable',
+                detail: formatFairBandDetail(cell.fair_price_band, cell.fair_price_band_provenance),
             },
         ];
     }, [cell, depthAsks.length, depthBids.length, depthReady, trades.length, tradesReady]);
 
-    if (!open || !cell) return null;
+    if (!open || !cell || typeof document === 'undefined') return null;
 
-    return (
+    const dialog = (
         <div
             className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
             role="dialog"
@@ -501,6 +602,8 @@ const PeriodDrilldownDialog: React.FC<{
             </div>
         </div>
     );
+
+    return createPortal(dialog, document.body);
 };
 
 const DepthPanel: React.FC<{

@@ -169,6 +169,23 @@ export type MarketSourceKind =
 
 export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
 export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
+export type MarketSignalType =
+    | 'ORDERBOOK_BID'
+    | 'ORDERBOOK_ASK'
+    | 'BENCHMARK_MID'
+    | 'MARKET_INDICATION'
+    | 'FAIR_PRICE_BAND'
+    | 'PHYSICAL_STEM';
+export type ForwardCurveSignalSourceKind =
+    | 'MARKET_INDICATION'
+    | 'PHYSICAL_STEM'
+    | 'FAIR_PRICE_MODEL'
+    | 'DEMO_SEED'
+    | 'MIXED_SOURCE'
+    | 'NO_DATA'
+    | 'UNKNOWN';
+export type ForwardCurveIndicationSide = 'BID' | 'ASK' | 'MID';
+export type ForwardCurvePhysicalStemStatus = 'AVAILABLE' | 'TENTATIVE' | 'ALLOCATED' | 'CANCELLED';
 
 // ============== Unified Orderbook Types ==============
 export type OrderSide = 'BID' | 'ASK';
@@ -393,6 +410,58 @@ export interface ForwardCurveBoardDepthLevel {
     order_count: number;
 }
 
+export interface ForwardCurveSignalProvenance {
+    signal_type: MarketSignalType;
+    signal_source_kind: ForwardCurveSignalSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
+    generated_at?: string;
+    real_count?: number;
+    demo_count?: number;
+    unknown_count?: number;
+}
+
+export interface ForwardCurveBoardIndication {
+    side: ForwardCurveIndicationSide;
+    price_per_mt_usd: number;
+    quantity_mt?: number | null;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardIndicationSummary {
+    provenance?: ForwardCurveSignalProvenance;
+    latest_bid_price_per_mt_usd?: number | null;
+    latest_ask_price_per_mt_usd?: number | null;
+    latest_mid_price_per_mt_usd?: number | null;
+    total_quantity_mt?: number | null;
+    indication_count: number;
+}
+
+export interface ForwardCurveBoardFairPriceBand {
+    low_price_per_mt_usd: number;
+    mid_price_per_mt_usd: number;
+    high_price_per_mt_usd: number;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardPhysicalStem {
+    quantity_mt: number;
+    status: ForwardCurvePhysicalStemStatus;
+    stem_start?: string | null;
+    stem_end?: string | null;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardPhysicalStemSummary {
+    provenance?: ForwardCurveSignalProvenance;
+    available_quantity_mt?: number | null;
+    tentative_quantity_mt?: number | null;
+    stem_count: number;
+    earliest_stem_start?: string | null;
+    latest_stem_end?: string | null;
+}
+
 export interface ForwardCurveBoardCell {
     product_id: string;
     market_product: MarketProduct;
@@ -419,6 +488,10 @@ export interface ForwardCurveBoardCell {
     best_ask_source_kind?: MarketSourceKind;
     order_observed_at?: string | null;
     benchmark_observed_at?: string | null;
+    indication_summary?: ForwardCurveBoardIndicationSummary;
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stem_summary?: ForwardCurveBoardPhysicalStemSummary;
     best_bid: number | null;
     best_ask: number | null;
     spread: number | null;
@@ -444,6 +517,10 @@ export interface ForwardCurveBoardFocus {
     curve: ForwardCurveBoardCell[];
     depth_bids: ForwardCurveBoardDepthLevel[];
     depth_asks: ForwardCurveBoardDepthLevel[];
+    indications?: ForwardCurveBoardIndication[];
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stems?: ForwardCurveBoardPhysicalStem[];
 }
 
 export interface ForwardCurveBoardResponse {

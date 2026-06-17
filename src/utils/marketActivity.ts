@@ -1,4 +1,4 @@
-import type { MarketDemoStatus, MarketSourceKind } from '../types';
+import type { ForwardCurveSignalSourceKind, MarketDemoStatus, MarketSignalType, MarketSourceKind } from '../types';
 
 export type MarketActivityInput = {
     source_kind?: MarketSourceKind | null;
@@ -16,6 +16,12 @@ export interface MarketActivityDescriptor {
     detail: string;
     tone: MarketActivityTone;
 }
+
+export type ForwardCurveSignalInput = {
+    signal_type?: MarketSignalType | null;
+    signal_source_kind?: ForwardCurveSignalSourceKind | null;
+    demo_status?: MarketDemoStatus | null;
+};
 
 export const DEMO_ACTIVITY_DETAIL = 'Demo activity seeded for platform preview. Not user-posted liquidity.';
 
@@ -90,6 +96,72 @@ export function describeMarketActivity(activity: MarketActivityInput | null | un
         label: 'Unverified source',
         shortLabel: 'Unknown',
         detail: 'Source provenance is unavailable for this market signal.',
+        tone: 'unknown',
+    };
+}
+
+export function describeForwardCurveSignal(signal: ForwardCurveSignalInput | null | undefined): MarketActivityDescriptor {
+    const sourceKind = signal?.signal_source_kind ?? null;
+    const demoStatus = signal?.demo_status ?? null;
+
+    if (demoStatus === 'DEMO_ONLY' || sourceKind === 'DEMO_SEED') {
+        return {
+            label: 'Demo data',
+            shortLabel: 'Demo',
+            detail: DEMO_ACTIVITY_DETAIL,
+            tone: 'demo',
+        };
+    }
+
+    if (demoStatus === 'MIXED' || sourceKind === 'MIXED_SOURCE') {
+        return {
+            label: 'Mixed monitoring signals',
+            shortLabel: 'Mixed',
+            detail: 'Contains both trusted market signals and demo-seeded monitoring context.',
+            tone: 'mixed',
+        };
+    }
+
+    if (sourceKind === 'MARKET_INDICATION') {
+        return {
+            label: 'Market indication',
+            shortLabel: 'Indication',
+            detail: 'Sanitized market indication feed for monitoring. Not executable liquidity.',
+            tone: 'live',
+        };
+    }
+
+    if (sourceKind === 'PHYSICAL_STEM') {
+        return {
+            label: 'Physical stem feed',
+            shortLabel: 'Stem',
+            detail: 'Sanitized physical availability signal for monitoring. Not a trade order.',
+            tone: 'live',
+        };
+    }
+
+    if (sourceKind === 'FAIR_PRICE_MODEL') {
+        return {
+            label: 'Fair-price model',
+            shortLabel: 'Model',
+            detail: 'Indicative Verdaxis model output for monitoring. Not a confirmed trade.',
+            tone: 'reference',
+        };
+    }
+
+    if (sourceKind === 'NO_DATA' || demoStatus === 'NOT_APPLICABLE') {
+        return {
+            label: 'No feed',
+            shortLabel: 'No feed',
+            detail: 'No monitoring signal is available for this slice yet.',
+            tone: 'empty',
+        };
+    }
+
+    return {
+        label: 'Unverified signal',
+        shortLabel: 'Unknown',
+        detail: 'Signal provenance is unavailable for this market slice.',
         tone: 'unknown',
     };
 }

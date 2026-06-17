@@ -214,6 +214,87 @@ describe('ForwardCurveWorkspace', () => {
     });
   });
 
+  it('renders backend monitoring signals without labeling them as executable orders', async () => {
+    const board = makeBoard();
+    const focusedCell = board.ports[3].cells[0];
+    const observedAt = '2026-06-17T00:00:00Z';
+    focusedCell.indication_summary = {
+      provenance: {
+        signal_type: 'MARKET_INDICATION',
+        signal_source_kind: 'MARKET_INDICATION',
+        demo_status: 'REAL_ONLY',
+        scope: 'DELIVERY_POINT',
+        observed_at: observedAt,
+        generated_at: observedAt,
+        real_count: 2,
+        demo_count: 0,
+        unknown_count: 0,
+      },
+      latest_bid_price_per_mt_usd: 705,
+      latest_ask_price_per_mt_usd: 722,
+      latest_mid_price_per_mt_usd: null,
+      total_quantity_mt: 3600,
+      indication_count: 2,
+    };
+    focusedCell.physical_stem_summary = {
+      provenance: {
+        signal_type: 'PHYSICAL_STEM',
+        signal_source_kind: 'PHYSICAL_STEM',
+        demo_status: 'REAL_ONLY',
+        scope: 'DELIVERY_POINT',
+        observed_at: observedAt,
+        generated_at: observedAt,
+        real_count: 2,
+        demo_count: 0,
+        unknown_count: 0,
+      },
+      available_quantity_mt: 2400,
+      tentative_quantity_mt: 600,
+      stem_count: 2,
+      earliest_stem_start: observedAt,
+      latest_stem_end: observedAt,
+    };
+    focusedCell.fair_price_band = {
+      low_price_per_mt_usd: 695,
+      mid_price_per_mt_usd: 710,
+      high_price_per_mt_usd: 725,
+      provenance: {
+        signal_type: 'FAIR_PRICE_BAND',
+        signal_source_kind: 'FAIR_PRICE_MODEL',
+        demo_status: 'REAL_ONLY',
+        scope: 'DELIVERY_POINT',
+        observed_at: observedAt,
+        generated_at: observedAt,
+        real_count: 1,
+        demo_count: 0,
+        unknown_count: 0,
+      },
+    };
+    boardMock.mockResolvedValue(board);
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Selected-Window Forward Matrix');
+    fireEvent.click(screen.getByRole('button', { name: /expand period/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
+    expect(within(dialog).getByText(/2 indications/)).toBeTruthy();
+    expect(within(dialog).getByText(/Bid \$705/)).toBeTruthy();
+    expect(within(dialog).getByText(/Ask \$722/)).toBeTruthy();
+    expect(within(dialog).getByText(/3.6k MT/)).toBeTruthy();
+    expect(within(dialog).getByText(/Market indication/)).toBeTruthy();
+    expect(within(dialog).getByText(/Available 2.4k MT/)).toBeTruthy();
+    expect(within(dialog).getByText(/Tentative 600 MT/)).toBeTruthy();
+    expect(within(dialog).getByText(/Physical stem feed/)).toBeTruthy();
+    expect(within(dialog).getByText(/\$695-\$725/)).toBeTruthy();
+    expect(within(dialog).getByText(/Fair-price model/)).toBeTruthy();
+    expect(within(dialog).getByLabelText('Verdaxis fair-value band')).toBeTruthy();
+    expect(within(dialog).queryByText('Live order')).toBeNull();
+    expect(within(dialog).queryByText('No indications feed connected yet')).toBeNull();
+    expect(within(dialog).queryByText('No stems feed connected yet')).toBeNull();
+    expect(within(dialog).queryByText('No model-derived fair-value band yet')).toBeNull();
+  });
+
   it('gates drilldown depth and prints while a newly selected slice is still refreshing', async () => {
     boardMock
       .mockResolvedValueOnce(makeBoard())
