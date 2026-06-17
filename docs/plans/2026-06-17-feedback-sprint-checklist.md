@@ -103,7 +103,22 @@ Public ticker browser assertions:
 ## Open Sprint Items
 
 - Sprint 2 is closed on staging; the multi-signal contract and drilldown UI are implemented, deployed, and dogfooded.
-- Future backlog: decide whether to seed explicit demo monitoring rows or wait for real ingestion feeds. Current staging correctly reports no connected indication, fair-band, or stem rows.
+- Sprint 3 is adding explicit staging-only demo monitoring rows so the Forward Curve can be visually reviewed before real ingestion feeds exist.
+- Future backlog after Sprint 3: replace demo monitoring rows with real ingestion feeds for indications, physical stems, and fair-price bands.
+
+## Sprint 3: Forward Curve Demo Monitoring Seed
+
+Backend branch: `/home/verdaxis-prod/verdaxis/staging/be`, `feat/staging-market-activity-contract-20260617`
+
+Frontend branch: `/home/jons-openclaw/verdaxis-staging-fe`, `feat/staging-forward-drilldown-20260616`
+
+Deployment target: staging only. No production deploy for this feature until user review.
+
+Sprint status: implementation in progress on 2026-06-17. The user explicitly paused pytest for this sprint; verification is compile/import checks, staging API smoke, and browser dogfood.
+
+| Feedback / Planning Item | Status | Implementation / Evidence | Reviewer Outcome | Next Action |
+| --- | --- | --- | --- | --- |
+| Make the staged Forward Curve visibly reviewable by showing demo indications, fair-price bands, and physical stems without pretending those are real market feeds. | In progress | Backend seed module/script added locally: `app/seeds/forward_monitoring_seed.py`, `scripts/seed_forward_monitoring_demo.py`. The script is opt-in, staging-root guarded, and does not modify `seed_all()` or default seed behavior. Compile/import checks passed locally; 46 slice contexts are expected. | DB/reset and product-security reviewers are running. Earlier reviewer findings were incorporated into this implementation: deterministic row-level event IDs, stricter delete guards, no `--no-reset`, board-style forward windows, and a staging-only runtime guard. | Commit/push backend seed path, seed staging, smoke API provenance, dogfood Forward Curve at desktop/tablet, then close this row with evidence. |
 
 ## Sprint 2: Forward Curve Multi-Signal Feed Planning
 
