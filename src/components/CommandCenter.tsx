@@ -8,7 +8,6 @@ import { OrderPlaceModal } from './OrderPlaceModal';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 // MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 import { SupplierDemandFeed } from './SupplierDemandFeed';
@@ -32,7 +31,6 @@ const CTA_CONFIG = {
 
 export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, openOrderId }) => {
     const { t, ready } = useNamespace('dashboard');
-    const { setPageContext } = useCopilotContext();
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -78,22 +76,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             }
         }
     }, [loading, openOrderId]);
-
-    // Copilot context
-    useEffect(() => {
-        if (!loading) {
-            const pending = trades.filter(r => r.status === 'PENDING_CONFIRMATION').length;
-            const active = trades.filter(r => r.status === 'CONFIRMED').length;
-            const completed = trades.filter(r => r.status === 'DELIVERED' || r.status === 'PAID').length;
-            setPageContext({
-                view: `${viewMode === 'BUYER' ? 'Buyer' : 'Supplier'} Command Center`,
-                pending_requests: pending,
-                active_orders: active,
-                completed_trades: completed,
-                summary: `Overview of ${viewMode === 'BUYER' ? 'procurement' : 'supply'} operations, matches, and market activity.`,
-            });
-        }
-    }, [trades, loading, setPageContext, viewMode]);
 
     const handleConfirmTrade = useCallback((tradeId: string) => {
         const prefix = viewMode === 'BUYER' ? 'buyerDashboard' : 'supplierDashboard';

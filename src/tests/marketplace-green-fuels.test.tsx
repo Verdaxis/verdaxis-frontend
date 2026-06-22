@@ -26,12 +26,6 @@ vi.mock('../context/AuthContext', () => ({
   }),
 }));
 
-vi.mock('../context/CopilotContext', () => ({
-  useCopilotContext: () => ({
-    setPageContext: vi.fn(),
-  }),
-}));
-
 vi.mock('../hooks/useWatchlist', () => ({
   useWatchlist: () => ({
     radar: {

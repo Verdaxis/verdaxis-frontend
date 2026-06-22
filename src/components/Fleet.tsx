@@ -62,28 +62,13 @@ const ComplianceScoreBadge: React.FC<{ score?: ComplianceScore }> = ({ score }) 
     );
 };
 
-import { useCopilotContext } from '../context/CopilotContext';
-
 export const Fleet: React.FC = () => {
     const { t, ready } = useNamespace('fleet');
-    const { setPageContext } = useCopilotContext();
     const [vessels, setVessels] = useState<Vessel[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedVessel, setSelectedVessel] = useState<Vessel | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [complianceScores, setComplianceScores] = useState<Record<string, ComplianceScore>>({});
-
-    useEffect(() => {
-        if (!loading && vessels.length > 0) {
-            setPageContext({
-                view: 'Fleet Management',
-                total_vessels: vessels.length,
-                compliant_vessels: vessels.filter(v => v.complianceEUETS === 'Compliant').length,
-                non_compliant_vessels: vessels.filter(v => v.complianceEUETS === 'Non-Compliant').length,
-                summary: 'Real-time telemetry and compliance status for global fleet.'
-            });
-        }
-    }, [vessels, loading, setPageContext]);
 
     useEffect(() => {
         const fetchVessels = async () => {

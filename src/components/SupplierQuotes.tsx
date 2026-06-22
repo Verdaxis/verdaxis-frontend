@@ -6,30 +6,14 @@ import { Tooltip } from './ui/Tooltip';
 import { analyzeRisk } from '../services/ai';
 import { api } from '../services/api';
 import MarkdownRenderer from './ui/MarkdownRenderer';
-import { useCopilotContext } from '../context/CopilotContext';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { useNamespace } from '../hooks/useNamespace';
 
 export const SupplierQuotes: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
-    const { setPageContext } = useCopilotContext();
     const [orders, setOrders] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    
-    // Broadcast Context
-    useEffect(() => {
-        if (!loading) {
-            setPageContext({
-                view: 'Supplier Orders',
-                total_records: orders.length,
-                pending: orders.filter(q => q.status === 'PENDING_CONFIRMATION').length,
-                confirmed: orders.filter(q => q.status === 'CONFIRMED').length,
-                search_query: searchQuery || 'None',
-                summary: 'Detailed list of incoming orders with status and actions.'
-            });
-        }
-    }, [orders, loading, searchQuery, setPageContext]);
 
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);

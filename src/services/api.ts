@@ -1,4 +1,4 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import { API_URL } from './config';
 
 export const mapPortResponse = (p: any): Port => ({
@@ -217,12 +217,6 @@ export const api = {
         },
     },
 
-    suppliers: {
-        list: async (query?: string): Promise<Supplier[]> => {
-             return [];
-        }
-    },
-
     inventory: {
         list: async (): Promise<InventoryItem[]> => {
             const res = await fetchWithTimeout(`${API_URL}/inventory`, { headers: getHeaders() });
@@ -331,23 +325,6 @@ export const api = {
                 headers: getHeaders()
             }, 30000);
             return handleResponse(res);
-        }
-    },
-
-    training: {
-        list: async (): Promise<Course[]> => {
-             return [
-                 {
-                     id: '1',
-                     title: 'Methanol Safety',
-                     duration: '2h',
-                     description: 'Basics of methanol bunkering safety',
-                     category: 'Safety',
-                     requiredForFuel: ['Methanol'],
-                     level: 'Beginner',
-                     syllabus: ['Introduction', 'Properties', 'Hazards', 'Response']
-                 }
-             ];
         }
     },
 

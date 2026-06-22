@@ -18,7 +18,6 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint } from '../types';
@@ -107,7 +106,6 @@ interface MarketplaceProps {
 
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode }) => {
     const { user } = useAuth();
-    const { setPageContext } = useCopilotContext();
     const { t, ready } = useNamespace('trading');
     const role: ViewMode = user?.role === 'ADMIN'
         ? (viewMode ?? 'BUYER')
@@ -295,22 +293,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
-
-    // ─── Copilot context broadcast ────────────────────────────────
-    useEffect(() => {
-        if (!loading) {
-            setPageContext({
-                view: 'Marketplace',
-                role,
-                total_listings: totalCount,
-                fuel_filter: marketProduct,
-                region_filter: resolvedPort || 'Any',
-                availability_filter: availability || 'Any',
-                page_skip: currentSkip,
-                summary: t(configBase.subtitleKey),
-            });
-        }
-    }, [listings, loading, marketProduct, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {

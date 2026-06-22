@@ -2,8 +2,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string
-  readonly VITE_AUTHENTIK_URL: string
-  readonly VITE_AUTHENTIK_CLIENT_ID: string
 }
 
 interface ImportMeta {

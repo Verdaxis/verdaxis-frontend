@@ -16,7 +16,6 @@ import {
 import { DeliveryPoint, MarketProduct, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
@@ -225,7 +224,6 @@ interface MarketTerminalProps {
 }
 
 export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) => {
-    const { setPageContext } = useCopilotContext();
     const { user } = useAuth();
     const { t } = useNamespace('trading');
     const { theme } = useTheme();

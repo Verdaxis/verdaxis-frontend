@@ -8,7 +8,6 @@ import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
 import { api } from '../services/api';
 import { MapLegend } from './map/MapLegend';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
@@ -41,7 +40,6 @@ const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
-    const { setPageContext } = useCopilotContext();
     const [ports, setPorts] = useState<Port[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
@@ -69,12 +67,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 setPorts(approvedPorts);
                 setListings(listingsData);
                 setAggregatedData(aggData);
-                setPageContext({
-                    view: 'Global Intelligence Map',
-                    available_ports: approvedPorts.length,
-                    port_names: approvedPorts.map((p: Port) => p.name),
-                    summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
-                });
             } catch (e) {
                 console.error("Failed to load map data", e);
             } finally {
