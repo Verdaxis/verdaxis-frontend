@@ -2,7 +2,7 @@
 
 ## Tech Stack
 
-React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, Gemini AI (@google/genai), react-router-dom v7, Vitest
+React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
 
 ## File Map
 
@@ -22,22 +22,19 @@ src/
   context/
     AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
-    CopilotContext.tsx             # Shares page-level context with AI copilot
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
+    TutorialContext.tsx             # Guided tutorial state
 
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
-    ai.ts                          # Re-exports from ai-engine/
+    ai.ts                          # Supplier risk AI export
     ai-engine/
-      config.ts                    # Gemini API key + GoogleGenAI client init
-      chat.ts                      # chatWithCopilot() -- multi-turn tool-calling chat loop
-      tools.ts                     # Gemini FunctionDeclarations + executor map
-      generators.ts                # AI content: market narratives, arbitrage, risk, web search
+      generators.ts                # AI supplier-risk memo helper, proxied through backend /ai/chat
       cache.ts                     # In-memory 5-min TTL cache for AI responses
 
   components/
-    Layout.tsx                     # App shell: sidebar + header + copilot overlay
+    Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
@@ -66,7 +63,6 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
-    ai/Copilot.tsx                 # Floating AI chat panel (Gemini-powered)
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -104,7 +100,6 @@ scripts/
   geocode_projects.py             # Geocode producer project locations
 
 database/schema.txt                # Backend DB schema reference
-docs/verdaxis-branding.yaml        # Brand guidelines
 .github/workflows/frontend-ci.yml # CI: test on PR, deploy on main push
 ```
 
@@ -115,9 +110,11 @@ index.html --> index.tsx --> App.tsx
                                |
                  +-------------+-------------+
                  |             |             |
-            ThemeProvider AuthProvider CopilotProvider
+            ThemeProvider AuthProvider
                                |
                       NotificationProvider
+                               |
+                        TutorialProvider
                                |
                          BrowserRouter
                         /      |      \
@@ -129,11 +126,7 @@ index.html --> index.tsx --> App.tsx
                                        /    |    \
                                 Layout viewMode currentPage (state)
                                / |  \
-                        Sidebar Header Copilot --> ai-engine/chat.ts
-                                                   /           \
-                                             tools.ts     generators.ts
-                                                |              |
-                                             api.ts      Gemini API
+                        Sidebar Header content views
                                                 |
                                         Backend REST API
 ```
@@ -160,12 +153,12 @@ relative labels while the API persists canonical codes. Green-fuels naming is no
 through `utils/marketProduct.ts`, and benchmark-relative pricing is carried in the shared
 order interfaces.
 
-**AI copilot architecture:** Gemini chat with multi-turn tool calling. `tools.ts` defines
-FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat loop in
-`chat.ts` handles up to 5 tool-call rounds. All AI responses are cached for 5 minutes.
+**AI assistance:** The floating Copilot chat has been removed. Supplier quote risk memos still
+call the backend `/ai/chat` proxy through `services/ai-engine/generators.ts`, with short-lived
+frontend caching for repeated memo requests.
 
-**Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
-Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+**Context-only state:** No Redux/Zustand. React Contexts cover Auth, Theme, Notifications,
+and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
 
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
@@ -211,7 +204,7 @@ while the backend rotates the refresh token in an HttpOnly cookie scoped to `/ap
 
 - **App bootstrap:** `index.html` -> `src/index.tsx` -> `src/App.tsx`
 - **API client:** `src/services/api.ts` (all backend communication)
-- **AI engine:** `src/services/ai-engine/chat.ts` (copilot entry)
+- **AI helper:** `src/services/ai-engine/generators.ts` (`analyzeRisk` supplier memo entry)
 - **Route definitions:** `src/App.tsx` (auth, public, and protected routes)
 - **Type system:** `src/types.ts` (all shared interfaces and type unions)
 

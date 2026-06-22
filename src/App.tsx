@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -22,23 +22,15 @@ import CreateOrganizationPage from './pages/CreateOrganizationPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import KycPage from './pages/KycPage';
 import { Layout } from './components/Layout';
-import { BuyerMap } from './components/BuyerMap';
 import { BuyerDashboard, SupplierDashboard } from './components/CommandCenter';
 import { SupplierQuotes } from './components/SupplierQuotes';
 import { DataAnalytics } from './components/DataAnalytics';
-import { Compliance } from './components/Compliance';
 import { Training } from './components/Training';
 import { Settings } from './components/Settings';
-import { Stats } from './components/Stats';
-import { MyTrades } from './components/MyTrades';
 import { TradeHistoryPage } from './components/TradeHistoryPage';
-import { MarketTerminal } from './components/MarketTerminal';
 import { ForwardCurveWorkspace } from './components/ForwardCurveWorkspace';
 import { Marketplace } from './components/Marketplace';
 import { WatchlistPage } from './components/WatchlistPage';
-import { SupplierStats } from './components/SupplierStats';
-import { SupplierAnalytics } from './components/SupplierAnalytics';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, Port } from './types';
 import { PublicLayout } from './components/public/PublicLayout';
@@ -60,12 +52,18 @@ import { PartnersPage } from './pages/public/PartnersPage';
 import { EducationArticlePage } from './pages/public/EducationArticlePage';
 import { RoadmapPage } from './pages/public/RoadmapPage';
 import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
-import { ProducerMapPage } from './pages/public/ProducerMapPage';
 import { PartnerShowcasePage } from './pages/public/PartnerShowcasePage';
 import { PartnerLandingPage } from './pages/public/PartnerLandingPage';
 import { PrivacyPage } from './pages/public/PrivacyPage';
 import { TermsPage } from './pages/public/TermsPage';
 import { NotFoundPage } from './pages/public/NotFoundPage';
+
+const BuyerMap = lazy(() => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap })));
+const ProducerMapPage = lazy(() => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage })));
+const MarketTerminal = lazy(() => import('./components/MarketTerminal').then((module) => ({ default: module.MarketTerminal })));
+const Compliance = lazy(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
+const SupplierAnalytics = lazy(() => import('./components/SupplierAnalytics').then((module) => ({ default: module.SupplierAnalytics })));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -274,7 +272,9 @@ const Dashboard: React.FC = () => {
     >
       <GuidedTutorial viewMode={viewMode} />
       <ErrorBoundary>
-        {renderContent()}
+        <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">Loading...</div>}>
+          {renderContent()}
+        </Suspense>
       </ErrorBoundary>
       <OrderPlaceModal
         isOpen={sidebarModalSide !== null}
@@ -295,6 +295,7 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
+                <Suspense fallback={<div className="min-h-screen bg-white p-10 text-center text-emerald-600 dark:bg-slate-950">Loading...</div>}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />
@@ -387,6 +388,7 @@ const App: React.FC = () => {
                     {/* Fallback */}
                     <Route path="*" element={<PublicLayout />} />
                 </Routes>
+                </Suspense>
             </BrowserRouter>
         </TutorialProvider>
         <TradeNotifier />

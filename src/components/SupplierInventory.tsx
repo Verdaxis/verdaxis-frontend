@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, AlertTriangle, CheckCircle2, Box, X, Loader2, Send, Trash2 } from 'lucide-react';
 import { InventoryItem, Port } from '../types';
 import { api } from '../services/api';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 
@@ -10,7 +9,6 @@ const INVENTORY_PRODUCTS = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map((option) => op
 
 export const SupplierInventory: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
-    const { setPageContext } = useCopilotContext();
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -59,25 +57,6 @@ export const SupplierInventory: React.FC = () => {
         };
         loadData();
     }, []);
-
-    useEffect(() => {
-        const totalStock = inventory.reduce((sum, i) => sum + i.currentStock, 0);
-        const lowStockCount = inventory.filter(i => i.status === 'Low Stock').length;
-        const capacity = 15000;
-        const utilization = capacity > 0 ? Math.round((totalStock / capacity) * 100) : 0;
-
-        setPageContext({
-            view: 'Supplier Inventory',
-            products: inventory.map(i => ({
-                name: i.productName,
-                stock: i.currentStock,
-                status: i.status
-            })),
-            total_capacity: `${capacity.toLocaleString()} MT`,
-            utilization: `${utilization}%`,
-            summary: 'Live inventory levels and stock management.'
-        });
-    }, [inventory, setPageContext]);
 
     const handleAddProduct = async (e: React.FormEvent) => {
         e.preventDefault();

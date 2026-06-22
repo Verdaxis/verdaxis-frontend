@@ -10,7 +10,6 @@ beforeAll(async () => {
     'compliance',
     'dashboard',
     'fleet',
-    'ai',
     'education',
     'admin',
     'settings',

@@ -113,7 +113,7 @@ describe('ForwardCurve', () => {
       expect(screen.getByText('No forward curve data available')).toBeTruthy();
     });
 
-    expect(screen.getByText('Check Marketplace or Orderbook for live spot and near-dated liquidity.')).toBeTruthy();
+    expect(screen.getByText('Check Marketplace or Orderbook for open spot and near-dated liquidity.')).toBeTruthy();
   });
 
   it('omits standalone card chrome when rendered in embedded terminal mode', async () => {
