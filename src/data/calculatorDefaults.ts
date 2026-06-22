@@ -41,6 +41,7 @@ export interface VoyageResult {
   ciiProxy: number;
   fuelCostUsd: number;
   totalCostUsd: number;
+  pricePerGJUsd: number;
 }
 
 export function calculateVoyage(
@@ -84,6 +85,7 @@ export function calculateVoyage(
   // Costs
   const fuelCostUsd = fuelBurnT * fuelPrice;
   const totalCostUsd = fuelCostUsd + (etsCostEur * inputs.eurToUsd) + (fueleuPenaltyEur * inputs.eurToUsd);
+  const pricePerGJUsd = energyDensity > 0 ? fuelPrice / energyDensity : 0;
 
   return {
     energyDensity,
@@ -98,5 +100,6 @@ export function calculateVoyage(
     ciiProxy: Math.round(ciiProxy * 100) / 100,
     fuelCostUsd: Math.round(fuelCostUsd),
     totalCostUsd: Math.round(totalCostUsd),
+    pricePerGJUsd: Math.round(pricePerGJUsd * 100) / 100,
   };
 }

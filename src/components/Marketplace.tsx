@@ -7,19 +7,21 @@ import {
     RefreshCw,
     Plus,
     AlertCircle,
+    AlertTriangle,
     CheckCircle2,
     ClipboardList,
     Trash2,
     Star,
     Ship,
     X,
+    XCircle,
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, Page } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -35,12 +37,14 @@ import { useNamespace } from '../hooks/useNamespace';
 import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
+    SPOT_WINDOW,
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { OrderBook } from './OrderBook';
+import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 
 // ─── Role Config ──────────────────────────────────────────────────
@@ -49,6 +53,7 @@ type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'c
 interface RoleConfigEntry {
     fetchOrders: (params?: {
         region?: string;
+        delivery_point_id?: string;
         fuel_type?: string;
         market_product?: string;
         availability?: string;
@@ -83,6 +88,7 @@ const ALL_MARKET_PRODUCTS = 'All';
 const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
 const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
+const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
 
 function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
@@ -90,76 +96,24 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 const REFRESH_INTERVAL_MS = 60_000;
-
-type MarketplaceCacheEntry = {
-    items: OrderBookOrder[];
-    total: number;
-    skip: number;
-    updatedAt: number;
-};
-
-type MarketplaceProductCountsCacheEntry = {
-    counts: Record<string, number>;
-    updatedAt: number;
-};
-
-const MARKETPLACE_READ_CACHE_TTL_MS = 30_000;
-
-const marketplaceCache = new Map<string, MarketplaceCacheEntry>();
-const marketplaceInFlight = new Map<string, Promise<MarketplaceCacheEntry>>();
-const marketplaceProductCountsCache = new Map<string, MarketplaceProductCountsCacheEntry>();
-const marketplaceProductCountsInFlight = new Map<string, Promise<Record<string, number>>>();
-
-const isFresh = (updatedAt: number, now = Date.now()) => now - updatedAt < MARKETPLACE_READ_CACHE_TTL_MS;
-
-const clearMarketplaceReadCaches = () => {
-    marketplaceCache.clear();
-    marketplaceProductCountsCache.clear();
-};
-
-export const __resetMarketplaceReadCachesForTests = () => {
-    clearMarketplaceReadCaches();
-    marketplaceInFlight.clear();
-    marketplaceProductCountsInFlight.clear();
-};
-
-const getMarketplaceCacheKey = (
-    role: string,
-    region: string,
-    marketProduct: typeof ALL_MARKET_PRODUCTS | MarketProduct,
-    availability: AvailabilityWindow | '',
-    skip: number,
-) => [
-    role,
-    region || '*',
-    marketProduct || '*',
-    availability || '*',
-    skip,
-].join('|');
-
-const getMarketplaceProductCountsCacheKey = (
-    role: string,
-    region: string,
-    availability: AvailabilityWindow | '',
-) => [
-    role,
-    region || '*',
-    availability || '*',
-].join('|');
 
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
-    onNavigate?: (page: Page) => void;
+    viewMode?: ViewMode;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigate }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode }) => {
     const { user } = useAuth();
     const { setPageContext } = useCopilotContext();
     const { t, ready } = useNamespace('trading');
-    const role = user?.role ?? 'BUYER';
+    const role: ViewMode = user?.role === 'ADMIN'
+        ? (viewMode ?? 'BUYER')
+        : user?.role === 'SUPPLIER'
+            ? 'SUPPLIER'
+            : 'BUYER';
     const configBase = ROLE_CONFIG_BASE[role] ?? ROLE_CONFIG_BASE.BUYER;
     const { trackedSliceKeys, pinnedOrderIds, toggleSlice, togglePin } = useWatchlist();
 
@@ -185,6 +139,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
+    const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
+    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         const stored = localStorage.getItem('verdaxis_marketplace_window');
@@ -204,6 +160,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         return match ? match.name : '';
     }, [portInput]);
 
+    const resolvedDeliveryPointId = useMemo(() => {
+        if (!resolvedPort) return '';
+        const q = resolvedPort.trim().toLowerCase();
+        const storedMatch = deliveryPoints.find(point => (
+            point.id === storedDeliveryPointId && point.name.trim().toLowerCase() === q
+        ));
+        if (storedMatch) return storedMatch.id;
+
+        return deliveryPoints.find(point => point.name.trim().toLowerCase() === q)?.id || '';
+    }, [deliveryPoints, resolvedPort, storedDeliveryPointId]);
+
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
 
@@ -211,7 +178,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             order.market_product === marketProduct
             && order.availability_window === availability
             && order.delivery_point_id
-            && (order.delivery_point_name === resolvedPort || order.region === resolvedPort)
+            && (resolvedDeliveryPointId
+                ? order.delivery_point_id === resolvedDeliveryPointId
+                : (order.delivery_point_name === resolvedPort || order.region === resolvedPort))
         ));
 
         if (!matchingOrder?.delivery_point_id) return null;
@@ -221,7 +190,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             deliveryPointId: matchingOrder.delivery_point_id,
             availabilityWindowCode: matchingOrder.availability_window,
         };
-    }, [availability, listings, marketProduct, resolvedPort]);
+    }, [availability, listings, marketProduct, resolvedDeliveryPointId, resolvedPort]);
 
     const currentSliceKey = currentSliceTarget
         ? getWatchlistSliceKeyFromParts(
@@ -231,16 +200,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         )
         : '';
     const isCurrentSliceTracked = Boolean(currentSliceTarget) && trackedSliceKeys.has(currentSliceKey);
+    const marketScopeReadyCopyKey = resolvedDeliveryPointId
+        ? 'marketScope.ready'
+        : 'marketScope.readyRegionTape';
 
     // ─── Client-side filters ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
+    const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
     const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [tradeQuantity, setTradeQuantity] = useState(0);
-    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'submitting' | 'success' | 'error'>('idle');
+    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
 
     // ─── News panel toggle ──────────────────────────────────────
@@ -263,62 +237,40 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         return result;
     }, [listings, sortBy]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loadDeliveryPoints = async () => {
+            try {
+                const response = await api.catalog.deliveryPoints();
+                if (!cancelled) setDeliveryPoints(response.filter(point => point.is_active !== false));
+            } catch (error) {
+                console.warn('Marketplace delivery points unavailable', error);
+                if (!cancelled) setDeliveryPoints([]);
+            }
+        };
+
+        loadDeliveryPoints();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
 
     // ─── Data fetching ────────────────────────────────────────────
-    const fetchData = useCallback(async (silent = false, skip = 0, options: { force?: boolean } = {}) => {
-        const cacheKey = getMarketplaceCacheKey(role, resolvedPort, marketProduct, availability, skip);
-        const cached = marketplaceCache.get(cacheKey);
-        const now = Date.now();
-
-        if (cached && isFresh(cached.updatedAt, now) && !options.force) {
-            setListings(cached.items);
-            setTotalCount(cached.total);
-            setCurrentSkip(cached.skip);
-            setLoading(false);
-            setRefreshing(false);
-            return;
-        }
-
-        if (cached && !silent) {
-            setListings(cached.items);
-            setTotalCount(cached.total);
-            setCurrentSkip(cached.skip);
-            setLoading(false);
-            setRefreshing(true);
-        } else if (silent) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
+    const fetchData = useCallback(async (silent = false, skip = 0) => {
+        if (silent) setRefreshing(true);
+        else setLoading(true);
         setError(null);
 
         try {
-            let request = marketplaceInFlight.get(cacheKey);
-            if (!request || options.force) {
-                request = configBase.fetchOrders({
-                    region: resolvedPort || undefined,
-                    market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
-                    availability: availability || undefined,
-                    skip,
-                    limit: PAGE_SIZE,
-                }).then((data) => {
-                    const entry = {
-                        items: data.items,
-                        total: data.total,
-                        skip: data.skip,
-                        updatedAt: Date.now(),
-                    };
-                    marketplaceCache.set(cacheKey, entry);
-                    return entry;
-                }).finally(() => {
-                    if (marketplaceInFlight.get(cacheKey) === request) {
-                        marketplaceInFlight.delete(cacheKey);
-                    }
-                });
-                marketplaceInFlight.set(cacheKey, request);
-            }
-
-            const data = await request;
+            const data = await configBase.fetchOrders({
+                region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
+                delivery_point_id: resolvedDeliveryPointId || undefined,
+                market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
+                availability: availability || undefined,
+                skip,
+                limit: PAGE_SIZE,
+            });
             setListings(data.items);
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
@@ -329,7 +281,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             setLoading(false);
             setRefreshing(false);
         }
-    }, [availability, configBase, marketProduct, resolvedPort, role]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
@@ -339,7 +291,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     // 60s auto-refresh (silent)
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchData(true, currentSkip, { force: true });
+            fetchData(true, currentSkip);
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
@@ -366,6 +318,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     }, [portInput]);
 
     useEffect(() => {
+        if (resolvedDeliveryPointId) {
+            localStorage.setItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY, resolvedDeliveryPointId);
+        } else if (!resolvedPort) {
+            localStorage.removeItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY);
+        }
+    }, [resolvedDeliveryPointId, resolvedPort]);
+
+    useEffect(() => {
         localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
         localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
     }, [marketProduct]);
@@ -374,45 +334,24 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         let cancelled = false;
 
         const fetchMarketProductCounts = async () => {
-            const cacheKey = getMarketplaceProductCountsCacheKey(role, resolvedPort, availability);
-            const cached = marketplaceProductCountsCache.get(cacheKey);
-            if (cached && isFresh(cached.updatedAt)) {
-                setMarketProductCounts(cached.counts);
-                return;
-            }
-
             try {
-                let request = marketplaceProductCountsInFlight.get(cacheKey);
-                if (!request) {
-                    request = Promise.all(
-                        MARKET_PRODUCTS.map(async (productCode) => {
-                            const response = await configBase.fetchOrders({
-                                region: resolvedPort || undefined,
-                                market_product: productCode,
-                                availability: availability || undefined,
-                                skip: 0,
-                                limit: 1,
-                            });
-                            return [productCode, response.total ?? response.items?.length ?? 0] as const;
-                        }),
-                    ).then((totals) => {
-                        const counts = Object.fromEntries(totals);
-                        marketplaceProductCountsCache.set(cacheKey, {
-                            counts,
-                            updatedAt: Date.now(),
+                const totals = await Promise.all(
+                    MARKET_PRODUCTS.map(async (productCode) => {
+                        const response = await configBase.fetchOrders({
+                            region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
+                            delivery_point_id: resolvedDeliveryPointId || undefined,
+                            market_product: productCode,
+                            availability: availability || undefined,
+                            skip: 0,
+                            limit: 1,
                         });
-                        return counts;
-                    }).finally(() => {
-                        if (marketplaceProductCountsInFlight.get(cacheKey) === request) {
-                            marketplaceProductCountsInFlight.delete(cacheKey);
-                        }
-                    });
-                    marketplaceProductCountsInFlight.set(cacheKey, request);
-                }
+                        return [productCode, response.total ?? response.items?.length ?? 0] as const;
+                    }),
+                );
 
-                const counts = await request;
                 if (cancelled) return;
-                setMarketProductCounts(counts);
+
+                setMarketProductCounts(Object.fromEntries(totals));
             } catch {
                 if (!cancelled) {
                     setMarketProductCounts({});
@@ -424,12 +363,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         return () => {
             cancelled = true;
         };
-    }, [availability, configBase, resolvedPort, role]);
+    }, [availability, configBase, resolvedDeliveryPointId, resolvedPort]);
 
 
     const portOptions = useMemo(() => ([
         { value: '', label: 'All ports' },
-        ...PORTS.map((port) => ({ value: port.name, label: port.name, description: port.country })),
+        ...PORTS.map((port) => ({
+            value: port.name,
+            label: port.name,
+            description: port.country,
+            tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
+        })),
     ]), []);
 
     const sliceSummary = useMemo(() => {
@@ -451,7 +395,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     const clearMarketFilters = useCallback(() => {
         setMarketProduct(ALL_MARKET_PRODUCTS);
         setPortInput('');
+        setStoredDeliveryPointId('');
         setAvailability('');
+        setCurrentSkip(0);
+    }, []);
+
+    const handlePortChange = useCallback((value: string) => {
+        setPortInput(value);
+        setStoredDeliveryPointId('');
         setCurrentSkip(0);
     }, []);
 
@@ -459,7 +410,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         fetchData(false, newSkip);
     };
 
-    const orderbookRequiresProductSelection = marketProduct === ALL_MARKET_PRODUCTS;
+    const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
+    const hasExactPort = Boolean(resolvedPort);
+    const hasExactAvailability = Boolean(availability);
+    const orderbookRequiresExactSlice = !hasExactProduct || !hasExactPort || !hasExactAvailability;
+    const selectedAvailabilityLabel = availabilityOptions.find(option => option.value === availability)?.label || availability;
+    const orderbookSliceRequirements = [
+        {
+            key: 'product',
+            label: t('orderBook.requirement.product'),
+            value: hasExactProduct ? formatMarketProduct(marketProduct) : t('orderBook.requirement.anyProduct'),
+            complete: hasExactProduct,
+        },
+        {
+            key: 'port',
+            label: t('orderBook.requirement.port'),
+            value: hasExactPort ? resolvedPort : t('orderBook.requirement.anyPort'),
+            complete: hasExactPort,
+        },
+        {
+            key: 'window',
+            label: t('orderBook.requirement.window'),
+            value: hasExactAvailability ? selectedAvailabilityLabel : t('orderBook.requirement.anyWindow'),
+            complete: hasExactAvailability,
+        },
+    ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -468,11 +443,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
 
     const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
-        setSelectedOrder(order);
-        setTradeQuantity(order.remaining_quantity_mt);
-        setTradeState('confirming');
-        setTradeError('');
+        setHighlightedOrderId(order.id);
+        setMarketTab('market');
     }, []);
+
+    useEffect(() => {
+        if (marketTab !== 'market' || !highlightedOrderId) return;
+        const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
+        if (!(node instanceof HTMLElement)) return;
+        requestAnimationFrame(() => {
+            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }, [filteredListings, highlightedOrderId, marketTab]);
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
@@ -513,21 +495,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         }
 
         if (resolvedPort) {
-            const orderPort = order.delivery_point_name || order.region || '';
-            if (orderPort !== resolvedPort) {
+            const matchesPort = resolvedDeliveryPointId
+                ? order.delivery_point_id === resolvedDeliveryPointId
+                : (order.delivery_point_name || order.region || '') === resolvedPort;
+            if (!matchesPort) {
                 return false;
             }
         }
 
         return true;
-    }), [availability, marketProduct, outstandingMyOrders, resolvedPort]);
+    }), [availability, marketProduct, outstandingMyOrders, resolvedDeliveryPointId, resolvedPort]);
 
     const handleCancelOrder = async (orderId: string) => {
         try {
             await api.orderbook.cancel(orderId);
-            clearMarketplaceReadCaches();
             setMyOrders(prev => prev.filter(o => o.id !== orderId));
-            fetchData(true, currentSkip, { force: true });
         } catch {
             // Silently fail — order may already be filled/cancelled
         }
@@ -539,18 +521,38 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
         setTradeError('');
     };
 
-    const confirmTrade = async () => {
-        if (!selectedOrder || tradeState === 'submitting') return;
-        if (selectedOrder.is_demo_listing) {
-            setTradeError(t('marketplace.demoListing.body'));
-            return;
-        }
+    const validateTradeQuantity = () => {
+        if (!selectedOrder || tradeState === 'submitting') return null;
         const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
         if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
             setTradeError('Enter a valid quantity within the remaining amount.');
             setTradeState('error');
+            return null;
+        }
+        return normalizedTradeQuantity;
+    };
+
+    const reviewTrade = () => {
+        if (!selectedOrder) return;
+        if (selectedOrder.is_demo_listing) {
+            setTradeError(t('marketplace.demo.blocked'));
+            setTradeState('error');
             return;
         }
+        if (validateTradeQuantity() == null) return;
+        setTradeError('');
+        setTradeState('reviewing');
+    };
+
+    const confirmTrade = async () => {
+        if (!selectedOrder || tradeState === 'submitting') return;
+        if (selectedOrder.is_demo_listing) {
+            setTradeError(t('marketplace.demo.blocked'));
+            setTradeState('error');
+            return;
+        }
+        const normalizedTradeQuantity = validateTradeQuantity();
+        if (normalizedTradeQuantity == null) return;
         setTradeState('submitting');
         try {
             await api.trades.initiate({
@@ -561,8 +563,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             // Auto-close after 2s and refresh
             setTimeout(() => {
                 closeTradeModal();
-                clearMarketplaceReadCaches();
-                fetchData(true, currentSkip, { force: true });
+                fetchData(true, currentSkip);
             }, 2000);
         } catch (err: any) {
             setTradeError(err.message || 'Trade initiation failed');
@@ -592,6 +593,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                     Off-spec
                                 </span>
                             )}
+                            {order.is_demo_listing && (
+                                <span
+                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                                    title={t('marketplace.demo.tooltip')}
+                                >
+                                    <AlertCircle size={11} />
+                                    {t('marketplace.demo.label')}
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
                             <MapPin size={10} className="text-slate-400 flex-shrink-0" />
@@ -604,7 +614,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             }
             case 'grade':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
                             {order.certification_declared ? 'Declared cert' : 'Cert missing'}
                         </span>
@@ -618,7 +628,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                 );
             case 'price':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap font-mono text-xs">
+                    <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
                         <BenchmarkPriceBlock
                             priceUsd={Number(order.price_per_mt_usd)}
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
@@ -628,19 +638,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                 );
             case 'window':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">
                         {formatDeliveryWindow(order)}
                     </td>
                 );
             case 'expiry':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         {formatExpiry(order)}
                     </td>
                 );
             case 'cert':
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
+                    <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         <div className="flex flex-wrap gap-1">
                             {order.certifications.map(cert => (
                                 <span
@@ -669,11 +679,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
-                    <td key={col} className="px-4 py-2 whitespace-nowrap">
-                        <div className="flex flex-col items-start gap-2">
+                    <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
+                        <div className="flex flex-col items-end gap-2">
                             {isExecutable ? (
                                 <button
                                     type="button"
+                                    data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
@@ -696,10 +707,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                         await togglePin(order.id);
                                     }}
                                     aria-pressed={isPinned}
+                                    aria-label={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
+                                    title={isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
                                     className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${isPinned ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300' : 'border-slate-200 text-slate-500 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:text-slate-300'}`}
                                 >
                                     <Star size={12} fill={isPinned ? 'currentColor' : 'none'} />
-                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.pinToWatchlist')}
+                                    {isPinned ? t('marketplace.btn.pinned') : t('marketplace.btn.watchListing')}
                                 </button>
                             )}
                         </div>
@@ -717,7 +730,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             {[...Array(4)].map((_, i) => (
                 <tr key={i} className="border-b border-slate-200/50 dark:border-slate-700/50">
                     {configBase.columns.map((col, ci) => (
-                        <td key={ci} className="px-4 py-3">
+                        <td key={ci} className={`px-4 py-3 ${col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' : ''}`}>
                             <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 w-full" />
                         </td>
                     ))}
@@ -729,21 +742,24 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
     // ─── Render ───────────────────────────────────────────────────
     return (
         <div
-            data-navigation-ready={!loading ? 'MARKETPLACE' : undefined}
-            className="h-full flex flex-col overflow-y-auto md:overflow-hidden"
+            className="h-full min-h-0 flex flex-col overflow-hidden"
+            data-tour-market-product={marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
+            data-tour-port={resolvedPort}
+            data-tour-window={availability}
+            data-tour-tab={marketTab}
         >
             {/* Header */}
-            <div className="md:flex-shrink-0 px-4 lg:px-10 pt-4 lg:pt-8 pb-0 relative z-[80]">
+            <div className="flex-none max-h-[50%] overflow-y-auto overscroll-contain px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80]">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <button
-                                data-tour="marketplace-primary-action"
                                 type="button"
+                                data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
                                 className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-sm rounded-lg transition-colors shadow-sm hover:shadow"
                             >
@@ -752,7 +768,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             </button>
                             <button
                                 type="button"
-                                onClick={() => fetchData(false, currentSkip, { force: true })}
+                                onClick={() => fetchData(false, currentSkip)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -776,7 +792,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
 
                     {/* Unified filter rail */}
-                    <div className="v-glass p-4 mb-4 relative z-[90]">
+                    <div className="v-glass p-3 mb-3 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -784,7 +800,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                         <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.products')}</span>
                                         <span className="text-xs text-slate-400">{t('marketplace.metrics.productsHint')}</span>
                                     </div>
-                                    <div className="flex flex-1 flex-wrap gap-2">
+                                    <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
                                             const isActive = marketProduct === productCode;
                                             const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
@@ -793,6 +809,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                                 <button
                                                     type="button"
                                                     key={productCode}
+                                                    data-tour={productCode === MARKET_PRODUCTS[0] ? 'marketplace-product-sample' : undefined}
+                                                    data-market-product={productCode}
+                                                    aria-pressed={isActive}
                                                     onClick={() => handleProductChipClick(productCode)}
                                                     className={`rounded-full px-3 py-1.5 text-sm font-medium transition-all whitespace-nowrap ${
                                                         isActive
@@ -809,6 +828,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
                                 <button
                                     type="button"
+                                    data-tour="marketplace-filter-toggle"
+                                    aria-expanded={filtersExpanded}
+                                    aria-controls="marketplace-advanced-filters"
                                     onClick={() => setFiltersExpanded((expanded) => !expanded)}
                                     className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-slate-100"
                                 >
@@ -819,14 +841,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
                             {filtersExpanded && (
                                 <>
-                                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
+                                    <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
                                             <label className="v-label">{t('marketplace.filter.port')}</label>
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.port')}
                                                 value={portInput}
-                                                onChange={setPortInput}
+                                                onChange={handlePortChange}
                                                 options={portOptions}
+                                                triggerTourId="marketplace-port-select"
                                                 triggerClassName="v-input min-h-[42px] py-2.5"
                                             />
                                         </div>
@@ -838,8 +861,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                                 onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
                                                 options={[
                                                     { value: '', label: 'Any window' },
-                                                    ...availabilityOptions.map(option => ({ value: option.value, label: option.label })),
+                                                    ...availabilityOptions.map(option => ({
+                                                        value: option.value,
+                                                        label: option.label,
+                                                        tourId: option.value === SPOT_WINDOW ? 'marketplace-window-option-spot' : undefined,
+                                                    })),
                                                 ]}
+                                                triggerTourId="marketplace-window-select"
                                                 triggerClassName="v-input min-h-[42px] py-2.5"
                                             />
                                         </div>
@@ -902,6 +930,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             }}
                         />
                         <button
+                            data-tour="marketplace-tab-market"
                             onClick={() => setMarketTab('market')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'market'
@@ -909,10 +938,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            {t('marketplace.tab.listings')}
+                            {t('marketplace.tab.market')}
                         </button>
                         <button
-                            data-tour="marketplace-orderbook-tab"
+                            data-tour="marketplace-tab-orderbook"
                             onClick={() => setMarketTab('orderbook')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'orderbook'
@@ -920,9 +949,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
                             }`}
                         >
-                            {t('marketplace.tab.orderbook')}
+                            {t('marketplace.tab.listings')}
                         </button>
                         <button
+                            data-tour="marketplace-tab-my-orders"
                             onClick={() => setMarketTab('my_orders')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'my_orders'
@@ -937,7 +967,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                         </button>
                     </div>
 
-                    <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
+                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                         {marketTab === 'market'
                             ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
                             : marketTab === 'orderbook'
@@ -950,7 +980,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
             {/* Error state */}
             {error && !loading && (
-                <div className="flex-shrink-0 px-4 lg:px-10">
+                <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div className="v-card p-8 flex flex-col items-center text-center">
                             <div className="p-4 bg-red-500/10 rounded-full mb-4">
@@ -959,7 +989,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                             <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">{t('marketplace.error.title')}</p>
                             <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 max-w-md">{error}</p>
                             <button
-                                onClick={() => fetchData(false, 0, { force: true })}
+                                onClick={() => fetchData(false, 0)}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                             >
                                 {t('marketplace.btn.tryAgain')}
@@ -970,23 +1000,77 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             )}
 
             {marketTab === 'orderbook' && !error && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
-                        <div data-tour="marketplace-orderbook-surface" className="min-h-[520px]">
-                            {orderbookRequiresProductSelection ? (
-                                <div className="v-card p-10 flex flex-col items-center justify-center text-center min-h-[520px]">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
+                        <div
+                            data-tour="marketplace-market-scope"
+                            className="mb-3 flex-none rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/80"
+                            aria-label={t('marketScope.title')}
+                        >
+                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                <div className="min-w-0">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                        {t('marketScope.title')}
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t(marketScopeReadyCopyKey)}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[720px]">
+                                    {orderbookSliceRequirements.map((requirement) => {
+                                        const Icon = requirement.complete ? CheckCircle2 : XCircle;
+                                        return (
+                                            <div
+                                                key={requirement.key}
+                                                aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
+                                                className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 ${
+                                                    requirement.complete
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+                                                        : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+                                                }`}
+                                            >
+                                                <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">
+                                                        {requirement.label}
+                                                    </div>
+                                                    <div className="mt-0.5 truncate text-sm font-bold">
+                                                        {requirement.value}
+                                                    </div>
+                                                </div>
+                                                <span className="sr-only">
+                                                    {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
+                            {orderbookRequiresExactSlice ? (
+                                <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
                                     <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
                                     <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
                                 </div>
                             ) : (
-                                <OrderBook
-                                    marketProduct={marketProduct}
-                                    region={resolvedPort || undefined}
-                                    availability={availability || undefined}
-                                    actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                                    onLevelClick={handleOrderbookLevelClick}
-                                />
+                                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
+                                    <OrderBook
+                                        marketProduct={marketProduct}
+                                        region={resolvedPort || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
+                                        availability={availability || undefined}
+                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
+                                        onLevelClick={handleOrderbookLevelClick}
+                                    />
+                                    <TradeTape
+                                        marketProduct={marketProduct}
+                                        availability={availability || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
+                                        region={resolvedDeliveryPointId ? undefined : resolvedPort || undefined}
+                                    />
+                                </div>
                             )}
                         </div>
                     </div>
@@ -995,8 +1079,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
             {/* My Listings tab: user's outstanding orders */}
             {marketTab === 'my_orders' && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
                         {myOrdersLoading ? (
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
@@ -1035,19 +1119,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                 )}
                             </div>
                         ) : (
-                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                                <table className="w-full border-collapse text-sm">
+                            <div className="min-h-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
+                                <table className="w-full min-w-[980px] border-collapse text-sm">
                                     <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                         <tr>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
-                                            <th className="text-right px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
-                                            <th className="text-left px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
-                                            <th className="text-center px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
+                                            <th className="text-center px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1059,32 +1143,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                                     key={order.id}
                                                     className={`border-t border-slate-100 dark:border-slate-700 ${filled ? 'opacity-50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
                                                 >
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-3 py-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                                                             isBid ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                                                         }`}>
                                                             {order.side}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
                                                         {getOrderDisplayName(order)}
                                                     </td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400 text-xs">
+                                                    <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
+                                                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
                                                         ${Number(order.price_per_mt_usd).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {Number(order.quantity_mt).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
                                                         {Number(order.remaining_quantity_mt).toLocaleString()}
                                                     </td>
-                                                    <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                                                    <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
                                                         {order.availability_window}
                                                     </td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-3 py-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                                             order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
                                                             order.status === 'PARTIALLY_FILLED' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
@@ -1094,7 +1178,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                                             {order.status.replaceAll('_', ' ')}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-center">
+                                                    <td className="px-3 py-2 text-center">
                                                         {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
                                                             <button
                                                                 type="button"
@@ -1114,7 +1198,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                 </table>
                             </div>
                         )}
-                        <div className="flex justify-end mt-3">
+                        <div className="flex-none flex justify-end pt-3">
                             <button
                                 onClick={fetchMyOrders}
                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
@@ -1128,18 +1212,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
 
             {/* Market tab: listings table */}
             {marketTab === 'market' && !error && (
-                <div className="md:flex-1 overflow-auto px-4 lg:px-10 pb-6">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <table className="w-full border-collapse text-sm">
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-7xl mx-auto">
+                        <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
+                            <div className="min-h-0 flex-1 overflow-auto">
+                            <table className="w-full min-w-[680px] border-collapse text-sm xl:min-w-[900px]">
                                 <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                     <tr>
                                         {configBase.columns.map((col) => (
                                             <th
                                                 key={col}
-                                                className={`text-left px-4 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
+                                                className={`${col === 'action' ? 'text-right' : 'text-left'} px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
                                                     col === 'star' ? 'w-8 px-2' :
-                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' : ''
+                                                    col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' :
+                                                    col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' :
+                                                    col === 'action' ? 'sticky right-0 z-40 min-w-[108px] bg-slate-100 text-right shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] dark:bg-slate-800' : ''
                                                 }`}
                                             >
                                                 {COLUMN_HEADERS[col]}
@@ -1155,7 +1242,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                             <tr
                                                 key={order.id}
                                                 data-order-id={order.id}
-                                                className={`h-10 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)}`}
+                                                data-tour="marketplace-listing-row"
+                                                className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1175,9 +1263,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                             {/* Pagination */}
                             {!loading && totalCount > 0 && (
-                                <div className="border-t border-slate-200 dark:border-slate-700 px-4">
+                                <div className="flex-none border-t border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-900">
                                     <Pagination
                                         total={totalCount}
                                         skip={currentSkip}
@@ -1194,7 +1283,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
             {selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" data-tour="trade-modal">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -1260,17 +1349,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                             {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button type="button" aria-label="Close trade modal" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button type="button" aria-label="Close trade modal" data-tour="trade-modal-close" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
 
                                 <div className="p-6 space-y-5">
+                                    {selectedOrder.is_demo_listing && (
+                                        <div data-tour="trade-demo-warning" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                                            <div className="flex items-start gap-2">
+                                                <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-sm font-bold">{t('marketplace.demo.modalTitle')}</div>
+                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.demo.modalBody')}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Order summary */}
-                                    <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
+                                    <div data-tour="trade-modal-summary" className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg border border-emerald-100 dark:border-emerald-500/20">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</span>
-                                            <span className="font-bold text-slate-800 dark:text-slate-200">
+                                            <span className="flex items-center gap-2 text-right font-bold text-slate-800 dark:text-slate-200">
+                                                {selectedOrder.is_demo_listing && (
+                                                    <AlertCircle size={14} className="text-amber-500" aria-label={t('marketplace.demo.label')} />
+                                                )}
                                                 {getOrderDisplayName(selectedOrder)}
                                             </span>
                                         </div>
@@ -1288,18 +1392,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                         </div>
                                     </div>
 
-                                    {selectedOrder.is_demo_listing && (
-                                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
-                                            <div className="flex items-start gap-2">
-                                                <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                                                <div>
-                                                    <div className="font-bold">{t('marketplace.demoListing.title')}</div>
-                                                    <div className="mt-1 text-xs leading-5">{t('marketplace.demoListing.body')}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {/* Quantity input */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
@@ -1310,7 +1402,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
                                                 max={selectedOrder.remaining_quantity_mt}
                                                 min={1}
-                                                className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                                disabled={tradeState === 'reviewing' || tradeState === 'submitting' || selectedOrder.is_demo_listing}
+                                                className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-400"
                                             />
                                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-medium">MT</span>
                                         </div>
@@ -1323,38 +1416,56 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
                                             )}
                                         </p>
                                     </div>
+                                    {tradeState === 'reviewing' && (
+                                        <div data-tour="trade-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                                            <div className="flex items-start gap-2">
+                                                <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <div className="font-bold">{t('marketplace.confirm.title')}</div>
+                                                    <p className="mt-1 text-xs leading-5">{t('marketplace.confirm.body')}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Actions */}
                                 <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50">
                                     <button
                                         type="button"
-                                        onClick={closeTradeModal}
+                                        onClick={tradeState === 'reviewing' ? () => setTradeState('confirming') : closeTradeModal}
                                         className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
                                     >
-                                        {t('marketplace.btn.cancel')}
+                                        {tradeState === 'reviewing' ? t('marketplace.btn.back') : t('marketplace.btn.cancel')}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={confirmTrade}
-                                        disabled={selectedOrder.is_demo_listing || !Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
-                                        className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {selectedOrder.is_demo_listing ? (
+                                    {selectedOrder.is_demo_listing ? (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            data-tour="trade-demo-disabled-button"
+                                            className="px-6 py-2.5 bg-amber-100 text-amber-700 border border-amber-200 font-bold rounded-lg flex items-center gap-2 disabled:cursor-not-allowed dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30"
+                                        >
                                             <AlertCircle size={18} />
-                                        ) : tradeState === 'submitting' ? (
-                                            <Loader2 size={18} className="animate-spin" />
-                                        ) : (
-                                            <CheckCircle2 size={18} />
-                                        )}
-                                        <span>
-                                            {selectedOrder.is_demo_listing
-                                                ? t('marketplace.demoListing.tradeDisabled')
-                                                : tradeState === 'submitting'
-                                                    ? t('marketplace.btn.submittingTrade')
-                                                    : t('marketplace.btn.submitTrade')}
-                                        </span>
-                                    </button>
+                                            <span>{t('marketplace.demo.disabledButton')}</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
+                                            data-tour={tradeState === 'reviewing' ? 'trade-final-confirm-button' : 'trade-review-button'}
+                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                            className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                            <span>
+                                                {tradeState === 'submitting'
+                                                    ? t('marketplace.btn.submitting')
+                                                    : tradeState === 'reviewing'
+                                                        ? t('marketplace.btn.confirmFinal')
+                                                        : t('marketplace.btn.confirm')}
+                                            </span>
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -1365,14 +1476,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, onNavigat
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); clearMarketplaceReadCaches(); fetchData(true, currentSkip, { force: true }); }}
+                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}
                 prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
                 prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
                 prefillAvailabilityWindow={availability || undefined}
-                onNavigate={onNavigate}
             />
         </div>
     );

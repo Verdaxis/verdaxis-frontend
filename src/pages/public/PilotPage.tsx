@@ -1,16 +1,17 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
 import {
+  ArrowRight,
   CheckCircle,
   Clock,
+  MessageCircle,
   Factory,
   Ship,
   TrendingUp,
   Handshake,
   Calendar,
-  ArrowRight,
-  Mail,
+  UserPlus,
 } from 'lucide-react';
 import {
   Reveal,
@@ -28,21 +29,7 @@ import { useNamespace } from '../../hooks/useNamespace';
 /* ------------------------------------------------------------------ */
 
 const sectionPadding: React.CSSProperties = {
-  padding: '72px 24px',
-};
-
-const primaryButton: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-  background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
-  color: '#FFFFFF',
-  padding: '14px 28px',
-  borderRadius: 8,
-  fontSize: 16,
-  fontWeight: 600,
-  textDecoration: 'none',
+  padding: '56px 24px',
 };
 
 const sectionTitle: React.CSSProperties = {
@@ -59,7 +46,7 @@ const sectionSubtitle: React.CSSProperties = {
   color: '#64748B',
   textAlign: 'center',
   maxWidth: 640,
-  margin: '0 auto 48px',
+  margin: '0 auto 36px',
   lineHeight: 1.6,
 };
 
@@ -67,7 +54,7 @@ const card: React.CSSProperties = {
   background: '#FFFFFF',
   border: '1px solid #E2E8F0',
   borderRadius: 12,
-  padding: 32,
+  padding: 28,
 };
 
 const iconBox: React.CSSProperties = {
@@ -87,6 +74,16 @@ const responsiveStyles = `
       grid-template-columns: 1fr !important;
     }
   }
+
+  @media (max-width: 960px) {
+    .pilot-application-layout {
+      grid-template-columns: 1fr !important;
+    }
+
+    .pilot-form-card {
+      position: static !important;
+    }
+  }
 `;
 
 /* ================================================================== */
@@ -95,6 +92,8 @@ const responsiveStyles = `
 
 export const PilotPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const { lang } = useParams<{ lang: string }>();
+  const appRegisterUrl = `https://app.verdaxis.exchange/register?lang=${lang || 'en'}`;
   if (!ready) return null;
 
   const enabledFeatures = [
@@ -171,24 +170,6 @@ export const PilotPage: React.FC = () => {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 1 }}
         >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '6px 12px',
-              borderRadius: 999,
-              background: 'rgba(148, 163, 184, 0.14)',
-              border: '1px solid rgba(148, 163, 184, 0.24)',
-              color: '#CBD5E1',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.2,
-              marginBottom: 18,
-            }}
-          >
-            {t('pilot.hero.eyebrow')}
-          </div>
           <h1
             style={{
               fontSize: 42,
@@ -212,121 +193,247 @@ export const PilotPage: React.FC = () => {
           >
             {t('pilot.hero.subtitle')}
           </p>
-          <div style={{ marginTop: 28 }}>
-            <HoverButton>
-              <Link to="/register" style={primaryButton}>
-                {t('pilot.hero.button')}
-                <ArrowRight size={18} />
-              </Link>
-            </HoverButton>
-          </div>
         </motion.div>
       </section>
 
-      {/* ---- Section 2: What the Pilot Includes ---- */}
+      {/* ---- Section 2: What the Pilot Includes + Onboarding CTA ---- */}
       <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
-        <Reveal>
-          <h2 style={sectionTitle}>{t('pilot.includes.title')}</h2>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <p style={sectionSubtitle}>{t('pilot.includes.subtitle')}</p>
-        </Reveal>
-
-        <StaggerGrid
-          className="pilot-grid-2col"
+        <div
+          className="pilot-application-layout"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 24,
-            maxWidth: 900,
+            gridTemplateColumns: 'minmax(0, 1fr) minmax(340px, 400px)',
+            gap: 32,
+            alignItems: 'start',
+            maxWidth: 1120,
             margin: '0 auto',
           }}
         >
-          {/* Enabled Column */}
-          <StaggerItem>
-            <HoverCard
-              style={{
-                ...card,
-                borderTop: '4px solid #4CAF50',
-                height: '100%',
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#4CAF50',
-                  marginBottom: 24,
-                }}
-              >
-                {t('pilot.includes.enabled.title')}
-              </h3>
-              {enabledFeatures.map((feature) => (
-                <div
-                  key={feature}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    marginBottom: 16,
-                  }}
-                >
-                  <CheckCircle
-                    size={18}
-                    color="#4CAF50"
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.5, margin: 0 }}>
-                    {feature}
-                  </p>
-                </div>
-              ))}
-            </HoverCard>
-          </StaggerItem>
+          <div>
+            <Reveal>
+              <h2 style={{ ...sectionTitle, textAlign: 'left' }}>{t('pilot.includes.title')}</h2>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <p style={{ ...sectionSubtitle, textAlign: 'left', margin: '0 0 24px', maxWidth: 620 }}>
+                {t('pilot.includes.subtitle')}
+              </p>
+            </Reveal>
 
-          {/* Not Yet Live Column */}
-          <StaggerItem>
-            <HoverCard
+            <StaggerGrid
+              className="pilot-grid-2col"
               style={{
-                ...card,
-                borderTop: '4px solid #94A3B8',
-                background: '#F1F5F9',
-                height: '100%',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 20,
               }}
             >
-              <h3
+              <StaggerItem>
+                <HoverCard
+                  style={{
+                    ...card,
+                    borderTop: '4px solid #4CAF50',
+                    height: '100%',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: '#4CAF50',
+                      marginBottom: 24,
+                    }}
+                  >
+                    {t('pilot.includes.enabled.title')}
+                  </h3>
+                  {enabledFeatures.map((feature) => (
+                    <div
+                      key={feature}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <CheckCircle
+                        size={18}
+                        color="#4CAF50"
+                        style={{ flexShrink: 0, marginTop: 2 }}
+                      />
+                      <p style={{ fontSize: 15, color: '#334155', lineHeight: 1.5, margin: 0 }}>
+                        {feature}
+                      </p>
+                    </div>
+                  ))}
+                </HoverCard>
+              </StaggerItem>
+
+              <StaggerItem>
+                <HoverCard
+                  style={{
+                    ...card,
+                    borderTop: '4px solid #94A3B8',
+                    background: '#F1F5F9',
+                    height: '100%',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: '#64748B',
+                      marginBottom: 24,
+                    }}
+                  >
+                    {t('pilot.includes.notYetLive.title')}
+                  </h3>
+                  {notYetLiveFeatures.map((feature) => (
+                    <div
+                      key={feature}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 10,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <Clock
+                        size={18}
+                        color="#94A3B8"
+                        style={{ flexShrink: 0, marginTop: 2 }}
+                      />
+                      <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5, margin: 0 }}>
+                        {feature}
+                      </p>
+                    </div>
+                  ))}
+                </HoverCard>
+              </StaggerItem>
+            </StaggerGrid>
+          </div>
+
+          <Reveal delay={0.2}>
+            <div
+              className="pilot-form-card"
+              style={{
+                ...card,
+                padding: 28,
+                position: 'sticky',
+                top: 96,
+                overflow: 'hidden',
+              }}
+            >
+              <div
                 style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: '#64748B',
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  background: 'linear-gradient(135deg, rgba(93,173,226,0.12), rgba(76,175,80,0.14))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 18,
+                }}
+              >
+                <UserPlus size={24} color="#2E7D32" />
+              </div>
+
+              <div style={{ marginBottom: 22 }}>
+                <h2
+                  style={{
+                    fontSize: 28,
+                    fontFamily: '"DM Serif Display", serif',
+                    fontWeight: 400,
+                    color: '#0F172A',
+                    marginBottom: 10,
+                  }}
+                >
+                  {t('pilot.applyCta.title')}
+                </h2>
+                <p
+                  style={{
+                    fontSize: 15,
+                    color: '#64748B',
+                    lineHeight: 1.6,
+                    margin: 0,
+                  }}
+                >
+                  {t('pilot.applyCta.subtitle')}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 10,
                   marginBottom: 24,
                 }}
               >
-                {t('pilot.includes.notYetLive.title')}
-              </h3>
-              {notYetLiveFeatures.map((feature) => (
-                <div
-                  key={feature}
+                {[0, 1, 2].map((item) => (
+                  <div
+                    key={item}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                    }}
+                  >
+                    <CheckCircle
+                      size={17}
+                      color="#4CAF50"
+                      style={{ flexShrink: 0, marginTop: 2 }}
+                    />
+                    <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.5, margin: 0 }}>
+                      {t(`pilot.applyCta.points.${item}`)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'grid', gap: 10 }}>
+                <a
+                  href={appRegisterUrl}
                   style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    marginBottom: 16,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',
+                    color: '#FFFFFF',
+                    padding: '13px 22px',
+                    borderRadius: 8,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    textDecoration: 'none',
                   }}
                 >
-                  <Clock
-                    size={18}
-                    color="#94A3B8"
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <p style={{ fontSize: 15, color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-                    {feature}
-                  </p>
-                </div>
-              ))}
-            </HoverCard>
-          </StaggerItem>
-        </StaggerGrid>
+                  {t('pilot.applyCta.primaryButton')}
+                  <ArrowRight size={17} />
+                </a>
+                <a
+                  href="mailto:info@verdaxis.exchange"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    color: '#0F172A',
+                    padding: '11px 22px',
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    border: '1px solid #CBD5E1',
+                    background: '#FFFFFF',
+                  }}
+                >
+                  <MessageCircle size={16} />
+                  {t('pilot.applyCta.secondaryButton')}
+                </a>
+              </div>
+            </div>
+          </Reveal>
+        </div>
       </section>
 
       {/* ---- Section 3: Who Qualifies ---- */}
@@ -393,7 +500,7 @@ export const PilotPage: React.FC = () => {
       </section>
 
       {/* ---- Section 4: Timeline ---- */}
-      <section style={{ ...sectionPadding, background: '#F8FAFC' }}>
+      <section style={{ ...sectionPadding, background: '#FFFFFF' }}>
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
           <Reveal>
             <div
@@ -467,7 +574,7 @@ export const PilotPage: React.FC = () => {
       <section
         style={{
           background: '#0F172A',
-          padding: '80px 24px',
+          padding: '64px 24px',
           textAlign: 'center',
         }}
       >
@@ -488,7 +595,7 @@ export const PilotPage: React.FC = () => {
           <Reveal delay={0.1}>
             <HoverButton>
               <a
-                href="mailto:info@verdaxis.exchange"
+                href={appRegisterUrl}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -503,7 +610,7 @@ export const PilotPage: React.FC = () => {
                   marginTop: 12,
                 }}
               >
-                <Mail size={18} />
+                <UserPlus size={18} />
                 {t('pilot.cta.button')}
               </a>
             </HoverButton>

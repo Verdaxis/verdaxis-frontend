@@ -22,6 +22,8 @@ export const BenchmarkPriceBlock: React.FC<BenchmarkPriceBlockProps> = ({
 }) => {
   const hasBenchmark = typeof benchmarkUsd === 'number' && Number.isFinite(benchmarkUsd);
   const hasDelta = typeof deltaUsd === 'number' && Number.isFinite(deltaUsd);
+  const benchmarkLabel = hasBenchmark ? `Benchmark ref $${formatUsd(benchmarkUsd!)}` : 'No benchmark reference';
+  const benchmarkTitle = hasBenchmark ? `vs benchmark reference $${formatUsd(benchmarkUsd!)}/MT` : benchmarkLabel;
   const deltaTone = !hasDelta || deltaUsd == null
     ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'
     : deltaUsd <= 0
@@ -35,11 +37,14 @@ export const BenchmarkPriceBlock: React.FC<BenchmarkPriceBlockProps> = ({
         <span className="ml-1 text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">/MT</span>
       </div>
       {hasBenchmark ? (
-        <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-          {`vs benchmark $${formatUsd(benchmarkUsd)}/MT`}
+        <div
+          className="max-w-[132px] truncate text-[10px] font-medium text-slate-500 dark:text-slate-400 xl:max-w-none"
+          title={benchmarkTitle}
+        >
+          {benchmarkLabel}
         </div>
       ) : (
-        <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500">No live benchmark</div>
+        <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{benchmarkLabel}</div>
       )}
       {hasDelta ? (
         <div className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${deltaTone}`}>

@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Activity, Loader2 } from 'lucide-react';
+import { Activity, Clock3, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { TradeTapeEntry } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
-import { getMarketplaceProductLabel } from '../utils/marketProducts';
+import { formatMarketProduct } from '../utils/marketProduct';
+import { describeMarketActivity } from '../utils/marketActivity';
+import { MarketActivityBadge } from './trading/MarketActivityBadge';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
+    BIO_METHANOL: 'bg-violet-500',
+    E_METHANOL: 'bg-cyan-500',
+    BIO_ETHANOL: 'bg-orange-500',
+    SYNTHETIC_ETHANOL: 'bg-amber-500',
     methanol: 'bg-violet-500',
     ethanol: 'bg-orange-500',
 };
 
-function getDotColor(fuelType: string): string {
-    return FUEL_DOT_COLORS[fuelType.toLowerCase()] ?? 'bg-slate-400';
+function getDotColor(entry: TradeTapeEntry): string {
+    if (entry.market_product && FUEL_DOT_COLORS[entry.market_product]) return FUEL_DOT_COLORS[entry.market_product];
+    return FUEL_DOT_COLORS[entry.fuel_type.toLowerCase()] ?? 'bg-slate-400';
 }
 
 function shortFuel(fuelType: string): string {
@@ -31,6 +38,11 @@ function gradeTag(grade?: string): string {
     return grade.slice(0, 4);
 }
 
+function shouldShowActivityBadge(entry: TradeTapeEntry): boolean {
+    const descriptor = describeMarketActivity(entry);
+    return descriptor.tone !== 'live' && descriptor.tone !== 'empty';
+}
+
 function relativeTime(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60_000);
@@ -42,17 +54,29 @@ function relativeTime(dateStr: string): string {
     return `${days}d`;
 }
 
+function formatQuantityMt(value: number | string): string {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatPriceUsd(value: number | string): string {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
 interface TradeTapeProps {
     fuelType?: string;
     marketProduct?: string;
     availability?: string;
     region?: string;
+    deliveryPointId?: string;
 }
 
-export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region }) => {
+export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, availability, region, deliveryPointId }) => {
     const { t, ready } = useNamespace('trading');
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
-    const [marketOpen, setMarketOpen] = useState(false);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
 
@@ -62,14 +86,14 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             const data = await api.tradeTape.list({
                 fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
                 market_product: marketProduct,
-                region: region || undefined,
+                delivery_point_id: deliveryPointId || undefined,
+                region: deliveryPointId ? undefined : region || undefined,
                 availability_window: availability || undefined,
                 limit: 20,
             });
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];
             setTrades(Array.isArray(items) ? items : []);
-            setMarketOpen(data.market_hours ?? false);
             setTotal(data.total ?? items.length ?? 0);
         } catch {
             // Silently fail — tape is informational
@@ -77,7 +101,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [availability, fuelType, marketProduct, region]);
+    }, [availability, deliveryPointId, fuelType, marketProduct, region]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -99,7 +123,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
     }
 
     return (
-        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col">
+        <div className="v-glass mb-0 overflow-hidden h-full flex flex-col" data-tour="trade-tape">
             {/* Header bar */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-2">
@@ -112,9 +136,9 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full ${marketOpen ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                    <Clock3 size={11} className="text-slate-400" aria-hidden="true" />
                     <span className="text-[10px] text-slate-400 font-medium">
-                        {marketOpen ? t('tradeTape.market.open') : t('tradeTape.market.closed')}
+                        {deliveryPointId ? t('tradeTape.status.deliveryPointHistory') : t('tradeTape.status.regionHistory')}
                     </span>
                 </div>
             </div>
@@ -129,20 +153,21 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                     {trades.map(t2 => (
                         <div key={t2.id} className="flex items-center justify-between px-4 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                             <div className="flex items-center gap-2 min-w-0">
-                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getDotColor(t2.fuel_type)}`} />
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getDotColor(t2)}`} />
                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
-                                    {t2.market_product ? getMarketplaceProductLabel(t2.market_product, t2.fuel_type) : shortFuel(t2.fuel_type)}
+                                    {t2.market_product ? formatMarketProduct(t2.market_product) : shortFuel(t2.fuel_type)}
                                     {t2.fuel_grade && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
                                     )}
+                                    {shouldShowActivityBadge(t2) && <MarketActivityBadge activity={t2} className="ml-1" />}
                                 </span>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                    {t2.quantity_mt.toLocaleString()} MT
+                                    {formatQuantityMt(t2.quantity_mt)} MT
                                 </span>
                                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    ${t2.price_per_mt_usd.toLocaleString()}/MT
+                                    ${formatPriceUsd(t2.price_per_mt_usd)}/MT
                                 </span>
                                 <span className="text-[10px] text-slate-400 w-8 text-right">
                                     {relativeTime(t2.confirmed_at)}

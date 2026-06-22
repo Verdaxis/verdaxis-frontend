@@ -60,7 +60,7 @@ vi.mock('../hooks/useWatchlist', () => ({
         watchlist_target_id: 'slice-1',
         target_type: 'SLICE',
         event_type: 'SLICE_NEW_ORDER',
-        event_payload: { side: 'ASK', price_per_mt_usd: 1080 },
+        event_payload: { side: 'ASK', price_per_mt_usd: '1080.25' },
         is_read: false,
         created_at: '2026-04-13T12:00:00Z',
       },
@@ -70,7 +70,7 @@ vi.mock('../hooks/useWatchlist', () => ({
         watchlist_target_id: 'pin-1',
         target_type: 'PIN',
         event_type: 'PIN_PARTIALLY_FILLED',
-        event_payload: { new_remaining_quantity_mt: 600 },
+        event_payload: { new_remaining_quantity_mt: '600.50' },
         is_read: false,
         created_at: '2026-04-13T12:05:00Z',
       },
@@ -100,7 +100,9 @@ describe('WatchlistPage', () => {
     expect(screen.getByRole('heading', { name: /Everything you are watching, in one place\./i })).toBeTruthy();
     expect(screen.getAllByText(/Bio Methanol · Singapore · Spot/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/No Watchlist activity yet/i)).toBeNull();
-    expect(screen.getAllByText(/Pinned order partially filled/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/New ask entered the slice at \$1080.25/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Pinned order partially filled.*600.5 MT/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Unknown')).toBeNull();
     expect(screen.getAllByRole('button', { name: /mark read/i }).length).toBeGreaterThan(0);
   });
 

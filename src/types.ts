@@ -24,6 +24,7 @@ export interface PortDetails {
 
 export interface Port {
     id: string;
+    catalogDeliveryPointId?: string;
     name: string;
     location: GeoLocation;
     country: string;
@@ -157,20 +158,46 @@ export const MARKET_PRODUCTS = [
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
-export interface DemandSignal {
-    fuel_type: string;
-    region: string;
-    market_product_code?: MarketProduct | string | null;
-    delivery_point_id?: string | null;
-    delivery_point_name?: string | null;
-    availability_window_code?: string | null;
-    volume_mt: number | string;
-    max_price_per_mt: number | string;
-    urgency: 'HIGH' | 'MEDIUM' | 'LOW';
-    bid_count: number;
-    earliest_delivery: string;
-    created_at: string;
-}
+export type MarketSourceKind =
+    | 'CONFIRMED_TRADE'
+    | 'LIVE_ORDER'
+    | 'DEMO_SEED'
+    | 'BENCHMARK_REFERENCE'
+    | 'MIXED_SOURCE'
+    | 'NO_DATA'
+    | 'UNKNOWN';
+
+export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
+export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
+export type MarketSignalType =
+    | 'CONFIRMED_TRADE'
+    | 'ORDERBOOK_BID'
+    | 'ORDERBOOK_ASK'
+    | 'BENCHMARK_MID'
+    | 'MARKET_INDICATION'
+    | 'FAIR_PRICE_BAND'
+    | 'PHYSICAL_STEM'
+    | 'NO_DATA';
+export type ForwardCurveSignalSourceKind =
+    | 'MARKET_INDICATION'
+    | 'PHYSICAL_STEM'
+    | 'FAIR_PRICE_MODEL'
+    | 'DEMO_SEED'
+    | 'MIXED_SOURCE'
+    | 'NO_DATA'
+    | 'UNKNOWN';
+export type ForwardCurveSourceKind = MarketSourceKind | ForwardCurveSignalSourceKind;
+export type ForwardCurveIndicationSide = 'BID' | 'ASK' | 'MID';
+export type ForwardCurvePhysicalStemStatus = 'AVAILABLE' | 'TENTATIVE' | 'ALLOCATED' | 'CANCELLED';
+export type ForwardCurveStalenessStatus = 'FRESH' | 'STALE' | 'NO_DATA';
+export type ForwardCurveEvidenceLayer =
+    | 'HISTORICAL_TRADE'
+    | 'ORDERBOOK_BID'
+    | 'ORDERBOOK_ASK'
+    | 'MARKET_INDICATION'
+    | 'FAIR_PRICE_BAND'
+    | 'BENCHMARK_MID'
+    | 'PHYSICAL_STEM';
 
 // ============== Unified Orderbook Types ==============
 export type OrderSide = 'BID' | 'ASK';
@@ -247,7 +274,12 @@ export interface Trade {
 }
 
 export interface AggregatedOrderbook {
-    delivery_point_name?: string;
+    product_id?: string;
+    product_name?: string;
+    market_product?: MarketProduct | string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window?: string;
     region: string;
     fuel_type: string;
     side: OrderSide;
@@ -259,13 +291,12 @@ export interface AggregatedOrderbook {
 
 // ============== Price Discovery Types ==============
 export interface PriceSummary {
-    product_id?: string;
-    product_name?: string;
     market_product?: MarketProduct | string | null;
-    fuel_type: string;
-    delivery_point_id?: string;
+    product_id?: string | null;
+    delivery_point_id?: string | null;
     delivery_point_name?: string | null;
-    availability_window?: string;
+    availability_window?: string | null;
+    fuel_type: string;
     region: string;
     last_price: number | null;
     avg_price_24h: number | null;
@@ -273,8 +304,16 @@ export interface PriceSummary {
     low_24h: number | null;
     volume_24h: number;
     trade_count_24h: number;
+    real_trade_count_24h?: number;
+    demo_trade_count_24h?: number;
+    unknown_trade_count_24h?: number;
     price_change_pct: number | null;
     last_trade_at: string | null;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    is_reference?: boolean;
+    observed_at?: string | null;
 }
 
 export interface PriceDiscoveryResponse {
@@ -351,7 +390,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'ANALYTICS' | 'ORDERBOOK' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -369,6 +408,278 @@ export interface ForwardCurveResponse {
     product_name: string;
     curve: ForwardCurvePoint[];
     generated_at: string;
+}
+
+export interface ForwardCurveBoardProduct {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+}
+
+export interface ForwardCurveBoardDepthLevel {
+    price_per_mt_usd: number;
+    quantity_mt: number;
+    order_count: number;
+    source_kind?: ForwardCurveSignalSourceKind;
+    demo_status?: MarketDemoStatus;
+    real_order_count?: number;
+    demo_order_count?: number;
+    unknown_order_count?: number;
+}
+
+export interface ForwardCurveSignalProvenance {
+    signal_type: MarketSignalType;
+    signal_source_kind: ForwardCurveSignalSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
+    generated_at?: string;
+    real_count?: number;
+    demo_count?: number;
+    unknown_count?: number;
+}
+
+export interface ForwardCurveBoardIndication {
+    side: ForwardCurveIndicationSide;
+    price_per_mt_usd: number;
+    quantity_mt?: number | null;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardIndicationSummary {
+    provenance?: ForwardCurveSignalProvenance;
+    latest_bid_price_per_mt_usd?: number | null;
+    latest_ask_price_per_mt_usd?: number | null;
+    latest_mid_price_per_mt_usd?: number | null;
+    total_quantity_mt?: number | null;
+    indication_count: number;
+}
+
+export interface ForwardCurveBoardFairPriceBand {
+    low_price_per_mt_usd: number;
+    mid_price_per_mt_usd: number;
+    high_price_per_mt_usd: number;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardPhysicalStem {
+    quantity_mt: number;
+    status: ForwardCurvePhysicalStemStatus;
+    stem_start?: string | null;
+    stem_end?: string | null;
+    provenance: ForwardCurveSignalProvenance;
+}
+
+export interface ForwardCurveBoardPhysicalStemSummary {
+    provenance?: ForwardCurveSignalProvenance;
+    available_quantity_mt?: number | null;
+    tentative_quantity_mt?: number | null;
+    stem_count: number;
+    earliest_stem_start?: string | null;
+    latest_stem_end?: string | null;
+}
+
+export interface ForwardCurveBoardCell {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    benchmark_mid: number | null;
+    benchmark_source: string | null;
+    is_demo_benchmark: boolean;
+    order_source_kind?: MarketSourceKind;
+    benchmark_source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    real_order_count?: number;
+    demo_order_count?: number;
+    unknown_order_count?: number;
+    real_best_bid?: number | null;
+    real_best_ask?: number | null;
+    demo_best_bid?: number | null;
+    demo_best_ask?: number | null;
+    best_bid_source_kind?: MarketSourceKind;
+    best_ask_source_kind?: MarketSourceKind;
+    order_observed_at?: string | null;
+    benchmark_observed_at?: string | null;
+    indication_summary?: ForwardCurveBoardIndicationSummary;
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stem_summary?: ForwardCurveBoardPhysicalStemSummary;
+    best_bid: number | null;
+    best_ask: number | null;
+    spread: number | null;
+    volume_mt: number;
+    order_count: number;
+    primary_value?: number | null;
+    primary_signal_type?: MarketSignalType;
+    primary_source_kind?: ForwardCurveSourceKind;
+    public_source_label?: string;
+    label_policy?: ForwardCurveLabelPolicy;
+    staleness_status?: ForwardCurveStalenessStatus;
+    is_executable?: boolean;
+    is_reference?: boolean;
+}
+
+export interface ForwardCurveBoardPort {
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    cells: ForwardCurveBoardCell[];
+}
+
+export interface ForwardCurveBoardFocus {
+    product_id: string;
+    market_product: MarketProduct;
+    product_name: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    curve: ForwardCurveBoardCell[];
+    depth_bids: ForwardCurveBoardDepthLevel[];
+    depth_asks: ForwardCurveBoardDepthLevel[];
+    indications?: ForwardCurveBoardIndication[];
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stems?: ForwardCurveBoardPhysicalStem[];
+}
+
+export interface ForwardCurveBoardResponse {
+    availability_window: string;
+    products: ForwardCurveBoardProduct[];
+    ports: ForwardCurveBoardPort[];
+    focus: ForwardCurveBoardFocus;
+    generated_at: string;
+}
+
+export interface ForwardCurveLabelPolicy {
+    public_label: string;
+    tooltip?: string | null;
+    allowed_terms?: string[];
+    forbidden_terms?: string[];
+    disclaimer?: string | null;
+}
+
+export interface ForwardCurveTableColumn {
+    availability_window: string;
+    display_label: string;
+    group: string;
+}
+
+export interface ForwardCurveMarketCell {
+    market_product: MarketProduct;
+    product_name: string;
+    representative_product_id: string;
+    product_count: number;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    primary_value: number | null;
+    primary_signal_type: MarketSignalType;
+    primary_source_kind: ForwardCurveSourceKind;
+    public_source_label: string;
+    label_policy: ForwardCurveLabelPolicy;
+    staleness_status: ForwardCurveStalenessStatus;
+    is_executable: boolean;
+    is_reference: boolean;
+    demo_status: MarketDemoStatus;
+    scope: MarketScope;
+    observed_at?: string | null;
+    generated_at: string;
+    best_bid: number | null;
+    best_ask: number | null;
+    spread: number | null;
+    volume_mt: number;
+    order_count: number;
+    real_order_count: number;
+    demo_order_count: number;
+    unknown_order_count: number;
+    real_best_bid?: number | null;
+    real_best_ask?: number | null;
+    demo_best_bid?: number | null;
+    demo_best_ask?: number | null;
+    benchmark_mid?: number | null;
+    benchmark_source_kind?: MarketSourceKind;
+    benchmark_observed_at?: string | null;
+    indication_summary?: ForwardCurveBoardIndicationSummary;
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stem_summary?: ForwardCurveBoardPhysicalStemSummary;
+}
+
+export interface ForwardCurveTableRow {
+    row_key: string;
+    market_product: MarketProduct;
+    product_name: string;
+    representative_product_id: string;
+    product_count: number;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    cells: Record<string, ForwardCurveMarketCell>;
+}
+
+export interface ForwardCurveLatestSignal {
+    market_product: MarketProduct;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    availability_window: string;
+    primary_value: number | null;
+    primary_signal_type: MarketSignalType;
+    primary_source_kind: ForwardCurveSourceKind;
+    public_source_label: string;
+    demo_status: MarketDemoStatus;
+    observed_at?: string | null;
+    staleness_status: ForwardCurveStalenessStatus;
+}
+
+export interface ForwardCurveTableResponse {
+    columns: ForwardCurveTableColumn[];
+    rows: ForwardCurveTableRow[];
+    latest_signals: ForwardCurveLatestSignal[];
+    generated_at: string;
+    disclaimer: string;
+}
+
+export interface ForwardCurveSliceTrade {
+    price_per_mt_usd: number;
+    quantity_mt: number;
+    confirmed_at: string;
+    source_kind: MarketSourceKind;
+    demo_status: MarketDemoStatus;
+}
+
+export interface ForwardCurveSliceEvidencePoint {
+    layer: ForwardCurveEvidenceLayer;
+    side?: ForwardCurveIndicationSide | null;
+    price_per_mt_usd?: number | null;
+    low_price_per_mt_usd?: number | null;
+    high_price_per_mt_usd?: number | null;
+    quantity_mt?: number | null;
+    observed_at?: string | null;
+    public_source_label: string;
+    source_kind: ForwardCurveSourceKind;
+    demo_status: MarketDemoStatus;
+}
+
+export interface ForwardCurveSliceResponse {
+    cell: ForwardCurveMarketCell;
+    previous_window?: string | null;
+    next_window?: string | null;
+    depth_bids: ForwardCurveBoardDepthLevel[];
+    depth_asks: ForwardCurveBoardDepthLevel[];
+    trades: ForwardCurveSliceTrade[];
+    indications: ForwardCurveBoardIndication[];
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    physical_stems: ForwardCurveBoardPhysicalStem[];
+    evidence_points: ForwardCurveSliceEvidencePoint[];
+    generated_at: string;
+    disclaimer: string;
 }
 
 export interface PriceAlert {
@@ -435,14 +746,23 @@ export interface RFQ {
 // ============== Trade Tape Types ==============
 export interface TradeTapeEntry {
     id: string;
+    product_id?: string;
     market_product?: MarketProduct;
     fuel_type: string;
     fuel_grade?: string;
+    delivery_point_id?: string;
+    delivery_point_name?: string;
     region: string;
-    quantity_mt: number;
-    price_per_mt_usd: number;
+    quantity_mt: number | string;
+    price_per_mt_usd: number | string;
     confirmed_at: string;
     availability_window?: string;
+    is_demo_trade?: boolean;
+    scope?: MarketScope;
+    provenance_kind?: 'CONFIRMED_TRADE' | 'DEMO_SEED';
+    source_kind?: MarketSourceKind;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
 }
 
 export interface TradeTapeResponse {
@@ -473,7 +793,7 @@ export interface Watchlist {
 export interface WatchlistTarget {
     id: string;
     target_type: 'SLICE' | 'PIN';
-    market_product_code?: MarketProduct | string | null;
+    market_product_code?: string | null;
     delivery_point_id?: string | null;
     delivery_point_name?: string | null;
     availability_window_code?: string | null;
@@ -493,12 +813,18 @@ export interface WatchlistTarget {
     created_at: string;
 }
 
-export interface WatchlistSlice extends WatchlistTarget {
+export interface WatchlistSlice {
+    id: string;
     target_type: 'SLICE';
-    market_product_code: MarketProduct | string;
+    market_product_code: string;
     delivery_point_id: string;
+    delivery_point_name?: string | null;
     availability_window_code: string;
+    active_order_count: number;
+    unread_event_count: number;
+    latest_event_at?: string | null;
     pins: WatchlistTarget[];
+    created_at: string;
 }
 
 export interface WatchlistSummary {
@@ -520,6 +846,15 @@ export interface WatchlistEvent {
     target_type: 'SLICE' | 'PIN';
     event_type: string;
     event_payload: Record<string, unknown>;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string | null;
+    market_product_code?: string | null;
+    delivery_point_id?: string | null;
+    delivery_point_name?: string | null;
+    availability_window_code?: string | null;
+    order_id?: string | null;
     is_read: boolean;
     created_at: string;
 }

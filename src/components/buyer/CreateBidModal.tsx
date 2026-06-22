@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
+import { SPOT_WINDOW, getAvailabilityWindowOptions } from '../../utils/availabilityWindow';
+import { VerdaxisSelect } from '../ui/VerdaxisSelect';
 
 interface CreateBidModalProps {
     onSubmit: (data: BidFormData) => void;
@@ -17,10 +18,9 @@ export interface BidFormData {
     availability_window: string;
 }
 
-const REGIONS = ['Singapore', 'ARA', 'Houston', 'Fujairah', 'Shanghai', 'UAE'];
-const FUEL_TYPES = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map((option) => option.label);
+const REGIONS = ['Dalian', 'Busan', 'Shanghai', 'Singapore', 'Rotterdam', 'Houston', 'Los Angeles', 'Santos'];
+const FUEL_TYPES = ['Methanol', 'Ethanol', 'Biofuel', 'Ammonia', 'Biomethane'];
 const FUEL_GRADES = ['Conventional', 'Green', 'Bio'];
-const AVAILABILITY_WINDOWS = ['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'];
 
 export const CreateBidModal: React.FC<CreateBidModalProps> = ({
     onSubmit,
@@ -33,8 +33,9 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
         fuel_grade: FUEL_GRADES[0],
         quantity_mt: 0,
         price_per_mt_usd: 0,
-        availability_window: AVAILABILITY_WINDOWS[0],
+        availability_window: SPOT_WINDOW,
     });
+    const availabilityOptions = getAvailabilityWindowOptions();
 
     const handleChange = (field: keyof BidFormData, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -46,7 +47,6 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
         onSubmit(formData);
     };
 
-    const selectClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
     const inputClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2";
 
@@ -74,15 +74,21 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Region</label>
-                                <select value={formData.region} onChange={(e) => handleChange('region', e.target.value)} className={selectClass}>
-                                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
+                                <VerdaxisSelect
+                                    ariaLabel="Bid region"
+                                    value={formData.region}
+                                    onChange={(value) => handleChange('region', value)}
+                                    options={REGIONS.map(region => ({ value: region, label: region }))}
+                                />
                             </div>
                             <div>
                                 <label className={labelClass}>Fuel Type</label>
-                                <select value={formData.fuel_type} onChange={(e) => handleChange('fuel_type', e.target.value)} className={selectClass}>
-                                    {FUEL_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
-                                </select>
+                                <VerdaxisSelect
+                                    ariaLabel="Bid fuel type"
+                                    value={formData.fuel_type}
+                                    onChange={(value) => handleChange('fuel_type', value)}
+                                    options={FUEL_TYPES.map(fuel => ({ value: fuel, label: fuel }))}
+                                />
                             </div>
                         </div>
 
@@ -90,15 +96,21 @@ export const CreateBidModal: React.FC<CreateBidModalProps> = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className={labelClass}>Fuel Grade</label>
-                                <select value={formData.fuel_grade} onChange={(e) => handleChange('fuel_grade', e.target.value)} className={selectClass}>
-                                    {FUEL_GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                                </select>
+                                <VerdaxisSelect
+                                    ariaLabel="Bid fuel grade"
+                                    value={formData.fuel_grade}
+                                    onChange={(value) => handleChange('fuel_grade', value)}
+                                    options={FUEL_GRADES.map(grade => ({ value: grade, label: grade }))}
+                                />
                             </div>
                             <div>
-                                <label className={labelClass}>Delivery Window</label>
-                                <select value={formData.availability_window} onChange={(e) => handleChange('availability_window', e.target.value)} className={selectClass}>
-                                    {AVAILABILITY_WINDOWS.map(a => <option key={a} value={a}>{a}</option>)}
-                                </select>
+                                <label className={labelClass}>Availability Window</label>
+                                <VerdaxisSelect
+                                    ariaLabel="Bid availability window"
+                                    value={formData.availability_window}
+                                    onChange={(value) => handleChange('availability_window', value)}
+                                    options={availabilityOptions.map(option => ({ value: option.value, label: option.label }))}
+                                />
                             </div>
                         </div>
 

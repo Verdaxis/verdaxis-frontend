@@ -13,22 +13,14 @@ import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
-import { filterPortsByActiveDeliveryPoints } from '../utils/marketPorts';
+import { resolveApprovedMapPorts } from '../utils/marketPorts';
+import { PORTS as APPROVED_MAP_PORTS } from '../data';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
-    isActive?: boolean;
 }
-
-type BuyerMapDataCache = {
-    ports: Port[];
-    listings: OrderBookOrder[];
-    aggregatedData: AggregatedOrderbook[];
-};
-
-let buyerMapDataCache: BuyerMapDataCache | null = null;
 
 // Port circle radius: proportional to volume, clamped 6-20px
 const getPortRadius = (volume: number, maxVolume: number): number => {
@@ -44,79 +36,85 @@ const getSpreadColor = (spreadPct: number): string => {
     return '#EF4444';                      // red
 };
 
-export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick, isActive = true }) => {
+const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
+export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
     const { setPageContext } = useCopilotContext();
-    const [ports, setPorts] = useState<Port[]>(() => buyerMapDataCache?.ports ?? []);
-    const [loading, setLoading] = useState(!buyerMapDataCache);
+    const [ports, setPorts] = useState<Port[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showOverlays, setShowOverlays] = useState(true);
-    const [listings, setListings] = useState<OrderBookOrder[]>(() => buyerMapDataCache?.listings ?? []);
-    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>(() => buyerMapDataCache?.aggregatedData ?? []);
+    const [listings, setListings] = useState<OrderBookOrder[]>([]);
+    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
-    const [mapLoaded, setMapLoaded] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
 
-    // Fetch ports first so the map can render, then refresh liquidity overlays.
+    // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
-        let cancelled = false;
-
-        const applyData = (data: BuyerMapDataCache) => {
-            if (cancelled) return;
-            buyerMapDataCache = data;
-            setPorts(data.ports);
-            setListings(data.listings);
-            setAggregatedData(data.aggregatedData);
-            setPageContext({
-                view: 'Global Intelligence Map',
-                available_ports: data.ports.length,
-                port_names: data.ports.map((p: Port) => p.name),
-                summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
-            });
-        };
-
         const fetchData = async () => {
             try {
-                const [portsData, deliveryPointsData] = await Promise.all([
+                const [portsData, deliveryPointsData, listingsData, aggData] = await Promise.all([
                     api.ports.list(),
-                    api.catalog.deliveryPoints().catch(() => null),
-                ]);
-                const marketPorts = filterPortsByActiveDeliveryPoints(portsData, deliveryPointsData);
-                if (!cancelled) {
-                    setPorts(marketPorts);
-                    setLoading(false);
-                }
-
-                const [listingsData, aggData] = await Promise.all([
+                    api.catalog.deliveryPoints().catch(() => []),
                     api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
                     api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
-                applyData({ ports: marketPorts, listings: listingsData, aggregatedData: aggData });
+                const approvedPorts = resolveApprovedMapPorts(APPROVED_MAP_PORTS, portsData, deliveryPointsData);
+                setPorts(approvedPorts);
+                setListings(listingsData);
+                setAggregatedData(aggData);
+                setPageContext({
+                    view: 'Global Intelligence Map',
+                    available_ports: approvedPorts.length,
+                    port_names: approvedPorts.map((p: Port) => p.name),
+                    summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
+                });
             } catch (e) {
                 console.error("Failed to load map data", e);
             } finally {
-                if (!cancelled) setLoading(false);
+                setLoading(false);
             }
         };
-
-        if (buyerMapDataCache) {
-            applyData(buyerMapDataCache);
-            void fetchData();
-        } else {
-            void fetchData();
-        }
-
-        return () => {
-            cancelled = true;
-        };
+        fetchData();
     }, []);
 
     const selectedPort = ports.find(p => p.id === selectedPortId);
+
+    const approvedListingLocationMap = useMemo(() => {
+        const map = new Map<string, string>();
+        ports.forEach((port) => {
+            [
+                port.id,
+                port.catalogDeliveryPointId,
+                port.name,
+            ].forEach((value) => {
+                const normalized = normalizeMarketLocation(value);
+                if (normalized) map.set(normalized, port.name);
+            });
+        });
+        return map;
+    }, [ports]);
+
+    const approvedListings = useMemo(() => (
+        listings.reduce<OrderBookOrder[]>((approved, listing) => {
+            const approvedPortName = [
+                listing.delivery_point_id,
+                listing.delivery_point_name,
+                listing.port_id,
+            ].map((value) => approvedListingLocationMap.get(normalizeMarketLocation(value)))
+                .find((value): value is string => Boolean(value));
+
+            if (!approvedPortName) return approved;
+            approved.push({ ...listing, region: approvedPortName });
+            return approved;
+        }, [])
+    ), [approvedListingLocationMap, listings]);
 
     const handleMarkerClick = useCallback((portId: string) => {
         setSelectedPortId(portId);
@@ -127,7 +125,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const portMarketMap = useMemo(() => {
         const map: Record<string, PortMarketData> = {};
         ports.forEach(port => {
-            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country, selectedProduct);
+            map[port.id] = computePortMarketData(aggregatedData, port, selectedProduct);
         });
         return map;
     }, [ports, aggregatedData, selectedProduct]);
@@ -146,10 +144,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
-    // Aggregate listings by region for Fuel Avails (all low-carbon fuels)
+    // Aggregate approved-location listings by region for Fuel Avails (all low-carbon fuels)
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
-        listings.forEach(l => {
+        approvedListings.forEach(l => {
             const region = l.region;
             regionMap[region] = (regionMap[region] || 0) + Number(l.quantity_mt);
         });
@@ -158,14 +156,14 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             .map(([region, qty]) => ({ region, qty }))
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 6);
-    }, [listings]);
+    }, [approvedListings]);
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
-    // Last Done: derive from listings (most recent listing per region, all fuels)
-    const lastDoneByRegion = useMemo(() => {
+    // Recent listing indications: derive from open listings, not confirmed trades.
+    const recentListingsByRegion = useMemo(() => {
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
-        listings.forEach(l => {
+        approvedListings.forEach(l => {
             const region = l.region;
             if (!regionMap[region] || l.created_at > regionMap[region].date) {
                 regionMap[region] = {
@@ -180,7 +178,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Object.entries(regionMap)
             .map(([region, data]) => ({ region, ...data }))
             .slice(0, 6);
-    }, [listings]);
+    }, [approvedListings]);
 
     // Map initialization
     useEffect(() => {
@@ -219,11 +217,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         });
 
         map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-        map.once('load', () => setMapLoaded(true));
 
         mapRef.current = map;
 
-        return () => { map.remove(); mapRef.current = null; setMapLoaded(false); };
+        return () => { map.remove(); mapRef.current = null; };
     }, [loading, theme]);
 
     // Port markers layer
@@ -339,7 +336,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                 + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
                                 + '</tr>').join('')
                             + '</tbody></table>'
-                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No live orders at this port</div>';
+                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No open orders at this port</div>';
 
                     // Market intelligence section
                     const spotPrice = port.priceMethanol > 0 ? '$' + port.priceMethanol : '--';
@@ -355,29 +352,27 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
-                    const lastDone = port.details?.lastDone || '';
-
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Spot + Availability row
                         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Spot</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">Avail</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceSpot') + '</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceAvailability') + '</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
                         + '</div>'
                         // Platts & Swap box
                         + '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
                         + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
-                        + '<span style="color:#E8373E;font-weight:600">Platts</span>'
+                        + '<span style="color:#E8373E;font-weight:600">' + t('buyerMap.benchmarkReference') + '</span>'
                         + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
                         + '</div>'
                         + '<div style="display:flex;justify-content:space-between;font-size:11px">'
-                        + '<span style="color:#94A3B8;font-weight:600">Swap</span>'
+                        + '<span style="color:#94A3B8;font-weight:600">' + t('buyerMap.swapReference') + '</span>'
                         + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
                         + '</div>'
                         + '</div>'
-                        // Congestion + Last Done row
+                        // Congestion row
                         + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
                         + '<div><span style="color:#94A3B8;font-weight:600">Congestion</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + congestion + '</span></div>'
-                        + (lastDone ? '<div><span style="color:#94A3B8;font-weight:600">Last</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + lastDone + '</span></div>' : '')
+                        + '<div><span style="color:#94A3B8;font-weight:600">' + t('buyerMap.source') + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + t('buyerMap.reference') + '</span></div>'
                         + '</div>'
                         + '</div>';
 
@@ -405,15 +400,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         } else {
             map.once('load', addPortLayers);
         }
-    }, [ports, portMarketMap, maxVolume, handleMarkerClick]);
-
-    useEffect(() => {
-        if (!isActive || !mapRef.current) return;
-        const frame = window.requestAnimationFrame(() => {
-            mapRef.current?.resize();
-        });
-        return () => window.cancelAnimationFrame(frame);
-    }, [isActive]);
+    }, [ports, portMarketMap, maxVolume, handleMarkerClick, t]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -540,19 +527,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     }
 
     const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
+    const mapChromeStyle = {
+        '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
+    } as React.CSSProperties;
 
     return (
-        <div
-            data-navigation-ready={mapLoaded ? 'MAP' : undefined}
-            className="relative w-full h-full flex overflow-hidden"
-        >
+        <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showOverlays && (
-                    <div className={`absolute bottom-6 left-6 z-[20] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
+                    <div className={`absolute bottom-6 left-6 z-[8] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
 
                         {/* Top Row: Widgets */}
                         <div className="flex justify-between items-end flex-wrap-reverse gap-4">
@@ -580,21 +567,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         ))
                                     ) : (
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                            No live asks available yet.
+                                            No open asks available yet.
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            {/* 2. Last Done Widget (Right) */}
+                            {/* 2. Recent Listings Widget (Right) */}
                             <div className="pointer-events-auto w-48 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 hidden lg:block ml-auto">
                                 <div className="flex items-center space-x-1.5 mb-2 border-b border-slate-100 dark:border-slate-800 pb-1.5">
                                     <History size={12} className="text-slate-500 dark:text-slate-400" />
                                     <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">{t('buyerMap.lastDone')}</span>
                                 </div>
                                 <div className="space-y-1">
-                                    {lastDoneByRegion.length > 0 ? (
-                                        lastDoneByRegion.map((item) => (
+                                    {recentListingsByRegion.length > 0 ? (
+                                        recentListingsByRegion.map((item) => (
                                             <div key={item.region} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
@@ -604,15 +591,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                             </div>
                                         ))
                                     ) : (
-                                        ports.filter(p => p.details).slice(0, 4).map((p) => (
-                                            <div key={p.id} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors" onClick={() => handleMarkerClick(p.id)}>
-                                                <div className="flex items-center gap-1.5">
-                                                    <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                                                    <span className="font-bold text-slate-700 dark:text-slate-300">{p.name}</span>
-                                                </div>
-                                                <span className="font-mono text-emerald-600 text-[9px]">{p.details?.lastDone || '--'}</span>
-                                            </div>
-                                        ))
+                                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                            {t('buyerMap.noOpenListingIndications')}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -620,8 +601,18 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </div>
                 )}
 
+                {showOverlays && (
+                    <div className="pointer-events-auto absolute left-6 right-[var(--verdaxis-map-rail-offset)] top-6 z-[30] transition-all duration-300">
+                        <MarketWatchTicker
+                            isPanelOpen={isPanelOpen}
+                            onOpenPanel={() => setIsPanelOpen(true)}
+                            ports={ports}
+                        />
+                    </div>
+                )}
+
                 {/* Overlay Toggle + Fuel Filter (Top-left) */}
-                <div className="absolute top-6 left-6 z-[20] flex items-center gap-2">
+                <div className="absolute top-20 left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex items-center gap-2 transition-all duration-300">
                     <button
                         onClick={() => setShowOverlays(!showOverlays)}
                         className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 hover:bg-white dark:hover:bg-slate-800 transition-colors"
@@ -688,8 +679,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}
                 onPortSelect={onPortSelect}
-                onNavigate={onNavigate}
-                ports={ports}
             />
         </div>
     );

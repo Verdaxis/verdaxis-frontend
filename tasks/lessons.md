@@ -2,6 +2,24 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Run Requested Design Review Before UI Edits
+- **Date:** 2026-06-20
+- **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.
+- **Rule:** When the user asks for design planning or subagent pushback before implementation, pause all file edits until the plan and review are presented and approved.
+- **Why:** Premature UI patches can lock in an unreviewed interaction model and create unnecessary rework.
+
+### Verify Configurable UI State Actually Controls Rendered Data
+- **Date:** 2026-06-20
+- **Trigger:** User pointed out that the Intelligence Map ticker looked like a scrolling market watch but only rendered one selected fuel across three ports, and the fuel selector did not support the intended multi-fuel sequence.
+- **Rule:** When a configurable UI advertises selectable products, ports, or modes, dogfood that each control changes the rendered data model and not just the label or saved preference.
+- **Why:** The ticker refactor preserved the old single-product state shape, so the new visual design did not match the intended scrolling multi-market behaviour.
+
+### Match Tab Priority To User-Expected Reading Order
+- **Date:** 2026-06-20
+- **Trigger:** User corrected the Intelligence Panel tab order: News should come before the estimator.
+- **Rule:** When introducing tabs in a compact side panel, confirm the first/default tab matches the user's intended information hierarchy, not just the implementation's primary content block.
+- **Why:** The code kept the estimator/port-intel content as the first tab because it was previously the only panel body, but the new tabbed layout should lead with market news.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened
@@ -33,90 +51,438 @@
 - **Trigger:** Orphaned deps (@auth0/auth0-react, oidc-client-ts, react-oidc-context, @studio-freight/lenis) left after removing Authentik auth.
 - **Rule:** When removing a feature, also remove its dependencies from package.json.
 - **Why:** Unused dependencies increase bundle size, attack surface, and maintenance burden.
-### Marketplace product-vs-fuel filters
-- **Date:** 2026-05-12
-- **Trigger:** I narrowed Marketplace to Methanol/Ethanol fuel families when the product model needed the four canonical products.
-- **Rule:** When a flow has already moved to canonical market products, update filters and synced views end-to-end instead of stopping at broad fuel-family cleanup.
-- **Why:** I optimized for a quick UI cleanup and left the underlying filter model half-migrated.
 
-### Live deploy verification needs runtime checks
-- **Date:** 2026-05-12
-- **Trigger:** I relied on bundle-string checks and declared the marketplace/demo-marker deploy good before validating the live UI/API behavior the user was actually seeing.
-- **Rule:** When a user reports a live frontend mismatch, verify the runtime behavior end-to-end, not just that a built asset contains the expected strings.
-- **Why:** Deployment can be current while the UI logic is still wrong, and static bundle checks do not prove the visible flow works.
+- **Date:** 2026-04-08
+- **Trigger:** The order placement flow initially framed timing as delivery logistics instead of marketplace availability.
+- **Rule:** Keep the UI and API aligned on mandatory `Availability Window` semantics for matching, and leave delivery logistics out of the demo flow.
+- **Why:** The demo needs a simple, extensible orderbook model where timing drives matching without pretending to manage physical delivery scheduling.
 
-### Keep micro-badges out of price lanes
-- **Date:** 2026-05-12
-- **Trigger:** I placed the demo-listing marker inline with orderbook price text, which distorted the ask-side layout.
-- **Rule:** For dense trading surfaces, status markers should sit on the outer edge of the row and not consume price-lane space.
-- **Why:** Inline badges in compact market tables break alignment and make the price ladder harder to scan.
+- **Date:** 2026-04-08
+- **Trigger:** Stale `AI_README.md` context still existed despite the repo using `CLAUDE.md` and `.codesight` as the active bootstrap path.
+- **Rule:** Delete obsolete AI guidance files and keep the active agent instructions centralized in `CLAUDE.md`, `ARCHITECTURE.md`, and `.codesight`.
+- **Why:** Duplicate AI docs create conflicting guidance and make repo context less reliable.
 
-### Mirror tooltip direction to the edge anchor
-- **Date:** 2026-05-12
-- **Trigger:** After moving the ask-side demo marker to the outside edge, I left its tooltip opening upward instead of outward.
-- **Rule:** When an icon is anchored to an outer edge in a dense table, set the tooltip to open away from the content lane on that same side.
-- **Why:** Edge-anchored markers need edge-anchored tooltips, or the popup still occludes the main content.
+- **Date:** 2026-04-08
+- **Trigger:** Staging deployment was initially treated as runtime-only while the user wanted all approved branch changes merged into staging first.
+- **Rule:** Consolidate approved frontend branches into `origin/staging` before building and publishing staging assets.
+- **Why:** Runtime-only deploys without branch consolidation leave staging behavior inconsistent with approved git history.
 
-### Preserve approved public-page flows during refactors
-- **Date:** 2026-05-12
-- **Trigger:** The pilot page on prod drifted back to an older embedded-form version even though the agreed flow had already changed to a signup CTA.
-- **Rule:** When touching public pages during i18n or layout refactors, compare the live route against the most recently approved user flow, not just the current translation keys or component compile state.
-- **Why:** Public marketing routes can regress semantically without causing build failures, especially when old components still exist in the tree.
+- **Date:** 2026-04-08
+- **Trigger:** The order modal reintroduced a user-facing anonymity toggle even though order identity should stay hidden until final confirmation.
+- **Rule:** Keep order placement anonymous by default and do not expose a pre-confirmation anonymity toggle in the modal.
+- **Why:** The demo trading flow treats anonymity as a fixed market rule until confirmation, not a per-order user choice.
+### Audit staging against actual marketplace surfaces
+- **Date:** 2026-04-13
+- **Trigger:** A follow-up audit missed that the live marketplace still exposed old orderbook framing and non-approved fuels in active UI/data paths.
+- **Rule:** After a redesign, verify the exact user-facing marketplace screens against live staging data and reachable alternate entry paths, not just the primary modal or happy path.
+- **Why:** Repo-level checks and partial UI inspection can miss stale seeded data and secondary components that still leak the old model.
+### Retire disabled features at the navigation layer
+- **Date:** 2026-04-13
+- **Trigger:** A marketplace redesign left the watchlist star and watchlist page reachable even though the feature was no longer part of the approved demo flow.
+- **Rule:** When a demo feature is deferred or removed, disable every reachable UI entry point and stale saved-navigation state in the same change.
+- **Why:** Partial removals leave broken controls in production and create avoidable user-facing regressions.
+### Keep the order model symmetric until market feedback proves otherwise
+- **Date:** 2026-04-13
+- **Trigger:** I started drifting toward asymmetric supplier-vs-buyer listing semantics before the team had aligned on whether Verdaxis should encode that behavior in the product.
+- **Rule:** Unless the team explicitly decides otherwise, keep the core orderbook model symmetric and treat supplier/buyer behavioral differences as user behavior, not engine rules.
+- **Why:** Prematurely encoding asymmetry complicates the market model and reinvents behavior the team wants to validate with real feedback first.
+### Prefer user language over invented feature branding
+- **Date:** 2026-04-13
+- **Trigger:** I shipped the new watchlist as `Market Radar` / `Market Intelligence` style branding when the simpler user mental model was just `Watchlist`, and the map label also drifted from the requested `Intelligence Map`.
+- **Rule:** Default to the user's plain product vocabulary for core navigation and saved-item flows unless a separate naming decision is explicitly approved.
+- **Why:** Custom branding obscures the interaction model and makes simple features harder to discover.
 
-### Orderbook demo markers need full interaction coverage
-- **Date:** 2026-05-12
-- **Trigger:** The demo-listing marker tooltip was clipped in the orderbook, ask-side marker placement was not mirrored, and the trade modal lacked demo-liquidity warning copy.
-- **Rule:** For dense orderbook annotations, test both bid and ask placement, tooltip overflow behavior, and the downstream trade modal state before calling the UI fixed.
-- **Why:** I validated the visible marker in isolation and missed container clipping plus the modal path opened from demo liquidity.
+### Preserve canonical market products in marketplace filters
+- **Date:** 2026-04-13
+- **Trigger:** I shipped the watchlist flow while the marketplace was still keyed to generic `fuel_type` chips, which hid pathway-level products and made slice saving less precise than the actual market identity.
+- **Rule:** When the market model is canonical `market_product + delivery_point + availability_window`, every user-facing marketplace filter and save action must use that same identity instead of a looser compatibility field.
+- **Why:** Mixed filter identities make the UI look broken, create ambiguous watchlist targets, and hide supported products behind legacy labels.
 
-### Admin entitlements must bypass commercial paywalls
-- **Date:** 2026-05-14
-- **Trigger:** An admin account still saw the Data & Analytics premium lock overlay.
-- **Rule:** When a surface is commercially paywalled for normal users, explicitly check admin-role access instead of assuming subscription tier alone captures internal entitlements.
-- **Why:** I gated the screen on subscription state only and ignored the separate admin authorization path.
+### Inquiry must not execute trades
+- **Date:** 2026-04-13
+- **Trigger:** Marketplace used an `Inquire` CTA that still hit the old trade execution path and produced `PARTIALLY_FILLED` statuses.
+- **Rule:** Keep inquiry/negotiation flows separate from executable trade flows in both labels and backend behavior.
+- **Why:** Legacy orderbook wiring survived after the product moved to a listing-first marketplace, causing a misleading and destructive user action.
 
-### Avoid conflicting positioning utilities on orderbook markers
-- **Date:** 2026-05-14
-- **Trigger:** Ask-side demo warning icons still appeared on the left side of ask rows even though the marker wrapper included `right-1`.
-- **Rule:** When a wrapper accepts external absolute-positioning classes, do not also apply default `relative` positioning on that same element; tests must assert absence of conflicting position classes, not just presence of the desired one.
-- **Why:** The shared tooltip trigger added `relative`, which could override `absolute` in Tailwind's generated CSS and leave the marker in normal flow.
+### Reintroduced views must be reachable from navigation
+- **Date:** 2026-04-14
+- **Trigger:** The orderbook implementation still existed in the frontend, but it had been dropped from sidebar navigation and render routing, so the user experienced it as missing.
+- **Rule:** When reintroducing or preserving a feature, verify the full navigation path and page render wiring, not just that the component still exists in the codebase.
+- **Why:** Component-level survival does not matter if the app shell no longer exposes the feature to users.
 
-### Guard prop wiring on embedded market widgets
-- **Date:** 2026-05-14
-- **Trigger:** The terminal embedded forward curve looked empty even though the backend returned demo-derived curve points.
-- **Rule:** When passing canonical market filters into embedded widgets, test the exact prop name used by the child component and keep terminal port/product filters aligned with Marketplace localStorage.
-- **Why:** Vite did not type-check the JSX prop mismatch, so `marketProduct={selectedProduct}` was silently ignored by `ForwardCurve`, which expects `marketProductCode`.
+### Raise filter stack above sticky market tables
+- **Date:** 2026-04-14
+- **Trigger:** Marketplace dropdowns rendered behind the orderbook/listings area.
+- **Rule:** When adding overlays above sticky tables, check stacking contexts at the parent container level, not just the dropdown menu's local z-index.
+- **Why:** The select menu had a high local z-index, but its parent header sat below sibling sticky table headers in the overall stacking order.
 
-### Render terminal widgets in embedded mode
-- **Date:** 2026-05-14
-- **Trigger:** The terminal forward curve still appeared empty and the lightweight-charts TradingView logo was visible.
-- **Rule:** When placing standalone widgets inside terminal/grid panels, use their embedded mode and verify visual chrome/attribution does not consume the chart area.
-- **Why:** The full ForwardCurve card was rendered inside a short terminal cell, clipping the actual chart, and the main terminal chart did not hide lightweight-charts attribution.
+### Tooltip intent over detail rail
+- **Date:** 2026-04-14
+- **Trigger:** I implemented the orderbook hover details as a persistent top info strip when the user expected a tooltip-style hover treatment.
+- **Rule:** When the user describes a hover effect as tooltip-like, implement an anchored transient tooltip near the hovered element, not a separate persistent detail rail.
+- **Why:** I preserved information but missed the interaction model the user was actually asking for.
 
-### Share approved market selectors across views
-- **Date:** 2026-05-14
-- **Trigger:** The Market Terminal port selector still showed backend catalog ports that users cannot trade on, and a stale saved port could leave the forward curve empty.
-- **Rule:** Trading selectors must use the shared approved market list and sanitize persisted selections before fetching dependent widgets.
-- **Why:** The terminal populated ports from the generic `/ports` catalog, while Marketplace used the restricted trading-port set.
+### Deploy UI changes before describing them as visible
+- **Date:** 2026-04-14
+- **Trigger:** I said the orderbook hover had been changed to a tooltip, but the user still saw the old persistent top detail rail on staging.
+- **Rule:** Do not describe frontend behavior as changed for the user until the updated bundle is actually built and deployed to the environment they are viewing.
+- **Why:** I verified local code and tests, but not the live staging asset the user was interacting with.
 
-### Verify translated dense forms visually
-- **Date:** 2026-05-17
-- **Trigger:** The Place Ask modal showed raw i18n keys and overlapping labels in certification metadata fields.
-- **Rule:** When adding fields to dense modals, add all locale keys and verify the longest rendered labels inside the actual modal width.
-- **Why:** New ask metadata fields were wired before their translations existed, and the modal was too narrow for two-column metadata on desktop-sized viewports.
+### Portal floating tooltips out of transformed containers
+- **Date:** 2026-04-14
+- **Trigger:** The orderbook tooltip rendered at the bottom of the page instead of next to the hovered row on staging.
+- **Rule:** When a floating overlay needs viewport-relative positioning, render it through a body-level portal instead of inside potentially transformed or scrolling component containers.
+- **Why:** Fixed positioning inside a transformed/stacked UI subtree can behave relative to that subtree, not the viewport.
 
-### Keep staging cache policy aligned with production
-- **Date:** 2026-05-17
-- **Trigger:** Users reported seeing older signup screens after recent deploys.
-- **Rule:** SPA staging hosts must use the same no-store HTML cache policy as production, while keeping hashed assets immutable.
-- **Why:** Production had explicit HTML cache headers, but staging served the SPA shell without equivalent cache controls.
-### Separate Correctness Fixes From Performance Fixes
-- **Date:** 2026-05-17
-- **Trigger:** User asked "what about the slow loading?" after a release summary focused on stale state, deploy cache, and market data correctness.
-- **Rule:** When the user reports slow loading, explicitly verify bundle size, code splitting, render waterfalls, and API latency; do not treat stale-data fixes as performance work unless measured.
-- **Why:** Correctness and cache fixes can reduce perceived slowness, but they do not address large initial bundles or component/API loading paths.
-### Validate the Specific Slow Interaction
-- **Date:** 2026-05-17
-- **Trigger:** User clarified the slow loading is specifically switching between Intelligence Map, Marketplace, and Forward Curve.
-- **Rule:** For performance reports, identify whether the complaint is initial page load, first navigation to a heavy module, repeated tab switching, or API refresh latency before choosing a fix.
-- **Why:** Route code-splitting improves initial load but can make first navigation to heavy tabs slower unless platform-critical chunks are prefetched or kept warm.
+### Avoid stacked tooltip systems
+- **Date:** 2026-04-14
+- **Trigger:** After adding a custom hover tooltip, the old browser `title` tooltip still appeared on orderbook rows.
+- **Rule:** When implementing a custom tooltip, remove native `title` tooltips from the same interactive element unless they are intentionally duplicated.
+- **Why:** Overlapping tooltip systems look broken and create conflicting hover feedback.
+
+### Match requested UI copy exactly
+- **Date:** 2026-04-14
+- **Trigger:** I shipped the orderbook empty-state with 'Select a fuel to view depth' when the requested wording was 'Select a fuel to show Orderbook'.
+- **Rule:** For short UI copy changes, use the user's requested wording exactly unless there is a strong product reason not to.
+- **Why:** I optimized the phrasing instead of matching the requested label, which created unnecessary iteration.
+
+
+### Keep ASK metadata strict and BID metadata broad
+- **Date:** 2026-04-14
+- **Trigger:** I left supplier asks and buyer bids too symmetrical in metadata strictness after the user clarified that only asks must carry detailed origin, CI, and document fields.
+- **Rule:** Treat supplier ASK metadata completeness as mandatory for public execution, while allowing BID orders to omit non-executable detail fields unless the user explicitly promotes them.
+- **Why:** The executable market is symmetric in mechanics, but not every descriptive field should be mandatory on both sides.
+
+
+### Make filter disclosure behavior consistent across breakpoints
+- **Date:** 2026-04-14
+- **Trigger:** I limited the Marketplace filter collapse behavior to narrow widths after the user wanted the fuel-only collapsed state available on tablet and then all widths.
+- **Rule:** When a control group is meant to collapse behind a disclosure, keep that interaction model consistent across breakpoints unless the user explicitly wants desktop to behave differently.
+- **Why:** Breakpoint-specific interaction changes made the same filter rail feel inconsistent and forced another UI correction.
+
+### Confirm whether shared filters should persist across tabs
+- **Date:** 2026-04-14
+- **Trigger:** I removed the marketplace filters from `My Orders`, but the intended behavior was that the same filters should still apply there.
+- **Rule:** When a tab shares the same underlying market context, verify whether the user wants continuity of filters before decoupling the UI just because the data is personal.
+- **Why:** I optimized for separation of concerns without checking whether the product wanted a unified filtered workspace across tabs.
+
+### Distinguish page-local counts from real filter totals
+- **Date:** 2026-04-14
+- **Trigger:** I showed fuel-chip counts using only the current paginated listings page and left `My Orders` unfiltered even though the visible filter state implied both should follow the active slice.
+- **Rule:** When a UI shows persistent filter state, every visible dataset and count label in that workspace must either honor the same filters or be clearly labeled as a different scope.
+- **Why:** Reusing page-local data for global-looking counters and unfiltered personal rows made the interface look inconsistent and misleading.
+
+### Keep aggregate chips separate from selected-slice totals
+- **Date:** 2026-04-14
+- **Trigger:** I left the `All` fuel chip tied to the currently selected slice total, so its count changed to the selected fuel instead of staying as the aggregate total.
+- **Rule:** When a control represents an aggregate bucket like `All`, compute its count from the aggregate dataset rather than reusing the active filtered result count.
+- **Why:** Reusing the selected-slice total made the aggregate label misleading and broke the mental model of the chip row.
+
+### Scope impeccable at the product level, not a single screen
+- **Date:** 2026-04-14
+- **Trigger:** I framed `.impeccable.md` around Marketplace when the correct scope is the entire Verdaxis frontend.
+- **Rule:** When establishing a design-context baseline file, scope it to the full product surface unless the user explicitly wants a section-level or feature-level design context.
+- **Why:** A frontend-wide guardrail is more useful than a page-specific one for keeping future UI work coherent across public and authenticated surfaces.
+
+### Root design baselines should cover both public and app surfaces
+- **Date:** 2026-04-14
+- **Trigger:** I nearly treated `.impeccable.md` as a Marketplace-specific document instead of a Verdaxis-wide frontend baseline.
+- **Rule:** When adding a root-level design guardrail file, define rules for the entire frontend product surface, including both public marketing pages and the authenticated app.
+- **Why:** Root-level design context is meant to prevent drift across the whole product, not just one workflow.
+
+### Keep trading delivery points on the approved port list
+- **Date:** 2026-04-14
+- **Trigger:** I left legacy bucket and non-approved ports like `ARA`, `Fujairah`, and `Houston` active after the user narrowed the trading surface to six specific ports.
+- **Rule:** When the user defines an approved trading port set, update both the catalog/seed layer and the live dropdown/data sources together, and remove bucket ports like `ARA` from executable trading surfaces.
+- **Why:** Mixed port taxonomies make the marketplace, forward curve, and seeded data disagree about what a valid market slice is.
+
+### Keep terminal market surfaces on the canonical trading taxonomy
+- **Date:** 2026-04-14
+- **Trigger:** I aligned Marketplace and seeds to the approved ports/products but left MarketTerminal on a separate port API and legacy fuel-type list, so the user still saw missing ports and deprecated fuels in the forward-curve terminal.
+- **Rule:** When the trading taxonomy changes, update secondary market surfaces like MarketTerminal and forward-curve selectors in the same pass as Marketplace.
+- **Why:** Parallel market UIs drift quickly when one uses canonical `market_product + approved ports` and another keeps legacy `fuel_type + ports` sources.
+
+
+### Anchor market-terminal redesigns to the intended product reference
+- **Date:** 2026-04-14
+- **Trigger:** I was improving the Forward Curve tab without foregrounding that the desired reference was a Braemar-style customizable trading workspace.
+- **Rule:** When redesigning a major market surface, explicitly align the layout and interaction model to the intended benchmark product aesthetic before iterating on individual widgets.
+- **Why:** Local UI fixes can still miss the overall product feel if the target interaction model is not treated as the primary constraint.
+
+### Re-verify staging behavior after UI refactors
+- **Date:** 2026-04-14
+- **Trigger:** I changed the Market Terminal layout and feed wiring, but the user still saw the forward curve missing and both feeds blank on staging.
+- **Rule:** After refactoring live market surfaces, verify the exact selected slice on staging and confirm the UI still shows the intended critical data before closing the task.
+- **Why:** Passing local tests is not enough when staging data and UI state can diverge from the implementation assumptions.
+
+### Don't replace a real market surface with a proxy chart
+- **Date:** 2026-04-14
+- **Trigger:** I removed the duplicate Forward Curve widget from Market Terminal but left the top panel on the older orderbook-derived mini-chart, so the user lost the real forward-curve experience.
+- **Rule:** When consolidating duplicate market panels, keep the canonical data surface and remove the proxy, not the other way around.
+- **Why:** A visually similar chart can still be the wrong product surface if it is backed by a narrower or different data model.
+
+### Dogfood live terminal changes before reporting success
+- **Date:** 2026-04-14
+- **Trigger:** I reported terminal fixes before reproducing the live authenticated staging UI, and the user had to point out the screen was still broken.
+- **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
+- **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
+
+### Frontend backlog reviews need browser evidence
+- **Date:** 2026-06-17
+- **Trigger:** User corrected a Verdaxis frontend feedback backlog review that only inspected code and tests.
+- **Rule:** For frontend feedback backlog planning, visually dogfood the relevant UI in a browser and include screenshot paths, viewports, and console/network observations; if browser dogfood is blocked, mark the review as FAIL.
+- **Why:** Code inspection can miss actual rendered layout, auth state, stale deployed assets, and browser-only failures.
+
+### Make UI Reviewers Browser-Dogfood Before Passing
+- **Date:** 2026-06-17
+- **Trigger:** The user corrected the review process: reviewers should visually dogfood the browser UI, not just inspect code.
+- **Rule:** For any UI-facing reviewer gate, require live browser dogfood evidence with screenshots across relevant viewport sizes before accepting the review as a pass.
+- **Why:** Code review can miss layout, z-index, overflow, visual hierarchy, and interaction regressions that only show up in the rendered app.
+
+### Check all sidebar sources before calling navigation removed
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that Compliance and Education should also be removed after I only checked the primary sidebar navigation.
+- **Rule:** When removing sidebar navigation, inspect primary items, footer/admin items, and secondary partner/link sections before deciding the sidebar is clean.
+- **Why:** The Verdaxis sidebar is assembled from multiple arrays, so a removed page can still appear through partner links or secondary navigation.
+
+
+### Dogfood narrated walkthrough flows before declaring them ready
+- **Date:** 2026-04-15
+- **Trigger:** I drafted buyer and supplier walkthrough scripts and initially treated them as ready before fully replaying the live steps in the browser.
+- **Rule:** Before handing off any recorded walkthrough script, replay the exact live flow end-to-end in the browser for each role and verify the backend side effects for every trade action.
+- **Why:** A script is only usable if the clicks, modal states, and resulting orders or trades all work on the live staging surface the recorder will use.
+
+### Benchmark labels must match benchmark semantics
+- **Date:** 2026-04-15
+- **Trigger:** I shipped listing price deltas against a seeded benchmark even though the user expected them to be derived from the visible product/port/window slice.
+- **Rule:** When surfacing market-relative deltas in the trading UI, derive the benchmark from the live visible slice or label it explicitly as an external reference before shipping.
+- **Why:** Users read signed row deltas as relative to the visible market, so an unlabeled external benchmark makes on-screen prices look internally contradictory.
+
+
+### Keep listings and trades as separate operational objects
+- **Date:** 2026-04-16
+- **Trigger:** I initially treated the missing post-trade row in Marketplace as a bug, but the user clarified that `Marketplace > My Orders` should only show the user's outstanding listings while initiated trades belong in `Trade History`.
+- **Rule:** Preserve the order-versus-trade separation in the product model unless the user explicitly wants a merged activity view; solve confusion with naming and walkthrough flow before changing the underlying UI contract.
+- **Why:** Resting listings and negotiated trades are different lifecycle objects, and collapsing them into one view creates demo and product ambiguity.
+
+### Confirmed trades are off-platform, not platform-fulfilled
+- **Date:** 2026-04-16
+- **Trigger:** I kept delivery and payment lifecycle states in the trade UI even after the user clarified that Verdaxis stops managing the trade once it is confirmed.
+- **Rule:** When the user defines confirmation as the platform handoff point, reveal counterparties at confirmation and remove downstream delivery or payment workflow from the active product UX and demo data.
+- **Why:** Leaving post-confirmation platform statuses in place makes the product promise and the demo flow internally inconsistent.
+
+### Share role-based nav config
+- **Date:** 2026-04-16
+- **Trigger:** Buyer and supplier sidebars drifted in label text and ordering because each role had its own hardcoded nav array.
+- **Rule:** When two roles share the same app shell, build the primary navigation from one shared config with role-specific page routing only where necessary.
+- **Why:** Duplicate nav definitions drift quickly and create avoidable UX inconsistency.
+
+### Audit Vertical Rhythm When Replacing Forms
+- **Date:** 2026-05-05
+- **Trigger:** The pilot page form was replaced with a CTA, and the user pointed out that the surrounding section spacing also needed optimization.
+- **Rule:** When removing or replacing a tall form, rebalance the section padding, grid column widths, card padding, and adjacent vertical gaps in the same pass.
+- **Why:** A functional component swap can leave an awkward visual footprint if the old component's height still dictates the layout rhythm.
+
+### Keep Product Labels Separate From Stored Taxonomy
+- **Date:** 2026-05-06
+- **Trigger:** The user corrected the signup label from `Shipping Line` to `Ship Owner` while asking how disruptive a backend rename would be.
+- **Rule:** Prefer label-only changes when the stored enum already anchors seeded data, tests, and permissions; rename stored values only with a deliberate compatibility migration.
+- **Why:** User-facing terminology can move faster than internal taxonomy, and conflating the two creates unnecessary migration risk.
+
+### Grill Dirty Marketplace Diffs Before Rebuilding
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that the Marketplace regression fix should also review unrelated dirty Marketplace logic before deciding what to keep, fix, or discard.
+- **Rule:** When a live regression is caused by stale deployment but the working tree contains broad Marketplace edits, classify each behavior change with the user before rebuilding or deploying the dirty source.
+- **Why:** A rebuild can accidentally promote unrelated UI, watchlist, filter, or trade-flow regressions if the dirty diff is treated as a simple restore.
+
+### Do Not Show Trade Tape As Market Closed
+- **Date:** 2026-05-19
+- **Trigger:** The user corrected the Trade Tape status because Verdaxis should present physical fuel market activity as 24-hour, not exchange-session open/closed.
+- **Rule:** Market activity badges should say `Live · 7D history` or an outage-style unavailable state, not `Market Closed`, unless Verdaxis later defines formal trading sessions.
+- **Why:** A closed-market badge implies users cannot transact and conflicts with the intended operating model.
+
+### Keep Trading And Monitoring Surfaces Separate
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that the Braemar/Bloomberg-style dashboard vision applies to the current Forward Curve page, not the Market Terminal trading page.
+- **Rule:** Treat Market Terminal as the execution/trading surface and Forward Curve, unless renamed later, as the market monitoring workspace candidate. Do not revamp or merge Market Terminal when designing configurable dashboards.
+- **Why:** Combining execution and monitoring would muddy the product model and risk destabilizing the current trade workflow.
+
+### Keep Experimental Forward Curve Work On Staging
+- **Date:** 2026-05-19
+- **Trigger:** The user clarified that this Forward Curve monitoring feature should be worked on in staging for now.
+- **Rule:** For exploratory Forward Curve/dashboard iterations, build, deploy, and dogfood staging only unless the user explicitly asks to promote the change to production.
+- **Why:** The monitoring workspace is still being shaped, and production should not receive half-formed trader workflow changes by default.
+
+### Use Diagnostic Empty States For Required Market Slices
+- **Date:** 2026-05-22
+- **Trigger:** The Orderbook exact-slice gate used a static instruction after the user wanted clear feedback on which filter was still missing.
+- **Rule:** When a market surface requires multiple filters, show a dynamic checklist with selected/missing status for each requirement instead of only a generic instruction.
+- **Why:** Static copy makes users guess which control is blocking the view, especially when some filters are already correctly selected.
+
+### Derive Market Monitoring Taxonomy From Catalog
+- **Date:** 2026-05-23
+- **Trigger:** The user clarified that Forward Curve should use canonical products dynamically where possible instead of hardcoding the visible markets.
+- **Rule:** Market monitoring surfaces should derive fuel, port, and window options from the same canonical marketplace/catalog sources, with static constants only as a narrow fallback.
+- **Why:** Hardcoded market lists drift from executable marketplace surfaces and make users see products or ports they cannot actually list against.
+
+### Verify Themed Selector Contrast
+- **Date:** 2026-05-29
+- **Trigger:** The language selector was functionally present but nearly invisible on both the pale public nav and dark app header until hover exposed the dropdown.
+- **Rule:** When changing shared selector or language controls, explicitly verify the closed trigger contrast on every surface that uses it, not only the opened dropdown state.
+- **Why:** Shared theme variants can invert meaning across contexts, making a control look missing even though its interaction still works.
+
+### Keep Tutorial Navigation Bidirectional
+- **Date:** 2026-06-02
+- **Trigger:** User reported that Back on the Post a Bid tutorial step bounced back to the same step, and that the tooltip X behaved like a hidden force-next control.
+- **Rule:** Guided tours must make click-required steps explicit with Back plus a labelled Skip Step action, remove ambiguous close/X controls, and make missing-target fallback respect whether the user was moving backward or forward.
+- **Why:** State-changing tour steps can remove prior targets from the DOM; always jumping forward on target-not-found traps the user and makes Back feel broken.
+
+### Undo Modal Side Effects On Tutorial Back
+- **Date:** 2026-06-02
+- **Trigger:** User reported that the Place Bid / Place Ask modal stayed open when pressing Back in the guided tutorial.
+- **Rule:** When Back crosses from a modal-backed tutorial segment to a page-level segment, close the active modal before changing the tour step.
+- **Why:** Joyride step navigation only moves the tooltip; it does not automatically undo UI side effects caused by earlier highlighted clicks.
+
+### Keep One Vertical Scroll Owner Per App Page
+- **Date:** 2026-06-02
+- **Trigger:** User reported that Marketplace content was cut off at the bottom for some users and that switching to Listings pushed the top controls offscreen with no way to scroll back up.
+- **Rule:** Authenticated app pages should let the shell `<main>` own vertical scrolling; page components must not add desktop `overflow-hidden` roots plus nested vertical `overflow-auto` tab bodies unless they are full-screen canvas tools.
+- **Why:** Competing scroll containers trap wheel/trackpad input and can make headers or lower content unreachable on smaller viewports.
+
+### Keep Tutorial Escape Controls Visible
+- **Date:** 2026-05-27
+- **Trigger:** The guided tutorial got stuck on an order-form step because click-driven steps hid the footer and targeted a footer cancel control instead of an always-visible modal close control.
+- **Rule:** Click-to-advance tutorial steps must still expose Back, Skip, and Close controls, and modal-exit steps should target always-visible close affordances.
+- **Why:** A tour that disables normal navigation while waiting for a specific click can trap users when the highlighted control is off-screen, covered, or not the control they expect.
+
+### Anchor Tutorial Steps To Stable Surfaces
+- **Date:** 2026-06-02
+- **Trigger:** The guided tutorial skipped the orderbook/trade-modal steps when product, port, or window was missing because `orderbook-actionable-level` did not exist yet.
+- **Rule:** Tutorial targets must point at elements that exist in every relevant state; use a separate `advanceOnSelector` for optional executable child controls.
+- **Why:** Joyride treats missing targets as `TARGET_NOT_FOUND`, so state-dependent anchors can silently advance past the lesson the user needed.
+
+### Guide Tutorial Prerequisites Before Dependent Surfaces
+- **Date:** 2026-06-02
+- **Trigger:** The orderbook tutorial stopped on a stable panel when the user had not selected fuel, port, and window, leaving them without a guided way to satisfy the checklist.
+- **Rule:** If a tutorial step depends on required UI state, add explicit prior click steps that guide the user through creating that state.
+- **Why:** Stable targets prevent skipping, but they can still dead-end when the user has not been walked through prerequisite controls.
+
+### Cap Pinned Marketplace Controls
+- **Date:** 2026-06-02
+- **Trigger:** User clarified that pinned Marketplace controls must never consume so much vertical space that only a few rows remain visible.
+- **Rule:** When pinning Marketplace filters/search/tabs, cap the pinned region to half the page height and put scrolling inside the lower market pane, with pagination fixed outside the row scroller.
+- **Why:** Pinned controls improve orientation, but without a hard cap they can starve the actual trading/listing surface on shorter displays.
+
+### Validate Tutorial State, Not Just Clicks
+- **Date:** 2026-06-02
+- **Trigger:** User found an edge case where Back plus Hide Filters let the guided tutorial skip prerequisite selection and land on a stuck orderbook step.
+- **Rule:** Click-driven tutorial steps must advance only after the expected post-click state is true, and selected sample values must be validated explicitly.
+- **Why:** Selector-only waits and timeout fallback let reversible controls, closed dropdown portals, or wrong option selections move the tour into impossible states.
+
+### Give Optional Liquidity Steps Explicit Fallbacks
+- **Date:** 2026-06-02
+- **Trigger:** The guided tutorial could still stall on the orderbook click step if the selected slice had no clickable bid or ask level.
+- **Rule:** Tutorial steps that depend on live or seeded market liquidity need an explicit, user-initiated fallback path to the next safe workflow.
+- **Why:** Market data availability is not a stable UI invariant, even when the product, port, and window state is valid.
+
+### Do Not Spotlight Portal Options
+- **Date:** 2026-06-03
+- **Trigger:** User reported the guided tutorial got stuck after selecting Shanghai because the required Singapore option portal closed, the highlighted option disappeared, and Skip Step had no recoverable target.
+- **Rule:** Guided tutorial steps for dropdowns must anchor to the stable trigger, advance on the required option click, and provide a fallback that reopens the trigger before selecting the required option.
+- **Why:** Portal-rendered dropdown options are transient DOM nodes; targeting them directly makes Joyride positioning fragile and traps users after wrong selections.
+
+### Offset Tutorial Tooltips From Dropdown Menus
+- **Date:** 2026-06-03
+- **Trigger:** User reported the port dropdown remained hard to select because the tutorial tooltip was still occupying the vertical area used by the opened menu.
+- **Rule:** Dropdown tutorial steps should use side placement by default and keep the dropdown menu above the tour overlay z-index.
+- **Why:** Moving the tooltip above or below a selector can still collide with portal menus; side placement preserves the option list path.
+
+### Keep Boundary Targets Visible
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Submit Boundary tutorial instructions covered the Place Bid button, hiding the exact boundary being explained.
+- **Rule:** Informational boundary steps should place tooltips to the side of the highlighted control, especially for dangerous or submit actions that must remain visible but unclicked.
+- **Why:** A boundary warning loses meaning if it hides the button or state transition it is warning about.
+
+### Scroll Modal Targets Before Spotlighting
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Submit Boundary tutorial still errored because the Place Bid button required scrolling inside the modal to become visible.
+- **Rule:** Before moving Joyride to a modal target, scroll the target's nearest scrollable container and the document viewport so the target is visible before measuring the spotlight.
+- **Why:** Mounted-but-offscreen controls inside modal scroll layouts can still trigger missing or misplaced tutorial steps if Joyride measures before the target is visible.
+
+### Cap Modals Without Forcing Height
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Place Bid modal had a large empty area after the modal was changed to fixed `dvh` height.
+- **Rule:** Use viewport `max-height` plus an internal scroll body for modals; do not force a fixed viewport-relative height unless the content is intentionally full-screen.
+- **Why:** Fixed modal height prevents offscreen footers but creates large empty panels for compact forms; max-height preserves compact layout while still allowing overflow to scroll.
+
+### Do Not Scroll Visible Tour Targets
+- **Date:** 2026-06-03
+- **Trigger:** User reported the Forward Curve tutorial pushed the whole terminal page upward when the Market Matrix tooltip overflowed below the viewport.
+- **Rule:** Tutorial helpers should scroll only when the target is actually outside the visible viewport, and dense terminal steps should anchor to compact headers instead of full-height panels.
+- **Why:** Centering already-visible or very tall targets makes Joyride move the workspace to fit the tooltip, which is disorienting in fixed terminal layouts.
+
+### Include Admin Overrides In Entitlement Gates
+- **Date:** 2026-06-03
+- **Trigger:** User reported that admin accounts were still paywalled on the Analytics page.
+- **Rule:** Feature gates should check both subscription entitlement and explicit role overrides such as `ADMIN`.
+- **Why:** Subscription-only gates incorrectly block operational/admin accounts that need full platform visibility independent of billing tier.
+
+### Make Guided Tour Placement Viewport-Aware
+- **Date:** 2026-06-03
+- **Trigger:** User reported Joyride instructions still being cut off on smaller screens after previous tutorial fixes.
+- **Rule:** Guided tour steps must compute placement against the current target rect and viewport, then flip or center when the preferred side cannot fit.
+- **Why:** Fixed Joyride placements can pass desktop testing but still overflow on smaller viewport widths or heights.
+
+### Stage Feedback Branches Before Production
+- **Date:** 2026-06-16
+- **Trigger:** User clarified new Verdaxis feedback work should go into a new branch and deploy to staging only, not production.
+- **Rule:** For feedback batches that users need to vet, create a dedicated branch based on the current staging branch, deploy only to staging, and wait for explicit production approval.
+- **Why:** Main and staging can diverge, and deploying feedback directly to production risks exposing unvetted UX/product changes to users.
+
+### Use Requested Frontier Model For Factory Review Agents
+- **Date:** 2026-06-16
+- **Trigger:** User corrected subagent model choice after I spawned feedback/planning reviewers on GPT 5.4 mini.
+- **Rule:** When the user explicitly asks for GPT 5.5 on factory-loop planning or review agents, use GPT 5.5 for subsequent subagents instead of cheaper mini models.
+- **Why:** The user is optimizing for maximum-quality adversarial review, not model cost or speed, in this feedback loop.
+
+### Avoid Freezing Cosmetic Implementation Details In Tests
+- **Date:** 2026-06-16
+- **Trigger:** User challenged source-level tests that locked simple cart-icon replacements into the suite.
+- **Rule:** Prefer behavior, data-contract, accessibility, and provenance tests; avoid source-grep tests for simple cosmetic choices unless a regression has real product or safety impact.
+- **Why:** Over-specific cosmetic tests add maintenance bloat and make harmless UI refinements harder without materially improving product stability.
+
+### Include Browser Dogfooding In UI Reviews
+- **Date:** 2026-06-17
+- **Trigger:** User corrected that reviewers should visually dogfood UI changes in the browser, not only inspect code.
+- **Rule:** For UI-facing review passes, include browser dogfooding on the affected pages and viewport sizes before declaring the review clean.
+- **Why:** Code review and unit tests can miss visual regressions, blocked interactions, viewport overflow, and misleading copy in the actual rendered app.
+
+### Fail UI Reviews When Browser Dogfooding Is Blocked
+- **Date:** 2026-06-17
+- **Trigger:** User corrected the review process to require agent-browser dogfooding, viewport checks, screenshot paths, and explicit FAIL status if browser dogfooding cannot run.
+- **Rule:** For design/product UI reviews, capture browser screenshots for the relevant staging surfaces and viewports; if browser automation or screenshots are blocked, mark the review as FAIL with the blocker instead of substituting code inspection.
+- **Why:** A design review without rendered evidence can miss visual defects and overstate confidence.
+
+### Maintain A Sprint Checklist For FSB Loops
+- **Date:** 2026-06-17
+- **Trigger:** User asked to have the checklist-style status every sprint so the work stays trackable.
+- **Rule:** For Verdaxis FSB feedback loops, keep a durable sprint checklist that maps each feedback item to status, evidence, reviewer outcomes, and next action; update it at sprint close and when reviewer findings change scope.
+- **Why:** Long-running factory loops can lose the connection between screenshots, commits, deployments, and remaining work if status only lives in chat.
+
+### Keep The Curve In Forward Curve
+- **Date:** 2026-06-17
+- **Trigger:** User noticed the Forward Curve revamp no longer had an across-period curve or graph.
+- **Rule:** A page called Forward Curve must keep a visible curve across delivery periods; period-level evidence graphs can supplement it but must not replace it.
+- **Why:** The implementation over-focused on selected-period evidence and removed the primary mental model users expect from a forward curve screen.
+
+### Avoid Shared Grid Row Stretch In Terminal Layouts
+- **Date:** 2026-06-20
+- **Trigger:** User reported a large blank gap under the Forward Curve chart after the right-side latest-signals panel became much taller.
+- **Rule:** Dense two-column terminal dashboards should group each column into its own vertical stack instead of placing all panels as direct CSS-grid children when panel heights can differ.
+- **Why:** CSS grid row tracks are sized by the tallest item in each row, so a tall right rail can stretch or visually separate shorter left-column panels and create large empty gaps.
+
+### Keep Secondary Rails Compact
+- **Date:** 2026-06-20
+- **Trigger:** User reported the Forward Curve latest-signals rail consumed too much vertical real estate and pushed the Selected Period section below the viewport.
+- **Rule:** Secondary activity rails should use compact rows, capped internal scrolling, and smaller numeric typography so the primary detail panel remains visible in the first viewport.
+- **Why:** Latest/event feeds are supporting context; if every item uses card-like spacing, they crowd out the actionable or inspectable panel beneath them.

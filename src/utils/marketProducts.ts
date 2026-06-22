@@ -26,24 +26,29 @@ export const isMarketplaceProductFilter = (value: string | null): value is Marke
 export const getMarketplaceProductOption = (value: string | null | undefined): MarketplaceProductOption | undefined =>
     MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === value);
 
-export const getMarketplaceProductValue = (
-    value: string | null | undefined
-): MarketProduct | undefined => {
-    if (!value) return undefined;
-
-    const directMatch = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === value);
-    if (directMatch) return directMatch.value;
-
-    const normalized = value.trim().toLowerCase().replace(/[_\s-]+/g, ' ');
-    const labelMatch = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find(
-        (option) => option.label.trim().toLowerCase().replace(/[_\s-]+/g, ' ') === normalized
-    );
-    return labelMatch?.value;
+export const getMarketplaceProductValue = (value: string | null | undefined): MarketProduct | undefined => {
+    if (!value || value === 'All') return undefined;
+    const normalized = value.trim().toLowerCase();
+    return ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find(
+        (option) =>
+            option.value.toLowerCase() === normalized ||
+            option.label.toLowerCase() === normalized
+    )?.value;
 };
 
-export const getMarketplaceFuelType = (value: string | null | undefined): string | undefined =>
-    ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === value)?.fuelType
-    || ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.label === value)?.fuelType;
+export const getMarketplaceFuelType = (value: string | null | undefined): string | undefined => {
+    if (!value || value === 'All') return undefined;
+    const normalized = value.trim().toLowerCase();
+    const matchedProduct = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find(
+        (option) =>
+            option.value.toLowerCase() === normalized ||
+            option.label.toLowerCase() === normalized
+    );
+    if (matchedProduct) return matchedProduct.fuelType;
+    if (normalized.includes('methanol')) return 'Methanol';
+    if (normalized.includes('ethanol')) return 'Ethanol';
+    return undefined;
+};
 
 export const getMarketplaceProductLabel = (
     marketProduct: string | null | undefined,

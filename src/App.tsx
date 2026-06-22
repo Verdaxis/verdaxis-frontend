@@ -1,165 +1,71 @@
 
-import React, { useState, useEffect, lazy, Suspense, useTransition, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
+import { GuidedTutorial } from './components/GuidedTutorial';
+import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
+import { TradeNotifier } from './components/TradeNotifier';
+import RegisterPage from './pages/RegisterPage';
+import { InvitePage } from './pages/InvitePage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import MaintenancePage from './pages/MaintenancePage';
+import { OnboardingPage } from './pages/OnboardingPage';
+import CreateOrganizationPage from './pages/CreateOrganizationPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import KycPage from './pages/KycPage';
+import { Layout } from './components/Layout';
+import { BuyerMap } from './components/BuyerMap';
+import { BuyerDashboard, SupplierDashboard } from './components/CommandCenter';
+import { SupplierQuotes } from './components/SupplierQuotes';
+import { DataAnalytics } from './components/DataAnalytics';
+import { Compliance } from './components/Compliance';
+import { Training } from './components/Training';
+import { Settings } from './components/Settings';
+import { Stats } from './components/Stats';
+import { MyTrades } from './components/MyTrades';
+import { TradeHistoryPage } from './components/TradeHistoryPage';
+import { MarketTerminal } from './components/MarketTerminal';
+import { ForwardCurveWorkspace } from './components/ForwardCurveWorkspace';
+import { Marketplace } from './components/Marketplace';
+import { WatchlistPage } from './components/WatchlistPage';
+import { SupplierStats } from './components/SupplierStats';
+import { SupplierAnalytics } from './components/SupplierAnalytics';
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, Port } from './types';
-import {
-  recordDashboardContentReady,
-  recordDashboardNavigationStart,
-} from './utils/navigationPerformance';
-
-const lazyNamed = <T extends React.ComponentType<any>>(loader: () => Promise<Record<string, any>>, exportName: string) =>
-  lazy(async () => ({ default: (await loader())[exportName] as T }));
-
-const LoadingScreen = () => (
-  <div className="min-h-screen w-full bg-slate-950 flex items-center justify-center text-emerald-400">
-    Loading...
-  </div>
-);
-
-const DashboardContentLoading = () => (
-  <div className="h-full w-full bg-slate-50 p-6 dark:bg-slate-900">
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
-      <div className="h-8 w-56 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-      <div className="h-4 w-80 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-      <div className="grid gap-4 md:grid-cols-3">
-        {[0, 1, 2].map((index) => (
-          <div key={index} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" />
-        ))}
-      </div>
-      <div className="min-h-0 flex-1 animate-pulse rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950" />
-    </div>
-  </div>
-);
-
-const DashboardContentReady: React.FC<{ page: Page; viewMode: ViewMode; children: React.ReactNode }> = ({
-  page,
-  viewMode,
-  children,
-}) => {
-  useEffect(() => {
-    recordDashboardContentReady(page, viewMode);
-  }, [page, viewMode]);
-
-  return <>{children}</>;
-};
-
-const GuidedTutorial = lazyNamed(() => import('./components/GuidedTutorial'), 'GuidedTutorial');
-const LoginPage = lazy(() => import('./pages/LoginPage'));
-const TradeNotifier = lazyNamed(() => import('./components/TradeNotifier'), 'TradeNotifier');
-const RegisterPage = lazy(() => import('./pages/RegisterPage'));
-const InvitePage = lazyNamed(() => import('./pages/InvitePage'), 'InvitePage');
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const OnboardingPage = lazyNamed(() => import('./pages/OnboardingPage'), 'OnboardingPage');
-const CreateOrganizationPage = lazy(() => import('./pages/CreateOrganizationPage'));
-const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage'));
-const KycPage = lazy(() => import('./pages/KycPage'));
-const Layout = lazyNamed(() => import('./components/Layout'), 'Layout');
-const BuyerMap = lazyNamed(() => import('./components/BuyerMap'), 'BuyerMap');
-const BuyerDashboard = lazyNamed(() => import('./components/CommandCenter'), 'BuyerDashboard');
-const SupplierDashboard = lazyNamed(() => import('./components/CommandCenter'), 'SupplierDashboard');
-const SupplierQuotes = lazyNamed(() => import('./components/SupplierQuotes'), 'SupplierQuotes');
-const DataAnalytics = lazyNamed(() => import('./components/DataAnalytics'), 'DataAnalytics');
-const Compliance = lazyNamed(() => import('./components/Compliance'), 'Compliance');
-const Training = lazyNamed(() => import('./components/Training'), 'Training');
-const Settings = lazyNamed(() => import('./components/Settings'), 'Settings');
-const TradeHistoryPage = lazyNamed(() => import('./components/TradeHistoryPage'), 'TradeHistoryPage');
-const MarketTerminal = lazyNamed(() => import('./components/MarketTerminal'), 'MarketTerminal');
-const Marketplace = lazyNamed(() => import('./components/Marketplace'), 'Marketplace');
-const WatchlistPage = lazyNamed(() => import('./components/WatchlistPage'), 'WatchlistPage');
-const SupplierAnalytics = lazyNamed(() => import('./components/SupplierAnalytics'), 'SupplierAnalytics');
-const AdminDashboard = lazyNamed(() => import('./components/admin/AdminDashboard'), 'AdminDashboard');
-const OrderPlaceModal = lazyNamed(() => import('./components/OrderPlaceModal'), 'OrderPlaceModal');
-const PublicLayout = lazyNamed(() => import('./components/public/PublicLayout'), 'PublicLayout');
-const LanguageRedirect = lazy(() => import('./components/public/LanguageRedirect'));
-const PublicLanguageWrapper = lazy(() => import('./components/public/PublicLanguageWrapper'));
-const LegacyRedirect = lazy(() => import('./components/public/LegacyRedirect'));
-const LandingPage = lazyNamed(() => import('./pages/public/LandingPage'), 'LandingPage');
-const HowItWorksPage = lazyNamed(() => import('./pages/public/HowItWorksPage'), 'HowItWorksPage');
-const FuelCoveragePage = lazyNamed(() => import('./pages/public/FuelCoveragePage'), 'FuelCoveragePage');
-const ComplianceInfoPage = lazyNamed(() => import('./pages/public/ComplianceInfoPage'), 'ComplianceInfoPage');
-const ProducerUseCasePage = lazyNamed(() => import('./pages/public/ProducerUseCasePage'), 'ProducerUseCasePage');
-const BuyerUseCasePage = lazyNamed(() => import('./pages/public/BuyerUseCasePage'), 'BuyerUseCasePage');
-const TraderUseCasePage = lazyNamed(() => import('./pages/public/TraderUseCasePage'), 'TraderUseCasePage');
-const FinancierUseCasePage = lazyNamed(() => import('./pages/public/FinancierUseCasePage'), 'FinancierUseCasePage');
-const GovernancePage = lazyNamed(() => import('./pages/public/GovernancePage'), 'GovernancePage');
-const PilotPage = lazyNamed(() => import('./pages/public/PilotPage'), 'PilotPage');
-const EducationPage = lazyNamed(() => import('./pages/public/EducationPage'), 'EducationPage');
-const PartnersPage = lazyNamed(() => import('./pages/public/PartnersPage'), 'PartnersPage');
-const EducationArticlePage = lazyNamed(() => import('./pages/public/EducationArticlePage'), 'EducationArticlePage');
-const RoadmapPage = lazyNamed(() => import('./pages/public/RoadmapPage'), 'RoadmapPage');
-const EnergyCalculatorPage = lazyNamed(() => import('./pages/public/EnergyCalculatorPage'), 'EnergyCalculatorPage');
-const ProducerMapPage = lazyNamed(() => import('./pages/public/ProducerMapPage'), 'ProducerMapPage');
-const PartnerShowcasePage = lazyNamed(() => import('./pages/public/PartnerShowcasePage'), 'PartnerShowcasePage');
-const PartnerLandingPage = lazyNamed(() => import('./pages/public/PartnerLandingPage'), 'PartnerLandingPage');
-const PrivacyPage = lazyNamed(() => import('./pages/public/PrivacyPage'), 'PrivacyPage');
-const TermsPage = lazyNamed(() => import('./pages/public/TermsPage'), 'TermsPage');
-
-const prefetchActivationScreens = () => {
-  void Promise.all([
-    import('./components/Marketplace'),
-    import('./components/OrderPlaceModal'),
-  ]).catch(() => undefined);
-};
-
-const schedulePlatformPrefetch = () => {
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(prefetchActivationScreens, { timeout: 3000 });
-    return;
-  }
-  window.setTimeout(prefetchActivationScreens, 1000);
-};
-
-const prefetchDashboardPage = (page: Page) => {
-  switch (page) {
-    case 'MAP':
-      void import('./components/BuyerMap').catch(() => undefined);
-      break;
-    case 'MARKETPLACE':
-      void Promise.all([
-        import('./components/Marketplace'),
-        import('./components/OrderPlaceModal'),
-      ]).catch(() => undefined);
-      break;
-    case 'TERMINAL':
-      void Promise.all([
-        import('./components/MarketTerminal'),
-        import('./components/ForwardCurve'),
-      ]).catch(() => undefined);
-      break;
-    case 'DATA_ANALYTICS':
-      void import('./components/DataAnalytics').catch(() => undefined);
-      break;
-    case 'ANALYTICS':
-      void import('./components/SupplierAnalytics').catch(() => undefined);
-      break;
-    case 'COMPLIANCE':
-      void import('./components/Compliance').catch(() => undefined);
-      break;
-    case 'WATCHLISTS':
-      void import('./components/WatchlistPage').catch(() => undefined);
-      break;
-    case 'TRADES':
-      void import('./components/TradeHistoryPage').catch(() => undefined);
-      break;
-    case 'SETTINGS':
-      void import('./components/Settings').catch(() => undefined);
-      break;
-    case 'ADMIN':
-      void import('./components/admin/AdminDashboard').catch(() => undefined);
-      break;
-    default:
-      void import('./components/CommandCenter').catch(() => undefined);
-      break;
-  }
-};
+import { PublicLayout } from './components/public/PublicLayout';
+import LanguageRedirect from './components/public/LanguageRedirect';
+import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
+import LegacyRedirect from './components/public/LegacyRedirect';
+import { LandingPage } from './pages/public/LandingPage';
+import { HowItWorksPage } from './pages/public/HowItWorksPage';
+import { FuelCoveragePage } from './pages/public/FuelCoveragePage';
+import { ComplianceInfoPage } from './pages/public/ComplianceInfoPage';
+import { ProducerUseCasePage } from './pages/public/ProducerUseCasePage';
+import { BuyerUseCasePage } from './pages/public/BuyerUseCasePage';
+import { TraderUseCasePage } from './pages/public/TraderUseCasePage';
+import { FinancierUseCasePage } from './pages/public/FinancierUseCasePage';
+import { GovernancePage } from './pages/public/GovernancePage';
+import { PilotPage } from './pages/public/PilotPage';
+import { EducationPage } from './pages/public/EducationPage';
+import { PartnersPage } from './pages/public/PartnersPage';
+import { EducationArticlePage } from './pages/public/EducationArticlePage';
+import { RoadmapPage } from './pages/public/RoadmapPage';
+import { EnergyCalculatorPage } from './pages/public/EnergyCalculatorPage';
+import { ProducerMapPage } from './pages/public/ProducerMapPage';
+import { PartnerShowcasePage } from './pages/public/PartnerShowcasePage';
+import { PartnerLandingPage } from './pages/public/PartnerLandingPage';
+import { PrivacyPage } from './pages/public/PrivacyPage';
+import { TermsPage } from './pages/public/TermsPage';
+import { NotFoundPage } from './pages/public/NotFoundPage';
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -172,8 +78,12 @@ const ScrollToTop: React.FC = () => {
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
+
+    if (isBackendUnavailable) {
+        return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
+    }
 
     if (isLoading) {
         return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">Loading...</div>;
@@ -181,6 +91,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    return children;
+};
+
+const BackendRequiredRoute = ({ children }: { children: React.ReactElement }) => {
+    const { isBackendUnavailable, isLoading, checkAuth } = useAuth();
+
+    if (isBackendUnavailable) {
+        return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
     }
 
     return children;
@@ -229,7 +149,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
   if (!page) return 'DASHBOARD';
-  if (page === 'ORDERBOOK' || page === 'DEMAND_FEED') return 'MARKETPLACE';
+  if (page === 'ORDERBOOK') return 'MARKETPLACE';
   return page as Page;
 };
 
@@ -242,60 +162,45 @@ const Dashboard: React.FC = () => {
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
   const [currentPage, setCurrentPage] = useState<Page>(() => sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
-  const [shouldKeepMapMounted, setShouldKeepMapMounted] = useState(() => currentPage === 'MAP');
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
-  const [, startPageTransition] = useTransition();
-
-  const setDashboardPage = useCallback((page: Page) => {
-    if (page === 'MAP') {
-      setShouldKeepMapMounted(true);
-    }
-    if (page !== currentPage) {
-      recordDashboardNavigationStart(currentPage, page, viewMode);
-    }
-    startPageTransition(() => setCurrentPage(page));
-    sessionStorage.setItem('verdaxis_currentPage', page);
-  }, [currentPage, startPageTransition, viewMode]);
 
   useEffect(() => {
       if (location.state) {
         const state = location.state as any;
         if (state.targetPage) {
-            setDashboardPage(sanitizeDashboardPage(state.targetPage));
+            setCurrentPage(sanitizeDashboardPage(state.targetPage));
         }
         if (state.openOrderId) {
             setOpenOrderId(state.openOrderId);
         }
       }
-  }, [location, setDashboardPage]);
-
-  useEffect(() => {
-      schedulePlatformPrefetch();
-  }, []);
+  }, [location]);
 
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
     const defaultPage = 'DASHBOARD';
-    setDashboardPage(defaultPage);
+    setCurrentPage(defaultPage);
     sessionStorage.setItem('verdaxis_viewMode', mode);
+    sessionStorage.setItem('verdaxis_currentPage', defaultPage);
   };
 
   const handleNavigate = (page: Page) => {
     const nextPage = sanitizeDashboardPage(page);
-    setDashboardPage(nextPage);
+    setCurrentPage(nextPage);
+    sessionStorage.setItem('verdaxis_currentPage', nextPage);
   };
 
   const handlePortSelect = (port: Port) => {
     setSelectedPort(port);
-    setDashboardPage('MARKETPLACE');
+    setCurrentPage('MARKETPLACE');
   };
 
   const handleOrderClick = (port: Port) => {
     // Redirect to Marketplace with port selected
     setSelectedPort(port);
-    setDashboardPage('MARKETPLACE');
+    setCurrentPage('MARKETPLACE');
   };
 
   const renderContent = () => {
@@ -310,19 +215,20 @@ const Dashboard: React.FC = () => {
     if (viewMode === 'SUPPLIER') {
         switch (currentPage) {
             case 'MAP':
-                return null;
+                return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
             case 'DASHBOARD':
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
             case 'TERMINAL':
                 return <MarketTerminal onNavigate={handleNavigate} />;
+            case 'FORWARD_CURVE':
+                return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
             case 'ANALYTICS':
                 return <SupplierAnalytics />;
-            case 'COMPLIANCE':
-                return <Compliance />;
             case 'MARKETPLACE':
-                return <Marketplace initialPort={selectedPort} onNavigate={handleNavigate} />;
+            case 'DEMAND_FEED':
+                return <Marketplace initialPort={selectedPort} viewMode={viewMode} />;
             case 'TRADES':
                 return <TradeHistoryPage />;
             case 'WATCHLISTS':
@@ -334,13 +240,15 @@ const Dashboard: React.FC = () => {
 
     switch (currentPage) {
       case 'MAP':
-        return null;
+        return <BuyerMap onPortSelect={handlePortSelect} onNavigate={handleNavigate} onOrderClick={handleOrderClick} />;
       case 'DASHBOARD':
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
-        return <Marketplace initialPort={selectedPort} onNavigate={handleNavigate} />;
+        return <Marketplace initialPort={selectedPort} viewMode={viewMode} />;
       case 'TERMINAL':
         return <MarketTerminal onNavigate={handleNavigate} />;
+      case 'FORWARD_CURVE':
+        return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':
         return <DataAnalytics />;
       case 'COMPLIANCE':
@@ -362,42 +270,17 @@ const Dashboard: React.FC = () => {
       onSwitchView={handleSwitchView}
       currentPage={currentPage}
       onNavigate={handleNavigate}
-      onPrefetchPage={prefetchDashboardPage}
       onPrimaryAction={() => setSidebarModalSide(viewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
-      <Suspense fallback={null}>
-        <GuidedTutorial viewMode={viewMode} />
-      </Suspense>
-      <Suspense fallback={<DashboardContentLoading />}>
-        <ErrorBoundary>
-          <DashboardContentReady page={currentPage} viewMode={viewMode}>
-            <>
-              {shouldKeepMapMounted && (
-                <div
-                  className={currentPage === 'MAP' ? 'h-full w-full' : 'hidden'}
-                  aria-hidden={currentPage !== 'MAP'}
-                >
-                  <BuyerMap
-                    onPortSelect={handlePortSelect}
-                    onNavigate={handleNavigate}
-                    onOrderClick={handleOrderClick}
-                    isActive={currentPage === 'MAP'}
-                  />
-                </div>
-              )}
-              {currentPage !== 'MAP' && renderContent()}
-            </>
-          </DashboardContentReady>
-        </ErrorBoundary>
-      </Suspense>
-      <Suspense fallback={null}>
-        <OrderPlaceModal
-          isOpen={sidebarModalSide !== null}
-          onClose={() => setSidebarModalSide(null)}
-          side={sidebarModalSide || 'BID'}
-          onNavigate={handleNavigate}
-        />
-      </Suspense>
+      <GuidedTutorial viewMode={viewMode} />
+      <ErrorBoundary>
+        {renderContent()}
+      </ErrorBoundary>
+      <OrderPlaceModal
+        isOpen={sidebarModalSide !== null}
+        onClose={() => setSidebarModalSide(null)}
+        side={sidebarModalSide || 'BID'}
+      />
     </Layout>
   );
 };
@@ -412,16 +295,15 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
-                <Suspense fallback={<LoadingScreen />}>
                 <Routes>
                     {/* Auth routes */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/invite/:code" element={<InvitePage />} />
+                    <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />
+                    <Route path="/register" element={<BackendRequiredRoute><RegisterPage /></BackendRequiredRoute>} />
+                    <Route path="/invite/:code" element={<BackendRequiredRoute><InvitePage /></BackendRequiredRoute>} />
                     <Route path="/invite" element={<Navigate to="/register" replace />} />
-                    <Route path="/verify-email" element={<VerifyEmailPage />} />
-                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                    <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/verify-email" element={<BackendRequiredRoute><VerifyEmailPage /></BackendRequiredRoute>} />
+                    <Route path="/forgot-password" element={<BackendRequiredRoute><ForgotPasswordPage /></BackendRequiredRoute>} />
+                    <Route path="/reset-password" element={<BackendRequiredRoute><ResetPasswordPage /></BackendRequiredRoute>} />
 
                     {/* Root → detect language → redirect */}
                     <Route path="/" element={<LanguageRedirect />} />
@@ -482,7 +364,7 @@ const App: React.FC = () => {
                         </ProtectedRoute>
                     } />
 
-                    <Route path="/create-organization" element={<CreateOrganizationPage />} />
+                    <Route path="/create-organization" element={<BackendRequiredRoute><CreateOrganizationPage /></BackendRequiredRoute>} />
 
                     <Route path="/kyc" element={
                         <ProtectedRoute>
@@ -494,7 +376,9 @@ const App: React.FC = () => {
                         <ProtectedRoute>
                             <RequireOrganization>
                                 <RequireProfile>
-                                    <Dashboard />
+                                    <MobileDesktopGate>
+                                        <Dashboard />
+                                    </MobileDesktopGate>
                                 </RequireProfile>
                             </RequireOrganization>
                         </ProtectedRoute>
@@ -503,12 +387,9 @@ const App: React.FC = () => {
                     {/* Fallback */}
                     <Route path="*" element={<PublicLayout />} />
                 </Routes>
-                </Suspense>
             </BrowserRouter>
         </TutorialProvider>
-        <Suspense fallback={null}>
-          <TradeNotifier />
-        </Suspense>
+        <TradeNotifier />
         </NotificationProvider>
         </ToastProvider>
       </AuthProvider>

@@ -59,7 +59,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 
         >
             {content}
             {!portal && (
-                <div className={`absolute w-2 h-2 bg-slate-900 transform rotate-45 
+                <div className={`absolute w-2 h-2 bg-slate-900 transform rotate-45
                     ${position === 'top' ? '-bottom-1 left-1/2 -translate-x-1/2' : ''}
                     ${position === 'bottom' ? '-top-1 left-1/2 -translate-x-1/2' : ''}
                     ${position === 'left' ? '-right-1 top-1/2 -translate-y-1/2' : ''}

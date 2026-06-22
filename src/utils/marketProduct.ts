@@ -5,12 +5,8 @@ export type ProductReference = string | Product | null | undefined;
 const MARKET_PRODUCT_LABELS: Record<string, string> = {
   BIO_METHANOL: 'Bio Methanol',
   BIO_ETHANOL: 'Bio Ethanol',
-  E_METHANOL: 'E-Methanol',
-  SYNTHETIC_METHANOL: 'Synthetic Methanol',
-  E_ETHANOL: 'E-Ethanol',
+  E_METHANOL: 'e-Methanol',
   SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
-  CONVENTIONAL_METHANOL: 'Conventional Methanol',
-  GREEN_ETHANOL: 'Green Ethanol',
 };
 
 export function formatMarketProduct(value: string | null | undefined): string {
@@ -21,8 +17,11 @@ export function formatMarketProduct(value: string | null | undefined): string {
   if (normalized === 'GREEN_METHANOL' || normalized === 'BIOMETHANOL') {
     return MARKET_PRODUCT_LABELS.BIO_METHANOL;
   }
-  if (normalized === 'GREEN_ETHANOL') {
+  if (normalized === 'GREEN_ETHANOL' || normalized === 'E_ETHANOL') {
     return MARKET_PRODUCT_LABELS.BIO_ETHANOL;
+  }
+  if (normalized === 'SYNTHETIC_METHANOL') {
+    return MARKET_PRODUCT_LABELS.E_METHANOL;
   }
 
   return value
@@ -33,9 +32,11 @@ export function formatMarketProduct(value: string | null | undefined): string {
 
 export function getProductDisplayName(product: ProductReference): string {
   if (!product) return '';
-  if (typeof product === 'string') return product;
+  if (typeof product === 'string') return formatMarketProduct(product);
 
-  const name = product.name || product.fuel_type || product.id;
+  if (product.market_product) return formatMarketProduct(product.market_product);
+
+  const name = formatMarketProduct(product.name || product.fuel_type || product.id);
   if (!product.fuel_grade) return name;
 
   return name.toLowerCase().includes(product.fuel_grade.toLowerCase())
@@ -64,8 +65,8 @@ export function getOrderDisplayName(order: {
   market_product?: string;
   fuel_type?: string;
 }): string {
-  return order.product_name
-    || formatMarketProduct(order.market_product)
-    || order.fuel_type
+  return formatMarketProduct(order.market_product)
+    || formatMarketProduct(order.product_name)
+    || formatMarketProduct(order.fuel_type)
     || 'Unknown product';
 }

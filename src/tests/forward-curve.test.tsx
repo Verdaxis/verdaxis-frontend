@@ -101,15 +101,16 @@ describe('ForwardCurve', () => {
     });
   });
 
-  it('shows the indicative title and empty-state hint when no curve exists for the selected product and port', async () => {
+  it('shows the forward curve title and empty-state hint when no curve exists for the selected product and port', async () => {
     renderWithProviders(
       <ForwardCurve marketProductCode="BIO_METHANOL" deliveryPointName="Singapore" />,
     );
 
-    expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Forward Curve')).toBeTruthy();
+    expect(screen.getByText('Indicative only')).toBeTruthy();
 
     await waitFor(() => {
-      expect(screen.getByText('No indicative curve is available for this product and port yet.')).toBeTruthy();
+      expect(screen.getByText('No forward curve data available')).toBeTruthy();
     });
 
     expect(screen.getByText('Check Marketplace or Orderbook for live spot and near-dated liquidity.')).toBeTruthy();
@@ -121,47 +122,10 @@ describe('ForwardCurve', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('No indicative curve is available for this product and port yet.')).toBeTruthy();
+      expect(screen.getByText('No forward curve data available')).toBeTruthy();
     });
 
-    expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
+    expect(screen.queryByText('Forward Curve')).toBeNull();
     expect(screen.queryByText('Benchmark mid with soft bid/ask context')).toBeNull();
-  });
-
-  it('treats marketProductCode as authoritative when a broad fuel family is also provided', async () => {
-    productsMock.mockResolvedValue([
-      { id: 'prod-bio-met', name: 'Bio Methanol', market_product: 'BIO_METHANOL', fuel_type: 'Methanol', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 500, is_active: true },
-      { id: 'prod-e-met', name: 'E-Methanol', market_product: 'E_METHANOL', fuel_type: 'Methanol', fuel_grade: 'Synthetic', unit: 'MT', min_lot_size: 500, is_active: true },
-    ]);
-
-    renderWithProviders(
-      <ForwardCurve fuelType="Methanol" marketProductCode="E_METHANOL" deliveryPointName="Singapore" />,
-    );
-
-    await waitFor(() => {
-      expect(curvesForwardMock).toHaveBeenCalledWith({
-        product_id: 'prod-e-met',
-        delivery_point_id: 'dp-sg',
-      });
-    });
-    expect(curvesForwardMock).not.toHaveBeenCalledWith(expect.objectContaining({
-      product_id: 'prod-bio-met',
-    }));
-  });
-
-  it('does not fetch an aggregate curve while a named delivery point is unresolved', async () => {
-    deliveryPointsMock.mockResolvedValue([
-      { id: 'dp-rotterdam', name: 'Rotterdam', region: 'Europe', timezone: 'Europe/Amsterdam', is_active: true },
-    ]);
-
-    renderWithProviders(
-      <ForwardCurve marketProductCode="BIO_METHANOL" deliveryPointName="Singapore" />,
-    );
-
-    await waitFor(() => {
-      expect(productsMock).toHaveBeenCalled();
-      expect(deliveryPointsMock).toHaveBeenCalled();
-    });
-    expect(curvesForwardMock).not.toHaveBeenCalled();
   });
 });

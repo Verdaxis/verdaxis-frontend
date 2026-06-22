@@ -29,6 +29,7 @@ describe('EnergyCalculatorPage', () => {
     expect(screen.getAllByText(/eu ets cost/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/fueleu/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/cii proxy/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/price \/ gj/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/total cost/i).length).toBeGreaterThanOrEqual(2);
   });
 
@@ -66,6 +67,8 @@ describe('calculateVoyage', () => {
     expect(resultB.fuelBurnT).toBe(829);
     expect(resultA.co2T).toBeGreaterThan(resultB.co2T);
     expect(resultA.totalCostUsd).toBeGreaterThan(resultB.totalCostUsd);
+    expect(resultA.pricePerGJUsd).toBe(11.14);
+    expect(resultB.pricePerGJUsd).toBe(10.39);
   });
 
   it('returns compliant status when intensity below threshold', () => {

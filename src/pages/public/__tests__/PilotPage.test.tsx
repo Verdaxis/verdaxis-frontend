@@ -11,22 +11,9 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/pilot' } = {}) => 
   );
 };
 
-/* ---- localStorage mock ---- */
-const storageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-
-Object.defineProperty(globalThis, 'localStorage', { value: storageMock, writable: true });
-
 describe('PilotPage', () => {
   beforeEach(() => {
-    storageMock.clear();
+    Object.defineProperty(window, 'open', { value: vi.fn(), writable: true });
   });
 
   it('renders page title', () => {
@@ -66,17 +53,19 @@ describe('PilotPage', () => {
     expect(screen.getByText(/top-tier shippers or producers/i)).toBeTruthy();
   });
 
-  it('renders signup CTA above the fold instead of the legacy application form', () => {
+  it('renders onboarding CTAs instead of the old application form', () => {
     renderWithRouter(<PilotPage />);
-    const cta = screen.getByRole('link', { name: /go to signup/i });
-    expect(cta.getAttribute('href')).toBe('/register');
+    expect(screen.getByText(/start pilot onboarding/i)).toBeTruthy();
+    expect(screen.getByText(/create your user account/i)).toBeTruthy();
+    expect(screen.getByText(/set up or join your organization/i)).toBeTruthy();
     expect(screen.queryByLabelText(/company name/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /submit application/i })).toBeNull();
-  });
 
-  it('renders timeline copy from the current locale keys', () => {
-    renderWithRouter(<PilotPage />);
-    expect(screen.getByText(/limited onboarding/i)).toBeTruthy();
-    expect(screen.getByText(/full launch follows successful pilot validation/i)).toBeTruthy();
+    const createAccountLinks = screen.getAllByRole('link', { name: /create account/i });
+    expect(createAccountLinks.length).toBeGreaterThan(0);
+    expect(createAccountLinks[0].getAttribute('href')).toBe('https://app.verdaxis.exchange/register?lang=en');
+
+    const teamLink = screen.getByRole('link', { name: /speak to the team/i });
+    expect(teamLink.getAttribute('href')).toBe('mailto:info@verdaxis.exchange');
   });
 });

@@ -41,7 +41,9 @@ describe('PublicLayout', () => {
 
   it('renders "Sign In" link', () => {
     renderWithRouter('/');
-    expect(screen.getByText('Sign In')).toBeTruthy();
+    const signIn = screen.getByText('Sign In');
+    expect(signIn).toBeTruthy();
+    expect(signIn.closest('a')?.getAttribute('href')).toBe('/login?lang=en');
   });
 
   it('renders outlet content', () => {

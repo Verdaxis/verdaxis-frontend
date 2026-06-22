@@ -65,7 +65,7 @@ export const MapLegend: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded border border-slate-400 flex items-center justify-center text-[8px] font-bold text-slate-500">$</div>
-                                    <span>Last Done — most recent trade price</span>
+                                    <span>{t('mapLegend.recentListings')}</span>
                                 </div>
                             </div>
                         </div>

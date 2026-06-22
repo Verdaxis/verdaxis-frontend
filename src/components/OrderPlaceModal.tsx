@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
-import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, Page } from '../types';
+import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
     SPOT_WINDOW,
@@ -10,7 +10,7 @@ import {
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
-import { getWatchlistSliceKey, getWatchlistSliceKeyFromParts } from '../utils/watchlist';
+import { isApprovedTradingPortName } from '../utils/tradingPorts';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -22,7 +22,6 @@ interface OrderPlaceModalProps {
     prefillDeliveryPointId?: string;
     prefillAvailabilityWindow?: AvailabilityWindow;
     prefillPrice?: number;
-    onNavigate?: (page: Page) => void;
 }
 
 interface OrderFormData {
@@ -92,7 +91,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillDeliveryPointId,
     prefillAvailabilityWindow,
     prefillPrice,
-    onNavigate,
 }) => {
     const { t, ready } = useNamespace('trading');
     const [products, setProducts] = useState<Product[]>([]);
@@ -105,8 +103,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
-    const [trackingState, setTrackingState] = useState<'idle' | 'tracking' | 'error'>('idle');
-    const [trackingError, setTrackingError] = useState('');
 
     useEffect(() => {
         if (!isOpen) return;
@@ -115,8 +111,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        setTrackingState('idle');
-        setTrackingError('');
         setAdvancedOpen(side === 'ASK');
 
         setCatalogLoading(true);
@@ -124,8 +118,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             api.catalog.products().catch(() => [] as Product[]),
             api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
         ]).then(([prods, dps]) => {
-            const activeProds = prods.filter(p => p.is_active);
-            const activeDps = dps.filter(d => d.is_active);
+            const activeProds = prods.filter(p => (
+                p.is_active
+                && p.market_product
+                && MARKET_PRODUCTS.includes(p.market_product)
+            ));
+            const activeDps = dps.filter(d => d.is_active && isApprovedTradingPortName(d.name));
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
 
@@ -165,14 +163,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
-    const trackableMarketSlice = useMemo(() => {
-        if (!selectedProduct?.market_product || !selectedDeliveryPoint?.id || !formData.availability_window) return null;
-        return {
-            marketProductCode: selectedProduct.market_product,
-            deliveryPointId: selectedDeliveryPoint.id,
-            availabilityWindowCode: formData.availability_window,
-        };
-    }, [formData.availability_window, selectedDeliveryPoint?.id, selectedProduct?.market_product]);
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({
         timeZone: selectedDeliveryPoint?.timezone || 'UTC',
     }), [selectedDeliveryPoint?.timezone]);
@@ -230,8 +220,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
         setModalState('submitting');
         setErrorMessage('');
-        setTrackingState('idle');
-        setTrackingError('');
 
         try {
             const payload: Record<string, any> = {
@@ -280,49 +268,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        setTrackingState('idle');
-        setTrackingError('');
         setAdvancedOpen(side === 'ASK');
         onClose();
-    };
-
-    const handlePostActionNavigate = (page: Page) => {
-        handleClose();
-        onNavigate?.(page);
-    };
-
-    const handleTrackMarket = async () => {
-        if (!trackableMarketSlice || !onNavigate) return;
-        setTrackingState('tracking');
-        setTrackingError('');
-
-        const sliceKey = getWatchlistSliceKeyFromParts(
-            trackableMarketSlice.marketProductCode,
-            trackableMarketSlice.deliveryPointId,
-            trackableMarketSlice.availabilityWindowCode,
-        );
-
-        try {
-            const radar = await api.watchlists.getRadar();
-            const alreadyTracked = radar.slices.some((slice) => getWatchlistSliceKey(slice) === sliceKey);
-            if (!alreadyTracked) {
-                await api.watchlists.createSliceTarget(radar.id, {
-                    market_product_code: trackableMarketSlice.marketProductCode,
-                    delivery_point_id: trackableMarketSlice.deliveryPointId,
-                    availability_window_code: trackableMarketSlice.availabilityWindowCode,
-                });
-            }
-            sessionStorage.setItem('verdaxis_watchlist_focus', sliceKey);
-            handlePostActionNavigate('WATCHLISTS');
-        } catch (err: any) {
-            if (String(err?.message || '').toLowerCase().includes('duplicate')) {
-                sessionStorage.setItem('verdaxis_watchlist_focus', sliceKey);
-                handlePostActionNavigate('WATCHLISTS');
-                return;
-            }
-            setTrackingError(err?.message || t('orderPlaceModal.next.trackError'));
-            setTrackingState('error');
-        }
     };
 
     const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
@@ -416,75 +363,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </p>
                             </>
                         )}
-                        {modalState !== 'error' && (
-                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/70 p-4 text-left mb-5">
-                                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2">
-                                    {t('orderPlaceModal.next.title')}
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                    <div>
-                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.product')}</div>
-                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{selectedProduct ? getProductDisplayName(selectedProduct) : '-'}</div>
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.deliveryPoint')}</div>
-                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{selectedDeliveryPoint?.name || '-'}</div>
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-slate-500 dark:text-slate-400">{t('orderPlaceModal.label.availability')}</div>
-                                        <div className="mt-1 font-bold text-slate-800 dark:text-slate-200">{availabilitySummary}</div>
-                                    </div>
-                                </div>
-                                <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                                    {modalState === 'auto_matched'
-                                        ? t('orderPlaceModal.next.autoMatched')
-                                        : t('orderPlaceModal.next.liveOrder')}
-                                </p>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <button
-                                type="button"
-                                onClick={handleClose}
-                                className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
-                            >
-                                {t('orderPlaceModal.btn.close')}
-                            </button>
-                            {modalState !== 'error' && onNavigate && (
-                                <button
-                                    type="button"
-                                    onClick={() => handlePostActionNavigate(modalState === 'auto_matched' ? 'TRADES' : 'MARKETPLACE')}
-                                    className={`w-full py-3 text-white font-bold rounded-lg transition-colors ${
-                                        modalState === 'auto_matched'
-                                            ? 'bg-violet-600 hover:bg-violet-500'
-                                            : side === 'BID'
-                                                ? 'bg-emerald-600 hover:bg-emerald-500'
-                                                : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
-                                    }`}
-                                >
-                                    {modalState === 'auto_matched'
-                                        ? t('orderPlaceModal.next.action.trades')
-                                        : t('orderPlaceModal.next.action.marketplace')}
-                                </button>
-                            )}
-                        </div>
-                        {modalState === 'success' && onNavigate && trackableMarketSlice && (
-                            <button
-                                type="button"
-                                onClick={handleTrackMarket}
-                                disabled={trackingState === 'tracking'}
-                                className="mt-3 w-full py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 font-bold rounded-lg transition-colors"
-                            >
-                                {trackingState === 'tracking'
-                                    ? t('orderPlaceModal.next.action.tracking')
-                                    : t('orderPlaceModal.next.action.watchlists')}
-                            </button>
-                        )}
-                        {trackingError && (
-                            <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                                {trackingError}
-                            </p>
-                        )}
+                        <button
+                            type="button"
+                            onClick={handleClose}
+                            className="w-full py-3 bg-[#334155] dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
+                        >
+                            {t('orderPlaceModal.btn.close')}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -493,7 +378,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-screen sm:max-h-[85vh] overflow-hidden flex flex-col">
+            <div data-tour="order-modal" className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[100dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col">
                 <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
                         <div className="flex items-center gap-3">
@@ -514,16 +399,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
                     <button
                         type="button"
+                        data-tour="order-modal-close"
                         onClick={handleClose}
                         className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                        aria-label={t('orderPlaceModal.btn.close')}
                     >
                         <X size={24} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col bg-white dark:bg-slate-800">
+                <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
                             <div>
                                 <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
                                 {catalogLoading ? (
@@ -650,6 +537,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                             <button
                                 type="button"
+                                data-tour="order-modal-advanced-toggle"
                                 onClick={() => setAdvancedOpen(open => !open)}
                                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-left"
                             >
@@ -667,7 +555,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </button>
                             {advancedOpen && (
-                                <div className="p-4 space-y-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                                <div className="p-4 space-y-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700" data-tour="order-modal-advanced-fields">
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
                                         <VerdaxisSelect
@@ -736,7 +624,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
 
                                     {side === 'ASK' && (
-                                        <>
+                                        <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
                                                 <input
                                                     type="checkbox"
@@ -818,7 +706,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     </span>
                                                 </span>
                                             </label>
-                                        </>
+                                        </div>
                                     )}
 
                                     <div>
@@ -888,6 +776,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
                         <button
                             type="button"
+                            data-tour="order-modal-cancel"
                             onClick={handleClose}
                             className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors"
                         >
@@ -895,6 +784,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         </button>
                         <button
                             type="submit"
+                            data-tour="order-modal-submit-boundary"
                             disabled={!isValid || modalState === 'submitting'}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
                                 isValid && modalState !== 'submitting'

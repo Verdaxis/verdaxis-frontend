@@ -15,41 +15,57 @@ export interface PortMarketData {
     spreadPct: number;
 }
 
-const SUPPORTED_PRODUCTS = new Set([
-    'Bio Methanol',
-    'e-Methanol',
-    'Bio Ethanol',
-    'Synthetic Ethanol',
-]);
+interface PortMarketIdentity {
+    id?: string | null;
+    catalogDeliveryPointId?: string | null;
+    name: string;
+}
 
-const LEGACY_FUEL_ALIASES: Record<string, string[]> = {
-    Methanol: ['Bio Methanol', 'e-Methanol'],
-    Ethanol: ['Bio Ethanol', 'Synthetic Ethanol'],
+const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
+    BIO_METHANOL: 'Bio Methanol',
+    E_METHANOL: 'e-Methanol',
+    BIO_ETHANOL: 'Bio Ethanol',
+    SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
 };
 
-export const isGreenFuel = (fuel: string): boolean => {
-    if (SUPPORTED_PRODUCTS.has(fuel)) return true;
-    return Object.entries(LEGACY_FUEL_ALIASES).some(([legacyFuel, mappedProducts]) => (
-        fuel === legacyFuel
-        || fuel.toLowerCase().includes(legacyFuel.toLowerCase())
-        || mappedProducts.some((product) => fuel.toLowerCase().includes(product.toLowerCase()))
-    ));
+const canonicalProductLabels = new Map(
+    Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label])
+);
+
+const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
+    if (typeof row.market_product === 'string' && CANONICAL_PRODUCT_LABELS[row.market_product]) {
+        return CANONICAL_PRODUCT_LABELS[row.market_product];
+    }
+
+    const productName = row.product_name?.trim();
+    if (!productName) return null;
+
+    return canonicalProductLabels.get(productName.toLowerCase()) ?? null;
 };
+
+const normalizeLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
-    portName: string,
-    portCountry: string,
+    port: string | PortMarketIdentity,
     selectedProduct?: string
 ): PortMarketData => {
+    const identity = typeof port === 'string' ? { name: port } : port;
+    const approvedNames = new Set([normalizeLocation(identity.name)].filter(Boolean));
+    const approvedIds = new Set([
+        normalizeLocation(identity.id),
+        normalizeLocation(identity.catalogDeliveryPointId),
+    ].filter(Boolean));
     const portRows = aggregated.filter(
-        row => row.delivery_point_name === portName || row.region === portName || row.region === portCountry
+        row => approvedNames.has(normalizeLocation(row.delivery_point_name))
+            || approvedNames.has(normalizeLocation(row.region))
+            || approvedIds.has(normalizeLocation(row.delivery_point_id))
     );
 
     const byProduct: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
     portRows.forEach((row) => {
-        const productLabel = row.product_name || row.fuel_type;
-        if (!isGreenFuel(productLabel)) return;
+        const productLabel = resolveCanonicalProductLabel(row);
+        if (!productLabel) return;
         if (!byProduct[productLabel]) byProduct[productLabel] = { bids: [], asks: [] };
         if (row.side === 'BID') byProduct[productLabel].bids.push(row);
         else byProduct[productLabel].asks.push(row);

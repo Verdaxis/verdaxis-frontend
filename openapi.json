@@ -589,6 +589,41 @@
         }
       }
     },
+    "/api/auth/survey": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Submit Survey",
+        "description": "Record onboarding survey answers. Public but rate-limited. Idempotent.",
+        "operationId": "submit_survey_api_auth_survey_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveySubmission"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ports": {
       "get": {
         "summary": "List Ports",
@@ -1430,6 +1465,24 @@
             "description": "Filter by fuel type (e.g. Methanol, LNG)"
           },
           {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MarketProduct"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
             "name": "region",
             "in": "query",
             "required": false,
@@ -1464,6 +1517,18 @@
               "title": "Availability Window"
             },
             "description": "Filter by availability window"
+          },
+          {
+            "name": "include_off_spec",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include off-spec orders",
+              "default": false,
+              "title": "Include Off Spec"
+            },
+            "description": "Include off-spec orders"
           },
           {
             "name": "skip",
@@ -1579,6 +1644,24 @@
             "description": "Filter by fuel type (e.g. Methanol, LNG)"
           },
           {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MarketProduct"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
             "name": "region",
             "in": "query",
             "required": false,
@@ -1613,6 +1696,18 @@
               "title": "Availability Window"
             },
             "description": "Filter by availability window"
+          },
+          {
+            "name": "include_off_spec",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include off-spec orders",
+              "default": false,
+              "title": "Include Off Spec"
+            },
+            "description": "Include off-spec orders"
           },
           {
             "name": "skip",
@@ -1668,7 +1763,7 @@
           "orderbook"
         ],
         "summary": "List Orders With Ci",
-        "description": "List open orders enriched with CI-adjusted pricing.\nOrders that have carbon_intensity and energy_density populated\nwill include the ci_adjusted_price object.",
+        "description": "List executable orders enriched with CI-adjusted pricing.\nOrders that have carbon_intensity and energy_density populated\nwill include the ci_adjusted_price object.",
         "operationId": "list_orders_with_ci_api_orderbook_with_ci_get",
         "parameters": [
           {
@@ -1720,6 +1815,18 @@
               ],
               "title": "Side"
             }
+          },
+          {
+            "name": "include_off_spec",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include off-spec orders",
+              "default": false,
+              "title": "Include Off Spec"
+            },
+            "description": "Include off-spec orders"
           }
         ],
         "responses": {
@@ -1781,6 +1888,40 @@
         ]
       }
     },
+    "/api/orderbook/my/latest-ask-template": {
+      "get": {
+        "tags": [
+          "orderbook"
+        ],
+        "summary": "Latest Supplier Listing Template",
+        "operationId": "latest_supplier_listing_template_api_orderbook_my_latest_ask_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SupplierListingTemplateResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Latest Supplier Listing Template Api Orderbook My Latest Ask Template Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/orderbook/aggregated": {
       "get": {
         "tags": [
@@ -1789,17 +1930,151 @@
         "summary": "List Aggregated Orderbook",
         "description": "Market data aggregated by product, delivery point, and side.",
         "operationId": "list_aggregated_orderbook_api_orderbook_aggregated_get",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by product",
+              "title": "Product Id"
+            },
+            "description": "Filter by product"
+          },
+          {
+            "name": "delivery_point_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by delivery point",
+              "title": "Delivery Point Id"
+            },
+            "description": "Filter by delivery point"
+          },
+          {
+            "name": "fuel_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by fuel type",
+              "title": "Fuel Type"
+            },
+            "description": "Filter by fuel type"
+          },
+          {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MarketProduct"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
+            "name": "region",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by region or delivery point name",
+              "title": "Region"
+            },
+            "description": "Filter by region or delivery point name"
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by availability window",
+              "title": "Availability Window"
+            },
+            "description": "Filter by availability window"
+          },
+          {
+            "name": "include_off_spec",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include off-spec orders",
+              "default": false,
+              "title": "Include Off Spec"
+            },
+            "description": "Include off-spec orders"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/AggregatedOrderbookResponse"
                   },
-                  "type": "array",
                   "title": "Response List Aggregated Orderbook Api Orderbook Aggregated Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1891,7 +2166,7 @@
           "orderbook"
         ],
         "summary": "List Orders",
-        "description": "List all open and partially filled orders (bids + asks).",
+        "description": "List all open and partially filled executable orders (bids + asks).",
         "operationId": "list_orders_api_orderbook_get",
         "parameters": [
           {
@@ -1967,6 +2242,18 @@
               "title": "Availability Window"
             },
             "description": "Filter by availability window"
+          },
+          {
+            "name": "include_off_spec",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include off-spec orders",
+              "default": false,
+              "title": "Include Off Spec"
+            },
+            "description": "Include off-spec orders"
           }
         ],
         "responses": {
@@ -2534,6 +2821,42 @@
             "description": "Filter by region"
           },
           {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by availability window",
+              "title": "Availability Window"
+            },
+            "description": "Filter by availability window"
+          },
+          {
             "name": "hours",
             "in": "query",
             "required": false,
@@ -2656,7 +2979,43 @@
             "description": "Filter by region"
           },
           {
-            "name": "from",
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by availability window",
+              "title": "Availability Window"
+            },
+            "description": "Filter by availability window"
+          },
+          {
+            "name": "date_from",
             "in": "query",
             "required": false,
             "schema": {
@@ -2670,9 +3029,49 @@
                 }
               ],
               "description": "Start date (inclusive), e.g. 2026-01-01",
-              "title": "From"
+              "title": "Date From"
             },
             "description": "Start date (inclusive), e.g. 2026-01-01"
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End date (inclusive), e.g. 2026-03-01",
+              "title": "Date To"
+            },
+            "description": "End date (inclusive), e.g. 2026-03-01"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Deprecated alias for date_from",
+              "deprecated": true,
+              "title": "From"
+            },
+            "description": "Deprecated alias for date_from",
+            "deprecated": true
           },
           {
             "name": "to",
@@ -2688,10 +3087,12 @@
                   "type": "null"
                 }
               ],
-              "description": "End date (inclusive), e.g. 2026-03-01",
+              "description": "Deprecated alias for date_to",
+              "deprecated": true,
               "title": "To"
             },
-            "description": "End date (inclusive), e.g. 2026-03-01"
+            "description": "Deprecated alias for date_to",
+            "deprecated": true
           },
           {
             "name": "visibility",
@@ -2740,7 +3141,7 @@
           "price-discovery"
         ],
         "summary": "Export Reference Prices Csv",
-        "description": "Export daily VWAP reference prices as a CSV download.\nNo auth required. Accepts the same filters as /reference.\nCSV columns: date, product_name, fuel_type, delivery_point_name, region,\n             vwap_usd, volume_mt, trade_count",
+        "description": "Export daily VWAP reference prices as a CSV download.\nNo auth required. Accepts the same market filters as /reference and export-specific from_date/to_date date filters.\nCSV columns: date, product_name, market_product, availability_window,\n             fuel_type, delivery_point_name, region, vwap_usd, volume_mt, trade_count",
         "operationId": "export_reference_prices_csv_api_prices_reference_export_get",
         "parameters": [
           {
@@ -2816,6 +3217,42 @@
               "title": "Region"
             },
             "description": "Filter by region"
+          },
+          {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by availability window",
+              "title": "Availability Window"
+            },
+            "description": "Filter by availability window"
           },
           {
             "name": "from_date",
@@ -2896,7 +3333,7 @@
           "matchmaking"
         ],
         "summary": "List Suggestions",
-        "description": "Live match suggestions based on the user's watchlist entries.\n\nFor each watchlist entry (product + optional delivery point), find open\nopposite-side orders, score them, and return the top results.",
+        "description": "Return live match suggestions keyed off the user's own open orders.",
         "operationId": "list_suggestions_api_matchmaking_suggestions_get",
         "responses": {
           "200": {
@@ -2921,7 +3358,7 @@
           "matchmaking"
         ],
         "summary": "Dismiss Suggestion",
-        "description": "Dismiss a recommendation by order ID.\n\nCreates a DISMISSED record in MatchSuggestion so the order won't appear\nin future live suggestions for this org.",
+        "description": "Dismiss a recommendation by order ID.",
         "operationId": "dismiss_suggestion_api_matchmaking_suggestions__order_id__dismiss_patch",
         "security": [
           {
@@ -3152,7 +3589,7 @@
           "demand"
         ],
         "summary": "Get Demand Signals",
-        "description": "Public: anonymized demand signals from buyer bids.\nAggregated by fuel_type + region via Product/DeliveryPoint joins.",
+        "description": "Public: anonymized demand signals from buyer bids.\nAggregated by tradable market product + delivery point + availability window.",
         "operationId": "get_demand_signals_api_demand_get",
         "parameters": [
           {
@@ -3614,6 +4051,149 @@
         }
       }
     },
+    "/api/admin/analytics/users": {
+      "get": {
+        "tags": [
+          "admin-analytics"
+        ],
+        "summary": "List Users",
+        "description": "List platform users for admin review. Filterable by status and searchable by name/email.",
+        "operationId": "list_users_api_admin_analytics_users_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUsersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/analytics/users/{user_id}/reject": {
+      "put": {
+        "tags": [
+          "admin-analytics"
+        ],
+        "summary": "Reject User",
+        "description": "Reject a pending or approved user. Admins cannot reject other admins.",
+        "operationId": "reject_user_api_admin_analytics_users__user_id__reject_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserEntry"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/kyc/submit": {
       "post": {
         "tags": [
@@ -3833,6 +4413,89 @@
                   },
                   "type": "array",
                   "title": "Response List Delivery Points Api Catalog Delivery Points Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/curves/forward/board": {
+      "get": {
+        "tags": [
+          "forward-curve"
+        ],
+        "summary": "Forward curve monitoring board",
+        "description": "Return the aggregated Forward Curve monitoring board.\n\nThe matrix is all approved delivery points by all approved market products for\none selected availability window. The focus section returns the hybrid\nbenchmark/orderbook curve and depth for the selected product-port context.",
+        "operationId": "get_forward_curve_board_api_curves_forward_board_get",
+        "parameters": [
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Matrix availability window",
+              "default": "SPOT",
+              "title": "Availability Window"
+            },
+            "description": "Matrix availability window"
+          },
+          {
+            "name": "focus_market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/MarketProduct"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Focused canonical market product",
+              "title": "Focus Market Product"
+            },
+            "description": "Focused canonical market product"
+          },
+          {
+            "name": "focus_delivery_point_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Focused delivery point",
+              "title": "Focus Delivery Point Id"
+            },
+            "description": "Focused delivery point"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForwardCurveBoardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4474,7 +5137,7 @@
           "trade-tape"
         ],
         "summary": "Get Trade Tape",
-        "description": "Public trade tape \u2014 anonymized confirmed trades from the last 24 hours.\n\nDuring market hours (08:00-18:00 UTC) trades are shown in real-time.\nOutside market hours, trades are delayed by 1 hour.",
+        "description": "Public trade tape \u2014 anonymized confirmed trades from the last 7 days.\n\nConfirmed trades are shown without an exchange-hours delay; the lookback\nwindow is intentionally kept separate from market availability semantics.",
         "operationId": "get_trade_tape_api_trade_tape_get",
         "parameters": [
           {
@@ -4496,6 +5159,43 @@
             "description": "Filter by fuel type"
           },
           {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by canonical market product",
+              "title": "Market Product"
+            },
+            "description": "Filter by canonical market product"
+          },
+          {
+            "name": "delivery_point_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by exact delivery point ID",
+              "title": "Delivery Point Id"
+            },
+            "description": "Filter by exact delivery point ID"
+          },
+          {
             "name": "region",
             "in": "query",
             "required": false,
@@ -4512,6 +5212,24 @@
               "title": "Region"
             },
             "description": "Filter by region"
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by availability window",
+              "title": "Availability Window"
+            },
+            "description": "Filter by availability window"
           },
           {
             "name": "skip",
@@ -4567,7 +5285,7 @@
           "watchlists"
         ],
         "summary": "List Watchlists",
-        "description": "List all watchlists for the current user with entry counts.",
+        "description": "Legacy list endpoint retained for adapter compatibility.",
         "operationId": "list_watchlists_api_watchlists_get",
         "responses": {
           "200": {
@@ -4596,7 +5314,7 @@
           "watchlists"
         ],
         "summary": "Create Watchlist",
-        "description": "Create a new watchlist. Max 10 per user.",
+        "description": "Legacy custom watchlist create retained temporarily.",
         "operationId": "create_watchlist_api_watchlists_post",
         "requestBody": {
           "content": {
@@ -4637,13 +5355,384 @@
         ]
       }
     },
+    "/api/watchlists/me": {
+      "get": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Get Market Radar",
+        "operationId": "get_market_radar_api_watchlists_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistSummaryResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/watchlists/{watchlist_id}": {
+      "get": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Get Watchlist Detail",
+        "operationId": "get_watchlist_detail_api_watchlists__watchlist_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Delete Watchlist",
+        "operationId": "delete_watchlist_api_watchlists__watchlist_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/targets": {
+      "post": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Create Watchlist Target",
+        "operationId": "create_watchlist_target_api_watchlists__watchlist_id__targets_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SliceTargetCreate"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PinTargetCreate"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "target_type",
+                  "mapping": {
+                    "SLICE": "#/components/schemas/SliceTargetCreate",
+                    "PIN": "#/components/schemas/PinTargetCreate"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistTargetResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/targets/{target_id}": {
+      "delete": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Delete Watchlist Target",
+        "operationId": "delete_watchlist_target_api_watchlists__watchlist_id__targets__target_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Target Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/events": {
+      "get": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Get Watchlist Events",
+        "operationId": "get_watchlist_events_api_watchlists__watchlist_id__events_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistEventsPageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/watchlists/{watchlist_id}/events/{event_id}": {
+      "patch": {
+        "tags": [
+          "watchlists"
+        ],
+        "summary": "Mark Watchlist Event Read",
+        "operationId": "mark_watchlist_event_read_api_watchlists__watchlist_id__events__event_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "watchlist_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Watchlist Id"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WatchlistEventResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/watchlists/{watchlist_id}/entries": {
       "post": {
         "tags": [
           "watchlists"
         ],
         "summary": "Add Watchlist Entry",
-        "description": "Add a product to a watchlist. Max 50 entries per watchlist.",
+        "description": "Legacy adapter endpoint retained for one release.",
         "operationId": "add_watchlist_entry_api_watchlists__watchlist_id__entries_post",
         "security": [
           {
@@ -4702,7 +5791,6 @@
           "watchlists"
         ],
         "summary": "Remove Watchlist Entry",
-        "description": "Remove an entry from a watchlist.",
         "operationId": "remove_watchlist_entry_api_watchlists__watchlist_id__entries__entry_id__delete",
         "security": [
           {
@@ -4728,48 +5816,6 @@
               "type": "string",
               "format": "uuid",
               "title": "Entry Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/watchlists/{watchlist_id}": {
-      "delete": {
-        "tags": [
-          "watchlists"
-        ],
-        "summary": "Delete Watchlist",
-        "description": "Delete a watchlist and all its entries.",
-        "operationId": "delete_watchlist_api_watchlists__watchlist_id__delete",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "watchlist_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "Watchlist Id"
             }
           }
         ],
@@ -5586,6 +6632,82 @@
         }
       }
     },
+    "/api/benchmarks": {
+      "get": {
+        "tags": [
+          "benchmarks"
+        ],
+        "summary": "List Benchmarks",
+        "operationId": "list_benchmarks_api_benchmarks_get",
+        "parameters": [
+          {
+            "name": "market_product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Market Product"
+            }
+          },
+          {
+            "name": "delivery_point_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Delivery Point Id"
+            }
+          },
+          {
+            "name": "availability_window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "SPOT",
+              "title": "Availability Window"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkQuoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/dashboard/health": {
       "get": {
         "tags": [
@@ -5732,6 +6854,110 @@
         ],
         "title": "AdminRejectBody"
       },
+      "AdminUserEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "org_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Name"
+          },
+          "org_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "first_name",
+          "last_name",
+          "role",
+          "status",
+          "created_at",
+          "org_name",
+          "org_type"
+        ],
+        "title": "AdminUserEntry"
+      },
+      "AdminUsersResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserEntry"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminUsersResponse"
+      },
       "AggregatedOrderbookResponse": {
         "properties": {
           "product_id": {
@@ -5771,6 +6997,11 @@
               }
             ],
             "title": "Delivery Point Name"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window",
+            "default": "SPOT"
           },
           "region": {
             "type": "string",
@@ -5872,6 +7103,28 @@
             "type": "string",
             "format": "uuid",
             "title": "Product Id"
+          },
+          "product_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Name"
+          },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
           },
           "delivery_point_id": {
             "anyOf": [
@@ -6030,6 +7283,86 @@
           "NONE"
         ],
         "title": "AvailabilityLevel"
+      },
+      "BenchmarkQuote": {
+        "properties": {
+          "market_product": {
+            "type": "string",
+            "title": "Market Product"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "type": "string",
+            "title": "Delivery Point Name"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window"
+          },
+          "benchmark_price_per_mt_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Benchmark Price Per Mt Usd"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "market_product",
+          "delivery_point_id",
+          "delivery_point_name",
+          "availability_window",
+          "benchmark_price_per_mt_usd",
+          "source",
+          "generated_at"
+        ],
+        "title": "BenchmarkQuote"
+      },
+      "BenchmarkQuoteResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BenchmarkQuote"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "generated_at"
+        ],
+        "title": "BenchmarkQuoteResponse"
       },
       "Body_chat_api_ai_chat_post": {
         "properties": {
@@ -6627,6 +7960,51 @@
             "type": "string",
             "title": "Region"
           },
+          "market_product_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
+          },
+          "availability_window_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Window Code"
+          },
           "volume_mt": {
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -6821,6 +8199,432 @@
         ],
         "title": "ForgotPasswordRequest"
       },
+      "ForwardCurveBoardCell": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Product Id"
+          },
+          "market_product": {
+            "type": "string",
+            "title": "Market Product"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "type": "string",
+            "title": "Delivery Point Name"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window"
+          },
+          "benchmark_mid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Mid"
+          },
+          "benchmark_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Source"
+          },
+          "is_demo_benchmark": {
+            "type": "boolean",
+            "title": "Is Demo Benchmark",
+            "default": false
+          },
+          "order_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "benchmark_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "DELIVERY_POINT"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "NOT_APPLICABLE"
+          },
+          "real_order_count": {
+            "type": "integer",
+            "title": "Real Order Count",
+            "default": 0
+          },
+          "demo_order_count": {
+            "type": "integer",
+            "title": "Demo Order Count",
+            "default": 0
+          },
+          "unknown_order_count": {
+            "type": "integer",
+            "title": "Unknown Order Count",
+            "default": 0
+          },
+          "real_best_bid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Best Bid"
+          },
+          "real_best_ask": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Best Ask"
+          },
+          "demo_best_bid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Best Bid"
+          },
+          "demo_best_ask": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Best Ask"
+          },
+          "best_bid_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "best_ask_source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "NO_DATA"
+          },
+          "order_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Observed At"
+          },
+          "benchmark_observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Observed At"
+          },
+          "best_bid": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Bid"
+          },
+          "best_ask": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Ask"
+          },
+          "spread": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spread"
+          },
+          "volume_mt": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Volume Mt",
+            "default": "0"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "market_product",
+          "product_name",
+          "delivery_point_id",
+          "delivery_point_name",
+          "region",
+          "availability_window"
+        ],
+        "title": "ForwardCurveBoardCell",
+        "description": "One product-port cell in the monitoring board matrix."
+      },
+      "ForwardCurveBoardDepthLevel": {
+        "properties": {
+          "price_per_mt_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Per Mt Usd"
+          },
+          "quantity_mt": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Mt"
+          },
+          "order_count": {
+            "type": "integer",
+            "title": "Order Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_per_mt_usd",
+          "quantity_mt",
+          "order_count"
+        ],
+        "title": "ForwardCurveBoardDepthLevel",
+        "description": "Aggregated visible depth for one side of the focused market slice."
+      },
+      "ForwardCurveBoardFocus": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Product Id"
+          },
+          "market_product": {
+            "type": "string",
+            "title": "Market Product"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "type": "string",
+            "title": "Delivery Point Name"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window"
+          },
+          "curve": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardCell"
+            },
+            "type": "array",
+            "title": "Curve"
+          },
+          "depth_bids": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardDepthLevel"
+            },
+            "type": "array",
+            "title": "Depth Bids"
+          },
+          "depth_asks": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardDepthLevel"
+            },
+            "type": "array",
+            "title": "Depth Asks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "market_product",
+          "product_name",
+          "delivery_point_id",
+          "delivery_point_name",
+          "region",
+          "availability_window",
+          "curve",
+          "depth_bids",
+          "depth_asks"
+        ],
+        "title": "ForwardCurveBoardFocus",
+        "description": "Focused detail context selected from the board matrix."
+      },
+      "ForwardCurveBoardPort": {
+        "properties": {
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "type": "string",
+            "title": "Delivery Point Name"
+          },
+          "region": {
+            "type": "string",
+            "title": "Region"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_point_id",
+          "delivery_point_name",
+          "region",
+          "cells"
+        ],
+        "title": "ForwardCurveBoardPort",
+        "description": "Port row in the monitoring board matrix."
+      },
+      "ForwardCurveBoardProduct": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Product Id"
+          },
+          "market_product": {
+            "type": "string",
+            "title": "Market Product"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "market_product",
+          "product_name"
+        ],
+        "title": "ForwardCurveBoardProduct",
+        "description": "Product identity used by the forward-curve monitoring board."
+      },
+      "ForwardCurveBoardResponse": {
+        "properties": {
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardProduct"
+            },
+            "type": "array",
+            "title": "Products"
+          },
+          "ports": {
+            "items": {
+              "$ref": "#/components/schemas/ForwardCurveBoardPort"
+            },
+            "type": "array",
+            "title": "Ports"
+          },
+          "focus": {
+            "$ref": "#/components/schemas/ForwardCurveBoardFocus"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "availability_window",
+          "products",
+          "ports",
+          "focus",
+          "generated_at"
+        ],
+        "title": "ForwardCurveBoardResponse",
+        "description": "Aggregated board for the Forward Curve monitoring workspace."
+      },
       "ForwardCurvePoint": {
         "properties": {
           "availability_window": {
@@ -6982,6 +8786,7 @@
         "type": "string",
         "enum": [
           "Methanol",
+          "Ethanol",
           "Biofuel",
           "LNG",
           "Ammonia",
@@ -7070,6 +8875,98 @@
             "type": "boolean",
             "title": "Is Certified",
             "default": false
+          },
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
           }
         },
         "type": "object",
@@ -7125,6 +9022,116 @@
               }
             ],
             "title": "Price Per Mt Usd"
+          },
+          "certification_declared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Declared"
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Msds Available"
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec"
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
           }
         },
         "type": "object",
@@ -7191,6 +9198,98 @@
             "title": "Is Certified",
             "default": false
           },
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7252,13 +9351,57 @@
         ],
         "title": "LeaderboardEntry"
       },
+      "MarketDemoStatus": {
+        "type": "string",
+        "enum": [
+          "REAL_ONLY",
+          "DEMO_ONLY",
+          "MIXED",
+          "UNKNOWN",
+          "NOT_APPLICABLE"
+        ],
+        "title": "MarketDemoStatus"
+      },
+      "MarketProduct": {
+        "type": "string",
+        "enum": [
+          "BIO_METHANOL",
+          "E_METHANOL",
+          "BIO_ETHANOL",
+          "SYNTHETIC_ETHANOL"
+        ],
+        "title": "MarketProduct"
+      },
+      "MarketScope": {
+        "type": "string",
+        "enum": [
+          "DELIVERY_POINT",
+          "REGION",
+          "PRODUCT",
+          "UNKNOWN"
+        ],
+        "title": "MarketScope"
+      },
+      "MarketSourceKind": {
+        "type": "string",
+        "enum": [
+          "CONFIRMED_TRADE",
+          "LIVE_ORDER",
+          "DEMO_SEED",
+          "BENCHMARK_REFERENCE",
+          "MIXED_SOURCE",
+          "NO_DATA",
+          "UNKNOWN"
+        ],
+        "title": "MarketSourceKind"
+      },
       "NegotiationCounterRequest": {
         "properties": {
           "proposed_price": {
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -7326,8 +9469,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000.0,
-                "exclusiveMinimum": 0.0
+                "maximum": 100000,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -7340,7 +9483,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -7363,8 +9506,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 72.0,
-            "minimum": 1.0,
+            "maximum": 72,
+            "minimum": 1,
             "title": "Expires In Hours",
             "default": 1
           }
@@ -7679,6 +9822,103 @@
       },
       "OrderCreate": {
         "properties": {
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "side": {
             "$ref": "#/components/schemas/OrderSide"
           },
@@ -7719,7 +9959,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -7732,7 +9972,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -7790,6 +10030,99 @@
       },
       "OrderMyResponse": {
         "properties": {
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7807,6 +10140,17 @@
             "type": "string",
             "title": "Product Name",
             "default": ""
+          },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
           },
           "fuel_type": {
             "type": "string",
@@ -7841,6 +10185,17 @@
             ],
             "title": "Delivery Point Name"
           },
+          "availability_window": {
+            "type": "string",
+            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
+            "title": "Availability Window",
+            "default": "SPOT",
+            "examples": [
+              "SPOT",
+              "2026-04",
+              "2026-Q3"
+            ]
+          },
           "region": {
             "type": "string",
             "title": "Region",
@@ -7871,16 +10226,6 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Price Per Mt Usd"
-          },
-          "availability_window": {
-            "type": "string",
-            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
-            "title": "Availability Window",
-            "examples": [
-              "SPOT",
-              "2026-04",
-              "2026-Q3"
-            ]
           },
           "certifications": {
             "items": {
@@ -7917,7 +10262,7 @@
             "format": "date-time",
             "title": "Created At"
           },
-          "carbon_intensity_gco2_mj": {
+          "benchmark_price_per_mt_usd": {
             "anyOf": [
               {
                 "type": "string",
@@ -7927,11 +10272,39 @@
                 "type": "null"
               }
             ],
-            "title": "Carbon Intensity Gco2 Mj"
+            "title": "Benchmark Price Per Mt Usd"
+          },
+          "premium_discount_per_mt_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premium Discount Per Mt Usd"
+          },
+          "benchmark_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Source"
           },
           "is_crossed": {
             "type": "boolean",
             "title": "Is Crossed",
+            "default": false
+          },
+          "is_demo_listing": {
+            "type": "boolean",
+            "title": "Is Demo Listing",
             "default": false
           },
           "organization_id": {
@@ -7970,7 +10343,6 @@
           "quantity_mt",
           "remaining_quantity_mt",
           "price_per_mt_usd",
-          "availability_window",
           "is_verdaxis_verified",
           "status",
           "created_at",
@@ -7982,6 +10354,99 @@
       },
       "OrderResponse": {
         "properties": {
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -7999,6 +10464,17 @@
             "type": "string",
             "title": "Product Name",
             "default": ""
+          },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
           },
           "fuel_type": {
             "type": "string",
@@ -8033,6 +10509,17 @@
             ],
             "title": "Delivery Point Name"
           },
+          "availability_window": {
+            "type": "string",
+            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
+            "title": "Availability Window",
+            "default": "SPOT",
+            "examples": [
+              "SPOT",
+              "2026-04",
+              "2026-Q3"
+            ]
+          },
           "region": {
             "type": "string",
             "title": "Region",
@@ -8063,16 +10550,6 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Price Per Mt Usd"
-          },
-          "availability_window": {
-            "type": "string",
-            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
-            "title": "Availability Window",
-            "examples": [
-              "SPOT",
-              "2026-04",
-              "2026-Q3"
-            ]
           },
           "certifications": {
             "items": {
@@ -8109,7 +10586,7 @@
             "format": "date-time",
             "title": "Created At"
           },
-          "carbon_intensity_gco2_mj": {
+          "benchmark_price_per_mt_usd": {
             "anyOf": [
               {
                 "type": "string",
@@ -8119,11 +10596,39 @@
                 "type": "null"
               }
             ],
-            "title": "Carbon Intensity Gco2 Mj"
+            "title": "Benchmark Price Per Mt Usd"
+          },
+          "premium_discount_per_mt_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premium Discount Per Mt Usd"
+          },
+          "benchmark_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Source"
           },
           "is_crossed": {
             "type": "boolean",
             "title": "Is Crossed",
+            "default": false
+          },
+          "is_demo_listing": {
+            "type": "boolean",
+            "title": "Is Demo Listing",
             "default": false
           }
         },
@@ -8135,7 +10640,6 @@
           "quantity_mt",
           "remaining_quantity_mt",
           "price_per_mt_usd",
-          "availability_window",
           "is_verdaxis_verified",
           "status",
           "created_at"
@@ -8145,6 +10649,99 @@
       },
       "OrderResponseWithCI": {
         "properties": {
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -8162,6 +10759,17 @@
             "type": "string",
             "title": "Product Name",
             "default": ""
+          },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
           },
           "fuel_type": {
             "type": "string",
@@ -8196,6 +10804,17 @@
             ],
             "title": "Delivery Point Name"
           },
+          "availability_window": {
+            "type": "string",
+            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
+            "title": "Availability Window",
+            "default": "SPOT",
+            "examples": [
+              "SPOT",
+              "2026-04",
+              "2026-Q3"
+            ]
+          },
           "region": {
             "type": "string",
             "title": "Region",
@@ -8226,16 +10845,6 @@
             "type": "string",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Price Per Mt Usd"
-          },
-          "availability_window": {
-            "type": "string",
-            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
-            "title": "Availability Window",
-            "examples": [
-              "SPOT",
-              "2026-04",
-              "2026-Q3"
-            ]
           },
           "certifications": {
             "items": {
@@ -8272,7 +10881,7 @@
             "format": "date-time",
             "title": "Created At"
           },
-          "carbon_intensity_gco2_mj": {
+          "benchmark_price_per_mt_usd": {
             "anyOf": [
               {
                 "type": "string",
@@ -8282,11 +10891,39 @@
                 "type": "null"
               }
             ],
-            "title": "Carbon Intensity Gco2 Mj"
+            "title": "Benchmark Price Per Mt Usd"
+          },
+          "premium_discount_per_mt_usd": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Premium Discount Per Mt Usd"
+          },
+          "benchmark_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Benchmark Source"
           },
           "is_crossed": {
             "type": "boolean",
             "title": "Is Crossed",
+            "default": false
+          },
+          "is_demo_listing": {
+            "type": "boolean",
+            "title": "Is Demo Listing",
             "default": false
           },
           "ci_adjusted_price": {
@@ -8308,7 +10945,6 @@
           "quantity_mt",
           "remaining_quantity_mt",
           "price_per_mt_usd",
-          "availability_window",
           "is_verdaxis_verified",
           "status",
           "created_at"
@@ -8330,7 +10966,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -8346,7 +10982,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -8389,6 +11025,121 @@
             ],
             "title": "Certifications"
           },
+          "certification_declared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Declared"
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Msds Available"
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec"
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
           "expires_at": {
             "anyOf": [
               {
@@ -8410,8 +11161,16 @@
         "type": "string",
         "enum": [
           "SHIPPING_LINE",
+          "SHIP_MANAGER",
+          "FUEL_BUYER",
           "FUEL_SUPPLIER",
-          "PORT_AUTHORITY"
+          "BUNKER_BROKER",
+          "PORT_AUTHORITY",
+          "FUEL_TRADER",
+          "CHARTERER",
+          "FINANCIER",
+          "INSURER",
+          "INDUSTRY_ASSOC"
         ],
         "title": "OrgType"
       },
@@ -8591,6 +11350,26 @@
           "new_password"
         ],
         "title": "PasswordChangeRequest"
+      },
+      "PinTargetCreate": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "const": "PIN",
+            "title": "Target Type"
+          },
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "order_id"
+        ],
+        "title": "PinTargetCreate"
       },
       "PortFuelAvailability": {
         "properties": {
@@ -8822,6 +11601,17 @@
             "title": "Product Name",
             "default": ""
           },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
+          },
           "fuel_type": {
             "type": "string",
             "title": "Fuel Type",
@@ -8849,6 +11639,11 @@
               }
             ],
             "title": "Delivery Point Name"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window",
+            "default": "SPOT"
           },
           "region": {
             "type": "string",
@@ -8937,11 +11732,55 @@
               }
             ],
             "title": "Last Trade At"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "UNKNOWN"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "UNKNOWN"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "UNKNOWN"
+          },
+          "is_reference": {
+            "type": "boolean",
+            "title": "Is Reference",
+            "default": false
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "real_trade_count_24h": {
+            "type": "integer",
+            "title": "Real Trade Count 24H",
+            "default": 0
+          },
+          "demo_trade_count_24h": {
+            "type": "integer",
+            "title": "Demo Trade Count 24H",
+            "default": 0
+          },
+          "unknown_trade_count_24h": {
+            "type": "integer",
+            "title": "Unknown Trade Count 24H",
+            "default": 0
           }
         },
         "type": "object",
         "title": "PriceSummary",
-        "description": "Aggregated trade price data for a product + delivery_point pair."
+        "description": "Aggregated trade price data for a product + delivery_point + availability window."
       },
       "ProducerProjectResponse": {
         "properties": {
@@ -9141,6 +11980,17 @@
             "type": "string",
             "title": "Name"
           },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
+          },
           "fuel_type": {
             "type": "string",
             "title": "Fuel Type"
@@ -9198,8 +12048,8 @@
             "anyOf": [
               {
                 "type": "number",
-                "maximum": 100000.0,
-                "exclusiveMinimum": 0.0
+                "maximum": 100000,
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9212,7 +12062,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9248,8 +12098,8 @@
           },
           "expires_in_hours": {
             "type": "integer",
-            "maximum": 168.0,
-            "minimum": 1.0,
+            "maximum": 168,
+            "minimum": 1,
             "title": "Expires In Hours",
             "default": 24
           }
@@ -9288,7 +12138,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -9534,6 +12384,17 @@
             "title": "Product Name",
             "default": ""
           },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
+          },
           "fuel_type": {
             "type": "string",
             "title": "Fuel Type",
@@ -9561,6 +12422,11 @@
               }
             ],
             "title": "Delivery Point Name"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window",
+            "default": "SPOT"
           },
           "region": {
             "type": "string",
@@ -9604,7 +12470,7 @@
           "date"
         ],
         "title": "ReferencePriceItem",
-        "description": "Daily VWAP reference price for a product + delivery_point pair."
+        "description": "Daily VWAP reference price for a product + delivery_point + availability window."
       },
       "ReferencePriceResponse": {
         "properties": {
@@ -9912,6 +12778,36 @@
         ],
         "title": "ScenarioInput"
       },
+      "SliceTargetCreate": {
+        "properties": {
+          "target_type": {
+            "type": "string",
+            "const": "SLICE",
+            "title": "Target Type"
+          },
+          "market_product_code": {
+            "type": "string",
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "availability_window_code": {
+            "type": "string",
+            "title": "Availability Window Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_type",
+          "market_product_code",
+          "delivery_point_id",
+          "availability_window_code"
+        ],
+        "title": "SliceTargetCreate"
+      },
       "SubscriptionResponse": {
         "properties": {
           "id": {
@@ -9985,6 +12881,180 @@
           "tier"
         ],
         "title": "SubscriptionUpdate"
+      },
+      "SupplierListingTemplateResponse": {
+        "properties": {
+          "certification_declared": {
+            "type": "boolean",
+            "title": "Certification Declared",
+            "default": false
+          },
+          "certification_scheme": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification Scheme"
+          },
+          "specification_standard": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specification Standard"
+          },
+          "msds_available": {
+            "type": "boolean",
+            "title": "Msds Available",
+            "default": false
+          },
+          "carbon_intensity_gco2_mj": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Gco2 Mj"
+          },
+          "carbon_intensity_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carbon Intensity Method"
+          },
+          "feedstock": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedstock"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "off_spec": {
+            "type": "boolean",
+            "title": "Off Spec",
+            "default": false
+          },
+          "off_spec_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Off Spec Notes"
+          },
+          "product_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Product Id"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "quantity_mt": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantity Mt"
+          },
+          "price_per_mt_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Price Per Mt Usd"
+          },
+          "availability_window": {
+            "type": "string",
+            "pattern": "^(SPOT|\\d{4}-(0[1-9]|1[0-2])|\\d{4}-Q[1-4]|\\d{4}-CAL)$",
+            "title": "Availability Window",
+            "examples": [
+              "SPOT",
+              "2026-04",
+              "2026-Q3"
+            ]
+          },
+          "certifications": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Certifications"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_id",
+          "delivery_point_id",
+          "quantity_mt",
+          "price_per_mt_usd",
+          "availability_window"
+        ],
+        "title": "SupplierListingTemplateResponse",
+        "description": "Safe supplier defaults for creating the next ASK listing."
+      },
+      "SurveySubmission": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "use_case": {
+            "type": "string",
+            "title": "Use Case"
+          },
+          "referral_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "use_case"
+        ],
+        "title": "SurveySubmission"
       },
       "SystemHealth": {
         "properties": {
@@ -10068,7 +13138,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10092,7 +13162,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10105,7 +13175,7 @@
             "anyOf": [
               {
                 "type": "number",
-                "exclusiveMinimum": 0.0
+                "exclusiveMinimum": 0
               },
               {
                 "type": "string",
@@ -10307,6 +13377,17 @@
             "title": "Product Name",
             "default": ""
           },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
+          },
           "fuel_type": {
             "type": "string",
             "title": "Fuel Type",
@@ -10339,6 +13420,11 @@
               }
             ],
             "title": "Delivery Point Name"
+          },
+          "availability_window": {
+            "type": "string",
+            "title": "Availability Window",
+            "default": "SPOT"
           },
           "region": {
             "type": "string",
@@ -10378,6 +13464,29 @@
             "type": "string",
             "title": "Id"
           },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product"
+          },
           "fuel_type": {
             "type": "string",
             "title": "Fuel Type"
@@ -10385,6 +13494,29 @@
           "fuel_grade": {
             "type": "string",
             "title": "Fuel Grade"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
           },
           "region": {
             "type": "string",
@@ -10413,6 +13545,30 @@
           "availability_window": {
             "type": "string",
             "title": "Availability Window"
+          },
+          "is_demo_trade": {
+            "type": "boolean",
+            "title": "Is Demo Trade",
+            "default": false
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "DELIVERY_POINT",
+              "REGION",
+              "UNKNOWN"
+            ],
+            "title": "Scope",
+            "default": "UNKNOWN"
+          },
+          "provenance_kind": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED_TRADE",
+              "DEMO_SEED"
+            ],
+            "title": "Provenance Kind",
+            "default": "CONFIRMED_TRADE"
           }
         },
         "type": "object",
@@ -10889,6 +14045,70 @@
         ],
         "title": "WatchlistCreateRequest"
       },
+      "WatchlistDetailResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "unread_event_count": {
+            "type": "integer",
+            "title": "Unread Event Count",
+            "default": 0
+          },
+          "latest_event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event At"
+          },
+          "total_slice_count": {
+            "type": "integer",
+            "title": "Total Slice Count",
+            "default": 0
+          },
+          "has_more_slices": {
+            "type": "boolean",
+            "title": "Has More Slices",
+            "default": false
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistSliceResponse"
+            },
+            "type": "array",
+            "title": "Slices"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "created_at"
+        ],
+        "title": "WatchlistDetailResponse"
+      },
       "WatchlistEntryAddRequest": {
         "properties": {
           "product_id": {
@@ -10961,6 +14181,28 @@
             ],
             "title": "Delivery Point Name"
           },
+          "best_bid": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Bid"
+          },
+          "best_ask": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Ask"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -10974,6 +14216,167 @@
           "created_at"
         ],
         "title": "WatchlistEntryResponse"
+      },
+      "WatchlistEventResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "watchlist_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Watchlist Id"
+          },
+          "watchlist_target_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Watchlist Target Id"
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "SLICE",
+              "PIN"
+            ],
+            "title": "Target Type"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "event_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Event Payload"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/MarketSourceKind",
+            "default": "UNKNOWN"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/MarketScope",
+            "default": "UNKNOWN"
+          },
+          "demo_status": {
+            "$ref": "#/components/schemas/MarketDemoStatus",
+            "default": "UNKNOWN"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          },
+          "market_product_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
+          },
+          "availability_window_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Window Code"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "watchlist_id",
+          "watchlist_target_id",
+          "target_type",
+          "event_type",
+          "is_read",
+          "created_at"
+        ],
+        "title": "WatchlistEventResponse"
+      },
+      "WatchlistEventsPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistEventResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "title": "WatchlistEventsPageResponse"
       },
       "WatchlistResponse": {
         "properties": {
@@ -10996,8 +14399,7 @@
               "$ref": "#/components/schemas/WatchlistEntryResponse"
             },
             "type": "array",
-            "title": "Entries",
-            "default": []
+            "title": "Entries"
           },
           "created_at": {
             "type": "string",
@@ -11012,6 +14414,359 @@
           "created_at"
         ],
         "title": "WatchlistResponse"
+      },
+      "WatchlistSliceResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "target_type": {
+            "type": "string",
+            "const": "SLICE",
+            "title": "Target Type",
+            "default": "SLICE"
+          },
+          "market_product_code": {
+            "type": "string",
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
+          },
+          "availability_window_code": {
+            "type": "string",
+            "title": "Availability Window Code"
+          },
+          "active_order_count": {
+            "type": "integer",
+            "title": "Active Order Count",
+            "default": 0
+          },
+          "unread_event_count": {
+            "type": "integer",
+            "title": "Unread Event Count",
+            "default": 0
+          },
+          "latest_event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event At"
+          },
+          "pins": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistTargetResponse"
+            },
+            "type": "array",
+            "title": "Pins"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "market_product_code",
+          "delivery_point_id",
+          "availability_window_code",
+          "created_at"
+        ],
+        "title": "WatchlistSliceResponse"
+      },
+      "WatchlistSummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "unread_event_count": {
+            "type": "integer",
+            "title": "Unread Event Count",
+            "default": 0
+          },
+          "latest_event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event At"
+          },
+          "total_slice_count": {
+            "type": "integer",
+            "title": "Total Slice Count",
+            "default": 0
+          },
+          "has_more_slices": {
+            "type": "boolean",
+            "title": "Has More Slices",
+            "default": false
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/WatchlistSliceResponse"
+            },
+            "type": "array",
+            "title": "Slices"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "created_at"
+        ],
+        "title": "WatchlistSummaryResponse"
+      },
+      "WatchlistTargetResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "SLICE",
+              "PIN"
+            ],
+            "title": "Target Type"
+          },
+          "market_product_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Market Product Code"
+          },
+          "delivery_point_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Id"
+          },
+          "delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Point Name"
+          },
+          "availability_window_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Availability Window Code"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "snapshot_price_per_mt_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Price Per Mt Usd"
+          },
+          "snapshot_quantity_mt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Quantity Mt"
+          },
+          "snapshot_remaining_quantity_mt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Remaining Quantity Mt"
+          },
+          "snapshot_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Status"
+          },
+          "snapshot_side": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Side"
+          },
+          "snapshot_market_product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Market Product"
+          },
+          "snapshot_delivery_point_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Delivery Point Name"
+          },
+          "snapshot_availability_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Availability Window"
+          },
+          "snapshot_counterparty_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Counterparty Label"
+          },
+          "active_order_count": {
+            "type": "integer",
+            "title": "Active Order Count",
+            "default": 0
+          },
+          "unread_event_count": {
+            "type": "integer",
+            "title": "Unread Event Count",
+            "default": 0
+          },
+          "latest_event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Event At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "target_type",
+          "created_at"
+        ],
+        "title": "WatchlistTargetResponse"
       }
     },
     "securitySchemes": {

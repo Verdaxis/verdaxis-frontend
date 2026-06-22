@@ -1,11 +1,10 @@
 import {
     ArrowLeftRight,
     BarChart3,
+    Handshake,
     LayoutDashboard,
+    LineChart,
     Map as MapIcon,
-    MonitorDot,
-    Scale,
-    ShoppingCart,
     Star,
     type LucideIcon,
 } from 'lucide-react';
@@ -30,10 +29,9 @@ interface SidebarNavBlueprint {
 const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
     { key: 'DASHBOARD', page: 'DASHBOARD', labelKey: 'sidebar.commandCenter', icon: LayoutDashboard },
     { key: 'MAP', page: 'MAP', labelKey: 'sidebar.intelligenceMap', icon: MapIcon },
-    { key: 'MARKETPLACE', page: 'MARKETPLACE', labelKey: 'sidebar.marketplace', icon: ShoppingCart },
-    { key: 'TERMINAL', page: 'TERMINAL', labelKey: 'sidebar.marketTerminal', icon: MonitorDot },
+    { key: 'MARKETPLACE', page: 'MARKETPLACE', labelKey: 'sidebar.marketplace', icon: Handshake },
+    { key: 'FORWARD_CURVE', page: 'FORWARD_CURVE', labelKey: 'sidebar.marketTerminal', icon: LineChart },
     { key: 'WATCHLISTS', page: 'WATCHLISTS', labelKey: 'sidebar.watchlists', icon: Star },
-    { key: 'COMPLIANCE', page: 'COMPLIANCE', labelKey: 'sidebar.regulations', icon: Scale },
     {
         key: 'ANALYTICS',
         page: (viewMode: ViewMode) => (viewMode === 'BUYER' ? 'DATA_ANALYTICS' : 'ANALYTICS'),

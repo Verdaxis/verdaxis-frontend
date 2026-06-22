@@ -436,6 +436,7 @@ interface FuelResultRowProps {
     euEtsCost: string;
     fuelEu: string;
     ciiProxy: string;
+    pricePerGJ: string;
     totalCost: string;
     lowerCost: string;
     compliant: string;
@@ -523,6 +524,15 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           title={metricLabels.ciiProxy}
           mainValue={String(result.ciiProxy)}
           subLines={[isCheaper ? 'Better \u2191' : 'Worse \u2193']}
+        />
+        <MetricCard
+          icon={<DollarSign size={14} color="#5DADE2" />}
+          title={metricLabels.pricePerGJ}
+          mainValue={`$${result.pricePerGJUsd.toFixed(2)}/GJ`}
+          subLines={[
+            `${result.energyDensity} GJ/t`,
+            `${fmtUsd(Math.round(result.energyDensity * result.pricePerGJUsd))}/mt`,
+          ]}
         />
         <MetricCard
           icon={<DollarSign size={14} color={isCheaper ? '#4CAF50' : '#EF4444'} />}
@@ -642,6 +652,7 @@ export const EnergyCalculatorPage: React.FC = () => {
     euEtsCost: t('energyCalculator.metrics.euEtsCost'),
     fuelEu: t('energyCalculator.metrics.fuelEu'),
     ciiProxy: t('energyCalculator.metrics.ciiProxy'),
+    pricePerGJ: t('energyCalculator.metrics.pricePerGJ'),
     totalCost: t('energyCalculator.metrics.totalCost'),
     lowerCost: t('energyCalculator.metrics.lowerCost'),
     compliant: t('energyCalculator.metrics.compliant'),

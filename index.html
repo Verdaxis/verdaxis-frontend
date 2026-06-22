@@ -122,12 +122,85 @@
         padding: 12px;
         overflow: visible !important;
       }
+
+      .initial-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .initial-shell__panel {
+        width: min(360px, calc(100vw - 48px));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        text-align: center;
+      }
+      .initial-shell__logo {
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+      }
+      .initial-shell__title {
+        margin: 0;
+        font-family: "Montserrat", sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .initial-shell__copy {
+        margin: 0;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .initial-shell__bar {
+        width: 160px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+      .initial-shell__bar::after {
+        content: "";
+        display: block;
+        width: 56px;
+        height: 100%;
+        border-radius: inherit;
+        background: #22c55e;
+        animation: initial-shell-progress 1.1s ease-in-out infinite;
+      }
+      @keyframes initial-shell-progress {
+        0% {
+          transform: translateX(-64px);
+        }
+        100% {
+          transform: translateX(168px);
+        }
+      }
     </style>
   </head>
   <body
     class="bg-verdaxis-light text-verdaxis-dark antialiased h-screen overflow-hidden"
   >
-    <div id="root"></div>
+    <div id="root">
+      <div class="initial-shell" role="status" aria-live="polite">
+        <div class="initial-shell__panel">
+          <img
+            class="initial-shell__logo"
+            src="/verdaxis-logo-no-words.png"
+            alt="Verdaxis"
+          />
+          <p class="initial-shell__title">Loading Verdaxis</p>
+          <p class="initial-shell__copy">
+            Preparing the low-carbon fuels exchange.
+          </p>
+          <div class="initial-shell__bar" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

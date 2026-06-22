@@ -7,6 +7,7 @@ export interface VerdaxisSelectOption {
     label: string;
     description?: string;
     disabled?: boolean;
+    tourId?: string;
 }
 
 interface VerdaxisSelectProps {
@@ -19,6 +20,7 @@ interface VerdaxisSelectProps {
     triggerClassName?: string;
     menuClassName?: string;
     ariaLabel?: string;
+    triggerTourId?: string;
 }
 
 export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
@@ -31,6 +33,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
     triggerClassName = '',
     menuClassName = '',
     ariaLabel,
+    triggerTourId,
 }) => {
     const [open, setOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -163,6 +166,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                 aria-haspopup="listbox"
                 aria-label={ariaLabel}
                 disabled={disabled}
+                data-tour={triggerTourId}
                 onClick={() => setOpen(current => !current)}
                 onKeyDown={handleKeyDown}
                 className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#5DADE2]/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 ${triggerClassName}`}
@@ -182,7 +186,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                     id={listId}
                     role="listbox"
                     tabIndex={-1}
-                    className={`fixed z-[220] max-h-72 overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-950 ${menuClassName}`}
+                    className={`fixed z-[12000] max-h-72 overflow-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-950 ${menuClassName}`}
                     style={{
                         top: menuPosition.top,
                         left: menuPosition.left,
@@ -202,6 +206,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                                 role="option"
                                 aria-selected={isSelected}
                                 disabled={option.disabled}
+                                data-tour={option.tourId}
                                 onMouseEnter={() => {
                                     if (currentEnabledIndex >= 0) setHighlightedIndex(currentEnabledIndex);
                                 }}

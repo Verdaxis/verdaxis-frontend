@@ -2,25 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-#root {
-  min-height: 100vh;
-  background: #0f172a;
-}
-
-body {
-  background: #0f172a;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-}
-
-/* Hide lightweight-charts attribution only inside Verdaxis chart panels. */
-.verdaxis-chart-container a[href*="tradingview"] {
-  display: none !important;
-  pointer-events: none !important;
-}
-
 /* ============================================
    Theme CSS custom properties — light and dark
    ============================================ */
@@ -184,6 +165,94 @@ body {
   }
 }
 
+/* Hide lightweight-charts attribution affordances so the terminal reads as Verdaxis-native. */
+a[href*="tradingview"],
+a[href*="github.io/tradingview"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* ============================================
+   Public Benchmark Ticker
+   ============================================ */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.public-price-ticker:focus-visible {
+  outline: 2px solid #5DADE2;
+  outline-offset: -4px;
+}
+
+.public-price-ticker__track {
+  animation: ticker-scroll 40s linear infinite;
+  will-change: transform;
+}
+
+.public-price-ticker:hover .public-price-ticker__track,
+.public-price-ticker:focus .public-price-ticker__track,
+.public-price-ticker:focus-within .public-price-ticker__track {
+  animation-play-state: paused;
+}
+
+.verdaxis-market-watch-strip {
+  scrollbar-width: none;
+}
+
+.verdaxis-market-watch-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.verdaxis-market-watch-track--scrolling {
+  animation: verdaxis-market-watch-scroll var(--verdaxis-market-watch-duration, 80s) linear infinite;
+}
+
+.verdaxis-market-watch-strip:hover .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus-within .verdaxis-market-watch-track--scrolling {
+  animation-play-state: paused;
+}
+
+@keyframes verdaxis-market-watch-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verdaxis-market-watch-track--scrolling {
+    animation: none;
+  }
+
+  .verdaxis-market-watch-strip {
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-price-ticker {
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+  }
+
+  .public-price-ticker__track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+/* Hide lightweight-charts attribution affordances so the terminal reads as Verdaxis-native. */
+a[href*="tradingview"],
+a[href*="github.io/tradingview"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* ============================================
    Page Transitions
    ============================================ */
@@ -193,4 +262,137 @@ body {
 }
 .animate-fade-in-up {
   animation: fadeInUp 0.3s ease-out;
+}
+
+/* ============================================
+   Desktop-only Platform Gate
+   ============================================ */
+.mobile-desktop-gate {
+  display: none;
+}
+
+.desktop-only-content {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  .desktop-only-content {
+    display: none;
+  }
+
+  .mobile-desktop-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(160deg, #f8fafc 0%, #eff6ff 42%, #f0fdf4 100%);
+    color: #0f172a;
+  }
+
+  .mobile-desktop-gate__orb {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .mobile-desktop-gate__orb--blue {
+    width: 300px;
+    height: 300px;
+    top: -80px;
+    right: -60px;
+    background: radial-gradient(circle, rgba(93, 173, 226, 0.10) 0%, transparent 70%);
+  }
+
+  .mobile-desktop-gate__orb--green {
+    width: 250px;
+    height: 250px;
+    bottom: -60px;
+    left: -40px;
+    background: radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, transparent 65%);
+  }
+
+  .mobile-desktop-gate__wave {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    pointer-events: none;
+  }
+
+  .mobile-desktop-gate__content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    width: 100%;
+    max-width: 340px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 2rem;
+    text-align: center;
+  }
+
+  .mobile-desktop-gate__logo {
+    width: 180px;
+    height: auto;
+    object-fit: contain;
+    opacity: 0.88;
+  }
+
+  .mobile-desktop-gate__divider {
+    width: 32px;
+    height: 1px;
+    margin: 1.5rem 0;
+    background: linear-gradient(90deg, transparent, rgba(93, 173, 226, 0.35), transparent);
+  }
+
+  .mobile-desktop-gate__icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 1.25rem;
+    color: rgba(93, 173, 226, 0.7);
+    stroke-width: 1.4;
+  }
+
+  .mobile-desktop-gate__heading {
+    margin: 0 0 0.75rem;
+    font-size: 1.375rem;
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-desktop-gate__body {
+    max-width: 285px;
+    margin: 0;
+    color: #64748b;
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+
+  .mobile-desktop-gate__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 1.75rem;
+    padding: 6px 14px;
+    border: 1px solid rgba(93, 173, 226, 0.22);
+    border-radius: 999px;
+    background: rgba(93, 173, 226, 0.07);
+    color: #0284c7;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .mobile-desktop-gate__pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #4caf50;
+  }
 }
