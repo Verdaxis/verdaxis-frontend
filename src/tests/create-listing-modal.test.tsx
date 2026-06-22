@@ -43,7 +43,7 @@ describe('CreateListingModal', () => {
     ]);
     deliveryPointsMock.mockResolvedValue([
       { id: 'dp-1', name: 'Singapore', region: 'Asia', timezone: 'Asia/Singapore', is_active: true },
-      { id: 'dp-2', name: 'Amsterdam', region: 'Europe', timezone: 'Europe/Amsterdam', is_active: true },
+      { id: 'dp-2', name: 'Rotterdam', region: 'Europe', timezone: 'Europe/Amsterdam', is_active: true },
     ]);
     latestAskTemplateMock.mockResolvedValue(null);
     benchmarksLookupMock.mockResolvedValue({
@@ -146,7 +146,7 @@ describe('CreateListingModal', () => {
 
     expect(screen.getByText(/Prefilled from your latest supplier listing/i)).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Listing product' }).textContent).toContain('e-Methanol');
-    expect(screen.getByRole('combobox', { name: 'Listing delivery point' }).textContent).toContain('Amsterdam');
+    expect(screen.getByRole('combobox', { name: 'Listing delivery point' }).textContent).toContain('Rotterdam');
     expect(screen.getByRole('combobox', { name: 'Certification scheme' }).textContent).toContain('ISCC PLUS');
     expect(screen.queryByPlaceholderText(/Describe the variance clearly/i)).toBeNull();
   });

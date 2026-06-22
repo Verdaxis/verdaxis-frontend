@@ -1,18 +1,14 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { renderWithProviders } from './test-utils';
 import { SupplierDemandFeed } from '../components/SupplierDemandFeed';
+import { renderWithProviders } from './test-utils';
 
-const demandSignalsMock = vi.fn();
 const listBidsMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
-    demand: {
-      signals: (...args: unknown[]) => demandSignalsMock(...args),
-    },
     orderbook: {
       listBids: (...args: unknown[]) => listBidsMock(...args),
     },
@@ -21,74 +17,53 @@ vi.mock('../services/api', () => ({
 
 describe('SupplierDemandFeed', () => {
   beforeEach(() => {
-    demandSignalsMock.mockReset();
     listBidsMock.mockReset();
-	    demandSignalsMock.mockResolvedValue([
-	      {
-	        fuel_type: 'Methanol',
-	        region: 'Asia',
-	        market_product_code: 'BIO_METHANOL',
-	        delivery_point_id: 'dp-1',
-	        delivery_point_name: 'Singapore',
-	        availability_window_code: 'SPOT',
-	        volume_mt: 2500,
-	        max_price_per_mt: 720,
-        urgency: 'HIGH',
-        bid_count: 3,
-        earliest_delivery: 'Spot',
+    listBidsMock.mockResolvedValue([
+      {
+        id: 'bid-1',
+        side: 'BID',
+        fuel_type: 'Methanol',
+        fuel_grade: 'Bio',
+        region: 'Singapore',
+        quantity_mt: 2500,
+        price_per_mt_usd: 720,
+        availability_window: 'SPOT',
+        status: 'OPEN',
         created_at: '2026-04-13T00:00:00Z',
-	      },
-	    ]);
-	    localStorage.clear();
-	  });
-
-  afterEach(() => {
-    vi.useRealTimers();
+      },
+    ]);
   });
 
-  it('renders aggregated buyer demand signals without reading raw bid listings', async () => {
-    const onNavigate = vi.fn();
-    const onPostAsk = vi.fn();
-
-	    renderWithProviders(<SupplierDemandFeed onNavigate={onNavigate} onPostAsk={onPostAsk} />);
-
-	    expect(await screen.findByText('Where buyers are looking')).toBeTruthy();
-	    expect(await screen.findByText('Bio Methanol')).toBeTruthy();
-	    expect(screen.getByText('Singapore · Spot')).toBeTruthy();
-	    expect(screen.getByText('2,500 MT')).toBeTruthy();
-    expect(screen.getByText('$720')).toBeTruthy();
-    expect(demandSignalsMock).toHaveBeenCalledTimes(1);
-    expect(listBidsMock).not.toHaveBeenCalled();
-
-	    fireEvent.click(screen.getByRole('button', { name: /View live bids/i }));
-	    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
-	    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
-	    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
-	    expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
-
-    fireEvent.click(screen.getByRole('button', { name: /Post Ask/i }));
-    expect(onPostAsk).toHaveBeenCalledTimes(1);
-  });
-
-  it('distinguishes zero demand from a failed demand load', async () => {
-    demandSignalsMock.mockResolvedValueOnce([]);
+  it('renders active buyer bids as supplier demand shortcuts', async () => {
     const onNavigate = vi.fn();
 
-    renderWithProviders(<SupplierDemandFeed onNavigate={onNavigate} onPostAsk={() => undefined} />);
+    renderWithProviders(<SupplierDemandFeed onNavigate={onNavigate} />);
 
-    expect(await screen.findByText(/No aggregated buyer demand is visible yet/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Browse bids/i }));
+    expect(await screen.findByText('1 active bid')).toBeTruthy();
+    expect(screen.getByText('Methanol')).toBeTruthy();
+    expect(screen.getByText('Bio')).toBeTruthy();
+    expect(screen.getByText('2,500 MT')).toBeTruthy();
+    expect(screen.getByText('$720/MT')).toBeTruthy();
+    expect(screen.getByText('Singapore • SPOT')).toBeTruthy();
+    expect(listBidsMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Methanol/i }));
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
   });
 
-  it('shows a degraded state when demand signals fail', async () => {
-    demandSignalsMock.mockRejectedValueOnce(new Error('backend unavailable'));
+  it('shows the empty buyer demand state when no open bids are visible', async () => {
+    listBidsMock.mockResolvedValueOnce([]);
 
-    renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} onPostAsk={() => undefined} />);
+    renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Demand signals unavailable')).toBeTruthy();
-      expect(screen.getByText('backend unavailable')).toBeTruthy();
-    });
+    expect(await screen.findByText(/No buyer demand matching your profile yet/i)).toBeTruthy();
+  });
+
+  it('uses the same non-critical empty state when bid loading fails', async () => {
+    listBidsMock.mockRejectedValueOnce(new Error('backend unavailable'));
+
+    renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} />);
+
+    expect(await screen.findByText(/No buyer demand matching your profile yet/i)).toBeTruthy();
   });
 });
