@@ -5,7 +5,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
+const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
@@ -13,6 +13,7 @@ const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, li
   listAsks: vi.fn(),
   listBids: vi.fn(),
   myOrders: vi.fn(),
+  deliveryPoints: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
   tradeTapeList: vi.fn(),
@@ -69,6 +70,9 @@ vi.mock('../components/ui/Pagination', () => ({
 
 vi.mock('../services/api', () => ({
   api: {
+    catalog: {
+      deliveryPoints,
+    },
     orderbook: {
       listAsksPaged,
       listBidsPaged,
@@ -140,6 +144,11 @@ describe('Marketplace green fuels surface', () => {
     listAsks.mockResolvedValue(listingsResponse.items);
     listBids.mockResolvedValue([]);
     myOrders.mockResolvedValue([]);
+    deliveryPoints.mockResolvedValue([
+      { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
+      { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
+      { id: 'dp-3', name: 'Santos', region: 'South America', is_active: true },
+    ]);
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
@@ -169,7 +178,8 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByText(/vs benchmark \$1,092.00\/MT/i)).toBeTruthy();
+    expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
+    expect(screen.getByTitle(/vs benchmark reference \$1,092.00\/MT/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 
@@ -197,6 +207,15 @@ describe('Marketplace green fuels surface', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /watching market/i })).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+        market_product: 'BIO_METHANOL',
+        availability: 'SPOT',
+      }));
     });
 
     fireEvent.click(screen.getByRole('button', { name: /watching market/i }));
@@ -228,26 +247,57 @@ describe('Marketplace green fuels surface', () => {
       expect(listAsks).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        region: undefined,
+        delivery_point_id: 'dp-1',
         availability: 'SPOT',
       });
       expect(listBids).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        region: undefined,
+        delivery_point_id: 'dp-1',
         availability: 'SPOT',
       });
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
-        region: 'Singapore',
+        delivery_point_id: 'dp-1',
+        region: undefined,
         availability_window: 'SPOT',
         limit: 20,
       });
     });
 
     expect(screen.getByText(/one exact product, port, and availability window/i)).toBeTruthy();
+    expect(screen.getByText(/delivery-point trade tape history/i)).toBeTruthy();
     expect(await screen.findByText('Trade Tape')).toBeTruthy();
+  });
+
+  it('labels trade tape as region-level when the selected port has no resolved delivery point', async () => {
+    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
+    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
+    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+    deliveryPoints.mockResolvedValue([
+      { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
+    ]);
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    await waitFor(() => {
+      expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
+        delivery_point_id: undefined,
+        region: 'Singapore',
+      }));
+    });
+
+    expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
+    expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
   });
 
   it('asks the user to select an exact slice before showing the orderbook', async () => {

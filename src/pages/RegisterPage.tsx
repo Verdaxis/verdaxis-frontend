@@ -137,19 +137,19 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden">
+    <div className="min-h-[100dvh] flex items-start sm:items-center justify-center bg-slate-950 text-white relative overflow-y-auto py-6 sm:py-10 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       {/* Background Elements */}
       <div className="absolute inset-0 bg-[#0F172A] z-0"></div>
       <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
 
-      <div className="w-full max-w-lg p-8 relative z-10">
-        <div className="text-center mb-10">
+      <div className="w-full max-w-lg px-4 sm:px-8 relative z-10">
+        <div className="text-center mb-6 sm:mb-10">
            <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
            <p className="text-slate-400">{t('register.subtitle')}</p>
         </div>
 
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-5 sm:p-8 shadow-2xl">
           {registered ? (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">
@@ -206,7 +206,7 @@ const RegisterPage: React.FC = () => {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.firstName')}</label>
                         <div className="relative">

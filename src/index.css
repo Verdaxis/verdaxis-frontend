@@ -173,6 +173,87 @@ a[href*="github.io/tradingview"] {
 }
 
 /* ============================================
+   Public Benchmark Ticker
+   ============================================ */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.public-price-ticker:focus-visible {
+  outline: 2px solid #5DADE2;
+  outline-offset: -4px;
+}
+
+.public-price-ticker__track {
+  animation: ticker-scroll 40s linear infinite;
+  will-change: transform;
+}
+
+.public-price-ticker:hover .public-price-ticker__track,
+.public-price-ticker:focus .public-price-ticker__track,
+.public-price-ticker:focus-within .public-price-ticker__track {
+  animation-play-state: paused;
+}
+
+.verdaxis-market-watch-strip {
+  scrollbar-width: none;
+}
+
+.verdaxis-market-watch-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.verdaxis-market-watch-track--scrolling {
+  animation: verdaxis-market-watch-scroll var(--verdaxis-market-watch-duration, 80s) linear infinite;
+}
+
+.verdaxis-market-watch-strip:hover .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus-within .verdaxis-market-watch-track--scrolling {
+  animation-play-state: paused;
+}
+
+@keyframes verdaxis-market-watch-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verdaxis-market-watch-track--scrolling {
+    animation: none;
+  }
+
+  .verdaxis-market-watch-strip {
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-price-ticker {
+    overflow-x: auto !important;
+    scrollbar-width: thin;
+  }
+
+  .public-price-ticker__track {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+/* Hide lightweight-charts attribution affordances so the terminal reads as Verdaxis-native. */
+a[href*="tradingview"],
+a[href*="github.io/tradingview"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* ============================================
    Page Transitions
    ============================================ */
 @keyframes fadeInUp {

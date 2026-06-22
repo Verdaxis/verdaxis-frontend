@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2, ShieldCheck, X } from 'lucide-react';
 
 import { api } from '../../services/api';
-import type { BenchmarkQuote, DeliveryPoint, Product, SupplierListingTemplate } from '../../types';
+import { MARKET_PRODUCTS, type BenchmarkQuote, type DeliveryPoint, type Product, type SupplierListingTemplate } from '../../types';
 import { VerdaxisSelect } from '../ui/VerdaxisSelect';
 import { SPOT_WINDOW, getAvailabilityWindowOptions } from '../../utils/availabilityWindow';
 import { formatMarketProduct, getProductDisplayName } from '../../utils/marketProduct';
+import { isApprovedTradingPortName } from '../../utils/tradingPorts';
 
 interface CreateListingModalProps {
     onSubmit: (data: ListingFormData) => void;
@@ -126,12 +127,24 @@ export const CreateListingModal: React.FC<CreateListingModalProps> = ({
 
                 if (cancelled) return;
 
-                const activeProducts = productsData.filter(product => product.is_active);
-                const activeDeliveryPoints = deliveryPointsData.filter(point => point.is_active);
+                const activeProducts = productsData.filter(product => (
+                    product.is_active
+                    && product.market_product
+                    && MARKET_PRODUCTS.includes(product.market_product)
+                ));
+                const activeDeliveryPoints = deliveryPointsData.filter(point => (
+                    point.is_active && isApprovedTradingPortName(point.name)
+                ));
                 setProducts(activeProducts);
                 setDeliveryPoints(activeDeliveryPoints);
 
-                if (latestTemplate) {
+                const templateUsesActiveMarket = Boolean(
+                    latestTemplate
+                    && activeProducts.some(product => product.id === latestTemplate.product_id)
+                    && activeDeliveryPoints.some(point => point.id === latestTemplate.delivery_point_id)
+                );
+
+                if (latestTemplate && templateUsesActiveMarket) {
                     setFormData(mapTemplateToForm(latestTemplate));
                     setTemplateLoaded(true);
                     return;

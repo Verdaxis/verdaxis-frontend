@@ -4,6 +4,9 @@ import { InventoryItem, Port } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
+import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
+
+const INVENTORY_PRODUCTS = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map((option) => option.label);
 
 export const SupplierInventory: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
@@ -31,7 +34,7 @@ export const SupplierInventory: React.FC = () => {
 
     const [ports, setPorts] = useState<Port[]>([]);
 
-    const [newProductType, setNewProductType] = useState('Methanol');
+    const [newProductType, setNewProductType] = useState(INVENTORY_PRODUCTS[0]);
     const [selectedPortId, setSelectedPortId] = useState('');
     const [newStock, setNewStock] = useState('');
     const [newPrice, setNewPrice] = useState('');
@@ -92,7 +95,7 @@ export const SupplierInventory: React.FC = () => {
             });
             setInventory([...inventory, newItem]);
             setIsAddModalOpen(false);
-            setNewProductType('Methanol');
+            setNewProductType(INVENTORY_PRODUCTS[0]);
             setSelectedPortId('');
             setNewStock('');
             setNewPrice('');
@@ -389,11 +392,9 @@ export const SupplierInventory: React.FC = () => {
                                         onChange={(e) => setNewProductType(e.target.value)}
                                         className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white"
                                     >
-                                        <option value="Methanol">Methanol</option>
-                                        <option value="Biofuel">Biofuel B24</option>
-                                        <option value="Ethanol">Ethanol</option>
-                                        <option value="Biomethane">Biomethane</option>
-                                        <option value="Ammonia">Ammonia</option>
+                                        {INVENTORY_PRODUCTS.map((product) => (
+                                            <option key={product} value={product}>{product}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>
@@ -512,11 +513,9 @@ export const SupplierInventory: React.FC = () => {
                                         onChange={(e) => setEditProductName(e.target.value)}
                                         className="w-full p-2 border border-slate-200 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-700 text-sm font-medium text-slate-800 dark:text-white"
                                     >
-                                        <option value="Methanol">Methanol</option>
-                                        <option value="Biofuel">Biofuel B24</option>
-                                        <option value="Ethanol">Ethanol</option>
-                                        <option value="Biomethane">Biomethane</option>
-                                        <option value="Ammonia">Ammonia</option>
+                                        {INVENTORY_PRODUCTS.map((product) => (
+                                            <option key={product} value={product}>{product}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div>

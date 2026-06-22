@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Plus,
     Edit2,
@@ -13,22 +13,27 @@ import {
     FileText,
     Shield,
     X,
-    BarChart3,
-    Landmark,
+    BarChart3
 } from 'lucide-react';
 import { CreateListingModal, ListingFormData } from './supplier/CreateListingModal';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
-import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { useNamespace } from '../hooks/useNamespace';
-import {
-    formatAvailabilityWindow,
-    getAvailabilityWindowOptions,
-} from '../utils/availabilityWindow';
-import { getOrderDisplayName } from '../utils/marketProduct';
-import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
+import { getMarketplaceFuelType } from '../utils/marketProducts';
 
-import { BenchmarkQuote, OrderBookOrder, OrderBookStatus } from '../types';
+import { OrderBookOrder, OrderBookStatus, AggregatedOrderbook } from '../types';
+
+export interface AggregatedMarketEntry {
+    region: string;
+    fuel_type: string;
+    side?: string;
+    min_price: number;
+    max_price: number;
+    avg_price: number;
+    total_quantity: number;
+    listing_count: number;
+    order_count?: number;
+}
 
 type SupplierListing = OrderBookOrder;
 
@@ -38,6 +43,7 @@ export const SupplierListingConsole: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [marketData, setMarketData] = useState<AggregatedMarketEntry[]>([]);
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -62,42 +68,20 @@ export const SupplierListingConsole: React.FC = () => {
         price_per_mt_usd: number;
         availability_window: string;
         certifications: string[];
-        certification_declared: boolean;
-        certification_scheme: string;
-        specification_standard: string;
-        msds_available: boolean;
-        carbon_intensity_gco2_mj?: number;
-        carbon_intensity_method: string;
-        feedstock: string;
-        origin: string;
-        off_spec: boolean;
-        off_spec_notes: string;
         status: OrderBookStatus;
     }>({
         quantity_mt: 0,
         price_per_mt_usd: 0,
         availability_window: '',
         certifications: [],
-        certification_declared: false,
-        certification_scheme: '',
-        specification_standard: '',
-        msds_available: false,
-        carbon_intensity_gco2_mj: undefined,
-        carbon_intensity_method: '',
-        feedstock: '',
-        origin: '',
-        off_spec: false,
-        off_spec_notes: '',
         status: 'OPEN',
     });
     const [isUpdating, setIsUpdating] = useState(false);
-    const [editBenchmark, setEditBenchmark] = useState<BenchmarkQuote | null>(null);
-    const [editBenchmarkLoading, setEditBenchmarkLoading] = useState(false);
-    const availabilityOptions = getAvailabilityWindowOptions();
 
-    // Fetch Listings
+    // Fetch Listings & Market Data
     useEffect(() => {
         fetchListings();
+        fetchMarketData();
     }, []);
 
     const fetchListings = async () => {
@@ -112,6 +96,15 @@ export const SupplierListingConsole: React.FC = () => {
             // Fallback to empty or handled error state
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchMarketData = async () => {
+        try {
+            const data = await api.orderbook.aggregated();
+            setMarketData(data);
+        } catch (error) {
+            console.error("Failed to fetch market data:", error);
         }
     };
 
@@ -227,16 +220,6 @@ export const SupplierListingConsole: React.FC = () => {
             price_per_mt_usd: listing.price_per_mt_usd,
             availability_window: listing.availability_window,
             certifications: [...(listing.certifications || [])],
-            certification_declared: Boolean(listing.certification_declared),
-            certification_scheme: listing.certification_scheme || '',
-            specification_standard: listing.specification_standard || '',
-            msds_available: Boolean(listing.msds_available),
-            carbon_intensity_gco2_mj: listing.carbon_intensity_gco2_mj ?? undefined,
-            carbon_intensity_method: listing.carbon_intensity_method || '',
-            feedstock: listing.feedstock || '',
-            origin: listing.origin || '',
-            off_spec: Boolean(listing.off_spec),
-            off_spec_notes: listing.off_spec_notes || '',
             status: listing.status,
         });
     };
@@ -244,7 +227,6 @@ export const SupplierListingConsole: React.FC = () => {
     const closeEditModal = () => {
         setEditingListing(null);
         setIsUpdating(false);
-        setEditBenchmark(null);
     };
 
     const handleEditFormChange = (field: string, value: string | number | string[]) => {
@@ -262,17 +244,7 @@ export const SupplierListingConsole: React.FC = () => {
                 quantity_mt: editForm.quantity_mt,
                 price_per_mt_usd: editForm.price_per_mt_usd,
                 availability_window: editForm.availability_window,
-                certifications: editForm.certification_scheme ? [editForm.certification_scheme] : editForm.certifications,
-                certification_declared: editForm.certification_declared,
-                certification_scheme: editForm.certification_scheme.trim(),
-                specification_standard: editForm.specification_standard.trim(),
-                msds_available: editForm.msds_available,
-                carbon_intensity_gco2_mj: editForm.carbon_intensity_gco2_mj,
-                carbon_intensity_method: editForm.carbon_intensity_method.trim(),
-                feedstock: editForm.feedstock.trim(),
-                origin: editForm.origin.trim(),
-                off_spec: editForm.off_spec,
-                off_spec_notes: editForm.off_spec ? editForm.off_spec_notes.trim() : '',
+                certifications: editForm.certifications,
                 status: editForm.status,
             });
             await fetchListings();
@@ -291,40 +263,146 @@ export const SupplierListingConsole: React.FC = () => {
         }
     };
 
-    useEffect(() => {
-        let cancelled = false;
-
-        async function loadEditBenchmark() {
-            if (!editingListing?.market_product || !editingListing.delivery_point_id) {
-                setEditBenchmark(null);
-                return;
+    const handleCertificationInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const value = (e.target as HTMLInputElement).value.trim().replace(/,$/, '');
+            if (value && !editForm.certifications.includes(value)) {
+                handleEditFormChange('certifications', [...editForm.certifications, value]);
             }
+            (e.target as HTMLInputElement).value = '';
+        }
+    };
 
-            setEditBenchmarkLoading(true);
-            try {
-                const response = await api.benchmarks.lookup({
-                    market_product: editingListing.market_product,
-                    delivery_point_id: editingListing.delivery_point_id,
-                    availability_window: editForm.availability_window,
-                });
-                if (!cancelled) {
-                    setEditBenchmark(response.items?.[0] ?? null);
-                }
-            } catch {
-                if (!cancelled) {
-                    setEditBenchmark(null);
-                }
-            } finally {
-                if (!cancelled) setEditBenchmarkLoading(false);
+    const removeEditCertification = (index: number) => {
+        handleEditFormChange(
+            'certifications',
+            editForm.certifications.filter((_, i) => i !== index)
+        );
+    };
+
+    // ---- Market Context Panel ----
+    const MarketContextPanel: React.FC<{
+        region: string;
+        fuelType: string;
+        price: number;
+    }> = ({ region, fuelType, price }) => {
+        const entry = marketData.find(
+            (d) => d.region === region && (
+                d.fuel_type === fuelType
+                || d.fuel_type === getMarketplaceFuelType(fuelType)
+            )
+        );
+
+        if (!entry) {
+            return (
+                <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-slate-700/30 p-3">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                        <BarChart3 size={14} />
+                        <span>{t('supplierListingConsole.marketContext.noData')}</span>
+                    </div>
+                </div>
+            );
+        }
+
+        const { min_price, max_price, avg_price, total_quantity, listing_count } = entry;
+        const range = max_price - min_price;
+
+        // Competitiveness indicator
+        let competitiveLabel = '';
+        let competitiveColor = '';
+        let indicatorBg = '';
+
+        if (price > 0 && avg_price > 0) {
+            const pctDiff = ((price - avg_price) / avg_price) * 100;
+            if (pctDiff <= -3) {
+                competitiveLabel = t('supplierListingConsole.marketContext.belowMarket', { pct: Math.abs(pctDiff).toFixed(1) });
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+                indicatorBg = 'bg-emerald-500';
+            } else if (pctDiff <= 3) {
+                competitiveLabel = t('supplierListingConsole.marketContext.competitive');
+                competitiveColor = 'text-emerald-600 dark:text-emerald-400';
+                indicatorBg = 'bg-emerald-500';
+            } else if (pctDiff <= 10) {
+                competitiveLabel = t('supplierListingConsole.marketContext.aboveMarket', { pct: pctDiff.toFixed(1) });
+                competitiveColor = 'text-amber-600 dark:text-amber-400';
+                indicatorBg = 'bg-amber-500';
+            } else {
+                competitiveLabel = t('supplierListingConsole.marketContext.aboveMarket', { pct: pctDiff.toFixed(1) });
+                competitiveColor = 'text-rose-600 dark:text-rose-400';
+                indicatorBg = 'bg-rose-500';
             }
         }
 
-        loadEditBenchmark();
-        return () => {
-            cancelled = true;
-        };
-    }, [editForm.availability_window, editingListing?.delivery_point_id, editingListing?.market_product]);
+        // Position of price marker on the range bar (clamped 0-100%)
+        const markerPct = price > 0 && range > 0
+            ? Math.min(100, Math.max(0, ((price - min_price) / range) * 100))
+            : -1;
 
+        return (
+            <div className="mt-3 rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-emerald-900/20 p-3 space-y-2.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
+                    <BarChart3 size={14} className="text-emerald-500 dark:text-emerald-400" />
+                    {t('supplierListingConsole.marketContext.title')}
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.priceRange')}</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${min_price.toLocaleString()} - ${max_price.toLocaleString()} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.avgPrice')}</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            ${avg_price.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} /MT
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.activeListings')}</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                            {listing_count} {listing_count !== 1 ? t('supplierListingConsole.marketContext.listings') : t('supplierListingConsole.marketContext.listing')}
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-slate-500 dark:text-slate-400">{t('supplierListingConsole.marketContext.totalAvailable')}</span>
+                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">
+                            {total_quantity.toLocaleString()} MT
+                        </span>
+                    </div>
+                </div>
+
+                {/* Price position bar */}
+                {price > 0 && range > 0 && (
+                    <div className="pt-1">
+                        <div className="relative h-2 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400 dark:from-emerald-500 dark:via-amber-500 dark:to-rose-500 overflow-visible">
+                            {markerPct >= 0 && (
+                                <div
+                                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-800 shadow-md"
+                                    style={{
+                                        left: `${markerPct}%`,
+                                        backgroundColor: markerPct <= 40 ? '#10b981' : markerPct <= 70 ? '#f59e0b' : '#f43f5e',
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono">
+                            <span>${min_price}</span>
+                            <span>${max_price}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Competitiveness label */}
+                {price > 0 && competitiveLabel && (
+                    <div className={`text-xs font-semibold ${competitiveColor}`}>
+                        {competitiveLabel}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     if (!ready) return null;
 
@@ -426,13 +504,11 @@ export const SupplierListingConsole: React.FC = () => {
                                             <tr key={listing.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="font-bold text-slate-900 dark:text-slate-200">
-                                                        {getOrderDisplayName(listing)}
+                                                        {listing.fuel_type} ({listing.fuel_grade})
                                                     </div>
-                                                    <div className="text-sm text-slate-500">
-                                                        {[listing.delivery_point_name, listing.region].filter(Boolean).join(' · ')}
-                                                    </div>
+                                                    <div className="text-sm text-slate-500">{listing.region}</div>
                                                 </td>
-                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{formatAvailabilityWindow(listing.availability_window)}</td>
+                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{listing.availability_window}</td>
                                                 <td className="px-6 py-4 text-right font-mono text-slate-700 dark:text-slate-200">
                                                     {listing.quantity_mt.toLocaleString()} MT
                                                     {listing.remaining_quantity_mt !== undefined && listing.remaining_quantity_mt !== listing.quantity_mt && (
@@ -440,30 +516,16 @@ export const SupplierListingConsole: React.FC = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <BenchmarkPriceBlock
-                                                        priceUsd={Number(listing.price_per_mt_usd)}
-                                                        benchmarkUsd={listing.benchmark_price_per_mt_usd == null ? null : Number(listing.benchmark_price_per_mt_usd)}
-                                                        deltaUsd={listing.premium_discount_per_mt_usd == null ? null : Number(listing.premium_discount_per_mt_usd)}
-                                                        align="right"
-                                                    />
+                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">${listing.price_per_mt_usd}</span>
+                                                    <span className="text-slate-500">/MT</span>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center justify-center gap-1 flex-wrap">
-                                                        {listing.certification_scheme && (
-                                                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
-                                                                {listing.certification_scheme}
+                                                        {listing.certifications?.map((cert, idx) => (
+                                                            <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
+                                                                {cert}
                                                             </span>
-                                                        )}
-                                                        {listing.certification_declared && (
-                                                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
-                                                                Certified
-                                                            </span>
-                                                        )}
-                                                        {listing.off_spec && (
-                                                            <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-500/20 rounded text-xs text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
-                                                                Off-spec
-                                                            </span>
-                                                        )}
+                                                        ))}
                                                         {listing.is_verdaxis_verified && (
                                                             <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-500/20 rounded text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30">
                                                                 <Shield size={10} />
@@ -549,6 +611,7 @@ export const SupplierListingConsole: React.FC = () => {
                     onSubmit={handleCreateListing}
                     onCancel={() => setIsCreateModalOpen(false)}
                     isLoading={isSubmitting}
+                    marketData={marketData}
                 />
             )}
 
@@ -571,30 +634,29 @@ export const SupplierListingConsole: React.FC = () => {
                         <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto bg-white dark:bg-slate-800">
                             <div className="p-6 space-y-6">
                                 {/* Read-only Fields */}
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                                <div className="grid grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Product</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.fuelType')}</label>
                                         <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
-                                            {getOrderDisplayName(editingListing)}
+                                            {editingListing.fuel_type} ({editingListing.fuel_grade})
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Delivery point</label>
+                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.region')}</label>
                                         <div className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 cursor-not-allowed">
-                                            {[editingListing.delivery_point_name, editingListing.region].filter(Boolean).join(' · ')}
+                                            {editingListing.region}
                                         </div>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.status')}</label>
-                                        <VerdaxisSelect
-                                            ariaLabel="Listing status"
+                                        <select
                                             value={editForm.status}
-                                            onChange={(value) => handleEditFormChange('status', value)}
-                                            options={[
-                                                { value: 'OPEN', label: t('supplierListingConsole.table.active') },
-                                                { value: 'CANCELLED', label: t('supplierListingConsole.table.inactive') },
-                                            ]}
-                                        />
+                                            onChange={(e) => handleEditFormChange('status', e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        >
+                                            <option value="OPEN">{t('supplierListingConsole.table.active')}</option>
+                                            <option value="CANCELLED">{t('supplierListingConsole.table.inactive')}</option>
+                                        </select>
                                     </div>
                                 </div>
 
@@ -622,151 +684,54 @@ export const SupplierListingConsole: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="rounded-lg border border-slate-200 dark:border-slate-600/50 bg-slate-50 dark:bg-slate-700/30 p-4">
-                                    <div className="flex items-center justify-between gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
-                                        <span className="flex items-center gap-2">
-                                            <Landmark size={14} className="text-emerald-500 dark:text-emerald-400" />
-                                            Benchmark Context
-                                        </span>
-                                        {editBenchmarkLoading && <Loader2 size={14} className="animate-spin" />}
-                                    </div>
-                                    {editBenchmark ? (
-                                        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <div>
-                                                <div className="text-[11px] uppercase tracking-wide text-slate-400">Benchmark</div>
-                                                <div className="mt-1 font-semibold text-slate-800 dark:text-slate-100">
-                                                    ${Number(editBenchmark.benchmark_price_per_mt_usd).toLocaleString()}/MT
-                                                </div>
-                                                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{editBenchmark.source || 'Benchmark'}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-[11px] uppercase tracking-wide text-slate-400">Current delta</div>
-                                                <div className={`mt-1 font-semibold ${
-                                                    editForm.price_per_mt_usd <= Number(editBenchmark.benchmark_price_per_mt_usd)
-                                                        ? 'text-emerald-600 dark:text-emerald-400'
-                                                        : 'text-amber-600 dark:text-amber-400'
-                                                }`}>
-                                                    {editForm.price_per_mt_usd - Number(editBenchmark.benchmark_price_per_mt_usd) < 0 ? '-' : '+'}
-                                                    ${Math.abs(editForm.price_per_mt_usd - Number(editBenchmark.benchmark_price_per_mt_usd)).toFixed(2)} vs benchmark
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                                            No benchmark is available for this listing context.
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Price Benchmarking */}
+                                <MarketContextPanel
+                                    region={editingListing.region}
+                                    fuelType={editingListing.fuel_type}
+                                    price={editForm.price_per_mt_usd}
+                                />
 
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.availabilityWindow')}</label>
-                                    <VerdaxisSelect
-                                        ariaLabel="Listing availability window"
+                                    <select
                                         value={editForm.availability_window}
-                                        onChange={(value) => handleEditFormChange('availability_window', value)}
-                                        options={availabilityOptions.map(option => ({ value: option.value, label: option.label }))}
+                                        onChange={(e) => handleEditFormChange('availability_window', e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    >
+                                        {['Spot', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026', 'Forward 2027', 'Forward 2028'].map(a => (
+                                            <option key={a} value={a}>{a}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Certifications */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">{t('supplierListingConsole.editModal.certifications')}</label>
+                                    <input
+                                        type="text"
+                                        placeholder={t('supplierListingConsole.editModal.certPlaceholder')}
+                                        onKeyDown={handleCertificationInputKeyDown}
+                                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                     />
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-900">
-                                        <input
-                                            type="checkbox"
-                                            checked={editForm.certification_declared}
-                                            onChange={(e) => handleEditFormChange('certification_declared', e.target.checked)}
-                                            className="h-4 w-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
-                                        />
-                                        Listing is certified
-                                    </label>
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-900">
-                                        <input
-                                            type="checkbox"
-                                            checked={editForm.msds_available}
-                                            onChange={(e) => handleEditFormChange('msds_available', e.target.checked)}
-                                            className="h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
-                                        />
-                                        MSDS available
-                                    </label>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Certification scheme</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.certification_scheme}
-                                            onChange={(e) => handleEditFormChange('certification_scheme', e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                            placeholder="e.g. ISCC EU"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Specification standard</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.specification_standard}
-                                            onChange={(e) => handleEditFormChange('specification_standard', e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                            placeholder="e.g. IMPCA"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">CI (gCO2e/MJ)</label>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            step={0.01}
-                                            value={editForm.carbon_intensity_gco2_mj ?? ''}
-                                            onChange={(e) => handleEditFormChange('carbon_intensity_gco2_mj', e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">CI methodology</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.carbon_intensity_method}
-                                            onChange={(e) => handleEditFormChange('carbon_intensity_method', e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Feedstock</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.feedstock}
-                                            onChange={(e) => handleEditFormChange('feedstock', e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Origin</label>
-                                        <input
-                                            type="text"
-                                            value={editForm.origin}
-                                            onChange={(e) => handleEditFormChange('origin', e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-200"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-600 dark:bg-slate-900">
-                                        <input
-                                            type="checkbox"
-                                            checked={editForm.off_spec}
-                                            onChange={(e) => handleEditFormChange('off_spec', e.target.checked)}
-                                            className="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500"
-                                        />
-                                        Off-spec listing
-                                    </label>
-                                    {editForm.off_spec && (
-                                        <textarea
-                                            value={editForm.off_spec_notes}
-                                            onChange={(e) => handleEditFormChange('off_spec_notes', e.target.value)}
-                                            className="min-h-[100px] w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
-                                            placeholder="Describe the variance clearly"
-                                        />
+                                    {editForm.certifications.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {editForm.certifications.map((cert, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="flex items-center gap-1 px-3 py-1 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/30 rounded-full text-xs text-emerald-600 dark:text-emerald-400"
+                                                >
+                                                    <CheckCircle2 size={12} />
+                                                    {cert}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeEditCertification(idx)}
+                                                        className="ml-1 text-emerald-400 hover:text-red-400 transition-colors"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -783,21 +748,9 @@ export const SupplierListingConsole: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={
-                                        editForm.quantity_mt <= 0 ||
-                                        editForm.price_per_mt_usd <= 0 ||
-                                        !editForm.certification_declared ||
-                                        editForm.certification_scheme.trim() === '' ||
-                                        (editForm.off_spec && editForm.off_spec_notes.trim() === '') ||
-                                        isUpdating
-                                    }
+                                    disabled={editForm.quantity_mt <= 0 || editForm.price_per_mt_usd <= 0 || isUpdating}
                                     className={`flex-1 py-3 font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                        editForm.quantity_mt > 0 &&
-                                        editForm.price_per_mt_usd > 0 &&
-                                        editForm.certification_declared &&
-                                        editForm.certification_scheme.trim() !== '' &&
-                                        (!editForm.off_spec || editForm.off_spec_notes.trim() !== '') &&
-                                        !isUpdating
+                                        editForm.quantity_mt > 0 && editForm.price_per_mt_usd > 0 && !isUpdating
                                             ? 'bg-emerald-500 hover:bg-emerald-400 text-white dark:text-slate-900'
                                             : 'bg-slate-200 dark:bg-slate-600 text-slate-400 cursor-not-allowed border border-slate-300 dark:border-transparent'
                                     }`}

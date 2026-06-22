@@ -25,8 +25,12 @@ const LEGACY_WINDOW_ALIASES: Record<string, string> = {
     'Q4 2026': '2026-Q4',
     FORWARD_2027: '2027-CAL',
     FORWARD_2028: '2028-CAL',
+    FORWARD_2029: '2029-CAL',
+    FORWARD_2030: '2030-CAL',
     'Forward 2027': '2027-CAL',
     'Forward 2028': '2028-CAL',
+    'Forward 2029': '2029-CAL',
+    'Forward 2030': '2030-CAL',
 };
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createChart, LineSeries, CrosshairMode, ColorType } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import {
     ArrowUpRight,
     ArrowDownRight,
     Zap,
-    Settings2,
-    Check,
-    RotateCcw,
+    Maximize2,
     TrendingUp,
     Activity,
     Loader2,
@@ -13,27 +13,37 @@ import {
     EyeOff,
     Bell,
 } from 'lucide-react';
-import { OrderBookOrder, PriceSummary, MarketProduct, MARKET_PRODUCTS, DeliveryPoint, TradeTapeEntry } from '../types';
-import { APPROVED_TRADING_PORTS } from '../data';
-import { formatMarketProduct } from '../utils/marketProduct';
+import { MarketProduct, OrderBookOrder, PriceSummary } from '../types';
 import { api } from '../services/api';
 import { useCopilotContext } from '../context/CopilotContext';
 import { useTheme } from '../context/ThemeContext';
 import { useSSE } from '../hooks/useSSE';
 import { OrderbookDepth } from './trading/OrderbookDepth';
 import { ForwardCurve } from './ForwardCurve';
+import { ActivityFeed } from './ActivityFeed';
 import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
+import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { GridLayout } from 'react-grid-layout';
-import type { Layout } from 'react-grid-layout';
+import {
+    ACTIVE_MARKETPLACE_PRODUCT_OPTIONS,
+    getMarketplaceFuelType,
+    getMarketplaceProductLabel,
+    getMarketplaceProductValue,
+} from '../utils/marketProducts';
+import { APPROVED_TRADING_PORTS } from '../data';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import {
-    compareAvailabilityWindows,
-    formatAvailabilityWindowPeriod,
-    getAvailabilityWindowOptions,
-    normalizeAvailabilityWindow,
-} from '../utils/availabilityWindow';
+
+export const getTerminalFuelType = (value: string | null | undefined): string | undefined =>
+    getMarketplaceFuelType(value) || value || undefined;
+
+const DEFAULT_TRADING_PORT = 'Singapore';
+
+export const getTerminalPort = (value: string | null | undefined): string => {
+    const match = APPROVED_TRADING_PORTS.find((port) => port.toLowerCase() === value?.toLowerCase());
+    return match || DEFAULT_TRADING_PORT;
+};
 
 // --- Types ---
 interface TerminalRow {
@@ -56,63 +66,100 @@ interface TradeEvent {
     price: number;
     port: string;
     period: string;
-    side: 'BUY' | 'SELL' | 'TRADE';
+    side: 'BUY' | 'SELL';
     is_anonymous?: boolean;
 }
 
-interface PeriodConfig {
-    window: string;
-    period: string;
-    type: TerminalRow['type'];
-}
-
-function getPeriodType(window: string): TerminalRow['type'] {
-    if (window === 'SPOT') return 'SPOT';
-    if (/^\d{4}-\d{2}$/.test(window)) return 'MONTH';
-    if (/^\d{4}-Q[1-4]$/.test(window)) return 'QTR';
-    return 'YEAR';
-}
-
-function buildPeriodConfig(windows: string[]): PeriodConfig[] {
-    const defaults = getAvailabilityWindowOptions({ quarterCount: 8 }).map(option => option.value);
-    const merged = Array.from(new Set([...defaults, ...windows.map(window => normalizeAvailabilityWindow(window))]));
-    return merged
-        .sort(compareAvailabilityWindows)
-        .map(window => ({
-            window,
-            period: formatAvailabilityWindowPeriod(window),
-            type: getPeriodType(window),
-        }));
-}
-
-type TerminalLayoutMode = 'view' | 'customize';
-
-const TERMINAL_LAYOUT_STORAGE_KEY = 'verdaxis_terminal_layout_v1';
-
-const DEFAULT_TERMINAL_LAYOUT: Layout[] = [
-    { i: 'depth', x: 0, y: 0, w: 7, h: 3, minW: 4, minH: 2 },
-    { i: 'trades', x: 7, y: 0, w: 5, h: 3, minW: 4, minH: 2 },
+// Map availability windows to terminal periods
+const PERIOD_CONFIG: { window: string; period: string; type: TerminalRow['type'] }[] = [
+    { window: 'SPOT', period: 'SPOT', type: 'SPOT' },
+    { window: '2026-Q1', period: 'Q1 26', type: 'QTR' },
+    { window: '2026-Q2', period: 'Q2 26', type: 'QTR' },
+    { window: '2026-Q3', period: 'Q3 26', type: 'QTR' },
+    { window: '2026-Q4', period: 'Q4 26', type: 'QTR' },
+    { window: '2027-CAL', period: 'CAL 27', type: 'YEAR' },
+    { window: '2027-Q1', period: 'Q1 27', type: 'QTR' },
+    { window: '2027-Q2', period: 'Q2 27', type: 'QTR' },
+    { window: '2027-Q3', period: 'Q3 27', type: 'QTR' },
+    { window: '2027-Q4', period: 'Q4 27', type: 'QTR' },
+    { window: '2028-CAL', period: 'CAL 28', type: 'YEAR' },
+    { window: '2029-CAL', period: 'CAL 29', type: 'YEAR' },
+    { window: '2030-CAL', period: 'CAL 30', type: 'YEAR' },
 ];
 
-const normalizeTerminalLayout = (layout: Layout[] | null | undefined): Layout[] => {
-    const byId = new Map((layout ?? []).map((item) => [item.i, item]));
-    return DEFAULT_TERMINAL_LAYOUT.map((item) => ({
-        ...item,
-        ...byId.get(item.i),
-        minW: item.minW,
-        minH: item.minH,
-    }));
+export const terminalWindowMatches = (orderWindow: string | null | undefined, configWindow: string): boolean =>
+    normalizeAvailabilityWindow(orderWindow) === normalizeAvailabilityWindow(configWindow);
+
+let terminalOrdersCache: OrderBookOrder[] | null = null;
+
+// Base prices by fuel type for simulation
+// Base prices by fuel type — aligned with Ship & Bunker real market (March 2026)
+// These are ARA mid-market prices; region modifiers adjust per port
+const FUEL_BASE_PRICES: Record<MarketProduct, number> = {
+    BIO_METHANOL: 680,
+    E_METHANOL: 1250,
+    BIO_ETHANOL: 590,
+    SYNTHETIC_ETHANOL: 740,
 };
 
-const getStoredTerminalLayout = (): Layout[] => {
-    if (typeof window === 'undefined') return DEFAULT_TERMINAL_LAYOUT;
-    const stored = localStorage.getItem(TERMINAL_LAYOUT_STORAGE_KEY);
-    if (!stored) return DEFAULT_TERMINAL_LAYOUT;
-    try {
-        return normalizeTerminalLayout(JSON.parse(stored));
-    } catch {
-        return DEFAULT_TERMINAL_LAYOUT;
-    }
+// Region price modifiers (spread vs base)
+// Region price modifiers ($/MT vs ARA base)
+const REGION_MODIFIERS: Record<string, number> = {
+    'Singapore': 140,     // SG consistently premium over ARA
+    'Rotterdam': 0,       // ~= ARA
+    'ARA': 0,
+    'Houston': 30,
+    'Fujairah': 170,      // Fujairah premium vs ARA
+    'Busan': 120,
+    'Shanghai': 100,
+    'Algeciras': 20,
+};
+
+// Seeded random for deterministic-looking but varying data
+const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+};
+
+// Generate simulated market data for a period
+const generateSimulatedRow = (
+    periodIndex: number,
+    basePrice: number,
+    realAsk: number | null,
+    realAskQty: number | null,
+    tick: number
+): { bid: number; bidQty: number; last: number; change: number } => {
+    // Forward curve: slight contango (prices increase with time)
+    const forwardPremium = periodIndex * (2 + seededRandom(tick * 7 + periodIndex) * 3);
+    const periodBase = basePrice + forwardPremium;
+
+    // Small tick-to-tick variance
+    const tickNoise = (seededRandom(tick * 13 + periodIndex * 37) - 0.5) * 4;
+    const currentMid = periodBase + tickNoise;
+
+    // Bid sits below ask (or below mid if no ask)
+    const spread = 3 + seededRandom(tick * 19 + periodIndex) * 5;
+    const bid = realAsk
+        ? realAsk - spread
+        : currentMid - spread / 2;
+
+    // Bid quantity: random realistic amounts
+    const bidQty = Math.round((200 + seededRandom(tick * 23 + periodIndex * 11) * 800) / 50) * 50;
+
+    // Last done: between bid and ask, with slight randomness
+    const askForCalc = realAsk || (currentMid + spread / 2);
+    const lastPct = 0.3 + seededRandom(tick * 29 + periodIndex * 43) * 0.4;
+    const last = bid + (askForCalc - bid) * lastPct;
+
+    // Change from previous (small random delta)
+    const change = (seededRandom(tick * 31 + periodIndex * 53) - 0.45) * 8;
+
+    return {
+        bid: Math.round(bid * 100) / 100,
+        bidQty,
+        last: Math.round(last * 100) / 100,
+        change: Math.round(change * 100) / 100,
+    };
 };
 
 // Convert an SSE trade event into the TradeEvent shape used by the feed UI
@@ -126,34 +173,14 @@ const sseTradeToEvent = (eventType: string, data: any): TradeEvent => {
     const fuel = data.fuel_type || '';
     const region = data.region || '';
 
+    // Determine side: auto-matched trades don't include side, default to BUY
+    // trade_created events come from explicit order creation
     const side: 'BUY' | 'SELL' = eventType === 'trade_auto_matched' ? 'BUY' : (data.side === 'SELL' ? 'SELL' : 'BUY');
-    const period = data.availability_window ? formatAvailabilityWindowPeriod(normalizeAvailabilityWindow(String(data.availability_window))) : (fuel || 'SPOT');
+
+    // Best-effort period label from fuel_type (the backend doesn't send availability_window in trade events)
+    const period = fuel || 'SPOT';
 
     return { id, time, qty, price, port: region, period, side, is_anonymous: data.is_anonymous ?? false };
-};
-
-export const tradeTapeEntryToEvent = (entry: TradeTapeEntry): TradeEvent => ({
-    id: `tape-${entry.id}`,
-    time: new Date(entry.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    qty: Number(entry.quantity_mt) || 0,
-    price: Number(entry.price_per_mt_usd) || 0,
-    port: entry.region,
-    period: formatAvailabilityWindowPeriod(normalizeAvailabilityWindow(entry.availability_window || 'SPOT')),
-    side: 'TRADE',
-    is_anonymous: true,
-});
-
-export const getTerminalFuelType = (marketProduct: MarketProduct): string => marketProduct.includes('METHANOL') ? 'Methanol' : 'Ethanol';
-
-const getStoredTerminalWindow = (): string => {
-    if (typeof window === 'undefined') return 'SPOT';
-    const stored = localStorage.getItem('verdaxis_marketplace_window');
-    if (!stored) return 'SPOT';
-    try {
-        return normalizeAvailabilityWindow(stored);
-    } catch {
-        return 'SPOT';
-    }
 };
 
 interface MarketTerminalProps {
@@ -168,31 +195,34 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Port & Fuel selectors
     const [selectedPort, setSelectedPort] = useState<string>(() => {
-        const stored = localStorage.getItem('verdaxis_marketplace_port');
-        return APPROVED_TRADING_PORTS.includes(stored as (typeof APPROVED_TRADING_PORTS)[number]) ? stored as string : 'Singapore';
+        return getTerminalPort(localStorage.getItem('verdaxis_marketplace_port'));
     });
-    const [selectedMarketProduct, setSelectedMarketProduct] = useState<MarketProduct>(() => {
-        const stored = localStorage.getItem('verdaxis_marketplace_fuel');
-        return MARKET_PRODUCTS.includes(stored as MarketProduct) ? (stored as MarketProduct) : 'BIO_METHANOL';
+    const [selectedProduct, setSelectedProduct] = useState<MarketProduct>(() => {
+        const storedProduct = localStorage.getItem('verdaxis_marketplace_product');
+        const storedFuel = localStorage.getItem('verdaxis_marketplace_fuel');
+        return getMarketplaceProductValue(storedProduct) || getMarketplaceProductValue(storedFuel) || 'BIO_METHANOL';
     });
     const [showPortDropdown, setShowPortDropdown] = useState(false);
     const [showFuelDropdown, setShowFuelDropdown] = useState(false);
-    const [selectedAvailabilityWindow, setSelectedAvailabilityWindow] = useState<string>(() => getStoredTerminalWindow());
-    const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
 
     // Orders from API (orderbook sync)
-    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [allOrders, setAllOrders] = useState<OrderBookOrder[]>(() => terminalOrdersCache ?? []);
+    const [loading, setLoading] = useState(!terminalOrdersCache);
 
     // Alert panel state
     const [alertPanelOpen, setAlertPanelOpen] = useState(false);
+
+    // TradingView lightweight-charts refs
+    const tvChartContainerRef = useRef<HTMLDivElement>(null);
+    const tvChartRef = useRef<IChartApi | null>(null);
+    const tvSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
 
     // Responsive grid width
     const gridContainerRef = useRef<HTMLDivElement>(null);
     const [gridWidth, setGridWidth] = useState(1200);
 
-    const [layoutMode, setLayoutMode] = useState<TerminalLayoutMode>('view');
-    const [terminalLayout, setTerminalLayout] = useState<Layout[]>(() => getStoredTerminalLayout());
+    // Layout customization (movable boxes — currently shows preset toggle)
+    const [layoutMode, setLayoutMode] = useState<'default' | 'compact'>('default');
 
     // Collapsible year groups — Cal years default collapsed, quarters hidden
     const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set(['2027']));
@@ -205,55 +235,48 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         });
     };
 
+    // Simulation tick counter (drives simulated row data for periods without real orders)
+    const [tick, setTick] = useState(0);
     const [tradeEvents, setTradeEvents] = useState<TradeEvent[]>([]);
-    const [tradeTapeLoading, setTradeTapeLoading] = useState(true);
     // Track which rows are flashing and in which direction
     const [flashRows, setFlashRows] = useState<Record<string, 'up' | 'down'>>({});
     const prevPrices = useRef<Record<string, { bid: number | null; ask: number | null }>>({});
     const tradeScrollRef = useRef<HTMLDivElement>(null);
 
+    useEffect(() => {
+        localStorage.setItem('verdaxis_marketplace_port', selectedPort);
+    }, [selectedPort]);
+
+    useEffect(() => {
+        localStorage.setItem('verdaxis_marketplace_product', selectedProduct);
+    }, [selectedProduct]);
+
     // Fetch orders from the orderbook (called on mount and on SSE orderbook events)
-    const fetchOrders = useCallback(async () => {
-        setLoading(true);
+    const fetchOrders = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const data = await api.orderbook.list();
+            terminalOrdersCache = data;
             setAllOrders(data);
         } catch (e) {
             console.error('Failed to load orderbook for terminal', e);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
 
     // Initial fetch on mount (no polling — SSE handles updates)
     useEffect(() => {
-        fetchOrders();
+        fetchOrders(Boolean(terminalOrdersCache));
     }, [fetchOrders]);
-
-    useEffect(() => {
-        let cancelled = false;
-        api.catalog.deliveryPoints()
-            .then(points => {
-                if (cancelled) return;
-                setDeliveryPoints(points.filter(point => point.is_active !== false));
-            })
-            .catch(error => {
-                console.error('Failed to load delivery points for terminal', error);
-                if (!cancelled) setDeliveryPoints([]);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     // --- SSE: Orderbook updates (replaces 30s polling) ---
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: refetch the full orderbook
-        fetchOrders();
+        fetchOrders(true);
     }, [fetchOrders]);
 
     const { isConnected: orderbookConnected } = useSSE('orderbook', handleOrderbookEvent);
-
 
     // --- SSE: Trade events (replaces tick-based simulation) ---
     const handleTradeEvent = useCallback((event: string, data: any) => {
@@ -268,107 +291,63 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     // Combined SSE connection status
     const sseConnected = orderbookConnected || tradesConnected;
 
-    const selectedDeliveryPoint = useMemo(() => (
-        deliveryPoints.find(point => point.name.toLowerCase() === selectedPort.toLowerCase()) ?? null
-    ), [deliveryPoints, selectedPort]);
-
-    const selectedDeliveryPointId = selectedDeliveryPoint?.id ?? null;
-
     // Fetch real price summaries from price discovery API
     const [priceSummaries, setPriceSummaries] = useState<PriceSummary[]>([]);
+    const selectedProductOption = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === selectedProduct);
+    const selectedFuelType = selectedProductOption?.fuelType || getMarketplaceFuelType(selectedProduct) || 'Methanol';
+    const selectedProductLabel = getMarketplaceProductLabel(selectedProduct, selectedFuelType);
 
     useEffect(() => {
-        let cancelled = false;
         const fetchPrices = async () => {
-            if (!selectedDeliveryPointId) {
-                if (!cancelled) setPriceSummaries([]);
-                return;
-            }
             try {
                 const resp = await api.prices.getSummaries({
-                    market_product: selectedMarketProduct,
-                    delivery_point_id: selectedDeliveryPointId,
-                    availability_window: selectedAvailabilityWindow,
+                    fuel_type: selectedFuelType,
+                    market_product: selectedProduct,
+                    region: selectedPort,
                 });
-                if (!cancelled) {
-                    setPriceSummaries(resp.summaries);
-                }
+                setPriceSummaries(resp.summaries);
             } catch (e) {
                 console.error('Failed to load price summaries', e);
-                if (!cancelled) setPriceSummaries([]);
             }
         };
         fetchPrices();
         const interval = setInterval(fetchPrices, 30000);
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedDeliveryPointId]);
+        return () => clearInterval(interval);
+    }, [selectedFuelType, selectedProduct, selectedPort]);
 
     // Fetch VWAP reference prices (internal vs external split)
     const [vwapData, setVwapData] = useState<{ vwap_usd: number; total_volume_mt: number; trade_count: number; visibility: string } | null>(null);
 
     useEffect(() => {
-        let cancelled = false;
-        const fetchTradeTape = async () => {
-            setTradeTapeLoading(true);
-            try {
-                const response = await api.tradeTape.list({
-                    market_product: selectedMarketProduct,
-                    region: selectedPort,
-                    availability: selectedAvailabilityWindow,
-                    limit: 20,
-                });
-                if (!cancelled) {
-                    setTradeEvents(response.items.map(tradeTapeEntryToEvent));
-                }
-            } catch (error) {
-                console.error('Failed to load trade tape for terminal', error);
-                if (!cancelled) setTradeEvents([]);
-            } finally {
-                if (!cancelled) setTradeTapeLoading(false);
-            }
-        };
-
-        fetchTradeTape();
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedPort]);
-
-    useEffect(() => {
-        let cancelled = false;
         const fetchVwap = async () => {
-            if (!selectedDeliveryPointId) {
-                if (!cancelled) setVwapData(null);
-                return;
-            }
             try {
                 const resp = await api.prices.getReference({
-                    market_product: selectedMarketProduct,
-                    delivery_point_id: selectedDeliveryPointId,
-                    availability_window: selectedAvailabilityWindow,
+                    fuel_type: selectedFuelType,
+                    market_product: selectedProduct,
+                    region: selectedPort,
                     visibility: 'internal',
                 });
-                if (!cancelled) {
-                    if (resp.prices.length > 0) {
-                        setVwapData(resp.prices[0]);
-                    } else {
-                        setVwapData(null);
-                    }
+                if (resp.prices.length > 0) {
+                    setVwapData(resp.prices[0]);
+                } else {
+                    setVwapData(null);
                 }
             } catch {
-                if (!cancelled) setVwapData(null);
+                setVwapData(null);
             }
         };
         fetchVwap();
         const interval = setInterval(fetchVwap, 30000);
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, [selectedAvailabilityWindow, selectedMarketProduct, selectedDeliveryPointId]);
+        return () => clearInterval(interval);
+    }, [selectedFuelType, selectedProduct, selectedPort]);
+
+    // Simulation tick: update every 6 seconds (drives simulated fallback rows & chart)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTick(t => t + 1);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, []);
 
     // Responsive grid width — observe container and update
     useEffect(() => {
@@ -384,22 +363,10 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         return () => observer.disconnect();
     }, []);
 
-    const persistTerminalLayout = useCallback((layout: Layout[]) => {
-        const normalized = normalizeTerminalLayout(layout);
-        setTerminalLayout(normalized);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem(TERMINAL_LAYOUT_STORAGE_KEY, JSON.stringify(normalized));
-        }
-    }, []);
-
-    const handleTerminalLayoutChange = useCallback((layout: Layout[]) => {
-        if (layoutMode !== 'customize') return;
-        persistTerminalLayout(layout);
-    }, [layoutMode, persistTerminalLayout]);
-
-    const resetTerminalLayout = useCallback(() => {
-        persistTerminalLayout(DEFAULT_TERMINAL_LAYOUT);
-    }, [persistTerminalLayout]);
+    // Derived base price for simulated rows
+    const basePrice = FUEL_BASE_PRICES[selectedProduct] || 540;
+    const regionMod = REGION_MODIFIERS[selectedPort] || 0;
+    const effectiveBase = basePrice + regionMod;
 
     // Auto-scroll trade feed
     useEffect(() => {
@@ -409,24 +376,23 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     }, [tradeEvents]);
 
     // Filter orders by selected port and fuel, split into asks and bids
-    const normalizedOrders = useMemo(() => {
-        return allOrders.map(order => ({
-            ...order,
-            availability_window: normalizeAvailabilityWindow(order.availability_window),
-        }));
-    }, [allOrders]);
-
-    const periodConfig = useMemo(() => buildPeriodConfig(normalizedOrders.map(order => order.availability_window)), [normalizedOrders]);
-
     const filteredOrders = useMemo(() => {
-        return normalizedOrders.filter(o => {
+        return allOrders.filter(o => {
             const portLower = selectedPort.toLowerCase();
             const matchPort = o.region.toLowerCase().includes(portLower)
                 || (o.delivery_point_name || '').toLowerCase().includes(portLower);
-            const matchFuel = o.market_product === selectedMarketProduct;
-            return matchPort && matchFuel;
+            const orderProduct = (
+                o.market_product
+                || getMarketplaceProductValue(o.product_name)
+                || getMarketplaceProductValue(o.fuel_type)
+            );
+            const fallbackLabel = (o.product_name || o.fuel_type || '').trim().toLowerCase();
+            const matchProduct = orderProduct
+                ? orderProduct === selectedProduct
+                : fallbackLabel === selectedProductLabel.toLowerCase();
+            return matchPort && matchProduct;
         });
-    }, [normalizedOrders, selectedPort, selectedMarketProduct]);
+    }, [allOrders, selectedPort, selectedProduct, selectedProductLabel]);
 
     const filteredAsks = useMemo(() => filteredOrders.filter(o => o.side === 'ASK'), [filteredOrders]);
     const filteredBids = useMemo(() => filteredOrders.filter(o => o.side === 'BID'), [filteredOrders]);
@@ -443,12 +409,12 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // Build terminal rows: merge real orderbook data (bids + asks) with simulated activity
     const terminalData: TerminalRow[] = useMemo(() => {
-        return periodConfig.map((config, idx) => {
+        return PERIOD_CONFIG.map((config, idx) => {
             const periodAsks = filteredAsks.filter(
-                o => o.availability_window === config.window
+                o => terminalWindowMatches(o.availability_window, config.window)
             );
             const periodBids = filteredBids.filter(
-                o => o.availability_window === config.window
+                o => terminalWindowMatches(o.availability_window, config.window)
             );
 
             const askPrices = periodAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
@@ -469,9 +435,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                         // Only show last/change on SPOT row (price summaries are not per-period)
             const matchingSummary = config.type === 'SPOT' ? priceSummaries.find(
-                s => s.market_product === selectedMarketProduct
-                  && s.delivery_point_id === selectedDeliveryPointId
-                  && (s.availability_window ?? 'SPOT') === selectedAvailabilityWindow
+                s => s.fuel_type.toLowerCase().includes(selectedFuelType.toLowerCase())
+                  && s.region.toLowerCase().includes(selectedPort.toLowerCase())
             ) : null;
             const last = hasAnyRealData && matchingSummary?.last_price != null ? Number(matchingSummary.last_price) : null;
             const change = hasAnyRealData && matchingSummary?.price_change_pct
@@ -490,7 +455,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                 change: change,
             };
         });
-    }, [filteredAsks, filteredBids, periodConfig, priceSummaries, selectedAvailabilityWindow, selectedDeliveryPointId, selectedMarketProduct]);
+    }, [filteredAsks, filteredBids, priceSummaries, selectedFuelType, selectedPort]);
 
     // Flash rows whose bid or ask changed on each tick
     useEffect(() => {
@@ -514,43 +479,176 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
         }
     }, [terminalData]);
 
+    // Build chart data from orderbook by period
+    const chartData = useMemo(() => {
+        return PERIOD_CONFIG.map((config, idx) => {
+            const periodAsksForChart = filteredAsks.filter(o => terminalWindowMatches(o.availability_window, config.window));
+            const periodBidsForChart = filteredBids.filter(o => terminalWindowMatches(o.availability_window, config.window));
+
+            const askPricesChart = periodAsksForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+            const bidPricesChart = periodBidsForChart.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+
+            // Best bid and best ask for the chart — no simulation fallback, show real data only
+            const bestAsk = askPricesChart.length > 0 ? Math.min(...askPricesChart) : null;
+            const bestBid = bidPricesChart.length > 0 ? Math.max(...bidPricesChart) : null;
+            const midPrice = (bestBid && bestAsk) ? (bestBid + bestAsk) / 2 : bestBid || bestAsk || null;
+
+            const totalQty = [...periodAsksForChart, ...periodBidsForChart]
+                .reduce((s, o) => s + Number(o.remaining_quantity_mt || o.quantity_mt), 0);
+
+            return {
+                period: config.period,
+                window: config.window,
+                price: midPrice ? Math.round(midPrice * 100) / 100 : null,
+                bestBid: bestBid ? Math.round(bestBid * 100) / 100 : null,
+                bestAsk: bestAsk ? Math.round(bestAsk * 100) / 100 : null,
+                quantity: totalQty || null,
+            };
+        });
+    }, [filteredAsks, filteredBids]);
+
+    // Stable ref for click handler closures (avoids recreating chart on every state change)
+    const chartDataRef = useRef(chartData);
+    chartDataRef.current = chartData;
+    const selectedPortRef = useRef(selectedPort);
+    selectedPortRef.current = selectedPort;
+    const selectedProductRef = useRef(selectedProduct);
+    selectedProductRef.current = selectedProduct;
+    const onNavigateRef = useRef(onNavigate);
+    onNavigateRef.current = onNavigate;
+
+    // TradingView chart: create once when container mounts, clean up on unmount
+    useEffect(() => {
+        const container = tvChartContainerRef.current;
+        if (!container) return;
+
+        const dark = isDark;
+        const chartBg   = dark ? '#040404' : '#F1F5F9';
+        const chartText = dark ? '#888888' : '#6B7280';
+        const chartGrid = dark ? '#1a1a1a' : '#E2E8F0';
+        const chartBorder = dark ? '#333333' : '#CBD5E1';
+
+        const chart = createChart(container, {
+            autoSize: true,
+            layout: {
+                background: { type: ColorType.Solid, color: chartBg },
+                textColor: chartText,
+                fontFamily: "'IBM Plex Mono', monospace",
+            },
+            grid: {
+                vertLines: { color: chartGrid, style: 0 },
+                horzLines: { color: chartGrid, style: 0 },
+            },
+            crosshair: {
+                mode: CrosshairMode.Normal,
+            },
+            rightPriceScale: {
+                borderColor: chartBorder,
+            },
+            timeScale: {
+                borderColor: chartBorder,
+                tickMarkFormatter: (time: number) => {
+                    const item = chartDataRef.current[time];
+                    return item ? item.period : '';
+                },
+            },
+            handleScroll: false,
+            handleScale: false,
+        });
+
+        const series = chart.addSeries(LineSeries, {
+            color: '#10b981',
+            lineWidth: 2,
+            pointMarkersVisible: true,
+            pointMarkersRadius: 4,
+            crosshairMarkerRadius: 6,
+            crosshairMarkerBorderColor: '#fff',
+            crosshairMarkerBorderWidth: 2,
+            crosshairMarkerBackgroundColor: '#10b981',
+            lastValueVisible: false,
+            priceLineVisible: false,
+        });
+
+        tvChartRef.current = chart;
+        tvSeriesRef.current = series;
+
+        // Click handler reads from refs so it always has current values
+        chart.subscribeClick((param) => {
+            if (!param.time && param.time !== 0) return;
+            const idx = param.time as number;
+            const item = chartDataRef.current[idx];
+            if (item?.window && onNavigateRef.current) {
+                localStorage.setItem('verdaxis_marketplace_port', selectedPortRef.current);
+                localStorage.setItem('verdaxis_marketplace_product', selectedProductRef.current);
+                localStorage.setItem('verdaxis_marketplace_window', item.window);
+                onNavigateRef.current('MARKETPLACE');
+            }
+        });
+
+        return () => {
+            chart.remove();
+            tvChartRef.current = null;
+            tvSeriesRef.current = null;
+        };
+    }, [loading]); // recreate when loading toggles (container mounts/unmounts)
+
+    // Update chart data when chartData changes
+    useEffect(() => {
+        if (!tvSeriesRef.current || !tvChartRef.current) return;
+        const tvData = chartData
+            .map((item, idx) => ({
+                time: idx as any,
+                value: item.price as number,
+            }))
+            .filter(d => d.value != null);
+
+        tvSeriesRef.current.setData(tvData);
+        tvChartRef.current.timeScale().fitContent();
+    }, [chartData]);
+
+    // Update TV chart colors when theme changes
+    useEffect(() => {
+        if (!tvChartRef.current) return;
+        const chartBg   = isDark ? '#040404' : '#F1F5F9';
+        const chartText = isDark ? '#888888' : '#6B7280';
+        const chartGrid = isDark ? '#1a1a1a' : '#E2E8F0';
+        const chartBorder = isDark ? '#333333' : '#CBD5E1';
+        tvChartRef.current.applyOptions({
+            layout: { background: { type: ColorType.Solid, color: chartBg }, textColor: chartText },
+            grid: { vertLines: { color: chartGrid }, horzLines: { color: chartGrid } },
+            rightPriceScale: { borderColor: chartBorder },
+            timeScale: { borderColor: chartBorder },
+        });
+    }, [isDark]);
+
     // Summary stats
-    const selectedWindowOrders = filteredOrders.filter(o => o.availability_window === selectedAvailabilityWindow);
-    const selectedWindowAskPrices = filteredAsks
-        .filter(o => o.availability_window === selectedAvailabilityWindow)
-        .map(o => Number(o.price_per_mt_usd))
-        .filter(Boolean);
-    const selectedWindowConfig = periodConfig.find(config => config.window === selectedAvailabilityWindow);
-    const selectedWindowRow = selectedWindowConfig
-        ? terminalData.find(row => row.period === selectedWindowConfig.period)
-        : null;
-    const activeWindowPrice = selectedWindowAskPrices.length > 0 ? Math.min(...selectedWindowAskPrices) : selectedWindowRow?.ask;
+    // Best offer = lowest real ask price across all periods (for the header display)
+    const realAskPrices = filteredAsks.map(o => Number(o.price_per_mt_usd)).filter(Boolean);
+    const spotPrice = realAskPrices.length > 0 ? Math.min(...realAskPrices) : terminalData.find(r => r.type === 'SPOT')?.ask;
     const totalListings = filteredOrders.length;
     const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
-    const activeWindowVolume = selectedWindowOrders.reduce((sum, order) => sum + Number(order.quantity_mt), 0);
 
     // Broadcast Context
     useEffect(() => {
         setPageContext({
             view: 'Market Terminal',
-            product: `${formatMarketProduct(selectedMarketProduct)} (${selectedPort} · ${formatAvailabilityWindowPeriod(selectedAvailabilityWindow)})`,
-            market_data_summary: `Showing ${selectedWindowOrders.length} active listings for ${formatMarketProduct(selectedMarketProduct)} at ${selectedPort} for ${formatAvailabilityWindowPeriod(selectedAvailabilityWindow)}.`,
-            spot_price: activeWindowPrice ? `$${activeWindowPrice.toFixed(2)}` : 'No offers',
-            total_volume: `${activeWindowVolume.toLocaleString()} MT`,
+            product: `${selectedProductLabel} (${selectedPort})`,
+            market_data_summary: `Showing ${totalListings} active listings for ${selectedProductLabel} at ${selectedPort}.`,
+            spot_price: spotPrice ? `$${spotPrice.toFixed(2)}` : 'No offers',
+            total_volume: `${totalVolume.toLocaleString()} MT`,
         });
-    }, [activeWindowPrice, activeWindowVolume, selectedAvailabilityWindow, selectedMarketProduct, selectedPort, selectedWindowOrders.length, setPageContext]);
+    }, [terminalData, selectedPort, selectedProductLabel, spotPrice, totalListings, totalVolume, setPageContext]);
 
     // Helper to determine if a row has real orderbook data
     const hasRealData = useCallback((row: TerminalRow) => {
-        const config = periodConfig.find(p => p.period === row.period);
+        const config = PERIOD_CONFIG.find(p => p.period === row.period);
         if (!config) return false;
-        return filteredOrders.some(o => o.availability_window === config.window);
-    }, [filteredOrders, periodConfig]);
+        return filteredOrders.some(o => terminalWindowMatches(o.availability_window, config.window));
+    }, [filteredOrders]);
 
-    // Unique port names from ports list
-    const portNames = useMemo(() => [...APPROVED_TRADING_PORTS], []);
+    const portNames = APPROVED_TRADING_PORTS;
 
-    const availableProducts = useMemo(() => [...MARKET_PRODUCTS], []);
+    const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS;
 
     return (
         <>
@@ -587,53 +685,22 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 <Bell size={11} />
                             </button>
                             <button
-                                onClick={e => { e.stopPropagation(); setLayoutMode(layoutMode === 'view' ? 'customize' : 'view'); }}
-                                title={layoutMode === 'view' ? t('terminal.btn.customizeLayout') : t('terminal.btn.doneCustomizing')}
+                                onClick={e => { e.stopPropagation(); setLayoutMode(layoutMode === 'default' ? 'compact' : 'default'); }}
+                                title={layoutMode === 'default' ? 'Compact layout' : 'Default layout'}
                                 style={{
-                                    background: layoutMode === 'customize' ? 'rgba(16,185,129,0.12)' : 'transparent',
-                                    border: `1px solid ${layoutMode === 'customize' ? 'rgba(16,185,129,0.25)' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)')}`,
+                                    background: 'transparent',
+                                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'}`,
                                     borderRadius: 4,
-                                    color: layoutMode === 'customize' ? '#10b981' : '#888',
+                                    color: '#888',
                                     cursor: 'pointer',
-                                    padding: '2px 7px',
+                                    padding: '2px 5px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 4,
                                     marginLeft: 4,
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    letterSpacing: '0.08em',
-                                    textTransform: 'uppercase',
                                 }}
                             >
-                                {layoutMode === 'view' ? <Settings2 size={11} /> : <Check size={11} />}
-                                {layoutMode === 'view' ? t('terminal.btn.customizeLayout') : t('terminal.btn.doneCustomizing')}
+                                <Maximize2 size={11} />
                             </button>
-                            {layoutMode === 'customize' && (
-                                <button
-                                    onClick={e => { e.stopPropagation(); resetTerminalLayout(); }}
-                                    title={t('terminal.btn.resetLayout')}
-                                    style={{
-                                        background: 'transparent',
-                                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.15)'}`,
-                                        borderRadius: 4,
-                                        color: '#888',
-                                        cursor: 'pointer',
-                                        padding: '2px 7px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 4,
-                                        marginLeft: 4,
-                                        fontSize: 10,
-                                        fontWeight: 700,
-                                        letterSpacing: '0.08em',
-                                        textTransform: 'uppercase',
-                                    }}
-                                >
-                                    <RotateCcw size={11} />
-                                    {t('terminal.btn.resetLayout')}
-                                </button>
-                            )}
                         </div>
 
                         {/* Fuel Type Selector */}
@@ -642,20 +709,20 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 onClick={() => { setShowFuelDropdown(!showFuelDropdown); setShowPortDropdown(false); }}
                                 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 hover:text-emerald-500 transition-colors"
                             >
-                                {formatMarketProduct(selectedMarketProduct)}
+                                {selectedProductLabel.toUpperCase()}
                                 <ChevronDown size={16} className="text-slate-400" />
                             </button>
                             {showFuelDropdown && (
                                 <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#333] rounded shadow-xl z-50 min-w-[160px] max-h-48 overflow-y-auto">
-                                    {availableProducts.map((productCode) => (
+                                    {availableProducts.map((product) => (
                                         <button
-                                            key={productCode}
-                                            onClick={() => { setSelectedMarketProduct(productCode); setShowFuelDropdown(false); }}
+                                            key={product.value}
+                                            onClick={() => { setSelectedProduct(product.value); setShowFuelDropdown(false); }}
                                             className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-[#1a1a1a] transition-colors ${
-                                                selectedMarketProduct === productCode ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
+                                                selectedProduct === product.value ? 'text-emerald-500 bg-slate-50 dark:bg-[#1a1a1a]' : 'text-slate-700 dark:text-slate-300'
                                             }`}
                                         >
-                                            {formatMarketProduct(productCode)}
+                                            {product.label}
                                         </button>
                                     ))}
                                 </div>
@@ -668,7 +735,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 onClick={() => { setShowPortDropdown(!showPortDropdown); setShowFuelDropdown(false); }}
                                 className="text-xs font-semibold flex items-center gap-1.5 hover:text-emerald-500 transition-colors"
                             >
-                                <span className="text-emerald-500">{selectedPort}</span>
+                                <span className="text-emerald-500">{selectedPort.toUpperCase()}</span>
                                 <ChevronDown size={12} className="text-slate-400" />
                             </button>
                             {showPortDropdown && (
@@ -693,8 +760,8 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         <div className="flex justify-between items-end">
                             <span className="text-xs text-slate-400 dark:text-[#888] font-bold">{t('terminal.label.bestOffer')}</span>
                             <div className="text-right">
-                                {activeWindowPrice ? (
-                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">${activeWindowPrice.toFixed(2)}</span>
+                                {spotPrice ? (
+                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">${spotPrice.toFixed(2)}</span>
                                 ) : (
                                     <span className="text-lg font-bold text-slate-400 dark:text-[#555]">{t('terminal.label.noOffers')}</span>
                                 )}
@@ -709,36 +776,24 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                 {/* Price Curve Chart */}
                 <div className="flex-1 p-4 bg-slate-100 dark:bg-[#040404] min-h-[200px] lg:min-h-0" style={{ background: isDark ? '#040404' : '#F1F5F9' }}>
-                    <div className="flex justify-between items-start mb-2 px-2 gap-3">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-full px-2 py-0.5">{t('terminal.label.indicativeOnly')}</span>
-                            </div>
-                            <div className="text-xs text-slate-600 dark:text-[#555]">{formatMarketProduct(selectedMarketProduct)} — {selectedPort}</div>
-                            <div className="text-[10px] text-slate-500 dark:text-[#666] mt-1">{t('terminal.label.curveHint')}</div>
-                            <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">{t('terminal.label.openSliceHint')}</div>
-                            {layoutMode === 'customize' && (
-                                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">{t('terminal.label.layoutHint')}</div>
-                            )}
+                    <div className="flex justify-between items-start mb-2 px-2">
+                        <div>
+                            <div className="text-slate-400 dark:text-[#888] text-[10px] font-bold tracking-widest uppercase">{t('terminal.label.forwardCurve')}</div>
+                            <div className="text-xs text-slate-600 dark:text-[#555]">{selectedProductLabel.toUpperCase()} — {selectedPort.toUpperCase()}</div>
                         </div>
+                        <button className="p-1.5 hover:bg-slate-200 dark:hover:bg-[#222] rounded text-slate-400 dark:text-[#666]"><Maximize2 size={14}/></button>
                     </div>
-                    <div className="mt-2 h-[180px] lg:h-[calc(100%-3.75rem)]" data-tour="terminal-forward-curve">
-                        <ForwardCurve
-                            marketProductCode={selectedMarketProduct}
-                            deliveryPointName={selectedPort}
-                            embedded
-                            onPeriodClick={(window) => {
-                                if (onNavigate) {
-                                    localStorage.setItem('verdaxis_marketplace_port', selectedPort);
-                                    localStorage.setItem('verdaxis_marketplace_fuel', selectedMarketProduct);
-                                    setSelectedAvailabilityWindow(window);
-                                    localStorage.setItem('verdaxis_marketplace_window', window);
-                                    onNavigate('MARKETPLACE');
-                                }
-                            }}
+                    {loading ? (
+                        <div className="flex items-center justify-center h-[80%]">
+                            <Loader2 size={24} className="animate-spin text-emerald-500" />
+                        </div>
+                    ) : (
+                        <div
+                            ref={tvChartContainerRef}
+                            className="verdaxis-chart-container"
+                            style={{ width: '100%', height: '80%', cursor: 'pointer' }}
                         />
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -793,9 +848,9 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                             const hoverColor = 'hover:bg-slate-50 dark:hover:bg-[#111]';
 
                             // Count offers for this period
-                            const matchedPeriod = periodConfig.find(config => config.period === row.period);
-                            const offerCount = matchedPeriod
-                                ? filteredOrders.filter(o => o.availability_window === matchedPeriod.window).length
+                            const periodConfig = PERIOD_CONFIG.find(p => p.period === row.period);
+                            const offerCount = periodConfig
+                                ? filteredOrders.filter(o => terminalWindowMatches(o.availability_window, periodConfig.window)).length
                                 : 0;
 
                             // Determine if this is a quarterly row under a Cal year
@@ -908,47 +963,49 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                         cols={12}
                         rowHeight={50}
                         width={gridWidth}
-                        layout={terminalLayout}
-                        onLayoutChange={handleTerminalLayoutChange}
-                        isDraggable={layoutMode === 'customize'}
-                        isResizable={layoutMode === 'customize'}
+                        layout={[
+                            { i: 'depth', x: 0, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
+                            { i: 'trades', x: 6, y: 0, w: 6, h: 3, minW: 4, minH: 2 },
+                            { i: 'curve', x: 0, y: 3, w: 8, h: 4, minW: 4, minH: 3 },
+                            { i: 'activity', x: 8, y: 3, w: 4, h: 4, minW: 3, minH: 2 },
+                        ]}
+                        isDraggable={true}
+                        isResizable={true}
                         draggableHandle=".drag-handle"
                         compactType="vertical"
                         margin={[6, 6]}
                     >
                         {/* Orderbook Depth */}
                         <div key="depth" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]`}>
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.orderbookDepth')}</span>
-                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Orderbook Depth</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
                             </div>
                             <div style={{ padding: '4px 8px', height: 'calc(100% - 24px)', overflow: 'hidden' }}>
                                 <OrderbookDepth
                                     bids={depthBids}
                                     asks={depthAsks}
-                                    fuelType={formatMarketProduct(selectedMarketProduct)}
+                                    fuelType={selectedProductLabel}
                                     region={selectedPort}
                                 />
                             </div>
                         </div>
                         {/* Trade Events */}
                         <div key="trades" className="bg-slate-50 dark:bg-[#0a0a0a] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
-                            <div className={`drag-handle flex items-center px-3 py-1 ${layoutMode === 'customize' ? 'cursor-move' : 'cursor-default'} border-b border-slate-100 dark:border-[#181818]`}>
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move border-b border-slate-100 dark:border-[#181818]">
                                 <Activity size={10} className="text-emerald-500 mr-1.5" />
-                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.panel.tradeTape')}</span>
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">{t('terminal.activity.title')}</span>
                                 <div className={`ml-1.5 w-1.5 h-1.5 rounded-full ${tradesConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                                {layoutMode === 'customize' && <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>}
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
                             </div>
                             <div ref={tradeScrollRef} className="overflow-y-auto px-2 py-1" style={{ height: 'calc(100% - 24px)' }}>
-                                {tradeTapeLoading ? (
-                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.tradeTape.loading')}</div>
-                                ) : tradeEvents.length === 0 ? (
-                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.tradeTape.empty')}</div>
+                                {tradeEvents.length === 0 ? (
+                                    <div className="text-[10px] text-slate-400 dark:text-[#444] text-center py-4">{t('terminal.activity.waiting')}</div>
                                 ) : (
                                     tradeEvents.map((trade) => (
                                         <div key={trade.id} className="flex items-center text-[10px] py-0.5 border-b border-slate-50 dark:border-[#111] last:border-0">
                                             <span className="text-slate-400 dark:text-[#555] w-16 shrink-0">{trade.time}</span>
-                                            <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : trade.side === 'SELL' ? 'text-rose-600 dark:text-rose-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                                            <span className={`font-bold w-10 shrink-0 ${trade.side === 'BUY' ? 'text-emerald-600 dark:text-emerald-500' : 'text-rose-600 dark:text-rose-500'}`}>
                                                 {trade.side}
                                             </span>
                                             <span className="text-slate-700 dark:text-slate-300 font-bold">
@@ -963,6 +1020,39 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                         </div>
                                     ))
                                 )}
+                            </div>
+                        </div>
+                        {/* Forward Curve */}
+                        <div key="curve" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Forward Curve</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div data-tour="terminal-forward-curve" style={{ padding: '4px', height: 'calc(100% - 24px)' }}>
+                                <ForwardCurve
+                                    fuelType={selectedFuelType}
+                                    marketProductCode={selectedProduct}
+                                    deliveryPointName={selectedPort}
+                                    embedded
+                                    onPeriodClick={(window) => {
+                                        if (onNavigate) {
+                                            localStorage.setItem('verdaxis_marketplace_port', selectedPort);
+                                            localStorage.setItem('verdaxis_marketplace_product', selectedProduct);
+                                            localStorage.setItem('verdaxis_marketplace_window', window);
+                                            onNavigate('MARKETPLACE');
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        {/* Activity Feed */}
+                        <div key="activity" className="bg-white dark:bg-[#050505] border border-slate-100 dark:border-[#222] rounded-lg overflow-hidden">
+                            <div className="drag-handle flex items-center px-3 py-1 cursor-move bg-slate-50 dark:bg-[#0a0a0a] border-b border-slate-100 dark:border-[#181818]">
+                                <span className="text-[9px] font-bold text-slate-400 dark:text-[#555] uppercase tracking-widest">Activity Feed</span>
+                                <span className="ml-auto text-[9px] text-slate-300 dark:text-[#333]">⋮⋮</span>
+                            </div>
+                            <div data-tour="terminal-activity-feed" style={{ padding: '4px', height: 'calc(100% - 24px)', overflow: 'auto' }}>
+                                <ActivityFeed />
                             </div>
                         </div>
                     </GridLayout>

@@ -2,110 +2,34 @@
 
 ## CRUD Resources
 
-- **`/api/inventory`** GET | POST | GET/:id | PATCH/:id | DELETE/:id → Inventory
-- **`/api/orderbook`** GET | POST | GET/:id | PUT/:id | DELETE/:id → Orderbook
-- **`/api/alerts`** GET | POST | GET/:id | DELETE/:id → Alert
-- **`/api/admin/subscriptions`** GET | GET/:id | PUT/:id → Subscription
-- **`/api/watchlists`** GET | POST | GET/:id | DELETE/:id → Watchlist
-- **`/api/rfq`** GET | POST | GET/:id → Rfq
-- **`/api/negotiations`** GET | POST | GET/:id → Negotiation
+- **`/api/quotes`** GET | POST | GET/:id | PATCH/:id → Quote
+- **`/api/listings`** GET | POST | GET/:id | PUT/:id | DELETE/:id → Listing
 
 ## Other Routes
 
-- `POST` `/api/auth/login` [authentication, auth] ✓
-- `POST` `/api/auth/refresh` [authentication, auth]
-- `POST` `/api/auth/logout` [authentication, auth]
-- `POST` `/api/auth/register` → in: UserCreate, out: RegistrationResponse [authentication, auth]
-- `POST` `/api/auth/register-with-org` → in: RegisterWithOrgRequest, out: UserResponse [authentication, auth]
-- `GET` `/api/auth/verify-email` [authentication, auth]
-- `POST` `/api/auth/resend-verification` [authentication, auth]
-- `POST` `/api/auth/resend-verification-email` → in: ResendVerificationRequest [authentication, auth]
-- `GET` `/api/auth/me` → out: UserResponse [authentication, auth]
-- `PUT` `/api/auth/me` → in: UserUpdate, out: UserResponse [authentication, auth]
-- `PUT` `/api/auth/me/password` → in: PasswordChangeRequest [authentication, auth]
-- `POST` `/api/auth/forgot-password` → in: ForgotPasswordRequest [authentication, auth]
-- `POST` `/api/auth/reset-password` → in: ResetPasswordRequest [authentication, auth]
-- `PUT` `/api/auth/approve/:user_id` params(user_id) → out: UserResponse [authentication, auth]
-- `PUT` `/api/auth/switch-role/:target_role` params(target_role) → out: Token [authentication, auth]
+- `PUT` `/api/auth/approve/:user_id` params(user_id) → out: UserResponse [auth]
+- `GET` `/api/auth/me` → out: UserResponse [auth]
+- `PUT` `/api/auth/switch-role/:target_role` params(target_role) → out: Token [auth]
 - `GET` `/api/ports` → out: PortResponse[] ✓
 - `GET` `/api/ports/:port_id` params(port_id) → out: PortResponse
 - `GET` `/api/vessels` → out: VesselResponse[]
 - `GET` `/api/vessels/:vessel_id` params(vessel_id) → out: VesselResponse
-- `POST` `/api/inventory/:item_id/publish` params(item_id)
-- `GET` `/api/listings`
-- `GET` `/api/listings/my`
+- `GET` `/api/inventory` → out: InventoryResponse[]
+- `POST` `/api/inventory` → in: InventoryCreate, out: InventoryResponse
 - `GET` `/api/compliance/ledger` → out: ComplianceLedgerResponse[]
 - `POST` `/api/compliance/verify`
 - `POST` `/api/ai/chat` → in: Body_chat_api_ai_chat_post
-- `GET` `/api/orders/admin/commissions` → out: CommissionResponse[] [orders]
-- `GET` `/api/orders/admin/commissions/summary` → out: CommissionSummary [orders]
-- `PUT` `/api/orders/admin/commissions/:commission_id` params(commission_id) → in: CommissionUpdate, out: CommissionResponse [orders]
-- `GET` `/api/notifications` → out: NotificationResponse[] [notifications]
-- `GET` `/api/notifications/unread-count` [notifications]
-- `PATCH` `/api/notifications/:notification_id/read` params(notification_id) [notifications]
-- `PATCH` `/api/notifications/read-all` [notifications]
-- `GET` `/api/orderbook/bids` → out: PaginatedResponse_OrderResponse_ [orderbook]
-- `GET` `/api/orderbook/asks` → out: PaginatedResponse_OrderResponse_ [orderbook]
-- `GET` `/api/orderbook/with-ci` → out: OrderResponseWithCI[] [orderbook]
-- `GET` `/api/orderbook/my` → out: OrderMyResponse[] [orderbook]
-- `GET` `/api/orderbook/aggregated` → out: AggregatedOrderbookResponse[] [orderbook]
-- `GET` `/api/orderbook/products` → out: array [orderbook]
-- `GET` `/api/orderbook/regions` → out: array [orderbook]
-- `GET` `/api/orderbook/fuel-types` → out: array [orderbook]
-- `POST` `/api/trades/` → in: TradeCreate, out: TradeResponse [trades]
-- `GET` `/api/trades/my` → out: PaginatedResponse_TradeResponse_ [trades]
-- `PUT` `/api/trades/:trade_id/confirm` params(trade_id) → out: TradeResponse [trades]
-- `PUT` `/api/trades/:trade_id/decline` params(trade_id) → out: TradeResponse [trades]
-- `PUT` `/api/trades/:trade_id/deliver` params(trade_id) → in: TradeDeliverPayload, out: TradeResponse [trades]
-- `POST` `/api/trades/:trade_id/pay` params(trade_id) → out: TradeResponse [trades]
-- `GET` `/api/prices` → out: PriceDiscoveryResponse [price-discovery]
-- `GET` `/api/prices/reference` → out: ReferencePriceResponse [price-discovery]
-- `GET` `/api/prices/reference/export` [price-discovery]
-- `GET` `/api/matchmaking/suggestions` [matchmaking]
-- `PATCH` `/api/matchmaking/suggestions/:order_id/dismiss` params(order_id) [matchmaking]
-- `GET` `/api/producers` → out: ProducerProjectResponse[] [producers]
-- `GET` `/api/availability` → out: PortFuelAvailability[] [availability]
-- `GET` `/api/demand` → out: DemandSignal[] [demand]
-- `GET` `/api/admin/audit-logs` → out: AuditLogResponse[]
-- `GET` `/api/stream/prices` [real-time]
-- `GET` `/api/stream/orderbook` [real-time]
-- `GET` `/api/stream/trades` [real-time]
-- `GET` `/api/compliance/vessels/:vessel_id/score` params(vessel_id) → out: ComplianceScoreResponse [compliance]
-- `GET` `/api/compliance/fleet` → out: FleetComplianceSummary [compliance]
-- `POST` `/api/compliance/scenario` → in: ScenarioInput, out: ComplianceScoreResponse [compliance]
-- `GET` `/api/compliance/fuels` → out: object [compliance]
-- `GET` `/api/admin/analytics/overview` → out: OverviewResponse [admin-analytics]
-- `GET` `/api/admin/analytics/daily` → out: DailyStat[] [admin-analytics]
-- `POST` `/api/kyc/submit` [kyc]
-- `GET` `/api/kyc/status` [kyc]
-- `PUT` `/api/kyc/admin/:user_id/approve` params(user_id) [kyc]
-- `PUT` `/api/kyc/admin/:user_id/reject` params(user_id) → in: AdminRejectBody [kyc]
-- `GET` `/api/catalog/products` → out: ProductResponse[] [catalog]
-- `GET` `/api/catalog/delivery-points` → out: DeliveryPointResponse[] [catalog]
-- `GET` `/api/curves/forward` → out: ForwardCurveResponse [forward-curve]
-- `GET` `/api/curves/forward/export` [forward-curve]
-- `GET` `/api/stream/activity` [real-time]
-- `GET` `/api/subscriptions/me` → out: SubscriptionResponse [subscriptions]
-- `GET` `/api/referrals/my-code` → out: ReferralCodeResponse [referrals]
-- `GET` `/api/referrals/my-referrals` → out: ReferralStatsResponse [referrals]
-- `GET` `/api/referrals/leaderboard` → out: LeaderboardEntry[] [referrals]
-- `POST` `/api/referrals/invite` → in: ReferralInviteRequest [referrals]
-- `GET` `/api/referrals/resolve/:code` params(code) → out: ResolveCodeResponse [referrals]
-- `GET` `/api/trade-tape` → out: TradeTapeResponse [trade-tape]
-- `POST` `/api/watchlists/:watchlist_id/entries` params(watchlist_id) → in: WatchlistEntryAddRequest, out: WatchlistEntryResponse [watchlists]
-- `DELETE` `/api/watchlists/:watchlist_id/entries/:entry_id` params(watchlist_id, entry_id) [watchlists]
-- `POST` `/api/rfq/:rfq_id/quote` params(rfq_id) → in: RFQQuoteRequest, out: RFQQuoteResponse [rfq]
-- `POST` `/api/rfq/:rfq_id/accept/:quote_id` params(rfq_id, quote_id) → out: RFQQuoteResponse [rfq]
-- `POST` `/api/rfq/:rfq_id/cancel` params(rfq_id) [rfq]
-- `POST` `/api/negotiations/:negotiation_id/counter` params(negotiation_id) → in: NegotiationCounterRequest, out: NegotiationResponse [negotiations]
-- `POST` `/api/negotiations/:negotiation_id/accept` params(negotiation_id) → out: NegotiationResponse [negotiations]
-- `POST` `/api/negotiations/:negotiation_id/decline` params(negotiation_id) → out: NegotiationResponse [negotiations]
-- `GET` `/api/news` [news]
-- `POST` `/api/news/refresh` [news]
-- `GET` `/api/fleet-intelligence` → out: FleetDemandResponse [fleet-intelligence]
-- `GET` `/api/dashboard/health` → out: SystemHealth [dashboard]
-- `GET` `/api/dashboard/logs` [dashboard]
+- `GET` `/api/listings/aggregated` → out: AggregatedListingResponse[] [listings]
+- `GET` `/api/listings/my` → out: PublicListingSupplierResponse[] [listings]
+- `GET` `/api/listings/regions/list` → out: array [listings]
+- `GET` `/api/listings/fuel-types/list` → out: array [listings]
+- `POST` `/api/rfq/request` → in: RFQRequestCreate, out: RFQMatchResponse [rfq]
+- `GET` `/api/rfq/my-requests` → out: RFQMatchDetailResponse[] [rfq]
+- `GET` `/api/rfq/incoming` → out: RFQMatchDetailResponse[] [rfq]
+- `PUT` `/api/rfq/:match_id/respond` params(match_id) → in: RFQMatchUpdate, out: RFQMatchResponse [rfq]
+- `PUT` `/api/rfq/:match_id/complete` params(match_id) → in: RFQMatchComplete, out: RFQMatchResponse [rfq]
+- `GET` `/api/rfq/admin/commissions` → out: CommissionResponse[] [rfq]
+- `GET` `/api/rfq/admin/commissions/summary` → out: CommissionSummary [rfq]
+- `PUT` `/api/rfq/admin/commissions/:commission_id` params(commission_id) → in: CommissionUpdate, out: CommissionResponse [rfq]
 - `GET` `/` ✓
 - `GET` `/health`
-- `GET` `/health/live`
-- `GET` `/health/ready`

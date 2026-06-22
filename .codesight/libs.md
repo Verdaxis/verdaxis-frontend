@@ -37,18 +37,6 @@
   - function fetchLiveMarketData
   - function performWebSearch
   - interface MarketDataResult
-- `src/services/authToken.ts`
-  - function getAccessToken: () => string | null
-  - function setAccessToken: (token) => void
-  - function clearAccessToken: () => void
-- `src/utils/availabilityWindow.ts`
-  - function normalizeAvailabilityWindow: (value) => string
-  - function compareAvailabilityWindows: (left, right) => number
-  - function formatAvailabilityWindow: (value) => string
-  - function formatAvailabilityWindowPeriod: (value) => string
-  - function getAvailabilityWindowOptions: (options?) => AvailabilityWindowOption[]
-  - function getAvailabilityWindowSummary: (value, options?) => void
-  - _...2 more_
 - `src/utils/fuel.ts`
   - function getFuelRowClasses: (fuelType) => string
   - function getFuelBadgeClasses: (fuelType) => string
@@ -58,18 +46,16 @@
   - function formatExpiry: (order) => React.ReactNode
   - _...2 more_
 - `src/utils/marketProduct.ts`
-  - function formatMarketProduct: (value) => string
-  - function normalizeProductDisplayName: (value) => string
   - function getProductDisplayName: (product) => string
-  - function getOrderDisplayName: (order) => string
-  - const MARKET_PRODUCT_LABELS: Record<MarketProduct, string>
-- `src/utils/watchlist.ts`
-  - function getWatchlistSliceKeyFromParts: (marketProductCode?, deliveryPointId?, availabilityWindowCode?) => string
-  - function getWatchlistSliceKey: (target) => string
-  - function formatWatchlistSliceLabel: (slice) => string
-  - function describeWatchlistEvent: (event) => string
-  - function getLatestEventForSlice: (slice, events) => WatchlistEvent | undefined
-  - function getLatestEventForTarget: (target, events) => WatchlistEvent | undefined
+  - function getProductDisplayNameFromReference: (reference, products) => string
+  - type ProductReference
+- `src/utils/tradeAnalytics.ts`
+  - function tradeSliceKey: (trade) => string
+  - function buildTradePerformanceModel: (trades, referenceBySlice, number>) => TradePerformanceModel
+  - interface VolumeByFuel
+  - interface MonthlyTradeCount
+  - interface FuelComparison
+  - interface TradePerformanceModel
 - `src/utils.ts`
   - function createCustomIcon
   - function calculateHeading

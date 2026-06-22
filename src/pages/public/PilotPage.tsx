@@ -93,7 +93,7 @@ const responsiveStyles = `
 export const PilotPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const { lang } = useParams<{ lang: string }>();
-  const appRegisterUrl = `/register?lang=${lang || 'en'}`;
+  const appRegisterUrl = `https://app.verdaxis.exchange/register?lang=${lang || 'en'}`;
   if (!ready) return null;
 
   const enabledFeatures = [

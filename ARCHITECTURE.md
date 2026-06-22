@@ -13,6 +13,7 @@ src/
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
+  utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
   utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
   utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
@@ -27,7 +28,6 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
-    backendAvailability.ts         # Shared backend outage event/status helpers
     ai.ts                          # Re-exports from ai-engine/
     ai-engine/
       config.ts                    # Gemini API key + GoogleGenAI client init
@@ -46,7 +46,7 @@ src/
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
-    ForwardCurveWorkspace.tsx      # Dense market monitoring board (ports x products, hybrid curve)
+    ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
@@ -72,6 +72,7 @@ src/
     notifications/{NotificationBell,NotificationList}.tsx
     fleet/VesselDetailModal.tsx
     ui/{Tooltip,MarkdownRenderer,ConfirmModal,VerdaxisSelect}.tsx
+    trading/MarketActivityBadge.tsx # Compact provenance badge for demo/reference/mixed market activity
     watchlist/MarketRadarPanel.tsx # Command-center radar summary for tracked slices
     # Public site
     public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
@@ -81,7 +82,6 @@ src/
   pages/
     LoginPage.tsx                  # Email/password login
     RegisterPage.tsx               # User registration
-    MaintenancePage.tsx            # Backend-unavailable fallback for auth/platform flows
     OnboardingPage.tsx             # Post-registration role selection + profile setup
     CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
     public/                        # 15 marketing pages (landing, education, use cases, etc.)
@@ -169,8 +169,9 @@ Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
-Demo liquidity is labelled and blocked from execution, and crossed-market indicators only consider
-real resting orders so seeded preview prices do not look executable.
+Demo liquidity is labelled and blocked from execution, row watchlist controls use compact visible
+copy with explicit accessible labels, and crossed-market indicators only consider real resting orders
+so seeded preview prices do not look executable.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
@@ -178,15 +179,20 @@ clicks the highlighted in-app tab, button, row, or modal control. The tutorial s
 boundaries and does not place real bids, asks, listings, or trades.
 
 **Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
-`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve scans approved ports and
-products, shows hybrid benchmark/orderbook context, and hands a selected slice to Marketplace
-through an explicit CTA. Trade tape entries can carry `is_demo_trade` so generated preview
-activity is labelled without exposing party identities.
+`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve consumes `/curves/forward/table`
+for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
+It does not execute trades, and it does not render the old pre-click global curve chart. Price summaries,
+forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
+`observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so
+demo-seeded, benchmark-reference, mixed-source, and live activity are labelled consistently without
+exposing party identities.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
 availability_window`), `CommandCenter` shows compact radar cards, and `WatchlistPage` persists pinned live
-orders plus the event feed.
+orders plus the event feed. The frontend API client uses the target/event endpoints directly
+(`GET /watchlists/me`, `POST /watchlists/{id}/targets`, event listing, event read state) rather than
+legacy product-entry adapters.
 
 **Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
 forms should use it instead of browser-native `<select>` elements unless there is a strong
@@ -199,13 +205,6 @@ must resolve to canonical month/quarter codes before requests are sent.
 **Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
 `AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
 while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
-
-**Backend outage fallback:** `AuthContext` owns the global backend availability flag. Auth/bootstrap
-requests preserve existing tokens and show `MaintenancePage` when the backend returns gateway errors
-or becomes unreachable. The shared API client emits the same outage signal on network failures,
-timeouts, and 502/503/504 responses so authenticated workflows fail into a single maintenance screen
-instead of scattered component errors. Public marketing pages remain available because they are static
-and Vercel-hosted.
 
 ## Entry Points
 

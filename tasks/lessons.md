@@ -2,6 +2,24 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Run Requested Design Review Before UI Edits
+- **Date:** 2026-06-20
+- **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.
+- **Rule:** When the user asks for design planning or subagent pushback before implementation, pause all file edits until the plan and review are presented and approved.
+- **Why:** Premature UI patches can lock in an unreviewed interaction model and create unnecessary rework.
+
+### Verify Configurable UI State Actually Controls Rendered Data
+- **Date:** 2026-06-20
+- **Trigger:** User pointed out that the Intelligence Map ticker looked like a scrolling market watch but only rendered one selected fuel across three ports, and the fuel selector did not support the intended multi-fuel sequence.
+- **Rule:** When a configurable UI advertises selectable products, ports, or modes, dogfood that each control changes the rendered data model and not just the label or saved preference.
+- **Why:** The ticker refactor preserved the old single-product state shape, so the new visual design did not match the intended scrolling multi-market behaviour.
+
+### Match Tab Priority To User-Expected Reading Order
+- **Date:** 2026-06-20
+- **Trigger:** User corrected the Intelligence Panel tab order: News should come before the estimator.
+- **Rule:** When introducing tabs in a compact side panel, confirm the first/default tab matches the user's intended information hierarchy, not just the implementation's primary content block.
+- **Why:** The code kept the estimator/port-intel content as the first tab because it was previously the only panel body, but the new tabbed layout should lead with market news.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened
@@ -209,6 +227,18 @@
 - **Rule:** For terminal and dashboard changes, dogfood the live authenticated UI before claiming a fix is ready.
 - **Why:** Local tests and bundle verification do not catch real staging state, auth, or layout failures on their own.
 
+### Frontend backlog reviews need browser evidence
+- **Date:** 2026-06-17
+- **Trigger:** User corrected a Verdaxis frontend feedback backlog review that only inspected code and tests.
+- **Rule:** For frontend feedback backlog planning, visually dogfood the relevant UI in a browser and include screenshot paths, viewports, and console/network observations; if browser dogfood is blocked, mark the review as FAIL.
+- **Why:** Code inspection can miss actual rendered layout, auth state, stale deployed assets, and browser-only failures.
+
+### Make UI Reviewers Browser-Dogfood Before Passing
+- **Date:** 2026-06-17
+- **Trigger:** The user corrected the review process: reviewers should visually dogfood the browser UI, not just inspect code.
+- **Rule:** For any UI-facing reviewer gate, require live browser dogfood evidence with screenshots across relevant viewport sizes before accepting the review as a pass.
+- **Why:** Code review can miss layout, z-index, overflow, visual hierarchy, and interaction regressions that only show up in the rendered app.
+
 ### Check all sidebar sources before calling navigation removed
 - **Date:** 2026-05-19
 - **Trigger:** The user clarified that Compliance and Education should also be removed after I only checked the primary sidebar navigation.
@@ -319,6 +349,12 @@
 - **Rule:** Authenticated app pages should let the shell `<main>` own vertical scrolling; page components must not add desktop `overflow-hidden` roots plus nested vertical `overflow-auto` tab bodies unless they are full-screen canvas tools.
 - **Why:** Competing scroll containers trap wheel/trackpad input and can make headers or lower content unreachable on smaller viewports.
 
+### Keep Tutorial Escape Controls Visible
+- **Date:** 2026-05-27
+- **Trigger:** The guided tutorial got stuck on an order-form step because click-driven steps hid the footer and targeted a footer cancel control instead of an always-visible modal close control.
+- **Rule:** Click-to-advance tutorial steps must still expose Back, Skip, and Close controls, and modal-exit steps should target always-visible close affordances.
+- **Why:** A tour that disables normal navigation while waiting for a specific click can trap users when the highlighted control is off-screen, covered, or not the control they expect.
+
 ### Anchor Tutorial Steps To Stable Surfaces
 - **Date:** 2026-06-02
 - **Trigger:** The guided tutorial skipped the orderbook/trade-modal steps when product, port, or window was missing because `orderbook-actionable-level` did not exist yet.
@@ -397,20 +433,56 @@
 - **Rule:** Guided tour steps must compute placement against the current target rect and viewport, then flip or center when the preferred side cannot fit.
 - **Why:** Fixed Joyride placements can pass desktop testing but still overflow on smaller viewport widths or heights.
 
-### Avoid Blank Shell On Slow Frontend Loads
-- **Date:** 2026-06-03
-- **Trigger:** User reported the Vercel URL showed only favicon/title and a blank white page.
-- **Rule:** Static React/Vite deployments must include a minimal HTML loading shell inside #root so slow JS downloads do not look like a broken site.
-- **Why:** The app is client-rendered and has a large initial bundle; on low bandwidth, users can stare at an empty root before React mounts.
+### Stage Feedback Branches Before Production
+- **Date:** 2026-06-16
+- **Trigger:** User clarified new Verdaxis feedback work should go into a new branch and deploy to staging only, not production.
+- **Rule:** For feedback batches that users need to vet, create a dedicated branch based on the current staging branch, deploy only to staging, and wait for explicit production approval.
+- **Why:** Main and staging can diverge, and deploying feedback directly to production risks exposing unvetted UX/product changes to users.
 
-### Keep Public CTA Links Host-Relative
-- **Date:** 2026-06-03
-- **Trigger:** User reported the Vercel landing page Sign In link sent users back to app.verdaxis.exchange.
-- **Rule:** Public navigation and CTA links into the app should use host-relative routes unless deliberately crossing to a separate deployment domain.
-- **Why:** Hardcoded app hostnames break parallel hosting and staged migrations by pulling users off the environment they are testing.
+### Use Requested Frontier Model For Factory Review Agents
+- **Date:** 2026-06-16
+- **Trigger:** User corrected subagent model choice after I spawned feedback/planning reviewers on GPT 5.4 mini.
+- **Rule:** When the user explicitly asks for GPT 5.5 on factory-loop planning or review agents, use GPT 5.5 for subsequent subagents instead of cheaper mini models.
+- **Why:** The user is optimizing for maximum-quality adversarial review, not model cost or speed, in this feedback loop.
 
-### Treat Vercel As The Hosting Constraint
-- **Date:** 2026-06-04
-- **Trigger:** User corrected an attempted DNS rollback after Vercel returned bot-challenge 403s to the uptime monitor.
-- **Rule:** When Vercel is the chosen production frontend host, adapt monitoring and diagnostics around Vercel edge behavior instead of rolling production DNS back to the VPS.
-- **Why:** The incident was a monitor-client challenge response from Vercel, not a decision to abandon the Vercel migration.
+### Avoid Freezing Cosmetic Implementation Details In Tests
+- **Date:** 2026-06-16
+- **Trigger:** User challenged source-level tests that locked simple cart-icon replacements into the suite.
+- **Rule:** Prefer behavior, data-contract, accessibility, and provenance tests; avoid source-grep tests for simple cosmetic choices unless a regression has real product or safety impact.
+- **Why:** Over-specific cosmetic tests add maintenance bloat and make harmless UI refinements harder without materially improving product stability.
+
+### Include Browser Dogfooding In UI Reviews
+- **Date:** 2026-06-17
+- **Trigger:** User corrected that reviewers should visually dogfood UI changes in the browser, not only inspect code.
+- **Rule:** For UI-facing review passes, include browser dogfooding on the affected pages and viewport sizes before declaring the review clean.
+- **Why:** Code review and unit tests can miss visual regressions, blocked interactions, viewport overflow, and misleading copy in the actual rendered app.
+
+### Fail UI Reviews When Browser Dogfooding Is Blocked
+- **Date:** 2026-06-17
+- **Trigger:** User corrected the review process to require agent-browser dogfooding, viewport checks, screenshot paths, and explicit FAIL status if browser dogfooding cannot run.
+- **Rule:** For design/product UI reviews, capture browser screenshots for the relevant staging surfaces and viewports; if browser automation or screenshots are blocked, mark the review as FAIL with the blocker instead of substituting code inspection.
+- **Why:** A design review without rendered evidence can miss visual defects and overstate confidence.
+
+### Maintain A Sprint Checklist For FSB Loops
+- **Date:** 2026-06-17
+- **Trigger:** User asked to have the checklist-style status every sprint so the work stays trackable.
+- **Rule:** For Verdaxis FSB feedback loops, keep a durable sprint checklist that maps each feedback item to status, evidence, reviewer outcomes, and next action; update it at sprint close and when reviewer findings change scope.
+- **Why:** Long-running factory loops can lose the connection between screenshots, commits, deployments, and remaining work if status only lives in chat.
+
+### Keep The Curve In Forward Curve
+- **Date:** 2026-06-17
+- **Trigger:** User noticed the Forward Curve revamp no longer had an across-period curve or graph.
+- **Rule:** A page called Forward Curve must keep a visible curve across delivery periods; period-level evidence graphs can supplement it but must not replace it.
+- **Why:** The implementation over-focused on selected-period evidence and removed the primary mental model users expect from a forward curve screen.
+
+### Avoid Shared Grid Row Stretch In Terminal Layouts
+- **Date:** 2026-06-20
+- **Trigger:** User reported a large blank gap under the Forward Curve chart after the right-side latest-signals panel became much taller.
+- **Rule:** Dense two-column terminal dashboards should group each column into its own vertical stack instead of placing all panels as direct CSS-grid children when panel heights can differ.
+- **Why:** CSS grid row tracks are sized by the tallest item in each row, so a tall right rail can stretch or visually separate shorter left-column panels and create large empty gaps.
+
+### Keep Secondary Rails Compact
+- **Date:** 2026-06-20
+- **Trigger:** User reported the Forward Curve latest-signals rail consumed too much vertical real estate and pushed the Selected Period section below the viewport.
+- **Rule:** Secondary activity rails should use compact rows, capped internal scrolling, and smaller numeric typography so the primary detail panel remains visible in the first viewport.
+- **Why:** Latest/event feeds are supporting context; if every item uses card-like spacing, they crowd out the actionable or inspectable panel beneath them.

@@ -1,6 +1,5 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint } from '../types';
+import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import { API_URL } from './config';
-import { isBackendUnavailableStatus, notifyBackendUnavailable } from './backendAvailability';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -83,9 +82,6 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
 
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
-        if (isBackendUnavailableStatus(res.status)) {
-            notifyBackendUnavailable(`HTTP ${res.status}`);
-        }
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
@@ -104,11 +100,7 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     return fetch(url, { ...options, signal: controller.signal })
         .catch((err) => {
-            if (err.name === 'AbortError') {
-                notifyBackendUnavailable('request timeout');
-                throw new Error('Request timed out. Please try again.');
-            }
-            notifyBackendUnavailable(err?.message || 'network failure');
+            if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
             throw err;
         })
         .finally(() => clearTimeout(timeout));
@@ -369,18 +361,20 @@ export const api = {
     },
 
     orderbook: {
-        listWithCI: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string }) => {
+        listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.side) searchParams.append('side', params.side);
             const query = searchParams.toString();
             return fetchApi(`/orderbook/with-ci${query ? `?${query}` : ''}`);
         },
-        list: async (params?: { region?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }) => {
+        list: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.side) searchParams.append('side', params.side);
@@ -389,9 +383,10 @@ export const api = {
             return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
-        listBids: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listBids: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
@@ -400,9 +395,10 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
@@ -411,9 +407,10 @@ export const api = {
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
         },
         // Backward-compatible: returns array
-        listAsks: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listAsks: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
@@ -422,9 +419,10 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
+            if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
@@ -652,6 +650,25 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/curves/forward/board${query ? `?${query}` : ''}`);
         },
+        table: async (params?: { windows?: string[] }): Promise<import('../types').ForwardCurveTableResponse> => {
+            const searchParams = new URLSearchParams();
+            params?.windows?.forEach(window => {
+                if (window) searchParams.append('windows', window);
+            });
+            const query = searchParams.toString();
+            return fetchApi(`/curves/forward/table${query ? `?${query}` : ''}`);
+        },
+        slice: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }): Promise<import('../types').ForwardCurveSliceResponse> => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('market_product', params.market_product);
+            searchParams.append('delivery_point_id', params.delivery_point_id);
+            searchParams.append('availability_window', params.availability_window);
+            return fetchApi(`/curves/forward/slice?${searchParams.toString()}`);
+        },
         exportCsvUrl: (product_id: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);
@@ -736,10 +753,11 @@ export const api = {
     },
 
     tradeTape: {
-        list: async (params?: { fuel_type?: string; market_product?: string; region?: string; availability_window?: string; limit?: number; skip?: number }) => {
+        list: async (params?: { fuel_type?: string; market_product?: string; delivery_point_id?: string; region?: string; availability_window?: string; limit?: number; skip?: number }) => {
             const sp = new URLSearchParams();
             if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
             if (params?.market_product) sp.append('market_product', params.market_product);
+            if (params?.delivery_point_id) sp.append('delivery_point_id', params.delivery_point_id);
             if (params?.region) sp.append('region', params.region);
             if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('limit', String(params?.limit ?? 20));
@@ -750,7 +768,36 @@ export const api = {
 
     watchlists: {
         list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
+        getRadar: async (): Promise<import('../types').WatchlistSummary> => {
+            return fetchApi('/watchlists/me', { headers: getHeaders() });
+        },
         create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
+        createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<import('../types').WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'SLICE', ...data }),
+            });
+        },
+        createPinTarget: async (watchlistId: string, orderId: string): Promise<import('../types').WatchlistTarget> => {
+            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ target_type: 'PIN', order_id: orderId }),
+            });
+        },
+        removeTarget: async (watchlistId: string, targetId: string) => {
+            return fetchApi(`/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+        listEvents: async (watchlistId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').WatchlistEventsPage> => {
+            const sp = new URLSearchParams();
+            if (params?.cursor) sp.append('cursor', params.cursor);
+            sp.append('limit', String(params?.limit ?? 20));
+            return fetchApi(`/watchlists/${watchlistId}/events?${sp.toString()}`, { headers: getHeaders() });
+        },
+        markEventRead: async (watchlistId: string, eventId: string): Promise<import('../types').WatchlistEvent> => {
+            return fetchApi(`/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
+        },
         addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
             return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },

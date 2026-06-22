@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, ShoppingCart, Package, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
+import { Loader2, Gavel, HandCoins, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -20,11 +20,11 @@ interface CommandCenterProps {
 
 const CTA_CONFIG = {
     BUYER: {
-        primary: { icon: ShoppingCart, label: 'Post a Bid', desc: 'Request green fuel at your price', side: 'BID' as const },
+        primary: { icon: Gavel, label: 'Post a Bid', desc: 'Request green fuel at your price', side: 'BID' as const },
         secondary: { icon: Search, label: 'Browse Supply', desc: 'Explore available fuel listings' },
     },
     SUPPLIER: {
-        primary: { icon: Package, label: 'Post Supply', desc: 'List your fuel inventory', side: 'ASK' as const },
+        primary: { icon: HandCoins, label: 'Post Supply', desc: 'List your fuel inventory', side: 'ASK' as const },
         secondary: { icon: Search, label: 'Browse Demand', desc: 'Explore active buyer bids' },
     },
 };

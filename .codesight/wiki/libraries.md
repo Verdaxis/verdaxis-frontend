@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Library inventory extracted via AST. Read the source files listed here before modifying exported functions.
 
-**18 library files** across 7 modules
+**16 library files** across 7 modules
 
 ## Hooks (5 files)
 
@@ -12,19 +12,17 @@
 - `src/hooks/useSSE.ts` — useSSE
 - `src/hooks/useWatchlist.ts` — useWatchlist
 
-## Services (4 files)
+## Services (3 files)
 
 - `src/services/ai-engine/generators.ts` — generateMarketNarrative, generateArbitrageInsight, analyzeRisk, fetchLiveMarketData, performWebSearch, MarketDataResult
 - `src/services/ai-engine/chat.ts` — chatWithCopilot, ChatResponse, SYSTEM_INSTRUCTION
-- `src/services/authToken.ts` — getAccessToken, setAccessToken, clearAccessToken
 - `src/services/ai-engine/cache.ts` — getCachedData, setCachedData
 
-## Utils (4 files)
+## Utils (3 files)
 
-- `src/utils/availabilityWindow.ts` — normalizeAvailabilityWindow, compareAvailabilityWindows, formatAvailabilityWindow, formatAvailabilityWindowPeriod, getAvailabilityWindowOptions, getAvailabilityWindowSummary, …
 - `src/utils/fuel.ts` — getFuelRowClasses, getFuelBadgeClasses, getFuelStickyBg, getFuelChipClasses, getStatusConfig, formatExpiry, …
-- `src/utils/watchlist.ts` — getWatchlistSliceKeyFromParts, getWatchlistSliceKey, formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget
-- `src/utils/marketProduct.ts` — formatMarketProduct, normalizeProductDisplayName, getProductDisplayName, getOrderDisplayName, MARKET_PRODUCT_LABELS
+- `src/utils/tradeAnalytics.ts` — tradeSliceKey, buildTradePerformanceModel, VolumeByFuel, MonthlyTradeCount, FuelComparison, TradePerformanceModel
+- `src/utils/marketProduct.ts` — getProductDisplayName, getProductDisplayNameFromReference, ProductReference
 
 ## Data (2 files)
 

@@ -13,6 +13,7 @@ interface LayoutProps {
     onSwitchView: (mode: ViewMode) => void;
     currentPage: Page;
     onNavigate: (page: Page) => void;
+    onPrefetchPage?: (page: Page) => void;
     onPrimaryAction?: () => void;
 }
 
@@ -22,6 +23,7 @@ export const Layout: React.FC<LayoutProps> = ({
     onSwitchView,
     currentPage,
     onNavigate,
+    onPrefetchPage,
     onPrimaryAction
 }) => {
     const { user } = useAuth();
@@ -42,6 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 viewMode={viewMode}
                 currentPage={currentPage}
                 onNavigate={onNavigate}
+                onPrefetchPage={onPrefetchPage}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 isMobileOpen={isMobileSidebarOpen}

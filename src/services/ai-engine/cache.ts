@@ -16,3 +16,7 @@ export const getCachedData = (key: string): string | null => {
 export const setCachedData = (key: string, data: string) => {
     requestCache.set(key, { timestamp: Date.now(), data });
 };
+
+export const clearCache = () => {
+    requestCache.clear();
+};

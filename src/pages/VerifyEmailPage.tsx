@@ -111,7 +111,7 @@ const VerifyEmailPage: React.FC = () => {
                 {t('verifyEmail.success.message')}
               </p>
 
-              {(surveyDone || !verifiedEmail) ? (
+              {surveyDone ? (
                 <div className="pt-2">
                   <Link
                     to="/login"

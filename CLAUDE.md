@@ -16,8 +16,8 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Maps:** Leaflet + react-leaflet (port intelligence map, producer map, vessel tracking)
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
-- **AI Copilot:** Google Gemini (`@google/genai`) with tool-calling for fleet/procurement queries
-- **Auth:** Access JWT stored in in-memory state, refresh token stored in an HttpOnly `/api/auth` cookie, validated via `/api/auth/refresh` and `/api/auth/me`
+- **AI Copilot:** Chat UI and tool-calling loop backed by backend `/api/ai/chat`; no client-side Gemini key
+- **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
 - **Linting:** No ESLint configuration present. Consider adding one for consistency.
 
@@ -36,8 +36,8 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 ## API Integration
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
-- **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, directOrders, inventory, listings, orders, notifications, training).
-- **Auth:** Authenticated requests include `Authorization: Bearer <token>` from the in-memory token store. Session restoration happens by calling `/api/auth/refresh` with cookie credentials.
+- **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
+- **Auth:** Every request includes `Authorization: Bearer <token>` from `localStorage`.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
@@ -105,10 +105,10 @@ Production API URL is set in `.env.production` (committed to git). Vite automati
 
 - **API returns numbers as strings.** Always wrap numeric fields (`quantity_mt`, `final_quantity_mt`, `price_per_mt_usd`, `final_price_per_mt`, `final_total_usd`) with `Number()` before arithmetic or `.toFixed()` calls.
 - **Never commit `dist/` to git.** It's in `.gitignore`. If it gets force-added, run `git rm -r --cached dist/` to untrack it.
-- **Vite proxy also handles `/authentik` routes** -- rewrites to the Authentik identity server on port 9000. This is configured in `vite.config.ts` but only applies to local dev.
+- **RFQ UI is archived by default.** The code remains behind `VITE_ENABLE_RFQ=true`; orderbook/listing flows are the default marketplace model.
 - **In-app navigation is state-based, not URL-based.** The `/app` route renders all authenticated views. Changing pages updates `currentPage` state, not the URL. Do not add new react-router routes for authenticated pages -- add new `Page` type values and handle them in `Dashboard.renderContent()`.
-- **Gemini API key** is injected at build time via `define` in `vite.config.ts` from the `GEMINI_API_KEY` env var. If the key is missing, the Copilot gracefully degrades with a "features disabled" message. **Security note:** This injects the key into the client-side bundle where it can be extracted. Prefer proxying through the backend.
-- **Vestigial auth dependencies:** `@auth0/auth0-react`, `oidc-client-ts`, and `react-oidc-context` are still in `package.json` but are not used since Authentik was deprecated in favor of custom JWT auth. These should be removed to reduce bundle size and attack surface.
+- **AI keys must stay server-side.** `vite.config.ts` intentionally does not inject API keys into the client bundle; all Gemini calls go through backend `/api/ai/chat`.
+- **Authentik is historical only.** Authentik docs/env examples may exist for reference, but runtime auth is Verdaxis JWT. Do not add Authentik/OIDC dependencies back into the app.
 <!-- codesight-local:start -->
 ## Codesight Bootstrap
 
@@ -125,4 +125,3 @@ Before exploring the tree, read:
 
 Only open full source files after consulting the wiki first.
 <!-- codesight-local:end -->
-
