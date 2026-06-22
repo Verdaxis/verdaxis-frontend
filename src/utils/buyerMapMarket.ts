@@ -15,6 +15,12 @@ export interface PortMarketData {
     spreadPct: number;
 }
 
+interface PortMarketIdentity {
+    id?: string | null;
+    catalogDeliveryPointId?: string | null;
+    name: string;
+}
+
 const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
     BIO_METHANOL: 'Bio Methanol',
     E_METHANOL: 'e-Methanol',
@@ -37,14 +43,23 @@ const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null =
     return canonicalProductLabels.get(productName.toLowerCase()) ?? null;
 };
 
+const normalizeLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
-    portName: string,
-    portCountry: string,
+    port: string | PortMarketIdentity,
     selectedProduct?: string
 ): PortMarketData => {
+    const identity = typeof port === 'string' ? { name: port } : port;
+    const approvedNames = new Set([normalizeLocation(identity.name)].filter(Boolean));
+    const approvedIds = new Set([
+        normalizeLocation(identity.id),
+        normalizeLocation(identity.catalogDeliveryPointId),
+    ].filter(Boolean));
     const portRows = aggregated.filter(
-        row => row.delivery_point_name === portName || row.region === portName || row.region === portCountry
+        row => approvedNames.has(normalizeLocation(row.delivery_point_name))
+            || approvedNames.has(normalizeLocation(row.region))
+            || approvedIds.has(normalizeLocation(row.delivery_point_id))
     );
 
     const byProduct: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};

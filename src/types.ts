@@ -170,12 +170,14 @@ export type MarketSourceKind =
 export type MarketScope = 'DELIVERY_POINT' | 'REGION' | 'PRODUCT' | 'UNKNOWN';
 export type MarketDemoStatus = 'REAL_ONLY' | 'DEMO_ONLY' | 'MIXED' | 'UNKNOWN' | 'NOT_APPLICABLE';
 export type MarketSignalType =
+    | 'CONFIRMED_TRADE'
     | 'ORDERBOOK_BID'
     | 'ORDERBOOK_ASK'
     | 'BENCHMARK_MID'
     | 'MARKET_INDICATION'
     | 'FAIR_PRICE_BAND'
-    | 'PHYSICAL_STEM';
+    | 'PHYSICAL_STEM'
+    | 'NO_DATA';
 export type ForwardCurveSignalSourceKind =
     | 'MARKET_INDICATION'
     | 'PHYSICAL_STEM'
@@ -184,8 +186,18 @@ export type ForwardCurveSignalSourceKind =
     | 'MIXED_SOURCE'
     | 'NO_DATA'
     | 'UNKNOWN';
+export type ForwardCurveSourceKind = MarketSourceKind | ForwardCurveSignalSourceKind;
 export type ForwardCurveIndicationSide = 'BID' | 'ASK' | 'MID';
 export type ForwardCurvePhysicalStemStatus = 'AVAILABLE' | 'TENTATIVE' | 'ALLOCATED' | 'CANCELLED';
+export type ForwardCurveStalenessStatus = 'FRESH' | 'STALE' | 'NO_DATA';
+export type ForwardCurveEvidenceLayer =
+    | 'HISTORICAL_TRADE'
+    | 'ORDERBOOK_BID'
+    | 'ORDERBOOK_ASK'
+    | 'MARKET_INDICATION'
+    | 'FAIR_PRICE_BAND'
+    | 'BENCHMARK_MID'
+    | 'PHYSICAL_STEM';
 
 // ============== Unified Orderbook Types ==============
 export type OrderSide = 'BID' | 'ASK';
@@ -408,6 +420,11 @@ export interface ForwardCurveBoardDepthLevel {
     price_per_mt_usd: number;
     quantity_mt: number;
     order_count: number;
+    source_kind?: ForwardCurveSignalSourceKind;
+    demo_status?: MarketDemoStatus;
+    real_order_count?: number;
+    demo_order_count?: number;
+    unknown_order_count?: number;
 }
 
 export interface ForwardCurveSignalProvenance {
@@ -497,6 +514,14 @@ export interface ForwardCurveBoardCell {
     spread: number | null;
     volume_mt: number;
     order_count: number;
+    primary_value?: number | null;
+    primary_signal_type?: MarketSignalType;
+    primary_source_kind?: ForwardCurveSourceKind;
+    public_source_label?: string;
+    label_policy?: ForwardCurveLabelPolicy;
+    staleness_status?: ForwardCurveStalenessStatus;
+    is_executable?: boolean;
+    is_reference?: boolean;
 }
 
 export interface ForwardCurveBoardPort {
@@ -529,6 +554,132 @@ export interface ForwardCurveBoardResponse {
     ports: ForwardCurveBoardPort[];
     focus: ForwardCurveBoardFocus;
     generated_at: string;
+}
+
+export interface ForwardCurveLabelPolicy {
+    public_label: string;
+    tooltip?: string | null;
+    allowed_terms?: string[];
+    forbidden_terms?: string[];
+    disclaimer?: string | null;
+}
+
+export interface ForwardCurveTableColumn {
+    availability_window: string;
+    display_label: string;
+    group: string;
+}
+
+export interface ForwardCurveMarketCell {
+    market_product: MarketProduct;
+    product_name: string;
+    representative_product_id: string;
+    product_count: number;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    availability_window: string;
+    primary_value: number | null;
+    primary_signal_type: MarketSignalType;
+    primary_source_kind: ForwardCurveSourceKind;
+    public_source_label: string;
+    label_policy: ForwardCurveLabelPolicy;
+    staleness_status: ForwardCurveStalenessStatus;
+    is_executable: boolean;
+    is_reference: boolean;
+    demo_status: MarketDemoStatus;
+    scope: MarketScope;
+    observed_at?: string | null;
+    generated_at: string;
+    best_bid: number | null;
+    best_ask: number | null;
+    spread: number | null;
+    volume_mt: number;
+    order_count: number;
+    real_order_count: number;
+    demo_order_count: number;
+    unknown_order_count: number;
+    real_best_bid?: number | null;
+    real_best_ask?: number | null;
+    demo_best_bid?: number | null;
+    demo_best_ask?: number | null;
+    benchmark_mid?: number | null;
+    benchmark_source_kind?: MarketSourceKind;
+    benchmark_observed_at?: string | null;
+    indication_summary?: ForwardCurveBoardIndicationSummary;
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    fair_price_band_provenance?: ForwardCurveSignalProvenance;
+    physical_stem_summary?: ForwardCurveBoardPhysicalStemSummary;
+}
+
+export interface ForwardCurveTableRow {
+    row_key: string;
+    market_product: MarketProduct;
+    product_name: string;
+    representative_product_id: string;
+    product_count: number;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    cells: Record<string, ForwardCurveMarketCell>;
+}
+
+export interface ForwardCurveLatestSignal {
+    market_product: MarketProduct;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    availability_window: string;
+    primary_value: number | null;
+    primary_signal_type: MarketSignalType;
+    primary_source_kind: ForwardCurveSourceKind;
+    public_source_label: string;
+    demo_status: MarketDemoStatus;
+    observed_at?: string | null;
+    staleness_status: ForwardCurveStalenessStatus;
+}
+
+export interface ForwardCurveTableResponse {
+    columns: ForwardCurveTableColumn[];
+    rows: ForwardCurveTableRow[];
+    latest_signals: ForwardCurveLatestSignal[];
+    generated_at: string;
+    disclaimer: string;
+}
+
+export interface ForwardCurveSliceTrade {
+    price_per_mt_usd: number;
+    quantity_mt: number;
+    confirmed_at: string;
+    source_kind: MarketSourceKind;
+    demo_status: MarketDemoStatus;
+}
+
+export interface ForwardCurveSliceEvidencePoint {
+    layer: ForwardCurveEvidenceLayer;
+    side?: ForwardCurveIndicationSide | null;
+    price_per_mt_usd?: number | null;
+    low_price_per_mt_usd?: number | null;
+    high_price_per_mt_usd?: number | null;
+    quantity_mt?: number | null;
+    observed_at?: string | null;
+    public_source_label: string;
+    source_kind: ForwardCurveSourceKind;
+    demo_status: MarketDemoStatus;
+}
+
+export interface ForwardCurveSliceResponse {
+    cell: ForwardCurveMarketCell;
+    previous_window?: string | null;
+    next_window?: string | null;
+    depth_bids: ForwardCurveBoardDepthLevel[];
+    depth_asks: ForwardCurveBoardDepthLevel[];
+    trades: ForwardCurveSliceTrade[];
+    indications: ForwardCurveBoardIndication[];
+    fair_price_band?: ForwardCurveBoardFairPriceBand | null;
+    physical_stems: ForwardCurveBoardPhysicalStem[];
+    evidence_points: ForwardCurveSliceEvidencePoint[];
+    generated_at: string;
+    disclaimer: string;
 }
 
 export interface PriceAlert {

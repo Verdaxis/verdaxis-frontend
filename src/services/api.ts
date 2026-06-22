@@ -650,6 +650,25 @@ export const api = {
             const query = searchParams.toString();
             return fetchApi(`/curves/forward/board${query ? `?${query}` : ''}`);
         },
+        table: async (params?: { windows?: string[] }): Promise<import('../types').ForwardCurveTableResponse> => {
+            const searchParams = new URLSearchParams();
+            params?.windows?.forEach(window => {
+                if (window) searchParams.append('windows', window);
+            });
+            const query = searchParams.toString();
+            return fetchApi(`/curves/forward/table${query ? `?${query}` : ''}`);
+        },
+        slice: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }): Promise<import('../types').ForwardCurveSliceResponse> => {
+            const searchParams = new URLSearchParams();
+            searchParams.append('market_product', params.market_product);
+            searchParams.append('delivery_point_id', params.delivery_point_id);
+            searchParams.append('availability_window', params.availability_window);
+            return fetchApi(`/curves/forward/slice?${searchParams.toString()}`);
+        },
         exportCsvUrl: (product_id: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);

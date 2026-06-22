@@ -46,7 +46,7 @@ src/
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
-    ForwardCurveWorkspace.tsx      # Dense market monitoring board (ports x products, hybrid curve)
+    ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
@@ -179,12 +179,13 @@ clicks the highlighted in-app tab, button, row, or modal control. The tutorial s
 boundaries and does not place real bids, asks, listings, or trades.
 
 **Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
-`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve scans approved ports and
-products, shows hybrid benchmark/orderbook context, and hands a selected slice to Marketplace
-through an explicit CTA. Price summaries, forward-board cells, watchlist events, and trade tape
-entries carry `source_kind`, `scope`, `demo_status`, and `observed_at` where available; the frontend
-normalizes those through `utils/marketActivity.ts` so demo-seeded, benchmark-reference, mixed-source,
-and live activity are labelled consistently without exposing party identities.
+`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve consumes `/curves/forward/table`
+for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
+It does not execute trades, and it does not render the old pre-click global curve chart. Price summaries,
+forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
+`observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so
+demo-seeded, benchmark-reference, mixed-source, and live activity are labelled consistently without
+exposing party identities.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +

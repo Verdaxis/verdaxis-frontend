@@ -106,6 +106,54 @@ Public ticker browser assertions:
 - Sprint 3 is adding explicit staging-only demo monitoring rows so the Forward Curve can be visually reviewed before real ingestion feeds exist.
 - Future backlog after Sprint 3: replace demo monitoring rows with real ingestion feeds for indications, physical stems, and fair-price bands.
 
+## Sprint 4: Angela Market Monitoring Hardening - 2026-06-20
+
+Branch: `feat/staging-forward-drilldown-20260616`
+
+Deployment target: staging review branch only. Production remains untouched for this sprint.
+
+Source plan: `docs/plans/2026-06-20-angela-market-monitoring-hardening-plan.md`
+
+Sprint status: implementation complete locally; final reviewer sign-off passed.
+
+| Angela / feedback item | Status | Implementation / Evidence | Reviewer Outcome | Satisfaction |
+| --- | --- | --- | --- | --- |
+| Clarify market taxonomy so monitoring surfaces do not confuse demo, reference, mixed, trusted signal, and live execution states. | Done | `src/utils/marketActivity.ts` now treats `LIVE_ORDER`, `CONFIRMED_TRADE`, `BENCHMARK_REFERENCE`, `MARKET_INDICATION`, `PHYSICAL_STEM`, and `FAIR_PRICE_MODEL` distinctly. `Live` remains reserved for executable orders or confirmed trades. Regression guards updated in `src/tests/platform-regression-source.test.ts`. | Phase 1 reviewer passed. Phase 2 reviewer passed after source-label fixes. | Satisfied for frontend taxonomy. Backend real-ingestion provenance remains future work. |
+| Forward Curve should read as a monitoring workspace, keep the chart above the matrix, and hand off exactly to Marketplace on drilldown. | Done | `src/components/ForwardCurveWorkspace.tsx` now filters to canonical approved products and ports, prevents stale selected slices, preserves chart-above-matrix layout, and persists exact marketplace handoff storage keys for product, delivery point, port label, and window. `src/types.ts` now explicitly types forward-curve source kinds instead of relying on runtime casts. Tests: `src/tests/forward-curve-workspace.test.tsx`, `src/tests/platform-regression-source.test.ts`. Browser dogfood: `/tmp/verdaxis-angela-hardening-20260620/phase6-forward-dogfood-report.json` and screenshots `phase6-forward-*`, `phase6-marketplace-handoff-*`. | Phase 2 reviewer passed after stale-slice and invalid-selection fixes. Phase 6 reviewer passed with no blockers; the only type-contract residual was fixed before closeout. | Satisfied for current frontend behavior. Still not a full terminal-grade curve until backend feeds provide real indications, stems, fair bands, and prints. |
+| MarketWatch ticker should support multiple fuels, explain Demo vs Reference, preserve port-major scrolling order, and not fan out one request per product-port. | Done | `src/components/map/MarketWatchTicker.tsx` keeps one summary request per selected product, uses client-side delivery-point matching, preserves port-major ordering, adds `Mixed` source state, explains Demo vs Reference in the configure help text, restores focus on Escape/close, and uses approved trading ports only. Locale updates in `src/locales/en/dashboard.json` and `src/locales/zh/dashboard.json`. Tests: `src/tests/market-watch-ticker.test.tsx`, `src/tests/platform-regression-source.test.ts`. Browser dogfood: `/tmp/verdaxis-angela-hardening-20260620/phase3-dogfood-report.json`. | Phase 3 reviewer initially failed unsupported same-country leakage; fixes passed re-review. | Satisfied. The ticker is still dependent on available summary feed quality. |
+| Intelligence Map should not show unsupported ports or same-country liquidity for ports users cannot trade on. | Done | `src/components/BuyerMap.tsx` and `src/utils/buyerMapMarket.ts` now approve map/listing aggregation by exact approved delivery point IDs/names/port IDs instead of country/region fallbacks. Added guard for unsupported Ningbo/China leakage in `src/tests/buyer-map-data.test.ts`; dogfood fixture also checked Port Klang/Ningbo/China absence. | Phase 3 reviewer failed the first implementation for `listing.region` and `row.region === portCountry`; fixes passed re-review. | Satisfied for approved-port filtering. |
+| Keep News first and Estimator second in the Intelligence Map sidebar; avoid competing layout for estimator/news. | Done in current branch context | Phase 3 dogfood verified tabs render as `News`, then `Estimator` at `1440x900` and `1024x768`. Evidence: `/tmp/verdaxis-angela-hardening-20260620/phase3-dogfood-report.json`. | Phase 3 reviewer passed. | Satisfied. |
+| Replace the remaining supplier market-action package/box icon with a trade-appropriate icon, without sweeping cosmetic test bloat. | Done | `src/components/CommandCenter.tsx` uses `HandCoins` for the supplier `Post Supply` primary card. `Package` remains only where it represents inventory, volume, stats, or non-action context. Browser dogfood: `/tmp/verdaxis-angela-hardening-20260620/phase4-dogfood-report.json` and `phase4-command-center-supplier-1440x900.png`. | Phase 4 reviewer passed. | Satisfied. |
+| Optional regulatory boundary overlay for FuelEU / EU ETS exposure. | Deferred | Deferred in `docs/plans/2026-06-20-angela-market-monitoring-hardening-plan.md`. Rationale: current estimator already has indicative/non-legal disclaimer copy; adding a map overlay now would add hit-testing and false-precision risk before route/exposure assumptions are reviewed. Source grep found no partial overlay implementation. | Phase 5 reviewer passed the defer decision. | Satisfied to defer. Needs separate design/backend slice if revived. |
+| Credit/counterparty gating. | Deferred | Explicit non-goal per user direction. No code touched. | Not reviewed in this sprint. | Correctly deferred. |
+| Angela-grade FuelEU / EU ETS estimator rebuild with voyage rows and richer assumptions. | Deferred | Explicit non-goal for this hardening pass. The existing estimator remains an indicative prototype. | Not reviewed in this sprint. | Correctly deferred; should be planned separately. |
+
+Sprint 4 final verification:
+
+- `git diff --check` -> passed.
+- `npm run i18n:check` -> passed; all translations complete.
+- `npm run test -- src/tests/buyer-map-data.test.ts src/tests/forward-curve-workspace.test.tsx src/tests/market-watch-ticker.test.tsx src/tests/compliance-estimator-card.test.tsx src/tests/platform-regression-source.test.ts` -> 55 passed. Existing React `act(...)` warnings remain in `ForwardCurveWorkspace` tests.
+- `npm run build` -> passed with the existing Vite large-chunk warning.
+- Final reviewer gate -> passed with no blockers after the forward source-kind type cleanup.
+
+Sprint 4 browser dogfood:
+
+- Phase 3 map/ticker dogfood report: `/tmp/verdaxis-angela-hardening-20260620/phase3-dogfood-report.json`.
+- Phase 3 screenshots: `/tmp/verdaxis-angela-hardening-20260620/phase3-map-1440x900.png`, `/tmp/verdaxis-angela-hardening-20260620/phase3-configure-1440x900.png`, `/tmp/verdaxis-angela-hardening-20260620/phase3-map-1024x768.png`, `/tmp/verdaxis-angela-hardening-20260620/phase3-configure-1024x768.png`.
+- Phase 4 command-center dogfood report: `/tmp/verdaxis-angela-hardening-20260620/phase4-dogfood-report.json`.
+- Phase 4 screenshot: `/tmp/verdaxis-angela-hardening-20260620/phase4-command-center-supplier-1440x900.png`.
+- Phase 6 Forward Curve handoff dogfood report: `/tmp/verdaxis-angela-hardening-20260620/phase6-forward-dogfood-report.json`.
+- Phase 6 screenshots: `/tmp/verdaxis-angela-hardening-20260620/phase6-forward-1440x900.png`, `/tmp/verdaxis-angela-hardening-20260620/phase6-marketplace-handoff-1440x900.png`, `/tmp/verdaxis-angela-hardening-20260620/phase6-forward-1024x768.png`, `/tmp/verdaxis-angela-hardening-20260620/phase6-marketplace-handoff-1024x768.png`.
+
+Sprint 4 browser assertions:
+
+- Intelligence Map fixture rendered 40 ticker chips at both dogfood widths.
+- Ticker sidebar tab order was `News`, then `Estimator`.
+- Unsupported map/listing fixture names `Port Klang`, `Ningbo`, and unsupported country fallback `China` did not appear in visible map widgets.
+- Forward Curve chart rendered above the market matrix.
+- Double-clicking the selected Forward Curve matrix cell opened Marketplace and persisted `BIO_METHANOL`, `dp-singapore`, `Singapore`, and `SPOT`.
+- Phase 3 and Phase 6 dogfood runs recorded no console errors and no failed required requests.
+
 ## Sprint 3: Forward Curve Demo Monitoring Seed
 
 Backend branch: `/home/verdaxis-prod/verdaxis/staging/be`, `feat/staging-market-activity-contract-20260617`

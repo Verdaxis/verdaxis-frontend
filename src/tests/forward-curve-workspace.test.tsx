@@ -1,485 +1,237 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
-import { MARKET_PRODUCTS } from '../types';
-import type { MarketProduct } from '../types';
+import type { ForwardCurveMarketCell, ForwardCurveSliceResponse, ForwardCurveTableResponse, MarketProduct } from '../types';
 import { renderWithProviders } from './test-utils';
 
-const boardMock = vi.fn();
-const tradeTapeMock = vi.fn();
+const tableMock = vi.fn();
+const sliceMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
     curves: {
-      board: (...args: unknown[]) => boardMock(...args),
-    },
-    tradeTape: {
-      list: (...args: unknown[]) => tradeTapeMock(...args),
+      table: (...args: unknown[]) => tableMock(...args),
+      slice: (...args: unknown[]) => sliceMock(...args),
     },
   },
 }));
 
-const PORTS = [
-  ['dp-dalian', 'Dalian', 'Asia'],
-  ['dp-busan', 'Busan', 'Asia'],
-  ['dp-shanghai', 'Shanghai', 'Asia'],
-  ['dp-singapore', 'Singapore', 'Asia'],
-  ['dp-rotterdam', 'Rotterdam', 'Europe'],
-  ['dp-houston', 'Houston', 'Americas'],
-  ['dp-la', 'Los Angeles', 'Americas'],
-  ['dp-santos', 'Santos', 'Americas'],
-] as const;
-
-const productName = (marketProduct: string) => marketProduct
-  .replace(/_/g, ' ')
-  .toLowerCase()
-  .replace(/\b\w/g, letter => letter.toUpperCase())
-  .replace('E Methanol', 'e-Methanol');
-
-const makeBoard = (
-  focusMarketProduct: MarketProduct = 'BIO_METHANOL',
-  focusDeliveryPointId = 'dp-singapore'
-) => {
-  const products = MARKET_PRODUCTS.map((marketProduct, index) => ({
-    product_id: `prod-${index}`,
-    market_product: marketProduct,
-    product_name: productName(marketProduct),
-  }));
-  const ports = PORTS.map(([deliveryPointId, deliveryPointName, region], portIndex) => ({
-    delivery_point_id: deliveryPointId,
-    delivery_point_name: deliveryPointName,
-    region,
-    cells: products.map((product, productIndex) => ({
-      product_id: product.product_id,
-      market_product: product.market_product,
-      product_name: product.product_name,
-      delivery_point_id: deliveryPointId,
-      delivery_point_name: deliveryPointName,
-      region,
-      availability_window: 'SPOT',
-      benchmark_mid: 600 + (portIndex * 10) + productIndex,
-      benchmark_source: 'seed_matrix',
-      is_demo_benchmark: true,
-      best_bid: 590 + (portIndex * 10) + productIndex,
-      best_ask: 610 + (portIndex * 10) + productIndex,
-      spread: 20,
-      volume_mt: 5000,
-      order_count: 2,
-    })),
-  }));
-
-  const focusPort = ports.find(port => port.delivery_point_id === focusDeliveryPointId) ?? ports[3];
-  const focusCell = focusPort.cells.find(cell => cell.market_product === focusMarketProduct) ?? focusPort.cells[0];
-
-  return {
-    availability_window: 'SPOT',
-    products,
-    ports,
-    focus: {
-      product_id: focusCell.product_id,
-      market_product: focusCell.market_product,
-      product_name: focusCell.product_name,
-      delivery_point_id: focusCell.delivery_point_id,
-      delivery_point_name: focusCell.delivery_point_name,
-      region: focusCell.region,
-      availability_window: 'SPOT',
-      curve: focusPort.cells.map((cell, index) => ({ ...cell, availability_window: index === 0 ? 'SPOT' : `2026-0${index}` })),
-      depth_bids: [{ price_per_mt_usd: 1048, quantity_mt: 5000, order_count: 1 }],
-      depth_asks: [{ price_per_mt_usd: 1056, quantity_mt: 4000, order_count: 1 }],
-    },
-    generated_at: '2026-04-14T00:00:00Z',
-  };
-};
-
-const withDepth = (board: ReturnType<typeof makeBoard>, bidPrice: number, askPrice: number) => ({
-  ...board,
-  focus: {
-    ...board.focus,
-    depth_bids: [{ price_per_mt_usd: bidPrice, quantity_mt: 5000, order_count: 1 }],
-    depth_asks: [{ price_per_mt_usd: askPrice, quantity_mt: 4000, order_count: 1 }],
+const baseCell = (
+  marketProduct: MarketProduct,
+  deliveryPointId: string,
+  deliveryPointName: string,
+  availabilityWindow: string,
+  primaryValue: number | string | null,
+): ForwardCurveMarketCell => ({
+  market_product: marketProduct,
+  product_name: marketProduct,
+  representative_product_id: `product-${marketProduct}`,
+  product_count: 1,
+  delivery_point_id: deliveryPointId,
+  delivery_point_name: deliveryPointName,
+  region: deliveryPointName === 'Rotterdam' ? 'Europe' : 'Asia',
+  availability_window: availabilityWindow,
+  primary_value: primaryValue as number,
+  primary_signal_type: primaryValue == null ? 'NO_DATA' : 'BENCHMARK_MID',
+  primary_source_kind: primaryValue == null ? 'NO_DATA' : 'DEMO_SEED',
+  public_source_label: primaryValue == null ? 'No data' : 'Demo orderbook midpoint',
+  label_policy: {
+    visible_label: primaryValue == null ? 'No data' : 'Demo orderbook midpoint',
+    disclosure: 'Demo seeded preview data.',
+    is_executable: false,
+    should_show_demo_badge: true,
   },
+  staleness_status: primaryValue == null ? 'NO_DATA' : 'FRESH',
+  is_executable: false,
+  is_reference: true,
+  demo_status: primaryValue == null ? 'UNKNOWN' : 'DEMO_ONLY',
+  scope: 'DELIVERY_POINT',
+  observed_at: '2026-06-17T10:00:00Z',
+  generated_at: '2026-06-17T10:01:00Z',
+  best_bid: primaryValue == null ? null : Number(primaryValue) - 35,
+  best_ask: primaryValue == null ? null : Number(primaryValue) + 35,
+  spread: primaryValue == null ? null : 70,
+  volume_mt: primaryValue == null ? 0 : 9500,
+  order_count: primaryValue == null ? 0 : 2,
+  real_order_count: 0,
+  demo_order_count: primaryValue == null ? 0 : 2,
+  unknown_order_count: 0,
+});
+
+const singaporeSpot = baseCell('BIO_METHANOL', 'dp-singapore', 'Singapore', 'SPOT', '1015');
+const rotterdamQuarter = baseCell('E_METHANOL', 'dp-rotterdam', 'Rotterdam', '2026-Q3', '1250');
+const dalianEmpty = baseCell('BIO_ETHANOL', 'dp-dalian', 'Dalian', 'SPOT', null);
+const santosIndication = {
+  ...baseCell('SYNTHETIC_ETHANOL', 'dp-santos', 'Santos', 'SPOT', '790'),
+  primary_signal_type: 'MARKET_INDICATION',
+  primary_source_kind: 'MARKET_INDICATION',
+  public_source_label: 'Sanitized market indication',
+  demo_status: 'REAL_ONLY',
+} as ForwardCurveMarketCell;
+const houstonLiveOrder = {
+  ...baseCell('BIO_METHANOL', 'dp-houston', 'Houston', 'SPOT', '900'),
+  primary_signal_type: 'ORDERBOOK_BID',
+  primary_source_kind: 'LIVE_ORDER',
+  public_source_label: 'User order midpoint',
+  demo_status: 'REAL_ONLY',
+  real_order_count: 2,
+  demo_order_count: 0,
+} as ForwardCurveMarketCell;
+const rotterdamConfirmedTrade = {
+  ...baseCell('E_METHANOL', 'dp-rotterdam', 'Rotterdam', 'SPOT', '1250'),
+  primary_signal_type: 'CONFIRMED_TRADE',
+  primary_source_kind: 'CONFIRMED_TRADE',
+  public_source_label: 'Confirmed trade print',
+  demo_status: 'REAL_ONLY',
+} as ForwardCurveMarketCell;
+const dalianReference = {
+  ...baseCell('BIO_ETHANOL', 'dp-dalian', 'Dalian', 'SPOT', '650'),
+  primary_signal_type: 'BENCHMARK_MID',
+  primary_source_kind: 'BENCHMARK_REFERENCE',
+  public_source_label: 'Benchmark reference',
+  demo_status: 'NOT_APPLICABLE',
+} as ForwardCurveMarketCell;
+
+const makeTable = (): ForwardCurveTableResponse => ({
+  columns: [
+    { availability_window: 'SPOT', display_label: 'Spot', group: 'SPOT' },
+    { availability_window: '2026-Q3', display_label: 'Q3 26', group: 'QUARTERLY' },
+  ],
+  rows: [
+    {
+      row_key: 'BIO_METHANOL:dp-singapore',
+      market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-singapore',
+      delivery_point_name: 'Singapore',
+      region: 'Asia',
+      cells: { SPOT: singaporeSpot },
+    },
+    {
+      row_key: 'E_METHANOL:dp-rotterdam',
+      market_product: 'E_METHANOL',
+      delivery_point_id: 'dp-rotterdam',
+      delivery_point_name: 'Rotterdam',
+      region: 'Europe',
+      cells: { '2026-Q3': rotterdamQuarter },
+    },
+    {
+      row_key: 'BIO_ETHANOL:dp-dalian',
+      market_product: 'BIO_ETHANOL',
+      delivery_point_id: 'dp-dalian',
+      delivery_point_name: 'Dalian',
+      region: 'Asia',
+      cells: { SPOT: dalianEmpty },
+    },
+  ],
+  latest_signals: [
+    {
+      market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-singapore',
+      delivery_point_name: 'Singapore',
+      availability_window: 'SPOT',
+      primary_value: '1015',
+      primary_signal_type: 'ORDERBOOK_MID',
+      primary_source_kind: 'DEMO_SEED',
+      public_source_label: 'Demo orderbook midpoint',
+      demo_status: 'DEMO_ONLY',
+      observed_at: '2026-06-17T10:00:00Z',
+      staleness_status: 'FRESH',
+    },
+  ],
+  generated_at: '2026-06-17T10:01:00Z',
+  disclaimer: 'Indicative estimate only.',
+});
+
+const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSliceResponse => ({
+  cell,
+  previous_window: cell.availability_window === '2026-Q3' ? 'SPOT' : null,
+  next_window: cell.availability_window === 'SPOT' ? '2026-Q3' : null,
+  depth_bids: [{ price_per_mt_usd: Number(cell.primary_value ?? 0) - 35, quantity_mt: 5000, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' }],
+  depth_asks: [{ price_per_mt_usd: Number(cell.primary_value ?? 0) + 35, quantity_mt: 4500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' }],
+  trades: [],
+  indications: [],
+  fair_price_band: null,
+  physical_stems: [],
+  evidence_points: [
+    {
+      layer: 'ORDERBOOK_BID',
+      price_per_mt_usd: String(Number(cell.primary_value ?? 0) - 35) as unknown as number,
+      quantity_mt: 5000,
+      public_source_label: 'Bid depth',
+      source_kind: 'DEMO_SEED',
+      demo_status: 'DEMO_ONLY',
+      observed_at: '2026-06-17T10:00:00Z',
+    },
+    {
+      layer: 'ORDERBOOK_ASK',
+      price_per_mt_usd: String(Number(cell.primary_value ?? 0) + 35) as unknown as number,
+      quantity_mt: 4500,
+      public_source_label: 'Ask depth',
+      source_kind: 'DEMO_SEED',
+      demo_status: 'DEMO_ONLY',
+      observed_at: '2026-06-17T10:00:00Z',
+    },
+    {
+      layer: 'FAIR_PRICE_BAND',
+      low_price_per_mt_usd: String(Number(cell.primary_value ?? 0) - 20) as unknown as number,
+      high_price_per_mt_usd: String(Number(cell.primary_value ?? 0) + 20) as unknown as number,
+      public_source_label: 'Fair band',
+      source_kind: 'DEMO_SEED',
+      demo_status: 'DEMO_ONLY',
+      observed_at: '2026-06-17T10:00:00Z',
+    },
+  ],
 });
 
 describe('ForwardCurveWorkspace', () => {
   beforeEach(() => {
     localStorage.clear();
-    boardMock.mockReset();
-    tradeTapeMock.mockReset();
-    boardMock.mockResolvedValue(makeBoard());
-    tradeTapeMock.mockResolvedValue({ items: [], total: 0, market_hours: true });
+    tableMock.mockReset();
+    sliceMock.mockReset();
+    tableMock.mockResolvedValue(makeTable());
+    sliceMock.mockImplementation(({ market_product, delivery_point_id, availability_window }) => {
+      const cell = [singaporeSpot, rotterdamQuarter, dalianEmpty].find(item => (
+        item.market_product === market_product
+        && item.delivery_point_id === delivery_point_id
+        && item.availability_window === availability_window
+      )) ?? singaporeSpot;
+      return Promise.resolve(makeSlice(cell));
+    });
   });
 
-  it('renders the all-port multi-product matrix and demo labels', async () => {
+  it('renders the monitored signals, matrix, and selected-period evidence without the old chart model', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
+    await screen.findByText('Latest Monitored Signals');
+    expect(document.querySelector('[data-tour="forward-curve-chart"]')).toBeTruthy();
+    expect(screen.getByText('Market Matrix')).toBeTruthy();
+    expect(screen.getByText('Selected Period')).toBeTruthy();
+    expect(screen.getAllByText('Bio Methanol · Singapore').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
+
     await waitFor(() => {
-      expect(screen.getByText('Selected-Window Forward Matrix')).toBeTruthy();
+      expect(screen.getByText('Price Evidence')).toBeTruthy();
     });
 
-    expect(screen.getByText('Dalian')).toBeTruthy();
-    expect(screen.getByText('Santos')).toBeTruthy();
-    expect(screen.getAllByText('Demo').length).toBeGreaterThanOrEqual(32);
-    expect(screen.getByText('Indicative Forward Curve')).toBeTruthy();
-    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
-    expect(screen.getByText('24h market · 7D delivery-point history')).toBeTruthy();
-    await waitFor(() => {
-      expect(screen.getByText('No confirmed trades in the last 7 days for this selected market context.')).toBeTruthy();
-    });
-    expect(screen.queryByText('Live · 7D history')).toBeNull();
+    expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
+    expect(screen.queryByText(/Expand period/i)).toBeNull();
+    expect(screen.queryByText(/TradingView/i)).toBeNull();
   });
 
-  it('places the forward curve chart above the market matrix', async () => {
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Selected-Window Forward Matrix')).toBeTruthy();
-    });
-
-    const curveTitle = screen.getByText('Indicative Forward Curve');
-    const matrixTitle = screen.getByText('Selected-Window Forward Matrix');
-    expect(curveTitle.compareDocumentPosition(matrixTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('updates the selected-period detail when a matrix cell is clicked', async () => {
-    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
-      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
-      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
-    )));
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-    expect(rotterdamMethanol.getAttribute('aria-pressed')).toBe('false');
-
-    fireEvent.click(rotterdamMethanol);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('E-Methanol - Rotterdam').length).toBeGreaterThan(0);
-      expect(rotterdamMethanol.getAttribute('aria-pressed')).toBe('true');
-    });
-
-    expect(screen.getAllByText('Indicative Period Range').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Demo reference').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('5.0k MT').length).toBeGreaterThan(0);
-    expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
-  });
-
-  it('opens and closes a selected-period drilldown through the explicit expand action', async () => {
-    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
-      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
-      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
-    )));
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-
-    fireEvent.click(rotterdamMethanol);
-    expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: /expand period/i }));
-
-    const dialog = await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
-    expect(dialog).toBeTruthy();
-    expect(within(dialog).getByText('E-Methanol - Rotterdam')).toBeTruthy();
-    expect(screen.getByText('Signal Readiness')).toBeTruthy();
-    expect(screen.getByText('Indications')).toBeTruthy();
-    expect(screen.getByText('No indications feed connected yet')).toBeTruthy();
-    expect(screen.getByText('Physical stems')).toBeTruthy();
-    expect(screen.getByText('No stems feed connected yet')).toBeTruthy();
-    expect(screen.getByText('Fair-value band')).toBeTruthy();
-    expect(screen.getByText('No model-derived fair-value band yet')).toBeTruthy();
-    expect(screen.queryByText(/latest indications/i)).toBeNull();
-    expect(screen.queryByText(/physical stems available/i)).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close period drilldown' }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /expand period/i }));
-    await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
-
-    fireEvent.keyDown(window, { key: 'Escape' });
-
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
-    });
-  });
-
-  it('renders backend monitoring signals without labeling them as executable orders', async () => {
-    const board = makeBoard();
-    const focusedCell = board.ports[3].cells[0];
-    const observedAt = '2026-06-17T00:00:00Z';
-    focusedCell.indication_summary = {
-      provenance: {
-        signal_type: 'MARKET_INDICATION',
-        signal_source_kind: 'MARKET_INDICATION',
-        demo_status: 'REAL_ONLY',
-        scope: 'DELIVERY_POINT',
-        observed_at: observedAt,
-        generated_at: observedAt,
-        real_count: 2,
-        demo_count: 0,
-        unknown_count: 0,
-      },
-      latest_bid_price_per_mt_usd: 705,
-      latest_ask_price_per_mt_usd: 722,
-      latest_mid_price_per_mt_usd: null,
-      total_quantity_mt: 3600,
-      indication_count: 2,
-    };
-    focusedCell.physical_stem_summary = {
-      provenance: {
-        signal_type: 'PHYSICAL_STEM',
-        signal_source_kind: 'PHYSICAL_STEM',
-        demo_status: 'REAL_ONLY',
-        scope: 'DELIVERY_POINT',
-        observed_at: observedAt,
-        generated_at: observedAt,
-        real_count: 2,
-        demo_count: 0,
-        unknown_count: 0,
-      },
-      available_quantity_mt: 2400,
-      tentative_quantity_mt: 600,
-      stem_count: 2,
-      earliest_stem_start: observedAt,
-      latest_stem_end: observedAt,
-    };
-    focusedCell.fair_price_band = {
-      low_price_per_mt_usd: 695,
-      mid_price_per_mt_usd: 710,
-      high_price_per_mt_usd: 725,
-      provenance: {
-        signal_type: 'FAIR_PRICE_BAND',
-        signal_source_kind: 'FAIR_PRICE_MODEL',
-        demo_status: 'REAL_ONLY',
-        scope: 'DELIVERY_POINT',
-        observed_at: observedAt,
-        generated_at: observedAt,
-        real_count: 1,
-        demo_count: 0,
-        unknown_count: 0,
-      },
-    };
-    boardMock.mockResolvedValue(board);
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    await screen.findByText('Selected-Window Forward Matrix');
-    fireEvent.click(screen.getByRole('button', { name: /expand period/i }));
-
-    const dialog = await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
-    expect(within(dialog).getByText(/2 indications/)).toBeTruthy();
-    expect(within(dialog).getByText(/Bid \$705/)).toBeTruthy();
-    expect(within(dialog).getByText(/Ask \$722/)).toBeTruthy();
-    expect(within(dialog).getByText(/3.6k MT/)).toBeTruthy();
-    expect(within(dialog).getByText(/Market indication/)).toBeTruthy();
-    expect(within(dialog).getByText(/Available 2.4k MT/)).toBeTruthy();
-    expect(within(dialog).getByText(/Tentative 600 MT/)).toBeTruthy();
-    expect(within(dialog).getByText(/Physical stem feed/)).toBeTruthy();
-    expect(within(dialog).getByText(/\$695-\$725/)).toBeTruthy();
-    expect(within(dialog).getByText(/Fair-price model/)).toBeTruthy();
-    expect(within(dialog).getByLabelText('Verdaxis fair-value band')).toBeTruthy();
-    expect(within(dialog).queryByText('Live order')).toBeNull();
-    expect(within(dialog).queryByText('No indications feed connected yet')).toBeNull();
-    expect(within(dialog).queryByText('No stems feed connected yet')).toBeNull();
-    expect(within(dialog).queryByText('No model-derived fair-value band yet')).toBeNull();
-  });
-
-  it('gates drilldown depth and prints while a newly selected slice is still refreshing', async () => {
-    boardMock
-      .mockResolvedValueOnce(makeBoard())
-      .mockImplementationOnce(() => new Promise(() => {}));
-
-    tradeTapeMock
-      .mockResolvedValueOnce({
-        items: [{
-          id: 'old-print',
-          market_product: 'BIO_METHANOL',
-          fuel_type: 'Methanol',
-          fuel_grade: 'Bio',
-          region: 'Singapore',
-          quantity_mt: 1400,
-          price_per_mt_usd: 712,
-          confirmed_at: new Date().toISOString(),
-          availability_window: 'SPOT',
-          is_demo_trade: true,
-        }],
-        total: 1,
-        market_hours: true,
-      })
-      .mockImplementationOnce(() => new Promise(() => {}));
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    await screen.findByText('Selected-Window Forward Matrix');
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-    fireEvent.click(rotterdamMethanol);
-
-    expect(screen.getByText('Refreshing curve for selected slice...')).toBeTruthy();
-    expect(screen.getByText('Refreshing depth for selected slice...')).toBeTruthy();
-    expect(screen.queryByText('$1048 / 5.0k MT')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: /expand period/i }));
-
-    await screen.findByRole('dialog', { name: 'Single-Period Drilldown' });
-    expect(screen.getByText('Refreshing selected slice depth')).toBeTruthy();
-    expect(screen.getByText('Refreshing confirmed 7-day prints')).toBeTruthy();
-    expect(screen.queryByText('2 visible depth levels')).toBeNull();
-    expect(screen.queryByText('1 confirmed prints in last 7 days')).toBeNull();
-  });
-
-  it('ignores out-of-order board responses after rapid selected-period changes', async () => {
-    const rotterdamBoard = withDepth(makeBoard('E_METHANOL', 'dp-rotterdam'), 900, 910);
-    const santosBoard = withDepth(makeBoard('BIO_ETHANOL', 'dp-santos'), 1301, 1310);
-    let resolveRotterdam: (board: ReturnType<typeof makeBoard>) => void = () => {};
-    const slowRotterdamResponse = new Promise<ReturnType<typeof makeBoard>>(resolve => {
-      resolveRotterdam = resolve;
-    });
-
-    boardMock
-      .mockResolvedValueOnce(makeBoard())
-      .mockImplementation(({ focus_market_product, focus_delivery_point_id }) => {
-        if (focus_delivery_point_id === 'dp-rotterdam') return slowRotterdamResponse;
-        if (focus_delivery_point_id === 'dp-santos') return Promise.resolve(santosBoard);
-        return Promise.resolve(makeBoard(
-          (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
-          (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
-        ));
-      });
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-    fireEvent.click(rotterdamMethanol);
-
-    const santosEthanol = await screen.findByRole('button', {
-      name: 'Select period detail for Bio Ethanol at Santos, SPOT',
-    });
-    fireEvent.click(santosEthanol);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Bio Ethanol - Santos').length).toBeGreaterThan(0);
-      expect(screen.getByText('$1301 / 5.0k MT')).toBeTruthy();
-    });
-
-    resolveRotterdam(rotterdamBoard);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Bio Ethanol - Santos').length).toBeGreaterThan(0);
-      expect(screen.getByText('$1301 / 5.0k MT')).toBeTruthy();
-    });
-    expect(screen.queryByText('$900 / 5.0k MT')).toBeNull();
-    expect(screen.queryByText('Refreshing depth for selected slice...')).toBeNull();
-  });
-
-  it('does not fall back to another market when the selected matrix cell disappears', async () => {
-    const missingRotterdamBoard = makeBoard();
-    missingRotterdamBoard.ports = missingRotterdamBoard.ports.filter(port => port.delivery_point_id !== 'dp-rotterdam');
-    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => {
-      if (focus_delivery_point_id === 'dp-rotterdam') return Promise.resolve(missingRotterdamBoard);
-      return Promise.resolve(makeBoard(
-        (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
-        (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
-      ));
-    });
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-    fireEvent.click(rotterdamMethanol);
-
-    await waitFor(() => {
-      expect(screen.getByText('Selected period unavailable')).toBeTruthy();
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Selected slice is not available in this window.').length).toBeGreaterThanOrEqual(3);
-    });
-    expect(screen.getByRole('button', { name: /expand period/i }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: /open marketplace/i }).hasAttribute('disabled')).toBe(true);
-    expect(screen.queryByText('Loading recent prints...')).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Single-Period Drilldown' })).toBeNull();
-  });
-
-  it('renders missing selected-period prices as empty instead of zero', async () => {
-    const board = makeBoard();
-    const singaporeBio = board.ports[3].cells[0];
-    singaporeBio.benchmark_mid = null;
-    singaporeBio.best_bid = null;
-    singaporeBio.best_ask = null;
-    singaporeBio.spread = null;
-    singaporeBio.volume_mt = 0;
-    singaporeBio.order_count = 0;
-    board.focus = {
-      ...board.focus,
-      ...singaporeBio,
-      curve: [singaporeBio],
-      depth_bids: [],
-      depth_asks: [],
-    };
-    boardMock.mockResolvedValue(board);
-
-    renderWithProviders(<ForwardCurveWorkspace />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Not enough bid/ask context yet.')).toBeTruthy();
-    });
-
-    expect(screen.queryByText('$0')).toBeNull();
-    expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(3);
-  });
-
-  it('opens the focused slice in Marketplace through the explicit CTA', async () => {
+  it('selects a populated product-port-period cell and opens that exact slice in Marketplace', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Open Marketplace')).toBeTruthy();
-    });
+    await screen.findByText('Market Matrix');
+    const rotterdamButton = screen.getByText('$1250').closest('button');
+    expect(rotterdamButton).toBeTruthy();
 
-    fireEvent.click(screen.getByText('Open Marketplace'));
-
-    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
-    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
-    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-singapore');
-    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
-    expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
-    expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
-  });
-
-  it('opens a selected non-default matrix cell in Marketplace with the exact product and delivery point', async () => {
-    const onNavigate = vi.fn();
-    boardMock.mockImplementation(({ focus_market_product, focus_delivery_point_id }) => Promise.resolve(makeBoard(
-      (focus_market_product as MarketProduct | undefined) ?? 'BIO_METHANOL',
-      (focus_delivery_point_id as string | undefined) ?? 'dp-singapore'
-    )));
-
-    renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
-
-    const rotterdamMethanol = await screen.findByRole('button', {
-      name: 'Select period detail for E-Methanol at Rotterdam, SPOT',
-    });
-    fireEvent.click(rotterdamMethanol);
+    fireEvent.click(rotterdamButton as HTMLButtonElement);
 
     await waitFor(() => {
-      expect(screen.getAllByText('E-Methanol - Rotterdam').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('e-Methanol · Rotterdam').length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole('button', { name: /open marketplace/i }));
@@ -489,51 +241,358 @@ describe('ForwardCurveWorkspace', () => {
     expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-rotterdam');
     expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('E_METHANOL');
     expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
+    expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('2026-Q3');
+  });
+
+  it('opens the exact market slice from a matrix cell double-click', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
+
+    await screen.findByText('Market Matrix');
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    const rotterdamButton = within(matrix).getByText('$1250').closest('button');
+    expect(rotterdamButton).toBeTruthy();
+
+    fireEvent.doubleClick(rotterdamButton as HTMLButtonElement);
+
+    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
+    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Rotterdam');
+    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-rotterdam');
+    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('E_METHANOL');
+    expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
+    expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('2026-Q3');
+  });
+
+  it('opens the exact market slice from a forward-curve period double-click', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
+
+    await screen.findByText('Latest Monitored Signals');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const chartButton = within(chart).getByText('$1015').closest('button');
+    expect(chartButton).toBeTruthy();
+
+    fireEvent.doubleClick(chartButton as HTMLButtonElement);
+
+    expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
+    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
+    expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe('dp-singapore');
+    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
+    expect(localStorage.getItem('verdaxis_marketplace_fuel')).toBeNull();
     expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
   });
 
-  it('keeps demo trade provenance accessible in the forward curve trade tape', async () => {
-    tradeTapeMock.mockResolvedValue({
-      items: [{
-        id: 'demo-print-1',
-        market_product: 'BIO_METHANOL',
-        fuel_type: 'Methanol',
-        fuel_grade: 'Bio',
-        region: 'Singapore',
-        quantity_mt: 1400,
-        price_per_mt_usd: 712,
-        confirmed_at: new Date().toISOString(),
-        availability_window: 'SPOT',
-        provenance_kind: 'DEMO_SEED',
-      }],
-      total: 1,
-      market_hours: false,
-    });
+  it('selects a forward-curve point from the keyboard without opening Marketplace', async () => {
+    const onNavigate = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
-    renderWithProviders(<ForwardCurveWorkspace />);
+    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1015/i }))[0];
 
+    fireEvent.keyDown(chartPoint, { key: 'Enter' });
+
+    expect(onNavigate).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(screen.getByLabelText('Demo activity seeded for platform preview. Not user-posted liquidity.')).toBeTruthy();
-    });
-    expect(tradeTapeMock).toHaveBeenCalledWith({
-      market_product: 'BIO_METHANOL',
-      delivery_point_id: 'dp-singapore',
-      availability_window: 'SPOT',
-      limit: 8,
+      expect(screen.getAllByText('Bio Methanol · Singapore').length).toBeGreaterThan(0);
     });
   });
 
-  it('ignores stale stored filters that would make the board endpoint reject the request', async () => {
-    localStorage.setItem('verdaxis_forward_curve_product', 'Methanol');
-    localStorage.setItem('verdaxis_forward_curve_delivery_point', 'Singapore');
+  it('labels market indications as monitored signals instead of live liquidity', async () => {
+    tableMock.mockResolvedValue({
+      ...makeTable(),
+      rows: [
+        {
+          row_key: 'SYNTHETIC_ETHANOL:dp-santos',
+          market_product: 'SYNTHETIC_ETHANOL',
+          product_name: 'Synthetic Ethanol',
+          representative_product_id: 'product-SYNTHETIC_ETHANOL',
+          product_count: 1,
+          delivery_point_id: 'dp-santos',
+          delivery_point_name: 'Santos',
+          region: 'South America',
+          cells: { SPOT: santosIndication },
+        },
+      ],
+      latest_signals: [
+        {
+          market_product: 'SYNTHETIC_ETHANOL',
+          delivery_point_id: 'dp-santos',
+          delivery_point_name: 'Santos',
+          availability_window: 'SPOT',
+          primary_value: '790',
+          primary_signal_type: 'MARKET_INDICATION',
+          primary_source_kind: 'MARKET_INDICATION',
+          public_source_label: 'Sanitized market indication',
+          demo_status: 'REAL_ONLY',
+          observed_at: '2026-06-17T10:00:00Z',
+          staleness_status: 'FRESH',
+        },
+      ],
+    });
+    sliceMock.mockResolvedValue({
+      ...makeSlice(santosIndication),
+      depth_bids: [],
+      depth_asks: [],
+      evidence_points: [
+        {
+          layer: 'MARKET_INDICATION',
+          price_per_mt_usd: 790,
+          quantity_mt: 4000,
+          public_source_label: 'Sanitized market indication',
+          source_kind: 'MARKET_INDICATION',
+          demo_status: 'REAL_ONLY',
+          observed_at: '2026-06-17T10:00:00Z',
+        },
+      ],
+    });
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await waitFor(() => {
-      expect(boardMock).toHaveBeenCalledWith({
+      expect(screen.getAllByText('Synthetic Ethanol · Santos').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getAllByText('Indication').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText('Market indication').length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText('Live')).toBeNull();
+  });
+
+  it('distinguishes live orders, confirmed trades, and reference benchmarks in forward source badges', async () => {
+    tableMock.mockResolvedValue({
+      ...makeTable(),
+      rows: [
+        {
+          row_key: 'BIO_METHANOL:dp-houston',
+          market_product: 'BIO_METHANOL',
+          delivery_point_id: 'dp-houston',
+          delivery_point_name: 'Houston',
+          region: 'North America',
+          cells: { SPOT: houstonLiveOrder },
+        },
+        {
+          row_key: 'E_METHANOL:dp-rotterdam',
+          market_product: 'E_METHANOL',
+          delivery_point_id: 'dp-rotterdam',
+          delivery_point_name: 'Rotterdam',
+          region: 'Europe',
+          cells: { SPOT: rotterdamConfirmedTrade },
+        },
+        {
+          row_key: 'BIO_ETHANOL:dp-dalian',
+          market_product: 'BIO_ETHANOL',
+          delivery_point_id: 'dp-dalian',
+          delivery_point_name: 'Dalian',
+          region: 'Asia',
+          cells: { SPOT: dalianReference },
+        },
+      ],
+      latest_signals: [
+        {
+          market_product: 'BIO_METHANOL',
+          delivery_point_id: 'dp-houston',
+          delivery_point_name: 'Houston',
+          availability_window: 'SPOT',
+          primary_value: '900',
+          primary_signal_type: 'ORDERBOOK_BID',
+          primary_source_kind: 'LIVE_ORDER',
+          public_source_label: 'User order midpoint',
+          demo_status: 'REAL_ONLY',
+          observed_at: '2026-06-17T10:00:00Z',
+          staleness_status: 'FRESH',
+        },
+        {
+          market_product: 'E_METHANOL',
+          delivery_point_id: 'dp-rotterdam',
+          delivery_point_name: 'Rotterdam',
+          availability_window: 'SPOT',
+          primary_value: '1250',
+          primary_signal_type: 'CONFIRMED_TRADE',
+          primary_source_kind: 'CONFIRMED_TRADE',
+          public_source_label: 'Confirmed trade print',
+          demo_status: 'REAL_ONLY',
+          observed_at: '2026-06-17T10:00:00Z',
+          staleness_status: 'FRESH',
+        },
+        {
+          market_product: 'BIO_ETHANOL',
+          delivery_point_id: 'dp-dalian',
+          delivery_point_name: 'Dalian',
+          availability_window: 'SPOT',
+          primary_value: '650',
+          primary_signal_type: 'BENCHMARK_MID',
+          primary_source_kind: 'BENCHMARK_REFERENCE',
+          public_source_label: 'Benchmark reference',
+          demo_status: 'NOT_APPLICABLE',
+          observed_at: '2026-06-17T10:00:00Z',
+          staleness_status: 'FRESH',
+        },
+      ],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Latest Monitored Signals');
+
+    expect(screen.getAllByText('Live').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Trade').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Reference').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Unknown')).toBeNull();
+    expect(screen.queryByText('Unverified signal')).toBeNull();
+  });
+
+  it('filters unsupported products out of forward rows and latest signals even on approved ports', async () => {
+    const unsupportedCell = {
+      ...baseCell('BIO_METHANOL', 'dp-houston', 'Houston', 'SPOT', '777'),
+      market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
+      product_name: 'Legacy conventional methanol',
+      public_source_label: 'Unsupported product row',
+    } as ForwardCurveMarketCell;
+
+    tableMock.mockResolvedValue({
+      ...makeTable(),
+      rows: [
+        {
+          row_key: 'CONVENTIONAL_METHANOL:dp-houston',
+          market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
+          delivery_point_id: 'dp-houston',
+          delivery_point_name: 'Houston',
+          region: 'North America',
+          cells: { SPOT: unsupportedCell },
+        },
+        {
+          row_key: 'BIO_METHANOL:dp-singapore',
+          market_product: 'BIO_METHANOL',
+          delivery_point_id: 'dp-singapore',
+          delivery_point_name: 'Singapore',
+          region: 'Asia',
+          cells: { SPOT: singaporeSpot },
+        },
+      ],
+      latest_signals: [
+        {
+          market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
+          delivery_point_id: 'dp-houston',
+          delivery_point_name: 'Houston',
+          availability_window: 'SPOT',
+          primary_value: '777',
+          primary_signal_type: 'BENCHMARK_MID',
+          primary_source_kind: 'BENCHMARK_REFERENCE',
+          public_source_label: 'Unsupported product signal',
+          demo_status: 'NOT_APPLICABLE',
+          observed_at: '2026-06-17T10:00:00Z',
+          staleness_status: 'FRESH',
+        },
+      ],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Market Matrix');
+
+    expect(screen.queryByText('$777')).toBeNull();
+    expect(screen.queryByText(/Unsupported product/i)).toBeNull();
+    expect(screen.queryByText(/CONVENTIONAL_METHANOL/i)).toBeNull();
+    await waitFor(() => {
+      expect(sliceMock).toHaveBeenCalledWith({
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'dp-singapore',
         availability_window: 'SPOT',
-        focus_market_product: 'BIO_METHANOL',
-        focus_delivery_point_id: undefined,
+      });
+    });
+  });
+
+  it('clears stale selected-period evidence while a newly selected slice is loading', async () => {
+    let resolveRotterdam: ((value: ForwardCurveSliceResponse) => void) | null = null;
+    sliceMock.mockImplementation(({ market_product, delivery_point_id, availability_window }) => {
+      if (market_product === 'E_METHANOL') {
+        return new Promise<ForwardCurveSliceResponse>((resolve) => {
+          resolveRotterdam = resolve;
+        });
+      }
+      const cell = [singaporeSpot, rotterdamQuarter, dalianEmpty].find(item => (
+        item.market_product === market_product
+        && item.delivery_point_id === delivery_point_id
+        && item.availability_window === availability_window
+      )) ?? singaporeSpot;
+      return Promise.resolve(makeSlice(cell));
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Price Evidence');
+    expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
+
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    const rotterdamButton = within(matrix).getByText('$1250').closest('button');
+    expect(rotterdamButton).toBeTruthy();
+    fireEvent.click(rotterdamButton as HTMLButtonElement);
+
+    await waitFor(() => {
+      expect(screen.queryByText('$980')).toBeNull();
+    });
+
+    await act(async () => {
+      resolveRotterdam?.(makeSlice(rotterdamQuarter));
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('$1215').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('shows distinct empty states when a selected period has no evidence, depth, or prints', async () => {
+    sliceMock.mockResolvedValue({
+      ...makeSlice(singaporeSpot),
+      depth_bids: [],
+      depth_asks: [],
+      trades: [],
+      evidence_points: [],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('No price evidence for this exact period yet.');
+    expect(screen.getByText('No visible bid levels in this selected period.')).toBeTruthy();
+    expect(screen.getByText('No visible ask levels in this selected period.')).toBeTruthy();
+    expect(screen.getByText('No confirmed prints in this selected period.')).toBeTruthy();
+  });
+
+  it('shows a specific empty state when no approved forward curve rows are available', async () => {
+    tableMock.mockResolvedValue({
+      ...makeTable(),
+      rows: [],
+      latest_signals: [],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('No approved forward-curve markets are available yet. Check Marketplace for open spot and near-dated liquidity.');
+    expect(sliceMock).not.toHaveBeenCalled();
+  });
+
+  it('scales selected-period evidence when backend decimals arrive as strings', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Price Evidence');
+
+    expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$1050').length).toBeGreaterThan(0);
+    expect(screen.queryByText('$0')).toBeNull();
+  });
+
+  it('ignores stale stored filters and falls back to the first populated monitored cell', async () => {
+    localStorage.setItem('verdaxis_forward_curve_product', 'Methanol');
+    localStorage.setItem('verdaxis_forward_curve_delivery_point', 'Singapore');
+    localStorage.setItem('verdaxis_forward_curve_window', 'Q1_2026');
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await waitFor(() => {
+      expect(sliceMock).toHaveBeenCalledWith({
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'dp-singapore',
+        availability_window: 'SPOT',
       });
     });
   });

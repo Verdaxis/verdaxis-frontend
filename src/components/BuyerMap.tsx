@@ -36,6 +36,8 @@ const getSpreadColor = (spreadPct: number): string => {
     return '#EF4444';                      // red
 };
 
+const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
@@ -84,6 +86,36 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
     const selectedPort = ports.find(p => p.id === selectedPortId);
 
+    const approvedListingLocationMap = useMemo(() => {
+        const map = new Map<string, string>();
+        ports.forEach((port) => {
+            [
+                port.id,
+                port.catalogDeliveryPointId,
+                port.name,
+            ].forEach((value) => {
+                const normalized = normalizeMarketLocation(value);
+                if (normalized) map.set(normalized, port.name);
+            });
+        });
+        return map;
+    }, [ports]);
+
+    const approvedListings = useMemo(() => (
+        listings.reduce<OrderBookOrder[]>((approved, listing) => {
+            const approvedPortName = [
+                listing.delivery_point_id,
+                listing.delivery_point_name,
+                listing.port_id,
+            ].map((value) => approvedListingLocationMap.get(normalizeMarketLocation(value)))
+                .find((value): value is string => Boolean(value));
+
+            if (!approvedPortName) return approved;
+            approved.push({ ...listing, region: approvedPortName });
+            return approved;
+        }, [])
+    ), [approvedListingLocationMap, listings]);
+
     const handleMarkerClick = useCallback((portId: string) => {
         setSelectedPortId(portId);
         setIsPanelOpen(true);
@@ -93,7 +125,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const portMarketMap = useMemo(() => {
         const map: Record<string, PortMarketData> = {};
         ports.forEach(port => {
-            map[port.id] = computePortMarketData(aggregatedData, port.name, port.country, selectedProduct);
+            map[port.id] = computePortMarketData(aggregatedData, port, selectedProduct);
         });
         return map;
     }, [ports, aggregatedData, selectedProduct]);
@@ -112,10 +144,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
-    // Aggregate listings by region for Fuel Avails (all low-carbon fuels)
+    // Aggregate approved-location listings by region for Fuel Avails (all low-carbon fuels)
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
-        listings.forEach(l => {
+        approvedListings.forEach(l => {
             const region = l.region;
             regionMap[region] = (regionMap[region] || 0) + Number(l.quantity_mt);
         });
@@ -124,14 +156,14 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             .map(([region, qty]) => ({ region, qty }))
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 6);
-    }, [listings]);
+    }, [approvedListings]);
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
     // Recent listing indications: derive from open listings, not confirmed trades.
     const recentListingsByRegion = useMemo(() => {
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
-        listings.forEach(l => {
+        approvedListings.forEach(l => {
             const region = l.region;
             if (!regionMap[region] || l.created_at > regionMap[region].date) {
                 regionMap[region] = {
@@ -146,7 +178,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Object.entries(regionMap)
             .map(([region, data]) => ({ region, ...data }))
             .slice(0, 6);
-    }, [listings]);
+    }, [approvedListings]);
 
     // Map initialization
     useEffect(() => {
@@ -304,7 +336,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                 + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
                                 + '</tr>').join('')
                             + '</tbody></table>'
-                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No live orders at this port</div>';
+                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No open orders at this port</div>';
 
                     // Market intelligence section
                     const spotPrice = port.priceMethanol > 0 ? '$' + port.priceMethanol : '--';
@@ -495,9 +527,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     }
 
     const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
+    const mapChromeStyle = {
+        '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
+    } as React.CSSProperties;
 
     return (
-        <div className="relative w-full h-full flex overflow-hidden">
+        <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
@@ -532,7 +567,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         ))
                                     ) : (
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                            No live asks available yet.
+                                            No open asks available yet.
                                         </div>
                                     )}
                                 </div>
@@ -566,8 +601,18 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </div>
                 )}
 
+                {showOverlays && (
+                    <div className="pointer-events-auto absolute left-6 right-[var(--verdaxis-map-rail-offset)] top-6 z-[30] transition-all duration-300">
+                        <MarketWatchTicker
+                            isPanelOpen={isPanelOpen}
+                            onOpenPanel={() => setIsPanelOpen(true)}
+                            ports={ports}
+                        />
+                    </div>
+                )}
+
                 {/* Overlay Toggle + Fuel Filter (Top-left) */}
-                <div className="absolute top-6 left-6 z-[20] flex items-center gap-2">
+                <div className="absolute top-20 left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex items-center gap-2 transition-all duration-300">
                     <button
                         onClick={() => setShowOverlays(!showOverlays)}
                         className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 hover:bg-white dark:hover:bg-slate-800 transition-colors"
@@ -613,16 +658,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         </div>
                     )}
                 </div>
-
-                {showOverlays && (
-                    <div className={`pointer-events-auto absolute left-6 top-20 z-[9] transition-all duration-300 ${isPanelOpen ? 'right-80 mr-6 max-w-none' : 'right-6 max-w-[calc(100%-3rem)]'}`}>
-                        <MarketWatchTicker
-                            isPanelOpen={isPanelOpen}
-                            onOpenPanel={() => setIsPanelOpen(true)}
-                            ports={ports}
-                        />
-                    </div>
-                )}
             </div>
 
             {/* Toggle Button (Visible when panel is closed) */}
@@ -644,8 +679,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}
                 onPortSelect={onPortSelect}
-                onNavigate={onNavigate}
-                ports={ports}
             />
         </div>
     );

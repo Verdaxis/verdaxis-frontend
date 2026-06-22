@@ -38,7 +38,7 @@
   },
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
-    "marketAvails": "Live Market Avails",
+    "marketAvails": "Open Market Avails",
     "lastDone": "Recent Listings",
     "recentActivity": "Recent Activity",
     "recentTrades": "Recent Trades",
@@ -363,7 +363,7 @@
     "waitAvg": "{{hours}}h wait avg",
     "activeBarges": "{{count}} active barges",
     "futurePipeline": "Future Production Pipeline",
-    "methanolPrice7Day": "Methanol Price (7 Day)",
+    "methanolPrice7Day": "Selected Product Reference (7 Day)",
     "viewMarketProcure": "View Market & Procure",
     "forwardCurvesQ4": "Forward Curves (Q4)",
     "indicativeForwardReferences": "Indicative Forward References",
@@ -378,10 +378,24 @@
     "viewFleetStatus": "View Fleet Status",
     "fleetStatus": "Fleet Status",
     "allVesselsCompliant": "All vessels are compliant. No alerts at this time.",
+    "tabs": {
+      "label": "Intelligence panel sections",
+      "estimator": "Estimator",
+      "portIntel": "Port Intel",
+      "news": "News"
+    },
     "estimator": {
       "title": "FuelEU / EU ETS Estimator",
       "subtitle": "Indicative voyage exposure and green-fuel blend planning",
       "disclaimer": "Indicative planning estimate only. Based on assumptions. Not a compliance filing or legal determination.",
+      "voyageSegments": "Voyage segments",
+      "segmentSummary": "{{days}} voyage days · weighted ETS coverage {{coverage}}%",
+      "segmentType": "Segment {{index}}",
+      "segmentDays": "Days",
+      "addSegment": "Add",
+      "removeSegment": "Remove segment {{index}}",
+      "intraEu": "Intra-EU · 100%",
+      "euEntryExit": "EU entry/exit · 50%",
       "fuelPathway": "Green fuel pathway",
       "voyageDays": "Voyage days",
       "dailyBurn": "Daily burn (MT)",
@@ -403,7 +417,7 @@
   },
   "mapLegend": {
     "title": "Map Intelligence Legend",
-    "portMethanolSupply": "Port Methanol Supply",
+    "portMethanolSupply": "Port Product Supply",
     "highAvailability": "High Availability (>10kt)",
     "moderateTightening": "Moderate / Tightening",
     "criticalLowStock": "Critical Low Stock",
@@ -426,17 +440,26 @@
     "retryConnection": "Retry Connection",
     "configure": "Configure market watch",
     "configureShort": "Configure",
-    "configureHelp": "Choose one market product and up to three delivery points. Rows are labelled by source.",
+    "configureHelp": "Choose one or more market products and delivery points. The ticker groups selected fuels under each port. Demo means seeded walkthrough activity; Reference means benchmark or model context, not executable liquidity.",
     "closeConfigure": "Close market watch configuration",
-    "product": "Product",
+    "products": "Products",
     "deliveryPoints": "Delivery Points",
-    "pinnedCount": "{{count}} points",
-    "pinLimit": "Select 1-3",
+    "pinnedCount": {
+      "one": "{{count}} point",
+      "other": "{{count}} points"
+    },
+    "productsCount": {
+      "one": "{{count}} fuel",
+      "other": "{{count}} fuels"
+    },
+    "pinHelp": "Select one or more",
+    "scrollArea": "Scrollable market watch prices",
     "source": {
       "live": "Recent",
       "stale": "Stale",
       "demo": "Demo",
       "reference": "Reference",
+      "mixed": "Mixed",
       "unavailable": "No data"
     }
   },
@@ -457,7 +480,7 @@
     "clickHint": "Click a period to filter the orderbook.",
     "loading": "Loading...",
     "noData": "No forward curve data available",
-    "noDataHint": "Check Marketplace or Orderbook for live spot and near-dated liquidity.",
+    "noDataHint": "Check Marketplace or Orderbook for open spot and near-dated liquidity.",
     "exportCsv": "Export CSV",
     "upgrade": "Upgrade",
     "refresh": "Refresh",

@@ -2,6 +2,24 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Run Requested Design Review Before UI Edits
+- **Date:** 2026-06-20
+- **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.
+- **Rule:** When the user asks for design planning or subagent pushback before implementation, pause all file edits until the plan and review are presented and approved.
+- **Why:** Premature UI patches can lock in an unreviewed interaction model and create unnecessary rework.
+
+### Verify Configurable UI State Actually Controls Rendered Data
+- **Date:** 2026-06-20
+- **Trigger:** User pointed out that the Intelligence Map ticker looked like a scrolling market watch but only rendered one selected fuel across three ports, and the fuel selector did not support the intended multi-fuel sequence.
+- **Rule:** When a configurable UI advertises selectable products, ports, or modes, dogfood that each control changes the rendered data model and not just the label or saved preference.
+- **Why:** The ticker refactor preserved the old single-product state shape, so the new visual design did not match the intended scrolling multi-market behaviour.
+
+### Match Tab Priority To User-Expected Reading Order
+- **Date:** 2026-06-20
+- **Trigger:** User corrected the Intelligence Panel tab order: News should come before the estimator.
+- **Rule:** When introducing tabs in a compact side panel, confirm the first/default tab matches the user's intended information hierarchy, not just the implementation's primary content block.
+- **Why:** The code kept the estimator/port-intel content as the first tab because it was previously the only panel body, but the new tabbed layout should lead with market news.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened
@@ -450,3 +468,21 @@
 - **Trigger:** User asked to have the checklist-style status every sprint so the work stays trackable.
 - **Rule:** For Verdaxis FSB feedback loops, keep a durable sprint checklist that maps each feedback item to status, evidence, reviewer outcomes, and next action; update it at sprint close and when reviewer findings change scope.
 - **Why:** Long-running factory loops can lose the connection between screenshots, commits, deployments, and remaining work if status only lives in chat.
+
+### Keep The Curve In Forward Curve
+- **Date:** 2026-06-17
+- **Trigger:** User noticed the Forward Curve revamp no longer had an across-period curve or graph.
+- **Rule:** A page called Forward Curve must keep a visible curve across delivery periods; period-level evidence graphs can supplement it but must not replace it.
+- **Why:** The implementation over-focused on selected-period evidence and removed the primary mental model users expect from a forward curve screen.
+
+### Avoid Shared Grid Row Stretch In Terminal Layouts
+- **Date:** 2026-06-20
+- **Trigger:** User reported a large blank gap under the Forward Curve chart after the right-side latest-signals panel became much taller.
+- **Rule:** Dense two-column terminal dashboards should group each column into its own vertical stack instead of placing all panels as direct CSS-grid children when panel heights can differ.
+- **Why:** CSS grid row tracks are sized by the tallest item in each row, so a tall right rail can stretch or visually separate shorter left-column panels and create large empty gaps.
+
+### Keep Secondary Rails Compact
+- **Date:** 2026-06-20
+- **Trigger:** User reported the Forward Curve latest-signals rail consumed too much vertical real estate and pushed the Selected Period section below the viewport.
+- **Rule:** Secondary activity rails should use compact rows, capped internal scrolling, and smaller numeric typography so the primary detail panel remains visible in the first viewport.
+- **Why:** Latest/event feeds are supporting context; if every item uses card-like spacing, they crowd out the actionable or inspectable panel beneath them.

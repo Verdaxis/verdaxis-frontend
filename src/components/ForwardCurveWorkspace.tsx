@@ -1,891 +1,758 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Activity, ArrowRight, CheckCircle2, Maximize2, RefreshCw, Target, TrendingUp, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Target, TrendingUp } from 'lucide-react';
 
 import { api } from '../services/api';
 import { MARKET_PRODUCTS } from '../types';
 import type {
-    ForwardCurveBoardCell,
-    ForwardCurveBoardFairPriceBand,
-    ForwardCurveBoardIndicationSummary,
-    ForwardCurveBoardPhysicalStemSummary,
-    ForwardCurveBoardResponse,
-    ForwardCurveSignalProvenance,
+    ForwardCurveBoardDepthLevel,
+    ForwardCurveEvidenceLayer,
+    ForwardCurveMarketCell,
+    ForwardCurveSourceKind,
+    ForwardCurveSliceEvidencePoint,
+    ForwardCurveSliceResponse,
+    ForwardCurveTableColumn,
+    ForwardCurveTableRow,
+    ForwardCurveTableResponse,
     MarketProduct,
     Page,
-    TradeTapeEntry,
 } from '../types';
-import { useNamespace } from '../hooks/useNamespace';
-import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions, normalizeAvailabilityWindow } from '../utils/availabilityWindow';
+import { formatAvailabilityWindowPeriod } from '../utils/availabilityWindow';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
+import { isApprovedTradingPortName } from '../utils/tradingPorts';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
 }
 
-const WINDOW_STORAGE_KEY = 'verdaxis_forward_curve_window';
+type SelectedSlice = {
+    marketProduct: MarketProduct;
+    deliveryPointId: string;
+    availabilityWindow: string;
+};
+
 const PRODUCT_STORAGE_KEY = 'verdaxis_forward_curve_product';
 const DELIVERY_POINT_STORAGE_KEY = 'verdaxis_forward_curve_delivery_point';
+const WINDOW_STORAGE_KEY = 'verdaxis_forward_curve_window';
 const REFRESH_INTERVAL_MS = 30_000;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const isMarketProduct = (value: string | null): value is MarketProduct =>
-    MARKET_PRODUCTS.includes(value as MarketProduct);
 
 const currency = (value: number | string | null | undefined) => {
     if (value == null || value === '') return '--';
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) return '--';
-    return `$${numberValue.toFixed(0)}`;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return '--';
+    return `$${parsed.toFixed(0)}`;
 };
 
-const numberOrNull = (value: number | string | null | undefined) => {
+const numericValue = (value: number | string | null | undefined) => {
     if (value == null || value === '') return null;
-    const numberValue = Number(value);
-    return Number.isFinite(numberValue) ? numberValue : null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
 };
 
 const quantity = (value: number | string | null | undefined) => {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue) || numberValue <= 0) return '--';
-    if (numberValue >= 1000) return `${(numberValue / 1000).toFixed(1)}k MT`;
-    return `${numberValue.toLocaleString()} MT`;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return '--';
+    if (parsed >= 1000) return `${(parsed / 1000).toFixed(1)}k MT`;
+    return `${parsed.toLocaleString()} MT`;
 };
 
-const sourceLabel = (source: string | null | undefined, isDemo: boolean, sourceKind?: string | null) => {
-    if (isDemo || sourceKind === 'DEMO_SEED') return 'Demo reference';
-    if (sourceKind === 'BENCHMARK_REFERENCE') return 'Benchmark reference';
-    if (sourceKind === 'NO_DATA') return 'No reference';
-    if (!source) return 'No reference';
-    return source.replace(/_/g, ' ');
+const ageLabel = (value: string | null | undefined) => {
+    if (!value) return 'No timestamp';
+    const timestamp = new Date(value).getTime();
+    if (!Number.isFinite(timestamp)) return 'No timestamp';
+    const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
 };
 
-const orderContextLabel = (cell: ForwardCurveBoardCell) => describeMarketActivity({
-    source_kind: cell.order_source_kind,
-    demo_status: cell.demo_status,
+const sliceKey = (slice: SelectedSlice | null | undefined) => (
+    slice ? `${slice.marketProduct}|${slice.deliveryPointId}|${slice.availabilityWindow}` : ''
+);
+
+const cellToSlice = (cell: ForwardCurveMarketCell): SelectedSlice => ({
+    marketProduct: cell.market_product,
+    deliveryPointId: cell.delivery_point_id,
+    availabilityWindow: cell.availability_window,
 });
 
-const sideContextLabel = (sourceKind: ForwardCurveBoardCell['best_bid_source_kind'] | ForwardCurveBoardCell['best_ask_source_kind']) =>
-    describeMarketActivity({ source_kind: sourceKind });
+const cellHasSignal = (cell: ForwardCurveMarketCell) => (
+    cell.primary_value != null
+    || cell.best_bid != null
+    || cell.best_ask != null
+    || cell.order_count > 0
+    || (cell.indication_summary?.indication_count ?? 0) > 0
+    || (cell.physical_stem_summary?.stem_count ?? 0) > 0
+);
 
-const signalContextLabel = (provenance: ForwardCurveSignalProvenance | null | undefined) => describeForwardCurveSignal({
-    signal_type: provenance?.signal_type,
-    signal_source_kind: provenance?.signal_source_kind,
-    demo_status: provenance?.demo_status,
+const getStoredSelection = (): SelectedSlice | null => {
+    if (typeof window === 'undefined') return null;
+    const marketProduct = localStorage.getItem(PRODUCT_STORAGE_KEY) as MarketProduct | null;
+    const deliveryPointId = localStorage.getItem(DELIVERY_POINT_STORAGE_KEY);
+    const availabilityWindow = localStorage.getItem(WINDOW_STORAGE_KEY);
+    if (!marketProduct || !deliveryPointId || !availabilityWindow) return null;
+    return { marketProduct, deliveryPointId, availabilityWindow };
+};
+
+const persistSelection = (selection: SelectedSlice) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(PRODUCT_STORAGE_KEY, selection.marketProduct);
+    localStorage.setItem(DELIVERY_POINT_STORAGE_KEY, selection.deliveryPointId);
+    localStorage.setItem(WINDOW_STORAGE_KEY, selection.availabilityWindow);
+};
+
+const persistMarketplaceSlice = (cell: ForwardCurveMarketCell) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('verdaxis_marketplace_port', cell.delivery_point_name);
+    localStorage.setItem('verdaxis_marketplace_delivery_point_id', cell.delivery_point_id);
+    localStorage.setItem('verdaxis_marketplace_product', cell.market_product);
+    localStorage.removeItem('verdaxis_marketplace_fuel');
+    localStorage.setItem('verdaxis_marketplace_window', cell.availability_window);
+};
+
+const flattenCells = (table: ForwardCurveTableResponse | null) => (
+    table?.rows.flatMap(row => table.columns.map(column => row.cells[column.availability_window]).filter(Boolean)) ?? []
+);
+
+const findCell = (table: ForwardCurveTableResponse | null, selection: SelectedSlice | null) => {
+    if (!table || !selection) return null;
+    const row = table.rows.find(item => (
+        item.market_product === selection.marketProduct
+        && item.delivery_point_id === selection.deliveryPointId
+    ));
+    return row?.cells[selection.availabilityWindow] ?? null;
+};
+
+const pickInitialSelection = (table: ForwardCurveTableResponse): SelectedSlice | null => {
+    const cells = flattenCells(table);
+    const preferred = cells.find(cellHasSignal) ?? cells[0];
+    return preferred ? cellToSlice(preferred) : null;
+};
+
+const isApprovedMarketProduct = (marketProduct: string | null | undefined): marketProduct is MarketProduct => (
+    MARKET_PRODUCTS.includes(marketProduct as MarketProduct)
+);
+
+const isApprovedForwardCurveCell = (cell: ForwardCurveMarketCell | null | undefined): cell is ForwardCurveMarketCell => (
+    Boolean(cell)
+    && isApprovedMarketProduct(cell?.market_product)
+    && isApprovedTradingPortName(cell?.delivery_point_name)
+);
+
+const filterApprovedForwardCurveTable = (response: ForwardCurveTableResponse): ForwardCurveTableResponse => {
+    const rows = response.rows
+        .filter(row => isApprovedMarketProduct(row.market_product) && isApprovedTradingPortName(row.delivery_point_name))
+        .map(row => ({
+            ...row,
+            cells: Object.fromEntries(
+                Object.entries(row.cells).filter(([, cell]) => isApprovedForwardCurveCell(cell))
+            ) as Record<string, ForwardCurveMarketCell>,
+        }))
+        .filter(row => Object.keys(row.cells).length > 0);
+
+    return {
+        ...response,
+        rows,
+        latest_signals: response.latest_signals.filter(signal => (
+            isApprovedMarketProduct(signal.market_product)
+            && isApprovedTradingPortName(signal.delivery_point_name)
+        )),
+    };
+};
+
+const signalTone = (
+    sourceKind: ForwardCurveSourceKind | null | undefined,
+    demoStatus?: ForwardCurveMarketCell['demo_status'],
+) => describeForwardCurveSignal({
+    signal_source_kind: sourceKind,
+    demo_status: demoStatus,
 });
 
-const countLabel = (count: number, singular: string, plural: string = `${singular}s`) =>
-    `${count} ${count === 1 ? singular : plural}`;
+const sourceTone = (cell: ForwardCurveMarketCell) => signalTone(
+    cell.primary_source_kind,
+    cell.demo_status,
+);
 
-const positiveNumberOrNull = (value: number | string | null | undefined) => {
-    const parsed = numberOrNull(value);
-    return parsed != null && parsed > 0 ? parsed : null;
+const evidenceLayerMeta: Record<ForwardCurveEvidenceLayer, {
+    label: string;
+    shortLabel: string;
+    toneClass: string;
+    markerClass: string;
+}> = {
+    HISTORICAL_TRADE: {
+        label: 'Last print',
+        shortLabel: 'LAST',
+        toneClass: 'text-cyan-300',
+        markerClass: 'rounded-full bg-cyan-300',
+    },
+    ORDERBOOK_BID: {
+        label: 'Bid',
+        shortLabel: 'BID',
+        toneClass: 'text-emerald-300',
+        markerClass: 'rounded-sm bg-emerald-300',
+    },
+    ORDERBOOK_ASK: {
+        label: 'Ask',
+        shortLabel: 'ASK',
+        toneClass: 'text-rose-300',
+        markerClass: 'rounded-sm bg-rose-300',
+    },
+    MARKET_INDICATION: {
+        label: 'Indication',
+        shortLabel: 'IND',
+        toneClass: 'text-amber-300',
+        markerClass: 'rotate-45 rounded-[2px] bg-amber-300',
+    },
+    FAIR_PRICE_BAND: {
+        label: 'Fair value',
+        shortLabel: 'FAIR',
+        toneClass: 'text-fuchsia-300',
+        markerClass: 'rounded-sm bg-fuchsia-300',
+    },
+    BENCHMARK_MID: {
+        label: 'Reference',
+        shortLabel: 'REF',
+        toneClass: 'text-blue-300',
+        markerClass: 'w-0.5 rounded-none bg-blue-300',
+    },
+    PHYSICAL_STEM: {
+        label: 'Physical stem',
+        shortLabel: 'STEM',
+        toneClass: 'text-slate-300',
+        markerClass: 'rounded-full bg-slate-300',
+    },
 };
 
-const formatIndicationDetail = (summary: ForwardCurveBoardIndicationSummary | null | undefined) => {
-    if (!summary || summary.indication_count <= 0) return 'No indications feed connected yet';
-
-    const detailParts = [
-        countLabel(summary.indication_count, 'indication'),
-        numberOrNull(summary.latest_bid_price_per_mt_usd) == null ? null : `Bid ${currency(summary.latest_bid_price_per_mt_usd)}`,
-        numberOrNull(summary.latest_ask_price_per_mt_usd) == null ? null : `Ask ${currency(summary.latest_ask_price_per_mt_usd)}`,
-        numberOrNull(summary.latest_mid_price_per_mt_usd) == null ? null : `Mid ${currency(summary.latest_mid_price_per_mt_usd)}`,
-        positiveNumberOrNull(summary.total_quantity_mt) == null ? null : quantity(summary.total_quantity_mt),
-        signalContextLabel(summary.provenance).label,
-    ].filter((part): part is string => Boolean(part));
-
-    return detailParts.join(' · ');
+const cellCurveValue = (cell: ForwardCurveMarketCell | null | undefined) => {
+    if (!cell) return null;
+    const primary = numericValue(cell.primary_value);
+    if (primary != null) return primary;
+    const bid = numericValue(cell.best_bid);
+    const ask = numericValue(cell.best_ask);
+    if (bid != null && ask != null) return (bid + ask) / 2;
+    return bid ?? ask;
 };
 
-const formatPhysicalStemDetail = (summary: ForwardCurveBoardPhysicalStemSummary | null | undefined) => {
-    if (!summary || summary.stem_count <= 0) return 'No stems feed connected yet';
-
-    const detailParts = [
-        countLabel(summary.stem_count, 'stem'),
-        positiveNumberOrNull(summary.available_quantity_mt) == null ? null : `Available ${quantity(summary.available_quantity_mt)}`,
-        positiveNumberOrNull(summary.tentative_quantity_mt) == null ? null : `Tentative ${quantity(summary.tentative_quantity_mt)}`,
-        signalContextLabel(summary.provenance).label,
-    ].filter((part): part is string => Boolean(part));
-
-    return detailParts.join(' · ');
-};
-
-const formatFairBandDetail = (
-    band: ForwardCurveBoardFairPriceBand | null | undefined,
-    provenance: ForwardCurveSignalProvenance | null | undefined
-) => {
-    if (!band) return 'No model-derived fair-value band yet';
-
-    return [
-        `${currency(band.low_price_per_mt_usd)}-${currency(band.high_price_per_mt_usd)}`,
-        `Mid ${currency(band.mid_price_per_mt_usd)}`,
-        signalContextLabel(band.provenance ?? provenance).label,
-    ].join(' · ');
-};
-
-const marketSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
-    [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
-
-const tradeSliceKey = (marketProduct: MarketProduct | string | undefined, deliveryPointId: string | undefined, availabilityWindow: string | undefined) =>
-    [marketProduct || '', deliveryPointId || '', availabilityWindow || ''].map(value => value.trim().toLowerCase()).join('|');
-
-function getStoredWindow() {
-    if (typeof window === 'undefined') return 'SPOT';
-    return normalizeAvailabilityWindow(localStorage.getItem(WINDOW_STORAGE_KEY));
-}
-
-function getStoredProduct(): MarketProduct {
-    if (typeof window === 'undefined') return 'BIO_METHANOL';
-    const stored = localStorage.getItem(PRODUCT_STORAGE_KEY);
-    return isMarketProduct(stored) ? stored : 'BIO_METHANOL';
-}
-
-function getStoredDeliveryPointId() {
-    if (typeof window === 'undefined') return undefined;
-    const stored = localStorage.getItem(DELIVERY_POINT_STORAGE_KEY);
-    return stored && UUID_PATTERN.test(stored) ? stored : undefined;
-}
-
-function buildWindowOptions() {
-    const options = getAvailabilityWindowOptions({ quarterCount: 8 });
-    const year = new Date().getUTCFullYear();
-    return [
-        ...options,
-        { value: `${year + 1}-CAL`, label: `CAL ${year + 1}`, summaryLabel: `CAL ${year + 1}`, kind: 'calendar' as const },
-        { value: `${year + 2}-CAL`, label: `CAL ${year + 2}`, summaryLabel: `CAL ${year + 2}`, kind: 'calendar' as const },
-    ];
-}
-
-function makePath(points: Array<{ x: number; y: number }>) {
-    if (!points.length) return '';
-    return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
-}
-
-const CurveChart: React.FC<{
-    points: ForwardCurveBoardCell[];
-    loading?: boolean;
-    unavailable?: boolean;
-}> = ({ points, loading = false, unavailable = false }) => {
-    const chart = useMemo(() => {
-        const visible = points.filter(point => (
-            numberOrNull(point.benchmark_mid) != null
-            || numberOrNull(point.best_bid) != null
-            || numberOrNull(point.best_ask) != null
+const findCurveRow = (
+    table: ForwardCurveTableResponse,
+    selectedCell: ForwardCurveMarketCell | null | undefined,
+): ForwardCurveTableRow | null => {
+    if (selectedCell) {
+        const selectedRow = table.rows.find(row => (
+            row.market_product === selectedCell.market_product
+            && row.delivery_point_id === selectedCell.delivery_point_id
         ));
-        const values = visible.flatMap(point => [
-            numberOrNull(point.benchmark_mid),
-            numberOrNull(point.best_bid),
-            numberOrNull(point.best_ask),
-        ]).filter((value): value is number => value != null);
+        if (selectedRow) return selectedRow;
+    }
+    return table.rows.find(row => table.columns.some(column => cellCurveValue(row.cells[column.availability_window]) != null)) ?? null;
+};
 
-        if (!visible.length || !values.length) {
-            return { visible, benchmarkPath: '', bidPath: '', askPath: '', min: 0, max: 0 };
+const ForwardCurveChart: React.FC<{
+    table: ForwardCurveTableResponse;
+    selectedCell: ForwardCurveMarketCell | null;
+    selectedKey: string;
+    onSelectCell: (cell: ForwardCurveMarketCell) => void;
+    onOpenCell: (cell: ForwardCurveMarketCell) => void;
+}> = ({ table, selectedCell, selectedKey, onSelectCell, onOpenCell }) => {
+    const curveRow = useMemo(() => findCurveRow(table, selectedCell), [table, selectedCell]);
+    const columns = table.columns;
+
+    const graph = useMemo(() => {
+        const cells = columns.map((column, index) => {
+            const cell = curveRow?.cells[column.availability_window] ?? null;
+            const value = cellCurveValue(cell);
+            return { column, cell, value, index };
+        });
+        const priceValues = cells.flatMap(point => [
+            point.value,
+            point.cell?.best_bid,
+            point.cell?.best_ask,
+        ]).map(numericValue).filter((value): value is number => value != null);
+
+        if (!priceValues.length) {
+            return { cells, points: [], min: 0, max: 0, range: 1 };
         }
 
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const padding = Math.max((max - min) * 0.12, 10);
-        const yMin = min - padding;
-        const yMax = max + padding;
-        const width = 760;
-        const height = 210;
-        const xFor = (index: number) => 36 + (index * ((width - 72) / Math.max(visible.length - 1, 1)));
-        const yFor = (value: number) => 18 + ((yMax - value) / Math.max(yMax - yMin, 1)) * (height - 42);
-        const toSeries = (getter: (point: ForwardCurveBoardCell) => number | null) => visible
-            .map((point, index) => {
-                const value = getter(point);
-                return value == null ? null : { x: xFor(index), y: yFor(value) };
-            })
-            .filter((point): point is { x: number; y: number } => point != null);
-
-        return {
-            visible,
-            benchmarkPath: makePath(toSeries(point => numberOrNull(point.benchmark_mid))),
-            bidPath: makePath(toSeries(point => numberOrNull(point.best_bid))),
-            askPath: makePath(toSeries(point => numberOrNull(point.best_ask))),
-            min: yMin,
-            max: yMax,
-        };
-    }, [points]);
-
-    if (unavailable) {
-        return (
-            <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-xs text-slate-500">
-                Selected slice is not available in this window.
-            </div>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] text-xs text-slate-500">
-                <span className="inline-flex items-center gap-2">
-                    <RefreshCw size={13} className="animate-spin" aria-hidden="true" />
-                    Refreshing curve for selected slice...
-                </span>
-            </div>
-        );
-    }
-
-    if (!chart.visible.length) {
-        return (
-            <div className="h-[240px] flex items-center justify-center border border-slate-800 bg-[#05080d] text-xs text-slate-500">
-                No curve data for this market yet.
-            </div>
-        );
-    }
-
-    return (
-        <div className="border border-slate-800 bg-[#05080d]">
-            <svg viewBox="0 0 760 240" className="w-full h-[260px]" role="img" aria-label="Indicative forward curve">
-                <rect x="0" y="0" width="760" height="240" fill="#05080d" />
-                {[0, 1, 2, 3].map(index => (
-                    <line key={index} x1="36" x2="724" y1={24 + index * 48} y2={24 + index * 48} stroke="#182335" strokeWidth="1" />
-                ))}
-                {chart.askPath && <path d={chart.askPath} fill="none" stroke="#fb7185" strokeWidth="1.4" opacity="0.78" />}
-                {chart.bidPath && <path d={chart.bidPath} fill="none" stroke="#34d399" strokeWidth="1.4" opacity="0.78" />}
-                {chart.benchmarkPath && <path d={chart.benchmarkPath} fill="none" stroke="#60a5fa" strokeWidth="2.8" />}
-                {chart.visible.map((point, index) => {
-                    const x = 36 + (index * (688 / Math.max(chart.visible.length - 1, 1)));
-                    return (
-                        <g key={`${point.availability_window}-${index}`}>
-                            <line x1={x} x2={x} y1="18" y2="198" stroke="#101827" strokeWidth="1" />
-                            <text x={x} y="224" textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="monospace">
-                                {formatAvailabilityWindowPeriod(point.availability_window)}
-                            </text>
-                        </g>
-                    );
-                })}
-                <text x="44" y="30" fill="#64748b" fontSize="10" fontFamily="monospace">{currency(chart.max)}</text>
-                <text x="44" y="196" fill="#64748b" fontSize="10" fontFamily="monospace">{currency(chart.min)}</text>
-            </svg>
-        </div>
-    );
-};
-
-const PeriodDetailGraph: React.FC<{ cell: ForwardCurveBoardCell | null; emptyMessage?: string }> = ({ cell, emptyMessage = 'Select a matrix cell to inspect a single market period.' }) => {
-    const graph = useMemo(() => {
-        if (!cell) return null;
-
-        const markers = [
-            { key: 'bid', label: 'Bid', value: numberOrNull(cell.best_bid), className: 'bg-emerald-300', textClassName: 'text-emerald-300' },
-            { key: 'benchmark', label: 'Benchmark', value: numberOrNull(cell.benchmark_mid), className: 'bg-blue-300', textClassName: 'text-blue-300' },
-            { key: 'ask', label: 'Ask', value: numberOrNull(cell.best_ask), className: 'bg-rose-300', textClassName: 'text-rose-300' },
-            { key: 'ind-bid', label: 'Ind bid', value: numberOrNull(cell.indication_summary?.latest_bid_price_per_mt_usd), className: 'bg-amber-300', textClassName: 'text-amber-300' },
-            { key: 'ind-mid', label: 'Ind mid', value: numberOrNull(cell.indication_summary?.latest_mid_price_per_mt_usd), className: 'bg-amber-200', textClassName: 'text-amber-200' },
-            { key: 'ind-ask', label: 'Ind ask', value: numberOrNull(cell.indication_summary?.latest_ask_price_per_mt_usd), className: 'bg-orange-300', textClassName: 'text-orange-300' },
-            { key: 'fair-mid', label: 'Fair mid', value: numberOrNull(cell.fair_price_band?.mid_price_per_mt_usd), className: 'bg-fuchsia-300', textClassName: 'text-fuchsia-300' },
-        ].filter((marker): marker is {
-            key: string;
-            label: string;
-            value: number;
-            className: string;
-            textClassName: string;
-        } => marker.value != null);
-
-        const fairLow = numberOrNull(cell.fair_price_band?.low_price_per_mt_usd);
-        const fairHigh = numberOrNull(cell.fair_price_band?.high_price_per_mt_usd);
-        const values = [
-            ...markers.map(marker => marker.value),
-            fairLow,
-            fairHigh,
-        ].filter((value): value is number => value != null);
-
-        if (values.length < 2) return { markers, fairBand: null, min: null, max: null, range: 0 };
-
-        const rawMin = Math.min(...values);
-        const rawMax = Math.max(...values);
-        const padding = Math.max((rawMax - rawMin) * 0.16, 6);
+        const rawMin = Math.min(...priceValues);
+        const rawMax = Math.max(...priceValues);
+        const padding = Math.max((rawMax - rawMin) * 0.16, 8);
         const min = rawMin - padding;
         const max = rawMax + padding;
         const range = Math.max(max - min, 1);
-        const fairBand = fairLow != null && fairHigh != null
-            ? {
-                left: ((Math.min(fairLow, fairHigh) - min) / range) * 100,
-                width: (Math.abs(fairHigh - fairLow) / range) * 100,
-            }
-            : null;
-
-        return {
-            markers,
-            fairBand,
-            min,
-            max,
-            range,
+        const left = 42;
+        const right = 18;
+        const top = 20;
+        const bottom = 34;
+        const width = 900;
+        const height = 210;
+        const plotWidth = width - left - right;
+        const plotHeight = height - top - bottom;
+        const xForIndex = (index: number) => {
+            if (columns.length <= 1) return left + (plotWidth / 2);
+            return left + (index / (columns.length - 1)) * plotWidth;
         };
-    }, [cell]);
+        const yForValue = (value: number | string | null | undefined) => {
+            const parsed = numericValue(value);
+            if (parsed == null) return top + plotHeight;
+            return top + ((max - parsed) / range) * plotHeight;
+        };
+        const points = cells
+            .filter((point): point is typeof point & { cell: ForwardCurveMarketCell; value: number } => (
+                point.cell != null && point.value != null
+            ))
+            .map(point => ({
+                ...point,
+                x: xForIndex(point.index),
+                y: yForValue(point.value),
+                bidY: yForValue(point.cell.best_bid),
+                askY: yForValue(point.cell.best_ask),
+            }));
 
-    if (!cell || !graph) {
+        return { cells, points, min, max, range };
+    }, [columns, curveRow]);
+
+    const curveLabel = curveRow
+        ? `${formatMarketProduct(curveRow.market_product)} · ${curveRow.delivery_point_name}`
+        : 'No market selected';
+    const path = graph.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+
+    return (
+        <section data-tour="forward-curve-chart" className="min-w-0 border border-slate-800 bg-[#080c13]">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                        <TrendingUp size={12} className="text-blue-300" aria-hidden="true" />
+                        Forward Curve
+                    </div>
+                    <div className="mt-1 truncate text-sm font-bold text-slate-100">{curveLabel}</div>
+                    <div className="mt-0.5 text-[10px] text-slate-500">Indicative monitoring across approved delivery periods for the selected product and port</div>
+                </div>
+                <div className="shrink-0 text-right font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                    <div>{currency(graph.min)} low</div>
+                    <div>{currency(graph.max)} high</div>
+                </div>
+            </div>
+
+            {graph.points.length === 0 ? (
+                <div className="flex h-[244px] items-center justify-center px-4 text-center text-[11px] text-slate-500">
+                    No forward curve evidence is available for this product and port yet.
+                </div>
+            ) : (
+                <div className="px-3 pb-3 pt-2">
+                    <svg className="h-44 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={`${curveLabel} forward curve`}>
+                        {[0.25, 0.5, 0.75].map(fraction => {
+                            const y = 20 + fraction * 156;
+                            return <line key={fraction} x1="42" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
+                        })}
+                        <line x1="42" x2="882" y1="176" y2="176" stroke="#334155" />
+                        <line x1="42" x2="42" y1="20" y2="176" stroke="#334155" />
+                        <text x="0" y="27" fill="#64748b" fontSize="12">{currency(graph.max)}</text>
+                        <text x="0" y="178" fill="#64748b" fontSize="12">{currency(graph.min)}</text>
+                        {path && <path d={path} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+                        {graph.points.map(point => {
+                            const pointKey = sliceKey(cellToSlice(point.cell));
+                            const selected = pointKey === selectedKey;
+                            const bid = numericValue(point.cell.best_bid);
+                            const ask = numericValue(point.cell.best_ask);
+                            const bandY1 = bid != null && ask != null ? Math.min(point.bidY, point.askY) : null;
+                            const bandY2 = bid != null && ask != null ? Math.max(point.bidY, point.askY) : null;
+                            return (
+                                <g
+                                    key={`${point.cell.delivery_point_id}-${point.cell.availability_window}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`${formatAvailabilityWindowPeriod(point.cell.availability_window)} ${currency(point.value)}`}
+                                    onClick={() => onSelectCell(point.cell)}
+                                    onDoubleClick={(event) => {
+                                        event.preventDefault();
+                                        onOpenCell(point.cell);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            onSelectCell(point.cell);
+                                        }
+                                    }}
+                                    className="cursor-pointer"
+                                >
+                                    <title>
+                                        {`${formatAvailabilityWindowPeriod(point.cell.availability_window)} ${currency(point.value)}. Enter selects this point; double-click opens Marketplace.`}
+                                    </title>
+                                    {bandY1 != null && bandY2 != null && (
+                                        <line x1={point.x} x2={point.x} y1={bandY1} y2={bandY2} stroke="#475569" strokeWidth="5" strokeLinecap="round" />
+                                    )}
+                                    <circle cx={point.x} cy={point.y} r={selected ? 6 : 4.5} fill={selected ? '#34d399' : '#38bdf8'} stroke="#020617" strokeWidth="2" />
+                                    {selected && <circle cx={point.x} cy={point.y} r="10" fill="none" stroke="#34d399" strokeWidth="1.5" />}
+                                </g>
+                            );
+                        })}
+                    </svg>
+
+                    <div
+                        className="grid gap-px bg-slate-900 text-[10px]"
+                        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(68px, 1fr))` }}
+                    >
+                        {graph.cells.map(({ column, cell, value }: { column: ForwardCurveTableColumn; cell: ForwardCurveMarketCell | null; value: number | null }) => {
+                            const selected = cell ? sliceKey(cellToSlice(cell)) === selectedKey : false;
+                            return (
+                                <button
+                                    key={column.availability_window}
+                                    type="button"
+                                    disabled={!cell || value == null}
+                                    onClick={() => cell && onSelectCell(cell)}
+                                    onDoubleClick={() => cell && onOpenCell(cell)}
+                                    aria-pressed={selected}
+                                    title={cell && value != null ? 'Click to select; double-click to open this market slice' : undefined}
+                                    className={`min-w-0 bg-[#080c13] px-2 py-2 text-left hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:text-slate-600 ${
+                                        selected ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
+                                    }`}
+                                >
+                                    <div className="truncate font-bold uppercase tracking-wider text-slate-400">{formatAvailabilityWindowPeriod(column.availability_window)}</div>
+                                    <div className="mt-1 font-mono text-sm font-bold text-slate-100">{currency(value)}</div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+};
+
+const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; loading: boolean; hasSelection: boolean }> = ({ slice, loading, hasSelection }) => {
+    const axis = useMemo(() => {
+        const evidence = slice?.evidence_points ?? [];
+        const priceValues = evidence.flatMap(point => [
+            point.price_per_mt_usd,
+            point.low_price_per_mt_usd,
+            point.high_price_per_mt_usd,
+        ]).map(numericValue).filter((value): value is number => value != null);
+
+        if (!priceValues.length) {
+            return { evidence, min: 0, max: 0, range: 1 };
+        }
+
+        const rawMin = Math.min(...priceValues);
+        const rawMax = Math.max(...priceValues);
+        const padding = Math.max((rawMax - rawMin) * 0.18, 8);
+        const min = rawMin - padding;
+        const max = rawMax + padding;
+        return { evidence, min, max, range: Math.max(max - min, 1) };
+    }, [slice]);
+
+    if (loading) {
         return (
-            <div data-tour="forward-period-detail" className="border-t border-slate-800 px-3 py-4 text-[11px] text-slate-500">
-                {emptyMessage}
+            <div className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] text-[11px] text-slate-500">
+                <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
+                Refreshing selected period...
             </div>
         );
     }
 
+    if (!hasSelection) {
+        return (
+            <div data-tour="forward-period-detail" className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-[11px] text-slate-500">
+                Select a product, port, and period cell to inspect evidence.
+            </div>
+        );
+    }
+
+    if (!slice || axis.evidence.length === 0 || axis.evidence.every(point => (
+        numericValue(point.price_per_mt_usd) == null
+        && numericValue(point.low_price_per_mt_usd) == null
+        && numericValue(point.high_price_per_mt_usd) == null
+    ))) {
+        return (
+            <div data-tour="forward-period-detail" className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-[11px] text-slate-500">
+                No price evidence for this exact period yet.
+            </div>
+        );
+    }
+
+    const pricedEvidence = axis.evidence.filter(point => (
+        numericValue(point.price_per_mt_usd) != null
+        || numericValue(point.low_price_per_mt_usd) != null
+        || numericValue(point.high_price_per_mt_usd) != null
+    ));
+    const bandEvidence = pricedEvidence.filter(point => (
+        numericValue(point.low_price_per_mt_usd) != null
+        && numericValue(point.high_price_per_mt_usd) != null
+    ));
+    const pointEvidence = pricedEvidence.filter(point => numericValue(point.price_per_mt_usd) != null);
+
+    const position = (value: number | string | null | undefined) => {
+        const parsed = numericValue(value);
+        if (parsed == null) return '0%';
+        return `${Math.min(100, Math.max(0, ((parsed - axis.min) / axis.range) * 100))}%`;
+    };
+
+    const evidencePriceLabel = (point: ForwardCurveSliceEvidencePoint) => {
+        if (point.low_price_per_mt_usd != null && point.high_price_per_mt_usd != null) {
+            return `${currency(point.low_price_per_mt_usd)}-${currency(point.high_price_per_mt_usd)}`;
+        }
+        return currency(point.price_per_mt_usd);
+    };
+
     return (
-        <div data-tour="forward-period-detail" className="border-t border-slate-800 px-3 py-3">
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Indicative Period Range</div>
-                    <div className="mt-1 text-[11px] text-slate-400">
-                        {formatMarketProduct(cell.market_product)} · {cell.delivery_point_name} · {formatAvailabilityWindowPeriod(cell.availability_window)}
-                    </div>
-                </div>
-                <div className="text-right text-[10px] uppercase tracking-wider text-slate-500">
-                    <div>{cell.order_count} orders</div>
-                    <div>{quantity(cell.volume_mt)}</div>
-                </div>
-            </div>
-
-            {graph.min == null || graph.max == null ? (
-                <div className="flex min-h-20 items-center justify-center border border-slate-800 bg-[#05080d] text-center text-[11px] text-slate-500">
-                    Not enough bid/ask context yet.
-                </div>
-            ) : (
-                <div className="border border-slate-800 bg-[#05080d] px-3 py-4">
-                    <div className="relative h-10">
-                        <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-slate-700" />
-                        {graph.fairBand && (
-                            <div
-                                className="absolute top-1/2 h-3 -translate-y-1/2 border border-fuchsia-300/40 bg-fuchsia-300/15"
-                                style={{
-                                    left: `${Math.min(100, Math.max(0, graph.fairBand.left))}%`,
-                                    width: `${Math.min(100, Math.max(1.5, graph.fairBand.width))}%`,
-                                }}
-                                aria-label="Verdaxis fair-value band"
-                            />
-                        )}
-                        {graph.markers.map(marker => {
-                            const left = ((marker.value - graph.min!) / graph.range) * 100;
-                            return (
-                                <div
-                                    key={marker.key}
-                                    className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-                                    style={{ left: `${Math.min(100, Math.max(0, left))}%` }}
-                                >
-                                    <div className={`mx-auto h-3 w-3 rounded-full ${marker.className}`} />
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="mt-5 flex items-center justify-between font-mono text-[10px] text-slate-500">
-                        <span>{currency(graph.min)}</span>
-                        <span>{currency(graph.max)}</span>
-                    </div>
-                </div>
-            )}
-
-            {graph.markers.length > 0 && (
-                <dl className="mt-3 grid grid-cols-3 gap-px bg-slate-900">
-                    {graph.markers.map(marker => (
-                        <div key={marker.key} className="min-w-0 bg-[#080c13] p-2">
-                            <dt className={`truncate text-[9px] font-bold uppercase tracking-wider ${marker.textClassName}`}>{marker.label}</dt>
-                            <dd className="mt-1 font-mono text-sm font-bold text-slate-100">{currency(marker.value)}</dd>
-                        </div>
-                    ))}
-                </dl>
-            )}
-            <div className="mt-3 grid grid-cols-3 gap-px bg-slate-900">
-                <div className="bg-[#080c13] p-2">
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Spread</div>
-                    <div className="mt-1 font-mono text-sm font-bold text-slate-200">{currency(cell.spread)}</div>
-                </div>
-                <div className="bg-[#080c13] p-2">
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Volume</div>
-                    <div className="mt-1 font-mono text-sm font-bold text-slate-200">{quantity(cell.volume_mt)}</div>
-                </div>
-                <div className="bg-[#080c13] p-2">
-                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Benchmark Source</div>
-                    <div className="mt-1 truncate text-[10px] font-bold uppercase text-slate-300">
-                        {sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind)}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface SignalStatus {
-    label: string;
-    status: 'available' | 'empty' | 'refreshing' | 'unavailable';
-    detail: string;
-}
-
-const SignalReadiness: React.FC<{ signals: SignalStatus[] }> = ({ signals }) => (
-    <div className="grid gap-px bg-slate-900">
-        {signals.map(signal => (
-            <div key={signal.label} className="grid grid-cols-[minmax(0,1fr)_112px] gap-3 bg-[#080c13] px-3 py-2 text-[11px]">
+        <div data-tour="forward-period-detail" className="border border-slate-800 bg-[#05080d] p-3">
+            <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <div className="font-bold uppercase tracking-wider text-slate-300">{signal.label}</div>
-                    <div className="mt-0.5 text-slate-500">{signal.detail}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Price Evidence</div>
+                    <div className="mt-0.5 text-[9px] text-slate-500">Bid, ask, print, indication, and fair-value markers for this period</div>
                 </div>
-                <div className={`flex items-center justify-end gap-1 text-[10px] font-bold uppercase tracking-wider ${
-                    signal.status === 'available'
-                        ? 'text-emerald-300'
-                        : signal.status === 'refreshing'
-                            ? 'text-blue-300'
-                            : signal.status === 'empty'
-                                ? 'text-slate-400'
-                                : 'text-amber-300'
-                }`}>
-                    {signal.status === 'available' && <CheckCircle2 size={12} aria-hidden="true" />}
-                    {signal.status === 'refreshing' && <RefreshCw size={12} className="animate-spin" aria-hidden="true" />}
-                    {signal.status === 'available' ? 'Available' : signal.status === 'refreshing' ? 'Refreshing' : signal.status === 'empty' ? 'No data' : 'No feed'}
+                <div className="shrink-0 text-right font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                    <div>{currency(axis.min)}</div>
+                    <div>{currency(axis.max)}</div>
                 </div>
             </div>
-        ))}
-    </div>
-);
-
-const PeriodDrilldownDialog: React.FC<{
-    cell: ForwardCurveBoardCell | null;
-    depthBids: ForwardCurveBoardResponse['focus']['depth_bids'];
-    depthAsks: ForwardCurveBoardResponse['focus']['depth_asks'];
-    depthReady: boolean;
-    trades: TradeTapeEntry[];
-    tradesReady: boolean;
-    open: boolean;
-    onClose: () => void;
-}> = ({ cell, depthBids, depthAsks, depthReady, trades, tradesReady, open, onClose }) => {
-    const titleId = useId();
-    const dialogRef = useRef<HTMLDivElement | null>(null);
-    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-
-    useEffect(() => {
-        if (!open) return;
-        const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        window.setTimeout(() => closeButtonRef.current?.focus(), 0);
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-                return;
-            }
-            if (event.key !== 'Tab') return;
-
-            const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-            ) ?? []).filter(element => element.offsetParent !== null || element === closeButtonRef.current);
-
-            if (!focusable.length) {
-                event.preventDefault();
-                closeButtonRef.current?.focus();
-                return;
-            }
-
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            const active = document.activeElement;
-            if (!dialogRef.current?.contains(active)) {
-                event.preventDefault();
-                first.focus();
-            } else if (event.shiftKey && active === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && active === last) {
-                event.preventDefault();
-                first.focus();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            previousFocus?.focus();
-        };
-    }, [onClose, open]);
-
-    const signals = useMemo<SignalStatus[]>(() => {
-        if (!cell) return [];
-        const depthCount = depthBids.length + depthAsks.length;
-        const indicationCount = cell.indication_summary?.indication_count ?? 0;
-        const physicalStemCount = cell.physical_stem_summary?.stem_count ?? 0;
-        const hasFairBand = Boolean(cell.fair_price_band);
-
-        return [
-            {
-                label: 'Benchmark',
-                status: numberOrNull(cell.benchmark_mid) == null ? 'empty' : 'available',
-                detail: sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind),
-            },
-            {
-                label: 'Latest bid context',
-                status: numberOrNull(cell.best_bid) == null ? 'empty' : 'available',
-                detail: numberOrNull(cell.best_bid) == null ? 'No bid context for this period' : `${currency(cell.best_bid)} · ${sideContextLabel(cell.best_bid_source_kind).label}`,
-            },
-            {
-                label: 'Latest ask context',
-                status: numberOrNull(cell.best_ask) == null ? 'empty' : 'available',
-                detail: numberOrNull(cell.best_ask) == null ? 'No ask context for this period' : `${currency(cell.best_ask)} · ${sideContextLabel(cell.best_ask_source_kind).label}`,
-            },
-            {
-                label: 'Selected depth',
-                status: !depthReady ? 'refreshing' : depthCount > 0 ? 'available' : 'empty',
-                detail: !depthReady ? 'Refreshing selected slice depth' : depthCount > 0 ? `${depthCount} visible depth levels` : 'No depth levels for this selected slice',
-            },
-            {
-                label: 'Confirmed prints',
-                status: !tradesReady ? 'refreshing' : trades.length > 0 ? 'available' : 'empty',
-                detail: !tradesReady ? 'Refreshing confirmed 7-day prints' : trades.length > 0 ? `${trades.length} confirmed prints in last 7 days` : 'No confirmed trades in the last 7 days',
-            },
-            {
-                label: 'Indications',
-                status: indicationCount > 0 ? 'available' : 'unavailable',
-                detail: formatIndicationDetail(cell.indication_summary),
-            },
-            {
-                label: 'Physical stems',
-                status: physicalStemCount > 0 ? 'available' : 'unavailable',
-                detail: formatPhysicalStemDetail(cell.physical_stem_summary),
-            },
-            {
-                label: 'Fair-value band',
-                status: hasFairBand ? 'available' : 'unavailable',
-                detail: formatFairBandDetail(cell.fair_price_band, cell.fair_price_band_provenance),
-            },
-        ];
-    }, [cell, depthAsks.length, depthBids.length, depthReady, trades.length, tradesReady]);
-
-    if (!open || !cell || typeof document === 'undefined') return null;
-
-    const dialog = (
-        <div
-            className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-        >
-            <div
-                className="absolute inset-0 cursor-default"
-                aria-hidden="true"
-                onClick={onClose}
-            />
-            <div ref={dialogRef} className="relative z-[1] flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden border border-slate-700 bg-[#05070b] text-slate-100 shadow-2xl">
-                <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-4 py-3">
-                    <div>
-                        <div id={titleId} className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">Single-Period Drilldown</div>
-                        <div className="mt-1 text-xl font-bold">
-                            {formatMarketProduct(cell.market_product)} - {cell.delivery_point_name}
-                        </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-wider text-slate-500">
-                            {formatAvailabilityWindowPeriod(cell.availability_window)} · {cell.region}
-                        </div>
-                    </div>
-                    <button
-                        ref={closeButtonRef}
-                        type="button"
-                        onClick={onClose}
-                        className="rounded border border-slate-700 p-2 text-slate-400 hover:border-slate-500 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
-                        aria-label="Close period drilldown"
-                    >
-                        <X size={15} />
-                    </button>
-                </div>
-
-                <div className="grid min-h-0 gap-3 overflow-y-auto p-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-                    <section className="min-w-0 border border-slate-800 bg-[#080c13]">
-                        <div className="border-b border-slate-800 px-3 py-2">
-                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Price Context</div>
-                            <div className="mt-0.5 text-[10px] text-slate-500">Benchmark, bid and ask context for the selected period.</div>
-                        </div>
-                        <PeriodDetailGraph cell={cell} />
-                    </section>
-
-                    <section className="min-w-0 border border-slate-800 bg-[#080c13]">
-                        <div className="border-b border-slate-800 px-3 py-2">
-                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Signal Readiness</div>
-                            <div className="mt-0.5 text-[10px] text-slate-500">Unavailable signals are labelled as missing feeds, not inferred values.</div>
-                        </div>
-                        <SignalReadiness signals={signals} />
-                    </section>
-                </div>
-            </div>
-        </div>
-    );
-
-    return createPortal(dialog, document.body);
-};
-
-const DepthPanel: React.FC<{
-    availabilityWindow: string;
-    bids: ForwardCurveBoardResponse['focus']['depth_bids'];
-    asks: ForwardCurveBoardResponse['focus']['depth_asks'];
-    ready: boolean;
-    unavailable?: boolean;
-}> = ({ availabilityWindow, bids, asks, ready, unavailable = false }) => {
-    const rowCount = Math.max(bids.length, asks.length, 5);
-
-    return (
-        <section data-tour="forward-depth-panel" className="border border-slate-800 bg-[#080c13]">
-            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected Slice Depth</span>
-                <span className="text-[10px] text-slate-500">{formatAvailabilityWindowPeriod(availabilityWindow)}</span>
-            </div>
-            <div className="grid grid-cols-[1fr_1fr] gap-px bg-slate-900 text-[10px]">
-                <div className="bg-[#080c13] px-3 py-1 font-bold uppercase tracking-widest text-emerald-400">Bids</div>
-                <div className="bg-[#080c13] px-3 py-1 text-right font-bold uppercase tracking-widest text-rose-400">Asks</div>
-            </div>
-            {unavailable ? (
-                <div className="flex min-h-32 items-center justify-center bg-[#080c13] px-3 py-8 text-center text-[11px] text-slate-500">
-                    Selected slice is not available in this window.
-                </div>
-            ) : !ready ? (
-                <div className="flex min-h-32 items-center justify-center bg-[#080c13] px-3 py-8 text-center text-[11px] text-slate-500">
-                    <span className="inline-flex items-center gap-2">
-                        <RefreshCw size={13} className="animate-spin" aria-hidden="true" />
-                        Refreshing depth for selected slice...
-                    </span>
-                </div>
-            ) : (
-                <div>
-                    {Array.from({ length: rowCount }).map((_, index) => {
-                        const bid = bids[index];
-                        const ask = asks[index];
-                        return (
-                            <div key={index} className="grid grid-cols-[1fr_1fr] gap-px bg-slate-900 text-[11px]">
-                                <div className="bg-[#080c13] px-3 py-1.5 font-mono text-emerald-300">
-                                    {bid ? `${currency(bid.price_per_mt_usd)} / ${quantity(bid.quantity_mt)}` : '--'}
-                                </div>
-                                <div className="bg-[#080c13] px-3 py-1.5 text-right font-mono text-rose-300">
-                                    {ask ? `${currency(ask.price_per_mt_usd)} / ${quantity(ask.quantity_mt)}` : '--'}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </section>
-    );
-};
-
-const TradeTapePanel: React.FC<{ trades: TradeTapeEntry[]; loading: boolean; unavailable?: boolean }> = ({ trades, loading, unavailable = false }) => {
-    const { t, ready } = useNamespace('trading');
-    if (!ready) return null;
-
-    return (
-        <section data-tour="forward-trade-tape" className="border border-slate-800 bg-[#080c13]">
-            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('tradeTape.title')}</span>
-                <span className="text-[10px] text-slate-500">{t('tradeTape.status.deliveryPointHistory')}</span>
-            </div>
-            <div className="divide-y divide-slate-900">
-                {unavailable ? (
-                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.unavailableMarketContext')}</div>
-                ) : loading ? (
-                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.loadingRecent')}</div>
-                ) : trades.length === 0 ? (
-                    <div className="px-3 py-8 text-center text-[11px] text-slate-500">{t('tradeTape.emptyMarketContext')}</div>
-                ) : trades.map(trade => {
-                    const activity = describeMarketActivity(trade);
-                    const showBadge = activity.tone !== 'live' && activity.tone !== 'empty';
+            <div className="relative mt-3 h-28">
+                <div className="absolute left-0 right-0 top-1/2 h-px bg-slate-700" aria-hidden="true" />
+                <div className="absolute left-0 top-[calc(50%+12px)] font-mono text-[9px] uppercase text-slate-600">{currency(axis.min)}</div>
+                <div className="absolute right-0 top-[calc(50%+12px)] font-mono text-[9px] uppercase text-slate-600">{currency(axis.max)}</div>
+                {bandEvidence.map((point, index) => {
+                    const lowPrice = numericValue(point.low_price_per_mt_usd);
+                    const highPrice = numericValue(point.high_price_per_mt_usd);
+                    if (lowPrice == null || highPrice == null) return null;
+                    const low = Math.min(lowPrice, highPrice);
+                    const high = Math.max(lowPrice, highPrice);
                     return (
-                        <div key={trade.id} className="grid grid-cols-[72px_1fr_auto] gap-2 px-3 py-2 text-[11px]">
-                            <span className="font-mono text-slate-500">{new Date(trade.confirmed_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-                            <span className="truncate text-slate-300">
-                                {quantity(trade.quantity_mt)}
-                                {showBadge && (
-                                    <span
-                                        className={`ml-1 text-[9px] font-bold uppercase ${marketActivityTextClass(activity.tone)}`}
-                                        aria-label={activity.detail}
-                                        title={activity.detail}
-                                    >
-                                        {activity.shortLabel}
-                                    </span>
-                                )}
-                            </span>
-                            <span className="font-mono font-bold text-blue-300">{currency(trade.price_per_mt_usd)}</span>
+                        <div
+                            key={`${point.layer}-band-${index}`}
+                            className="absolute top-1/2 h-6 -translate-y-1/2 border border-fuchsia-300/60 bg-fuchsia-300/15"
+                            style={{ left: position(low), width: `${Math.max(1, ((high - low) / axis.range) * 100)}%` }}
+                            aria-label={`Fair value band ${currency(low)} to ${currency(high)}`}
+                        />
+                    );
+                })}
+                {pointEvidence.map((point, index) => {
+                    const pointPrice = numericValue(point.price_per_mt_usd);
+                    if (pointPrice == null) return null;
+                    const meta = evidenceLayerMeta[point.layer];
+                    const verticalOffset = index % 2 === 0 ? '-top-6' : 'top-6';
+                    return (
+                        <div
+                            key={`${point.layer}-marker-${index}`}
+                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+                            style={{ left: position(pointPrice) }}
+                            aria-label={`${meta.label} ${currency(pointPrice)} ${point.public_source_label}`}
+                        >
+                            <div className="absolute left-1/2 top-1/2 h-12 w-px -translate-x-1/2 -translate-y-1/2 bg-slate-700" aria-hidden="true" />
+                            <div className={`relative z-10 h-3 w-3 ${meta.markerClass}`} />
+                            <div className={`absolute left-1/2 ${verticalOffset} -translate-x-1/2 whitespace-nowrap text-center`}>
+                                <div className={`text-[8px] font-bold uppercase tracking-wider ${meta.toneClass}`}>{meta.shortLabel}</div>
+                            </div>
                         </div>
                     );
                 })}
             </div>
-        </section>
+            <div className="mt-3 grid gap-px bg-slate-900 sm:grid-cols-2">
+                {pricedEvidence.slice(0, 6).map((point, index) => {
+                    const meta = evidenceLayerMeta[point.layer];
+                    return (
+                        <div key={`${point.layer}-legend-${index}`} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-[#080c13] px-2 py-1.5">
+                            <div className={`text-[8px] font-bold uppercase tracking-wider ${meta.toneClass}`}>
+                                {meta.shortLabel}
+                            </div>
+                            <div className="min-w-0">
+                                <div className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-500">{meta.label}</div>
+                                <div className="truncate text-[9px] text-slate-600">{point.public_source_label}</div>
+                            </div>
+                            <div className="font-mono text-[10px] font-bold text-slate-200">
+                                {evidencePriceLabel(point)}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
     );
 };
 
-export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate }) => {
-    const [selectedWindow, setSelectedWindow] = useState(() => getStoredWindow());
-    const [focusMarketProduct, setFocusMarketProduct] = useState<MarketProduct>(() => getStoredProduct());
-    const [focusDeliveryPointId, setFocusDeliveryPointId] = useState<string | undefined>(() => getStoredDeliveryPointId());
-    const [board, setBoard] = useState<ForwardCurveBoardResponse | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
-    const [tradeLoading, setTradeLoading] = useState(false);
-    const [tradeDataSliceKey, setTradeDataSliceKey] = useState<string | null>(null);
-    const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
-    const boardRequestIdRef = useRef(0);
-    const windowOptions = useMemo(() => buildWindowOptions(), []);
-    const closePeriodDialog = useCallback(() => setPeriodDialogOpen(false), []);
+const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]; tone: 'bid' | 'ask' }> = ({ label, levels, tone }) => (
+    <div className="border border-slate-800 bg-[#080c13]">
+        <div className={`border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bid' ? 'text-emerald-300' : 'text-rose-300'}`}>
+            {label}
+        </div>
+        <div className="divide-y divide-slate-900">
+            {levels.length === 0 ? (
+                <div className="px-3 py-6 text-center text-[11px] text-slate-500">
+                    {tone === 'bid' ? 'No visible bid levels in this selected period.' : 'No visible ask levels in this selected period.'}
+                </div>
+            ) : levels.map((level, index) => (
+                <div key={`${label}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-[11px]">
+                    <span className="font-mono font-bold text-slate-200">{currency(level.price_per_mt_usd)}</span>
+                    <span className="font-mono text-slate-500">{quantity(level.quantity_mt)}</span>
+                </div>
+            ))}
+        </div>
+    </div>
+);
 
-    const fetchBoard = useCallback(async () => {
-        const requestId = boardRequestIdRef.current + 1;
-        boardRequestIdRef.current = requestId;
-        const isCurrentRequest = () => requestId === boardRequestIdRef.current;
-        setLoading(true);
+export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate }) => {
+    const [table, setTable] = useState<ForwardCurveTableResponse | null>(null);
+    const [selected, setSelected] = useState<SelectedSlice | null>(() => getStoredSelection());
+    const [slice, setSlice] = useState<ForwardCurveSliceResponse | null>(null);
+    const [sliceSelectionKey, setSliceSelectionKey] = useState('');
+    const [pendingSliceKey, setPendingSliceKey] = useState('');
+    const [failedSliceKey, setFailedSliceKey] = useState('');
+    const [loadingTable, setLoadingTable] = useState(true);
+    const [loadingSlice, setLoadingSlice] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const tableRequestIdRef = useRef(0);
+    const sliceRequestIdRef = useRef(0);
+
+    const selectedCell = useMemo(() => findCell(table, selected), [table, selected]);
+    const allCells = useMemo(() => flattenCells(table), [table]);
+
+    const fetchTable = useCallback(async () => {
+        const requestId = tableRequestIdRef.current + 1;
+        tableRequestIdRef.current = requestId;
+        setLoadingTable(true);
         setError(null);
         try {
-            const response = await api.curves.board({
-                availability_window: selectedWindow,
-                focus_market_product: focusMarketProduct,
-                focus_delivery_point_id: focusDeliveryPointId,
+            const response = filterApprovedForwardCurveTable(await api.curves.table());
+            if (requestId !== tableRequestIdRef.current) return;
+            setTable(response);
+            setSelected(current => {
+                const currentCell = findCell(response, current);
+                if (currentCell) return current;
+                const next = pickInitialSelection(response);
+                if (next) persistSelection(next);
+                return next;
             });
-            if (!isCurrentRequest()) return;
-            setBoard(response);
-            if (!focusDeliveryPointId) {
-                setFocusDeliveryPointId(response.focus.delivery_point_id);
-                localStorage.setItem(DELIVERY_POINT_STORAGE_KEY, response.focus.delivery_point_id);
-            }
         } catch (err) {
-            if (!isCurrentRequest()) return;
-            console.error('Failed to load forward curve board', err);
-            setError('Forward Curve board is unavailable.');
+            if (requestId !== tableRequestIdRef.current) return;
+            console.error('Failed to load forward curve table', err);
+            setError('Forward Curve monitoring is unavailable.');
         } finally {
-            if (isCurrentRequest()) setLoading(false);
+            if (requestId === tableRequestIdRef.current) setLoadingTable(false);
         }
-    }, [focusDeliveryPointId, focusMarketProduct, selectedWindow]);
+    }, []);
 
     useEffect(() => {
-        localStorage.setItem(WINDOW_STORAGE_KEY, selectedWindow);
-        localStorage.setItem(PRODUCT_STORAGE_KEY, focusMarketProduct);
-        if (focusDeliveryPointId) localStorage.setItem(DELIVERY_POINT_STORAGE_KEY, focusDeliveryPointId);
-        fetchBoard();
-        const interval = setInterval(fetchBoard, REFRESH_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [fetchBoard, focusDeliveryPointId, focusMarketProduct, selectedWindow]);
+        fetchTable();
+        const interval = window.setInterval(fetchTable, REFRESH_INTERVAL_MS);
+        return () => window.clearInterval(interval);
+    }, [fetchTable]);
 
-    const focusedCell = useMemo(() => {
-        if (!board) return null;
-
-        const cells = board.ports.flatMap(port => port.cells);
-        if (focusDeliveryPointId) {
-            return cells.find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === focusDeliveryPointId) ?? null;
+    useEffect(() => {
+        if (!selected || !selectedCell) {
+            setSlice(null);
+            setSliceSelectionKey('');
+            setPendingSliceKey('');
+            setFailedSliceKey('');
+            setLoadingSlice(false);
+            return;
         }
 
-        return cells.find(cell => cell.market_product === focusMarketProduct && cell.delivery_point_id === board.focus.delivery_point_id)
-            ?? cells.find(cell => cell.market_product === board.focus.market_product && cell.delivery_point_id === board.focus.delivery_point_id)
-            ?? null;
-    }, [board, focusDeliveryPointId, focusMarketProduct]);
+        const requestId = sliceRequestIdRef.current + 1;
+        sliceRequestIdRef.current = requestId;
+        const requestKey = sliceKey(selected);
+        setSlice(null);
+        setSliceSelectionKey('');
+        setPendingSliceKey(requestKey);
+        setFailedSliceKey('');
+        setLoadingSlice(true);
+        api.curves.slice({
+            market_product: selected.marketProduct,
+            delivery_point_id: selected.deliveryPointId,
+            availability_window: selected.availabilityWindow,
+        }).then(response => {
+            if (requestId !== sliceRequestIdRef.current) return;
+            setSlice(response);
+            setSliceSelectionKey(requestKey);
+            setPendingSliceKey('');
+            setFailedSliceKey('');
+        }).catch(err => {
+            if (requestId !== sliceRequestIdRef.current) return;
+            console.error('Failed to load forward curve slice', err);
+            setSlice(null);
+            setSliceSelectionKey('');
+            setPendingSliceKey('');
+            setFailedSliceKey(requestKey);
+        }).finally(() => {
+            if (requestId === sliceRequestIdRef.current) setLoadingSlice(false);
+        });
+    }, [selected, selectedCell]);
 
-    const selectedSliceUnavailable = Boolean(board && focusDeliveryPointId && !focusedCell);
+    const prepareSliceRefresh = (next: SelectedSlice) => {
+        sliceRequestIdRef.current += 1;
+        setSlice(null);
+        setSliceSelectionKey('');
+        setPendingSliceKey(sliceKey(next));
+        setFailedSliceKey('');
+        setLoadingSlice(true);
+    };
 
-    const selectedDepthSliceKey = focusedCell
-        ? marketSliceKey(focusedCell.market_product, focusedCell.delivery_point_id, focusedCell.availability_window)
-        : null;
-    const boardDepthSliceKey = board
-        ? marketSliceKey(board.focus.market_product, board.focus.delivery_point_id, board.focus.availability_window)
-        : null;
-    const boardMatchesSelectedSlice = Boolean(selectedDepthSliceKey && boardDepthSliceKey === selectedDepthSliceKey);
-    const depthReadyForSelected = Boolean(boardMatchesSelectedSlice && !loading);
-    const selectedTradeSliceKey = focusedCell
-        ? tradeSliceKey(focusedCell.market_product, focusedCell.delivery_point_id, focusedCell.availability_window)
-        : null;
-    const tradesReadyForSelected = Boolean(selectedTradeSliceKey && tradeDataSliceKey === selectedTradeSliceKey && !tradeLoading);
-    const visibleTrades = tradesReadyForSelected ? trades : [];
+    const selectCell = (cell: ForwardCurveMarketCell) => {
+        const next = cellToSlice(cell);
+        persistSelection(next);
+        prepareSliceRefresh(next);
+        setSelected(next);
+    };
 
-    useEffect(() => {
-        if (periodDialogOpen && !focusedCell) setPeriodDialogOpen(false);
-    }, [focusedCell, periodDialogOpen]);
-
-    useEffect(() => {
-        let cancelled = false;
-        const fetchTrades = async () => {
-            if (!board) return;
-            if (!focusedCell) {
-                setTrades([]);
-                setTradeDataSliceKey(null);
-                setTradeLoading(false);
-                return;
-            }
-            const marketProduct = focusedCell.market_product;
-            const deliveryPointId = focusedCell.delivery_point_id;
-            const availabilityWindow = focusedCell.availability_window;
-            const sliceKey = tradeSliceKey(marketProduct, deliveryPointId, availabilityWindow);
-            setTradeLoading(true);
-            setTradeDataSliceKey(null);
-            try {
-                const response = await api.tradeTape.list({
-                    market_product: marketProduct,
-                    delivery_point_id: deliveryPointId,
-                    availability_window: availabilityWindow,
-                    limit: 8,
-                });
-                if (!cancelled) {
-                    setTrades(response.items ?? []);
-                    setTradeDataSliceKey(sliceKey);
-                }
-            } catch (err) {
-                console.error('Failed to load forward curve trade tape', err);
-                if (!cancelled) {
-                    setTrades([]);
-                    setTradeDataSliceKey(sliceKey);
-                }
-            } finally {
-                if (!cancelled) setTradeLoading(false);
-            }
-        };
-        fetchTrades();
-        return () => {
-            cancelled = true;
-        };
-    }, [board, focusedCell]);
-
-    const openMarketplace = () => {
-        if (!board || selectedSliceUnavailable) return;
-        const marketProduct = focusedCell?.market_product ?? board.focus.market_product;
-        const deliveryPointId = focusedCell?.delivery_point_id ?? board.focus.delivery_point_id;
-        const deliveryPointName = focusedCell?.delivery_point_name ?? board.focus.delivery_point_name;
-        localStorage.setItem('verdaxis_marketplace_port', deliveryPointName);
-        localStorage.setItem('verdaxis_marketplace_delivery_point_id', deliveryPointId);
-        localStorage.setItem('verdaxis_marketplace_product', marketProduct);
-        localStorage.removeItem('verdaxis_marketplace_fuel');
-        localStorage.setItem('verdaxis_marketplace_window', board.availability_window);
+    const openMarketplaceForCell = (cell: ForwardCurveMarketCell) => {
+        const next = cellToSlice(cell);
+        persistSelection(next);
+        setSelected(next);
+        persistMarketplaceSlice(cell);
         onNavigate?.('MARKETPLACE');
     };
 
-    const selectCell = (cell: ForwardCurveBoardCell) => {
-        setFocusMarketProduct(cell.market_product);
-        setFocusDeliveryPointId(cell.delivery_point_id);
+    const selectWindow = (availabilityWindow: string | null | undefined) => {
+        if (!availabilityWindow || !selected) return;
+        const next = { ...selected, availabilityWindow };
+        persistSelection(next);
+        prepareSliceRefresh(next);
+        setSelected(next);
     };
 
+    const openMarketplace = () => {
+        const cell = activeCell;
+        if (!cell) return;
+        openMarketplaceForCell(cell);
+    };
+
+    const selectedKey = sliceKey(selected);
+    const activeSlice = slice && sliceSelectionKey === selectedKey ? slice : null;
+    const waitingForActiveSlice = Boolean(selectedKey && pendingSliceKey === selectedKey);
+    const latestSignals = table?.latest_signals ?? [];
+    const activeCell = activeSlice?.cell ?? selectedCell;
+    const evidenceLoading = loadingSlice || waitingForActiveSlice || Boolean(activeCell && !activeSlice && failedSliceKey !== selectedKey);
+    const activeTone = activeCell ? sourceTone(activeCell) : null;
+
     return (
-        <div className="min-h-full bg-[#05070b] text-slate-100 font-mono">
+        <div className="min-h-full bg-[#05070b] font-mono text-slate-100">
             <div className="border-b border-slate-800 bg-[#080c13] px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
-                            <Activity size={17} />
+                            <Activity size={17} aria-hidden="true" />
                         </div>
                         <div>
                             <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Forward Curve</div>
-                            <div className="text-[11px] text-slate-500">All approved ports x Verdaxis market products</div>
+                            <div className="text-[11px] text-slate-500">Approved product, port, and period monitoring</div>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <select
-                            aria-label="Availability window"
-                            value={selectedWindow}
-                            onChange={event => setSelectedWindow(normalizeAvailabilityWindow(event.target.value))}
-                            className="h-8 border border-slate-700 bg-[#05070b] px-2 text-[11px] font-bold text-slate-200 outline-none focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400/40"
-                        >
-                            {windowOptions.map(option => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                            ))}
-                        </select>
+                    <div className="flex items-center gap-2">
                         <button
-                            onClick={fetchBoard}
-                            className="flex h-8 items-center gap-1 border border-slate-700 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+                            type="button"
+                            onClick={fetchTable}
+                            className="inline-flex h-8 items-center gap-1 border border-slate-700 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
-                            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                            <RefreshCw size={12} className={loadingTable ? 'animate-spin' : ''} aria-hidden="true" />
                             Refresh
                         </button>
                         <button
                             data-tour="forward-open-marketplace"
+                            type="button"
                             onClick={openMarketplace}
-                            disabled={!board || selectedSliceUnavailable}
-                            className="flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                            disabled={!activeCell}
+                            className="inline-flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         >
                             Open Marketplace
-                            <ArrowRight size={13} />
+                            <ArrowRight size={13} aria-hidden="true" />
                         </button>
                     </div>
                 </div>
@@ -893,106 +760,93 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
             {error ? (
                 <div className="p-6 text-sm text-rose-300">{error}</div>
-            ) : !board ? (
-                <div className="flex h-96 items-center justify-center text-xs text-slate-500">Loading Forward Curve board...</div>
+            ) : !table ? (
+                <div className="flex h-96 items-center justify-center text-xs text-slate-500">
+                    <RefreshCw size={14} className="mr-2 animate-spin" aria-hidden="true" />
+                    Loading Forward Curve monitoring...
+                </div>
+            ) : table.rows.length === 0 ? (
+                <div className="flex h-96 items-center justify-center px-6 text-center text-xs text-slate-500">
+                    No approved forward-curve markets are available yet. Check Marketplace for open spot and near-dated liquidity.
+                </div>
             ) : (
-                <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.36fr)]">
-                    <section data-tour="forward-curve-chart" className="border border-slate-800 bg-[#080c13] xl:col-span-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 px-3 py-2">
-                            <div className="flex items-center gap-2">
-                                <TrendingUp size={13} className="text-blue-300" />
-                                <div className="min-w-0">
-                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Indicative Forward Curve</div>
-                                    <div className="text-[10px] text-slate-500">Benchmark mid with visible orderbook context</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                                <span className="text-blue-300">Benchmark mid</span>
-                                <span className="text-emerald-300">Bid context</span>
-                                <span className="text-rose-300">Ask context</span>
-                            </div>
-                        </div>
-                        <div className="p-3">
-                            <CurveChart
-                                points={boardMatchesSelectedSlice ? board.focus.curve : []}
-                                loading={!boardMatchesSelectedSlice && !selectedSliceUnavailable}
-                                unavailable={selectedSliceUnavailable}
-                            />
-                        </div>
-                    </section>
+                <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_430px]">
+                    <div className="min-w-0 space-y-3">
+                        <ForwardCurveChart
+                            table={table}
+                            selectedCell={selectedCell}
+                            selectedKey={selectedKey}
+                            onSelectCell={selectCell}
+                            onOpenCell={openMarketplaceForCell}
+                        />
 
-                    <section data-tour="forward-market-matrix" className="overflow-hidden border border-slate-800 bg-[#080c13]">
+                    <section data-tour="forward-market-matrix" className="min-w-0 overflow-hidden border border-slate-800 bg-[#080c13]">
                         <div data-tour="forward-market-matrix-header" className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                             <div>
-                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Selected-Window Forward Matrix</div>
-                                <div className="text-[10px] text-slate-500">Click a price cell to inspect {formatAvailabilityWindowPeriod(board.availability_window)}</div>
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market Matrix</div>
+                                <div className="text-[10px] text-slate-500">Click or press Enter to inspect; use Open Marketplace for handoff</div>
                             </div>
-                            <div className="flex items-center gap-3 text-[10px] text-slate-500">
-                                <span><span className="mr-1 inline-block h-2 w-2 bg-blue-400" />Benchmark</span>
-                                <span><span className="mr-1 inline-block h-2 w-2 bg-emerald-400" />Bid</span>
-                                <span><span className="mr-1 inline-block h-2 w-2 bg-rose-400" />Ask</span>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500">
+                                {table.rows.length} rows · {table.columns.length} periods
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
+                        <div className="max-h-[calc(100vh-310px)] min-h-[360px] overflow-auto">
                             <div
-                                className="grid min-w-[920px] gap-px bg-slate-900 text-[11px]"
-                                style={{ gridTemplateColumns: `126px repeat(${board.products.length}, minmax(190px, 1fr))` }}
+                                className="grid min-w-[1380px] gap-px bg-slate-900 text-[11px]"
+                                style={{ gridTemplateColumns: `220px repeat(${table.columns.length}, minmax(118px, 1fr))` }}
                             >
-                                <div className="bg-[#0b111a] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">Port</div>
-                                {board.products.map(product => (
-                                    <div key={product.market_product} className="bg-[#0b111a] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-300">
-                                        {formatMarketProduct(product.market_product)}
+                                <div className="sticky left-0 top-0 z-20 bg-[#0b111a] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                    Product / Port
+                                </div>
+                                {table.columns.map(column => (
+                                    <div key={column.availability_window} className="sticky top-0 z-10 bg-[#0b111a] px-2 py-2 text-center">
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">{formatAvailabilityWindowPeriod(column.availability_window)}</div>
+                                        <div className="mt-0.5 text-[9px] uppercase text-slate-600">{column.group}</div>
                                     </div>
                                 ))}
-                                {board.ports.map(port => (
-                                    <React.Fragment key={port.delivery_point_id}>
-                                        <div className="bg-[#080c13] px-3 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-slate-300">
-                                            {port.delivery_point_name}
-                                            <span className="mt-1 block text-[9px] font-normal uppercase text-slate-600">{port.region}</span>
+                                {table.rows.map(row => (
+                                    <React.Fragment key={row.row_key}>
+                                        <div className="sticky left-0 z-10 min-w-0 border-t border-slate-900 bg-[#080c13] px-3 py-2">
+                                            <div className="truncate text-[11px] font-bold text-slate-200">{formatMarketProduct(row.market_product)}</div>
+                                            <div className="mt-0.5 truncate text-[10px] uppercase tracking-wider text-slate-500">{row.delivery_point_name}</div>
+                                            <div className="mt-0.5 text-[9px] text-slate-600">{row.region}</div>
                                         </div>
-                                        {board.products.map(product => {
-                                            const cell = port.cells.find(item => item.market_product === product.market_product);
-                                            const selectedDeliveryPointId = focusDeliveryPointId ?? board.focus.delivery_point_id;
-                                            const selected = cell?.market_product === focusMarketProduct && cell.delivery_point_id === selectedDeliveryPointId;
-                                            const orderActivity = cell && cell.order_count > 0 ? orderContextLabel(cell) : null;
+                                        {table.columns.map(column => {
+                                            const cell = row.cells[column.availability_window];
+                                            const selectedCellKey = sliceKey(cell ? cellToSlice(cell) : null);
+                                            const selectedState = Boolean(cell && selectedCellKey === selectedKey);
+                                            const tone = cell ? sourceTone(cell) : null;
+                                            const empty = !cell || !cellHasSignal(cell);
                                             return (
                                                 <button
-                                                    key={`${port.delivery_point_id}-${product.market_product}`}
+                                                    key={`${row.row_key}-${column.availability_window}`}
+                                                    type="button"
                                                     onClick={() => cell && selectCell(cell)}
+                                                    onDoubleClick={() => cell && openMarketplaceForCell(cell)}
                                                     disabled={!cell}
-                                                    aria-pressed={Boolean(selected)}
-                                                    aria-label={cell
-                                                        ? `Select period detail for ${formatMarketProduct(cell.market_product)} at ${cell.delivery_point_name}, ${formatAvailabilityWindowPeriod(cell.availability_window)}`
-                                                        : `No market for ${formatMarketProduct(product.market_product)} at ${port.delivery_point_name}`}
-                                                    className={`min-h-[88px] bg-[#080c13] px-3 py-2 text-left transition-colors hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
-                                                        selected ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
-                                                    } disabled:cursor-not-allowed disabled:text-slate-600`}
+                                                    aria-pressed={selectedState}
+                                                    title={cell ? 'Click to select; double-click to open this market slice' : undefined}
+                                                    className={`min-h-[78px] bg-[#080c13] px-2 py-2 text-left transition hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
+                                                        selectedState ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
+                                                    } ${empty ? 'text-slate-600' : 'text-slate-200'} disabled:cursor-not-allowed`}
                                                 >
-                                                    {cell ? (
-                                                        <>
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <span className="font-mono text-base font-bold text-blue-300">{currency(cell.benchmark_mid)}</span>
-                                                                {(cell.is_demo_benchmark || cell.benchmark_source_kind === 'DEMO_SEED') && <span className="text-[9px] font-bold uppercase text-amber-300">Demo</span>}
-                                                            </div>
-                                                            <div className="mt-1 grid grid-cols-2 gap-2 font-mono text-[10px]">
-                                                                <span className="text-emerald-300">Bid {currency(cell.best_bid)}</span>
-                                                                <span className="text-right text-rose-300">Ask {currency(cell.best_ask)}</span>
-                                                            </div>
-                                                            <div className="mt-2 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider text-slate-500">
-                                                                <span className="inline-flex items-center gap-1">
-                                                                    <span>{cell.order_count} orders</span>
-                                                                    {orderActivity && (
-                                                                        <span className={`rounded border border-current/30 px-1 py-0.5 leading-none ${marketActivityTextClass(orderActivity.tone)}`}>
-                                                                            {orderActivity.shortLabel}
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                                <span className="truncate text-right">{sourceLabel(cell.benchmark_source, cell.is_demo_benchmark, cell.benchmark_source_kind)}</span>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <span className="text-slate-600">No market</span>
-                                                    )}
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <span className={`font-mono text-base font-bold ${empty ? 'text-slate-600' : 'text-slate-100'}`}>
+                                                            {currency(cell?.primary_value)}
+                                                        </span>
+                                                        {tone && tone.tone !== 'empty' && (
+                                                            <span className={`text-[9px] font-bold uppercase ${marketActivityTextClass(tone.tone)}`}>
+                                                                {tone.shortLabel}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="mt-1 truncate text-[9px] uppercase tracking-wider text-slate-500">
+                                                        {cell?.public_source_label ?? 'No data'}
+                                                    </div>
+                                                    <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
+                                                        <span className="text-emerald-300">B {currency(cell?.best_bid)}</span>
+                                                        <span className="text-right text-rose-300">A {currency(cell?.best_ask)}</span>
+                                                    </div>
                                                 </button>
                                             );
                                         })}
@@ -1000,79 +854,152 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 ))}
                             </div>
                         </div>
-                    </section>
+                        </section>
+                    </div>
 
-                    <div className="grid gap-3">
-                        <section data-tour="forward-focus-panel" className="border border-slate-800 bg-[#080c13]">
-                            <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
-                                <div>
-                                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                        <Target size={12} />
-                                        Selected Period
-                                    </div>
-                                    <div className="mt-1 text-lg font-bold text-slate-100">
-                                        {focusedCell
-                                            ? `${formatMarketProduct(focusedCell.market_product)} - ${focusedCell.delivery_point_name}`
-                                            : selectedSliceUnavailable
-                                                ? 'Selected period unavailable'
-                                                : `${formatMarketProduct(board.focus.market_product)} - ${board.focus.delivery_point_name}`}
+                    <div className="min-w-0 space-y-3">
+                        <section data-tour="forward-latest-signals" className="min-w-0 overflow-hidden border border-slate-800 bg-[#080c13]">
+                            <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1.5">
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp size={13} className="text-blue-300" aria-hidden="true" />
+                                    <div>
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Latest Monitored Signals</div>
+                                        <div className="text-[9px] text-slate-500">Recent eligible matrix signals</div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-2 text-right text-[10px] uppercase tracking-wider text-slate-500">
-                                    <div>
-                                        <div>{formatAvailabilityWindowPeriod(board.availability_window)}</div>
-                                        <div className="break-words">{focusedCell ? sourceLabel(focusedCell.benchmark_source, focusedCell.is_demo_benchmark, focusedCell.benchmark_source_kind) : selectedSliceUnavailable ? 'No market' : 'Reference'}</div>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-500">{ageLabel(table.generated_at)}</div>
+                            </div>
+                            <div className="grid max-h-[238px] gap-px overflow-y-auto bg-slate-900 md:grid-cols-2 xl:grid-cols-1">
+                                {latestSignals.length === 0 ? (
+                                    <div className="bg-[#080c13] px-3 py-6 text-center text-[11px] text-slate-500 md:col-span-2 xl:col-span-1">
+                                        No monitored signals are available yet.
                                     </div>
-                                    <button
-                                        data-tour="forward-expand-period"
-                                        type="button"
-                                        onClick={() => setPeriodDialogOpen(true)}
-                                        disabled={!focusedCell}
-                                        className="inline-flex h-7 items-center gap-1 border border-slate-700 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-300 hover:border-blue-400/60 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-                                    >
-                                        <Maximize2 size={11} />
-                                        Expand period
-                                    </button>
+                                ) : latestSignals.slice(0, 8).map(signal => {
+                                    const tone = signalTone(signal.primary_source_kind, signal.demo_status);
+                                    const matchingCell = allCells.find(cell => (
+                                        cell.market_product === signal.market_product
+                                        && cell.delivery_point_id === signal.delivery_point_id
+                                        && cell.availability_window === signal.availability_window
+                                    ));
+                                    return (
+                                        <button
+                                            key={`${signal.market_product}-${signal.delivery_point_id}-${signal.availability_window}`}
+                                            type="button"
+                                            onClick={() => matchingCell && selectCell(matchingCell)}
+                                            onDoubleClick={() => matchingCell && openMarketplaceForCell(matchingCell)}
+                                            disabled={!matchingCell}
+                                            title={matchingCell ? 'Click to select; double-click to open this market slice' : undefined}
+                                            className="min-w-0 bg-[#080c13] px-3 py-1.5 text-left hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
+                                        >
+                                            <div className="flex min-w-0 items-center justify-between gap-2">
+                                                <span className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                                    {formatMarketProduct(signal.market_product)} · {signal.delivery_point_name}
+                                                </span>
+                                                <span className={`text-[9px] font-bold uppercase ${marketActivityTextClass(tone.tone)}`}>{tone.shortLabel}</span>
+                                            </div>
+                                            <div className="mt-0.5 flex items-baseline justify-between gap-2">
+                                                <span className="font-mono text-sm font-bold text-slate-100">{currency(signal.primary_value)}</span>
+                                                <span className="truncate text-[9px] uppercase tracking-wider text-slate-500">
+                                                    {formatAvailabilityWindowPeriod(signal.availability_window)} · {ageLabel(signal.observed_at)}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </section>
+
+                    <aside data-tour="forward-focus-panel" className="min-w-0 border border-slate-800 bg-[#080c13]">
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                    <Target size={12} aria-hidden="true" />
+                                    Selected Period
+                                </div>
+                                <div className="mt-1 truncate text-lg font-bold text-slate-100">
+                                    {activeCell ? `${formatMarketProduct(activeCell.market_product)} · ${activeCell.delivery_point_name}` : 'No period selected'}
+                                </div>
+                                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">
+                                    {activeCell ? formatAvailabilityWindowPeriod(activeCell.availability_window) : 'Select a matrix cell'}
                                 </div>
                             </div>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => selectWindow(activeSlice?.previous_window)}
+                                    disabled={!activeSlice?.previous_window}
+                                    className="flex h-8 w-8 items-center justify-center border border-slate-700 text-slate-300 hover:border-blue-400/60 hover:text-blue-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+                                    aria-label="Previous period"
+                                >
+                                    <ChevronLeft size={14} aria-hidden="true" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => selectWindow(activeSlice?.next_window)}
+                                    disabled={!activeSlice?.next_window}
+                                    className="flex h-8 w-8 items-center justify-center border border-slate-700 text-slate-300 hover:border-blue-400/60 hover:text-blue-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+                                    aria-label="Next period"
+                                >
+                                    <ChevronRight size={14} aria-hidden="true" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {activeCell && (
                             <div className="grid grid-cols-3 gap-px bg-slate-900">
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Benchmark</div>
-                                    <div className="mt-1 font-mono text-xl font-bold text-blue-300">{currency(focusedCell?.benchmark_mid)}</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Primary</div>
+                                    <div className="mt-1 font-mono text-xl font-bold text-slate-100">{currency(activeCell.primary_value)}</div>
                                 </div>
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Best Bid</div>
-                                    <div className="mt-1 font-mono text-xl font-bold text-emerald-300">{currency(focusedCell?.best_bid)}</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Source</div>
+                                    <div className={`mt-1 text-[10px] font-bold uppercase ${activeTone ? marketActivityTextClass(activeTone.tone) : 'text-slate-500'}`}>
+                                        {activeTone?.label ?? activeCell.public_source_label}
+                                    </div>
+                                    <div className="mt-0.5 truncate text-[9px] uppercase tracking-wider text-slate-600">
+                                        {activeCell.public_source_label}
+                                    </div>
                                 </div>
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Best Ask</div>
-                                    <div className="mt-1 font-mono text-xl font-bold text-rose-300">{currency(focusedCell?.best_ask)}</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Age</div>
+                                    <div className="mt-1 font-mono text-sm font-bold text-slate-300">{ageLabel(activeCell.observed_at)}</div>
                                 </div>
                             </div>
-                            <PeriodDetailGraph
-                                cell={focusedCell}
-                                emptyMessage={selectedSliceUnavailable ? 'Selected slice is not available in this window.' : undefined}
-                            />
-                        </section>
-                        <DepthPanel
-                            availabilityWindow={focusedCell?.availability_window ?? board.availability_window}
-                            bids={boardMatchesSelectedSlice ? board.focus.depth_bids : []}
-                            asks={boardMatchesSelectedSlice ? board.focus.depth_asks : []}
-                            ready={boardMatchesSelectedSlice}
-                            unavailable={selectedSliceUnavailable}
-                        />
-                        <TradeTapePanel trades={visibleTrades} loading={tradeLoading || !tradesReadyForSelected} unavailable={selectedSliceUnavailable} />
+                        )}
+
+                        <div className="space-y-3 p-3">
+                            <PriceEvidenceStrip slice={activeSlice} loading={evidenceLoading} hasSelection={Boolean(activeCell)} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <DepthList label="Bids" levels={activeSlice?.depth_bids ?? []} tone="bid" />
+                                <DepthList label="Asks" levels={activeSlice?.depth_asks ?? []} tone="ask" />
+                            </div>
+                            <div className="border border-slate-800 bg-[#080c13]">
+                                <div className="border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                    Historical Prints
+                                </div>
+                                <div className="divide-y divide-slate-900">
+                                    {!activeSlice || activeSlice.trades.length === 0 ? (
+                                        <div className="px-3 py-6 text-center text-[11px] text-slate-500">No confirmed prints in this selected period.</div>
+                                    ) : activeSlice.trades.map((trade, index) => {
+                                        const tone = describeMarketActivity({ source_kind: trade.source_kind, demo_status: trade.demo_status });
+                                        return (
+                                            <div key={`${trade.confirmed_at}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-[11px]">
+                                                <span className="min-w-0 truncate text-slate-300">
+                                                    {quantity(trade.quantity_mt)}
+                                                    <span className={`ml-2 text-[9px] font-bold uppercase ${marketActivityTextClass(tone.tone)}`}>{tone.shortLabel}</span>
+                                                </span>
+                                                <span className="font-mono font-bold text-cyan-300">{currency(trade.price_per_mt_usd)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="border border-slate-800 bg-[#080c13] px-3 py-2 text-[10px] text-slate-500">
+                                {table.disclaimer}
+                            </div>
+                        </div>
+                        </aside>
                     </div>
-                    <PeriodDrilldownDialog
-                        open={periodDialogOpen}
-                        onClose={closePeriodDialog}
-                        cell={focusedCell}
-                        depthBids={depthReadyForSelected ? board.focus.depth_bids : []}
-                        depthAsks={depthReadyForSelected ? board.focus.depth_asks : []}
-                        depthReady={depthReadyForSelected}
-                        trades={visibleTrades}
-                        tradesReady={tradesReadyForSelected}
-                    />
                 </div>
             )}
         </div>

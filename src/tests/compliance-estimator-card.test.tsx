@@ -11,29 +11,23 @@ describe('ComplianceEstimatorCard', () => {
     localStorage.clear();
   });
 
-  it('renders collapsed by default and expands into labelled planning controls', () => {
+  it('renders expanded planning controls with voyage segments by default', () => {
     renderWithProviders(<ComplianceEstimatorCard selectedPort={PORTS[0]} onOpenMarketplace={vi.fn()} />);
 
-    const toggle = screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(screen.queryByText(/indicative planning estimate only/i)).toBeNull();
-
-    fireEvent.click(toggle);
-
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText(/indicative planning estimate only/i)).toBeTruthy();
+    expect(screen.getByText('Voyage segments')).toBeTruthy();
+    expect(screen.getByLabelText('Segment 1')).toBeTruthy();
+    expect(screen.getByLabelText('Days')).toBeTruthy();
     expect(screen.getByLabelText('Green fuel pathway')).toBeTruthy();
-    expect(screen.getByLabelText('Voyage days')).toBeTruthy();
     expect(screen.getByLabelText('Daily burn (MT)')).toBeTruthy();
     expect(screen.getByLabelText('Conventional fuel ($/MT)')).toBeTruthy();
     expect(screen.getByLabelText('EUA price (€/tCO2)')).toBeTruthy();
-    expect(screen.getByLabelText('ETS coverage (%)')).toBeTruthy();
+    expect(screen.getByText('25 voyage days · weighted ETS coverage 50%')).toBeTruthy();
     expect(screen.getByLabelText('Target CI (gCO2e/MJ)')).toBeTruthy();
   });
 
   it('announces recalculated results when voyage assumptions change', () => {
     renderWithProviders(<ComplianceEstimatorCard selectedPort={PORTS[0]} onOpenMarketplace={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
 
     const resultRegion = screen.getByRole('status');
     expect(resultRegion.getAttribute('aria-atomic')).toBe('true');
@@ -42,31 +36,29 @@ describe('ComplianceEstimatorCard', () => {
     expect(within(resultRegion).getByText('€102,178')).toBeTruthy();
     expect(resultRegion.textContent).toContain('Estimator results');
 
-    fireEvent.change(screen.getByLabelText('Voyage days'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Days'), { target: { value: '10' } });
 
     expect(within(resultRegion).getByText('€40,871')).toBeTruthy();
   });
 
   it('recalculates conventional totals when price and ETS assumptions change', () => {
     renderWithProviders(<ComplianceEstimatorCard selectedPort={PORTS[0]} onOpenMarketplace={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
 
     const resultRegion = screen.getByRole('status');
 
     fireEvent.change(screen.getByLabelText('Conventional fuel ($/MT)'), { target: { value: '500' } });
     fireEvent.change(screen.getByLabelText('EUA price (€/tCO2)'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('ETS coverage (%)'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Segment 1'), { target: { value: 'INTRA_EU' } });
 
     expect(within(resultRegion).getByText('€402,500')).toBeTruthy();
     expect(within(resultRegion).getByText('€272,475')).toBeTruthy();
     expect(screen.getByText(/conventional fuel \$500\/MT/i)).toBeTruthy();
     expect(screen.getByText(/EUA €100\/tCO2/i)).toBeTruthy();
-    expect(screen.getByText(/ETS coverage 100%/i)).toBeTruthy();
+    expect(screen.getAllByText(/ETS coverage 100%/i).length).toBeGreaterThan(0);
   });
 
   it('keeps user-facing copy away from compliance-certainty claims', () => {
     renderWithProviders(<ComplianceEstimatorCard selectedPort={PORTS[0]} onOpenMarketplace={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
 
     const text = screen.getByTestId('compliance-estimator-card').textContent || '';
 
@@ -86,7 +78,6 @@ describe('ComplianceEstimatorCard', () => {
     const selectedPort = PORTS[0];
     renderWithProviders(<ComplianceEstimatorCard selectedPort={selectedPort} onOpenMarketplace={onOpenMarketplace} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
     fireEvent.click(screen.getByRole('button', { name: `Open ${selectedPort.name} spot market` }));
 
     expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_METHANOL');
@@ -105,7 +96,6 @@ describe('ComplianceEstimatorCard', () => {
     };
     renderWithProviders(<ComplianceEstimatorCard selectedPort={selectedPort} onOpenMarketplace={onOpenMarketplace} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
     fireEvent.click(screen.getByRole('button', { name: `Open ${selectedPort.name} spot market` }));
 
     expect(localStorage.getItem('verdaxis_marketplace_delivery_point_id')).toBe(selectedPort.catalogDeliveryPointId);
@@ -114,8 +104,6 @@ describe('ComplianceEstimatorCard', () => {
 
   it('disables Marketplace handoff until the user has selected a port', () => {
     renderWithProviders(<ComplianceEstimatorCard onOpenMarketplace={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /fueleu \/ eu ets estimator/i }));
 
     const cta = screen.getByRole('button', { name: /select a port to open marketplace/i }) as HTMLButtonElement;
     expect(cta.disabled).toBe(true);

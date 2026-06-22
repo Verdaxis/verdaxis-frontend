@@ -166,6 +166,53 @@ describe('BuyerMap market data', () => {
         expect(syntheticEthanol).toMatchObject({ bestBid: 760.5, bestAsk: 785 });
     });
 
+    it('does not pull unsupported delivery points into approved ports through country or broad region matching', () => {
+        const aggregated = [
+            {
+                product_name: 'Bio Methanol',
+                market_product: 'BIO_METHANOL',
+                fuel_type: 'Methanol',
+                delivery_point_id: 'dp-ningbo',
+                delivery_point_name: 'Ningbo',
+                availability_window: 'SPOT',
+                region: 'China',
+                side: 'ASK',
+                min_price: '100.00',
+                max_price: '110.00',
+                total_quantity: '9999.00',
+                order_count: 9,
+            },
+            {
+                product_name: 'Bio Methanol',
+                market_product: 'BIO_METHANOL',
+                fuel_type: 'Methanol',
+                delivery_point_id: 'dp-shanghai',
+                delivery_point_name: 'Shanghai',
+                availability_window: 'SPOT',
+                region: 'China',
+                side: 'ASK',
+                min_price: '700.00',
+                max_price: '720.00',
+                total_quantity: '1500.00',
+                order_count: 2,
+            },
+        ];
+
+        const result = computePortMarketData(aggregated as any, {
+            id: 'cn-sha',
+            catalogDeliveryPointId: 'dp-shanghai',
+            name: 'Shanghai',
+        });
+
+        expect(result.totalVolume).toBe(1500);
+        expect(result.fuelRows).toHaveLength(1);
+        expect(result.fuelRows[0]).toMatchObject({
+            label: 'Bio Methanol',
+            bestAsk: 700,
+            orderCount: 2,
+        });
+    });
+
     it('does not invent port intelligence when the backend returns none', () => {
         const port = mapPortResponse({
             id: 'sg-sin',

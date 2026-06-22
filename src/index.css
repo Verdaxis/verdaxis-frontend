@@ -189,6 +189,43 @@
   animation-play-state: paused;
 }
 
+.verdaxis-market-watch-strip {
+  scrollbar-width: none;
+}
+
+.verdaxis-market-watch-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.verdaxis-market-watch-track--scrolling {
+  animation: verdaxis-market-watch-scroll var(--verdaxis-market-watch-duration, 80s) linear infinite;
+}
+
+.verdaxis-market-watch-strip:hover .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus .verdaxis-market-watch-track--scrolling,
+.verdaxis-market-watch-strip:focus-within .verdaxis-market-watch-track--scrolling {
+  animation-play-state: paused;
+}
+
+@keyframes verdaxis-market-watch-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verdaxis-market-watch-track--scrolling {
+    animation: none;
+  }
+
+  .verdaxis-market-watch-strip {
+    overflow-x: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .public-price-ticker {
     overflow-x: auto !important;

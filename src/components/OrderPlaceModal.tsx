@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
-import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct } from '../types';
+import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
     SPOT_WINDOW,
@@ -10,6 +10,7 @@ import {
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
+import { isApprovedTradingPortName } from '../utils/tradingPorts';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -117,8 +118,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             api.catalog.products().catch(() => [] as Product[]),
             api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
         ]).then(([prods, dps]) => {
-            const activeProds = prods.filter(p => p.is_active);
-            const activeDps = dps.filter(d => d.is_active);
+            const activeProds = prods.filter(p => (
+                p.is_active
+                && p.market_product
+                && MARKET_PRODUCTS.includes(p.market_product)
+            ));
+            const activeDps = dps.filter(d => d.is_active && isApprovedTradingPortName(d.name));
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
 

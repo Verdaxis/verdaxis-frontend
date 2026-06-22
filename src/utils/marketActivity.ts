@@ -8,7 +8,7 @@ export type MarketActivityInput = {
     is_demo_benchmark?: boolean | null;
 };
 
-export type MarketActivityTone = 'live' | 'demo' | 'mixed' | 'reference' | 'empty' | 'unknown';
+export type MarketActivityTone = 'live' | 'demo' | 'mixed' | 'reference' | 'signal' | 'empty' | 'unknown';
 
 export interface MarketActivityDescriptor {
     label: string;
@@ -19,7 +19,7 @@ export interface MarketActivityDescriptor {
 
 export type ForwardCurveSignalInput = {
     signal_type?: MarketSignalType | null;
-    signal_source_kind?: ForwardCurveSignalSourceKind | null;
+    signal_source_kind?: ForwardCurveSignalSourceKind | MarketSourceKind | null;
     demo_status?: MarketDemoStatus | null;
 };
 
@@ -127,7 +127,34 @@ export function describeForwardCurveSignal(signal: ForwardCurveSignalInput | nul
             label: 'Market indication',
             shortLabel: 'Indication',
             detail: 'Sanitized market indication feed for monitoring. Not executable liquidity.',
+            tone: 'signal',
+        };
+    }
+
+    if (sourceKind === 'CONFIRMED_TRADE') {
+        return {
+            label: 'Confirmed trade',
+            shortLabel: 'Trade',
+            detail: 'Confirmed user trade activity.',
             tone: 'live',
+        };
+    }
+
+    if (sourceKind === 'LIVE_ORDER') {
+        return {
+            label: 'Live order',
+            shortLabel: 'Live',
+            detail: 'Live user-posted market activity.',
+            tone: 'live',
+        };
+    }
+
+    if (sourceKind === 'BENCHMARK_REFERENCE') {
+        return {
+            label: 'Reference',
+            shortLabel: 'Reference',
+            detail: 'Reference benchmark context, not an executable order or confirmed trade.',
+            tone: 'reference',
         };
     }
 
@@ -136,7 +163,7 @@ export function describeForwardCurveSignal(signal: ForwardCurveSignalInput | nul
             label: 'Physical stem feed',
             shortLabel: 'Stem',
             detail: 'Sanitized physical availability signal for monitoring. Not a trade order.',
-            tone: 'live',
+            tone: 'signal',
         };
     }
 
@@ -171,6 +198,7 @@ export function marketActivityTextClass(tone: MarketActivityTone): string {
     if (tone === 'demo') return 'text-amber-700 dark:text-amber-300';
     if (tone === 'mixed') return 'text-orange-700 dark:text-orange-300';
     if (tone === 'reference') return 'text-blue-700 dark:text-blue-300';
+    if (tone === 'signal') return 'text-cyan-600 dark:text-cyan-300';
     if (tone === 'empty') return 'text-slate-500 dark:text-slate-400';
     return 'text-slate-500 dark:text-slate-400';
 }
@@ -180,5 +208,6 @@ export function marketActivityBadgeClass(tone: MarketActivityTone): string {
     if (tone === 'demo') return 'border-amber-300/60 bg-amber-50 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300';
     if (tone === 'mixed') return 'border-orange-300/60 bg-orange-50 text-orange-700 dark:border-orange-400/40 dark:bg-orange-400/10 dark:text-orange-300';
     if (tone === 'reference') return 'border-blue-300/60 bg-blue-50 text-blue-700 dark:border-blue-400/40 dark:bg-blue-400/10 dark:text-blue-300';
+    if (tone === 'signal') return 'border-cyan-300/60 bg-cyan-50 text-cyan-700 dark:border-cyan-400/40 dark:bg-cyan-400/10 dark:text-cyan-300';
     return 'border-slate-300/70 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400';
 }
