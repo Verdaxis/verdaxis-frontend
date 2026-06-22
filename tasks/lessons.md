@@ -146,6 +146,12 @@
 - **Rule:** For short UI copy changes, use the user's requested wording exactly unless there is a strong product reason not to.
 - **Why:** I optimized the phrasing instead of matching the requested label, which created unnecessary iteration.
 
+### Keep Monitoring Horizons Executable
+- **Date:** 2026-06-22
+- **Trigger:** User pointed out blank Forward Curve months that suppliers could not currently list against.
+- **Rule:** Market monitoring surfaces should derive their default availability windows from the same option source as executable listing/order forms, unless explicitly showing a separate reference horizon.
+- **Why:** A broader forward-monitoring horizon exposed unsupported monthly windows, making normal no-data cells look like broken or missing market activity.
+
 
 ### Keep ASK metadata strict and BID metadata broad
 - **Date:** 2026-04-14

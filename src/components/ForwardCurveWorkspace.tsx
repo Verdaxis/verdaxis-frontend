@@ -16,7 +16,7 @@ import type {
     MarketProduct,
     Page,
 } from '../types';
-import { formatAvailabilityWindowPeriod } from '../utils/availabilityWindow';
+import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
@@ -35,6 +35,8 @@ const PRODUCT_STORAGE_KEY = 'verdaxis_forward_curve_product';
 const DELIVERY_POINT_STORAGE_KEY = 'verdaxis_forward_curve_delivery_point';
 const WINDOW_STORAGE_KEY = 'verdaxis_forward_curve_window';
 const REFRESH_INTERVAL_MS = 30_000;
+
+const getForwardCurveTableWindows = () => getAvailabilityWindowOptions().map(option => option.value);
 
 const currency = (value: number | string | null | undefined) => {
     if (value == null || value === '') return '--';
@@ -611,7 +613,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         setLoadingTable(true);
         setError(null);
         try {
-            const response = filterApprovedForwardCurveTable(await api.curves.table());
+            const response = filterApprovedForwardCurveTable(await api.curves.table({
+                windows: getForwardCurveTableWindows(),
+            }));
             if (requestId !== tableRequestIdRef.current) return;
             setTable(response);
             setSelected(current => {
