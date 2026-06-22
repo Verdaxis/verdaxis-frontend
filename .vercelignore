@@ -1,0 +1,8 @@
+.env*
+*.bak
+*.log
+logs/
+node_modules/
+dist/
+test-results/
+.codesight/
