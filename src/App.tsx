@@ -58,12 +58,56 @@ import { PrivacyPage } from './pages/public/PrivacyPage';
 import { TermsPage } from './pages/public/TermsPage';
 import { NotFoundPage } from './pages/public/NotFoundPage';
 
-const BuyerMap = lazy(() => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap })));
-const ProducerMapPage = lazy(() => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage })));
-const MarketTerminal = lazy(() => import('./components/MarketTerminal').then((module) => ({ default: module.MarketTerminal })));
+const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
+const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
+const loadMarketTerminal = () => import('./components/MarketTerminal').then((module) => ({ default: module.MarketTerminal }));
+
+const BuyerMap = lazy(loadBuyerMap);
+const ProducerMapPage = lazy(loadProducerMapPage);
+const MarketTerminal = lazy(loadMarketTerminal);
 const Compliance = lazy(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
 const SupplierAnalytics = lazy(() => import('./components/SupplierAnalytics').then((module) => ({ default: module.SupplierAnalytics })));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
+
+type Prefetcher = () => Promise<unknown>;
+
+const shouldSkipIdlePrefetch = () => {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return Boolean(connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g');
+};
+
+const scheduleIdlePrefetch = (prefetchers: Prefetcher[]) => {
+  if (typeof window === 'undefined' || shouldSkipIdlePrefetch()) return undefined;
+
+  const runPrefetch = () => {
+    void Promise.allSettled(prefetchers.map((prefetch) => prefetch()));
+  };
+  const requestIdle = (window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  }).requestIdleCallback;
+  const cancelIdle = (window as Window & {
+    cancelIdleCallback?: (handle: number) => void;
+  }).cancelIdleCallback;
+
+  if (requestIdle) {
+    const handle = requestIdle(runPrefetch, { timeout: 5000 });
+    return () => cancelIdle?.(handle);
+  }
+
+  const handle = window.setTimeout(runPrefetch, 2500);
+  return () => window.clearTimeout(handle);
+};
+
+const IdleRoutePrefetch: React.FC = () => {
+  useEffect(() => scheduleIdlePrefetch([
+    loadBuyerMap,
+    loadMarketTerminal,
+    loadProducerMapPage,
+  ]), []);
+
+  return null;
+};
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -295,6 +339,7 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <ScrollToTop />
+                <IdleRoutePrefetch />
                 <Suspense fallback={<div className="min-h-screen bg-white p-10 text-center text-emerald-600 dark:bg-slate-950">Loading...</div>}>
                 <Routes>
                     {/* Auth routes */}
