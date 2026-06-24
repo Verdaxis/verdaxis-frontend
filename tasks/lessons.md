@@ -20,6 +20,12 @@
 - **Rule:** When introducing tabs in a compact side panel, confirm the first/default tab matches the user's intended information hierarchy, not just the implementation's primary content block.
 - **Why:** The code kept the estimator/port-intel content as the first tab because it was previously the only panel body, but the new tabbed layout should lead with market news.
 
+### Make New Map Reference Layers Discoverable
+- **Date:** 2026-06-24
+- **Trigger:** User viewed Europe on the Intelligence Map but could not see the newly added SECA/ECA reference zones.
+- **Rule:** New map reference layers need an explicit visible control, sufficiently strong default styling, and a focus action that takes users to the relevant geography.
+- **Why:** A subtle polygon hidden under a generic overlays toggle can technically render while still being invisible or undiscoverable at normal map zoom.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened

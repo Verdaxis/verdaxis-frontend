@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff, Shield } from 'lucide-react';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
@@ -46,6 +46,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showOverlays, setShowOverlays] = useState(true);
+    const [showSecaZones, setShowSecaZones] = useState(true);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
@@ -136,6 +137,23 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             popupRef.current = null;
         }
     }, [focusMapPort]);
+
+    const focusSecaZones = useCallback(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        setShowOverlays(true);
+        setShowSecaZones(true);
+        map.fitBounds([[-11, 29], [37, 67]], {
+            padding: {
+                top: 130,
+                bottom: 80,
+                left: 80,
+                right: isPanelOpen ? 380 : 80,
+            },
+            duration: 850,
+            essential: true,
+        });
+    }, [isPanelOpen]);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
@@ -445,8 +463,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         'fill-opacity': [
                             'case',
                             ['==', ['get', 'status'], 'phase-in'],
-                            0.1,
-                            0.12,
+                            0.2,
+                            0.26,
                         ],
                     },
                 }, 'carto-labels');
@@ -464,8 +482,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             '#D97706',
                             '#0284C7',
                         ],
-                        'line-width': 1.2,
-                        'line-opacity': 0.65,
+                        'line-width': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            1.6,
+                            2.2,
+                        ],
+                        'line-opacity': 0.9,
                     },
                 }, 'carto-labels');
             }
@@ -477,17 +500,22 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     source: 'seca-zones',
                     layout: {
                         'text-field': ['get', 'shortLabel'],
-                        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 5, 11],
+                        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 10, 5, 12],
                         'text-letter-spacing': 0.03,
                         'text-transform': 'uppercase',
-                        'text-allow-overlap': false,
+                        'text-allow-overlap': true,
                         'symbol-placement': 'point',
                     },
                     paint: {
-                        'text-color': '#0F766E',
+                        'text-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#92400E',
+                            '#075985',
+                        ],
                         'text-halo-color': isDark ? '#0F172A' : '#F8FAFC',
-                        'text-halo-width': 1.2,
-                        'text-opacity': 0.8,
+                        'text-halo-width': 1.8,
+                        'text-opacity': 0.95,
                     },
                 }, 'carto-labels');
             }
@@ -503,13 +531,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        const visibility = showOverlays ? 'visible' : 'none';
+        const visibility = showOverlays && showSecaZones ? 'visible' : 'none';
         SECA_ZONE_LAYER_IDS.forEach((layerId) => {
             if (map.getLayer(layerId)) {
                 map.setLayoutProperty(layerId, 'visibility', visibility);
             }
         });
-    }, [showOverlays]);
+    }, [showOverlays, showSecaZones]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -734,6 +762,30 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
                             {t('buyerMap.overlays')}
                         </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setShowSecaZones(current => !current)}
+                        className={`bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border p-2.5 flex items-center gap-2 transition-colors ${
+                            showOverlays && showSecaZones
+                                ? 'border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10'
+                                : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800'
+                        }`}
+                        title="Show or hide SECA/ECA reference zones"
+                    >
+                        <Shield size={16} />
+                        <span className="text-xs font-bold">
+                            SECA/ECA
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={focusSecaZones}
+                        className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-white hover:text-sky-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-300"
+                    >
+                        View zones
                     </button>
 
                     {/* Product filter — controls which product's spread colors the port circles */}
