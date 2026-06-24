@@ -26,6 +26,12 @@
 - **Rule:** New map reference layers need an explicit visible control, sufficiently strong default styling, and a focus action that takes users to the relevant geography.
 - **Why:** A subtle polygon hidden under a generic overlays toggle can technically render while still being invisible or undiscoverable at normal map zoom.
 
+### Browser-Dogfood Map Canvas Layers Before Calling Them Visible
+- **Date:** 2026-06-24
+- **Trigger:** User still could not see SECA/ECA zones after I reported the live bundle contained the layer code.
+- **Rule:** For MapLibre/canvas changes, verify with an authenticated browser screenshot that the actual layer pixels are visible; asset grep and smoke checks are not sufficient.
+- **Why:** A layer can exist in the bundle and runtime code but still be visually hidden by map layer order, raster label layers, opacity, or viewport state.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened
