@@ -13,6 +13,8 @@ import { VerdaxisSelect } from '../ui/VerdaxisSelect';
 
 interface ComplianceEstimatorCardProps {
     selectedPort?: Port;
+    portOptions?: Port[];
+    onSelectPort?: (port: Port) => void;
     onOpenMarketplace: (port: Port) => void;
 }
 
@@ -58,7 +60,12 @@ const segmentCoverage = (mode: VoyageSegmentMode) => (
     VOYAGE_SEGMENT_MODES.find(option => option.value === mode)?.coverage ?? 0.5
 );
 
-export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = ({ selectedPort, onOpenMarketplace }) => {
+export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = ({
+    selectedPort,
+    portOptions = [],
+    onSelectPort,
+    onOpenMarketplace,
+}) => {
     const { t, ready } = useNamespace('dashboard');
     const fuelLabelId = useId();
     const [voyageSegments, setVoyageSegments] = useState<VoyageSegment[]>([
@@ -76,6 +83,14 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
         label: fuel.label,
         description: `${fuel.carbonIntensityGco2ePerMj} gCO2e/MJ · $${fuel.referencePriceUsdPerMt}/MT`,
     })), []);
+    const marketplacePortOptions = useMemo(() => portOptions.map(port => ({
+        value: port.id,
+        label: port.name,
+        description: t('intelligencePanel.estimator.portBunkerDescription', {
+            product: selectedFuel.label,
+            availability: port.methanolSupply,
+        }),
+    })), [portOptions, selectedFuel.label, t]);
     const voyageDays = useMemo(() => (
         voyageSegments.reduce((sum, segment) => sum + Math.max(0, segment.days), 0)
     ), [voyageSegments]);
@@ -125,6 +140,12 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
 
     const removeSegment = (segmentId: string) => {
         setVoyageSegments(current => current.length > 1 ? current.filter(segment => segment.id !== segmentId) : current);
+    };
+
+    const selectMarketplacePort = (portId: string) => {
+        const port = portOptions.find(option => option.id === portId);
+        if (!port) return;
+        onSelectPort?.(port);
     };
 
     const openMarketplace = () => {
@@ -256,6 +277,26 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
                                 triggerClassName="rounded-md px-2 py-2 text-xs font-semibold shadow-none"
                                 menuClassName="rounded-lg"
                             />
+                        </div>
+
+                        <div>
+                            <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                {t('intelligencePanel.estimator.marketplacePort')}
+                            </div>
+                            <VerdaxisSelect
+                                value={selectedPort?.id ?? ''}
+                                onChange={selectMarketplacePort}
+                                options={marketplacePortOptions}
+                                placeholder={t('intelligencePanel.estimator.selectMarketplacePort')}
+                                ariaLabel={t('intelligencePanel.estimator.marketplacePort')}
+                                triggerClassName="rounded-md px-2 py-2 text-xs font-semibold shadow-none"
+                                menuClassName="rounded-lg"
+                            />
+                            <div className="mt-1 text-[10px] leading-snug text-slate-500 dark:text-slate-400">
+                                {selectedPort
+                                    ? t('intelligencePanel.estimator.selectedPortSync', { port: selectedPort.name })
+                                    : t('intelligencePanel.estimator.portSelectionHelp')}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">

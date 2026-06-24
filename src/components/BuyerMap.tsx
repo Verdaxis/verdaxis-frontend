@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
+import { SECA_ZONE_COLLECTION, SECA_ZONE_LAYER_IDS } from '../data/secaZones';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -52,6 +53,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
+    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
@@ -108,10 +110,32 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         }, [])
     ), [approvedListingLocationMap, listings]);
 
-    const handleMarkerClick = useCallback((portId: string) => {
-        setSelectedPortId(portId);
+    const focusMapPort = useCallback((port: Port, options: { flyTo?: boolean } = {}) => {
+        setSelectedPortId(port.id);
         setIsPanelOpen(true);
+        if (options.flyTo) {
+            mapRef.current?.flyTo({
+                center: [port.location.lng, port.location.lat],
+                zoom: Math.max(mapRef.current.getZoom(), 3.6),
+                duration: 700,
+                essential: true,
+            });
+        }
     }, []);
+
+    const handleMarkerClick = useCallback((portId: string) => {
+        const port = ports.find(item => item.id === portId);
+        if (!port) return;
+        focusMapPort(port);
+    }, [focusMapPort, ports]);
+
+    const handlePanelPortSelect = useCallback((port: Port) => {
+        focusMapPort(port, { flyTo: true });
+        if (popupRef.current) {
+            popupRef.current.remove();
+            popupRef.current = null;
+        }
+    }, [focusMapPort]);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
@@ -176,8 +200,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     useEffect(() => {
         if (loading || !mapContainer.current || mapRef.current) return;
 
-        const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
-
         const map = new maplibregl.Map({
             container: mapContainer.current,
             style: {
@@ -240,6 +262,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         color: spreadColor,
                         priceMethanol: port.priceMethanol,
                         totalVolume: mkt.totalVolume,
+                        selected: port.id === selectedPortId,
                     },
                 };
             });
@@ -260,7 +283,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         'circle-radius': ['get', 'radius'],
                         'circle-color': isDark ? '#1E293B' : '#FFFFFF',
                         'circle-opacity': 0.85,
-                        'circle-stroke-width': 2,
+                        'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
                         'circle-stroke-color': ['get', 'color'],
                     },
                 });
@@ -392,7 +415,101 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         } else {
             map.once('load', addPortLayers);
         }
-    }, [ports, portMarketMap, maxVolume, handleMarkerClick, t]);
+    }, [ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
+
+    // IMO SECA/ECA reference overlays
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const addSecaLayers = () => {
+            if (!map.getSource('seca-zones')) {
+                map.addSource('seca-zones', {
+                    type: 'geojson',
+                    data: SECA_ZONE_COLLECTION as any,
+                });
+            }
+
+            if (!map.getLayer('seca-zones-fill')) {
+                map.addLayer({
+                    id: 'seca-zones-fill',
+                    type: 'fill',
+                    source: 'seca-zones',
+                    paint: {
+                        'fill-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#F59E0B',
+                            '#38BDF8',
+                        ],
+                        'fill-opacity': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            0.1,
+                            0.12,
+                        ],
+                    },
+                }, 'carto-labels');
+            }
+
+            if (!map.getLayer('seca-zones-outline')) {
+                map.addLayer({
+                    id: 'seca-zones-outline',
+                    type: 'line',
+                    source: 'seca-zones',
+                    paint: {
+                        'line-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#D97706',
+                            '#0284C7',
+                        ],
+                        'line-width': 1.2,
+                        'line-opacity': 0.65,
+                    },
+                }, 'carto-labels');
+            }
+
+            if (!map.getLayer('seca-zones-label')) {
+                map.addLayer({
+                    id: 'seca-zones-label',
+                    type: 'symbol',
+                    source: 'seca-zones',
+                    layout: {
+                        'text-field': ['get', 'shortLabel'],
+                        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 5, 11],
+                        'text-letter-spacing': 0.03,
+                        'text-transform': 'uppercase',
+                        'text-allow-overlap': false,
+                        'symbol-placement': 'point',
+                    },
+                    paint: {
+                        'text-color': '#0F766E',
+                        'text-halo-color': isDark ? '#0F172A' : '#F8FAFC',
+                        'text-halo-width': 1.2,
+                        'text-opacity': 0.8,
+                    },
+                }, 'carto-labels');
+            }
+        };
+
+        if (map.loaded()) {
+            addSecaLayers();
+        } else {
+            map.once('load', addSecaLayers);
+        }
+    }, [isDark]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const visibility = showOverlays ? 'visible' : 'none';
+        SECA_ZONE_LAYER_IDS.forEach((layerId) => {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+        });
+    }, [showOverlays]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -518,7 +635,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         );
     }
 
-    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
     const mapChromeStyle = {
         '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
     } as React.CSSProperties;
@@ -670,6 +786,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 isOpen={isPanelOpen}
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}
+                portOptions={ports}
+                onMapPortSelect={handlePanelPortSelect}
                 onPortSelect={onPortSelect}
             />
         </div>

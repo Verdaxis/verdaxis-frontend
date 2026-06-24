@@ -57,8 +57,16 @@ export const MapLegend: React.FC = () => {
 
                         {/* Overlays */}
                         <div>
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Overlays (Bottom)</div>
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Reference Overlays</div>
                             <div className="space-y-1.5 text-xs">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-3 w-5 rounded border border-sky-600 bg-sky-300/25"></div>
+                                    <span>Active IMO SOx ECA / SECA reference</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-3 w-5 rounded border border-amber-600 bg-amber-300/20"></div>
+                                    <span>Newer IMO ECA phase-in reference</span>
+                                </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-1.5 rounded-full bg-emerald-500"></div>
                                     <span>Avails — available volume by port</span>
