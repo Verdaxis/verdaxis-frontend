@@ -82,6 +82,14 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
 
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
+        if (res.status === 429) {
+            // Surface throttling globally — callers routinely swallow request
+            // errors, which made 429s invisible (Sprint 3 item 15). The
+            // ToastProvider listens for this event.
+            window.dispatchEvent(new CustomEvent('verdaxis:rate-limited', {
+                detail: { retryAfter: res.headers.get('Retry-After') },
+            }));
+        }
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
