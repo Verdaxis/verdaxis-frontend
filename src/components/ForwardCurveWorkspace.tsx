@@ -252,13 +252,13 @@ const findCurveRow = (
 
 const ForwardCurveChart: React.FC<{
     table: ForwardCurveTableResponse;
+    columns: ForwardCurveTableColumn[];
     selectedCell: ForwardCurveMarketCell | null;
     selectedKey: string;
     onSelectCell: (cell: ForwardCurveMarketCell) => void;
     onOpenCell: (cell: ForwardCurveMarketCell) => void;
-}> = ({ table, selectedCell, selectedKey, onSelectCell, onOpenCell }) => {
+}> = ({ table, columns, selectedCell, selectedKey, onSelectCell, onOpenCell }) => {
     const curveRow = useMemo(() => findCurveRow(table, selectedCell), [table, selectedCell]);
-    const columns = table.columns;
 
     const graph = useMemo(() => {
         const cells = columns.map((column, index) => {
@@ -317,32 +317,52 @@ const ForwardCurveChart: React.FC<{
     const curveLabel = curveRow
         ? `${formatMarketProduct(curveRow.market_product)} · ${curveRow.delivery_point_name}`
         : 'No market selected';
-    const path = graph.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(' ');
+    // One path per run of consecutive populated periods. Periods without
+    // evidence break the line instead of being interpolated across.
+    const pathSegments = useMemo(() => {
+        const segments: string[] = [];
+        let run: { x: number; y: number }[] = [];
+        const pointsByIndex = new Map(graph.points.map(point => [point.index, point]));
+        graph.cells.forEach(cell => {
+            const point = pointsByIndex.get(cell.index);
+            if (point) {
+                run.push(point);
+                return;
+            }
+            if (run.length > 1) {
+                segments.push(run.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' '));
+            }
+            run = [];
+        });
+        if (run.length > 1) {
+            segments.push(run.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' '));
+        }
+        return segments;
+    }, [graph.cells, graph.points]);
 
     return (
-        <section data-tour="forward-curve-chart" className="min-w-0 border border-slate-800 bg-[#080c13]">
+        <section data-tour="forward-curve-chart" className="min-w-0 border border-slate-800 bg-[#05080d]">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                         <TrendingUp size={12} className="text-blue-300" aria-hidden="true" />
-                        Forward Curve
+                        Term Structure
                     </div>
-                    <div className="mt-1 truncate text-sm font-bold text-slate-100">{curveLabel}</div>
-                    <div className="mt-0.5 text-[10px] text-slate-500">Indicative monitoring across approved delivery periods for the selected product and port</div>
+                    <div className="mt-0.5 truncate text-[10px] text-slate-500">{curveLabel} across delivery periods; gaps mean no evidence</div>
                 </div>
-                <div className="shrink-0 text-right font-mono text-[10px] uppercase tracking-wider text-slate-500">
+                <div className="shrink-0 text-right font-mono text-[9px] uppercase tracking-wider text-slate-500">
                     <div>{currency(graph.min)} low</div>
                     <div>{currency(graph.max)} high</div>
                 </div>
             </div>
 
             {graph.points.length === 0 ? (
-                <div className="flex h-[244px] items-center justify-center px-4 text-center text-[11px] text-slate-500">
+                <div className="flex h-[140px] items-center justify-center px-4 text-center text-[11px] text-slate-500">
                     No forward curve evidence is available for this product and port yet.
                 </div>
             ) : (
-                <div className="px-3 pb-3 pt-2">
-                    <svg className="h-44 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={`${curveLabel} forward curve`}>
+                <div className="px-3 pb-2 pt-2">
+                    <svg className="h-40 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={`${curveLabel} forward curve`}>
                         {[0.25, 0.5, 0.75].map(fraction => {
                             const y = 20 + fraction * 156;
                             return <line key={fraction} x1="42" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
@@ -351,7 +371,21 @@ const ForwardCurveChart: React.FC<{
                         <line x1="42" x2="42" y1="20" y2="176" stroke="#334155" />
                         <text x="0" y="27" fill="#64748b" fontSize="12">{currency(graph.max)}</text>
                         <text x="0" y="178" fill="#64748b" fontSize="12">{currency(graph.min)}</text>
-                        {path && <path d={path} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+                        {graph.points.map(point => (
+                            <text
+                                key={`label-${point.index}`}
+                                x={point.x}
+                                y="196"
+                                fill="#64748b"
+                                fontSize="11"
+                                textAnchor="middle"
+                            >
+                                {formatAvailabilityWindowPeriod(point.cell.availability_window)}
+                            </text>
+                        ))}
+                        {pathSegments.map((segment, index) => (
+                            <path key={`segment-${index}`} d={segment} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        ))}
                         {graph.points.map(point => {
                             const pointKey = sliceKey(cellToSlice(point.cell));
                             const selected = pointKey === selectedKey;
@@ -391,30 +425,19 @@ const ForwardCurveChart: React.FC<{
                         })}
                     </svg>
 
-                    <div
-                        className="grid gap-px bg-slate-900 text-[10px]"
-                        style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(68px, 1fr))` }}
-                    >
-                        {graph.cells.map(({ column, cell, value }: { column: ForwardCurveTableColumn; cell: ForwardCurveMarketCell | null; value: number | null }) => {
-                            const selected = cell ? sliceKey(cellToSlice(cell)) === selectedKey : false;
-                            return (
-                                <button
-                                    key={column.availability_window}
-                                    type="button"
-                                    disabled={!cell || value == null}
-                                    onClick={() => cell && onSelectCell(cell)}
-                                    onDoubleClick={() => cell && onOpenCell(cell)}
-                                    aria-pressed={selected}
-                                    title={cell && value != null ? 'Click to select; double-click to open this market slice' : undefined}
-                                    className={`min-w-0 bg-[#080c13] px-2 py-2 text-left hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:text-slate-600 ${
-                                        selected ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
-                                    }`}
-                                >
-                                    <div className="truncate font-bold uppercase tracking-wider text-slate-400">{formatAvailabilityWindowPeriod(column.availability_window)}</div>
-                                    <div className="mt-1 font-mono text-sm font-bold text-slate-100">{currency(value)}</div>
-                                </button>
-                            );
-                        })}
+                    <div className="mt-1 flex items-center gap-3 text-[9px] uppercase tracking-wider text-slate-500">
+                        <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
+                            Mid / primary
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="h-3 w-1 rounded-full bg-slate-500" aria-hidden="true" />
+                            Bid-ask range
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="h-2.5 w-2.5 rounded-full border border-emerald-400 bg-transparent" aria-hidden="true" />
+                            Selected period
+                        </span>
                     </div>
                 </div>
             )}
@@ -606,6 +629,17 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const selectedCell = useMemo(() => findCell(table, selected), [table, selected]);
     const allCells = useMemo(() => flattenCells(table), [table]);
+    // Hide periods with no signal in ANY row: they carry zero monitoring
+    // information and push populated quarters behind the horizontal scroll.
+    const visibleColumns = useMemo(() => {
+        if (!table) return [];
+        const populated = table.columns.filter(column => table.rows.some(row => {
+            const cell = row.cells[column.availability_window];
+            return cell != null && cellHasSignal(cell);
+        }));
+        return populated.length > 0 ? populated : table.columns;
+    }, [table]);
+    const hiddenColumnCount = table ? table.columns.length - visibleColumns.length : 0;
 
     const fetchTable = useCallback(async () => {
         const requestId = tableRequestIdRef.current + 1;
@@ -776,14 +810,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             ) : (
                 <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_430px]">
                     <div className="min-w-0 space-y-3">
-                        <ForwardCurveChart
-                            table={table}
-                            selectedCell={selectedCell}
-                            selectedKey={selectedKey}
-                            onSelectCell={selectCell}
-                            onOpenCell={openMarketplaceForCell}
-                        />
-
                     <section data-tour="forward-market-matrix" className="min-w-0 overflow-hidden border border-slate-800 bg-[#080c13]">
                         <div data-tour="forward-market-matrix-header" className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                             <div>
@@ -791,18 +817,24 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 <div className="text-[10px] text-slate-500">Click or press Enter to inspect; use Open Marketplace for handoff</div>
                             </div>
                             <div className="text-[10px] uppercase tracking-wider text-slate-500">
-                                {table.rows.length} rows · {table.columns.length} periods
+                                {table.rows.length} rows · {visibleColumns.length} periods
+                                {hiddenColumnCount > 0 && (
+                                    <span className="ml-1 text-slate-600">· {hiddenColumnCount} quiet hidden</span>
+                                )}
                             </div>
                         </div>
-                        <div className="max-h-[calc(100vh-310px)] min-h-[360px] overflow-auto">
+                        <div className="max-h-[calc(100vh-190px)] min-h-[360px] overflow-auto">
                             <div
-                                className="grid min-w-[1380px] gap-px bg-slate-900 text-[11px]"
-                                style={{ gridTemplateColumns: `220px repeat(${table.columns.length}, minmax(118px, 1fr))` }}
+                                className="grid gap-px bg-slate-900 text-[11px]"
+                                style={{
+                                    gridTemplateColumns: `220px repeat(${visibleColumns.length}, minmax(118px, 1fr))`,
+                                    minWidth: `${220 + visibleColumns.length * 118}px`,
+                                }}
                             >
                                 <div className="sticky left-0 top-0 z-20 bg-[#0b111a] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                     Product / Port
                                 </div>
-                                {table.columns.map(column => (
+                                {visibleColumns.map(column => (
                                     <div key={column.availability_window} className="sticky top-0 z-10 bg-[#0b111a] px-2 py-2 text-center">
                                         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">{formatAvailabilityWindowPeriod(column.availability_window)}</div>
                                         <div className="mt-0.5 text-[9px] uppercase text-slate-600">{column.group}</div>
@@ -815,12 +847,13 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             <div className="mt-0.5 truncate text-[10px] uppercase tracking-wider text-slate-500">{row.delivery_point_name}</div>
                                             <div className="mt-0.5 text-[9px] text-slate-600">{row.region}</div>
                                         </div>
-                                        {table.columns.map(column => {
+                                        {visibleColumns.map(column => {
                                             const cell = row.cells[column.availability_window];
                                             const selectedCellKey = sliceKey(cell ? cellToSlice(cell) : null);
                                             const selectedState = Boolean(cell && selectedCellKey === selectedKey);
                                             const tone = cell ? sourceTone(cell) : null;
                                             const empty = !cell || !cellHasSignal(cell);
+                                            const stale = cell?.staleness_status === 'STALE';
                                             return (
                                                 <button
                                                     key={`${row.row_key}-${column.availability_window}`}
@@ -844,8 +877,13 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="mt-1 truncate text-[9px] uppercase tracking-wider text-slate-500">
-                                                        {cell?.public_source_label ?? 'No data'}
+                                                    <div className="mt-1 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider">
+                                                        <span className="min-w-0 truncate text-slate-500">{cell?.public_source_label ?? 'No data'}</span>
+                                                        {!empty && cell?.observed_at && (
+                                                            <span className={`shrink-0 font-mono ${stale ? 'font-bold text-amber-400' : 'text-slate-600'}`}>
+                                                                {ageLabel(cell.observed_at)}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
                                                         <span className="text-emerald-300">B {currency(cell?.best_bid)}</span>
@@ -972,6 +1010,14 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         )}
 
                         <div className="space-y-3 p-3">
+                            <ForwardCurveChart
+                                table={table}
+                                columns={visibleColumns}
+                                selectedCell={selectedCell}
+                                selectedKey={selectedKey}
+                                onSelectCell={selectCell}
+                                onOpenCell={openMarketplaceForCell}
+                            />
                             <PriceEvidenceStrip slice={activeSlice} loading={evidenceLoading} hasSelection={Boolean(activeCell)} />
                             <div className="grid grid-cols-2 gap-3">
                                 <DepthList label="Bids" levels={activeSlice?.depth_bids ?? []} tone="bid" />
