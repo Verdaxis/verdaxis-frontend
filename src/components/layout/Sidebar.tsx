@@ -125,8 +125,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 border-t border-[#2A3344] space-y-1">
                 {userRole === 'ADMIN' && (
                     <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
-                        <button
-                            onClick={() => handleNavigate('ADMIN')}
+                        {/* Real anchor so bookmark/middle-click/copy-link work;
+                            plain clicks still route through the SPA handler. */}
+                        <a
+                            href="/app/admin"
+                            onClick={(e) => {
+                                if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                                e.preventDefault();
+                                handleNavigate('ADMIN');
+                            }}
                             className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                                 currentPage === 'ADMIN'
                                     ? 'bg-amber-500 text-white shadow-lg'
@@ -135,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                             <ShieldCheck size={20} className={`flex-shrink-0 ${currentPage === 'ADMIN' ? 'text-white' : 'text-amber-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="truncate font-medium">{t('sidebar.admin')}</span>}
-                        </button>
+                        </a>
                     </Tooltip>
                 )}
                 <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
