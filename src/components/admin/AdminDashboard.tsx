@@ -449,14 +449,14 @@ export const AdminDashboard: React.FC = () => {
               <SummaryCard
                 title={t('cards.totalUsers')}
                 value={fmt(overview.total_users)}
-                subtitle={t('cards.totalUsersSubtitle', { count: fmt(overview.active_users_7d) })}
+                subtitle={t('cards.totalUsersSubtitle', { count: overview.active_users_7d })}
                 icon={<Users size={18} className="text-white" />}
                 color="bg-blue-500"
               />
               <SummaryCard
                 title={t('cards.activeTraders')}
                 value={fmt(overview.active_users_7d)}
-                subtitle={t('cards.activeTradersSubtitle', { count: fmt(overview.total_organizations) })}
+                subtitle={t('cards.activeTradersSubtitle', { count: overview.total_organizations })}
                 icon={<Activity size={18} className="text-white" />}
                 color="bg-emerald-500"
               />

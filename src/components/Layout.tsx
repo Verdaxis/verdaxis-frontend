@@ -44,7 +44,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 viewMode={viewMode}
                 currentPage={currentPage}
                 onNavigate={onNavigate}
-                onPrefetchPage={onPrefetchPage}
                 isCollapsed={isSidebarCollapsed}
                 onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 isMobileOpen={isMobileSidebarOpen}

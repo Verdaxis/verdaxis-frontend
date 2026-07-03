@@ -12,9 +12,7 @@ export function isCompletedTradeStatus(status: string | null | undefined): boole
 }
 
 export function isConfirmedLikeTrade(tradeOrStatus: Trade | string | null | undefined): boolean {
-  const status = typeof tradeOrStatus === 'object' && tradeOrStatus !== null
-    ? tradeOrStatus.status
-    : tradeOrStatus;
+  const status = typeof tradeOrStatus === 'string' ? tradeOrStatus : tradeOrStatus?.status;
   return isActiveTradeStatus(status) || isCompletedTradeStatus(status);
 }
 

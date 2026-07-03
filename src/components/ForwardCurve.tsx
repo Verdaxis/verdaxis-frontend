@@ -191,9 +191,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
                 product_id: selectedProductId,
                 delivery_point_id: resolvedDpId,
             };
-            const data = options.force
-                ? await api.curves.forward(curveParams, { force: true })
-                : await api.curves.forward(curveParams);
+            const data = await api.curves.forward(curveParams);
             if (curveRequestRef.current !== requestId) return;
             setCurveData(data);
             setLastRefresh(new Date());
@@ -224,7 +222,7 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         const isFree = !subscription || subscription.tier === 'free';
         if (isFree) {
             // Show upgrade CTA — open in new tab pointing to a pricing page
-            addToast({ type: 'info', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' });
+            addToast({ type: 'info', title: 'Upgrade required', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' });
             return;
         }
         const url = api.curves.exportCsvUrl(selectedProductId, resolvedDpId);
@@ -458,26 +456,29 @@ export const ForwardCurve: React.FC<ForwardCurveProps> = ({ initialProductId, fu
         if (!fcChartRef.current || !fcBidSeriesRef.current || !fcAskSeriesRef.current || !fcMidSeriesRef.current) return;
         if (chartPoints.length === 0) return;
 
+        const hasNumericValue = <T extends { value: number | null }>(d: T): d is T & { value: number } =>
+            d.value != null;
+
         const bidData = chartPoints
             .map((pt) => ({
                 time: availabilityWindowToChartTime(pt.availability_window),
                 value: pt.best_bid != null ? Number(pt.best_bid) : null,
             }))
-            .filter((d): d is { time: number; value: number } => d.value != null);
+            .filter(hasNumericValue);
 
         const askData = chartPoints
             .map((pt) => ({
                 time: availabilityWindowToChartTime(pt.availability_window),
                 value: pt.best_ask != null ? Number(pt.best_ask) : null,
             }))
-            .filter((d): d is { time: number; value: number } => d.value != null);
+            .filter(hasNumericValue);
 
         const midData = chartPoints
             .map((pt) => ({
                 time: availabilityWindowToChartTime(pt.availability_window),
                 value: pt.mid_price != null ? Number(pt.mid_price) : null,
             }))
-            .filter((d): d is { time: number; value: number } => d.value != null);
+            .filter(hasNumericValue);
 
         fcBidSeriesRef.current.setData(bidData);
         fcAskSeriesRef.current.setData(askData);

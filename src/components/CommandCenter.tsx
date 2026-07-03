@@ -199,7 +199,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
 
             {viewMode === 'SUPPLIER' && (
-                <SupplierDemandFeed onNavigate={onNavigate} onPostAsk={() => setOrderModalOpen(true)} />
+                <SupplierDemandFeed onNavigate={onNavigate} />
             )}
 
             {/* ─── Needs Attention ─── */}
@@ -221,7 +221,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 isOpen={orderModalOpen}
                 onClose={() => setOrderModalOpen(false)}
                 side={cta.primary.side}
-                onNavigate={onNavigate}
             />
 
             <ConfirmModal

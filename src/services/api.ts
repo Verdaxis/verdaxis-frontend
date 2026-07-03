@@ -646,9 +646,10 @@ export const api = {
             searchParams.append('availability_window', params.availability_window);
             return fetchApi(`/curves/forward/slice?${searchParams.toString()}`);
         },
-        exportCsvUrl: (product_id: string): string => {
+        exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);
+            if (delivery_point_id) searchParams.append('delivery_point_id', delivery_point_id);
             searchParams.append('format', 'csv');
             return `${API_URL}/curves/forward/export?${searchParams.toString()}`;
         },

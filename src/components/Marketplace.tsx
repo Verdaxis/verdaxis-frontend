@@ -142,7 +142,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         const stored = localStorage.getItem('verdaxis_marketplace_window');
-        return stored ? normalizeAvailabilityWindow(stored) : '';
+        return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -1205,7 +1205,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                             <th
                                                 key={col}
                                                 className={`${col === 'action' ? 'text-right' : 'text-left'} px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
-                                                    col === 'star' ? 'w-8 px-2' :
                                                     col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' :
                                                     col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' :
                                                     col === 'action' ? 'sticky right-0 z-40 min-w-[108px] bg-slate-100 text-right shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] dark:bg-slate-800' : ''

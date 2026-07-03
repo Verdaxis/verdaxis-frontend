@@ -214,7 +214,7 @@ export const PriceAlertManager: React.FC<PriceAlertManagerProps> = ({ isOpen, on
                                 {t('priceAlerts.limitMessage', { limit: FREE_TIER_LIMIT })}
                             </div>
                             <button
-                                onClick={() => addToast({ type: 'info', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' })}
+                                onClick={() => addToast({ type: 'info', title: 'Upgrade required', message: 'To upgrade your plan, go to Settings → Billing. Contact sales@verdaxis.exchange for Enterprise plans.' })}
                                 style={{
                                     background: 'var(--amber, #FFB020)',
                                     border: 'none',
