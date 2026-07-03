@@ -25,6 +25,10 @@ import { PriceAlertManager } from './PriceAlertManager';
 import { useNamespace } from '../hooks/useNamespace';
 import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { GridLayout } from 'react-grid-layout';
+
+// react-grid-layout v2 types don't expose the legacy props this layout uses,
+// but the runtime accepts them.
+const GridLayoutCompat = GridLayout as unknown as React.ComponentType<Record<string, unknown>>;
 import {
     ACTIVE_MARKETPLACE_PRODUCT_OPTIONS,
     getMarketplaceFuelType,
@@ -408,7 +412,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     const handleOrderbookEvent = useCallback((_event: string, _data: any) => {
         // Any orderbook change: debounce bursty SSE updates before refetching.
-        api.marketData.invalidateForwardCurves();
         scheduleOrderbookRefresh();
     }, [scheduleOrderbookRefresh]);
 
@@ -416,12 +419,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
     // --- SSE: Trade events (replaces tick-based simulation) ---
     const handleTradeEvent = useCallback((event: string, data: any) => {
-        if (event === 'trade_confirmed' || event === 'trade_delivered' || event === 'trade_paid' || event === 'trade_auto_matched') {
-            api.marketData.invalidatePrices();
-        }
-        if (event === 'trade_auto_matched') {
-            api.marketData.invalidateForwardCurves();
-        }
         if (event === 'trade_created' || event === 'trade_auto_matched' || event === 'trade_confirmed') {
             const trade = sseTradeToEvent(event, data);
             setTradeEvents(prev => [trade, ...prev].slice(0, 50));
@@ -780,17 +777,6 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
     const totalListings = filteredOrders.length;
     const totalVolume = filteredOrders.reduce((s, o) => s + Number(o.quantity_mt), 0);
 
-    // Broadcast Context
-    useEffect(() => {
-        setPageContext({
-            view: 'Market Terminal',
-            product: `${selectedProductLabel} (${selectedPort})`,
-            market_data_summary: `Showing ${totalListings} active listings for ${selectedProductLabel} at ${selectedPort}.`,
-            spot_price: spotPrice ? `$${spotPrice.toFixed(2)}` : 'No offers',
-            total_volume: `${totalVolume.toLocaleString()} MT`,
-        });
-    }, [terminalData, selectedPort, selectedProductLabel, spotPrice, totalListings, totalVolume, setPageContext]);
-
     // Helper to determine if a row has real orderbook data
     const hasRealData = useCallback((row: TerminalRow) => {
         const config = PERIOD_CONFIG.find(p => p.period === row.period);
@@ -1113,8 +1099,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
 
                 {/* All bottom panels — draggable grid including orderbook depth */}
                 <div ref={gridContainerRef} className="border-t border-slate-200 dark:border-[#222] bg-white dark:bg-[#050505]">
-                    {/* @ts-expect-error — react-grid-layout v2 types don't expose legacy props but runtime accepts them */}
-                    <GridLayout
+                    <GridLayoutCompat
                         className="layout"
                         cols={12}
                         rowHeight={50}
@@ -1211,7 +1196,7 @@ export const MarketTerminal: React.FC<MarketTerminalProps> = ({ onNavigate }) =>
                                 <ActivityFeed />
                             </div>
                         </div>
-                    </GridLayout>
+                    </GridLayoutCompat>
                 </div>
             </div>
         </div>

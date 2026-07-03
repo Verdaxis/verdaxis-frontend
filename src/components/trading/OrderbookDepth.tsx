@@ -16,6 +16,8 @@ export interface OrderbookDepthProps {
 interface AggregatedLevel {
     price: number;
     quantity: number;
+    /** Running total of quantity from best price through this level. */
+    cumulative: number;
 }
 
 // --- Helpers ---
@@ -31,10 +33,12 @@ function aggregateLevels(
         byPrice.set(order.price, (byPrice.get(order.price) || 0) + order.quantity);
     }
 
+    let cumulative = 0;
     return [...byPrice.entries()]
         .map(([price, quantity]) => ({ price, quantity }))
         .sort((a, b) => side === 'bid' ? b.price - a.price : a.price - b.price)
-        .slice(0, maxLevels);
+        .slice(0, maxLevels)
+        .map(level => ({ ...level, cumulative: cumulative += level.quantity }));
 }
 
 function formatQty(qty: number): string {
