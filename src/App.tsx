@@ -1,6 +1,6 @@
 
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
@@ -199,11 +199,25 @@ const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  // /app/admin[/*] is the only deep-linkable dashboard page: the admin
+  // sidebar entry is a real link so admins can bookmark/refresh/middle-click.
+  const isAdminPath = location.pathname.startsWith('/app/admin');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = sessionStorage.getItem('verdaxis_viewMode');
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
-  const [currentPage, setCurrentPage] = useState<Page>(() => sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
+  const [currentPage, setCurrentPage] = useState<Page>(() =>
+    isAdminPath ? 'ADMIN' : sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
+
+  useEffect(() => {
+    if (isAdminPath && currentPage !== 'ADMIN') {
+      setCurrentPage('ADMIN');
+    } else if (!isAdminPath && currentPage === 'ADMIN') {
+      setCurrentPage(sanitizeDashboardPage(sessionStorage.getItem('verdaxis_currentPage')));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdminPath]);
   const [selectedPort, setSelectedPort] = useState<Port | null>(null);
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
@@ -226,12 +240,22 @@ const Dashboard: React.FC = () => {
     setCurrentPage(defaultPage);
     sessionStorage.setItem('verdaxis_viewMode', mode);
     sessionStorage.setItem('verdaxis_currentPage', defaultPage);
+    if (isAdminPath) {
+      navigate('/app');
+    }
   };
 
   const handleNavigate = (page: Page) => {
     const nextPage = sanitizeDashboardPage(page);
+    if (nextPage === 'ADMIN') {
+      navigate('/app/admin');
+      return;
+    }
     setCurrentPage(nextPage);
     sessionStorage.setItem('verdaxis_currentPage', nextPage);
+    if (isAdminPath) {
+      navigate('/app');
+    }
   };
 
   const handlePortSelect = (port: Port) => {
@@ -429,6 +453,21 @@ const App: React.FC = () => {
                             </RequireOrganization>
                         </ProtectedRoute>
                     } />
+
+                    {/* Admin deep links — same guards as /app; Dashboard reads
+                        the path and forces the ADMIN page (Sprint 3 item 11) */}
+                    <Route path="/app/admin/*" element={
+                        <ProtectedRoute>
+                            <RequireOrganization>
+                                <RequireProfile>
+                                    <MobileDesktopGate>
+                                        <Dashboard />
+                                    </MobileDesktopGate>
+                                </RequireProfile>
+                            </RequireOrganization>
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/*" element={<Navigate to="/app/admin" replace />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<PublicLayout />} />

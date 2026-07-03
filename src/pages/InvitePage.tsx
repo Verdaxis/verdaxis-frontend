@@ -54,7 +54,9 @@ export const InvitePage = () => {
           <>
             <p className="text-slate-300 text-lg mb-2">{t('invite.invitedBy')}</p>
             <p className="text-white text-2xl font-semibold mb-1">
-              {data.organization_name || data.referrer_name || t('invite.fallbackOrg')}
+              {data.referrer_name && data.organization_name
+                ? t('invite.referrerOfOrg', { referrer: data.referrer_name, org: data.organization_name })
+                : (data.organization_name || data.referrer_name || t('invite.fallbackOrg'))}
             </p>
             {data.organization_type && (
               <p className="text-emerald-400 text-sm mb-8 capitalize">

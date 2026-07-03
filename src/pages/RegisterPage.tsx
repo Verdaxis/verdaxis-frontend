@@ -9,7 +9,9 @@ const RESEND_COOLDOWN = 60; // seconds
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const referralCode = searchParams.get('ref');
+  // ?ref= in the URL wins; otherwise fall back to a code stashed by a
+  // /?ref=CODE landing earlier in the session (Sprint 3 item 14).
+  const referralCode = searchParams.get('ref') || sessionStorage.getItem('verdaxis_ref_code');
   const { t, ready } = useNamespace('auth');
   const [formData, setFormData] = useState({
     email: '',
@@ -114,6 +116,7 @@ const RegisterPage: React.FC = () => {
           });
         } else {
           // status === 'created' — user created, verification email sent
+          sessionStorage.removeItem('verdaxis_ref_code');
           setRegistered(true);
           startCooldown();
         }

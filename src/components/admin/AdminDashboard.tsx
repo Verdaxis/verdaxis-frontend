@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Users,
   Activity,
@@ -335,9 +336,17 @@ const UsersTab: React.FC = () => {
 
 type AdminTab = 'analytics' | 'users';
 
+// Tab state lives in the URL so /app/admin and /app/admin/users are
+// bookmarkable and survive refresh (Sprint 3 item 11).
+const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
+  analytics: '/app/admin',
+  users: '/app/admin/users',
+};
+
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
-  const [activeTab, setActiveTab] = useState<AdminTab>('analytics');
+  const location = useLocation();
+  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users') ? 'users' : 'analytics';
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -423,9 +432,9 @@ export const AdminDashboard: React.FC = () => {
           { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
           { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
         ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
-          <button
+          <Link
             key={key}
-            onClick={() => setActiveTab(key)}
+            to={ADMIN_TAB_PATHS[key]}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
               activeTab === key
                 ? 'border-verdaxis text-verdaxis'
@@ -433,7 +442,7 @@ export const AdminDashboard: React.FC = () => {
             }`}
           >
             {icon}{label}
-          </button>
+          </Link>
         ))}
       </div>
 
