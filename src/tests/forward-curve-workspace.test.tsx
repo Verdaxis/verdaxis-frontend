@@ -268,11 +268,10 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
     await screen.findByText('Latest Monitored Signals');
-    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    const chartButton = within(chart).getByText('$1015').closest('button');
-    expect(chartButton).toBeTruthy();
+    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1015/i }))[0];
+    expect(chartPoint).toBeTruthy();
 
-    fireEvent.doubleClick(chartButton as HTMLButtonElement);
+    fireEvent.doubleClick(chartPoint);
 
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');
