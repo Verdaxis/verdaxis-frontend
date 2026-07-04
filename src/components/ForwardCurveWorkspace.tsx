@@ -599,7 +599,7 @@ const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]
         <div className={`border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bid' ? 'text-emerald-300' : 'text-rose-300'}`}>
             {label}
         </div>
-        <div className="divide-y divide-slate-900">
+        <div className="max-h-[180px] divide-y divide-slate-900 overflow-y-auto">
             {levels.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[11px] text-slate-500">
                     {tone === 'bid' ? 'No visible bid levels in this selected period.' : 'No visible ask levels in this selected period.'}
@@ -823,7 +823,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 )}
                             </div>
                         </div>
-                        <div className="max-h-[calc(100vh-190px)] min-h-[360px] overflow-auto">
+                        <div className="max-h-[calc(100vh-230px)] min-h-[360px] overflow-auto">
                             <div
                                 className="grid gap-px bg-slate-900 text-[11px]"
                                 style={{
@@ -899,7 +899,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         </section>
                     </div>
 
-                    <div className="min-w-0 space-y-3">
+                    <div className="min-w-0 space-y-3 xl:max-h-[calc(100vh-230px)] xl:overflow-y-auto xl:sticky xl:top-3 xl:self-start">
                         <section data-tour="forward-latest-signals" className="min-w-0 overflow-hidden border border-slate-800 bg-[#080c13]">
                             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1.5">
                                 <div className="flex items-center gap-2">
@@ -952,7 +952,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         </section>
 
                     <aside data-tour="forward-focus-panel" className="min-w-0 border border-slate-800 bg-[#080c13]">
-                        <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
+                        <div className="flex items-start justify-between gap-3 border-b border-slate-800 bg-[#080c13] px-3 py-2 xl:sticky xl:top-0 xl:z-10">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                     <Target size={12} aria-hidden="true" />
@@ -1027,7 +1027,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 <div className="border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                     Historical Prints
                                 </div>
-                                <div className="divide-y divide-slate-900">
+                                <div className="max-h-[200px] divide-y divide-slate-900 overflow-y-auto">
                                     {!activeSlice || activeSlice.trades.length === 0 ? (
                                         <div className="px-3 py-6 text-center text-[11px] text-slate-500">No confirmed prints in this selected period.</div>
                                     ) : activeSlice.trades.map((trade, index) => {
@@ -1044,12 +1044,14 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                     })}
                                 </div>
                             </div>
-                            <div className="border border-slate-800 bg-[#080c13] px-3 py-2 text-[10px] text-slate-500">
-                                {table.disclaimer}
-                            </div>
                         </div>
                         </aside>
                     </div>
+                </div>
+            )}
+            {table && (
+                <div className="border-t border-slate-800 px-3 py-2 text-[10px] text-slate-500">
+                    {table.disclaimer}
                 </div>
             )}
         </div>
