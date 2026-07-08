@@ -15,6 +15,7 @@ export interface User {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   email_verified?: boolean;
   kyc_status?: string;
+  must_change_password?: boolean;
 }
 
 interface AuthContextType {

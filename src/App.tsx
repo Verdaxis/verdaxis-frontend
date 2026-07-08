@@ -16,6 +16,7 @@ import RegisterPage from './pages/RegisterPage';
 import { InvitePage } from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import ForcePasswordChangePage from './pages/ForcePasswordChangePage';
 import MaintenancePage from './pages/MaintenancePage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import CreateOrganizationPage from './pages/CreateOrganizationPage';
@@ -78,7 +79,7 @@ const ScrollToTop: React.FC = () => {
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
-    const { isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
+    const { user, isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
 
     if (isBackendUnavailable) {
@@ -91,6 +92,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (user?.must_change_password) {
+        return <ForcePasswordChangePage />;
     }
 
     return children;
