@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
-import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
+import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -87,23 +87,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         refreshTimerRef.current = setTimeout(async () => {
             try {
-                const res = await fetch(`${API_URL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({}),
-                });
-
-                if (res.ok) {
-                    setIsBackendUnavailable(false);
-                    const data = await res.json();
-                    applyAccessToken(data.access_token);
-                    scheduleRefresh(data.access_token);
-                } else if (isBackendUnavailableStatus(res.status)) {
+                const outcome = await refreshSession();
+                if (outcome.status === 'unavailable') {
                     setIsBackendUnavailable(true);
-                } else {
-                    logout();
+                    return;
                 }
+                if (outcome.status === 'denied') {
+                    logout();
+                    return;
+                }
+
+                setIsBackendUnavailable(false);
+                applyAccessToken(outcome.token);
+                scheduleRefresh(outcome.token);
             } catch {
                 setIsBackendUnavailable(true);
             }
@@ -160,29 +156,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentToken = getAccessToken();
         if (!currentToken) {
             try {
-                const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({}),
-                });
-                if (!refreshRes.ok) {
-                    if (isBackendUnavailableStatus(refreshRes.status)) {
-                        setIsBackendUnavailable(true);
-                        return;
-                    }
+                const outcome = await refreshSession();
+                if (outcome.status === 'unavailable') {
+                    setIsBackendUnavailable(true);
+                    return;
+                }
+                if (outcome.status === 'denied') {
                     setIsBackendUnavailable(false);
                     clearTokens();
                     return;
                 }
 
                 setIsBackendUnavailable(false);
-                const data = await refreshRes.json();
-                applyAccessToken(data.access_token);
-                scheduleRefresh(data.access_token);
+                applyAccessToken(outcome.token);
+                scheduleRefresh(outcome.token);
 
                 const userRes = await fetch(`${API_URL}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${data.access_token}` },
+                    headers: { 'Authorization': `Bearer ${outcome.token}` },
                 });
                 if (userRes.ok) {
                     setIsBackendUnavailable(false);
@@ -216,31 +206,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsBackendUnavailable(true);
             } else if (res.status === 401) {
                 // Try refresh before giving up
-                const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({}),
-                });
-                if (refreshRes.ok) {
+                const outcome = await refreshSession();
+                if (outcome.status === 'unavailable') {
+                    setIsBackendUnavailable(true);
+                } else if (outcome.status === 'success') {
                     setIsBackendUnavailable(false);
-                    const data = await refreshRes.json();
-                    applyAccessToken(data.access_token);
+                    applyAccessToken(outcome.token);
                     const userRes = await fetch(`${API_URL}/auth/me`, {
-                        headers: { 'Authorization': `Bearer ${data.access_token}` },
+                        headers: { 'Authorization': `Bearer ${outcome.token}` },
                     });
                     if (userRes.ok) {
                         setIsBackendUnavailable(false);
                         setUser(await userRes.json());
-                        scheduleRefresh(data.access_token);
+                        scheduleRefresh(outcome.token);
                     } else if (isBackendUnavailableStatus(userRes.status)) {
                         setIsBackendUnavailable(true);
                     } else {
                         setIsBackendUnavailable(false);
                         clearTokens();
                     }
-                } else if (isBackendUnavailableStatus(refreshRes.status)) {
-                    setIsBackendUnavailable(true);
                 } else {
                     setIsBackendUnavailable(false);
                     clearTokens();

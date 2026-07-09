@@ -1,4 +1,5 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import { getAccessToken, refreshAccessToken } from './authToken';
 import { API_URL } from './config';
 
 export const mapPortResponse = (p: any): Port => ({
@@ -23,11 +24,8 @@ export const mapPortResponse = (p: any): Port => ({
     }
 });
 
-// Helper to get auth header
-const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
-
 const getHeaders = () => {
-    const token = getToken();
+    const token = getAccessToken();
     return {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -36,42 +34,10 @@ const getHeaders = () => {
 
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
-let refreshInFlight: Promise<string | null> | null = null;
-
-const refreshAccessToken = async (): Promise<string | null> => {
-    if (refreshInFlight) return refreshInFlight;
-
-    refreshInFlight = (async () => {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) return null;
-        try {
-            const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: refreshToken }),
-            }, 15000);
-            if (!res.ok) return null;
-            const data = await res.json();
-            if (!data?.access_token) return null;
-            localStorage.setItem('token', data.access_token);
-            if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
-            return data.access_token as string;
-        } catch {
-            return null;
-        }
-    })();
-
-    try {
-        return await refreshInFlight;
-    } finally {
-        refreshInFlight = null;
-    }
-};
-
 const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Headers => {
     const merged = new Headers(headers);
     if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
-    const authToken = token || getToken();
+    const authToken = token || getAccessToken();
     if (authToken) {
         merged.set('Authorization', `Bearer ${authToken}`);
     } else {

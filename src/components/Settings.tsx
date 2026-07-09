@@ -106,7 +106,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
             });
             if (res.ok) {
                 const data = await res.json();
-                if (data.access_token) await login(data.access_token, data.refresh_token);
+                if (data.access_token) await login(data.access_token);
                 setPwMessage({ type: 'success', text: t('security.successMsg') });
                 setCurrentPassword('');
                 setNewPassword('');

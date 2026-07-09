@@ -51,7 +51,7 @@ const LoginPage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        await login(data.access_token, data.refresh_token);
+        await login(data.access_token);
         navigate('/app');
       } else {
         if (res.status === 401) {
