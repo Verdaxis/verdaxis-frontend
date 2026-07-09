@@ -100,7 +100,7 @@ scripts/
   geocode_projects.py             # Geocode producer project locations
 
 database/schema.txt                # Backend DB schema reference
-.github/workflows/frontend-ci.yml # CI: test on PR, deploy on main push
+.github/workflows/frontend-ci.yml # CI: tests/typecheck/i18n/builds on staging+prod pushes and PRs (no deploy)
 ```
 
 ## Dependency Flow
