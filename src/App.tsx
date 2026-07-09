@@ -61,11 +61,9 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
 const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
-const loadMarketTerminal = () => import('./components/MarketTerminal').then((module) => ({ default: module.MarketTerminal }));
 
 const BuyerMap = lazy(loadBuyerMap);
 const ProducerMapPage = lazy(loadProducerMapPage);
-const MarketTerminal = lazy(loadMarketTerminal);
 const Compliance = lazy(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
 const SupplierAnalytics = lazy(() => import('./components/SupplierAnalytics').then((module) => ({ default: module.SupplierAnalytics })));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
@@ -103,7 +101,6 @@ const scheduleIdlePrefetch = (prefetchers: Prefetcher[]) => {
 const IdleRoutePrefetch: React.FC = () => {
   useEffect(() => scheduleIdlePrefetch([
     loadBuyerMap,
-    loadMarketTerminal,
     loadProducerMapPage,
   ]), []);
 
@@ -194,11 +191,35 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
     return children;
 };
 
+const DASHBOARD_PAGES = new Set<Page>([
+  'MAP',
+  'MARKETPLACE',
+  'COMPLIANCE',
+  'TRAINING',
+  'SETTINGS',
+  'DASHBOARD',
+  'QUOTES',
+  'INVENTORY',
+  'FORWARD_CURVE',
+  'ANALYTICS',
+  'ORDERBOOK',
+  'DEMAND_FEED',
+  'TRADES',
+  'ADMIN',
+  'WATCHLISTS',
+  'DATA_ANALYTICS',
+]);
+
 const sanitizeDashboardPage = (page: string | null | undefined): Page => {
   if (!page) return 'DASHBOARD';
   if (page === 'ORDERBOOK') return 'MARKETPLACE';
-  return page as Page;
+  return DASHBOARD_PAGES.has(page as Page) ? page as Page : 'DASHBOARD';
 };
+
+interface DashboardLocationState {
+  targetPage?: string;
+  openOrderId?: string;
+}
 
 const Dashboard: React.FC = () => {
   // Original App Logic for Dashboard
@@ -229,7 +250,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
       if (location.state) {
-        const state = location.state as any;
+        const state = location.state as DashboardLocationState;
         if (state.targetPage) {
             setCurrentPage(sanitizeDashboardPage(state.targetPage));
         }
@@ -291,8 +312,6 @@ const Dashboard: React.FC = () => {
                 return <SupplierDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
             case 'QUOTES':
                 return <SupplierQuotes />;
-            case 'TERMINAL':
-                return <MarketTerminal onNavigate={handleNavigate} />;
             case 'FORWARD_CURVE':
                 return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
             case 'ANALYTICS':
@@ -316,8 +335,6 @@ const Dashboard: React.FC = () => {
         return <BuyerDashboard onNavigate={handleNavigate} openOrderId={openOrderId} />;
       case 'MARKETPLACE':
         return <Marketplace initialPort={selectedPort} viewMode={viewMode} />;
-      case 'TERMINAL':
-        return <MarketTerminal onNavigate={handleNavigate} />;
       case 'FORWARD_CURVE':
         return <ForwardCurveWorkspace onNavigate={handleNavigate} />;
       case 'DATA_ANALYTICS':

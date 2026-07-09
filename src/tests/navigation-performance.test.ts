@@ -38,12 +38,12 @@ describe('dashboard navigation performance metrics', () => {
   it('ignores repeated page selections and stale content commits', () => {
     expect(recordDashboardNavigationStart('MAP', 'MAP', 'BUYER')).toBeNull();
 
-    recordDashboardNavigationStart('MAP', 'TERMINAL', 'BUYER');
+    recordDashboardNavigationStart('MAP', 'FORWARD_CURVE', 'BUYER');
     expect(recordDashboardContentReady('MARKETPLACE', 'BUYER')).toBeNull();
-    expect(recordDashboardContentReady('TERMINAL', 'SUPPLIER')).toBeNull();
+    expect(recordDashboardContentReady('FORWARD_CURVE', 'SUPPLIER')).toBeNull();
 
-    const metric = recordDashboardContentReady('TERMINAL', 'BUYER');
-    expect(metric?.toPage).toBe('TERMINAL');
+    const metric = recordDashboardContentReady('FORWARD_CURVE', 'BUYER');
+    expect(metric?.toPage).toBe('FORWARD_CURVE');
     expect(window.__VERDAXIS_NAV_METRICS__).toHaveLength(1);
   });
 });

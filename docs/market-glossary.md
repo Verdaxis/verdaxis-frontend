@@ -31,9 +31,7 @@ The record of completed or previously initiated trading activity.
 The marketplace action that starts a trade confirmation and exposes the activity in Trade History.
 
 ## Market Terminal
-The trading-oriented terminal surface for working a selected product and port context. Currently
-unreachable: its navigation entry was removed in the 2026-04 pilot cleanup and the component is
-retained without a nav path (see ARCHITECTURE.md "Monitoring vs trading surfaces").
+Archived 2026-07; see ARCHITECTURE.md "Monitoring vs trading surfaces".
 
 ## Forward Curve
 The market monitoring workspace for scanning approved products and delivery points, reading indicative curve context, and opening a selected market slice in Marketplace when action is needed.

@@ -122,31 +122,7 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
-const isStreamTokenResponse = (data: unknown): data is { stream_token: string } => {
-    return (
-        typeof data === 'object' &&
-        data !== null &&
-        'stream_token' in data &&
-        typeof data.stream_token === 'string'
-    );
-};
-
 export const api = {
-    auth: {
-        getStreamToken: async (options?: { signal?: AbortSignal }): Promise<string> => {
-            const res = await fetchWithTimeout(`${API_URL}/auth/stream-token`, {
-                method: 'GET',
-                headers: getHeaders(),
-                signal: options?.signal,
-            });
-            const data = await handleResponse(res);
-            if (!isStreamTokenResponse(data)) {
-                throw new Error('Malformed stream token response');
-            }
-            return data.stream_token;
-        },
-    },
-
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
             const data: unknown = await fetchApi('/users/me/preferences', { headers: getHeaders() });

@@ -325,7 +325,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                         {/* Professional */}
                                         <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5DADE2]/30 transition-colors">
                                             <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Professional</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Full terminal access, forward curves to 2030, price alerts, S&D analytics</p>
+                                            <p className="text-xs text-slate-500 mt-1">Full market monitoring, forward curves to 2030, price alerts, S&D analytics</p>
                                             <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">/seat/month</span></p>
                                             <p className="text-[10px] text-slate-400">+ $1.50/MT commission</p>
                                             <button className="mt-3 w-full py-2 rounded-lg bg-[#5DADE2]/10 text-[#5DADE2] text-xs font-bold hover:bg-[#5DADE2]/20 transition-colors border border-[#5DADE2]/20">

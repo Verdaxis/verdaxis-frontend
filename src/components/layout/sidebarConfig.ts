@@ -30,7 +30,7 @@ const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
     { key: 'DASHBOARD', page: 'DASHBOARD', labelKey: 'sidebar.commandCenter', icon: LayoutDashboard },
     { key: 'MAP', page: 'MAP', labelKey: 'sidebar.intelligenceMap', icon: MapIcon },
     { key: 'MARKETPLACE', page: 'MARKETPLACE', labelKey: 'sidebar.marketplace', icon: Handshake },
-    { key: 'FORWARD_CURVE', page: 'FORWARD_CURVE', labelKey: 'sidebar.marketTerminal', icon: LineChart },
+    { key: 'FORWARD_CURVE', page: 'FORWARD_CURVE', labelKey: 'sidebar.forwardCurve', icon: LineChart },
     { key: 'WATCHLISTS', page: 'WATCHLISTS', labelKey: 'sidebar.watchlists', icon: Star },
     {
         key: 'ANALYTICS',
