@@ -1,18 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
 import { getProductDisplayNameFromReference } from '../utils/marketProduct';
+import type { Product } from '../types';
 
 describe('market product display resolution', () => {
-  const products = [
+  const products: Product[] = [
     {
       id: 'prod-bio-met',
       name: 'Bio Methanol',
       market_product: 'BIO_METHANOL',
+      fuel_type: 'Methanol',
+      fuel_grade: 'Bio',
+      unit: 'MT',
+      min_lot_size: 500,
+      is_active: true,
     },
     {
       id: 'prod-e-met',
       name: 'e-Methanol',
       market_product: 'E_METHANOL',
+      fuel_type: 'Methanol',
+      fuel_grade: 'E',
+      unit: 'MT',
+      min_lot_size: 500,
+      is_active: true,
     },
   ];
 

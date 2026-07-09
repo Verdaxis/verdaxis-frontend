@@ -11,12 +11,13 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
     "i18n:check": "npx tsx scripts/check-translations.ts",
     "build:check": "node scripts/check-build-artifacts.mjs",
     "smoke:navigation:setup": "python3 -m pip install -r scripts/requirements-navigation-smoke.txt && python3 -m playwright install chromium",
     "smoke:navigation": "python3 scripts/smoke_navigation.py",
     "smoke:live": "node scripts/smoke-live.mjs",
-    "verify": "npm run test && npm run i18n:check && npm run build:prod && npm run build:check"
+    "verify": "npm run test && npm run i18n:check && npm run build:prod && npm run build:check && npm run typecheck"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",

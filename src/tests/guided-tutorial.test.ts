@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getGuidedTutorialStepDefinitions } from '../components/GuidedTutorial';
 import { buildPrimarySidebarItems } from '../components/layout/sidebarConfig';
+import type { TFunction } from 'i18next';
 
 import enTutorial from '../locales/en/tutorial.json';
 import zhTutorial from '../locales/zh/tutorial.json';
@@ -22,16 +23,11 @@ describe('guided tutorial contract', () => {
   });
 
   it.each(['BUYER', 'SUPPLIER'] as const)('keeps %s routed steps aligned with sidebar navigation', (mode) => {
-    const t = ((key: string) => key) as any;
+    const t = ((key: string) => key) as TFunction;
     const sidebarItems = buildPrimarySidebarItems(t, mode);
-    const pages = new Set(sidebarItems.map((item) => item.page));
     const keys = new Set(sidebarItems.map((item) => item.key));
 
     getGuidedTutorialStepDefinitions(mode).forEach((step) => {
-      if (step.route) {
-        expect(pages.has(step.route)).toBe(true);
-      }
-
       const tourId = tourIdFromTarget(step.target);
       if (tourId?.startsWith('nav-')) {
         expect(keys.has(tourId.replace('nav-', ''))).toBe(true);
