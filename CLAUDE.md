@@ -63,6 +63,8 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 
 ## Deployment
 
+CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
+
 **Server:** `verdaxis-prod@144.126.151.136`
 **Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
 **Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
