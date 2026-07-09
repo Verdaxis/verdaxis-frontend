@@ -160,6 +160,11 @@ frontend caching for repeated memo requests.
 **Context-only state:** No Redux/Zustand. React Contexts cover Auth, Theme, Notifications,
 and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
 
+**Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
+backs Market Watch ticker config, notification toggles, and tutorial completion with
+`/api/users/me/preferences` (local-first render, server-wins sync, debounced writes);
+localStorage is only a per-device cache.
+
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
