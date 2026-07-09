@@ -31,6 +31,8 @@ All routes are defined in `src/App.tsx`. There are three route groups:
 
 The authenticated `/app` route renders a `Dashboard` component that uses **in-app navigation via state** (not URL routes). The `currentPage` state variable determines which view is rendered (MAP, MARKETPLACE, FLEET, TERMINAL, etc.). Navigation between app pages happens through the sidebar, not through URL changes.
 
+**Gotcha:** a view having a render case does not mean it is reachable — `TERMINAL` (MarketTerminal + ActivityFeed) has had no sidebar entry since the 2026-04 pilot cleanup and nothing navigates to it. Check the sidebar's link list before treating a view as live.
+
 **Auth guard chain:** `ProtectedRoute` (must be logged in) -> `RequireOrganization` (must have org) -> `RequireProfile` (must have role set, else redirect to `/onboarding`).
 
 ## API Integration

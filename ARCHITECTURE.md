@@ -42,7 +42,7 @@ src/
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
-    MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
+    MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts) — ORPHANED: no nav entry since the 2026-04 pilot cleanup; render case kept, decision to re-link or archive pending
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
@@ -177,8 +177,12 @@ Joyride's footer controls, while workflow steps hide the footer and advance only
 clicks the highlighted in-app tab, button, row, or modal control. The tutorial stops at submit/confirm
 boundaries and does not place real bids, asks, listings, or trades.
 
-**Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
-`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve consumes `/curves/forward/table`
+**Monitoring vs trading surfaces:** `ForwardCurveWorkspace` is the live monitoring page.
+`MarketTerminal` was the trading-oriented terminal, but its sidebar entry was removed for the
+pilot (2026-04) and never restored — the `TERMINAL` view renders only if navigated to
+programmatically, which nothing currently does. Its trading role (live depth, working a
+product+port) is covered by Marketplace + order modals; re-linking vs archiving it is an open
+product decision. Forward Curve consumes `/curves/forward/table`
 for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
 It does not execute trades, and it does not render the old pre-click global curve chart. Price summaries,
 forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
