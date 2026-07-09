@@ -1,7 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+import { useServerPreference } from '../hooks/useServerPreference';
+
 const COMPLETED_KEY = 'verdaxis_tutorial_completed';
 const PENDING_KEY = 'verdaxis_tutorial_pending';
+
+interface TutorialPreference {
+    completed: boolean;
+}
+
+const DEFAULT_TUTORIAL_PREFERENCE: TutorialPreference = { completed: false };
+
+const sanitizeTutorialPreference = (raw: unknown): TutorialPreference | null => {
+    if (typeof raw === 'boolean') return { completed: raw };
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw) || !('completed' in raw)) return null;
+    return typeof raw.completed === 'boolean' ? { completed: raw.completed } : null;
+};
 
 interface TutorialContextValue {
     isRunning: boolean;
@@ -21,9 +35,13 @@ const TutorialContext = createContext<TutorialContextValue>({
 
 export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isRunning, setIsRunning] = useState(false);
-    const [hasCompleted, setHasCompleted] = useState(() => {
-        return localStorage.getItem(COMPLETED_KEY) === 'true';
-    });
+    const [tutorialPreference, setTutorialPreference] = useServerPreference<TutorialPreference>(
+        'tutorial',
+        COMPLETED_KEY,
+        sanitizeTutorialPreference,
+        DEFAULT_TUTORIAL_PREFERENCE,
+    );
+    const hasCompleted = tutorialPreference.completed;
 
     // Auto-start if the pending flag was set by OnboardingPage before redirect
     useEffect(() => {
@@ -39,13 +57,11 @@ export const TutorialProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const complete = () => {
         setIsRunning(false);
-        setHasCompleted(true);
-        localStorage.setItem(COMPLETED_KEY, 'true');
+        setTutorialPreference({ completed: true });
     };
 
     const reset = () => {
-        setHasCompleted(false);
-        localStorage.removeItem(COMPLETED_KEY);
+        setTutorialPreference({ completed: false });
     };
 
     return (

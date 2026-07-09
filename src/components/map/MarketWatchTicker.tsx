@@ -3,6 +3,7 @@ import { Activity, Check, FlaskConical, RefreshCw, Settings2, WifiOff, X } from 
 
 import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useServerPreference } from '../../hooks/useServerPreference';
 import { api } from '../../services/api';
 import type { DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
@@ -80,8 +81,16 @@ const getDefaultPortIds = (availablePorts: Port[]) => {
     return Array.from(new Set([...namedDefaults, ...fallbackIds])).slice(0, DEFAULT_PINNED_PORT_COUNT);
 };
 
-const sanitizePreferences = (value: unknown, availablePorts: Port[]): TickerPreferences => {
-    const data = value && typeof value === 'object' ? value as Partial<TickerPreferences> & { product?: unknown } : {};
+const getDefaultPreferences = (availablePorts: Port[]): TickerPreferences => ({
+    products: DEFAULT_PRODUCTS,
+    portIds: getDefaultPortIds(availablePorts),
+});
+
+const sanitizePreferences = (value: unknown, availablePorts: Port[]): TickerPreferences | null => {
+    if (value == null) return getDefaultPreferences(availablePorts);
+    if (typeof value !== 'object' || Array.isArray(value)) return null;
+
+    const data = value as Partial<TickerPreferences> & { product?: unknown };
     const rawProducts = Array.isArray(data.products)
         ? data.products
         : typeof data.product === 'string'
@@ -102,16 +111,6 @@ const sanitizePreferences = (value: unknown, availablePorts: Port[]): TickerPref
         products: products.length > 0 ? products : DEFAULT_PRODUCTS,
         portIds: portIds.length > 0 ? portIds : getDefaultPortIds(availablePorts),
     };
-};
-
-const readStoredPreferences = (availablePorts: Port[]): TickerPreferences => {
-    if (typeof window === 'undefined') return sanitizePreferences(null, availablePorts);
-    try {
-        const raw = localStorage.getItem(MARKET_WATCH_PREFERENCES_KEY);
-        return sanitizePreferences(raw ? JSON.parse(raw) : null, availablePorts);
-    } catch {
-        return sanitizePreferences(null, availablePorts);
-    }
 };
 
 const findMatchingSummary = (summaries: PriceSummary[], product: MarketProduct, deliveryPointId: string) => {
@@ -212,10 +211,20 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     const helpId = useId();
     const editorRef = useRef<HTMLDivElement | null>(null);
     const triggerRef = useRef<HTMLButtonElement | null>(null);
+    const didMountPreferencesRef = useRef(false);
     const availablePorts = useMemo(() => (
         filterApprovedTradingPorts(ports?.length ? ports : FALLBACK_PORTS)
     ), [ports]);
-    const [preferences, setPreferences] = useState<TickerPreferences>(() => readStoredPreferences(FALLBACK_PORTS));
+    const defaultPreferences = useMemo(() => getDefaultPreferences(availablePorts), [availablePorts]);
+    const sanitizeTickerPreferences = useCallback((raw: unknown) => (
+        sanitizePreferences(raw, availablePorts)
+    ), [availablePorts]);
+    const [preferences, setPreferences] = useServerPreference<TickerPreferences>(
+        'market_watch',
+        MARKET_WATCH_PREFERENCES_KEY,
+        sanitizeTickerPreferences,
+        defaultPreferences,
+    );
     const [rows, setRows] = useState<TickerRow[]>([]);
     const [editorOpen, setEditorOpen] = useState(false);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[] | null>(null);
@@ -227,8 +236,12 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     }, []);
 
     useEffect(() => {
-        setPreferences(current => sanitizePreferences(current, availablePorts));
-    }, [availablePorts]);
+        if (!didMountPreferencesRef.current) {
+            didMountPreferencesRef.current = true;
+            return;
+        }
+        setPreferences(current => sanitizePreferences(current, availablePorts) ?? defaultPreferences);
+    }, [availablePorts, defaultPreferences, setPreferences]);
 
     useEffect(() => {
         let cancelled = false;
@@ -249,11 +262,6 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
             cancelled = true;
         };
     }, []);
-
-    useEffect(() => {
-        if (typeof window === 'undefined') return;
-        localStorage.setItem(MARKET_WATCH_PREFERENCES_KEY, JSON.stringify(preferences));
-    }, [preferences]);
 
     useEffect(() => {
         if (!editorOpen) return;

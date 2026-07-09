@@ -147,6 +147,23 @@ export const api = {
         },
     },
 
+    preferences: {
+        getAll: async (): Promise<Record<string, unknown>> => {
+            const data: unknown = await fetchApi('/users/me/preferences', { headers: getHeaders() });
+            if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+                throw new Error('Malformed preferences response');
+            }
+            return data as Record<string, unknown>;
+        },
+        put: async (namespace: string, value: unknown): Promise<void> => {
+            await fetchApi(`/users/me/preferences/${encodeURIComponent(namespace)}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(value),
+            });
+        },
+    },
+
     ports: {
         list: async (): Promise<Port[]> => {
             const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });

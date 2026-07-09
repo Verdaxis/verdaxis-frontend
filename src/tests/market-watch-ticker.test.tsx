@@ -21,6 +21,13 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    user: null,
+  }),
+}));
+
 const STORAGE_KEY = 'verdaxis_market_watch_preferences_v1';
 const DELIVERY_POINTS = [
   { id: 'dp-rotterdam-uuid', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -160,7 +167,7 @@ describe('MarketWatchTicker', () => {
     expect(screen.queryByText('$777')).toBeNull();
   });
 
-  it('recovers from malformed preferences and persists sanitized defaults', async () => {
+  it('recovers from malformed preferences without rewriting defaults on mount', async () => {
     localStorage.setItem(STORAGE_KEY, '{bad-json');
 
     renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
@@ -169,12 +176,10 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL']);
-    expect(stored.portIds).toEqual(['nl-rtm', 'sg-sin', 'br-ssz', 'us-hou', 'cn-sha']);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('{bad-json');
   });
 
-  it('validates stored legacy product and preserves selected approved ports', async () => {
+  it('validates stored legacy product and renders selected approved ports', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       product: 'Methanol',
       portIds: ['sg-sin', 'nl-rtm', 'br-ssz', 'bad-port', 'us-hou'],
@@ -186,9 +191,8 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL']);
-    expect(stored.portIds).toEqual(['sg-sin', 'nl-rtm', 'br-ssz', 'us-hou']);
+    expect(screen.getByText(/4 fuels/)).toBeTruthy();
+    expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
   it('supports multi-fuel and more than three pinned delivery points', async () => {
