@@ -71,13 +71,20 @@ const handleResponse = async (res: Response) => {
 // Fetch with timeout to prevent indefinite loading spinners
 const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000): Promise<Response> => {
     const controller = new AbortController();
+    const externalSignal = options?.signal;
+    const abortFromExternalSignal = () => controller.abort();
+    if (externalSignal?.aborted) controller.abort();
+    externalSignal?.addEventListener('abort', abortFromExternalSignal);
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     return fetch(url, { ...options, signal: controller.signal })
         .catch((err) => {
             if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
             throw err;
         })
-        .finally(() => clearTimeout(timeout));
+        .finally(() => {
+            clearTimeout(timeout);
+            externalSignal?.removeEventListener('abort', abortFromExternalSignal);
+        });
 };
 
 // Helper to fetch from API and handle response
@@ -115,7 +122,31 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
+const isStreamTokenResponse = (data: unknown): data is { stream_token: string } => {
+    return (
+        typeof data === 'object' &&
+        data !== null &&
+        'stream_token' in data &&
+        typeof data.stream_token === 'string'
+    );
+};
+
 export const api = {
+    auth: {
+        getStreamToken: async (options?: { signal?: AbortSignal }): Promise<string> => {
+            const res = await fetchWithTimeout(`${API_URL}/auth/stream-token`, {
+                method: 'GET',
+                headers: getHeaders(),
+                signal: options?.signal,
+            });
+            const data = await handleResponse(res);
+            if (!isStreamTokenResponse(data)) {
+                throw new Error('Malformed stream token response');
+            }
+            return data.stream_token;
+        },
+    },
+
     ports: {
         list: async (): Promise<Port[]> => {
             const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });

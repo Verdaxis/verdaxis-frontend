@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { getAccessToken } from '../services/authToken';
+import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 
 interface FeedEvent {
@@ -56,77 +57,104 @@ export const ActivityFeed: React.FC = () => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const sourceRef = useRef<EventSource | null>(null);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const tokenRequestRef = useRef<AbortController | null>(null);
+    const isActiveRef = useRef(false);
     const backoffRef = useRef(1000);
     // Force re-render for relative timestamps
     const [, setTick] = useState(0);
 
+    const getStreamUrl = useCallback(async (signal: AbortSignal): Promise<string | null> => {
+        if (!getAccessToken()) return `${API_URL}/stream/activity`;
+
+        try {
+            const streamToken = await api.auth.getStreamToken({ signal });
+            return signal.aborted
+                ? null
+                : `${API_URL}/stream/activity?token=${encodeURIComponent(streamToken)}`;
+        } catch {
+            return signal.aborted ? null : `${API_URL}/stream/activity`;
+        }
+    }, []);
+
     const connect = useCallback(() => {
-        const token = getAccessToken();
-        const url = token
-            ? `${API_URL}/stream/activity?token=${encodeURIComponent(token)}`
-            : `${API_URL}/stream/activity`;
+        tokenRequestRef.current?.abort();
+        const tokenRequest = new AbortController();
+        tokenRequestRef.current = tokenRequest;
 
-        const source = new EventSource(url);
-        sourceRef.current = source;
+        void (async () => {
+            const url = await getStreamUrl(tokenRequest.signal);
+            if (!url || tokenRequest.signal.aborted || !isActiveRef.current) return;
 
-        source.onopen = () => {
-            setIsConnected(true);
-            backoffRef.current = 1000;
-        };
-
-        source.onmessage = (e) => {
-            try {
-                const parsed = JSON.parse(e.data);
-                const eventType = parsed.event || 'unknown';
-                const data: Record<string, unknown> = parsed.data ?? parsed;
-                const cfg = EVENT_CONFIG[eventType];
-                const newEvent: FeedEvent = {
-                    id: `evt-${++eventCounter}`,
-                    event: eventType,
-                    description: describeEvent(eventType, data),
-                    timestamp: new Date(),
-                    isParticipant: cfg?.participantOnly ?? false,
-                };
-                setEvents(prev => [newEvent, ...prev].slice(0, 100));
-            } catch {
-                // ignore malformed
+            if (tokenRequestRef.current === tokenRequest) {
+                tokenRequestRef.current = null;
             }
-        };
 
-        // Handle typed events too
-        for (const evtType of Object.keys(EVENT_CONFIG)) {
-            source.addEventListener(evtType, (e: MessageEvent) => {
+            const source = new EventSource(url);
+            sourceRef.current = source;
+
+            source.onopen = () => {
+                setIsConnected(true);
+                backoffRef.current = 1000;
+            };
+
+            source.onmessage = (e) => {
                 try {
-                    const data: Record<string, unknown> = JSON.parse(e.data);
-                    const cfg = EVENT_CONFIG[evtType];
+                    const parsed = JSON.parse(e.data);
+                    const eventType = parsed.event || 'unknown';
+                    const data: Record<string, unknown> = parsed.data ?? parsed;
+                    const cfg = EVENT_CONFIG[eventType];
                     const newEvent: FeedEvent = {
                         id: `evt-${++eventCounter}`,
-                        event: evtType,
-                        description: describeEvent(evtType, data),
+                        event: eventType,
+                        description: describeEvent(eventType, data),
                         timestamp: new Date(),
                         isParticipant: cfg?.participantOnly ?? false,
                     };
                     setEvents(prev => [newEvent, ...prev].slice(0, 100));
                 } catch {
-                    // ignore
+                    // ignore malformed
                 }
-            });
-        }
+            };
 
-        source.onerror = () => {
-            source.close();
-            sourceRef.current = null;
-            setIsConnected(false);
-            const delay = backoffRef.current + Math.random() * 500;
-            reconnectTimerRef.current = setTimeout(connect, delay);
-            backoffRef.current = Math.min(backoffRef.current * 2, 30000);
-        };
-    }, []);
+            // Handle typed events too
+            for (const evtType of Object.keys(EVENT_CONFIG)) {
+                source.addEventListener(evtType, (e: MessageEvent) => {
+                    try {
+                        const data: Record<string, unknown> = JSON.parse(e.data);
+                        const cfg = EVENT_CONFIG[evtType];
+                        const newEvent: FeedEvent = {
+                            id: `evt-${++eventCounter}`,
+                            event: evtType,
+                            description: describeEvent(evtType, data),
+                            timestamp: new Date(),
+                            isParticipant: cfg?.participantOnly ?? false,
+                        };
+                        setEvents(prev => [newEvent, ...prev].slice(0, 100));
+                    } catch {
+                        // ignore
+                    }
+                });
+            }
+
+            source.onerror = () => {
+                source.close();
+                sourceRef.current = null;
+                setIsConnected(false);
+                if (!isActiveRef.current) return;
+                const delay = backoffRef.current + Math.random() * 500;
+                reconnectTimerRef.current = setTimeout(connect, delay);
+                backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+            };
+        })();
+    }, [getStreamUrl]);
 
     useEffect(() => {
+        isActiveRef.current = true;
         connect();
         return () => {
+            isActiveRef.current = false;
             sourceRef.current?.close();
+            tokenRequestRef.current?.abort();
             if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
         };
     }, [connect]);

@@ -4,7 +4,6 @@ import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
-import { RFQOfferAlert } from './rfq/RFQOfferAlert';
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -67,9 +66,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 >
                     {children}
                 </main>
-
-                {/* RFQ offer alert — floats top-right when a quote/counter arrives */}
-                <RFQOfferAlert onNavigateToRFQ={() => onNavigate('MARKETPLACE')} />
 
                 {/* Copilot removed per Gavin feedback */}
             </div>
