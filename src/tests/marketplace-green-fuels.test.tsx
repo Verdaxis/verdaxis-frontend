@@ -184,7 +184,9 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
     expect(screen.getByRole('button', { name: /e-Methanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Bio Ethanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
@@ -199,7 +201,9 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
+    });
     expect(screen.getByTitle(/vs benchmark reference \$1,092.00\/MT/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
@@ -317,8 +321,12 @@ describe('Marketplace green fuels surface', () => {
       }));
     });
 
-    expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
-    expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
+    // The labels render only after the tape response is processed, one React
+    // commit after the mock-call assertion above resolves.
+    await waitFor(() => {
+      expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
+      expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
+    });
   });
 
   it.each([
