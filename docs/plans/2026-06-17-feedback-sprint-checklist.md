@@ -104,7 +104,7 @@ Public ticker browser assertions:
 
 - Sprint 2 is closed on staging; the multi-signal contract and drilldown UI are implemented, deployed, and dogfooded.
 - Sprint 3 is adding explicit staging-only demo monitoring rows so the Forward Curve can be visually reviewed before real ingestion feeds exist.
-- Future backlog after Sprint 3: replace demo monitoring rows with real ingestion feeds for indications, physical stems, and fair-price bands.
+- ~~Future backlog after Sprint 3: replace demo monitoring rows with real ingestion feeds for indications, physical stems, and fair-price bands.~~ **Done 2026-07-10:** the trusted ingestion path exists (`scripts/ingest_market_signals.py` + `app/services/market_signal_ingestion.py` in the backend repo) and was verified end-to-end on staging with a REAL-classified indication rendering on the Forward Curve drilldown. Operator runbook: backend `docs/market-signal-ingestion.md`. Remaining is a data-sourcing task (stand up recurring real sources per roadmap H0.2), not an engineering one.
 
 ## Sprint 4: Angela Market Monitoring Hardening - 2026-06-20
 
