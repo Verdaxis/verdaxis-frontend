@@ -899,3 +899,33 @@ export interface WatchlistEventsPage {
     items: WatchlistEvent[];
     next_cursor?: string | null;
 }
+
+// ─── Compliance pricing overlay (H1.2) ─────────────────────────────
+// Decimals arrive as strings; coerce with Number() at render time.
+
+export interface ListingComplianceOverlay {
+    penalty_avoided_eur_per_mt: string;
+    penalty_avoided_usd_per_mt: string;
+    tco2e_avoided_per_mt: string;
+    ci_gco2_mj: string;
+    ci_basis: 'LISTING' | 'PRODUCT_DEFAULT';
+    lcv_mj_kg: string;
+    lcv_basis: 'LISTING' | 'PRODUCT_DEFAULT';
+}
+
+export interface ComplianceOverlayAssumptions {
+    eur_usd_rate: string;
+    vlsfo_baseline_gco2_mj: string;
+    ghgie_actual_gco2_mj: string;
+    fleet_intensity_basis: 'ORG_FLEET' | 'DEFAULT_VLSFO';
+    fleet_vessel_count: number;
+    penalty_eur_per_tonne: string;
+    year: number;
+    year_target: string;
+    excluded_factors: string[];
+}
+
+export interface PricingOverlayResponse {
+    overlays: Record<string, ListingComplianceOverlay | null>;
+    assumptions: ComplianceOverlayAssumptions;
+}

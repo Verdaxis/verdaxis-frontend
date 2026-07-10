@@ -1,4 +1,4 @@
-import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import { getAccessToken, refreshAccessToken } from './authToken';
 import { API_URL } from './config';
 
@@ -207,6 +207,14 @@ export const api = {
                 headers: getHeaders(),
                 body: JSON.stringify({ vessel_id: vesselId, fuel_mix: fuelMix, year }),
             }, 30000);
+            return handleResponse(res);
+        },
+        pricingOverlay: async (orderIds: string[]): Promise<PricingOverlayResponse> => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/pricing-overlay`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ order_ids: orderIds }),
+            });
             return handleResponse(res);
         },
         fuels: async () => {

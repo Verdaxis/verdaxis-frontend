@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -48,6 +48,7 @@ import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
+import { CompliancePriceHint } from './trading/CompliancePriceHint';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -140,6 +141,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
+    const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
     // ─── Filter state ─────────────────────────────────────────────
     const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
@@ -300,6 +303,38 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
+
+    // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
+    // One batched authenticated fetch per distinct set of visible ASK ids.
+    // The cancelled guard drops stale responses when filters/pages change
+    // mid-flight; failures degrade to no-hint and never break the table.
+    const askIdSignature = useMemo(
+        () => listings.filter((order) => order.side === 'ASK').map((order) => order.id).sort().join(','),
+        [listings],
+    );
+    // Deps are primitives on purpose: a `user` object identity here would
+    // re-run the effect on every auth-context render and loop via the
+    // new-object setState below.
+    const hasAuthedUser = !!user;
+    useEffect(() => {
+        if (!hasAuthedUser || !askIdSignature) {
+            setComplianceOverlays({});
+            return;
+        }
+        let cancelled = false;
+        api.compliance.pricingOverlay(askIdSignature.split(','))
+            .then((response) => {
+                if (cancelled) return;
+                setComplianceOverlays(response.overlays);
+                setOverlayAssumptions(response.assumptions);
+            })
+            .catch(() => {
+                if (!cancelled) setComplianceOverlays({});
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [hasAuthedUser, askIdSignature]);
 
     // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
     // URL → state: re-apply whenever the slice params change. Slice→slice
@@ -645,7 +680,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         {order.remaining_quantity_mt.toLocaleString()}
                     </td>
                 );
-            case 'price':
+            case 'price': {
+                const overlay = order.side === 'ASK' ? complianceOverlays[order.id] : null;
                 return (
                     <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
                         <BenchmarkPriceBlock
@@ -653,8 +689,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
                             deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
                         />
+                        {overlay && (
+                            <CompliancePriceHint overlay={overlay} assumptions={overlayAssumptions} />
+                        )}
                     </td>
                 );
+            }
             case 'window':
                 return (
                     <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">

@@ -275,5 +275,17 @@
   "marketplace.myOrders.empty.none.buyer": "Place a bid to show your own resting demand in the market.",
   "marketplace.myOrders.empty.none.supplier": "Place an ask to show your own resting supply in the market.",
   "myTrades.col.counterparty": "Counterparty",
-  "myTrades.note.offPlatform": "Off-platform after confirmation"
+  "myTrades.note.offPlatform": "Off-platform after confirmation",
+  "marketplace.fueleu.penaltyAvoided": "FuelEU −${{amount}}/MT",
+  "marketplace.fueleu.tco2eAvoided": "{{amount}} tCO₂e/MT avoided",
+  "marketplace.fueleu.tooltip.headline": "FuelEU value of this fuel vs paying the penalty (marginal, deficit fleet)",
+  "marketplace.fueleu.tooltip.ciBasis": "Carbon intensity",
+  "marketplace.fueleu.tooltip.basisListing": "listing-declared",
+  "marketplace.fueleu.tooltip.basisDefault": "product default (proxy)",
+  "marketplace.fueleu.tooltip.fleetBasis": "Fleet basis",
+  "marketplace.fueleu.tooltip.fleetOrg": "your organization's fleet",
+  "marketplace.fueleu.tooltip.fleetDefault": "default 100% VLSFO fleet assumption",
+  "marketplace.fueleu.tooltip.assumed": "assumed rate",
+  "marketplace.fueleu.tooltip.excludes": "Excludes",
+  "marketplace.fueleu.tooltip.estimate": "Indicative estimate only — not compliance or trading advice."
 }

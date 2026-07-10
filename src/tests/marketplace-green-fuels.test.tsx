@@ -5,8 +5,9 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
+const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
+  pricingOverlay: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
   listBidsPaged: vi.fn(),
@@ -80,8 +81,23 @@ vi.mock('../services/api', () => ({
     tradeTape: {
       list: tradeTapeList,
     },
+    compliance: {
+      pricingOverlay,
+    },
   },
 }));
+
+const overlayAssumptionsFixture = {
+  eur_usd_rate: '1.08',
+  vlsfo_baseline_gco2_mj: '91.16',
+  ghgie_actual_gco2_mj: '91.16',
+  fleet_intensity_basis: 'DEFAULT_VLSFO' as const,
+  fleet_vessel_count: 0,
+  penalty_eur_per_tonne: '2400',
+  year: 2026,
+  year_target: '89.34',
+  excluded_factors: ['RFNBO_MULTIPLIER', 'DEFICIT_ESCALATION', 'EXTRA_EU_VOYAGE_SCOPE'],
+};
 
 const listingsResponse = {
   items: [
@@ -175,6 +191,7 @@ describe('Marketplace green fuels surface', () => {
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
     tradesInitiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
+    pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
   it('shows canonical market product chips instead of generic fuel families', async () => {
@@ -646,6 +663,61 @@ describe('Marketplace green fuels surface', () => {
 
     fireEvent.click(submit);
     expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('fetches the FuelEU overlay for visible asks and renders the hint', async () => {
+    pricingOverlay.mockResolvedValue({
+      overlays: {
+        'ask-1': {
+          penalty_avoided_eur_per_mt: '768.75',
+          penalty_avoided_usd_per_mt: '830.25',
+          tco2e_avoided_per_mt: '1.197',
+          ci_gco2_mj: '31',
+          ci_basis: 'PRODUCT_DEFAULT',
+          lcv_mj_kg: '19.9',
+          lcv_basis: 'PRODUCT_DEFAULT',
+        },
+      },
+      assumptions: overlayAssumptionsFixture,
+    });
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(pricingOverlay).toHaveBeenCalledWith(['ask-1']);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('FuelEU −$830/MT')).toBeTruthy();
+    });
+    expect(screen.getByText('1.20 tCO₂e/MT avoided')).toBeTruthy();
+  });
+
+  it('degrades to no hint when the overlay fetch fails', async () => {
+    pricingOverlay.mockRejectedValue(new Error('boom'));
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(pricingOverlay).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+    });
+    expect(screen.queryByText(/FuelEU −\$/)).toBeNull();
+  });
+
+  it('does not request overlays for bid listings (supplier view)', async () => {
+    userRole.current = 'SUPPLIER';
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(listBidsPaged).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Marketplace')).toBeTruthy();
+    });
+    expect(pricingOverlay).not.toHaveBeenCalled();
   });
 
 });

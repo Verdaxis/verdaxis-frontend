@@ -275,5 +275,17 @@
   "marketplace.myOrders.empty.none.buyer": "发布买单后，您的买方需求才会显示在这里。",
   "marketplace.myOrders.empty.none.supplier": "发布卖单后，您的卖方供给才会显示在这里。",
   "myTrades.col.counterparty": "交易对手",
-  "myTrades.note.offPlatform": "确认后转为线下处理"
+  "myTrades.note.offPlatform": "确认后转为线下处理",
+  "marketplace.fueleu.penaltyAvoided": "FuelEU −${{amount}}/吨",
+  "marketplace.fueleu.tco2eAvoided": "避免 {{amount}} 吨CO₂e/吨",
+  "marketplace.fueleu.tooltip.headline": "该燃料相对于缴纳FuelEU罚金的价值（边际值，亏空船队）",
+  "marketplace.fueleu.tooltip.ciBasis": "碳强度",
+  "marketplace.fueleu.tooltip.basisListing": "挂牌申报值",
+  "marketplace.fueleu.tooltip.basisDefault": "产品默认值（代理值）",
+  "marketplace.fueleu.tooltip.fleetBasis": "船队基准",
+  "marketplace.fueleu.tooltip.fleetOrg": "贵组织船队",
+  "marketplace.fueleu.tooltip.fleetDefault": "默认100% VLSFO船队假设",
+  "marketplace.fueleu.tooltip.assumed": "假定汇率",
+  "marketplace.fueleu.tooltip.excludes": "未计入",
+  "marketplace.fueleu.tooltip.estimate": "仅为参考估算，不构成合规或交易建议。"
 }
