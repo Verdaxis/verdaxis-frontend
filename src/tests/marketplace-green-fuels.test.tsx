@@ -366,7 +366,10 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByRole('button', { name: /more filters/i })).toBeTruthy();
     });
 
-    expect(screen.getByRole('button', { name: /bio methanol \(1\)/i })).toBeTruthy();
+    // The fuel-count badge fills in after the async listings fetch resolves.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /bio methanol \(1\)/i })).toBeTruthy();
+    });
     expect(screen.queryByRole('combobox', { name: 'Port' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
