@@ -10,11 +10,12 @@ import {
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import type { Page, ViewMode } from '../../types';
+import { PAGE_SLUGS, type Page, type ViewMode } from '../../types';
 
 export interface SidebarNavItem {
     key: string;
     page: Page;
+    path: string;
     label: string;
     icon: LucideIcon;
 }
@@ -42,10 +43,14 @@ const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
 ];
 
 export function buildPrimarySidebarItems(t: TFunction, viewMode: ViewMode): SidebarNavItem[] {
-    return PRIMARY_SIDEBAR_BLUEPRINTS.map((item) => ({
-        key: item.key,
-        page: typeof item.page === 'function' ? item.page(viewMode) : item.page,
-        label: t(item.labelKey),
-        icon: item.icon,
-    }));
+    return PRIMARY_SIDEBAR_BLUEPRINTS.map((item) => {
+        const page = typeof item.page === 'function' ? item.page(viewMode) : item.page;
+        return {
+            key: item.key,
+            page,
+            path: `/app/${PAGE_SLUGS[page]}`,
+            label: t(item.labelKey),
+            icon: item.icon,
+        };
+    });
 }

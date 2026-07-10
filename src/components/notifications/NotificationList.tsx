@@ -53,11 +53,10 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
         }
         
         if (notification.type === 'ORDER_UPDATE' || notification.type === 'DIRECT_ORDER' || notification.type === 'DIRECT_ORDER_OFFER') {
-            navigate('/', { 
-                state: { 
-                    targetPage: 'DASHBOARD',
+            navigate('/app/home', {
+                state: {
                     openOrderId: notification.data?.order_id || notification.data?.rfq_id
-                } 
+                }
             });
         }
         

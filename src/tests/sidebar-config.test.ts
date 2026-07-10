@@ -26,6 +26,24 @@ describe('sidebar config', () => {
     expect(supplierAnalytics?.page).toBe('ANALYTICS');
   });
 
+  it('exposes a route path for every nav item', () => {
+    const buyer = buildPrimarySidebarItems(t, 'BUYER');
+
+    expect(Object.fromEntries(buyer.map((item) => [item.key, item.path]))).toEqual({
+      DASHBOARD: '/app/home',
+      MAP: '/app/map',
+      MARKETPLACE: '/app/marketplace',
+      FORWARD_CURVE: '/app/curve',
+      WATCHLISTS: '/app/watchlist',
+      ANALYTICS: '/app/analytics',
+      TRADES: '/app/trades',
+    });
+
+    // Both analytics Page values share one path; viewMode picks the component.
+    const supplierAnalytics = buildPrimarySidebarItems(t, 'SUPPLIER').find((item) => item.key === 'ANALYTICS');
+    expect(supplierAnalytics?.path).toBe('/app/analytics');
+  });
+
   it('routes Forward Curve to the monitoring workspace', () => {
     const forwardCurve = buildPrimarySidebarItems(t, 'BUYER').find((item) => item.key === 'FORWARD_CURVE');
 

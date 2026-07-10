@@ -20,9 +20,11 @@ import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '..
 import { formatMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
+import type { MarketSlice } from '../utils/sliceUrl';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
+    onOpenSlice?: (slice: MarketSlice) => void;
 }
 
 type SelectedSlice = {
@@ -614,7 +616,7 @@ const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]
     </div>
 );
 
-export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate }) => {
+export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate, onOpenSlice }) => {
     const [table, setTable] = useState<ForwardCurveTableResponse | null>(null);
     const [selected, setSelected] = useState<SelectedSlice | null>(() => getStoredSelection());
     const [slice, setSlice] = useState<ForwardCurveSliceResponse | null>(null);
@@ -734,6 +736,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         const next = cellToSlice(cell);
         persistSelection(next);
         setSelected(next);
+        if (onOpenSlice) {
+            // Slice-aware handoff: the slice URL carries the selection.
+            onOpenSlice({
+                product: cell.market_product,
+                port: cell.delivery_point_name,
+                window: cell.availability_window,
+            });
+            return;
+        }
         persistMarketplaceSlice(cell);
         onNavigate?.('MARKETPLACE');
     };

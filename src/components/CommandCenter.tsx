@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Gavel, HandCoins, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
+import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 // import { MatchSuggestions } from './MatchSuggestions';
@@ -15,6 +16,7 @@ import { SupplierDemandFeed } from './SupplierDemandFeed';
 interface CommandCenterProps {
     viewMode: ViewMode;
     onNavigate: (page: Page) => void;
+    onOpenSlice?: (slice: MarketSlice) => void;
     openOrderId?: string;
 }
 
@@ -29,7 +31,7 @@ const CTA_CONFIG = {
     },
 };
 
-export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, openOrderId }) => {
+export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, onOpenSlice, openOrderId }) => {
     const { t, ready } = useNamespace('dashboard');
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
@@ -199,7 +201,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
 
             {viewMode === 'SUPPLIER' && (
-                <SupplierDemandFeed onNavigate={onNavigate} />
+                <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
             )}
 
             {/* ─── Needs Attention ─── */}

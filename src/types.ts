@@ -405,6 +405,29 @@ export interface PortFuelAvailability {
 }
 export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
 
+// URL slug under /app for every legacy Page value. Legacy pages that no
+// longer have their own view (INVENTORY, ORDERBOOK, DEMAND_FEED) map to
+// the page that renders today; both ANALYTICS variants share one path
+// and viewMode picks the component.
+export const PAGE_SLUGS: Record<Page, string> = {
+    MAP: 'map',
+    MARKETPLACE: 'marketplace',
+    COMPLIANCE: 'compliance',
+    TRAINING: 'training',
+    SETTINGS: 'settings',
+    DASHBOARD: 'home',
+    QUOTES: 'quotes',
+    INVENTORY: 'home',
+    FORWARD_CURVE: 'curve',
+    ANALYTICS: 'analytics',
+    ORDERBOOK: 'marketplace',
+    DEMAND_FEED: 'marketplace',
+    TRADES: 'trades',
+    ADMIN: 'admin',
+    WATCHLISTS: 'watchlist',
+    DATA_ANALYTICS: 'analytics',
+};
+
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
     availability_window: string;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Loader2,
     MapPin,
@@ -39,6 +40,8 @@ import {
     SPOT_WINDOW,
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
+import { isApprovedTradingPortName } from '../utils/tradingPorts';
+import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
@@ -102,11 +105,14 @@ const REFRESH_INTERVAL_MS = 60_000;
 interface MarketplaceProps {
     initialPort?: Port | null;
     viewMode?: ViewMode;
+    initialSlice?: MarketSlice | null;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode, initialSlice }) => {
     const { user } = useAuth();
     const { t, ready } = useNamespace('trading');
+    const location = useLocation();
+    const navigate = useNavigate();
     const role: ViewMode = user?.role === 'ADMIN'
         ? (viewMode ?? 'BUYER')
         : user?.role === 'SUPPLIER'
@@ -136,11 +142,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     const [error, setError] = useState<string | null>(null);
 
     // ─── Filter state ─────────────────────────────────────────────
-    const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
+    const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
+    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
+        if (initialSlice) return initialSlice.window as AvailabilityWindow;
         const stored = localStorage.getItem('verdaxis_marketplace_window');
         return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
@@ -293,6 +300,36 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
+
+    // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
+    // URL → state: re-apply whenever the slice params change. Slice→slice
+    // navigation must re-sync; the useState initializers only cover mount.
+    useEffect(() => {
+        if (!initialSlice) return;
+        setMarketProduct(initialSlice.product);
+        setPortInput(initialSlice.port);
+        setStoredDeliveryPointId('');
+        setAvailability(initialSlice.window as AvailabilityWindow);
+        setCurrentSkip(0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialSlice?.product, initialSlice?.port, initialSlice?.window]);
+
+    // State → URL: on a slice URL, keep the address bar truthful as the
+    // user changes product/port/window in-page (replace, not push). The
+    // generic /app/marketplace view never rewrites the URL. Deliberately
+    // keyed on filter state only: reacting to location changes would fire
+    // with stale state mid slice→slice navigation and bounce the URL back.
+    useEffect(() => {
+        if (!location.pathname.startsWith('/app/m/')) return;
+        const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
+        const nextPath = isFullSlice
+            ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
+            : '/app/marketplace';
+        if (nextPath !== location.pathname) {
+            navigate(nextPath, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availability, marketProduct, resolvedPort]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {

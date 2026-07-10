@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, Mail, Lock, AlertCircle, Info } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
@@ -13,20 +13,33 @@ interface LoginError {
   message: string;
 }
 
+interface LoginLocationState {
+  from?: {
+    pathname: string;
+    search: string;
+    hash: string;
+  };
+}
+
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<LoginError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t, ready } = useNamespace('auth');
 
+  // ProtectedRoute stashes the denied location; return there after login.
+  const from = (location.state as LoginLocationState | null)?.from;
+  const redirectTo = from ? `${from.pathname}${from.search}${from.hash}` : '/app';
+
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/app');
+      navigate(redirectTo, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, redirectTo]);
 
   if (!ready) return null;
 
@@ -52,7 +65,7 @@ const LoginPage: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         await login(data.access_token);
-        navigate('/app');
+        navigate(redirectTo);
       } else {
         if (res.status === 401) {
           setLoginError({ kind: 'generic', message: t('login.error.invalidCredentials') });

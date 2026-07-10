@@ -9,7 +9,7 @@ React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-char
 ```
 src/
   index.tsx                        # ReactDOM entry, mounts <App /> into #root
-  App.tsx                          # Route definitions, auth guards, Dashboard state machine
+  App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
@@ -121,21 +121,27 @@ index.html --> index.tsx --> App.tsx
                              |              |
                         public pages   RequireOrganization --> RequireProfile
                                             |
-                                        Dashboard
+                                     DashboardLayout (layout route)
                                        /    |    \
-                                Layout viewMode currentPage (state)
-                               / |  \
-                        Sidebar Header content views
+                                Layout viewMode <Outlet/> child routes
+                               / |  \                (home, map, marketplace,
+                        Sidebar Header               m/:product/:port/:window,
+                                                     curve, watchlist, ...)
                                                 |
                                         Backend REST API
 ```
 
 ## Key Patterns
 
-**State-based in-app navigation:** The `/app` route renders a `Dashboard` component that uses
-`currentPage` state (not URL routes) to switch between views. The `Page` type enum
-(`MAP | MARKETPLACE | FORWARD_CURVE | TRADES | ...`) drives `renderContent()`. New authenticated
-views should add a `Page` value, not a new react-router route.
+**URL-routed app navigation:** Every authenticated view is a nested route under `/app`
+(`/app/home`, `/app/map`, `/app/marketplace`, `/app/curve`, ...) rendered through the
+`DashboardLayout` layout route in `App.tsx`. The legacy `Page` enum survives as the
+sidebar/session/dogfood vocabulary: `PAGE_SLUGS` in `types.ts` maps every `Page` value to its
+URL slug, and `pathToPage` derives the active page from the pathname. Marketplace slices get
+deep links via `/app/m/:product/:port/:window` (codec in `utils/sliceUrl.ts`; invalid slices
+redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
+`sessionStorage.verdaxis_currentPage`. New authenticated views should add a child route plus a
+`Page` value and `PAGE_SLUGS` entry.
 
 **Desktop-only platform workspace:** The authenticated `/app` route is wrapped in
 `MobileDesktopGate`, which shows a desktop-required notice below 768px. Public marketing,
