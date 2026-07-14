@@ -24,6 +24,26 @@ describe('behavioral analytics adapter', () => {
     expect(normalizeAnalyticsPath('https://app.verdaxis.exchange/app/marketplace?search=secret')).toBe('/app/marketplace');
   });
 
+  it('preserves Umami base fields when sending a manual pageview', () => {
+    const track = vi.fn((payload: unknown) => {
+      if (typeof payload === 'function') {
+        return payload({ website: UUID, hostname: 'staging.verdaxis.exchange' });
+      }
+      return undefined;
+    });
+    (window as Window & { umami?: { track: typeof track } }).umami = { track };
+    const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID });
+
+    analytics.trackPage('/en/pilot?email=person@example.com#form');
+
+    const payloadFactory = track.mock.calls[0][0] as (base: Record<string, string>) => Record<string, string>;
+    expect(payloadFactory({ website: UUID, hostname: 'staging.verdaxis.exchange' })).toEqual({
+      website: UUID,
+      hostname: 'staging.verdaxis.exchange',
+      url: '/en/pilot',
+    });
+  });
+
   it('dispatches typed events and drops forbidden or unapproved properties', () => {
     const track = vi.fn();
     (window as Window & { umami?: { track: typeof track } }).umami = { track };

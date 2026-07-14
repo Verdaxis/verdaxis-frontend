@@ -34,7 +34,9 @@ export interface AnalyticsEventMap {
 }
 
 interface UmamiClient {
-  track: ((event: string, data?: Record<string, string>) => void) | ((payload: { url: string }) => void);
+  track:
+    | ((event: string, data?: Record<string, string>) => void)
+    | ((payload: (properties: Record<string, unknown>) => Record<string, unknown>) => void);
 }
 interface AnalyticsWindow extends Window { umami?: UmamiClient }
 interface AnalyticsOptions { host?: string; websiteId?: string; environment?: string; document?: Document; window?: AnalyticsWindow }
@@ -163,7 +165,11 @@ export const createAnalytics = (options: AnalyticsOptions) => {
       safelyRun(client => (client.track as (name: string, properties?: Record<string, string>) => void)(event, Object.keys(properties).length ? properties : undefined));
     },
     trackPage(path: string) {
-      safelyRun(client => (client.track as (payload: { url: string }) => void)({ url: normalizeAnalyticsPath(path) }));
+      safelyRun(client => (
+        client.track as (
+          payload: (properties: Record<string, unknown>) => Record<string, unknown>
+        ) => void
+      )(properties => ({ ...properties, url: normalizeAnalyticsPath(path) })));
     },
   };
 };
