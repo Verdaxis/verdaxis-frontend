@@ -22,7 +22,11 @@ const {
   tradeTapeList,
   tradesInitiate,
 } = vi.hoisted(() => {
-  const makeAuth = (role: 'BUYER' | 'SUPPLIER' | 'ADMIN', isAuthenticated = true) => ({
+  const makeAuth = (
+    role: 'BUYER' | 'SUPPLIER' | 'ADMIN',
+    isAuthenticated = true,
+    organizationId: string | undefined = 'org-1',
+  ) => ({
     user: isAuthenticated
       ? {
           id: 'user-1',
@@ -30,7 +34,7 @@ const {
           first_name: 'Test',
           last_name: 'User',
           role,
-          organization_id: 'org-1',
+          organization_id: organizationId,
           must_change_password: false,
         }
       : null,
@@ -343,6 +347,13 @@ describe('app routing', () => {
   });
 
   describe('admin', () => {
+    it('allows an ADMIN without an organization to open the admin dashboard', async () => {
+      authControl.current = authControl.makeAuth('ADMIN', true, undefined);
+      renderApp('/app/admin');
+      expect(await screen.findByTestId('page-admin')).toBeTruthy();
+      expect(currentPathname()).toBe('/app/admin');
+    });
+
     it('renders the admin dashboard for ADMIN users at /app/admin', async () => {
       setRole('ADMIN');
       renderApp('/app/admin');

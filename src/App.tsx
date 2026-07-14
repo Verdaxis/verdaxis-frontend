@@ -198,7 +198,7 @@ const RequireOrganization = ({ children }: { children: React.ReactElement }) => 
 
     if (isLoading) return null;
 
-    if (user && !user.organization_id) {
+    if (user && user.role !== 'ADMIN' && !user.organization_id) {
         return <Navigate to="/create-organization" replace />;
     }
 

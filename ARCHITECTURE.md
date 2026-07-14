@@ -122,7 +122,7 @@ index.html --> index.tsx --> App.tsx
                         /      |      \
                   /login  PublicLayout  /app (ProtectedRoute)
                              |              |
-                        public pages   RequireOrganization --> RequireProfile
+                        public pages   RequireOrganization* --> RequireProfile
                                             |
                                      DashboardLayout (layout route)
                                        /    |    \
@@ -133,6 +133,9 @@ index.html --> index.tsx --> App.tsx
                                                 |
                                         Backend REST API
 ```
+
+`RequireOrganization` applies to buyer and supplier accounts. Platform admins
+may be organization-less and bypass organization onboarding.
 
 ## Key Patterns
 
