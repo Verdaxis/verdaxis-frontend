@@ -122,6 +122,92 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
+export type ProductUsagePeriod = 7 | 30 | 90;
+export type ProductUsageStatus = 'ready' | 'empty' | 'unavailable';
+
+export interface ProductUsageResponse {
+    behavioralStatus: ProductUsageStatus;
+    diagnosticCategory?: string;
+    observedAt: string | null;
+    periodDays: ProductUsagePeriod;
+    metrics: {
+        visitors: number;
+        visits: number;
+        pageviews: number;
+        totalTimeSeconds: number;
+        averageSessionDurationSeconds: number | null;
+        signupStarts: number;
+        completedRegistrations: number;
+        registrationConversionRate: number | null;
+    };
+    funnel: Array<{ key: string; count: number; conversionRate: number }>;
+    daily: Array<{ date: string; visitors: number; completedRegistrations: number | null }>;
+    featureUsage: Array<{ event: string; count: number }>;
+    topEntryPages: Array<{ value: string; count: number }>;
+    topReferrers: Array<{ value: string; count: number }>;
+}
+
+const PRODUCT_USAGE_EVENTS = new Set([
+    'market_slice_selected', 'listing_opened', 'order_form_opened', 'order_form_submitted',
+    'trade_confirmation_opened', 'tutorial_started', 'tutorial_step_completed',
+    'tutorial_step_skipped', 'tutorial_completed', 'estimator_opened', 'estimator_completed',
+]);
+
+const PRODUCT_USAGE_FUNNEL_KEYS: Record<string, string> = {
+    visitors: 'landing_visitors',
+    signup_started: 'signup_starts',
+    registrations: 'completed_registrations',
+    users_logging_in: 'active_logins',
+    order_placing_organizations: 'order_creating_organizations',
+};
+
+const mapProductUsageResponse = (data: any): ProductUsageResponse => {
+    const behavioral = data.behavioral ?? {};
+    const authoritative = data.authoritative ?? {};
+    const eventTotals = behavioral.event_totals && typeof behavioral.event_totals === 'object' ? behavioral.event_totals : {};
+    const signupStarts = Number(eventTotals.signup_started ?? 0);
+    const completedRegistrations = Number(authoritative.registrations ?? 0);
+    const hasActivity = Number(behavioral.visitors ?? 0) > 0
+        || Number(behavioral.visits ?? 0) > 0
+        || Object.values(eventTotals).some(value => Number(value) > 0)
+        || completedRegistrations > 0
+        || Number(authoritative.users_logging_in ?? 0) > 0
+        || Number(authoritative.order_placing_organizations ?? 0) > 0;
+    const available = data.behavioral_status === 'available';
+    return {
+    behavioralStatus: available ? (hasActivity ? 'ready' : 'empty') : 'unavailable',
+    diagnosticCategory: data.diagnostic ?? undefined,
+    observedAt: data.observed_at ?? null,
+    periodDays: data.days,
+    metrics: {
+        visitors: Number(behavioral.visitors ?? 0),
+        visits: Number(behavioral.visits ?? 0),
+        pageviews: Number(behavioral.pageviews ?? 0),
+        totalTimeSeconds: Number(behavioral.total_time_seconds ?? 0),
+        averageSessionDurationSeconds: available ? Number(behavioral.average_duration_seconds ?? 0) : null,
+        signupStarts,
+        completedRegistrations,
+        registrationConversionRate: available && signupStarts > 0 ? completedRegistrations / signupStarts : null,
+    },
+    funnel: Array.isArray(data.funnel) ? data.funnel.map((item: any) => ({
+        key: PRODUCT_USAGE_FUNNEL_KEYS[String(item.name)] ?? String(item.name),
+        count: Number(item.value ?? 0),
+        conversionRate: item.conversion_from_previous_pct == null ? 1 : Number(item.conversion_from_previous_pct) / 100,
+    })) : [],
+    daily: Array.isArray(behavioral.daily_visitors) ? behavioral.daily_visitors.map((item: any) => ({
+        date: String(item.date),
+        visitors: Number(item.value ?? 0),
+        completedRegistrations: null,
+    })) : [],
+    featureUsage: Object.entries(eventTotals)
+        .filter(([event]) => PRODUCT_USAGE_EVENTS.has(event))
+        .map(([event, count]) => ({ event, count: Number(count ?? 0) }))
+        .sort((a, b) => b.count - a.count),
+    topEntryPages: Array.isArray(behavioral.top_entries) ? behavioral.top_entries.map((item: any) => ({ value: String(item.name), count: Number(item.value ?? 0) })) : [],
+    topReferrers: Array.isArray(behavioral.top_referrers) ? behavioral.top_referrers.map((item: any) => ({ value: String(item.name), count: Number(item.value ?? 0) })) : [],
+    };
+};
+
 export const api = {
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -605,6 +691,10 @@ export const api = {
         },
         daily: async (days: number = 30) => {
             return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });
+        },
+        productUsage: async (days: ProductUsagePeriod): Promise<ProductUsageResponse> => {
+            const data = await fetchApi(`/admin/analytics/product-usage?days=${days}`, { headers: getHeaders() });
+            return mapProductUsageResponse(data);
         },
         auditLogs: async (params?: { action?: string; limit?: number }) => {
             const searchParams = new URLSearchParams();

@@ -22,6 +22,8 @@ import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import i18n from '../../i18n';
+import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -797,6 +799,7 @@ export const LandingPage: React.FC = () => {
               <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <Link
                   to={localePath('/pilot')}
+                  onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'landing_bottom', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
                   className="cta-gradient"
                   style={{
                     background: 'linear-gradient(135deg, #4CAF50, #5DADE2)',
@@ -818,6 +821,7 @@ export const LandingPage: React.FC = () => {
               <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <a
                   href="mailto:info@verdaxis.exchange"
+                  onClick={() => analytics.track('landing_cta_clicked', { cta: 'register_interest', placement: 'landing_bottom', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
                   className="cta-secondary"
                   style={{
                     background: 'transparent',

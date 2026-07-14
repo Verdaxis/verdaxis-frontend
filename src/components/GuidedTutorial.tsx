@@ -3,6 +3,8 @@ import Joyride, { ACTIONS, CallBackProps, EVENTS, STATUS, Step, TooltipRenderPro
 import { useTutorial } from '../context/TutorialContext';
 import { ViewMode } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
+import { useAuth } from '../context/AuthContext';
+import { analytics, type AnalyticsRole } from '../services/analytics';
 
 interface GuidedTutorialProps {
     viewMode: ViewMode;
@@ -328,19 +330,29 @@ const GuidedTooltip: React.FC<TooltipRenderProps> = ({
 
 export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
     const { isRunning, complete } = useTutorial();
+    const { user } = useAuth();
     const { t, ready } = useNamespace('tutorial');
     const [stepIndex, setStepIndex] = useState(0);
     const [placementRefreshKey, setPlacementRefreshKey] = useState(0);
     const navigationDirection = useRef<'forward' | 'backward'>('forward');
+    const wasRunning = useRef(false);
+    const completedTracked = useRef(false);
+    const skippedStep = useRef<number | null>(null);
+    const analyticsRole = (user?.role ?? viewMode) as AnalyticsRole;
 
     const definitions = useMemo(() => getGuidedTutorialStepDefinitions(viewMode), [viewMode]);
     const activeDefinition = definitions[stepIndex];
 
     useEffect(() => {
+        if (isRunning && !wasRunning.current) {
+            completedTracked.current = false;
+            analytics.track('tutorial_started', { role: analyticsRole });
+        }
+        wasRunning.current = isRunning;
         if (!isRunning) {
             setStepIndex(0);
         }
-    }, [isRunning]);
+    }, [analyticsRole, isRunning]);
 
     useEffect(() => {
         if (!isRunning || !activeDefinition) return;
@@ -374,12 +386,16 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
 
     const advanceTo = useCallback((nextIndex: number) => {
         if (nextIndex >= definitions.length) {
+            if (!completedTracked.current) {
+                completedTracked.current = true;
+                analytics.track('tutorial_completed', { role: analyticsRole });
+            }
             complete();
             setStepIndex(0);
             return;
         }
         setStepIndex(Math.max(0, nextIndex));
-    }, [complete, definitions.length]);
+    }, [analyticsRole, complete, definitions.length]);
 
     const advanceAfterOptionalWait = useCallback((definition: TutorialStepDefinition, nextIndex: number) => {
         const finish = () => advanceTo(nextIndex);
@@ -460,6 +476,11 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
             if (!target.closest(selector)) return;
 
             navigationDirection.current = 'forward';
+            if (skippedStep.current === stepIndex) {
+                skippedStep.current = null;
+            } else {
+                analytics.track('tutorial_step_completed', { step: `${viewMode.toLowerCase()}_${stepIndex + 1}`, role: analyticsRole });
+            }
             window.setTimeout(() => {
                 advanceAfterOptionalWait(activeDefinition, stepIndex + 1);
             }, CLICK_ADVANCE_DELAY_MS);
@@ -467,12 +488,16 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
 
         document.addEventListener('click', handleClick);
         return () => document.removeEventListener('click', handleClick);
-    }, [activeDefinition, advanceAfterOptionalWait, isRunning, stepIndex]);
+    }, [activeDefinition, advanceAfterOptionalWait, analyticsRole, isRunning, stepIndex, viewMode]);
 
     const handleCallback = useCallback((data: CallBackProps) => {
         const { action, index, status, type } = data;
 
         if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+            if (!completedTracked.current) {
+                completedTracked.current = true;
+                analytics.track('tutorial_completed', { role: analyticsRole });
+            }
             complete();
             setStepIndex(0);
             return;
@@ -503,9 +528,10 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
 
         if (action === ACTIONS.NEXT || action === ACTIONS.CLOSE) {
             navigationDirection.current = 'forward';
+            analytics.track('tutorial_step_completed', { step: `${viewMode.toLowerCase()}_${index + 1}`, role: analyticsRole });
             advanceTo(index + 1);
         }
-    }, [advanceTo, closeModalBeforeBackIfNeeded, complete]);
+    }, [advanceTo, analyticsRole, closeModalBeforeBackIfNeeded, complete, viewMode]);
 
     if (!ready) return null;
 
@@ -525,7 +551,14 @@ export const GuidedTutorial: React.FC<GuidedTutorialProps> = ({ viewMode }) => {
                 mode: definition.mode,
                 clickHint: clickStep ? t('locale.clickTargetToContinue') : undefined,
                 skipStepLabel: clickStep ? t('locale.skipStep') : undefined,
-                onSkipStep: clickStep ? () => clickActiveTarget(definition, index) : undefined,
+                onSkipStep: clickStep ? () => {
+                    skippedStep.current = index;
+                    analytics.track('tutorial_step_skipped', { step: `${viewMode.toLowerCase()}_${index + 1}`, role: analyticsRole });
+                    clickActiveTarget(definition, index);
+                    window.setTimeout(() => {
+                        if (skippedStep.current === index) skippedStep.current = null;
+                    }, 0);
+                } : undefined,
             },
             disableBeacon: true,
             disableOverlayClose: true,

@@ -49,6 +49,7 @@ import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 import { CompliancePriceHint } from './trading/CompliancePriceHint';
+import { analytics } from '../services/analytics';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -502,6 +503,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, []);
 
     useEffect(() => {
+        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        analytics.track('market_slice_selected', {
+            product: marketProduct,
+            delivery_point: resolvedDeliveryPointId,
+            window: availability,
+        });
+    }, [availability, marketProduct, resolvedDeliveryPointId]);
+
+    useEffect(() => {
         if (marketTab !== 'market' || !highlightedOrderId) return;
         const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
         if (!(node instanceof HTMLElement)) return;
@@ -512,6 +522,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
+        if (order.market_product && order.delivery_point_id && order.availability_window) {
+            analytics.track('listing_opened', {
+                product: order.market_product,
+                delivery_point: order.delivery_point_id,
+                window: order.availability_window,
+                side: order.side,
+                demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
+            });
+        }
         setSelectedOrder(order);
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
@@ -594,6 +613,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             return;
         }
         if (validateTradeQuantity() == null) return;
+        analytics.track('trade_confirmation_opened', {
+            side: selectedOrder.side,
+            demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
+        });
         setTradeError('');
         setTradeState('reviewing');
     };

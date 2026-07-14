@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Mail, Lock, User, AlertCircle, Briefcase, CheckCircle2, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import i18n from '../i18n';
+import { analytics, type AnalyticsLanguage } from '../services/analytics';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -31,6 +33,10 @@ const RegisterPage: React.FC = () => {
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    analytics.track('signup_started', {
+      entry_point: referralCode ? 'referral' : 'direct',
+      language: i18n.language.split('-')[0] as AnalyticsLanguage,
+    });
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
@@ -110,11 +116,14 @@ const RegisterPage: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'requires_org') {
+          analytics.track('signup_submitted', { role: formData.role as 'BUYER' | 'SUPPLIER', organization_path: 'create' });
+          analytics.track('signup_organization_required', { role: formData.role as 'BUYER' | 'SUPPLIER' });
           // Email domain has no org — go to org creation flow
           navigate('/create-organization', {
             state: { registration_token: data.registration_token }
           });
         } else {
+          analytics.track('signup_submitted', { role: formData.role as 'BUYER' | 'SUPPLIER', organization_path: 'existing' });
           // status === 'created' — user created, verification email sent
           sessionStorage.removeItem('verdaxis_ref_code');
           setRegistered(true);
@@ -133,6 +142,9 @@ const RegisterPage: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (e.target.name === 'role' && (e.target.value === 'BUYER' || e.target.value === 'SUPPLIER')) {
+        analytics.track('signup_role_selected', { role: e.target.value });
+      }
       setFormData({
           ...formData,
           [e.target.name]: e.target.value

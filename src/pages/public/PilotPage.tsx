@@ -23,6 +23,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { analytics } from '../../services/analytics';
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -393,6 +394,7 @@ export const PilotPage: React.FC = () => {
               <div style={{ display: 'grid', gap: 10 }}>
                 <a
                   href={appRegisterUrl}
+                  onClick={() => analytics.track('landing_cta_clicked', { cta: 'register', placement: 'pilot_sidebar', language: lang === 'zh' ? 'zh' : 'en' })}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -596,6 +598,7 @@ export const PilotPage: React.FC = () => {
             <HoverButton>
               <a
                 href={appRegisterUrl}
+                onClick={() => analytics.track('landing_cta_clicked', { cta: 'register', placement: 'pilot_bottom', language: lang === 'zh' ? 'zh' : 'en' })}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',

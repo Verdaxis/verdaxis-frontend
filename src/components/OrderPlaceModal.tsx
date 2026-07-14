@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
@@ -11,6 +11,7 @@ import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
+import { analytics } from '../services/analytics';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -92,6 +93,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillAvailabilityWindow,
     prefillPrice,
 }) => {
+    const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -168,6 +170,22 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }), [selectedDeliveryPoint?.timezone]);
     const availabilitySummary = getAvailabilityWindowSummary(formData.availability_window, availabilityOptions);
 
+    useEffect(() => {
+        if (!isOpen || !selectedProduct?.market_product || !selectedDeliveryPoint || !formData.availability_window) return;
+        if (trackedOpen.current) return;
+        trackedOpen.current = true;
+        analytics.track('order_form_opened', {
+            product: selectedProduct.market_product,
+            delivery_point: selectedDeliveryPoint.id,
+            window: formData.availability_window,
+            side,
+        });
+    }, [formData.availability_window, isOpen, selectedDeliveryPoint, selectedProduct?.market_product, side]);
+
+    useEffect(() => {
+        if (!isOpen) trackedOpen.current = false;
+    }, [isOpen]);
+
     const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -217,6 +235,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isValid) return;
+
+        if (selectedProduct?.market_product && selectedDeliveryPoint) {
+            analytics.track('order_form_submitted', {
+                product: selectedProduct.market_product,
+                delivery_point: selectedDeliveryPoint.id,
+                window: formData.availability_window,
+                side,
+            });
+        }
 
         setModalState('submitting');
         setErrorMessage('');

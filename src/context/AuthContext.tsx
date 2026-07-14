@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { API_URL } from '../services/config';
 import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
+import { analytics } from '../services/analytics';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 
@@ -12,6 +13,7 @@ export interface User {
   last_name: string;
   role: UserRole | null;
   organization_id?: string;
+  organization_type?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   email_verified?: boolean;
   kyc_status?: string;
@@ -138,7 +140,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
             if (res.ok) {
                 setIsBackendUnavailable(false);
-                setUser(await res.json());
+                const userData: User = await res.json();
+                setUser(userData);
+                if (userData.role) analytics.track('login_succeeded', { role: userData.role });
             } else if (isBackendUnavailableStatus(res.status)) {
                 setIsBackendUnavailable(true);
             }

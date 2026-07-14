@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
+import { ProductUsageSection } from './ProductUsageSection';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -452,6 +453,8 @@ export const AdminDashboard: React.FC = () => {
       {/* Analytics tab */}
       {activeTab === 'analytics' && (
         <>
+          <ProductUsageSection />
+
           {/* Summary cards */}
           {overview && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

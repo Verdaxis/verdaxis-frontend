@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../LanguageSelector';
 import { type SupportedLang } from '../../i18n';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import { analytics } from '../../services/analytics';
 
 const BLUE = '#5DADE2';
 const DARK = '#0F172A';
@@ -73,6 +74,8 @@ export const PublicNav: React.FC = () => {
   const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
 
   const handleLanguageChange = (newLang: SupportedLang) => {
+    const currentLang = (lang === 'zh' ? 'zh' : 'en');
+    if (currentLang !== newLang) analytics.track('public_language_changed', { from: currentLang, to: newLang });
     const rest = pathname.replace(/^\/[a-z]{2}/, '');
     navigate(`/${newLang}${rest || '/'}`);
   };

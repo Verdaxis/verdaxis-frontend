@@ -28,12 +28,14 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     ai.ts                          # Supplier risk AI export
     ai-engine/
       generators.ts                # AI supplier-risk memo helper, proxied through backend /ai/chat
       cache.ts                     # In-memory 5-min TTL cache for AI responses
 
   components/
+    AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
@@ -62,6 +64,7 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
+    admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -164,6 +167,14 @@ frontend caching for repeated memo requests.
 
 **Context-only state:** No Redux/Zustand. React Contexts cover Auth, Theme, Notifications,
 and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+**Behavioral analytics boundary:** `AnalyticsProvider` performs normalized manual SPA
+page tracking and pseudonymous identification through the typed adapter in
+`services/analytics.ts`. Umami loads only when both public analytics environment variables
+are valid; auto-tracking, replay, and heatmaps are disabled. Components emit selective
+allowlisted events, and the adapter drops unknown properties and isolates all collector
+failures. The Admin Product Usage section consumes only the backend's aggregated,
+admin-authorized endpoint and degrades independently from commercial analytics.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

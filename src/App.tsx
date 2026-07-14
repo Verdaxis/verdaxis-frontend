@@ -12,6 +12,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
+import { AnalyticsProvider } from './components/AnalyticsProvider';
+import { analytics } from './services/analytics';
 import RegisterPage from './pages/RegisterPage';
 import { InvitePage } from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -301,6 +303,11 @@ const DashboardLayout: React.FC = () => {
     sessionStorage.setItem('verdaxis_currentPage', currentPage);
   }, [currentPage, isBareAppPath]);
 
+  useEffect(() => {
+    if (!user) return;
+    analytics.identify({ userId: user.id, role: user.role, organizationType: user.organization_type, viewMode });
+  }, [user, viewMode]);
+
   // Nav metrics: a single passive observer around the route commit covers
   // sidebar clicks, adapter navigations, deep links, and back/forward.
   const previousPageRef = useRef<Page | null>(null);
@@ -317,10 +324,14 @@ const DashboardLayout: React.FC = () => {
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
     sessionStorage.setItem('verdaxis_viewMode', mode);
+    if (user) {
+      analytics.identify({ userId: user.id, role: user.role, organizationType: user.organization_type, viewMode: mode });
+    }
     navigate('/app/home');
   };
 
   const handleNavigate = (page: Page) => {
+    analytics.track('platform_navigation', { destination: PAGE_SLUGS[sanitizeDashboardPage(page)], view_mode: viewMode });
     navigate(pageToPath(page));
   };
 
@@ -575,9 +586,11 @@ const App: React.FC = () => {
         <NotificationProvider>
             <TutorialProvider>
             <BrowserRouter>
+                <AnalyticsProvider>
                 <ScrollToTop />
                 <IdleRoutePrefetch />
                 <AppRoutes />
+                </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>
         <TradeNotifier />

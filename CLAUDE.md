@@ -123,6 +123,12 @@ Production API URL is set in `.env.production` and staging API URL is set in `.e
 - **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
 
+Behavioral analytics is optional. Set both `VITE_ANALYTICS_HOST` and
+`VITE_ANALYTICS_WEBSITE_ID` to load the Umami tracker; leaving either blank
+keeps analytics fully disabled. These are public collector coordinates only.
+Umami credentials must remain backend-only and must never use the `VITE_`
+prefix. See `docs/behavioral-analytics.md` for the privacy and event contract.
+
 **Never rely on the server's `.env` file for production/staging builds.** Use the explicit build mode or `scripts/deploy.sh`; otherwise the wrong API can be baked into the bundle.
 
 ## Known Gotchas

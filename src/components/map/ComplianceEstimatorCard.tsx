@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { ArrowRight, Calculator, Plus, ShieldAlert, Trash2 } from 'lucide-react';
 
 import { useNamespace } from '../../hooks/useNamespace';
@@ -10,6 +10,7 @@ import {
     estimateCompliancePlanning,
 } from '../../utils/complianceEstimator';
 import { VerdaxisSelect } from '../ui/VerdaxisSelect';
+import { analytics } from '../../services/analytics';
 
 interface ComplianceEstimatorCardProps {
     selectedPort?: Port;
@@ -76,6 +77,8 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
     const [euaPrice, setEuaPrice] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.euaPriceEurPerTco2);
     const [planningTarget, setPlanningTarget] = useState(DEFAULT_COMPLIANCE_ESTIMATOR_INPUT.planningTargetGco2ePerMj);
     const [selectedFuelProduct, setSelectedFuelProduct] = useState(GREEN_FUEL_ASSUMPTIONS[0].marketProduct);
+
+    useEffect(() => { analytics.track('estimator_opened'); }, []);
 
     const selectedFuel = GREEN_FUEL_ASSUMPTIONS.find(fuel => fuel.marketProduct === selectedFuelProduct) ?? GREEN_FUEL_ASSUMPTIONS[0];
     const fuelOptions = useMemo(() => GREEN_FUEL_ASSUMPTIONS.map(fuel => ({
@@ -150,6 +153,7 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
 
     const openMarketplace = () => {
         if (!selectedPort) return;
+        analytics.track('estimator_completed', { port: selectedPort.id, fuel: selectedFuel.marketProduct });
         localStorage.setItem(STORAGE_KEYS.product, selectedFuel.marketProduct);
         localStorage.removeItem(STORAGE_KEYS.legacyFuel);
         localStorage.setItem(STORAGE_KEYS.port, selectedPort.name);
