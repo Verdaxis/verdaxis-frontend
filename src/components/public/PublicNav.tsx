@@ -72,6 +72,7 @@ export const PublicNav: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
+  const analyticsLanguage = lang === 'zh' ? 'zh' : 'en';
 
   const handleLanguageChange = (newLang: SupportedLang) => {
     const currentLang = (lang === 'zh' ? 'zh' : 'en');
@@ -236,6 +237,7 @@ export const PublicNav: React.FC = () => {
           <LanguageSelector onLanguageChange={handleLanguageChange} variant="light" />
           <Link
             to={lp('/pilot')}
+            onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'nav', language: analyticsLanguage })}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -259,6 +261,7 @@ export const PublicNav: React.FC = () => {
           </Link>
           <a
             href={appLoginUrl}
+            onClick={() => analytics.track('landing_cta_clicked', { cta: 'sign_in', placement: 'nav', language: analyticsLanguage })}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -389,7 +392,10 @@ export const PublicNav: React.FC = () => {
             </div>
             <Link
               to={lp('/pilot')}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'nav', language: analyticsLanguage });
+                setMobileOpen(false);
+              }}
               style={{
                 padding: '12px 0',
                 fontSize: 16,
@@ -405,7 +411,10 @@ export const PublicNav: React.FC = () => {
             </Link>
             <a
               href={appLoginUrl}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                analytics.track('landing_cta_clicked', { cta: 'sign_in', placement: 'nav', language: analyticsLanguage });
+                setMobileOpen(false);
+              }}
               style={{
                 padding: '12px 0',
                 fontSize: 16,

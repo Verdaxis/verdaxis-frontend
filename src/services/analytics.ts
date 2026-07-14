@@ -3,8 +3,8 @@ export type AnalyticsViewMode = 'BUYER' | 'SUPPLIER';
 export type AnalyticsLanguage = 'en' | 'zh';
 type MarketSide = 'BID' | 'ASK';
 type DemoStatus = 'LIVE' | 'DEMO' | 'REFERENCE' | 'MIXED' | 'UNKNOWN';
-type LandingCta = 'pilot' | 'how_it_works' | 'register' | 'register_interest';
-type LandingCtaPlacement = 'hero' | 'calculator' | 'landing_bottom' | 'pilot_sidebar' | 'pilot_bottom';
+type LandingCta = 'pilot' | 'how_it_works' | 'register' | 'register_interest' | 'sign_in';
+type LandingCtaPlacement = 'nav' | 'hero' | 'calculator' | 'landing_bottom' | 'pilot_sidebar' | 'pilot_bottom';
 
 export interface AnalyticsEventMap {
   landing_cta_clicked: { cta: LandingCta; placement: LandingCtaPlacement; language: AnalyticsLanguage };
@@ -56,8 +56,8 @@ const tradingRole = oneOf(['BUYER', 'SUPPLIER'] as const);
 const language = oneOf(['en', 'zh'] as const);
 const side = oneOf(['BID', 'ASK'] as const);
 const demoStatus = oneOf(['LIVE', 'DEMO', 'REFERENCE', 'MIXED', 'UNKNOWN'] as const);
-const landingCta = oneOf(['pilot', 'how_it_works', 'register', 'register_interest'] as const);
-const landingCtaPlacement = oneOf(['hero', 'calculator', 'landing_bottom', 'pilot_sidebar', 'pilot_bottom'] as const);
+const landingCta = oneOf(['pilot', 'how_it_works', 'register', 'register_interest', 'sign_in'] as const);
+const landingCtaPlacement = oneOf(['nav', 'hero', 'calculator', 'landing_bottom', 'pilot_sidebar', 'pilot_bottom'] as const);
 
 const EVENT_SCHEMAS: { [K in keyof AnalyticsEventMap]: Record<string, Validator> } = {
   landing_cta_clicked: { cta: landingCta, placement: landingCtaPlacement, language },
