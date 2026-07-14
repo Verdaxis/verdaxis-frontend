@@ -303,11 +303,6 @@ const DashboardLayout: React.FC = () => {
     sessionStorage.setItem('verdaxis_currentPage', currentPage);
   }, [currentPage, isBareAppPath]);
 
-  useEffect(() => {
-    if (!user) return;
-    analytics.identify({ userId: user.id, role: user.role, organizationType: user.organization_type, viewMode });
-  }, [user, viewMode]);
-
   // Nav metrics: a single passive observer around the route commit covers
   // sidebar clicks, adapter navigations, deep links, and back/forward.
   const previousPageRef = useRef<Page | null>(null);
@@ -324,9 +319,6 @@ const DashboardLayout: React.FC = () => {
   const handleSwitchView = (mode: ViewMode) => {
     setViewMode(mode);
     sessionStorage.setItem('verdaxis_viewMode', mode);
-    if (user) {
-      analytics.identify({ userId: user.id, role: user.role, organizationType: user.organization_type, viewMode: mode });
-    }
     navigate('/app/home');
   };
 

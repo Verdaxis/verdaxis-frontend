@@ -13,7 +13,6 @@ export interface User {
   last_name: string;
   role: UserRole | null;
   organization_id?: string;
-  organization_type?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   email_verified?: boolean;
   kyc_status?: string;

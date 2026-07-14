@@ -17,20 +17,14 @@ export const PrivacyPage: React.FC = () => {
                 {t('privacy.lastUpdated')}
             </p>
             <div className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('privacy.sections.0.heading')}</h2>
-                <p>{t('privacy.sections.0.body')}</p>
-
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('privacy.sections.1.heading')}</h2>
-                <p>{t('privacy.sections.1.body')}</p>
-
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('privacy.sections.2.heading')}</h2>
-                <p>{t('privacy.sections.2.body')}</p>
-
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('privacy.sections.3.heading')}</h2>
-                <p>{t('privacy.sections.3.body')}</p>
-
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('privacy.sections.4.heading')}</h2>
-                <p>{t('privacy.sections.4.body')}</p>
+                {[0, 1, 2, 3, 4, 5].map(section => (
+                    <section key={section}>
+                        <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">
+                            {t(`privacy.sections.${section}.title`)}
+                        </h2>
+                        <p>{t(`privacy.sections.${section}.body`)}</p>
+                    </section>
+                ))}
             </div>
         </div>
     );

@@ -15,7 +15,7 @@ describe('admin product usage API', () => {
         visits: 160,
         pageviews: 410,
         total_time_seconds: 32000,
-        average_duration_seconds: 200,
+        average_session_duration_seconds: 200,
         event_totals: { signup_started: 24, market_slice_selected: 18 },
         daily_visitors: [{ date: '2026-07-14', value: 5 }],
         top_entries: [{ name: '/en', value: 44 }],

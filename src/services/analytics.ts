@@ -33,17 +33,8 @@ export interface AnalyticsEventMap {
   estimator_completed: { port: string; fuel: string };
 }
 
-export interface AnalyticsIdentity {
-  userId: string;
-  role?: AnalyticsRole | null;
-  organizationType?: string | null;
-  viewMode?: AnalyticsViewMode | null;
-  language?: AnalyticsLanguage | null;
-}
-
 interface UmamiClient {
   track: ((event: string, data?: Record<string, string>) => void) | ((payload: { url: string }) => void);
-  identify?: (id: string, data?: Record<string, string>) => void;
 }
 interface AnalyticsWindow extends Window { umami?: UmamiClient }
 interface AnalyticsOptions { host?: string; websiteId?: string; environment?: string; document?: Document; window?: AnalyticsWindow }
@@ -173,15 +164,6 @@ export const createAnalytics = (options: AnalyticsOptions) => {
     },
     trackPage(path: string) {
       safelyRun(client => (client.track as (payload: { url: string }) => void)({ url: normalizeAnalyticsPath(path) }));
-    },
-    identify(identity: AnalyticsIdentity) {
-      if (!UUID_PATTERN.test(identity.userId)) return;
-      const data: Record<string, string> = {};
-      if (identity.role && role(identity.role)) data.role = identity.role;
-      if (identity.organizationType && token(identity.organizationType)) data.organization_type = identity.organizationType;
-      if (identity.viewMode && tradingRole(identity.viewMode)) data.view_mode = identity.viewMode;
-      if (identity.language && language(identity.language)) data.language = identity.language;
-      safelyRun(client => client.identify?.(identity.userId, data));
     },
   };
 };

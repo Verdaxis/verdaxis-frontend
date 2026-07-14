@@ -44,41 +44,13 @@ describe('behavioral analytics adapter', () => {
     });
   });
 
-  it('identifies an authenticated user without PII', () => {
-    const identify = vi.fn();
-    (window as Window & { umami?: { track: ReturnType<typeof vi.fn>; identify: typeof identify } }).umami = {
-      track: vi.fn(),
-      identify,
-    };
-    const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID });
-
-    analytics.identify({
-      userId: UUID,
-      role: 'BUYER',
-      organizationType: 'SHIP_OWNER',
-      viewMode: 'BUYER',
-      language: 'en',
-      email: 'person@example.com',
-      organizationName: 'Example Shipping',
-    } as never);
-
-    expect(identify).toHaveBeenCalledWith(UUID, {
-      role: 'BUYER',
-      organization_type: 'SHIP_OWNER',
-      view_mode: 'BUYER',
-      language: 'en',
-    });
-  });
-
   it('contains tracker failures and never throws into the product flow', () => {
-    (window as Window & { umami?: { track: () => never; identify: () => never } }).umami = {
+    (window as Window & { umami?: { track: () => never } }).umami = {
       track: () => { throw new Error('collector unavailable'); },
-      identify: () => { throw new Error('collector unavailable'); },
     };
     const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID });
 
     expect(() => analytics.track('login_submitted')).not.toThrow();
-    expect(() => analytics.identify({ userId: UUID, role: 'BUYER', language: 'en' })).not.toThrow();
     expect(() => analytics.trackPage('/login?email=person@example.com')).not.toThrow();
   });
 });

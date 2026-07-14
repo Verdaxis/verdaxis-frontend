@@ -26,9 +26,8 @@ disabled until the staging implementation has been reviewed.
 
 ## Privacy Contract
 
-Allowed identity and segmentation fields:
+Allowed segmentation fields:
 
-- Internal Verdaxis user UUID as the Umami distinct ID.
 - User role, view mode, organization type, language, environment, and surface.
 - Canonical product, delivery point, availability window, side, and demo status.
 
@@ -124,7 +123,7 @@ Failure must not hide or invalidate the existing trading analytics.
 
 - Staging records normalized pageviews and allowlisted events for landing,
   signup, and platform routes.
-- Authenticated sessions use only internal UUID plus allowed segmentation data.
+- Analytics sessions are not assigned Verdaxis user IDs or other distinct IDs.
 - Tests prove PII and commercial fields are rejected or dropped.
 - Signup and product actions still succeed when the tracker is absent or fails.
 - Admin Product Usage renders real staging aggregates and authoritative database

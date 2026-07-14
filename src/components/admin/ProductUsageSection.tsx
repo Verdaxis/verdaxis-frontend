@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Activity, AlertCircle, Clock3, MousePointerClick, UserPlus, Users } from 'lucide-react';
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useNamespace } from '../../hooks/useNamespace';
 import { api, type ProductUsagePeriod, type ProductUsageResponse } from '../../services/api';
 
@@ -96,7 +96,7 @@ export const ProductUsageSection: React.FC = () => {
                   </div>)}</div>
                 </div>
                 <div className="v-card p-5"><h3 className="v-heading text-sm">{t('productUsage.trend.title')}</h3><div className="mt-4 h-60">
-                  <ResponsiveContainer width="100%" height="100%"><LineChart data={data.daily}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" /><XAxis dataKey="date" fontSize={10} /><YAxis allowDecimals={false} fontSize={10} /><Tooltip /><Legend /><Line type="monotone" dataKey="visitors" name={t('productUsage.kpi.visitors')} stroke="#3B82F6" dot={false} /><Line type="monotone" dataKey="completedRegistrations" name={t('productUsage.kpi.registrations')} stroke="#10B981" dot={false} /></LineChart></ResponsiveContainer>
+                  <ResponsiveContainer width="100%" height="100%"><LineChart data={data.daily}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" /><XAxis dataKey="date" fontSize={10} /><YAxis allowDecimals={false} fontSize={10} /><Tooltip /><Line type="monotone" dataKey="visitors" name={t('productUsage.kpi.visitors')} stroke="#3B82F6" dot={false} /></LineChart></ResponsiveContainer>
                 </div></div>
                 <UsageList title={t('productUsage.features.title')} items={data.featureUsage.map(item => ({ label: t(`productUsage.events.${item.event}`), count: item.count }))} empty={t('productUsage.listEmpty')} />
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><UsageList title={t('productUsage.entries.title')} items={data.topEntryPages.map(item => ({ label: item.value, count: item.count }))} empty={t('productUsage.listEmpty')} /><UsageList title={t('productUsage.referrers.title')} items={data.topReferrers.map(item => ({ label: item.value, count: item.count }))} empty={t('productUsage.listEmpty')} /></div>

@@ -7,10 +7,10 @@ enabled only when both `VITE_ANALYTICS_HOST` and
 `VITE_ANALYTICS_WEBSITE_ID` are valid. Disabled or invalid configuration does
 not add a script element or make analytics requests.
 
-`AnalyticsProvider` initializes the tracker, records manually normalized SPA
-pageviews, and identifies authenticated sessions using the internal user UUID.
-It does not send names, email addresses, organization names, URL query strings,
-or transaction content. Components call the typed adapter; direct
+`AnalyticsProvider` initializes the tracker and records manually normalized SPA
+pageviews. Verdaxis does not assign authenticated user IDs or other distinct IDs
+to analytics sessions. It does not send names, email addresses, organization
+names, URL query strings, or transaction content. Components call the typed adapter; direct
 `window.umami` access is prohibited outside the adapter.
 
 Umami automatic page tracking is disabled so paths are sent without query
@@ -50,13 +50,13 @@ Admin Analytics tab. The section owns its loading, ready, empty, and unavailable
 states so behavioral analytics failure cannot hide commercial analytics.
 
 The current backend contract provides daily visitor points but not daily
-registration points. The chart leaves that series empty rather than fabricating
-data. Add an authoritative daily-registration series to the backend response
-before enabling that line.
+registration points. The chart therefore renders visitors only. Add an
+authoritative daily-registration series to the backend response before adding a
+registration line.
 
 ## Verification
 
 Tests cover disabled configuration, path normalization, property allowlisting,
-failure isolation, pseudonymous identification, API mapping, period switching,
-and degraded Admin rendering. Production remains disabled until the staging
+failure isolation, API mapping, period switching, and degraded Admin rendering.
+Production remains disabled until the staging
 collector and privacy behavior are reviewed.

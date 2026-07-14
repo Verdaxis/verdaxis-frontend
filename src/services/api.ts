@@ -184,7 +184,7 @@ const mapProductUsageResponse = (data: any): ProductUsageResponse => {
         visits: Number(behavioral.visits ?? 0),
         pageviews: Number(behavioral.pageviews ?? 0),
         totalTimeSeconds: Number(behavioral.total_time_seconds ?? 0),
-        averageSessionDurationSeconds: available ? Number(behavioral.average_duration_seconds ?? 0) : null,
+        averageSessionDurationSeconds: available ? Number(behavioral.average_session_duration_seconds ?? 0) : null,
         signupStarts,
         completedRegistrations,
         registrationConversionRate: available && signupStarts > 0 ? completedRegistrations / signupStarts : null,
