@@ -16,7 +16,7 @@ describe('admin product usage API', () => {
         pageviews: 410,
         total_time_seconds: 32000,
         average_session_duration_seconds: 200,
-        event_totals: { signup_started: 24, market_slice_selected: 18 },
+        event_totals: { signup_started: 24, platform_navigation: 25, market_slice_selected: 18 },
         daily_visitors: [{ date: '2026-07-14', value: 5 }],
         top_entries: [{ name: '/en', value: 44 }],
         top_referrers: [{ name: 'linkedin.com', value: 12 }],
@@ -36,7 +36,10 @@ describe('admin product usage API', () => {
       behavioralStatus: 'ready',
       periodDays: 30,
       metrics: { visitors: 120, completedRegistrations: 8 },
-      featureUsage: [{ event: 'market_slice_selected', count: 18 }],
+      featureUsage: [
+        { event: 'platform_navigation', count: 25 },
+        { event: 'market_slice_selected', count: 18 },
+      ],
       topEntryPages: [{ value: '/en', count: 44 }],
     });
     expect(result.funnel[0].conversionRate).toBeNull();

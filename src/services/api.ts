@@ -148,7 +148,7 @@ export interface ProductUsageResponse {
 }
 
 const PRODUCT_USAGE_EVENTS = new Set([
-    'market_slice_selected', 'listing_opened', 'order_form_opened', 'order_form_submitted',
+    'platform_navigation', 'market_slice_selected', 'listing_opened', 'order_form_opened', 'order_form_submitted',
     'trade_confirmation_opened', 'tutorial_started', 'tutorial_step_completed',
     'tutorial_step_skipped', 'tutorial_completed', 'estimator_opened', 'estimator_completed',
 ]);
