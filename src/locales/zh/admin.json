@@ -53,6 +53,7 @@
   "productUsage.features.title": "功能使用情况",
   "productUsage.entries.title": "热门入口页面",
   "productUsage.referrers.title": "热门来源",
+  "productUsage.events.platform_navigation": "平台导航",
   "productUsage.events.market_slice_selected": "已选择市场切片",
   "productUsage.events.listing_opened": "已打开挂牌",
   "productUsage.events.order_form_opened": "已打开订单表单",

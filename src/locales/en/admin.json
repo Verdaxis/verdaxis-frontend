@@ -53,6 +53,7 @@
   "productUsage.features.title": "Feature usage",
   "productUsage.entries.title": "Top entry pages",
   "productUsage.referrers.title": "Top referrers",
+  "productUsage.events.platform_navigation": "Platform navigations",
   "productUsage.events.market_slice_selected": "Market slices selected",
   "productUsage.events.listing_opened": "Listings opened",
   "productUsage.events.order_form_opened": "Order forms opened",
