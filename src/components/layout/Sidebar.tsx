@@ -110,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <NavLink
                             to={item.path}
                             data-tour={`nav-${item.key}`}
-                            onClick={onMobileClose}
+                            onClick={() => handleNavigate(item.page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
                                 currentPage === item.page
                                     ? (viewMode === 'SUPPLIER'
