@@ -140,7 +140,7 @@ export interface ProductUsageResponse {
         completedRegistrations: number;
         registrationConversionRate: number | null;
     };
-    funnel: Array<{ key: string; count: number; conversionRate: number }>;
+    funnel: Array<{ key: string; count: number; conversionRate: number | null }>;
     daily: Array<{ date: string; visitors: number; completedRegistrations: number | null }>;
     featureUsage: Array<{ event: string; count: number }>;
     topEntryPages: Array<{ value: string; count: number }>;
@@ -187,12 +187,18 @@ const mapProductUsageResponse = (data: any): ProductUsageResponse => {
         averageSessionDurationSeconds: available ? Number(behavioral.average_session_duration_seconds ?? 0) : null,
         signupStarts,
         completedRegistrations,
-        registrationConversionRate: available && signupStarts > 0 ? completedRegistrations / signupStarts : null,
+        registrationConversionRate: available && signupStarts > 0 && completedRegistrations <= signupStarts
+            ? completedRegistrations / signupStarts
+            : null,
     },
     funnel: Array.isArray(data.funnel) ? data.funnel.map((item: any) => ({
         key: PRODUCT_USAGE_FUNNEL_KEYS[String(item.name)] ?? String(item.name),
         count: Number(item.value ?? 0),
-        conversionRate: item.conversion_from_previous_pct == null ? 1 : Number(item.conversion_from_previous_pct) / 100,
+        conversionRate: item.conversion_from_previous_pct == null
+            || Number(item.conversion_from_previous_pct) < 0
+            || Number(item.conversion_from_previous_pct) > 100
+            ? null
+            : Number(item.conversion_from_previous_pct) / 100,
     })) : [],
     daily: Array.isArray(behavioral.daily_visitors) ? behavioral.daily_visitors.map((item: any) => ({
         date: String(item.date),

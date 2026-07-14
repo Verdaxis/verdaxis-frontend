@@ -43,7 +43,7 @@
   "productUsage.kpi.signupStarts": "Signup starts",
   "productUsage.kpi.registrations": "Registrations",
   "productUsage.kpi.conversion": "Registration rate",
-  "productUsage.funnel.title": "Acquisition to activation",
+  "productUsage.funnel.title": "Journey signals",
   "productUsage.funnel.landing_visitors": "Landing visitors",
   "productUsage.funnel.signup_starts": "Signup starts",
   "productUsage.funnel.completed_registrations": "Completed registrations",

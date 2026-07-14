@@ -45,6 +45,7 @@ export const ProductUsageSection: React.FC = () => {
   const unavailable = requestFailed || data?.behavioralStatus === 'unavailable';
   const empty = data?.behavioralStatus === 'empty';
   const metrics = data?.metrics;
+  const largestJourneyCount = Math.max(1, ...(data?.funnel.map(stage => stage.count) ?? [1]));
   const cards = [
     { label: t('productUsage.kpi.visitors'), value: unavailable ? '--' : String(metrics?.visitors ?? 0), icon: Users },
     { label: t('productUsage.kpi.visits'), value: unavailable ? '--' : String(metrics?.visits ?? 0), icon: Activity },
@@ -91,7 +92,7 @@ export const ProductUsageSection: React.FC = () => {
                   <h3 className="v-heading text-sm">{t('productUsage.funnel.title')}</h3>
                   <div className="mt-4 space-y-3">{data.funnel.map(stage => <div key={stage.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm">
                     <div><div className="flex justify-between gap-2 text-verdaxis-text"><span>{t(`productUsage.funnel.${stage.key}`)}</span><span className="font-mono font-semibold">{stage.count.toLocaleString()}</span></div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-verdaxis-border/50"><div className="h-full bg-verdaxis" style={{ width: `${Math.max(0, Math.min(100, stage.conversionRate * 100))}%` }} /></div></div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-verdaxis-border/50"><div className="h-full bg-verdaxis" style={{ width: `${Math.max(0, Math.min(100, stage.count / largestJourneyCount * 100))}%` }} /></div></div>
                     <span className="w-14 text-right text-xs text-verdaxis-text-muted">{percent(stage.conversionRate)}</span>
                   </div>)}</div>
                 </div>

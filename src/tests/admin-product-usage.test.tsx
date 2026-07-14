@@ -33,7 +33,7 @@ const readyResponse = {
     registrationConversionRate: 0.3333,
   },
   funnel: [
-    { key: 'landing_visitors', count: 120, conversionRate: 1 },
+    { key: 'landing_visitors', count: 120, conversionRate: null },
     { key: 'signup_starts', count: 24, conversionRate: 0.2 },
   ],
   daily: [{ date: '2026-07-14', visitors: 5, completedRegistrations: null }],

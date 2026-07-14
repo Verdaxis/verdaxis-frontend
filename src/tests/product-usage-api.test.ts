@@ -39,5 +39,6 @@ describe('admin product usage API', () => {
       featureUsage: [{ event: 'market_slice_selected', count: 18 }],
       topEntryPages: [{ value: '/en', count: 44 }],
     });
+    expect(result.funnel[0].conversionRate).toBeNull();
   });
 });
