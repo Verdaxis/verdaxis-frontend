@@ -504,3 +504,13 @@
 - **Trigger:** User reported the Forward Curve latest-signals rail consumed too much vertical real estate and pushed the Selected Period section below the viewport.
 - **Rule:** Secondary activity rails should use compact rows, capped internal scrolling, and smaller numeric typography so the primary detail panel remains visible in the first viewport.
 - **Why:** Latest/event feeds are supporting context; if every item uses card-like spacing, they crowd out the actionable or inspectable panel beneath them.
+### Treat Executive Health As The Default, Not The Entire Analytics Scope
+- **Date:** 2026-07-15
+- **Trigger:** User selected executive product health as the default analytics view, then clarified that growth and platform operations remain equally important areas for deeper tabs.
+- **Rule:** Use executive health as the landing summary while preserving dedicated, first-class acquisition, activation, engagement, marketplace, retention, and reliability analysis.
+- **Why:** Interpreting the default view as the only priority would flatten the analytics workspace and omit operationally important diagnostics.
+### Stop At The Handoff Artifact When Requested
+- **Date:** 2026-07-15
+- **Trigger:** User clarified that the Product Analytics workspace should not be implemented here; they want a reviewed plan to hand to Claude.
+- **Rule:** Once the user requests a plan-only handoff, make no product-code or deployment changes and optimize the artifact for execution by the named downstream agent.
+- **Why:** Continuing into implementation would duplicate work and violate the intended division of responsibility.
