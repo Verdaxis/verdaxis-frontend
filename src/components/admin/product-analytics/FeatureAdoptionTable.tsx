@@ -14,7 +14,7 @@ export const FeatureAdoptionTable: React.FC<{ rows: FeatureAdoptionRow[] }> = ({
       {populated.map(row => (
         <li key={row.family} className="grid grid-cols-[190px_1fr_70px] items-center gap-3 text-sm">
           <span className="text-verdaxis-text-muted truncate">{t(`pa.feature.${row.family}`)}</span>
-          <span className="h-2.5 bg-verdaxis-surface rounded overflow-hidden" aria-hidden>
+          <span className="h-2.5 bg-verdaxis-dim rounded overflow-hidden" aria-hidden>
             <span className="block h-full bg-blue-400/70" style={{ width: `${((row.events ?? 0) / max) * 100}%` }} />
           </span>
           <span className="tabular-nums text-right">

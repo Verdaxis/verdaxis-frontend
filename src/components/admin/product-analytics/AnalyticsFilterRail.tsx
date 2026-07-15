@@ -39,7 +39,10 @@ export const AnalyticsFilterRail: React.FC<{
     return () => { cancelled = true; };
   }, [marketplace, products.length]);
 
-  const select = 'v-input text-sm py-1.5 px-2 bg-verdaxis-surface border border-verdaxis-border rounded';
+  // Deliberately NOT v-input: rail controls are compact and inline —
+  // v-input's w-full would stack them into full-width rows.
+  const select =
+    'w-auto text-xs font-medium py-1.5 px-2 bg-verdaxis-input text-verdaxis-text border border-verdaxis-border rounded focus:outline-none focus:ring-1 focus:ring-verdaxis';
 
   return (
     <div

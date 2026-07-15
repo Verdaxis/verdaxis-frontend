@@ -53,10 +53,29 @@ export const TrendChart: React.FC<{ series: TrendSeries[]; emptyLabel: string; h
         {rows.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
-              <CartesianGrid strokeOpacity={0.15} vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-              <Tooltip />
+              <CartesianGrid stroke="var(--border-color)" strokeOpacity={0.5} vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
+                tickLine={false}
+                axisLine={{ stroke: 'var(--border-color)' }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: 'var(--text-primary)',
+                }}
+              />
               {visible.map(entry => (
                 <Line
                   key={entry.key}

@@ -77,9 +77,9 @@ export const KpiCell: React.FC<{ label: string; metric: MetricValue; compare: bo
 }) => {
   const { t } = useTranslation('admin');
   return (
-    <div className="border border-verdaxis-border rounded-lg px-4 py-3 bg-verdaxis-surface/40">
-      <div className="text-xs text-verdaxis-text-muted mb-1">{label}</div>
-      <div className="text-xl font-semibold tabular-nums text-verdaxis-text" data-testid={`kpi-${label}`}>
+    <div className="border border-verdaxis-border rounded-lg px-4 py-3 bg-verdaxis-card">
+      <div className="text-[11px] uppercase tracking-wider text-verdaxis-text-muted mb-1.5">{label}</div>
+      <div className="text-2xl font-mono font-semibold tabular-nums text-verdaxis-text leading-none mb-1" data-testid={`kpi-${label}`}>
         {metricText(metric, t('pa.state.suppressed'))}
       </div>
       {compare && <DeltaBadge metric={metric} />}

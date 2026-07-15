@@ -21,13 +21,13 @@ export const LifecycleSpine: React.FC<{
           <li key={stage.key} className="flex items-center gap-1">
             <button
               onClick={() => onSelectTab(stage.detail_tab as AnalyticsTab)}
-              className="min-w-[104px] text-left border border-verdaxis-border rounded px-3 py-2 hover:border-verdaxis transition-colors"
+              className="group min-w-[96px] text-left rounded px-2.5 py-1.5 border-b-2 border-transparent hover:border-verdaxis hover:bg-verdaxis-dim transition-colors"
               aria-label={t('pa.lifecycle.openDetail', { stage: t(`pa.lifecycle.${stage.key}`) })}
             >
-              <div className="text-[11px] uppercase tracking-wide text-verdaxis-text-muted">
+              <div className="text-[11px] uppercase tracking-wider text-verdaxis-text-muted">
                 {t(`pa.lifecycle.${stage.key}`)}
               </div>
-              <div className="text-lg font-semibold tabular-nums">
+              <div className="text-xl font-mono font-semibold tabular-nums group-hover:text-verdaxis transition-colors">
                 {stage.count === null ? '—' : stage.count.toLocaleString()}
               </div>
               <div className="text-[11px] tabular-nums text-verdaxis-text-muted">

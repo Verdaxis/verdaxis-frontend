@@ -21,7 +21,7 @@ export const AggregateJourney: React.FC<{ stages: JourneyStage[] }> = ({ stages 
               {t(`pa.journey.source_${stage.source}`)}
             </span>
           </span>
-          <span className="h-3 bg-verdaxis-surface rounded overflow-hidden" aria-hidden>
+          <span className="h-3 bg-verdaxis-dim rounded overflow-hidden" aria-hidden>
             <span
               className="block h-full bg-emerald-500/70"
               style={{ width: `${((stage.total.count ?? 0) / max) * 100}%` }}
