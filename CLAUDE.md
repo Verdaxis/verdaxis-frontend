@@ -17,7 +17,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
 - **AI Copilot:** Chat UI and tool-calling loop backed by backend `/api/ai/chat`; no client-side Gemini key
-- **Auth:** JWT tokens stored in `localStorage`, validated against backend `/api/auth/me`
+- **Auth:** short-lived access tokens kept in memory, restored through backend `/api/auth/refresh` with an HttpOnly refresh cookie, then validated through `/api/auth/me`
 - **Testing:** Vitest + React Testing Library + jsdom
 - **Linting:** No ESLint configuration present. Consider adding one for consistency.
 
@@ -29,7 +29,9 @@ All routes are defined in `src/App.tsx`. There are three route groups:
 2. **Public routes** (`/`, `/how-it-works`, `/fuels`, `/education/:slug`, etc.) -- wrapped in `PublicLayout`
 3. **Authenticated app** (`/app`) -- wrapped in `ProtectedRoute` > `RequireOrganization` > `RequireProfile`
 
-The authenticated `/app` route renders a `Dashboard` component that uses **in-app navigation via state** (not URL routes). The `currentPage` state variable determines which view is rendered (MAP, MARKETPLACE, FLEET, TERMINAL, etc.). Navigation between app pages happens through the sidebar, not through URL changes.
+The authenticated `/app` route is a **layout route** (`DashboardLayout`): every view is a nested URL route (`/app/home`, `/app/map`, `/app/marketplace`, `/app/curve`, `/app/watchlist`, `/app/analytics`, `/app/trades`, `/app/quotes`, `/app/compliance`, `/app/training`, `/app/settings`, `/app/admin`). Marketplace slices are deep-linkable via `/app/m/:product/:port/:window` (codec: `src/utils/sliceUrl.ts`). The legacy `Page` enum still names pages for the sidebar, sessionStorage persistence, and the `data-dashboard-page` dogfood contract; `PAGE_SLUGS` in `types.ts` maps each `Page` to its slug. Bare `/app` restores the last visited page from `sessionStorage.verdaxis_currentPage`. Sidebar items are `NavLink`s (real anchors -- cmd/middle-click works).
+
+**Gotcha:** a view having a render case does not mean it is reachable. The old `TERMINAL` view was archived in 2026-07 after its sidebar entry had been absent since the 2026-04 pilot cleanup. Check the sidebar's link list before treating a view as live.
 
 **Auth guard chain:** `ProtectedRoute` (must be logged in) -> `RequireOrganization` (must have org) -> `RequireProfile` (must have role set, else redirect to `/onboarding`).
 
@@ -37,13 +39,13 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Every request includes `Authorization: Bearer <token>` from `localStorage`.
+- **Auth:** Every authenticated request includes `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
 ## Key Conventions
 
-- **ViewMode pattern:** The app supports two roles: `BUYER` and `SUPPLIER`. The `viewMode` state in `Dashboard` determines which sidebar items and which page components render. Supplier users default to `SUPPLIER` mode.
+- **ViewMode pattern:** The app supports two roles: `BUYER` and `SUPPLIER`. The `viewMode` state in `DashboardLayout` determines which sidebar items and which page components render. Supplier users default to `SUPPLIER` mode.
 - **Component exports:** Named exports throughout (e.g., `export const BuyerMap`). Default exports only on pages used by route definitions.
 - **Styling:** Tailwind utility classes inline. Dark mode uses `dark:` prefix classes. The `dark` class is toggled on `<html>` by ThemeContext.
 - **Icons:** Always from `lucide-react`. Import only the icons you need.
@@ -63,25 +65,46 @@ The authenticated `/app` route renders a `Dashboard` component that uses **in-ap
 
 ## Deployment
 
-**Server:** `verdaxis-prod@144.126.151.136`
-**Site:** `app.verdaxis.exchange` (served by Caddy from `~/verdaxis-frontend/dist`)
-**API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
+CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
 
-### Deploy command (from local machine)
+**Server:** `verdaxis-prod@144.126.151.136`
+**Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
+**Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
+**API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
+**Staging API:** `api-staging.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8001`)
+
+### Build commands
 
 ```bash
-ssh verdaxis-prod@144.126.151.136 "cd ~/verdaxis-frontend && git pull && rm -rf dist && npm run build"
+npm run build:prod
+npm run build:staging
 ```
 
-**IMPORTANT:** Always `rm -rf dist` before `npm run build`. Vite generates hashed JS filenames on each build. If stale `dist/index.html` references an old hash, the site breaks with:
+### Deploy command
+
+Build a verified artifact, then rsync `dist/` into the Caddy-served folder for the target environment.
+
+```bash
+bash ./scripts/deploy.sh prod
+rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/prod/fe/dist/
+npm run smoke:live -- prod
+
+bash ./scripts/deploy.sh staging
+rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/staging/fe/dist/
+npm run smoke:live -- staging
+```
+
+**IMPORTANT:** Deploy with `rsync -a --delete dist/ .../dist/` so stale hashed assets are removed. Vite generates hashed JS filenames on each build. If stale `dist/index.html` references an old hash, the site breaks with:
 > "Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"
 
 ### Verify deployment
 
 ```bash
-ssh verdaxis-prod@144.126.151.136 "grep 'src=\"/assets' ~/verdaxis-frontend/dist/index.html && ls ~/verdaxis-frontend/dist/assets/*.js"
+npm run smoke:live
 ```
-Both should show the same filename hash.
+This checks prod and staging HTML, hashed bundle API targets, backend health, the four market products, the eight delivery points, and the forward-curve endpoint with required params.
+
+For dashboard navigation dogfood, install the browser harness once with `npm run smoke:navigation:setup`, then run `npm run smoke:navigation -- --target local|staging|prod` with `VERDAXIS_SMOKE_EMAIL` and `VERDAXIS_SMOKE_PASSWORD`. `VERDAXIS_SMOKE_TOKEN` is supported for local/generated-token runs, but live prod/staging smoke should prefer UI login credentials so access tokens are not placed in app URLs.
 
 ## Local Development
 
@@ -93,20 +116,27 @@ npm run dev
 
 ## Environment Configuration
 
-Production API URL is set in `.env.production` (committed to git). Vite automatically uses this file during `vite build`, so the correct URL is always baked in regardless of what `.env` exists on the server.
+Production API URL is set in `.env.production` and staging API URL is set in `.env.staging`. Vite loads the correct file from `vite build --mode production` or `vite build --mode staging`, and `scripts/deploy.sh` also passes the target API URL explicitly.
 
 - **`.env`** — local dev only (`VITE_API_URL=/api`), gitignored
 - **`.env.production`** — production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
+- **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
 
-**Never set `VITE_API_URL` in the server's `.env` file.** The `.env.production` file handles it automatically. Setting it in `.env` on the server risks mixed-content errors if the value is wrong.
+Behavioral analytics is optional. Set both `VITE_ANALYTICS_HOST` and
+`VITE_ANALYTICS_WEBSITE_ID` to load the Umami tracker; leaving either blank
+keeps analytics fully disabled. These are public collector coordinates only.
+Umami credentials must remain backend-only and must never use the `VITE_`
+prefix. See `docs/behavioral-analytics.md` for the privacy and event contract.
+
+**Never rely on the server's `.env` file for production/staging builds.** Use the explicit build mode or `scripts/deploy.sh`; otherwise the wrong API can be baked into the bundle.
 
 ## Known Gotchas
 
 - **API returns numbers as strings.** Always wrap numeric fields (`quantity_mt`, `final_quantity_mt`, `price_per_mt_usd`, `final_price_per_mt`, `final_total_usd`) with `Number()` before arithmetic or `.toFixed()` calls.
 - **Never commit `dist/` to git.** It's in `.gitignore`. If it gets force-added, run `git rm -r --cached dist/` to untrack it.
 - **RFQ UI is archived by default.** The code remains behind `VITE_ENABLE_RFQ=true`; orderbook/listing flows are the default marketplace model.
-- **In-app navigation is state-based, not URL-based.** The `/app` route renders all authenticated views. Changing pages updates `currentPage` state, not the URL. Do not add new react-router routes for authenticated pages -- add new `Page` type values and handle them in `Dashboard.renderContent()`.
+- **In-app navigation is URL-routed.** Every authenticated view is a nested route under `/app` (see Routing). New authenticated pages need a child route in `App.tsx` plus a `Page` value and `PAGE_SLUGS` entry in `types.ts` so the sidebar, session restore, and `data-dashboard-page` contract keep working.
 - **AI keys must stay server-side.** `vite.config.ts` intentionally does not inject API keys into the client bundle; all Gemini calls go through backend `/api/ai/chat`.
 - **Authentik is historical only.** Authentik docs/env examples may exist for reference, but runtime auth is Verdaxis JWT. Do not add Authentik/OIDC dependencies back into the app.
 <!-- codesight-local:start -->

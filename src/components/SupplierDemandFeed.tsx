@@ -2,14 +2,30 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Handshake, ArrowRight, TrendingUp } from 'lucide-react';
 import { OrderBookOrder, Page } from '../types';
 import { api } from '../services/api';
+import type { MarketSlice } from '../utils/sliceUrl';
 
 interface SupplierDemandFeedProps {
     onNavigate: (page: Page) => void;
+    onOpenSlice?: (slice: MarketSlice) => void;
 }
 
-export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNavigate }) => {
+export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNavigate, onOpenSlice }) => {
     const [bids, setBids] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Slice-aware handoff when the bid pins down a full slice; otherwise
+    // fall back to the generic Marketplace view.
+    const openBid = (bid: OrderBookOrder) => {
+        if (onOpenSlice && bid.market_product && bid.delivery_point_name && bid.availability_window) {
+            onOpenSlice({
+                product: bid.market_product,
+                port: bid.delivery_point_name,
+                window: bid.availability_window,
+            });
+            return;
+        }
+        onNavigate('MARKETPLACE');
+    };
 
     const fetchBids = useCallback(async () => {
         try {
@@ -66,7 +82,7 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
                     {bids.map(bid => (
                         <button
                             key={bid.id}
-                            onClick={() => onNavigate('MARKETPLACE')}
+                            onClick={() => openBid(bid)}
                             className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 border border-slate-100 dark:border-slate-700/50 transition-colors group text-left"
                         >
                             <div className="flex-1 min-w-0">

@@ -59,7 +59,7 @@ const ForcePasswordChangePage: React.FC = () => {
       setConfirmPassword('');
 
       if (data.access_token) {
-        await login(data.access_token, data.refresh_token);
+        await login(data.access_token);
       }
     } catch {
       setMessage({ type: 'error', text: t('security.errorNetwork') });

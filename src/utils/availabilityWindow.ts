@@ -1,8 +1,8 @@
 export const SPOT_WINDOW = 'SPOT';
 
-const MONTH_WINDOW_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/;
-const QUARTER_WINDOW_RE = /^(?<year>\d{4})-Q(?<quarter>[1-4])$/;
-const CALENDAR_WINDOW_RE = /^(?<year>\d{4})-CAL$/;
+export const MONTH_WINDOW_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/;
+export const QUARTER_WINDOW_RE = /^(?<year>\d{4})-Q(?<quarter>[1-4])$/;
+export const CALENDAR_WINDOW_RE = /^(?<year>\d{4})-CAL$/;
 
 const LEGACY_WINDOW_ALIASES: Record<string, string> = {
     SPOT: SPOT_WINDOW,

@@ -230,6 +230,19 @@ export interface OrderBookOrder {
     certifications: string[];
     is_verdaxis_verified: boolean;
     carbon_intensity_gco2_mj?: number | null;
+    carbon_intensity_method?: string | null;
+    certification_declared?: boolean;
+    certification_scheme?: string | null;
+    specification_standard?: string | null;
+    msds_available?: boolean;
+    feedstock?: string | null;
+    origin?: string | null;
+    off_spec?: boolean;
+    off_spec_notes?: string | null;
+    benchmark_price_per_mt_usd?: number | string | null;
+    benchmark_source?: string | null;
+    premium_discount_per_mt_usd?: number | string | null;
+    is_crossed?: boolean;
     tier_label: TierLabel;
     status: OrderBookStatus;
     expires_at?: string;
@@ -390,7 +403,30 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'TERMINAL' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+
+// URL slug under /app for every legacy Page value. Legacy pages that no
+// longer have their own view (INVENTORY, ORDERBOOK, DEMAND_FEED) map to
+// the page that renders today; both ANALYTICS variants share one path
+// and viewMode picks the component.
+export const PAGE_SLUGS: Record<Page, string> = {
+    MAP: 'map',
+    MARKETPLACE: 'marketplace',
+    COMPLIANCE: 'compliance',
+    TRAINING: 'training',
+    SETTINGS: 'settings',
+    DASHBOARD: 'home',
+    QUOTES: 'quotes',
+    INVENTORY: 'home',
+    FORWARD_CURVE: 'curve',
+    ANALYTICS: 'analytics',
+    ORDERBOOK: 'marketplace',
+    DEMAND_FEED: 'marketplace',
+    TRADES: 'trades',
+    ADMIN: 'admin',
+    WATCHLISTS: 'watchlist',
+    DATA_ANALYTICS: 'analytics',
+};
 
 // ============== Data Products Types ==============
 export interface ForwardCurvePoint {
@@ -862,4 +898,34 @@ export interface WatchlistEvent {
 export interface WatchlistEventsPage {
     items: WatchlistEvent[];
     next_cursor?: string | null;
+}
+
+// ─── Compliance pricing overlay (H1.2) ─────────────────────────────
+// Decimals arrive as strings; coerce with Number() at render time.
+
+export interface ListingComplianceOverlay {
+    penalty_avoided_eur_per_mt: string;
+    penalty_avoided_usd_per_mt: string;
+    tco2e_avoided_per_mt: string;
+    ci_gco2_mj: string;
+    ci_basis: 'LISTING' | 'PRODUCT_DEFAULT';
+    lcv_mj_kg: string;
+    lcv_basis: 'LISTING' | 'PRODUCT_DEFAULT';
+}
+
+export interface ComplianceOverlayAssumptions {
+    eur_usd_rate: string;
+    vlsfo_baseline_gco2_mj: string;
+    ghgie_actual_gco2_mj: string;
+    fleet_intensity_basis: 'ORG_FLEET' | 'DEFAULT_VLSFO';
+    fleet_vessel_count: number;
+    penalty_eur_per_tonne: string;
+    year: number;
+    year_target: string;
+    excluded_factors: string[];
+}
+
+export interface PricingOverlayResponse {
+    overlays: Record<string, ListingComplianceOverlay | null>;
+    assumptions: ComplianceOverlayAssumptions;
 }

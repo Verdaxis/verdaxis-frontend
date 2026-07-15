@@ -5,6 +5,7 @@ import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
+import { analytics } from '../services/analytics';
 
 const ISO_COUNTRY_CODES = [
   'AF', 'AX', 'AL', 'DZ', 'AS', 'AD', 'AO', 'AI', 'AQ', 'AG', 'AR', 'AM', 'AW', 'AU', 'AT', 'AZ',
@@ -376,6 +377,14 @@ const CreateOrganizationPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const organizationSide = CREATE_ORGANIZATION_ORG_TYPES.find(type => type.value === formData.type)?.side;
+    if (organizationSide && formData.country_code) {
+      analytics.track('signup_organization_submitted', {
+        role: organizationSide === 'SELLER' ? 'SUPPLIER' : 'BUYER',
+        organization_type: formData.type,
+        country: formData.country_code,
+      });
+    }
     setError(null);
     setIsSubmitting(true);
 

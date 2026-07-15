@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff } from 'lucide-react';
+import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff, Shield } from 'lucide-react';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
 import { api } from '../services/api';
 import { MapLegend } from './map/MapLegend';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
+import { SECA_ZONE_COLLECTION, SECA_ZONE_LAYER_IDS } from '../data/secaZones';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -38,22 +38,35 @@ const getSpreadColor = (spreadPct: number): string => {
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 
+type SecaOverlayShape = {
+    id: string;
+    name: string;
+    shortLabel: string;
+    note: string;
+    status: 'active' | 'phase-in';
+    path: string;
+    labelX: number;
+    labelY: number;
+};
+
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
-    const { setPageContext } = useCopilotContext();
     const [ports, setPorts] = useState<Port[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showOverlays, setShowOverlays] = useState(true);
+    const [showSecaZones, setShowSecaZones] = useState(true);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
+    const [secaOverlayShapes, setSecaOverlayShapes] = useState<SecaOverlayShape[]>([]);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
+    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
@@ -69,12 +82,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 setPorts(approvedPorts);
                 setListings(listingsData);
                 setAggregatedData(aggData);
-                setPageContext({
-                    view: 'Global Intelligence Map',
-                    available_ports: approvedPorts.length,
-                    port_names: approvedPorts.map((p: Port) => p.name),
-                    summary: "User is viewing the global interactive map showing low-carbon fuel market depth and vessel movements."
-                });
             } catch (e) {
                 console.error("Failed to load map data", e);
             } finally {
@@ -116,10 +123,83 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         }, [])
     ), [approvedListingLocationMap, listings]);
 
-    const handleMarkerClick = useCallback((portId: string) => {
-        setSelectedPortId(portId);
+    const focusMapPort = useCallback((port: Port, options: { flyTo?: boolean } = {}) => {
+        setSelectedPortId(port.id);
         setIsPanelOpen(true);
+        if (options.flyTo) {
+            mapRef.current?.flyTo({
+                center: [port.location.lng, port.location.lat],
+                zoom: Math.max(mapRef.current.getZoom(), 3.6),
+                duration: 700,
+                essential: true,
+            });
+        }
     }, []);
+
+    const handleMarkerClick = useCallback((portId: string) => {
+        const port = ports.find(item => item.id === portId);
+        if (!port) return;
+        focusMapPort(port);
+    }, [focusMapPort, ports]);
+
+    const handlePanelPortSelect = useCallback((port: Port) => {
+        focusMapPort(port, { flyTo: true });
+        if (popupRef.current) {
+            popupRef.current.remove();
+            popupRef.current = null;
+        }
+    }, [focusMapPort]);
+
+    const focusSecaZones = useCallback(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        setShowOverlays(true);
+        setShowSecaZones(true);
+        map.fitBounds([[-11, 29], [37, 67]], {
+            padding: {
+                top: 130,
+                bottom: 80,
+                left: 80,
+                right: isPanelOpen ? 380 : 80,
+            },
+            duration: 850,
+            essential: true,
+        });
+    }, [isPanelOpen]);
+
+    const updateSecaOverlayShapes = useCallback(() => {
+        const map = mapRef.current;
+        if (!map || !showOverlays || !showSecaZones) {
+            setSecaOverlayShapes([]);
+            return;
+        }
+
+        const shapes = SECA_ZONE_COLLECTION.features.map((feature) => {
+            const ring = feature.geometry.coordinates[0] ?? [];
+            const projected = ring.map(([lng, lat]) => map.project([lng, lat]));
+            if (projected.length < 3) return null;
+
+            const path = projected
+                .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+                .join(' ') + ' Z';
+            const labelPoints = projected.slice(0, -1);
+            const labelX = labelPoints.reduce((sum, point) => sum + point.x, 0) / labelPoints.length;
+            const labelY = labelPoints.reduce((sum, point) => sum + point.y, 0) / labelPoints.length;
+
+            return {
+                id: feature.properties.id,
+                name: feature.properties.name,
+                shortLabel: feature.properties.shortLabel,
+                note: feature.properties.note,
+                status: feature.properties.status,
+                path,
+                labelX,
+                labelY,
+            };
+        }).filter((shape): shape is SecaOverlayShape => Boolean(shape));
+
+        setSecaOverlayShapes(shapes);
+    }, [showOverlays, showSecaZones]);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
@@ -184,8 +264,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     useEffect(() => {
         if (loading || !mapContainer.current || mapRef.current) return;
 
-        const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
-
         const map = new maplibregl.Map({
             container: mapContainer.current,
             style: {
@@ -248,6 +326,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         color: spreadColor,
                         priceMethanol: port.priceMethanol,
                         totalVolume: mkt.totalVolume,
+                        selected: port.id === selectedPortId,
                     },
                 };
             });
@@ -268,7 +347,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         'circle-radius': ['get', 'radius'],
                         'circle-color': isDark ? '#1E293B' : '#FFFFFF',
                         'circle-opacity': 0.85,
-                        'circle-stroke-width': 2,
+                        'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
                         'circle-stroke-color': ['get', 'color'],
                     },
                 });
@@ -400,7 +479,135 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         } else {
             map.once('load', addPortLayers);
         }
-    }, [ports, portMarketMap, maxVolume, handleMarkerClick, t]);
+    }, [ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
+
+    // IMO SECA/ECA reference overlays
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const addSecaLayers = () => {
+            const zoneBeforeLayer = map.getLayer('port-fills') ? 'port-fills' : undefined;
+
+            if (!map.getSource('seca-zones')) {
+                map.addSource('seca-zones', {
+                    type: 'geojson',
+                    data: SECA_ZONE_COLLECTION as any,
+                });
+            }
+
+            if (!map.getLayer('seca-zones-fill')) {
+                map.addLayer({
+                    id: 'seca-zones-fill',
+                    type: 'fill',
+                    source: 'seca-zones',
+                    paint: {
+                        'fill-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#F59E0B',
+                            '#38BDF8',
+                        ],
+                        'fill-opacity': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            0.2,
+                            0.26,
+                        ],
+                    },
+                }, zoneBeforeLayer);
+            } else if (zoneBeforeLayer) {
+                map.moveLayer('seca-zones-fill', zoneBeforeLayer);
+            }
+
+            if (!map.getLayer('seca-zones-outline')) {
+                map.addLayer({
+                    id: 'seca-zones-outline',
+                    type: 'line',
+                    source: 'seca-zones',
+                    paint: {
+                        'line-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#D97706',
+                            '#0284C7',
+                        ],
+                        'line-width': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            1.6,
+                            2.2,
+                        ],
+                        'line-opacity': 0.9,
+                    },
+                }, zoneBeforeLayer);
+            } else if (zoneBeforeLayer) {
+                map.moveLayer('seca-zones-outline', zoneBeforeLayer);
+            }
+
+            if (!map.getLayer('seca-zones-label')) {
+                map.addLayer({
+                    id: 'seca-zones-label',
+                    type: 'symbol',
+                    source: 'seca-zones',
+                    layout: {
+                        'text-field': ['get', 'shortLabel'],
+                        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 10, 5, 12],
+                        'text-letter-spacing': 0.03,
+                        'text-transform': 'uppercase',
+                        'text-allow-overlap': true,
+                        'symbol-placement': 'point',
+                    },
+                    paint: {
+                        'text-color': [
+                            'case',
+                            ['==', ['get', 'status'], 'phase-in'],
+                            '#92400E',
+                            '#075985',
+                        ],
+                        'text-halo-color': isDark ? '#0F172A' : '#F8FAFC',
+                        'text-halo-width': 1.8,
+                        'text-opacity': 0.95,
+                    },
+                }, zoneBeforeLayer);
+            } else if (zoneBeforeLayer) {
+                map.moveLayer('seca-zones-label', zoneBeforeLayer);
+            }
+        };
+
+        if (map.loaded()) {
+            addSecaLayers();
+        } else {
+            map.once('load', addSecaLayers);
+        }
+    }, [isDark]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const visibility = showOverlays && showSecaZones ? 'visible' : 'none';
+        SECA_ZONE_LAYER_IDS.forEach((layerId) => {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+        });
+    }, [showOverlays, showSecaZones]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        updateSecaOverlayShapes();
+        map.on('move', updateSecaOverlayShapes);
+        map.on('zoom', updateSecaOverlayShapes);
+        map.on('resize', updateSecaOverlayShapes);
+
+        return () => {
+            map.off('move', updateSecaOverlayShapes);
+            map.off('zoom', updateSecaOverlayShapes);
+            map.off('resize', updateSecaOverlayShapes);
+        };
+    }, [loading, updateSecaOverlayShapes]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -526,7 +733,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         );
     }
 
-    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
     const mapChromeStyle = {
         '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
     } as React.CSSProperties;
@@ -536,6 +742,43 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
+                {secaOverlayShapes.length > 0 && (
+                    <svg
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 z-[7] h-full w-full overflow-hidden"
+                    >
+                        {secaOverlayShapes.map((shape) => {
+                            const isPhaseIn = shape.status === 'phase-in';
+                            return (
+                                <g key={shape.id}>
+                                    <path
+                                        d={shape.path}
+                                        fill={isPhaseIn ? '#F59E0B' : '#38BDF8'}
+                                        fillOpacity={isPhaseIn ? 0.14 : 0.18}
+                                        stroke={isPhaseIn ? '#D97706' : '#0284C7'}
+                                        strokeOpacity={0.95}
+                                        strokeWidth={2}
+                                        vectorEffect="non-scaling-stroke"
+                                    />
+                                    <text
+                                        x={shape.labelX}
+                                        y={shape.labelY}
+                                        textAnchor="middle"
+                                        dominantBaseline="middle"
+                                        className="select-none text-[10px] font-black uppercase tracking-wide"
+                                        fill={isPhaseIn ? '#92400E' : '#075985'}
+                                        stroke={isDark ? '#0F172A' : '#F8FAFC'}
+                                        strokeWidth={3}
+                                        paintOrder="stroke"
+                                    >
+                                        {shape.shortLabel}
+                                    </text>
+                                </g>
+                            );
+                        })}
+                    </svg>
+                )}
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showOverlays && (
@@ -628,6 +871,30 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         </span>
                     </button>
 
+                    <button
+                        type="button"
+                        onClick={() => setShowSecaZones(current => !current)}
+                        className={`bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border p-2.5 flex items-center gap-2 transition-colors ${
+                            showOverlays && showSecaZones
+                                ? 'border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10'
+                                : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800'
+                        }`}
+                        title="Show or hide SECA/ECA reference zones"
+                    >
+                        <Shield size={16} />
+                        <span className="text-xs font-bold">
+                            SECA/ECA
+                        </span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={focusSecaZones}
+                        className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-white hover:text-sky-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-300"
+                    >
+                        View zones
+                    </button>
+
                     {/* Product filter — controls which product's spread colors the port circles */}
                     {availableProducts.length > 0 && (
                         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex items-center gap-1">
@@ -678,6 +945,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 isOpen={isPanelOpen}
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}
+                portOptions={ports}
+                onMapPortSelect={handlePanelPortSelect}
                 onPortSelect={onPortSelect}
             />
         </div>

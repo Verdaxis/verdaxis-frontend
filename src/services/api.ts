@@ -1,4 +1,17 @@
-import { Port, Vessel, Supplier, InventoryItem, Notification, Course, PriceDiscoveryResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import {
+    AcquisitionResponse,
+    ActivationResponse,
+    EngagementResponse,
+    MarketplaceResponse,
+    OverviewResponse as ProductAnalyticsOverviewResponse,
+    ProductAnalyticsQueryParams,
+    ReliabilityResponse,
+    RetentionResponse,
+} from '../types/productAnalytics';
+import { reliability } from './analytics';
+import { getAccessToken, refreshAccessToken } from './authToken';
+import { isBackendUnavailableStatus } from './backendAvailability';
 import { API_URL } from './config';
 
 export const mapPortResponse = (p: any): Port => ({
@@ -23,11 +36,8 @@ export const mapPortResponse = (p: any): Port => ({
     }
 });
 
-// Helper to get auth header
-const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
-
 const getHeaders = () => {
-    const token = getToken();
+    const token = getAccessToken();
     return {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -36,42 +46,10 @@ const getHeaders = () => {
 
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
-let refreshInFlight: Promise<string | null> | null = null;
-
-const refreshAccessToken = async (): Promise<string | null> => {
-    if (refreshInFlight) return refreshInFlight;
-
-    refreshInFlight = (async () => {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (!refreshToken) return null;
-        try {
-            const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh_token: refreshToken }),
-            }, 15000);
-            if (!res.ok) return null;
-            const data = await res.json();
-            if (!data?.access_token) return null;
-            localStorage.setItem('token', data.access_token);
-            if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
-            return data.access_token as string;
-        } catch {
-            return null;
-        }
-    })();
-
-    try {
-        return await refreshInFlight;
-    } finally {
-        refreshInFlight = null;
-    }
-};
-
 const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Headers => {
     const merged = new Headers(headers);
     if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
-    const authToken = token || getToken();
+    const authToken = token || getAccessToken();
     if (authToken) {
         merged.set('Authorization', `Bearer ${authToken}`);
     } else {
@@ -82,6 +60,14 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
 
 const handleResponse = async (res: Response) => {
     if (!res.ok) {
+        if (res.status === 429) {
+            // Surface throttling globally — callers routinely swallow request
+            // errors, which made 429s invisible (Sprint 3 item 15). The
+            // ToastProvider listens for this event.
+            window.dispatchEvent(new CustomEvent('verdaxis:rate-limited', {
+                detail: { retryAfter: res.headers.get('Retry-After') },
+            }));
+        }
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
@@ -94,17 +80,44 @@ const handleResponse = async (res: Response) => {
     return res.json();
 };
 
-// Fetch with timeout to prevent indefinite loading spinners
+// Fetch with timeout to prevent indefinite loading spinners.
+// An abort initiated by the CALLER re-throws as a recognizable AbortError so
+// stale-request cancellation never renders an error state; only the internal
+// timeout produces the user-facing timeout message. Listeners and timers are
+// always removed.
 const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000): Promise<Response> => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const externalSignal = options?.signal;
+    let timedOut = false;
+    const abortFromExternalSignal = () => controller.abort();
+    if (externalSignal?.aborted) controller.abort();
+    externalSignal?.addEventListener('abort', abortFromExternalSignal);
+    const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, timeoutMs);
     return fetch(url, { ...options, signal: controller.signal })
         .catch((err) => {
-            if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            if (err instanceof DOMException && err.name === 'AbortError') {
+                if (externalSignal?.aborted && !timedOut) throw err;
+                throw new Error('Request timed out. Please try again.');
+            }
+            if (err?.name === 'AbortError') {
+                if (externalSignal?.aborted && !timedOut) throw err;
+                throw new Error('Request timed out. Please try again.');
+            }
             throw err;
         })
-        .finally(() => clearTimeout(timeout));
+        .finally(() => {
+            clearTimeout(timeout);
+            externalSignal?.removeEventListener('abort', abortFromExternalSignal);
+        });
 };
+
+export const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException
+        ? error.name === 'AbortError'
+        : (error as { name?: string } | null)?.name === 'AbortError';
 
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
@@ -117,7 +130,19 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         headers: withAuthHeader(options?.headers),
     };
 
-    let res = await fetchWithTimeout(url, initialOptions, timeout);
+    let res: Response;
+    try {
+        res = await fetchWithTimeout(url, initialOptions, timeout);
+    } catch (error) {
+        // Best-effort, deduplicated telemetry; the caller's error handling
+        // and the maintenance UI behavior are unchanged. Caller-initiated
+        // aborts are control flow, not failures.
+        if (!isAbortError(error)) reliability.reportFrontendError('network');
+        throw error;
+    }
+    if (isBackendUnavailableStatus(res.status)) {
+        reliability.reportBackendUnavailable();
+    }
 
     if (res.status === 401 && !shouldSkipRefresh(path)) {
         const refreshedToken = await refreshAccessToken();
@@ -141,7 +166,139 @@ export interface PaginatedResult<T> {
     limit: number;
 }
 
+export type ProductUsagePeriod = 7 | 30 | 90;
+export type ProductUsageStatus = 'ready' | 'empty' | 'unavailable';
+
+export interface ProductUsageResponse {
+    behavioralStatus: ProductUsageStatus;
+    diagnosticCategory?: string;
+    observedAt: string | null;
+    periodDays: ProductUsagePeriod;
+    metrics: {
+        visitors: number;
+        visits: number;
+        pageviews: number;
+        totalTimeSeconds: number;
+        averageSessionDurationSeconds: number | null;
+        signupStarts: number;
+        completedRegistrations: number;
+        registrationConversionRate: number | null;
+    };
+    funnel: Array<{ key: string; count: number; conversionRate: number | null }>;
+    daily: Array<{ date: string; visitors: number; completedRegistrations: number | null }>;
+    featureUsage: Array<{ event: string; count: number }>;
+    topEntryPages: Array<{ value: string; count: number }>;
+    topReferrers: Array<{ value: string; count: number }>;
+}
+
+const PRODUCT_USAGE_EVENTS = new Set([
+    'platform_navigation', 'market_slice_selected', 'listing_opened', 'order_form_opened', 'order_form_submitted',
+    'trade_confirmation_opened', 'tutorial_started', 'tutorial_step_completed',
+    'tutorial_step_skipped', 'tutorial_completed', 'estimator_opened', 'estimator_completed',
+]);
+
+const PRODUCT_USAGE_FUNNEL_KEYS: Record<string, string> = {
+    visitors: 'landing_visitors',
+    signup_started: 'signup_starts',
+    registrations: 'completed_registrations',
+    users_logging_in: 'active_logins',
+    order_placing_organizations: 'order_creating_organizations',
+};
+
+const mapProductUsageResponse = (data: any): ProductUsageResponse => {
+    const behavioral = data.behavioral ?? {};
+    const authoritative = data.authoritative ?? {};
+    const eventTotals = behavioral.event_totals && typeof behavioral.event_totals === 'object' ? behavioral.event_totals : {};
+    const signupStarts = Number(eventTotals.signup_started ?? 0);
+    const completedRegistrations = Number(authoritative.registrations ?? 0);
+    const hasActivity = Number(behavioral.visitors ?? 0) > 0
+        || Number(behavioral.visits ?? 0) > 0
+        || Object.values(eventTotals).some(value => Number(value) > 0)
+        || completedRegistrations > 0
+        || Number(authoritative.users_logging_in ?? 0) > 0
+        || Number(authoritative.order_placing_organizations ?? 0) > 0;
+    const available = data.behavioral_status === 'available';
+    return {
+    behavioralStatus: available ? (hasActivity ? 'ready' : 'empty') : 'unavailable',
+    diagnosticCategory: data.diagnostic ?? undefined,
+    observedAt: data.observed_at ?? null,
+    periodDays: data.days,
+    metrics: {
+        visitors: Number(behavioral.visitors ?? 0),
+        visits: Number(behavioral.visits ?? 0),
+        pageviews: Number(behavioral.pageviews ?? 0),
+        totalTimeSeconds: Number(behavioral.total_time_seconds ?? 0),
+        averageSessionDurationSeconds: available ? Number(behavioral.average_session_duration_seconds ?? 0) : null,
+        signupStarts,
+        completedRegistrations,
+        registrationConversionRate: available && signupStarts > 0 && completedRegistrations <= signupStarts
+            ? completedRegistrations / signupStarts
+            : null,
+    },
+    funnel: Array.isArray(data.funnel) ? data.funnel.map((item: any) => ({
+        key: PRODUCT_USAGE_FUNNEL_KEYS[String(item.name)] ?? String(item.name),
+        count: Number(item.value ?? 0),
+        conversionRate: item.conversion_from_previous_pct == null
+            || Number(item.conversion_from_previous_pct) < 0
+            || Number(item.conversion_from_previous_pct) > 100
+            ? null
+            : Number(item.conversion_from_previous_pct) / 100,
+    })) : [],
+    daily: Array.isArray(behavioral.daily_visitors) ? behavioral.daily_visitors.map((item: any) => ({
+        date: String(item.date),
+        visitors: Number(item.value ?? 0),
+        completedRegistrations: null,
+    })) : [],
+    featureUsage: Object.entries(eventTotals)
+        .filter(([event]) => PRODUCT_USAGE_EVENTS.has(event))
+        .map(([event, count]) => ({ event, count: Number(count ?? 0) }))
+        .sort((a, b) => b.count - a.count),
+    topEntryPages: Array.isArray(behavioral.top_entries) ? behavioral.top_entries.map((item: any) => ({ value: String(item.name), count: Number(item.value ?? 0) })) : [],
+    topReferrers: Array.isArray(behavioral.top_referrers) ? behavioral.top_referrers.map((item: any) => ({ value: String(item.name), count: Number(item.value ?? 0) })) : [],
+    };
+};
+
+
+// Product Analytics query serialization: defaults are omitted so cache keys
+// and URLs stay canonical.
+const productAnalyticsSearch = (query: ProductAnalyticsQueryParams): string => {
+    const params = new URLSearchParams();
+    params.set('start', query.start);
+    params.set('end', query.end);
+    if (query.compare === false) params.set('compare', 'false');
+    if (query.audience && query.audience !== 'ALL') params.set('audience', query.audience);
+    if (query.activity && query.activity !== 'LIVE') params.set('activity', query.activity);
+    if (query.product_id) params.set('product_id', query.product_id);
+    if (query.delivery_point_id) params.set('delivery_point_id', query.delivery_point_id);
+    if (query.availability_window) params.set('availability_window', query.availability_window);
+    return params.toString();
+};
+
+const productAnalyticsTab = <T>(tab: string) =>
+    (query: ProductAnalyticsQueryParams, signal?: AbortSignal): Promise<T> =>
+        fetchApi(
+            `/admin/analytics/product-analytics/${tab}?${productAnalyticsSearch(query)}`,
+            { signal },
+        ) as Promise<T>;
+
 export const api = {
+    preferences: {
+        getAll: async (): Promise<Record<string, unknown>> => {
+            const data: unknown = await fetchApi('/users/me/preferences', { headers: getHeaders() });
+            if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+                throw new Error('Malformed preferences response');
+            }
+            return data as Record<string, unknown>;
+        },
+        put: async (namespace: string, value: unknown): Promise<void> => {
+            await fetchApi(`/users/me/preferences/${encodeURIComponent(namespace)}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify(value),
+            });
+        },
+    },
+
     ports: {
         list: async (): Promise<Port[]> => {
             const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
@@ -194,6 +351,15 @@ export const api = {
         }
     },
 
+    productAnalytics: {
+        overview: productAnalyticsTab<ProductAnalyticsOverviewResponse>('overview'),
+        acquisition: productAnalyticsTab<AcquisitionResponse>('acquisition'),
+        activation: productAnalyticsTab<ActivationResponse>('activation'),
+        engagement: productAnalyticsTab<EngagementResponse>('engagement'),
+        marketplace: productAnalyticsTab<MarketplaceResponse>('marketplace'),
+        retention: productAnalyticsTab<RetentionResponse>('retention'),
+        reliability: productAnalyticsTab<ReliabilityResponse>('reliability'),
+    },
     compliance: {
         fleet: async () => {
             const res = await fetchWithTimeout(`${API_URL}/compliance/fleet`, { headers: getHeaders() });
@@ -211,16 +377,18 @@ export const api = {
             }, 30000);
             return handleResponse(res);
         },
+        pricingOverlay: async (orderIds: string[]): Promise<PricingOverlayResponse> => {
+            const res = await fetchWithTimeout(`${API_URL}/compliance/pricing-overlay`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ order_ids: orderIds }),
+            });
+            return handleResponse(res);
+        },
         fuels: async () => {
             const res = await fetchWithTimeout(`${API_URL}/compliance/fuels`);
             return handleResponse(res);
         },
-    },
-
-    suppliers: {
-        list: async (query?: string): Promise<Supplier[]> => {
-             return [];
-        }
     },
 
     inventory: {
@@ -331,23 +499,6 @@ export const api = {
                 headers: getHeaders()
             }, 30000);
             return handleResponse(res);
-        }
-    },
-
-    training: {
-        list: async (): Promise<Course[]> => {
-             return [
-                 {
-                     id: '1',
-                     title: 'Methanol Safety',
-                     duration: '2h',
-                     description: 'Basics of methanol bunkering safety',
-                     category: 'Safety',
-                     requiredForFuel: ['Methanol'],
-                     level: 'Beginner',
-                     syllabus: ['Introduction', 'Properties', 'Hazards', 'Response']
-                 }
-             ];
         }
     },
 
@@ -623,6 +774,10 @@ export const api = {
         daily: async (days: number = 30) => {
             return fetchApi(`/admin/analytics/daily?days=${days}`, { headers: getHeaders() });
         },
+        productUsage: async (days: ProductUsagePeriod): Promise<ProductUsageResponse> => {
+            const data = await fetchApi(`/admin/analytics/product-usage?days=${days}`, { headers: getHeaders() });
+            return mapProductUsageResponse(data);
+        },
         auditLogs: async (params?: { action?: string; limit?: number }) => {
             const searchParams = new URLSearchParams();
             if (params?.action) searchParams.append('action', params.action);
@@ -669,9 +824,10 @@ export const api = {
             searchParams.append('availability_window', params.availability_window);
             return fetchApi(`/curves/forward/slice?${searchParams.toString()}`);
         },
-        exportCsvUrl: (product_id: string): string => {
+        exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', product_id);
+            if (delivery_point_id) searchParams.append('delivery_point_id', delivery_point_id);
             searchParams.append('format', 'csv');
             return `${API_URL}/curves/forward/export?${searchParams.toString()}`;
         },

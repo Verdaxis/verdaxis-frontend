@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
 
 function Probe() {
   const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth } = useAuth();
@@ -36,6 +37,7 @@ describe('AuthProvider token bootstrap', () => {
   });
 
   afterEach(() => {
+    clearAccessToken();
     global.fetch = originalFetch;
     window.history.replaceState({}, '', '/');
   });
@@ -66,7 +68,7 @@ describe('AuthProvider backend availability', () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
-    localStorage.setItem('token', 'still-valid-locally');
+    setAccessToken('still-valid-locally');
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
@@ -76,12 +78,12 @@ describe('AuthProvider backend availability', () => {
   });
 
   afterEach(() => {
-    localStorage.clear();
+    clearAccessToken();
     global.fetch = originalFetch;
     window.history.replaceState({}, '', '/');
   });
 
-  it('keeps the session token and marks the backend unavailable on gateway failure', async () => {
+  it('keeps the in-memory token and marks the backend unavailable on gateway failure', async () => {
     render(
       <AuthProvider>
         <Probe />
@@ -94,6 +96,6 @@ describe('AuthProvider backend availability', () => {
 
     expect(screen.getByTestId('backend-unavailable').textContent).toBe('true');
     expect(screen.getByTestId('authenticated').textContent).toBe('false');
-    expect(localStorage.getItem('token')).toBe('still-valid-locally');
+    expect(getAccessToken()).toBe('still-valid-locally');
   });
 });

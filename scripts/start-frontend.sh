@@ -1,6 +1,8 @@
 #!/bin/bash
-# start-frontend.sh - Start or restart the Vite dev server
-# Run this on the VPS
+# start-frontend.sh - Local development helper only.
+#
+# Production and staging are static Vite builds served by Caddy. Use
+# scripts/deploy.sh to build artifacts for those environments.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,27 +13,14 @@ echo "Timestamp: $(date)"
 
 cd "$FRONTEND_DIR"
 
-# Kill any existing vite processes
-echo ">>> Stopping existing Vite processes..."
-pkill -f "vite" || echo "No existing Vite process found"
-sleep 1
-
 # Install dependencies if node_modules is missing or package.json changed
 if [ ! -d "node_modules" ] || [ "package.json" -nt "node_modules" ]; then
     echo ">>> Installing dependencies..."
     npm install
 fi
 
-# Create or Overwrite .env
-echo ">>> Updating .env file..."
-cat > .env << 'EOF'
-VITE_API_URL=http://144.126.151.136:8000
-VITE_AUTHENTIK_URL=http://144.126.151.136:9000
-VITE_AUTHENTIK_CLIENT_ID=verdaxis-client-id
-EOF
-
-# Start the dev server in background
 echo ">>> Starting Vite dev server on 0.0.0.0:5173..."
+echo ">>> API target comes from .env or defaults in src/services/config.ts."
 nohup npm run dev -- --host 0.0.0.0 --port 5173 > frontend.log 2>&1 &
 
 # Wait and check if it started

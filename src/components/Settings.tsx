@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ReferralsTab } from './ReferralsTab';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { useServerPreference } from '../hooks/useServerPreference';
 
 interface SettingsProps {
     viewMode: ViewMode;
@@ -19,6 +20,40 @@ interface ThemeOptionProps {
 }
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'billing' | 'referrals';
+const NOTIFICATION_PREFS_KEY = 'verdaxis_notif_prefs';
+const NOTIFICATION_PREF_KEYS = [
+    'email_trade_updates',
+    'email_market_alerts',
+    'email_compliance_digest',
+    'email_system_announcements',
+    'inapp_trade_updates',
+    'inapp_market_alerts',
+    'inapp_order_matches',
+] as const;
+
+type NotificationPreferenceKey = typeof NOTIFICATION_PREF_KEYS[number];
+type NotificationPreferences = Record<NotificationPreferenceKey, boolean>;
+
+const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
+    email_trade_updates: true,
+    email_market_alerts: true,
+    email_compliance_digest: true,
+    email_system_announcements: true,
+    inapp_trade_updates: true,
+    inapp_market_alerts: true,
+    inapp_order_matches: true,
+};
+
+const sanitizeNotificationPreferences = (raw: unknown): NotificationPreferences | null => {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+    const record = raw as Record<string, unknown>;
+    if (!NOTIFICATION_PREF_KEYS.every(key => typeof record[key] === 'boolean')) return null;
+
+    return NOTIFICATION_PREF_KEYS.reduce<NotificationPreferences>((prefs, key) => ({
+        ...prefs,
+        [key]: record[key] === true,
+    }), { ...DEFAULT_NOTIFICATION_PREFS });
+};
 
 const ThemeOption: React.FC<ThemeOptionProps> = ({ label, icon, active, onClick }) => (
     <button
@@ -64,21 +99,12 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const [showNewPw, setShowNewPw] = useState(false);
     const [pwLoading, setPwLoading] = useState(false);
     const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-    const [notifPrefs, setNotifPrefs] = useState(() => {
-        try {
-            const saved = localStorage.getItem('verdaxis_notif_prefs');
-            if (saved) return JSON.parse(saved);
-        } catch { /* ignore */ }
-        return {
-            email_trade_updates: true,
-            email_market_alerts: true,
-            email_compliance_digest: true,
-            email_system_announcements: true,
-            inapp_trade_updates: true,
-            inapp_market_alerts: true,
-            inapp_order_matches: true,
-        };
-    });
+    const [notifPrefs, setNotifPrefs] = useServerPreference<NotificationPreferences>(
+        'notifications',
+        NOTIFICATION_PREFS_KEY,
+        sanitizeNotificationPreferences,
+        DEFAULT_NOTIFICATION_PREFS,
+    );
 
     const firstName = user?.first_name || '';
     const lastName = user?.last_name || '';
@@ -106,7 +132,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
             });
             if (res.ok) {
                 const data = await res.json();
-                if (data.access_token) await login(data.access_token, data.refresh_token);
+                if (data.access_token) await login(data.access_token);
                 setPwMessage({ type: 'success', text: t('security.successMsg') });
                 setCurrentPassword('');
                 setNewPassword('');
@@ -122,12 +148,8 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         }
     };
 
-    const toggleNotifPref = (key: keyof typeof notifPrefs) => {
-        setNotifPrefs((prev: typeof notifPrefs) => {
-            const next = { ...prev, [key]: !prev[key] };
-            localStorage.setItem('verdaxis_notif_prefs', JSON.stringify(next));
-            return next;
-        });
+    const toggleNotifPref = (key: NotificationPreferenceKey) => {
+        setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     if (!ready) return null;
@@ -303,7 +325,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                         {/* Professional */}
                                         <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5DADE2]/30 transition-colors">
                                             <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Professional</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Full terminal access, forward curves to 2030, price alerts, S&D analytics</p>
+                                            <p className="text-xs text-slate-500 mt-1">Full market monitoring, forward curves to 2030, price alerts, S&D analytics</p>
                                             <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">/seat/month</span></p>
                                             <p className="text-[10px] text-slate-400">+ $1.50/MT commission</p>
                                             <button className="mt-3 w-full py-2 rounded-lg bg-[#5DADE2]/10 text-[#5DADE2] text-xs font-bold hover:bg-[#5DADE2]/20 transition-colors border border-[#5DADE2]/20">

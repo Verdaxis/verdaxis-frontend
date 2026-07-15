@@ -2,10 +2,10 @@
 
 ## Environment Variables
 
+- `VERDAXIS_SMOKE_EMAIL` **required** — scripts/smoke_navigation.py
+- `VERDAXIS_SMOKE_PASSWORD` **required** — scripts/smoke_navigation.py
+- `VERDAXIS_SMOKE_TOKEN` **required** — scripts/smoke_navigation.py
 - `VITE_API_URL` (has default) — .env.example
-- `VITE_AUTHENTIK_CLIENT_ID` (has default) — .env.example
-- `VITE_AUTHENTIK_URL` (has default) — .env.example
-- `VITE_ENABLE_RFQ` **required** — src/components/Marketplace.tsx
 
 ## Config Files
 

@@ -5,8 +5,9 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate } = vi.hoisted(() => ({
+const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
+  pricingOverlay: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
   listBidsPaged: vi.fn(),
@@ -23,12 +24,6 @@ const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, li
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: { role: userRole.current },
-  }),
-}));
-
-vi.mock('../context/CopilotContext', () => ({
-  useCopilotContext: () => ({
-    setPageContext: vi.fn(),
   }),
 }));
 
@@ -86,8 +81,23 @@ vi.mock('../services/api', () => ({
     tradeTape: {
       list: tradeTapeList,
     },
+    compliance: {
+      pricingOverlay,
+    },
   },
 }));
+
+const overlayAssumptionsFixture = {
+  eur_usd_rate: '1.08',
+  vlsfo_baseline_gco2_mj: '91.16',
+  ghgie_actual_gco2_mj: '91.16',
+  fleet_intensity_basis: 'DEFAULT_VLSFO' as const,
+  fleet_vessel_count: 0,
+  penalty_eur_per_tonne: '2400',
+  year: 2026,
+  year_target: '89.34',
+  excluded_factors: ['RFNBO_MULTIPLIER', 'DEFICIT_ESCALATION', 'EXTRA_EU_VOYAGE_SCOPE'],
+};
 
 const listingsResponse = {
   items: [
@@ -121,6 +131,34 @@ const listingsResponse = {
   limit: 20,
 };
 
+function setMarketplaceSlice({
+  port = 'Singapore',
+  product = 'BIO_METHANOL',
+  window = 'SPOT',
+}: {
+  port?: string | null;
+  product?: string | null;
+  window?: string | null;
+} = {}) {
+  if (port == null) {
+    localStorage.removeItem('verdaxis_marketplace_port');
+  } else {
+    localStorage.setItem('verdaxis_marketplace_port', port);
+  }
+
+  if (product == null) {
+    localStorage.removeItem('verdaxis_marketplace_product');
+  } else {
+    localStorage.setItem('verdaxis_marketplace_product', product);
+  }
+
+  if (window == null) {
+    localStorage.removeItem('verdaxis_marketplace_window');
+  } else {
+    localStorage.setItem('verdaxis_marketplace_window', window);
+  }
+}
+
 describe('Marketplace green fuels surface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -153,6 +191,7 @@ describe('Marketplace green fuels surface', () => {
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
     tradesInitiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
+    pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
   it('shows canonical market product chips instead of generic fuel families', async () => {
@@ -162,14 +201,15 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Bio Methanol \(1\)/i })).toBeTruthy();
+    });
     expect(screen.getByRole('button', { name: /e-Methanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Bio Ethanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
   });
-
 
   it('shows the benchmark price next to the row delta in listings', async () => {
     renderWithProviders(<Marketplace />);
@@ -178,7 +218,9 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
 
-    expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
+    });
     expect(screen.getByTitle(/vs benchmark reference \$1,092.00\/MT/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
@@ -296,15 +338,35 @@ describe('Marketplace green fuels surface', () => {
       }));
     });
 
-    expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
-    expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
+    // The labels render only after the tape response is processed, one React
+    // commit after the mock-call assertion above resolves.
+    await waitFor(() => {
+      expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
+      expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
+    });
   });
 
-  it('asks the user to select an exact slice before showing the orderbook', async () => {
-    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
-    localStorage.removeItem('verdaxis_marketplace_product');
-    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
-
+  it.each([
+    {
+      name: 'missing fuel',
+      slice: { port: 'Singapore', product: null, window: 'SPOT' },
+      labels: ['All products', 'Singapore', 'Spot'],
+      states: [/fuel: missing/i, /port: selected/i, /window: selected/i],
+    },
+    {
+      name: 'missing window',
+      slice: { port: 'Singapore', product: 'BIO_METHANOL', window: null },
+      labels: ['Bio Methanol', 'Singapore', 'Any window'],
+      states: [/fuel: selected/i, /port: selected/i, /window: missing/i],
+    },
+    {
+      name: 'missing port',
+      slice: { port: null, product: 'BIO_METHANOL', window: 'SPOT' },
+      labels: ['Bio Methanol', 'All ports', 'Spot'],
+      states: [/fuel: selected/i, /port: missing/i, /window: selected/i],
+    },
+  ])('does not show orderbook depth for an inexact slice: $name', async ({ slice, labels, states }) => {
+    setMarketplaceSlice(slice);
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
@@ -315,60 +377,8 @@ describe('Marketplace green fuels surface', () => {
 
     expect(screen.getByText(/select a fuel, port, and window to show orderbook/i)).toBeTruthy();
     expect(screen.getByText(/choose a specific fuel, port, and availability window above/i)).toBeTruthy();
-    expect(screen.getByText('All products')).toBeTruthy();
-    expect(screen.getByText('Singapore')).toBeTruthy();
-    expect(screen.getByText('Spot')).toBeTruthy();
-    expect(screen.getByLabelText(/fuel: missing/i)).toBeTruthy();
-    expect(screen.getByLabelText(/port: selected/i)).toBeTruthy();
-    expect(screen.getByLabelText(/window: selected/i)).toBeTruthy();
-    expect(listAsks).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
-  });
-
-  it('does not show orderbook depth for Any Window even when fuel and port are selected', async () => {
-    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
-    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
-    localStorage.removeItem('verdaxis_marketplace_window');
-
-    renderWithProviders(<Marketplace />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
-
-    expect(screen.getByText(/select a fuel, port, and window to show orderbook/i)).toBeTruthy();
-    expect(screen.getByText('Bio Methanol')).toBeTruthy();
-    expect(screen.getByText('Singapore')).toBeTruthy();
-    expect(screen.getByText('Any window')).toBeTruthy();
-    expect(screen.getByLabelText(/fuel: selected/i)).toBeTruthy();
-    expect(screen.getByLabelText(/port: selected/i)).toBeTruthy();
-    expect(screen.getByLabelText(/window: missing/i)).toBeTruthy();
-    expect(listAsks).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
-  });
-
-  it('does not show orderbook depth across all ports even when fuel and window are selected', async () => {
-    localStorage.removeItem('verdaxis_marketplace_port');
-    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
-    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
-
-    renderWithProviders(<Marketplace />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
-
-    expect(screen.getByText(/select a fuel, port, and window to show orderbook/i)).toBeTruthy();
-    expect(screen.getByText('Bio Methanol')).toBeTruthy();
-    expect(screen.getByText('All ports')).toBeTruthy();
-    expect(screen.getByText('Spot')).toBeTruthy();
-    expect(screen.getByLabelText(/fuel: selected/i)).toBeTruthy();
-    expect(screen.getByLabelText(/port: missing/i)).toBeTruthy();
-    expect(screen.getByLabelText(/window: selected/i)).toBeTruthy();
+    labels.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+    states.forEach((state) => expect(screen.getByLabelText(state)).toBeTruthy());
     expect(listAsks).not.toHaveBeenCalled();
     expect(listBids).not.toHaveBeenCalled();
   });
@@ -381,7 +391,10 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByRole('button', { name: /more filters/i })).toBeTruthy();
     });
 
-    expect(screen.getByRole('button', { name: /bio methanol \(1\)/i })).toBeTruthy();
+    // The fuel-count badge fills in after the async listings fetch resolves.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /bio methanol \(1\)/i })).toBeTruthy();
+    });
     expect(screen.queryByRole('combobox', { name: 'Port' })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
@@ -650,6 +663,61 @@ describe('Marketplace green fuels surface', () => {
 
     fireEvent.click(submit);
     expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('fetches the FuelEU overlay for visible asks and renders the hint', async () => {
+    pricingOverlay.mockResolvedValue({
+      overlays: {
+        'ask-1': {
+          penalty_avoided_eur_per_mt: '768.75',
+          penalty_avoided_usd_per_mt: '830.25',
+          tco2e_avoided_per_mt: '1.197',
+          ci_gco2_mj: '31',
+          ci_basis: 'PRODUCT_DEFAULT',
+          lcv_mj_kg: '19.9',
+          lcv_basis: 'PRODUCT_DEFAULT',
+        },
+      },
+      assumptions: overlayAssumptionsFixture,
+    });
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(pricingOverlay).toHaveBeenCalledWith(['ask-1']);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('FuelEU −$830/MT')).toBeTruthy();
+    });
+    expect(screen.getByText('1.20 tCO₂e/MT avoided')).toBeTruthy();
+  });
+
+  it('degrades to no hint when the overlay fetch fails', async () => {
+    pricingOverlay.mockRejectedValue(new Error('boom'));
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(pricingOverlay).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+    });
+    expect(screen.queryByText(/FuelEU −\$/)).toBeNull();
+  });
+
+  it('does not request overlays for bid listings (supplier view)', async () => {
+    userRole.current = 'SUPPLIER';
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(listBidsPaged).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Marketplace')).toBeTruthy();
+    });
+    expect(pricingOverlay).not.toHaveBeenCalled();
   });
 
 });

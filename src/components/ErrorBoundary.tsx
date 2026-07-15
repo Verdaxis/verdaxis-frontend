@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { reliability } from '../services/analytics';
 
 interface Props {
   children: ReactNode;
@@ -39,6 +40,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    // Bounded category + route family only — never the error message, stack
+    // trace, or component trace (Product Analytics plan §2.5).
+    const message = typeof error?.message === 'string' ? error.message : '';
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      /dynamically imported module|loading chunk|import\(\)/i.test(message);
+    reliability.reportFrontendError(isChunkError ? 'chunk' : 'render');
   }
 
   private handleRetry = () => {

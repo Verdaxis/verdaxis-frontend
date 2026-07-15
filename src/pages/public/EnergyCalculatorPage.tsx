@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Flame, Wind, ShieldCheck, AlertTriangle, TrendingDown, DollarSign } from 'lucide-react';
 import {
@@ -8,6 +8,8 @@ import {
   calculateVoyage,
 } from '../../data/calculatorDefaults';
 import { useNamespace } from '../../hooks/useNamespace';
+import i18n from '../../i18n';
+import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
 /* ------------------------------------------------------------------ */
 /*  Inline SVG Icons                                                   */
@@ -618,8 +620,14 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
 export const EnergyCalculatorPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const [inputs, setInputs] = useState<CalculatorInputs>({ ...defaultInputs });
+  const hasStarted = useRef(false);
+  const hasCompleted = useRef(false);
 
   const update = <K extends keyof CalculatorInputs>(key: K, value: CalculatorInputs[K]) => {
+    if (!hasStarted.current) {
+      hasStarted.current = true;
+      analytics.track('energy_calculator_started', { language: i18n.language.split('-')[0] as AnalyticsLanguage });
+    }
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -631,6 +639,15 @@ export const EnergyCalculatorPage: React.FC = () => {
     () => calculateVoyage(inputs.fuelB_energyDensity, inputs.fuelB_price, inputs.fuelB_dailyConsumption, inputs),
     [inputs]
   );
+
+  useEffect(() => {
+    if (!hasStarted.current || hasCompleted.current) return;
+    const hasValidResult = [resultA.totalCostUsd, resultB.totalCostUsd, resultA.pricePerGJUsd, resultB.pricePerGJUsd]
+      .every(value => Number.isFinite(value) && value >= 0);
+    if (!hasValidResult) return;
+    hasCompleted.current = true;
+    analytics.track('energy_calculator_completed', { language: i18n.language.split('-')[0] as AnalyticsLanguage });
+  }, [resultA, resultB]);
 
   const diff = resultA.totalCostUsd - resultB.totalCostUsd;
   const fuelDiff = resultA.fuelCostUsd - resultB.fuelCostUsd;
@@ -994,6 +1011,7 @@ export const EnergyCalculatorPage: React.FC = () => {
           </p>
           <Link
             to="/pilot"
+            onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'calculator', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
             className="calc-cta-btn"
             style={{
               display: 'inline-flex',

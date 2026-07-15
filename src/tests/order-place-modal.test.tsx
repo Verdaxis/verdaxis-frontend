@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from './test-utils';
 import { OrderPlaceModal } from '../components/OrderPlaceModal';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
+import type { AvailabilityWindow } from '../types';
 
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
@@ -45,11 +46,13 @@ describe('OrderPlaceModal', () => {
     productsMock.mockReset();
     deliveryPointsMock.mockReset();
     createOrderMock.mockReset();
+    sessionStorage.clear();
 
     productsMock.mockResolvedValue([
       {
         id: 'prod-1',
         name: 'Green Methanol',
+        market_product: 'BIO_METHANOL',
         fuel_type: 'Methanol',
         fuel_grade: 'Green',
         unit: 'MT',
@@ -71,8 +74,10 @@ describe('OrderPlaceModal', () => {
   });
 
   it('resets to the new canonical slice when reopened', async () => {
+    const spotWindow: AvailabilityWindow = 'Spot';
     const prefillWindow = getAvailabilityWindowOptions({ timeZone: 'Europe/Amsterdam' })
       .find((option) => option.kind === 'quarter')?.value ?? 'SPOT';
+    const prefillAvailabilityWindow = prefillWindow as AvailabilityWindow;
 
     productsMock.mockResolvedValue([
       {
@@ -122,7 +127,7 @@ describe('OrderPlaceModal', () => {
         side="ASK"
         prefillMarketProduct="BIO_METHANOL"
         prefillDeliveryPointId="dp-singapore"
-        prefillAvailabilityWindow="SPOT"
+        prefillAvailabilityWindow={spotWindow}
       />
     );
 
@@ -138,7 +143,7 @@ describe('OrderPlaceModal', () => {
         side="ASK"
         prefillMarketProduct="BIO_METHANOL"
         prefillDeliveryPointId="dp-singapore"
-        prefillAvailabilityWindow="SPOT"
+        prefillAvailabilityWindow={spotWindow}
       />
     );
 
@@ -149,7 +154,7 @@ describe('OrderPlaceModal', () => {
         side="ASK"
         prefillMarketProduct="E_METHANOL"
         prefillDeliveryPointId="dp-rotterdam"
-        prefillAvailabilityWindow={prefillWindow}
+        prefillAvailabilityWindow={prefillAvailabilityWindow}
       />
     );
 
@@ -252,7 +257,6 @@ describe('OrderPlaceModal', () => {
     const payload = createOrderMock.mock.calls[0]?.[0];
     expect(payload?.certification_scheme).toBeUndefined();
   }, 15000);
-
 
   it('submits buyer certification preferences as explicit checkbox selections', async () => {
     renderWithProviders(

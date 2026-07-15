@@ -1,5 +1,5 @@
 
-import { Port, Supplier, Course, TraceEvent, Notification, MarketWatchItem, InventoryItem } from './types';
+import { Port, Supplier, Course, TraceEvent, MarketWatchItem, InventoryItem } from './types';
 
 export const APPROVED_TRADING_PORTS = [
     'Dalian',
@@ -500,12 +500,6 @@ export const TRACE_EVENTS: TraceEvent[] = [
         verificationId: 'Nanolumi Tag #992-AX',
         status: 'Verified'
     },
-];
-
-export const NOTIFICATIONS: Notification[] = [
-    { id: 1, title: 'New Direct Order Received', desc: 'Global Shipping Co. requested 500MT Methanol', time: '10m ago', type: 'info' },
-    { id: 2, title: 'Compliance Alert', desc: 'Vessel Ocean Guardian approaching CII limit', time: '2h ago', type: 'warning' },
-    { id: 3, title: 'Order Confirmed', desc: 'Bunkering schedule confirmed for Nov 15', time: '1d ago', type: 'success' },
 ];
 
 export const MARKET_WATCH_ITEMS: MarketWatchItem[] = [

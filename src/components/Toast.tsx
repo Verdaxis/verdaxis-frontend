@@ -34,6 +34,25 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setToasts(prev => prev.filter(t => t.id !== id));
     }, []);
 
+    // Global 429 signal from the API layer (Sprint 3 item 15). Debounced so a
+    // burst of throttled polls produces one toast, not five.
+    const lastRateLimitToastRef = React.useRef(0);
+    useEffect(() => {
+        const onRateLimited = () => {
+            const now = Date.now();
+            if (now - lastRateLimitToastRef.current < 15000) return;
+            lastRateLimitToastRef.current = now;
+            addToast({
+                type: 'warning',
+                title: 'Slow down',
+                message: 'Requests are being rate-limited. Data may be briefly stale — retrying shortly.',
+                duration: 6000,
+            });
+        };
+        window.addEventListener('verdaxis:rate-limited', onRateLimited);
+        return () => window.removeEventListener('verdaxis:rate-limited', onRateLimited);
+    }, [addToast]);
+
     return (
         <ToastContext.Provider value={{ addToast }}>
             {children}

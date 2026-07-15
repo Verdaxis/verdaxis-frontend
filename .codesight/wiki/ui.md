@@ -2,13 +2,13 @@
 
 > **Navigation aid.** Component inventory and prop signatures extracted via AST. Read the source files before adding props or modifying component logic.
 
-**114 components** (react)
+**116 components** (react)
 
 ## Components
 
-- **ScrollToTop** — `src/App.tsx`
+- **LoadingScreen** — props: page, viewMode — `src/App.tsx`
 - **ActivityFeed** — `src/components/ActivityFeed.tsx`
-- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick — `src/components/BuyerMap.tsx`
+- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick, isActive — `src/components/BuyerMap.tsx`
 - **CommandCenter** — props: viewMode, onNavigate, openOrderId — `src/components/CommandCenter.tsx`
 - **BuyerDashboard** — `src/components/CommandCenter.tsx`
 - **SupplierDashboard** — `src/components/CommandCenter.tsx`
@@ -16,34 +16,34 @@
 - **DataAnalytics** — `src/components/DataAnalytics.tsx`
 - **ErrorFallback** — props: fallback — `src/components/ErrorBoundary.tsx`
 - **Fleet** — `src/components/Fleet.tsx`
-- **ForwardCurve** — props: initialProductId, fuelType, deliveryPointName, onPeriodClick — `src/components/ForwardCurve.tsx`
+- **ForwardCurve** — props: initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick, embedded — `src/components/ForwardCurve.tsx`
 - **GuidedTutorial** — props: viewMode — `src/components/GuidedTutorial.tsx`
 - **LanguageSelector** — props: onLanguageChange, variant — `src/components/LanguageSelector.tsx`
-- **Layout** — props: viewMode, onSwitchView, currentPage, onNavigate, onPrimaryAction — `src/components/Layout.tsx`
+- **Layout** — props: viewMode, onSwitchView, currentPage, onNavigate, onPrefetchPage, onPrimaryAction — `src/components/Layout.tsx`
 - **MarketFeed** — props: viewMode, onNavigate — `src/components/MarketFeed.tsx`
 - **MarketTerminal** — props: onNavigate — `src/components/MarketTerminal.tsx`
-- **Marketplace** — props: initialPort — `src/components/Marketplace.tsx`
+- **Marketplace** — props: initialPort, onNavigate — `src/components/Marketplace.tsx`
 - **MatchSuggestions** — props: onViewTrade, onCountChange, onNavigate — `src/components/MatchSuggestions.tsx`
 - **MyTrades** — `src/components/MyTrades.tsx`
 - **NeedsAttentionFeed** — props: trades, viewMode, onNavigate, onConfirmTrade, onPostOrder — `src/components/NeedsAttentionFeed.tsx`
 - **NewsCard** — `src/components/NewsCard.tsx`
 - **NewsFeed** — `src/components/NewsFeed.tsx`
-- **OrderBook** — props: fuelType, region, onPriceClick, onInstantTrade — `src/components/OrderBook.tsx`
-- **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillPrice — `src/components/OrderPlaceModal.tsx`
+- **OrderBook** — props: fuelType, marketProduct, availability, productLabel, region, actionableSide, onPriceClick, onInstantTrade, onLevelClick — `src/components/OrderBook.tsx`
+- **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillMarketProduct, prefillDeliveryPointId, prefillAvailabilityWindow, prefillPrice, onNavigate — `src/components/OrderPlaceModal.tsx`
 - **PriceAlertManager** — props: isOpen, onClose — `src/components/PriceAlertManager.tsx`
-- **RFQPanel** — props: role, sortBy, onSortChange — `src/components/RFQPanel.tsx`
+- **RFQPanel** — props: role, sortBy, region, fuelType, availability — `src/components/RFQPanel.tsx`
 - **ReferralsTab** — `src/components/ReferralsTab.tsx`
 - **Settings** — props: viewMode — `src/components/Settings.tsx`
 - **Stats** — `src/components/Stats.tsx`
 - **SupplierAnalytics** — `src/components/SupplierAnalytics.tsx`
-- **SupplierDemandFeed** — props: onNavigate — `src/components/SupplierDemandFeed.tsx`
+- **SupplierDemandFeed** — props: onNavigate, onPostAsk — `src/components/SupplierDemandFeed.tsx`
 - **SupplierInventory** — `src/components/SupplierInventory.tsx`
 - **SupplierListingConsole** — `src/components/SupplierListingConsole.tsx`
 - **SupplierQuotes** — `src/components/SupplierQuotes.tsx`
 - **SupplierStats** — `src/components/SupplierStats.tsx`
 - **TradeHistoryPage** — `src/components/TradeHistoryPage.tsx`
 - **TradeNotifier** — `src/components/TradeNotifier.tsx`
-- **TradeTape** — props: fuelType, region — `src/components/TradeTape.tsx`
+- **TradeTape** — props: fuelType, marketProduct, availability, region — `src/components/TradeTape.tsx`
 - **Training** — `src/components/Training.tsx`
 - **WatchlistPage** — `src/components/WatchlistPage.tsx`
 - **AdminDashboard** — `src/components/admin/AdminDashboard.tsx`
@@ -81,15 +81,17 @@
 - **CircuitLines** — props: style, color — `src/components/public/motionUtils.tsx`
 - **GradientOrb** — props: style, color, size — `src/components/public/motionUtils.tsx`
 - **RFQOfferAlert** — props: onNavigateToRFQ — `src/components/rfq/RFQOfferAlert.tsx`
-- **CreateListingModal** — props: onSubmit, onCancel, isLoading, marketData — `src/components/supplier/CreateListingModal.tsx`
+- **CreateListingModal** — props: onSubmit, onCancel, isLoading — `src/components/supplier/CreateListingModal.tsx`
 - **CreateQuoteModal** — props: requestId, onClose, onSubmit — `src/components/supplier/CreateQuoteModal.tsx`
+- **BenchmarkPriceBlock** — props: priceUsd, benchmarkUsd, deltaUsd, align — `src/components/trading/BenchmarkPriceBlock.tsx`
 - **OrderbookDepth** — props: bids, asks, fuelType, region — `src/components/trading/OrderbookDepth.tsx`
+- **MarketRadarPanel** — props: radar, events, loading, error, onOpenRadar — `src/components/watchlist/MarketRadarPanel.tsx`
 - **AuthProvider** — `src/context/AuthContext.tsx`
 - **CopilotProvider** — `src/context/CopilotContext.tsx`
 - **NotificationProvider** — `src/context/NotificationContext.tsx`
 - **ThemeProvider** — `src/context/ThemeContext.tsx`
 - **TutorialProvider** — `src/context/TutorialContext.tsx`
-- **COUNTRIES** — props: value, onChange, placeholder, searchPlaceholder, noResults — `src/pages/CreateOrganizationPage.tsx`
+- **FALLBACK_COUNTRIES** — props: value, onChange, placeholder, searchPlaceholder, noResults, locale — `src/pages/CreateOrganizationPage.tsx`
 - **ForgotPasswordPage** — `src/pages/ForgotPasswordPage.tsx`
 - **InvitePage** — `src/pages/InvitePage.tsx`
 - **KycPage** — `src/pages/KycPage.tsx`
@@ -97,7 +99,7 @@
 - **OnboardingPage** — `src/pages/OnboardingPage.tsx`
 - **RESEND_COOLDOWN** — `src/pages/RegisterPage.tsx`
 - **ResetPasswordPage** — `src/pages/ResetPasswordPage.tsx`
-- **VerifyEmailPage** — `src/pages/VerifyEmailPage.tsx`
+- **ROLE_CARDS** — `src/pages/VerifyEmailPage.tsx`
 - **BuyerUseCasePage** — `src/pages/public/BuyerUseCasePage.tsx`
 - **ComplianceInfoPage** — `src/pages/public/ComplianceInfoPage.tsx`
 - **EducationArticlePage** — `src/pages/public/EducationArticlePage.tsx`

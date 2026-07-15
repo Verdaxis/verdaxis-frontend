@@ -12,7 +12,7 @@ const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
   quantity_mt: 1000,
   remaining_quantity_mt: 1000,
   price_per_mt_usd: 600,
-  availability_window: 'SPOT',
+  availability_window: 'Spot',
   certifications: [],
   is_verdaxis_verified: true,
   tier_label: 'INDEPENDENT',

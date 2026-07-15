@@ -21,6 +21,13 @@ vi.mock('../services/api', () => ({
   },
 }));
 
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    user: null,
+  }),
+}));
+
 const STORAGE_KEY = 'verdaxis_market_watch_preferences_v1';
 const DELIVERY_POINTS = [
   { id: 'dp-rotterdam-uuid', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -95,11 +102,37 @@ describe('MarketWatchTicker', () => {
     expect(priceSummariesMock).not.toHaveBeenCalledWith(expect.objectContaining({ region: 'Singapore' }));
   });
 
-  it('labels fresh real order summaries as recent activity', async () => {
+  it.each([
+    {
+      name: 'fresh real order summaries as recent activity',
+      summary: { source_kind: 'LIVE_ORDER' },
+      visible: ['Recent'],
+      absent: ['Stale'],
+      sourcePattern: null,
+    },
+    {
+      name: 'old seven-day summary trades as stale, not live',
+      summary: {
+        source_kind: 'LIVE_ORDER',
+        trade_count_24h: 3,
+        last_trade_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+      },
+      visible: ['Stale'],
+      absent: ['Recent', /REFERENCE/],
+      sourcePattern: /MIXED SOURCES/,
+    },
+    {
+      name: 'demo-seeded summaries as demo data instead of reference data',
+      summary: { source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' },
+      visible: ['Demo'],
+      absent: [/REFERENCE/],
+      sourcePattern: /MIXED SOURCES|DEMO DATA/,
+    },
+  ])('labels $name', async ({ summary, visible, absent, sourcePattern }) => {
     setSingleProductPreferences();
     priceSummariesMock.mockImplementation(({ market_product }) => Promise.resolve({
       summaries: market_product === 'BIO_METHANOL'
-        ? [makeSummary({ source_kind: 'LIVE_ORDER' })]
+        ? [makeSummary(summary)]
         : [],
       generated_at: new Date().toISOString(),
     }));
@@ -110,8 +143,11 @@ describe('MarketWatchTicker', () => {
       expect(screen.getByText('$777')).toBeTruthy();
     });
 
-    expect(screen.getByText('Recent')).toBeTruthy();
-    expect(screen.queryByText('Stale')).toBeNull();
+    visible.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+    absent.forEach((label) => expect(screen.queryByText(label)).toBeNull());
+    if (sourcePattern) {
+      expect(screen.getByText(sourcePattern)).toBeTruthy();
+    }
   });
 
   it('does not use generic fuel-family summaries for a different canonical product', async () => {
@@ -131,48 +167,7 @@ describe('MarketWatchTicker', () => {
     expect(screen.queryByText('$777')).toBeNull();
   });
 
-  it('marks old seven-day summary trades as stale, not live', async () => {
-    setSingleProductPreferences();
-    priceSummariesMock.mockImplementation(({ market_product }) => Promise.resolve({
-      summaries: market_product === 'BIO_METHANOL'
-        ? [makeSummary({ source_kind: 'LIVE_ORDER', trade_count_24h: 3, last_trade_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString() })]
-        : [],
-      generated_at: new Date().toISOString(),
-    }));
-
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('$777')).toBeTruthy();
-    });
-
-    expect(screen.getByText('Stale')).toBeTruthy();
-    expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
-    expect(screen.queryByText('Recent')).toBeNull();
-    expect(screen.queryByText(/REFERENCE/)).toBeNull();
-  });
-
-  it('labels demo-seeded summaries as demo data instead of reference data', async () => {
-    setSingleProductPreferences();
-    priceSummariesMock.mockImplementation(({ market_product }) => Promise.resolve({
-      summaries: market_product === 'BIO_METHANOL'
-        ? [makeSummary({ source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY' })]
-        : [],
-      generated_at: new Date().toISOString(),
-    }));
-
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('$777')).toBeTruthy();
-    });
-
-    expect(screen.getByText('Demo')).toBeTruthy();
-    expect(screen.getByText(/MIXED SOURCES|DEMO DATA/)).toBeTruthy();
-    expect(screen.queryByText(/REFERENCE/)).toBeNull();
-  });
-
-  it('recovers from malformed preferences and persists sanitized defaults', async () => {
+  it('recovers from malformed preferences without rewriting defaults on mount', async () => {
     localStorage.setItem(STORAGE_KEY, '{bad-json');
 
     renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
@@ -181,12 +176,10 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL']);
-    expect(stored.portIds).toEqual(['nl-rtm', 'sg-sin', 'br-ssz', 'us-hou', 'cn-sha']);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe('{bad-json');
   });
 
-  it('validates stored legacy product and preserves selected approved ports', async () => {
+  it('validates stored legacy product and renders selected approved ports', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       product: 'Methanol',
       portIds: ['sg-sin', 'nl-rtm', 'br-ssz', 'bad-port', 'us-hou'],
@@ -198,9 +191,8 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL']);
-    expect(stored.portIds).toEqual(['sg-sin', 'nl-rtm', 'br-ssz', 'us-hou']);
+    expect(screen.getByText(/4 fuels/)).toBeTruthy();
+    expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
   it('supports multi-fuel and more than three pinned delivery points', async () => {

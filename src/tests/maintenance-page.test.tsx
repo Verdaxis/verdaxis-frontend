@@ -16,4 +16,3 @@ describe('MaintenancePage', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
-

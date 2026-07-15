@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Loader2,
     MapPin,
@@ -18,10 +19,9 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useCopilotContext } from '../context/CopilotContext';
 import { api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -40,12 +40,16 @@ import {
     SPOT_WINDOW,
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
+import { isApprovedTradingPortName } from '../utils/tradingPorts';
+import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
+import { CompliancePriceHint } from './trading/CompliancePriceHint';
+import { analytics } from '../services/analytics';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -103,12 +107,14 @@ const REFRESH_INTERVAL_MS = 60_000;
 interface MarketplaceProps {
     initialPort?: Port | null;
     viewMode?: ViewMode;
+    initialSlice?: MarketSlice | null;
 }
 
-export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode }) => {
+export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode, initialSlice }) => {
     const { user } = useAuth();
-    const { setPageContext } = useCopilotContext();
     const { t, ready } = useNamespace('trading');
+    const location = useLocation();
+    const navigate = useNavigate();
     const role: ViewMode = user?.role === 'ADMIN'
         ? (viewMode ?? 'BUYER')
         : user?.role === 'SUPPLIER'
@@ -136,15 +142,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
+    const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
     // ─── Filter state ─────────────────────────────────────────────
-    const [portInput, setPortInput] = useState(() => initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
+    const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => readStoredMarketProduct());
+    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
+        if (initialSlice) return initialSlice.window as AvailabilityWindow;
         const stored = localStorage.getItem('verdaxis_marketplace_window');
-        return stored ? normalizeAvailabilityWindow(stored) : '';
+        return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -296,21 +305,67 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
         return () => clearInterval(interval);
     }, [fetchData, currentSkip]);
 
-    // ─── Copilot context broadcast ────────────────────────────────
+    // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
+    // One batched authenticated fetch per distinct set of visible ASK ids.
+    // The cancelled guard drops stale responses when filters/pages change
+    // mid-flight; failures degrade to no-hint and never break the table.
+    const askIdSignature = useMemo(
+        () => listings.filter((order) => order.side === 'ASK').map((order) => order.id).sort().join(','),
+        [listings],
+    );
+    // Deps are primitives on purpose: a `user` object identity here would
+    // re-run the effect on every auth-context render and loop via the
+    // new-object setState below.
+    const hasAuthedUser = !!user;
     useEffect(() => {
-        if (!loading) {
-            setPageContext({
-                view: 'Marketplace',
-                role,
-                total_listings: totalCount,
-                fuel_filter: marketProduct,
-                region_filter: resolvedPort || 'Any',
-                availability_filter: availability || 'Any',
-                page_skip: currentSkip,
-                summary: t(configBase.subtitleKey),
-            });
+        if (!hasAuthedUser || !askIdSignature) {
+            setComplianceOverlays({});
+            return;
         }
-    }, [listings, loading, marketProduct, portInput, availability, currentSkip, role, totalCount, configBase.subtitleKey, setPageContext, t]);
+        let cancelled = false;
+        api.compliance.pricingOverlay(askIdSignature.split(','))
+            .then((response) => {
+                if (cancelled) return;
+                setComplianceOverlays(response.overlays);
+                setOverlayAssumptions(response.assumptions);
+            })
+            .catch(() => {
+                if (!cancelled) setComplianceOverlays({});
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [hasAuthedUser, askIdSignature]);
+
+    // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
+    // URL → state: re-apply whenever the slice params change. Slice→slice
+    // navigation must re-sync; the useState initializers only cover mount.
+    useEffect(() => {
+        if (!initialSlice) return;
+        setMarketProduct(initialSlice.product);
+        setPortInput(initialSlice.port);
+        setStoredDeliveryPointId('');
+        setAvailability(initialSlice.window as AvailabilityWindow);
+        setCurrentSkip(0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialSlice?.product, initialSlice?.port, initialSlice?.window]);
+
+    // State → URL: on a slice URL, keep the address bar truthful as the
+    // user changes product/port/window in-page (replace, not push). The
+    // generic /app/marketplace view never rewrites the URL. Deliberately
+    // keyed on filter state only: reacting to location changes would fire
+    // with stale state mid slice→slice navigation and bounce the URL back.
+    useEffect(() => {
+        if (!location.pathname.startsWith('/app/m/')) return;
+        const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
+        const nextPath = isFullSlice
+            ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
+            : '/app/marketplace';
+        if (nextPath !== location.pathname) {
+            navigate(nextPath, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availability, marketProduct, resolvedPort]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -448,6 +503,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
     }, []);
 
     useEffect(() => {
+        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        analytics.track('market_slice_selected', {
+            product: marketProduct,
+            delivery_point: resolvedDeliveryPointId,
+            window: availability,
+        });
+    }, [availability, marketProduct, resolvedDeliveryPointId]);
+
+    useEffect(() => {
         if (marketTab !== 'market' || !highlightedOrderId) return;
         const node = document.querySelector(`[data-order-id="${highlightedOrderId}"]`);
         if (!(node instanceof HTMLElement)) return;
@@ -458,6 +522,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
+        if (order.market_product && order.delivery_point_id && order.availability_window) {
+            analytics.track('listing_opened', {
+                product: order.market_product,
+                delivery_point: order.delivery_point_id,
+                window: order.availability_window,
+                side: order.side,
+                demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
+            });
+        }
         setSelectedOrder(order);
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
@@ -540,6 +613,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
             return;
         }
         if (validateTradeQuantity() == null) return;
+        analytics.track('trade_confirmation_opened', {
+            side: selectedOrder.side,
+            demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
+        });
         setTradeError('');
         setTradeState('reviewing');
     };
@@ -626,7 +703,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                         {order.remaining_quantity_mt.toLocaleString()}
                     </td>
                 );
-            case 'price':
+            case 'price': {
+                const overlay = order.side === 'ASK' ? complianceOverlays[order.id] : null;
                 return (
                     <td key={col} className="w-[160px] max-w-[160px] whitespace-nowrap px-4 py-2 font-mono text-xs xl:w-auto xl:max-w-none">
                         <BenchmarkPriceBlock
@@ -634,8 +712,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
                             deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
                         />
+                        {overlay && (
+                            <CompliancePriceHint overlay={overlay} assumptions={overlayAssumptions} />
+                        )}
                     </td>
                 );
+            }
             case 'window':
                 return (
                     <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">
@@ -1223,7 +1305,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode 
                                             <th
                                                 key={col}
                                                 className={`${col === 'action' ? 'text-right' : 'text-left'} px-3 py-2 text-xs uppercase tracking-wider text-slate-500 font-semibold whitespace-nowrap ${
-                                                    col === 'star' ? 'w-8 px-2' :
                                                     col === 'fuel' ? 'sticky left-0 z-40 bg-slate-100 dark:bg-slate-800 min-w-[180px]' :
                                                     col === 'grade' || col === 'window' || col === 'expiry' || col === 'cert' ? 'hidden xl:table-cell' :
                                                     col === 'action' ? 'sticky right-0 z-40 min-w-[108px] bg-slate-100 text-right shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] dark:bg-slate-800' : ''

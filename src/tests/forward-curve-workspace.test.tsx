@@ -33,15 +33,13 @@ const baseCell = (
   delivery_point_name: deliveryPointName,
   region: deliveryPointName === 'Rotterdam' ? 'Europe' : 'Asia',
   availability_window: availabilityWindow,
-  primary_value: primaryValue as number,
+  primary_value: primaryValue == null ? null : Number(primaryValue),
   primary_signal_type: primaryValue == null ? 'NO_DATA' : 'BENCHMARK_MID',
   primary_source_kind: primaryValue == null ? 'NO_DATA' : 'DEMO_SEED',
   public_source_label: primaryValue == null ? 'No data' : 'Demo orderbook midpoint',
   label_policy: {
-    visible_label: primaryValue == null ? 'No data' : 'Demo orderbook midpoint',
-    disclosure: 'Demo seeded preview data.',
-    is_executable: false,
-    should_show_demo_badge: true,
+    public_label: primaryValue == null ? 'No data' : 'Demo orderbook midpoint',
+    disclaimer: 'Demo seeded preview data.',
   },
   staleness_status: primaryValue == null ? 'NO_DATA' : 'FRESH',
   is_executable: false,
@@ -103,6 +101,9 @@ const makeTable = (): ForwardCurveTableResponse => ({
     {
       row_key: 'BIO_METHANOL:dp-singapore',
       market_product: 'BIO_METHANOL',
+      product_name: 'BIO_METHANOL',
+      representative_product_id: 'product-BIO_METHANOL',
+      product_count: 1,
       delivery_point_id: 'dp-singapore',
       delivery_point_name: 'Singapore',
       region: 'Asia',
@@ -111,6 +112,9 @@ const makeTable = (): ForwardCurveTableResponse => ({
     {
       row_key: 'E_METHANOL:dp-rotterdam',
       market_product: 'E_METHANOL',
+      product_name: 'E_METHANOL',
+      representative_product_id: 'product-E_METHANOL',
+      product_count: 1,
       delivery_point_id: 'dp-rotterdam',
       delivery_point_name: 'Rotterdam',
       region: 'Europe',
@@ -119,6 +123,9 @@ const makeTable = (): ForwardCurveTableResponse => ({
     {
       row_key: 'BIO_ETHANOL:dp-dalian',
       market_product: 'BIO_ETHANOL',
+      product_name: 'BIO_ETHANOL',
+      representative_product_id: 'product-BIO_ETHANOL',
+      product_count: 1,
       delivery_point_id: 'dp-dalian',
       delivery_point_name: 'Dalian',
       region: 'Asia',
@@ -131,8 +138,8 @@ const makeTable = (): ForwardCurveTableResponse => ({
       delivery_point_id: 'dp-singapore',
       delivery_point_name: 'Singapore',
       availability_window: 'SPOT',
-      primary_value: '1015',
-      primary_signal_type: 'ORDERBOOK_MID',
+      primary_value: 1015,
+      primary_signal_type: 'BENCHMARK_MID',
       primary_source_kind: 'DEMO_SEED',
       public_source_label: 'Demo orderbook midpoint',
       demo_status: 'DEMO_ONLY',
@@ -157,7 +164,7 @@ const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSl
   evidence_points: [
     {
       layer: 'ORDERBOOK_BID',
-      price_per_mt_usd: String(Number(cell.primary_value ?? 0) - 35) as unknown as number,
+      price_per_mt_usd: Number(cell.primary_value ?? 0) - 35,
       quantity_mt: 5000,
       public_source_label: 'Bid depth',
       source_kind: 'DEMO_SEED',
@@ -166,7 +173,7 @@ const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSl
     },
     {
       layer: 'ORDERBOOK_ASK',
-      price_per_mt_usd: String(Number(cell.primary_value ?? 0) + 35) as unknown as number,
+      price_per_mt_usd: Number(cell.primary_value ?? 0) + 35,
       quantity_mt: 4500,
       public_source_label: 'Ask depth',
       source_kind: 'DEMO_SEED',
@@ -175,14 +182,16 @@ const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSl
     },
     {
       layer: 'FAIR_PRICE_BAND',
-      low_price_per_mt_usd: String(Number(cell.primary_value ?? 0) - 20) as unknown as number,
-      high_price_per_mt_usd: String(Number(cell.primary_value ?? 0) + 20) as unknown as number,
+      low_price_per_mt_usd: Number(cell.primary_value ?? 0) - 20,
+      high_price_per_mt_usd: Number(cell.primary_value ?? 0) + 20,
       public_source_label: 'Fair band',
       source_kind: 'DEMO_SEED',
       demo_status: 'DEMO_ONLY',
       observed_at: '2026-06-17T10:00:00Z',
     },
   ],
+  generated_at: '2026-06-17T10:01:00Z',
+  disclaimer: 'Indicative estimate only.',
 });
 
 describe('ForwardCurveWorkspace', () => {
@@ -268,11 +277,10 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);
 
     await screen.findByText('Latest Monitored Signals');
-    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    const chartButton = within(chart).getByText('$1015').closest('button');
-    expect(chartButton).toBeTruthy();
+    const chartPoint = (await screen.findAllByRole('button', { name: /Spot \$1015/i }))[0];
+    expect(chartPoint).toBeTruthy();
 
-    fireEvent.doubleClick(chartButton as HTMLButtonElement);
+    fireEvent.doubleClick(chartPoint);
 
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
     expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Singapore');

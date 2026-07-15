@@ -2,19 +2,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, Gavel, HandCoins, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
+import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 // import { MatchSuggestions } from './MatchSuggestions';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 // MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
-import { useCopilotContext } from '../context/CopilotContext';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
+import { SupplierDemandFeed } from './SupplierDemandFeed';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
     onNavigate: (page: Page) => void;
+    onOpenSlice?: (slice: MarketSlice) => void;
     openOrderId?: string;
 }
 
@@ -29,9 +31,8 @@ const CTA_CONFIG = {
     },
 };
 
-export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, openOrderId }) => {
+export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, onOpenSlice, openOrderId }) => {
     const { t, ready } = useNamespace('dashboard');
-    const { setPageContext } = useCopilotContext();
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -77,22 +78,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             }
         }
     }, [loading, openOrderId]);
-
-    // Copilot context
-    useEffect(() => {
-        if (!loading) {
-            const pending = trades.filter(r => r.status === 'PENDING_CONFIRMATION').length;
-            const active = trades.filter(r => r.status === 'CONFIRMED').length;
-            const completed = trades.filter(r => r.status === 'DELIVERED' || r.status === 'PAID').length;
-            setPageContext({
-                view: `${viewMode === 'BUYER' ? 'Buyer' : 'Supplier'} Command Center`,
-                pending_requests: pending,
-                active_orders: active,
-                completed_trades: completed,
-                summary: `Overview of ${viewMode === 'BUYER' ? 'procurement' : 'supply'} operations, matches, and market activity.`,
-            });
-        }
-    }, [trades, loading, setPageContext, viewMode]);
 
     const handleConfirmTrade = useCallback((tradeId: string) => {
         const prefix = viewMode === 'BUYER' ? 'buyerDashboard' : 'supplierDashboard';
@@ -156,6 +141,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <p className="text-slate-500 dark:text-slate-400 mb-6">{t('commandCenter.subtitle')}</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
+                        data-tour="command-center-primary-action"
                         onClick={() => setOrderModalOpen(true)}
                         className="group relative overflow-hidden rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700"
                     >
@@ -213,6 +199,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             </div> */}
 
             <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
+
+            {viewMode === 'SUPPLIER' && (
+                <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
+            )}
 
             {/* ─── Needs Attention ─── */}
             <div>

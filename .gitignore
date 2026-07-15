@@ -27,3 +27,6 @@ dist-ssr
 # Backup files (may contain credentials)
 *.bak
 .vercel
+
+# Generated artifacts
+openapi.json

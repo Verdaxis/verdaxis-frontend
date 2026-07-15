@@ -71,4 +71,3 @@ export const MaintenancePage: React.FC<MaintenancePageProps> = ({ onRetry, isRet
 };
 
 export default MaintenancePage;
-

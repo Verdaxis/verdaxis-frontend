@@ -7,6 +7,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { DataOcean } from './DataOcean';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import i18n from '../../i18n';
+import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -218,6 +220,7 @@ export const HeroSection: React.FC = () => {
           <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to={localePath('/pilot')}
+              onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'hero', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
               className="cta-primary"
               style={{
                 background: '#0F172A',
@@ -239,6 +242,7 @@ export const HeroSection: React.FC = () => {
           <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to={localePath('/how-it-works')}
+              onClick={() => analytics.track('landing_cta_clicked', { cta: 'how_it_works', placement: 'hero', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
               className="cta-secondary"
               style={{
                 background: 'transparent',

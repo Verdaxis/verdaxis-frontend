@@ -20,6 +20,18 @@
 - **Rule:** When introducing tabs in a compact side panel, confirm the first/default tab matches the user's intended information hierarchy, not just the implementation's primary content block.
 - **Why:** The code kept the estimator/port-intel content as the first tab because it was previously the only panel body, but the new tabbed layout should lead with market news.
 
+### Make New Map Reference Layers Discoverable
+- **Date:** 2026-06-24
+- **Trigger:** User viewed Europe on the Intelligence Map but could not see the newly added SECA/ECA reference zones.
+- **Rule:** New map reference layers need an explicit visible control, sufficiently strong default styling, and a focus action that takes users to the relevant geography.
+- **Why:** A subtle polygon hidden under a generic overlays toggle can technically render while still being invisible or undiscoverable at normal map zoom.
+
+### Browser-Dogfood Map Canvas Layers Before Calling Them Visible
+- **Date:** 2026-06-24
+- **Trigger:** User still could not see SECA/ECA zones after I reported the live bundle contained the layer code.
+- **Rule:** For MapLibre/canvas changes, verify with an authenticated browser screenshot that the actual layer pixels are visible; asset grep and smoke checks are not sufficient.
+- **Why:** A layer can exist in the bundle and runtime code but still be visually hidden by map layer order, raster label layers, opacity, or viewport state.
+
 ## Format
 - **Date:** YYYY-MM-DD
 - **Trigger:** What happened
@@ -492,3 +504,13 @@
 - **Trigger:** User reported the Forward Curve latest-signals rail consumed too much vertical real estate and pushed the Selected Period section below the viewport.
 - **Rule:** Secondary activity rails should use compact rows, capped internal scrolling, and smaller numeric typography so the primary detail panel remains visible in the first viewport.
 - **Why:** Latest/event feeds are supporting context; if every item uses card-like spacing, they crowd out the actionable or inspectable panel beneath them.
+### Treat Executive Health As The Default, Not The Entire Analytics Scope
+- **Date:** 2026-07-15
+- **Trigger:** User selected executive product health as the default analytics view, then clarified that growth and platform operations remain equally important areas for deeper tabs.
+- **Rule:** Use executive health as the landing summary while preserving dedicated, first-class acquisition, activation, engagement, marketplace, retention, and reliability analysis.
+- **Why:** Interpreting the default view as the only priority would flatten the analytics workspace and omit operationally important diagnostics.
+### Stop At The Handoff Artifact When Requested
+- **Date:** 2026-07-15
+- **Trigger:** User clarified that the Product Analytics workspace should not be implemented here; they want a reviewed plan to hand to Claude.
+- **Rule:** Once the user requests a plan-only handoff, make no product-code or deployment changes and optimize the artifact for execution by the named downstream agent.
+- **Why:** Continuing into implementation would duplicate work and violate the intended division of responsibility.

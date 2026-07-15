@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, Mail, Lock, AlertCircle, Info } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
 import { useNamespace } from '../hooks/useNamespace';
+import { analytics } from '../services/analytics';
 
 type ErrorKind = 'generic' | 'unverified';
 
@@ -13,25 +14,39 @@ interface LoginError {
   message: string;
 }
 
+interface LoginLocationState {
+  from?: {
+    pathname: string;
+    search: string;
+    hash: string;
+  };
+}
+
 const LoginPage: React.FC = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<LoginError | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t, ready } = useNamespace('auth');
 
+  // ProtectedRoute stashes the denied location; return there after login.
+  const from = (location.state as LoginLocationState | null)?.from;
+  const redirectTo = from ? `${from.pathname}${from.search}${from.hash}` : '/app';
+
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/app');
+      navigate(redirectTo, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, redirectTo]);
 
   if (!ready) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    analytics.track('login_submitted');
     setLoginError(null);
     setIsSubmitting(true);
 
@@ -51,12 +66,14 @@ const LoginPage: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        await login(data.access_token, data.refresh_token);
-        navigate('/app');
+        await login(data.access_token);
+        navigate(redirectTo);
       } else {
         if (res.status === 401) {
+          analytics.track('login_failed', { reason_category: 'invalid_credentials' });
           setLoginError({ kind: 'generic', message: t('login.error.invalidCredentials') });
         } else if (res.status === 403) {
+          analytics.track('login_failed', { reason_category: 'account_state' });
           const errData = await res.json().catch(() => null);
           const detail: string = errData?.detail ?? '';
           if (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')) {
@@ -68,14 +85,17 @@ const LoginPage: React.FC = () => {
             setLoginError({ kind: 'generic', message: detail || t('login.error.accessDenied') });
           }
         } else if (res.status >= 500) {
+          analytics.track('login_failed', { reason_category: 'server' });
           setLoginError({ kind: 'generic', message: t('login.error.server') });
         } else {
+          analytics.track('login_failed', { reason_category: 'unknown' });
           const errData = await res.json().catch(() => null);
           setLoginError({ kind: 'generic', message: errData?.detail || t('login.error.loginFailed') });
         }
       }
     } catch (err) {
       console.error(err);
+      analytics.track('login_failed', { reason_category: 'network' });
       setLoginError({ kind: 'generic', message: t('login.error.connectionFailed') });
     } finally {
       setIsSubmitting(false);

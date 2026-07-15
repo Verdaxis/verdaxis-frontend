@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import {
     Settings as SettingsIcon,
     ChevronsLeft,
@@ -104,7 +105,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <nav className="flex-1 py-2 space-y-1 px-3">
                 {sidebarItems.map((item) => (
                     <Tooltip key={item.key} content={isCollapsed ? item.label : ''} position="right">
-                        <button
+                        {/* Real anchors: bookmark/cmd-click/middle-click open the
+                            page in a new tab; plain clicks stay SPA navigations. */}
+                        <NavLink
+                            to={item.path}
                             data-tour={`nav-${item.key}`}
                             onClick={() => handleNavigate(item.page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
@@ -117,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                             <item.icon size={20} className={`flex-shrink-0 ${currentPage === item.page ? (viewMode === 'SUPPLIER' ? 'text-[#22D37A]' : 'text-verdaxis') : 'text-slate-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="font-medium truncate">{item.label}</span>}
-                        </button>
+                        </NavLink>
                     </Tooltip>
                 ))}
             </nav>
@@ -125,8 +129,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="p-4 border-t border-[#2A3344] space-y-1">
                 {userRole === 'ADMIN' && (
                     <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
-                        <button
-                            onClick={() => handleNavigate('ADMIN')}
+                        <NavLink
+                            to="/app/admin"
+                            onClick={onMobileClose}
                             className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                                 currentPage === 'ADMIN'
                                     ? 'bg-amber-500 text-white shadow-lg'
@@ -135,12 +140,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                             <ShieldCheck size={20} className={`flex-shrink-0 ${currentPage === 'ADMIN' ? 'text-white' : 'text-amber-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="truncate font-medium">{t('sidebar.admin')}</span>}
-                        </button>
+                        </NavLink>
                     </Tooltip>
                 )}
                 <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
-                    <button
-                        onClick={() => handleNavigate('SETTINGS')}
+                    <NavLink
+                        to="/app/settings"
+                        onClick={onMobileClose}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                             currentPage === 'SETTINGS'
                                 ? 'bg-verdaxis text-white shadow-lg'
@@ -149,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                         <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
                         {!isCollapsed && <span className="truncate">{t('sidebar.settings')}</span>}
-                    </button>
+                    </NavLink>
                 </Tooltip>
 
                 {isCollapsed && (

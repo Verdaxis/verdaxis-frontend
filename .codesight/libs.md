@@ -6,6 +6,14 @@
   - function save_cache: (cache)
   - function geocode: (city, country) -> tuple[float, float] | None
   - function main: ()
+- `scripts/smoke_navigation.py`
+  - function static_server: (port)
+  - function get_auth_config: () -> dict[str, str]
+  - function percentile: (values, quantile) -> float
+  - function classify_cause: (resources, Any]], long_task_ms) -> str
+  - function navigation_init_script: () -> str
+  - function page_url: (base_url, token) -> str
+  - _...11 more_
 - `src/data/calculatorDefaults.ts`
   - function calculateVoyage: (energyDensity, fuelPrice, dailyConsumption, inputs) => VoyageResult
   - interface CalculatorInputs
@@ -37,6 +45,29 @@
   - function fetchLiveMarketData
   - function performWebSearch
   - interface MarketDataResult
+- `src/services/api.ts`
+  - function mapPortResponse
+  - function __resetApiReadCachesForTests
+  - interface PaginatedResult
+  - const api
+- `src/services/authToken.ts`
+  - function getAccessToken: () => string | null
+  - function setAccessToken: (token) => void
+  - function clearAccessToken: () => void
+- `src/utils/availabilityWindow.ts`
+  - function normalizeAvailabilityWindow: (value) => string
+  - function compareAvailabilityWindows: (left, right) => number
+  - function formatAvailabilityWindow: (value) => string
+  - function formatAvailabilityWindowPeriod: (value) => string
+  - function getAvailabilityWindowOptions: (options?) => AvailabilityWindowOption[]
+  - function getAvailabilityWindowSummary: (value, options?) => void
+  - _...2 more_
+- `src/utils/buyerMapMarket.ts`
+  - function isGreenFuel
+  - function computePortMarketData
+  - interface PortMarketRow
+  - interface PortMarketData
+- `src/utils/curveChart.ts` — function serializeChartTime, const availabilityWindowToChartTime
 - `src/utils/fuel.ts`
   - function getFuelRowClasses: (fuelType) => string
   - function getFuelBadgeClasses: (fuelType) => string
@@ -45,17 +76,41 @@
   - function getStatusConfig: (status) => StatusConfig
   - function formatExpiry: (order) => React.ReactNode
   - _...2 more_
+- `src/utils/marketPorts.ts` — function filterPortsByActiveDeliveryPoints
 - `src/utils/marketProduct.ts`
+  - function formatMarketProduct: (value) => string
   - function getProductDisplayName: (product) => string
   - function getProductDisplayNameFromReference: (reference, products) => string
+  - function getOrderDisplayName: (order) => string
   - type ProductReference
+- `src/utils/marketProducts.ts`
+  - function isMarketplaceProductFilter
+  - function getMarketplaceProductOption
+  - function getMarketplaceProductValue
+  - function getMarketplaceFuelType
+  - function getMarketplaceProductLabel
+  - interface MarketplaceProductOption
+  - _...3 more_
+- `src/utils/navigationPerformance.ts`
+  - function recordDashboardNavigationStart
+  - function recordDashboardContentReady
+  - function getDashboardNavigationEventName
+  - interface DashboardNavigationMetric
 - `src/utils/tradeAnalytics.ts`
-  - function tradeSliceKey: (trade) => string
-  - function buildTradePerformanceModel: (trades, referenceBySlice, number>) => TradePerformanceModel
-  - interface VolumeByFuel
-  - interface MonthlyTradeCount
-  - interface FuelComparison
-  - interface TradePerformanceModel
+  - function isActiveTradeStatus: (status) => boolean
+  - function isCompletedTradeStatus: (status) => boolean
+  - function isConfirmedLikeTrade: (tradeOrStatus) => boolean
+  - function normalizeTradeLifecycleStatus: (status) => string
+  - function tradeDisplayQuantityMt: (trade) => number
+  - function tradeDisplayPricePerMt: (trade) => number
+  - _...7 more_
+- `src/utils/watchlist.ts`
+  - function getWatchlistSliceKeyFromParts: (marketProductCode?, deliveryPointId?, availabilityWindowCode?) => string
+  - function getWatchlistSliceKey: (target) => string
+  - function formatWatchlistSliceLabel: (slice) => string
+  - function describeWatchlistEvent: (event) => string
+  - function getLatestEventForSlice: (slice, events) => WatchlistEvent | undefined
+  - function getLatestEventForTarget: (target, events) => WatchlistEvent | undefined
 - `src/utils.ts`
   - function createCustomIcon
   - function calculateHeading

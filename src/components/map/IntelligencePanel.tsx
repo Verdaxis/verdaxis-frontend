@@ -10,6 +10,8 @@ interface IntelligencePanelProps {
     isOpen: boolean;
     onClose: () => void;
     selectedPort: Port | undefined;
+    portOptions?: Port[];
+    onMapPortSelect?: (port: Port) => void;
     onPortSelect: (port: Port) => void;
 }
 
@@ -17,6 +19,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     isOpen,
     onClose,
     selectedPort,
+    portOptions = [],
+    onMapPortSelect,
     onPortSelect,
 }) => {
     const { t, ready } = useNamespace('dashboard');
@@ -166,6 +170,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
 
             <ComplianceEstimatorCard
                 selectedPort={selectedPort}
+                portOptions={portOptions}
+                onSelectPort={onMapPortSelect}
                 onOpenMarketplace={onPortSelect}
             />
 
@@ -251,6 +257,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         <>
             <ComplianceEstimatorCard
                 selectedPort={selectedPort}
+                portOptions={portOptions}
+                onSelectPort={onMapPortSelect}
                 onOpenMarketplace={onPortSelect}
             />
             {forwardReferences}

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import LanguageSelector from '../LanguageSelector';
 import { type SupportedLang } from '../../i18n';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import { analytics } from '../../services/analytics';
 
 const BLUE = '#5DADE2';
 const DARK = '#0F172A';
@@ -71,8 +72,11 @@ export const PublicNav: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const appLoginUrl = `https://app.verdaxis.exchange/login?lang=${lang || 'en'}`;
+  const analyticsLanguage = lang === 'zh' ? 'zh' : 'en';
 
   const handleLanguageChange = (newLang: SupportedLang) => {
+    const currentLang = (lang === 'zh' ? 'zh' : 'en');
+    if (currentLang !== newLang) analytics.track('public_language_changed', { from: currentLang, to: newLang });
     const rest = pathname.replace(/^\/[a-z]{2}/, '');
     navigate(`/${newLang}${rest || '/'}`);
   };
@@ -233,6 +237,7 @@ export const PublicNav: React.FC = () => {
           <LanguageSelector onLanguageChange={handleLanguageChange} variant="light" />
           <Link
             to={lp('/pilot')}
+            onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'nav', language: analyticsLanguage })}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -256,6 +261,7 @@ export const PublicNav: React.FC = () => {
           </Link>
           <a
             href={appLoginUrl}
+            onClick={() => analytics.track('landing_cta_clicked', { cta: 'sign_in', placement: 'nav', language: analyticsLanguage })}
             style={{
               padding: '8px 18px',
               fontSize: 14,
@@ -386,7 +392,10 @@ export const PublicNav: React.FC = () => {
             </div>
             <Link
               to={lp('/pilot')}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'nav', language: analyticsLanguage });
+                setMobileOpen(false);
+              }}
               style={{
                 padding: '12px 0',
                 fontSize: 16,
@@ -402,7 +411,10 @@ export const PublicNav: React.FC = () => {
             </Link>
             <a
               href={appLoginUrl}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                analytics.track('landing_cta_clicked', { cta: 'sign_in', placement: 'nav', language: analyticsLanguage });
+                setMobileOpen(false);
+              }}
               style={{
                 padding: '12px 0',
                 fontSize: 16,

@@ -2,14 +2,14 @@
 
 ## Tech Stack
 
-React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, Gemini AI (@google/genai), react-router-dom v7, Vitest
+React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
 
 ## File Map
 
 ```
 src/
   index.tsx                        # ReactDOM entry, mounts <App /> into #root
-  App.tsx                          # Route definitions, auth guards, Dashboard state machine
+  App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
@@ -22,22 +22,21 @@ src/
   context/
     AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
-    CopilotContext.tsx             # Shares page-level context with AI copilot
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
+    TutorialContext.tsx             # Guided tutorial state
 
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
-    ai.ts                          # Re-exports from ai-engine/
+    analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
+    ai.ts                          # Supplier risk AI export
     ai-engine/
-      config.ts                    # Gemini API key + GoogleGenAI client init
-      chat.ts                      # chatWithCopilot() -- multi-turn tool-calling chat loop
-      tools.ts                     # Gemini FunctionDeclarations + executor map
-      generators.ts                # AI content: market narratives, arbitrage, risk, web search
+      generators.ts                # AI supplier-risk memo helper, proxied through backend /ai/chat
       cache.ts                     # In-memory 5-min TTL cache for AI responses
 
   components/
-    Layout.tsx                     # App shell: sidebar + header + copilot overlay
+    AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
+    Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
@@ -45,7 +44,6 @@ src/
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
-    MarketTerminal.tsx             # Trading-oriented price terminal (bid/ask, charts)
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
@@ -66,7 +64,7 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
-    ai/Copilot.tsx                 # Floating AI chat panel (Gemini-powered)
+    admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -97,14 +95,14 @@ src/
     *.test.ts                      # Unit tests (utils, pricing, matchmaking, map, etc.)
 
 scripts/
-  deploy.sh                       # Production deploy script
-  start-frontend.sh               # Start dev/preview server
+  deploy.sh                       # Static prod/staging build script with API-target validation
+  smoke-live.mjs                  # Prod/staging live smoke checks
+  start-frontend.sh               # Local development server helper
   seed_listings.sh                 # Seed marketplace data
   geocode_projects.py             # Geocode producer project locations
 
 database/schema.txt                # Backend DB schema reference
-docs/verdaxis-branding.yaml        # Brand guidelines
-.github/workflows/frontend-ci.yml # CI: test on PR, deploy on main push
+.github/workflows/frontend-ci.yml # CI: tests/typecheck/i18n/builds on staging+prod pushes and PRs (no deploy)
 ```
 
 ## Dependency Flow
@@ -114,35 +112,42 @@ index.html --> index.tsx --> App.tsx
                                |
                  +-------------+-------------+
                  |             |             |
-            ThemeProvider AuthProvider CopilotProvider
+            ThemeProvider AuthProvider
                                |
                       NotificationProvider
+                               |
+                        TutorialProvider
                                |
                          BrowserRouter
                         /      |      \
                   /login  PublicLayout  /app (ProtectedRoute)
                              |              |
-                        public pages   RequireOrganization --> RequireProfile
+                        public pages   RequireOrganization* --> RequireProfile
                                             |
-                                        Dashboard
+                                     DashboardLayout (layout route)
                                        /    |    \
-                                Layout viewMode currentPage (state)
-                               / |  \
-                        Sidebar Header Copilot --> ai-engine/chat.ts
-                                                   /           \
-                                             tools.ts     generators.ts
-                                                |              |
-                                             api.ts      Gemini API
+                                Layout viewMode <Outlet/> child routes
+                               / |  \                (home, map, marketplace,
+                        Sidebar Header               m/:product/:port/:window,
+                                                     curve, watchlist, ...)
                                                 |
                                         Backend REST API
 ```
 
+`RequireOrganization` applies to buyer and supplier accounts. Platform admins
+may be organization-less and bypass organization onboarding.
+
 ## Key Patterns
 
-**State-based in-app navigation:** The `/app` route renders a `Dashboard` component that uses
-`currentPage` state (not URL routes) to switch between views. The `Page` type enum
-(`MAP | MARKETPLACE | FLEET | TERMINAL | FORWARD_CURVE | ...`) drives `renderContent()`. New authenticated
-views should add a `Page` value, not a new react-router route.
+**URL-routed app navigation:** Every authenticated view is a nested route under `/app`
+(`/app/home`, `/app/map`, `/app/marketplace`, `/app/curve`, ...) rendered through the
+`DashboardLayout` layout route in `App.tsx`. The legacy `Page` enum survives as the
+sidebar/session/dogfood vocabulary: `PAGE_SLUGS` in `types.ts` maps every `Page` value to its
+URL slug, and `pathToPage` derives the active page from the pathname. Marketplace slices get
+deep links via `/app/m/:product/:port/:window` (codec in `utils/sliceUrl.ts`; invalid slices
+redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
+`sessionStorage.verdaxis_currentPage`. New authenticated views should add a child route plus a
+`Page` value and `PAGE_SLUGS` entry.
 
 **Desktop-only platform workspace:** The authenticated `/app` route is wrapped in
 `MobileDesktopGate`, which shows a desktop-required notice below 768px. Public marketing,
@@ -159,12 +164,25 @@ relative labels while the API persists canonical codes. Green-fuels naming is no
 through `utils/marketProduct.ts`, and benchmark-relative pricing is carried in the shared
 order interfaces.
 
-**AI copilot architecture:** Gemini chat with multi-turn tool calling. `tools.ts` defines
-FunctionDeclarations that map to `toolExecutors` which call `api.ts`. The chat loop in
-`chat.ts` handles up to 5 tool-call rounds. All AI responses are cached for 5 minutes.
+**AI assistance:** The floating Copilot chat has been removed. Supplier quote risk memos still
+call the backend `/ai/chat` proxy through `services/ai-engine/generators.ts`, with short-lived
+frontend caching for repeated memo requests.
 
-**Context-only state:** No Redux/Zustand. Four React Contexts (Auth, Theme, Copilot,
-Notifications) with custom hooks (`useAuth()`, `useTheme()`, etc.).
+**Context-only state:** No Redux/Zustand. React Contexts cover Auth, Theme, Notifications,
+and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
+
+**Behavioral analytics boundary:** `AnalyticsProvider` performs normalized manual SPA
+page tracking and pseudonymous identification through the typed adapter in
+`services/analytics.ts`. Umami loads only when both public analytics environment variables
+are valid; auto-tracking, replay, and heatmaps are disabled. Components emit selective
+allowlisted events, and the adapter drops unknown properties and isolates all collector
+failures. The Admin Product Usage section consumes only the backend's aggregated,
+admin-authorized endpoint and degrades independently from commercial analytics.
+
+**Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
+backs Market Watch ticker config, notification toggles, and tutorial completion with
+`/api/users/me/preferences` (local-first render, server-wins sync, debounced writes);
+localStorage is only a per-device cache.
 
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
@@ -178,8 +196,11 @@ Joyride's footer controls, while workflow steps hide the footer and advance only
 clicks the highlighted in-app tab, button, row, or modal control. The tutorial stops at submit/confirm
 boundaries and does not place real bids, asks, listings, or trades.
 
-**Monitoring vs trading surfaces:** `MarketTerminal` remains the trading-oriented terminal, while
-`ForwardCurveWorkspace` is the broader monitoring page. Forward Curve consumes `/curves/forward/table`
+**Monitoring vs trading surfaces:** `ForwardCurveWorkspace` is the live monitoring page.
+The former `MarketTerminal` trading-oriented surface was archived in 2026-07 after its sidebar
+entry had been absent since the 2026-04 pilot cleanup. Its capabilities are covered by
+Forward Curve for monitoring, Marketplace for execution, and the Trade History Alerts tab for
+price alerts; the old implementation remains recoverable from git history if needed. Forward Curve consumes `/curves/forward/table`
 for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
 It does not execute trades, and it does not render the old pre-click global curve chart. Price summaries,
 forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
@@ -210,7 +231,7 @@ while the backend rotates the refresh token in an HttpOnly cookie scoped to `/ap
 
 - **App bootstrap:** `index.html` -> `src/index.tsx` -> `src/App.tsx`
 - **API client:** `src/services/api.ts` (all backend communication)
-- **AI engine:** `src/services/ai-engine/chat.ts` (copilot entry)
+- **AI helper:** `src/services/ai-engine/generators.ts` (`analyzeRisk` supplier memo entry)
 - **Route definitions:** `src/App.tsx` (auth, public, and protected routes)
 - **Type system:** `src/types.ts` (all shared interfaces and type unions)
 

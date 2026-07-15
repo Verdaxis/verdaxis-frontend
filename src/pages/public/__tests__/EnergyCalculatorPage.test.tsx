@@ -1,8 +1,14 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EnergyCalculatorPage } from '../EnergyCalculatorPage';
 import { calculateVoyage, defaultInputs } from '../../../data/calculatorDefaults';
+
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('../../../services/analytics', () => ({
+  analytics: { track },
+}));
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/calculator' } = {}) => {
   return render(
@@ -13,6 +19,10 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/calculator' } = {}
 };
 
 describe('EnergyCalculatorPage', () => {
+  beforeEach(() => {
+    track.mockClear();
+  });
+
   it('renders calculator with default values', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     expect(screen.getByText('Energy Calculator')).toBeTruthy();
@@ -54,6 +64,22 @@ describe('EnergyCalculatorPage', () => {
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
     expect(ctaLink.getAttribute('href')).toBe('/pilot');
+  });
+
+  it('tracks the first valid user-triggered result exactly once', async () => {
+    renderWithRouter(<EnergyCalculatorPage />);
+    expect(track).not.toHaveBeenCalledWith('energy_calculator_completed', expect.anything());
+
+    const sliders = screen.getAllByRole('slider');
+    fireEvent.change(sliders[0], { target: { value: '41' } });
+
+    await waitFor(() => {
+      expect(track.mock.calls.filter(([event]) => event === 'energy_calculator_completed')).toHaveLength(1);
+    });
+    expect(track).toHaveBeenCalledWith('energy_calculator_completed', { language: 'en' });
+
+    fireEvent.change(sliders[1], { target: { value: '500' } });
+    expect(track.mock.calls.filter(([event]) => event === 'energy_calculator_completed')).toHaveLength(1);
   });
 });
 

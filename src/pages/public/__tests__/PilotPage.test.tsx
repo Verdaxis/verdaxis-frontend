@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PilotPage } from '../PilotPage';
+
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('../../../services/analytics', () => ({
+  analytics: { track },
+}));
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/pilot' } = {}) => {
   return render(
@@ -14,6 +20,7 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/pilot' } = {}) => 
 describe('PilotPage', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'open', { value: vi.fn(), writable: true });
+    track.mockClear();
   });
 
   it('renders page title', () => {
@@ -67,5 +74,21 @@ describe('PilotPage', () => {
 
     const teamLink = screen.getByRole('link', { name: /speak to the team/i });
     expect(teamLink.getAttribute('href')).toBe('mailto:info@verdaxis.exchange');
+  });
+
+  it('tracks both register CTAs with distinct bounded placements', () => {
+    renderWithRouter(<PilotPage />);
+    const createAccountLinks = screen.getAllByRole('link', { name: /create account/i });
+    createAccountLinks.forEach(link => link.addEventListener('click', event => event.preventDefault()));
+
+    fireEvent.click(createAccountLinks[0]);
+    fireEvent.click(createAccountLinks[1]);
+
+    expect(track).toHaveBeenCalledWith('landing_cta_clicked', {
+      cta: 'register', placement: 'pilot_sidebar', language: 'en',
+    });
+    expect(track).toHaveBeenCalledWith('landing_cta_clicked', {
+      cta: 'register', placement: 'pilot_bottom', language: 'en',
+    });
   });
 });

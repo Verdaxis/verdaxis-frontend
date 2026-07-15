@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 
@@ -40,6 +40,12 @@ vi.mock('gsap/ScrollTrigger', () => ({
 
 vi.mock('lenis', () => ({ default: vi.fn() }));
 
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('../../../services/analytics', () => ({
+  analytics: { track },
+}));
+
 // Mock motion/react to render plain elements
 vi.mock('motion/react', () => ({
   motion: new Proxy({}, {
@@ -65,6 +71,10 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/' } = {}) => {
 };
 
 describe('LandingPage', () => {
+  beforeEach(() => {
+    track.mockClear();
+  });
+
   it('renders hero headline', () => {
     renderWithRouter(<LandingPage />);
     // Text appears in hero headline and also in section subtitles
@@ -91,5 +101,24 @@ describe('LandingPage', () => {
     const applyButtons = screen.getAllByText('Apply for Pilot');
     expect(applyButtons.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Register Interest')).toBeTruthy();
+  });
+
+  it('tracks the distinct bottom CTAs without document-wide capture', () => {
+    renderWithRouter(<LandingPage />);
+    const applyButtons = screen.getAllByText('Apply for Pilot');
+    const bottomPilotLink = applyButtons[applyButtons.length - 1].closest('a');
+    const registerInterestLink = screen.getByText('Register Interest').closest('a');
+    bottomPilotLink?.addEventListener('click', event => event.preventDefault());
+    registerInterestLink?.addEventListener('click', event => event.preventDefault());
+
+    fireEvent.click(bottomPilotLink!);
+    fireEvent.click(registerInterestLink!);
+
+    expect(track).toHaveBeenCalledWith('landing_cta_clicked', {
+      cta: 'pilot', placement: 'landing_bottom', language: 'en',
+    });
+    expect(track).toHaveBeenCalledWith('landing_cta_clicked', {
+      cta: 'register_interest', placement: 'landing_bottom', language: 'en',
+    });
   });
 });

@@ -972,7 +972,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: February 2026",
+    "lastUpdated": "Last updated: July 2026",
     "sections": {
       "0": {
         "title": "1. Information We Collect",
@@ -983,15 +983,19 @@
         "body": "We use your information to operate the exchange platform, process transactions, ensure regulatory compliance (EU ETS, FuelEU), and communicate important updates about your account."
       },
       "2": {
-        "title": "3. Data Protection",
-        "body": "We implement appropriate technical and organizational measures to protect your personal data in accordance with GDPR requirements. All data is encrypted in transit and at rest."
+        "title": "3. Product Analytics",
+        "body": "We use self-hosted, cookie-free analytics to understand page visits and selected product interactions. Technical request information, including IP address and browser details, is used to derive short-lived analytics sessions. We do not attach Verdaxis user IDs, names, email addresses, transaction values, order or trade IDs to analytics events, and session replay is disabled."
       },
       "3": {
-        "title": "4. Your Rights",
-        "body": "Under GDPR, you have the right to access, rectify, erase, restrict processing, and port your personal data. To exercise these rights, contact privacy@verdaxis.exchange."
+        "title": "4. Data Protection",
+        "body": "We implement appropriate technical and organizational measures to protect your personal data. Data is encrypted in transit and protected at rest."
       },
       "4": {
-        "title": "5. Contact",
+        "title": "5. Your Rights",
+        "body": "Subject to applicable law, you may have rights to access, rectify, erase, restrict processing, or port your personal data. To exercise these rights, contact privacy@verdaxis.exchange."
+      },
+      "5": {
+        "title": "6. Contact",
         "body": "For privacy inquiries, email privacy@verdaxis.exchange."
       }
     }
