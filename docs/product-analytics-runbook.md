@@ -21,9 +21,12 @@ semantics are frozen in the plan §1.4–§1.6 and enforced by
 
 - `user_login_days` — one row per user per UTC day, upserted inside the login
   transaction. Pruned to **800 UTC dates** by
-  `verdaxis-product-analytics-prune.timer` (daily 03:20 Asia/Singapore,
-  `Persistent=true`). The service unit is oneshot and stays failed on error —
-  the existing systemd monitor alerts on it.
+  `verdaxis-product-analytics-prune.timer` (prod) and
+  `verdaxis-product-analytics-prune-staging.timer` (staging) — daily 03:20
+  Asia/Singapore, `Persistent=true`, one unit per environment following the
+  `verdaxis-backend.service` / `verdaxis-backend-staging.service` naming
+  convention. The service units are oneshot and stay failed on error — the
+  existing systemd monitor alerts on them.
 - `user_status_transitions` — append-only approval history. **Never pruned.**
   Deployment migration `pa_20260715_analytics_facts` snapshots pre-existing
   Buyer/Supplier users at migration time (not backdated), so as-of
@@ -33,8 +36,10 @@ semantics are frozen in the plan §1.4–§1.6 and enforced by
 Operator commands:
 
 ```bash
-sudo systemctl status verdaxis-product-analytics-prune.timer
+sudo systemctl status verdaxis-product-analytics-prune.timer          # prod
+sudo systemctl status verdaxis-product-analytics-prune-staging.timer  # staging
 sudo journalctl -u verdaxis-product-analytics-prune.service -n 20
+sudo journalctl -u verdaxis-product-analytics-prune-staging.service -n 20
 ```
 
 ## Coverage semantics (what "null" means)
@@ -93,8 +98,9 @@ ever leave the browser (`fe/src/services/analytics.ts`).
 
 1. Backend: `alembic upgrade head` (creates fact tables + snapshot), restart
    `verdaxis-staging-be`.
-2. Install/enable systemd units from `be/deploy/systemd/`:
-   `sudo cp … /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now verdaxis-product-analytics-prune.timer`
+2. Install/enable the environment's systemd units from `be/deploy/systemd/`
+   (bare name = prod, `-staging` = staging):
+   `sudo cp … /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now verdaxis-product-analytics-prune[-staging].timer`
 3. Frontend: standard staging deploy (`npm run verify` first).
 4. Run the Umami smoke (above) and the endpoint benchmark; record results.
 5. Dogfood: every tab in both states (sparse pilot data and demo/ALL
