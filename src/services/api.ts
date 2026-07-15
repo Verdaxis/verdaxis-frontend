@@ -1,4 +1,14 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import {
+    AcquisitionResponse,
+    ActivationResponse,
+    EngagementResponse,
+    MarketplaceResponse,
+    OverviewResponse as ProductAnalyticsOverviewResponse,
+    ProductAnalyticsQueryParams,
+    ReliabilityResponse,
+    RetentionResponse,
+} from '../types/productAnalytics';
 import { reliability } from './analytics';
 import { getAccessToken, refreshAccessToken } from './authToken';
 import { isBackendUnavailableStatus } from './backendAvailability';
@@ -70,17 +80,32 @@ const handleResponse = async (res: Response) => {
     return res.json();
 };
 
-// Fetch with timeout to prevent indefinite loading spinners
+// Fetch with timeout to prevent indefinite loading spinners.
+// An abort initiated by the CALLER re-throws as a recognizable AbortError so
+// stale-request cancellation never renders an error state; only the internal
+// timeout produces the user-facing timeout message. Listeners and timers are
+// always removed.
 const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000): Promise<Response> => {
     const controller = new AbortController();
     const externalSignal = options?.signal;
+    let timedOut = false;
     const abortFromExternalSignal = () => controller.abort();
     if (externalSignal?.aborted) controller.abort();
     externalSignal?.addEventListener('abort', abortFromExternalSignal);
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+    }, timeoutMs);
     return fetch(url, { ...options, signal: controller.signal })
         .catch((err) => {
-            if (err.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+            if (err instanceof DOMException && err.name === 'AbortError') {
+                if (externalSignal?.aborted && !timedOut) throw err;
+                throw new Error('Request timed out. Please try again.');
+            }
+            if (err?.name === 'AbortError') {
+                if (externalSignal?.aborted && !timedOut) throw err;
+                throw new Error('Request timed out. Please try again.');
+            }
             throw err;
         })
         .finally(() => {
@@ -88,6 +113,11 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
             externalSignal?.removeEventListener('abort', abortFromExternalSignal);
         });
 };
+
+export const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException
+        ? error.name === 'AbortError'
+        : (error as { name?: string } | null)?.name === 'AbortError';
 
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
@@ -105,8 +135,9 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         res = await fetchWithTimeout(url, initialOptions, timeout);
     } catch (error) {
         // Best-effort, deduplicated telemetry; the caller's error handling
-        // and the maintenance UI behavior are unchanged.
-        reliability.reportFrontendError('network');
+        // and the maintenance UI behavior are unchanged. Caller-initiated
+        // aborts are control flow, not failures.
+        if (!isAbortError(error)) reliability.reportFrontendError('network');
         throw error;
     }
     if (isBackendUnavailableStatus(res.status)) {
@@ -227,6 +258,29 @@ const mapProductUsageResponse = (data: any): ProductUsageResponse => {
     };
 };
 
+
+// Product Analytics query serialization: defaults are omitted so cache keys
+// and URLs stay canonical.
+const productAnalyticsSearch = (query: ProductAnalyticsQueryParams): string => {
+    const params = new URLSearchParams();
+    params.set('start', query.start);
+    params.set('end', query.end);
+    if (query.compare === false) params.set('compare', 'false');
+    if (query.audience && query.audience !== 'ALL') params.set('audience', query.audience);
+    if (query.activity && query.activity !== 'LIVE') params.set('activity', query.activity);
+    if (query.product_id) params.set('product_id', query.product_id);
+    if (query.delivery_point_id) params.set('delivery_point_id', query.delivery_point_id);
+    if (query.availability_window) params.set('availability_window', query.availability_window);
+    return params.toString();
+};
+
+const productAnalyticsTab = <T>(tab: string) =>
+    (query: ProductAnalyticsQueryParams, signal?: AbortSignal): Promise<T> =>
+        fetchApi(
+            `/admin/analytics/product-analytics/${tab}?${productAnalyticsSearch(query)}`,
+            { signal },
+        ) as Promise<T>;
+
 export const api = {
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -297,6 +351,15 @@ export const api = {
         }
     },
 
+    productAnalytics: {
+        overview: productAnalyticsTab<ProductAnalyticsOverviewResponse>('overview'),
+        acquisition: productAnalyticsTab<AcquisitionResponse>('acquisition'),
+        activation: productAnalyticsTab<ActivationResponse>('activation'),
+        engagement: productAnalyticsTab<EngagementResponse>('engagement'),
+        marketplace: productAnalyticsTab<MarketplaceResponse>('marketplace'),
+        retention: productAnalyticsTab<RetentionResponse>('retention'),
+        reliability: productAnalyticsTab<ReliabilityResponse>('reliability'),
+    },
     compliance: {
         fleet: async () => {
             const res = await fetchWithTimeout(`${API_URL}/compliance/fleet`, { headers: getHeaders() });
