@@ -2,81 +2,19 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Users,
-  Activity,
-  TrendingUp,
-  DollarSign,
   BarChart3,
-  AlertCircle,
   Loader2,
   ShieldCheck,
-  Package,
-  Banknote,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
-import { ProductUsageSection } from './ProductUsageSection';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface OverviewData {
-  total_users: number;
-  active_users_7d: number;
-  total_organizations: number;
-  total_orders: number;
-  open_orders: number;
-  total_trades: number;
-  confirmed_trades: number;
-  total_volume_mt: number;
-  total_revenue_usd: number;
-  total_gmv_usd: number;
-}
-
-interface DailyStat {
-  date: string;
-  orders_placed: number;
-  trades_executed: number;
-  volume_mt: number;
-  gmv_usd: number;
-  commission_usd: number;
-}
-
-interface AuditLogEntry {
-  id: string;
-  user_id: string | null;
-  action: string;
-  resource_type: string;
-  resource_id: string | null;
-  changes: Record<string, unknown> | null;
-  ip_address: string | null;
-  request_id: string | null;
-  timestamp: string;
-}
-
-interface CommissionSummary {
-  pending_count: number;
-  total_pending_usd: number | string;
-  invoiced_count: number;
-  total_invoiced_usd: number | string;
-  paid_count: number;
-  total_paid_usd: number | string;
-}
 
 interface AdminUserEntry {
   id: string;
@@ -96,57 +34,10 @@ type UserStatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 // Formatting helpers
 // ---------------------------------------------------------------------------
 
-const toNumber = (value: number | string | null | undefined): number => {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const fmt = (n: number | string | null | undefined, decimals = 0) =>
-  toNumber(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-
-const fmtUsd = (n: number | string | null | undefined) => `$${fmt(n, 2)}`;
-
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
-
-const fmtTimestamp = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-// ---------------------------------------------------------------------------
-// Summary Card
-// ---------------------------------------------------------------------------
-
-interface SummaryCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  color: string;
-}
-
-const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, subtitle, icon, color }) => (
-  <div className="v-card p-5 flex flex-col gap-2">
-    <div className="flex items-center justify-between">
-      <span className="text-xs font-bold text-verdaxis-text-muted uppercase tracking-wider">{title}</span>
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
-    </div>
-    <div className="font-['Montserrat'] font-bold text-2xl text-verdaxis-text">{value}</div>
-    {subtitle && <span className="text-xs text-verdaxis-text-muted">{subtitle}</span>}
-  </div>
-);
-
-// ---------------------------------------------------------------------------
-// Status badge
-// ---------------------------------------------------------------------------
 
 const statusBadge = (status: string) => {
   const cfg: Record<string, { cls: string; label: string }> = {
@@ -159,10 +50,6 @@ const statusBadge = (status: string) => {
     <span className={`px-2 py-0.5 rounded text-xs font-medium border ${cls}`}>{label}</span>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Users Tab
-// ---------------------------------------------------------------------------
 
 const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
   { label: 'Pending', value: 'PENDING' },
@@ -349,43 +236,7 @@ export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
   const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users') ? 'users' : 'analytics';
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [daily, setDaily] = useState<DailyStat[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
-  const [commission, setCommission] = useState<CommissionSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [ov, dl, logs, comm] = await Promise.allSettled([
-          api.admin.overview(),
-          api.admin.daily(30),
-          api.admin.auditLogs({ limit: 10 }),
-          api.admin.commissionSummary(),
-        ]);
-
-        if (ov.status === 'fulfilled') setOverview(ov.value);
-        if (dl.status === 'fulfilled') setDaily(dl.value);
-        if (logs.status === 'fulfilled') setAuditLogs(logs.value);
-        if (comm.status === 'fulfilled') setCommission(comm.value);
-
-        if (ov.status === 'rejected') {
-          setError(ov.reason?.message || 'Failed to load overview data');
-        }
-      } catch (e: any) {
-        setError(e.message || 'An unexpected error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  if (!ready || loading) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-verdaxis" />
@@ -393,32 +244,6 @@ export const AdminDashboard: React.FC = () => {
       </div>
     );
   }
-
-  if (error && !overview) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[400px] gap-3">
-        <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-verdaxis-text font-medium">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="v-btn-primary text-sm px-4 py-2"
-        >
-          {t('error.retry')}
-        </button>
-      </div>
-    );
-  }
-
-  const chartData = daily.map((d) => ({
-    ...d,
-    label: fmtDate(d.date),
-  }));
-
-  const totalCommissionUsd = commission
-    ? toNumber(commission.total_pending_usd)
-      + toNumber(commission.total_invoiced_usd)
-      + toNumber(commission.total_paid_usd)
-    : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -452,211 +277,7 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'users' && <UsersTab />}
 
       {/* Analytics tab */}
-      {activeTab === 'analytics' && (
-        <>
-          <ProductAnalyticsWorkspace />
-
-          {/* Legacy analytics body — temporary fallback while the workspace
-              tabs land; removed in plan Task 13. */}
-          <ProductUsageSection />
-
-          {/* Summary cards */}
-          {overview && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <SummaryCard
-                title={t('cards.totalUsers')}
-                value={fmt(overview.total_users)}
-                subtitle={t('cards.totalUsersSubtitle', { count: overview.active_users_7d })}
-                icon={<Users size={18} className="text-white" />}
-                color="bg-blue-500"
-              />
-              <SummaryCard
-                title={t('cards.activeTraders')}
-                value={fmt(overview.active_users_7d)}
-                subtitle={t('cards.activeTradersSubtitle', { count: overview.total_organizations })}
-                icon={<Activity size={18} className="text-white" />}
-                color="bg-emerald-500"
-              />
-              <SummaryCard
-                title={t('cards.totalVolume')}
-                value={`${fmt(overview.total_volume_mt)} MT`}
-                subtitle={t('cards.totalVolumeSubtitle', { trades: fmt(overview.total_trades), confirmed: fmt(overview.confirmed_trades) })}
-                icon={<Package size={18} className="text-white" />}
-                color="bg-teal-500"
-              />
-              <SummaryCard
-                title={t('cards.platformRevenue')}
-                value={fmtUsd(overview.total_revenue_usd)}
-                subtitle={t('cards.platformRevenueSubtitle')}
-                icon={<DollarSign size={18} className="text-white" />}
-                color="bg-amber-500"
-              />
-              <SummaryCard
-                title={t('cards.gmv')}
-                value={fmtUsd(overview.total_gmv_usd)}
-                subtitle={t('cards.gmvSubtitle', { orders: fmt(overview.total_orders), open: fmt(overview.open_orders) })}
-                icon={<TrendingUp size={18} className="text-white" />}
-                color="bg-violet-500"
-              />
-            </div>
-          )}
-
-          {/* Charts */}
-          {chartData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="v-card p-5">
-                <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
-                  <BarChart3 size={18} className="text-emerald-500" />
-                  {t('charts.dailyVolume')}
-                </h2>
-                <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                      <XAxis dataKey="label" fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
-                      <YAxis fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          color: 'var(--text-primary)',
-                        }}
-                      />
-                      <Bar dataKey="volume_mt" name={t('charts.volumeLegend')} fill="#10B981" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="v-card p-5">
-                <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
-                  <TrendingUp size={18} className="text-blue-500" />
-                  {t('charts.dailyGmv')}
-                </h2>
-                <div className="h-[280px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                      <XAxis dataKey="label" fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
-                      <YAxis fontSize={11} tick={{ fill: 'var(--text-secondary)' }} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '8px',
-                          color: 'var(--text-primary)',
-                        }}
-                        formatter={(value: number) => [fmtUsd(value), t('charts.gmvLegend')]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="gmv_usd"
-                        name={t('charts.gmvLegend')}
-                        stroke="#3B82F6"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="commission_usd"
-                        name={t('charts.commissionLegend')}
-                        stroke="#F59E0B"
-                        strokeWidth={2}
-                        dot={false}
-                        strokeDasharray="5 5"
-                        activeDot={{ r: 4 }}
-                      />
-                      <Legend />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bottom row: Audit logs + Commission summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 v-card p-5">
-              <h2 className="v-heading text-lg mb-4">{t('audit.title')}</h2>
-              {auditLogs.length === 0 ? (
-                <p className="text-verdaxis-text-muted text-sm">{t('audit.empty')}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-verdaxis-text-muted text-xs uppercase border-b border-verdaxis-border">
-                        <th className="text-left py-2 pr-4">{t('audit.col.time')}</th>
-                        <th className="text-left py-2 pr-4">{t('audit.col.action')}</th>
-                        <th className="text-left py-2 pr-4">{t('audit.col.resource')}</th>
-                        <th className="text-left py-2">{t('audit.col.ip')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditLogs.map((log) => (
-                        <tr key={log.id} className="border-b border-verdaxis-border/50 last:border-0">
-                          <td className="py-2.5 pr-4 text-verdaxis-text-muted whitespace-nowrap">
-                            {fmtTimestamp(log.timestamp)}
-                          </td>
-                          <td className="py-2.5 pr-4 text-verdaxis-text font-medium">{log.action}</td>
-                          <td className="py-2.5 pr-4 text-verdaxis-text-muted">
-                            {log.resource_type}
-                            {log.resource_id && (
-                              <span className="ml-1 text-xs opacity-60">#{log.resource_id.slice(0, 8)}</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 text-verdaxis-text-muted font-mono text-xs">
-                            {log.ip_address || '--'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="v-card p-5">
-              <h2 className="v-heading text-lg mb-4 flex items-center gap-2">
-                <Banknote size={18} className="text-amber-500" />
-                {t('commission.title')}
-              </h2>
-              {commission ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-verdaxis-text-muted text-sm">{t('commission.totalEarned')}</span>
-                    <span className="font-['Montserrat'] font-bold text-verdaxis-text">
-                      {fmtUsd(totalCommissionUsd)}
-                    </span>
-                  </div>
-                  <hr className="border-verdaxis-border" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-verdaxis-text-muted text-sm">{t('commission.pending')}</span>
-                    <span className="text-amber-500 font-semibold">
-                      {fmtUsd(commission.total_pending_usd)} ({commission.pending_count})
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-verdaxis-text-muted text-sm">{t('commission.invoiced')}</span>
-                    <span className="text-blue-500 font-semibold">
-                      {fmtUsd(commission.total_invoiced_usd)} ({commission.invoiced_count})
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-verdaxis-text-muted text-sm">{t('commission.paid')}</span>
-                    <span className="text-emerald-500 font-semibold">
-                      {fmtUsd(commission.total_paid_usd)} ({commission.paid_count})
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-verdaxis-text-muted text-sm">{t('commission.empty')}</p>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+      {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
     </div>
   );
 };

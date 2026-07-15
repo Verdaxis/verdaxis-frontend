@@ -60,3 +60,18 @@ Tests cover disabled configuration, path normalization, property allowlisting,
 failure isolation, API mapping, period switching, and degraded Admin rendering.
 Production remains disabled until the staging
 collector and privacy behavior are reviewed.
+
+## Reliability Telemetry (Product Analytics plan §2.5)
+
+Three additional typed events power the admin Reliability tab, wired through
+`src/services/analytics.ts` (`createReliabilityReporter`):
+
+- `frontend_error` `{route_family: landing|signup|platform|admin, category: render|chunk|network|unknown}`
+- `backend_unavailable` `{route_family: signup|platform|admin}`
+- `navigation_performance` `{destination: <12-value registry>, view_mode: BUYER|SUPPLIER, latency_bucket: lt250|250_500|500_1000|1000_2500|gte2500}`
+
+Rules: bounded enum values only — never stack traces, URLs with query
+strings, request bodies, or identifiers. Identical error category +
+route-family pairs deduplicate for 60 seconds per browser session.
+Navigation latency is sampled at a stable 10% per browser session (decision
+stored once in sessionStorage) and only the bucket leaves the browser.
