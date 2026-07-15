@@ -1,7 +1,26 @@
+import { NavigationDestination, reliability } from '../services/analytics';
 import { Page, ViewMode } from '../types';
 
 const MAX_METRICS = 40;
 const NAVIGATION_EVENT_NAME = 'verdaxis:dashboard-navigation';
+
+// Canonical destination registry (Product Analytics plan §2.5). Legacy pages
+// without their own view report nothing.
+const PAGE_DESTINATIONS: Partial<Record<Page, NavigationDestination>> = {
+  DASHBOARD: 'home',
+  MAP: 'map',
+  MARKETPLACE: 'marketplace',
+  FORWARD_CURVE: 'curve',
+  WATCHLISTS: 'watchlist',
+  ANALYTICS: 'analytics',
+  DATA_ANALYTICS: 'analytics',
+  TRADES: 'trades',
+  QUOTES: 'quotes',
+  COMPLIANCE: 'compliance',
+  TRAINING: 'training',
+  SETTINGS: 'settings',
+  ADMIN: 'admin',
+};
 
 // Passive route commit timing. Dogfood scripts layer page-specific usability
 // waits on top of this so Map/chart/data initialization is not undercounted.
@@ -96,6 +115,13 @@ export const recordDashboardContentReady = (
     metrics.push(metric);
     window.__VERDAXIS_NAV_METRICS__ = metrics.slice(-MAX_METRICS);
     window.dispatchEvent(new CustomEvent(NAVIGATION_EVENT_NAME, { detail: metric }));
+  }
+
+  const destination = PAGE_DESTINATIONS[metric.toPage];
+  if (destination) {
+    // Stable 10% per-session sample of successful navigations; the bucketed
+    // latency is the only measurement that leaves the browser.
+    reliability.reportNavigationPerformance(destination, metric.viewMode, metric.durationMs);
   }
 
   activeNavigation = null;

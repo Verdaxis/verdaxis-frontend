@@ -1,4 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+
+vi.mock('../services/analytics', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../services/analytics')>();
+  return {
+    ...original,
+    reliability: {
+      reportFrontendError: vi.fn(),
+      reportBackendUnavailable: vi.fn(),
+      reportNavigationPerformance: vi.fn(),
+    },
+  };
+});
+
+import { reliability } from '../services/analytics';
 import {
   getDashboardNavigationEventName,
   recordDashboardContentReady,
@@ -45,5 +59,24 @@ describe('dashboard navigation performance metrics', () => {
     const metric = recordDashboardContentReady('FORWARD_CURVE', 'BUYER');
     expect(metric?.toPage).toBe('FORWARD_CURVE');
     expect(window.__VERDAXIS_NAV_METRICS__).toHaveLength(1);
+  });
+
+  it('reports sampled navigation performance for canonical destinations only', () => {
+    vi.clearAllMocks();
+
+    recordDashboardNavigationStart('MAP', 'MARKETPLACE', 'BUYER');
+    const metric = recordDashboardContentReady('MARKETPLACE', 'BUYER');
+    expect(metric).not.toBeNull();
+    expect(reliability.reportNavigationPerformance).toHaveBeenCalledTimes(1);
+    expect(reliability.reportNavigationPerformance).toHaveBeenCalledWith(
+      'marketplace',
+      'BUYER',
+      metric?.durationMs,
+    );
+
+    // Legacy pages without their own destination report nothing.
+    recordDashboardNavigationStart('MAP', 'ORDERBOOK', 'SUPPLIER');
+    recordDashboardContentReady('ORDERBOOK', 'SUPPLIER');
+    expect(reliability.reportNavigationPerformance).toHaveBeenCalledTimes(1);
   });
 });

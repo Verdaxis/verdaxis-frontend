@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { API_URL } from '../services/config';
 import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
-import { analytics } from '../services/analytics';
+import { analytics, reliability } from '../services/analytics';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 
@@ -50,6 +50,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [token, setToken] = useState<string | null>(getAccessToken());
     const [isLoading, setIsLoading] = useState(true);
     const [isBackendUnavailable, setIsBackendUnavailable] = useState(false);
+    // Auth checks flip maintenance state through this helper so every
+    // backend-unavailable observation also emits the deduplicated
+    // reliability event (Product Analytics plan §2.5).
+    const markBackendUnavailable = useCallback(() => {
+        reliability.reportBackendUnavailable();
+        setIsBackendUnavailable(true);
+    }, []);
     const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -90,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const outcome = await refreshSession();
                 if (outcome.status === 'unavailable') {
-                    setIsBackendUnavailable(true);
+                    markBackendUnavailable();
                     return;
                 }
                 if (outcome.status === 'denied') {
@@ -102,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 applyAccessToken(outcome.token);
                 scheduleRefresh(outcome.token);
             } catch {
-                setIsBackendUnavailable(true);
+                markBackendUnavailable();
             }
         }, refreshIn);
     }, [applyAccessToken, logout]);
@@ -143,10 +150,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(userData);
                 if (userData.role) analytics.track('login_succeeded', { role: userData.role });
             } else if (isBackendUnavailableStatus(res.status)) {
-                setIsBackendUnavailable(true);
+                markBackendUnavailable();
             }
         } catch {
-            setIsBackendUnavailable(true);
+            markBackendUnavailable();
         }
         finally {
             setIsLoading(false);
@@ -161,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const outcome = await refreshSession();
                 if (outcome.status === 'unavailable') {
-                    setIsBackendUnavailable(true);
+                    markBackendUnavailable();
                     return;
                 }
                 if (outcome.status === 'denied') {
@@ -181,14 +188,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsBackendUnavailable(false);
                     setUser(await userRes.json());
                 } else if (isBackendUnavailableStatus(userRes.status)) {
-                    setIsBackendUnavailable(true);
+                    markBackendUnavailable();
                 } else {
                     setIsBackendUnavailable(false);
                     clearTokens();
                 }
             } catch (err) {
                 console.error('Error refreshing auth session:', err);
-                setIsBackendUnavailable(true);
+                markBackendUnavailable();
             } finally {
                 setIsLoading(false);
             }
@@ -206,12 +213,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(userData);
                 scheduleRefresh(currentToken);
             } else if (isBackendUnavailableStatus(res.status)) {
-                setIsBackendUnavailable(true);
+                markBackendUnavailable();
             } else if (res.status === 401) {
                 // Try refresh before giving up
                 const outcome = await refreshSession();
                 if (outcome.status === 'unavailable') {
-                    setIsBackendUnavailable(true);
+                    markBackendUnavailable();
                 } else if (outcome.status === 'success') {
                     setIsBackendUnavailable(false);
                     applyAccessToken(outcome.token);
@@ -223,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setUser(await userRes.json());
                         scheduleRefresh(outcome.token);
                     } else if (isBackendUnavailableStatus(userRes.status)) {
-                        setIsBackendUnavailable(true);
+                        markBackendUnavailable();
                     } else {
                         setIsBackendUnavailable(false);
                         clearTokens();
@@ -237,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } catch (err) {
             console.error('Error fetching user profile:', err);
-            setIsBackendUnavailable(true);
+            markBackendUnavailable();
         } finally {
             setIsLoading(false);
         }

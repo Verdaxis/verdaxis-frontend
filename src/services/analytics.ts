@@ -1,6 +1,12 @@
 export type AnalyticsRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 export type AnalyticsViewMode = 'BUYER' | 'SUPPLIER';
 export type AnalyticsLanguage = 'en' | 'zh';
+export type ReliabilityRouteFamily = 'landing' | 'signup' | 'platform' | 'admin';
+export type FrontendErrorCategory = 'render' | 'chunk' | 'network' | 'unknown';
+export type NavigationDestination =
+  | 'home' | 'map' | 'marketplace' | 'curve' | 'watchlist' | 'analytics'
+  | 'trades' | 'quotes' | 'compliance' | 'training' | 'settings' | 'admin';
+export type NavigationLatencyBucket = 'lt250' | '250_500' | '500_1000' | '1000_2500' | 'gte2500';
 type MarketSide = 'BID' | 'ASK';
 type DemoStatus = 'LIVE' | 'DEMO' | 'REFERENCE' | 'MIXED' | 'UNKNOWN';
 type LandingCta = 'pilot' | 'how_it_works' | 'register' | 'register_interest' | 'sign_in';
@@ -31,6 +37,16 @@ export interface AnalyticsEventMap {
   tutorial_completed: { role: AnalyticsRole };
   estimator_opened: undefined;
   estimator_completed: { port: string; fuel: string };
+  // Reliability telemetry (Product Analytics plan §2.5): bounded enums only —
+  // never stack traces, URLs with query strings, request bodies, user IDs,
+  // order IDs, or free text.
+  frontend_error: { route_family: ReliabilityRouteFamily; category: FrontendErrorCategory };
+  backend_unavailable: { route_family: Exclude<ReliabilityRouteFamily, 'landing'> };
+  navigation_performance: {
+    destination: NavigationDestination;
+    view_mode: AnalyticsViewMode;
+    latency_bucket: NavigationLatencyBucket;
+  };
 }
 
 interface UmamiClient {
@@ -83,6 +99,19 @@ const EVENT_SCHEMAS: { [K in keyof AnalyticsEventMap]: Record<string, Validator>
   tutorial_started: { role }, tutorial_step_completed: { step: token, role },
   tutorial_step_skipped: { step: token, role }, tutorial_completed: { role },
   estimator_opened: {}, estimator_completed: { port: token, fuel: token },
+  frontend_error: {
+    route_family: oneOf(['landing', 'signup', 'platform', 'admin'] as const),
+    category: oneOf(['render', 'chunk', 'network', 'unknown'] as const),
+  },
+  backend_unavailable: { route_family: oneOf(['signup', 'platform', 'admin'] as const) },
+  navigation_performance: {
+    destination: oneOf([
+      'home', 'map', 'marketplace', 'curve', 'watchlist', 'analytics',
+      'trades', 'quotes', 'compliance', 'training', 'settings', 'admin',
+    ] as const),
+    view_mode: tradingRole,
+    latency_bucket: oneOf(['lt250', '250_500', '500_1000', '1000_2500', 'gte2500'] as const),
+  },
 };
 
 const normalizeHost = (host?: string): string | null => {
@@ -178,4 +207,115 @@ export const analytics = createAnalytics({
   host: import.meta.env.VITE_ANALYTICS_HOST,
   websiteId: import.meta.env.VITE_ANALYTICS_WEBSITE_ID,
   environment: import.meta.env.MODE,
+});
+
+// ---------------------------------------------------------------------------
+// Reliability reporting (Product Analytics plan §2.5)
+// ---------------------------------------------------------------------------
+
+const SIGNUP_PATH_PREFIXES = ['/login', '/register', '/onboarding', '/create-organization', '/verify-email'];
+const ERROR_DEDUPE_WINDOW_MS = 60_000;
+const NAVIGATION_SAMPLE_RATE = 0.1;
+const NAVIGATION_SAMPLE_STORAGE_KEY = 'verdaxis:nav-perf-sample';
+
+export const routeFamilyFromPath = (path: string): ReliabilityRouteFamily => {
+  if (path.startsWith('/app/admin')) return 'admin';
+  if (path.startsWith('/app')) return 'platform';
+  if (SIGNUP_PATH_PREFIXES.some(prefix => path.startsWith(prefix))) return 'signup';
+  return 'landing';
+};
+
+export const navigationLatencyBucket = (durationMs: number): NavigationLatencyBucket => {
+  if (durationMs < 250) return 'lt250';
+  if (durationMs < 500) return '250_500';
+  if (durationMs < 1000) return '500_1000';
+  if (durationMs < 2500) return '1000_2500';
+  return 'gte2500';
+};
+
+interface ReliabilityReporterDeps {
+  track: <K extends 'frontend_error' | 'backend_unavailable' | 'navigation_performance'>(
+    event: K,
+    data: AnalyticsEventMap[K],
+  ) => void;
+  getPath?: () => string;
+  now?: () => number;
+  random?: () => number;
+  storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
+}
+
+export const createReliabilityReporter = (deps: ReliabilityReporterDeps) => {
+  const now = deps.now ?? (() => Date.now());
+  const random = deps.random ?? Math.random;
+  const getPath = deps.getPath ?? (() => (typeof window !== 'undefined' ? window.location.pathname : '/'));
+  // Deduplicate identical category + route-family pairs for 60 seconds per
+  // browser session; delivery stays best-effort (the collector may be
+  // disabled, offline, blocked, or unloaded).
+  const lastReported = new Map<string, number>();
+  let inMemorySampleDecision: '1' | '0' | null = null;
+
+  const shouldReport = (key: string): boolean => {
+    const at = now();
+    const previous = lastReported.get(key);
+    if (previous !== undefined && at - previous < ERROR_DEDUPE_WINDOW_MS) return false;
+    lastReported.set(key, at);
+    return true;
+  };
+
+  const navigationSampleDecision = (): boolean => {
+    // The 10% sampling decision is made once and reused for the whole
+    // browser session so per-session volumes stay stable.
+    try {
+      const stored = deps.storage?.getItem(NAVIGATION_SAMPLE_STORAGE_KEY);
+      if (stored === '1' || stored === '0') return stored === '1';
+    } catch { /* storage may be blocked; fall back to memory */ }
+    if (inMemorySampleDecision === null) {
+      inMemorySampleDecision = random() < NAVIGATION_SAMPLE_RATE ? '1' : '0';
+      try { deps.storage?.setItem(NAVIGATION_SAMPLE_STORAGE_KEY, inMemorySampleDecision); }
+      catch { /* memory decision still applies */ }
+    }
+    return inMemorySampleDecision === '1';
+  };
+
+  return {
+    reportFrontendError(category: FrontendErrorCategory, routeFamily?: ReliabilityRouteFamily) {
+      try {
+        const family = routeFamily ?? routeFamilyFromPath(getPath());
+        if (!shouldReport(`error:${category}:${family}`)) return;
+        deps.track('frontend_error', { route_family: family, category });
+      } catch { /* reliability reporting never breaks the product */ }
+    },
+    reportBackendUnavailable(routeFamily?: Exclude<ReliabilityRouteFamily, 'landing'>) {
+      try {
+        const inferred = routeFamily ?? routeFamilyFromPath(getPath());
+        // The landing surface has no backend dependency; classify as signup.
+        const family = inferred === 'landing' ? 'signup' : inferred;
+        if (!shouldReport(`backend:${family}`)) return;
+        deps.track('backend_unavailable', { route_family: family });
+      } catch { /* best-effort only */ }
+    },
+    reportNavigationPerformance(
+      destination: NavigationDestination,
+      viewMode: AnalyticsViewMode,
+      durationMs: number,
+    ) {
+      try {
+        if (!navigationSampleDecision()) return;
+        deps.track('navigation_performance', {
+          destination,
+          view_mode: viewMode,
+          latency_bucket: navigationLatencyBucket(durationMs),
+        });
+      } catch { /* sampling and delivery are advisory */ }
+    },
+  };
+};
+
+export const reliability = createReliabilityReporter({
+  track: (event, data) =>
+    (analytics.track as (name: string, properties?: Record<string, string>) => void)(
+      event,
+      data as unknown as Record<string, string>,
+    ),
+  storage: typeof window !== 'undefined' ? window.sessionStorage : null,
 });

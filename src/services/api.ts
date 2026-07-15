@@ -1,5 +1,7 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import { reliability } from './analytics';
 import { getAccessToken, refreshAccessToken } from './authToken';
+import { isBackendUnavailableStatus } from './backendAvailability';
 import { API_URL } from './config';
 
 export const mapPortResponse = (p: any): Port => ({
@@ -98,7 +100,18 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         headers: withAuthHeader(options?.headers),
     };
 
-    let res = await fetchWithTimeout(url, initialOptions, timeout);
+    let res: Response;
+    try {
+        res = await fetchWithTimeout(url, initialOptions, timeout);
+    } catch (error) {
+        // Best-effort, deduplicated telemetry; the caller's error handling
+        // and the maintenance UI behavior are unchanged.
+        reliability.reportFrontendError('network');
+        throw error;
+    }
+    if (isBackendUnavailableStatus(res.status)) {
+        reliability.reportBackendUnavailable();
+    }
 
     if (res.status === 401 && !shouldSkipRefresh(path)) {
         const refreshedToken = await refreshAccessToken();
