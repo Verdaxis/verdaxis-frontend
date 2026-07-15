@@ -29,6 +29,7 @@ import {
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductUsageSection } from './ProductUsageSection';
+import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -453,6 +454,10 @@ export const AdminDashboard: React.FC = () => {
       {/* Analytics tab */}
       {activeTab === 'analytics' && (
         <>
+          <ProductAnalyticsWorkspace />
+
+          {/* Legacy analytics body — temporary fallback while the workspace
+              tabs land; removed in plan Task 13. */}
           <ProductUsageSection />
 
           {/* Summary cards */}

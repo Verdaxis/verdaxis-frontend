@@ -12,7 +12,23 @@ const { productUsage, overview, daily, auditLogs, commissionSummary } = vi.hoist
   productUsage: vi.fn(), overview: vi.fn(), daily: vi.fn(), auditLogs: vi.fn(), commissionSummary: vi.fn(),
 }));
 
-vi.mock('../services/api', () => ({ api: { admin: { productUsage, overview, daily, auditLogs, commissionSummary } } }));
+// The workspace shell fetches the active product-analytics tab on mount;
+// a pending promise keeps it in its loading state so these legacy-body
+// tests stay focused.
+vi.mock('../services/api', () => {
+  const pendingTab = () => new Promise(() => undefined);
+  return { api: {
+    admin: { productUsage, overview, daily, auditLogs, commissionSummary },
+    productAnalytics: {
+      overview: pendingTab, acquisition: pendingTab, activation: pendingTab,
+      engagement: pendingTab, marketplace: pendingTab, retention: pendingTab,
+      reliability: pendingTab,
+    },
+    catalog: { products: async () => [], deliveryPoints: async () => [] },
+  },
+  isAbortError: () => false,
+  };
+});
 vi.mock('recharts', async importOriginal => {
   const actual = await importOriginal<typeof import('recharts')>();
   return { ...actual, ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div> };
