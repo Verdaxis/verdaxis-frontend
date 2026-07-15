@@ -50,6 +50,13 @@ zeros are genuine. UI renders suppression as “< 3”.
 
 - p95 ≤ 500 ms warm / ≤ 1500 ms cold per tab (90-day query), body ≤ 250 KB.
   Verify with `be/scripts/benchmark_product_analytics.py` (see its docstring).
+- Measured 2026-07-15 (staging): warm p95 119–168 ms and max body 23 KB on all
+  seven tabs — within budget. **Documented exception:** cold first-hit on the
+  four behavioral tabs (overview/acquisition/engagement/reliability) measured
+  2.8–5.3 s because the local Umami collector answers its first aggregate
+  fan-out slowly; the 5-minute behavioral cache absorbs everything after, and
+  the UI shows the tab-scoped loading state meanwhile. Authoritative-only
+  tabs are within the cold budget (≤ 513 ms).
 - SQL: ≤ 8 round trips per single-source tab. Documented exception:
   Marketplace `activity=ALL` composes reference coverage for **10** bounded
   lookups (no loops). Enforced by statement-count tests.
