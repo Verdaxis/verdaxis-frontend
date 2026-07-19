@@ -58,7 +58,7 @@ RSS sources (6 feeds):
 Processing pipeline:
 1. Fetch RSS feeds via `feedparser` (pip install)
 2. Deduplicate by URL
-3. Each headline → Gemini Flash Lite (`gemini-flash-lite-latest`, key: `AIzaSyASMQI2fcFRz8zrey7_16D_vlR4zT7rsMA`)
+3. Each headline → Gemini Flash Lite (`gemini-flash-lite-latest`, key: `[revoked and removed]`)
    - Categorize: shipping | bunkers | regulation | carbon | commodities | markets
    - Relevance score 1-5 (to fuel trading / maritime compliance)
    - One-line summary if title is vague
