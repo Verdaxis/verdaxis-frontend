@@ -132,6 +132,7 @@
   "orderPlaceModal.label.estimatedTotal": "预估总额",
   "orderPlaceModal.label.fuelType": "燃料类型",
   "orderPlaceModal.label.grade": "等级",
+  "orderPlaceModal.label.marketProduct": "市场产品",
   "orderPlaceModal.label.unit": "单位",
   "orderPlaceModal.label.minLot": "最小批量",
   "orderPlaceModal.label.region": "地区",
