@@ -133,6 +133,7 @@
   "orderPlaceModal.label.estimatedTotal": "Estimated Total",
   "orderPlaceModal.label.fuelType": "Fuel Type",
   "orderPlaceModal.label.grade": "Grade",
+  "orderPlaceModal.label.marketProduct": "Market Product",
   "orderPlaceModal.label.unit": "Unit",
   "orderPlaceModal.label.minLot": "Min Lot",
   "orderPlaceModal.label.region": "Region",
