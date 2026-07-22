@@ -7,10 +7,13 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  LifeBuoy,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { marketSupportApi, type AdminCapability } from '../../services/marketSupportApi';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
+import { MarketSupportWorkspace } from './MarketSupportWorkspace';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,19 +226,48 @@ const UsersTab: React.FC = () => {
 // Main Component
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'analytics' | 'users';
+type AdminTab = 'analytics' | 'users' | 'market-support';
 
-// Tab state lives in the URL so /app/admin and /app/admin/users are
-// bookmarkable and survive refresh (Sprint 3 item 11).
+// Tab state lives in the URL so admin workspaces are bookmarkable and survive
+// refresh. Market Support remains hidden until the backend returns a live,
+// revocable capability grant for the authenticated administrator.
 const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   analytics: '/app/admin',
   users: '/app/admin/users',
+  'market-support': '/app/admin/market-support',
 };
 
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
-  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users') ? 'users' : 'analytics';
+  const [marketSupportCapabilities, setMarketSupportCapabilities] = useState<AdminCapability[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    marketSupportApi.capabilities()
+      .then((capabilities) => {
+        if (!cancelled) setMarketSupportCapabilities(capabilities);
+      })
+      .catch(() => {
+        if (!cancelled) setMarketSupportCapabilities([]);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/market-support')
+    ? 'market-support'
+    : location.pathname.startsWith('/app/admin/users')
+      ? 'users'
+      : 'analytics';
+  const canUseMarketSupport = marketSupportCapabilities.length > 0;
+  const tabs: { key: AdminTab; label: string; icon: React.ReactNode }[] = [
+    { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
+    { key: 'users', label: 'Users', icon: <Users size={15} /> },
+    ...(canUseMarketSupport
+      ? [{ key: 'market-support' as const, label: 'Market Support', icon: <LifeBuoy size={15} /> }]
+      : []),
+  ];
+
   if (!ready) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -255,10 +287,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-verdaxis-border">
-        {([
-          { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
-          { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
-        ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
+        {tabs.map(({ key, label, icon }) => (
           <Link
             key={key}
             to={ADMIN_TAB_PATHS[key]}
@@ -273,11 +302,9 @@ export const AdminDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Users tab */}
       {activeTab === 'users' && <UsersTab />}
-
-      {/* Analytics tab */}
       {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
+      {activeTab === 'market-support' && <MarketSupportWorkspace />}
     </div>
   );
 };
