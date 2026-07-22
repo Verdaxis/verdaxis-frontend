@@ -2,36 +2,36 @@
 
 ## Most Imported Files (change these carefully)
 
-- `src/types.ts` — imported by **71** files
-- `src/hooks/useNamespace.ts` — imported by **61** files
-- `src/services/api.ts` — imported by **38** files
+- `src/types.ts` — imported by **72** files
+- `src/hooks/useNamespace.ts` — imported by **51** files
+- `src/services/api.ts` — imported by **33** files
+- `src/services/analytics.ts` — imported by **23** files
 - `src/context/AuthContext.tsx` — imported by **19** files
-- `src/services/config.ts` — imported by **19** files
-- `src/tests/test-utils.tsx` — imported by **10** files
-- `src/i18n.ts` — imported by **9** files
-- `src/context/CopilotContext.tsx` — imported by **8** files
-- `src/utils/marketProduct.ts` — imported by **8** files
-- `src/components/ui/Tooltip.tsx` — imported by **7** files
-- `src/components/Toast.tsx` — imported by **6** files
-- `src/components/OrderPlaceModal.tsx` — imported by **6** files
-- `src/services/authToken.ts` — imported by **6** files
+- `src/types/productAnalytics.ts` — imported by **19** files
+- `src/services/config.ts` — imported by **17** files
+- `src/tests/test-utils.tsx` — imported by **15** files
+- `src/i18n.ts` — imported by **14** files
+- `src/components/admin/product-analytics/AnalyticsStates.tsx` — imported by **13** files
+- `src/data.ts` — imported by **11** files
+- `src/utils/marketProduct.ts` — imported by **10** files
+- `src/utils/sliceUrl.ts` — imported by **6** files
+- `src/components/ui/Tooltip.tsx` — imported by **6** files
 - `src/utils/availabilityWindow.ts` — imported by **6** files
-- `src/context/ThemeContext.tsx` — imported by **5** files
 - `src/context/NotificationContext.tsx` — imported by **5** files
-- `src/data.ts` — imported by **5** files
-- `src/utils/watchlist.ts` — imported by **5** files
-- `src/components/ui/VerdaxisSelect.tsx` — imported by **5** files
-- `src/context/TutorialContext.tsx` — imported by **4** files
+- `src/context/TutorialContext.tsx` — imported by **5** files
+- `src/utils/marketActivity.ts` — imported by **5** files
+- `src/components/admin/product-analytics/MetricStrip.tsx` — imported by **5** files
+- `src/components/admin/product-analytics/TrendChart.tsx` — imported by **5** files
 
 ## Import Map (who imports what)
 
-- `src/types.ts` ← `src/App.tsx`, `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/DataAnalytics.tsx`, `src/components/Fleet.tsx` +66 more
-- `src/hooks/useNamespace.ts` ← `src/components/ActivityFeed.tsx`, `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/Compliance.tsx`, `src/components/Fleet.tsx` +56 more
-- `src/services/api.ts` ← `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/DataAnalytics.tsx`, `src/components/Fleet.tsx`, `src/components/ForwardCurve.tsx` +33 more
-- `src/context/AuthContext.tsx` ← `src/App.tsx`, `src/components/DataAnalytics.tsx`, `src/components/Layout.tsx`, `src/components/MarketTerminal.tsx`, `src/components/Marketplace.tsx` +14 more
-- `src/services/config.ts` ← `src/components/ActivityFeed.tsx`, `src/components/RFQPanel.tsx`, `src/components/ReferralsTab.tsx`, `src/components/Settings.tsx`, `src/components/rfq/RFQOfferAlert.tsx` +14 more
-- `src/tests/test-utils.tsx` ← `src/tests/create-listing-modal.test.tsx`, `src/tests/data-analytics.test.tsx`, `src/tests/features.test.ts`, `src/tests/forward-curve.test.tsx`, `src/tests/marketplace-green-fuels.test.tsx` +5 more
-- `src/i18n.ts` ← `src/components/LanguageSelector.tsx`, `src/components/public/LanguageRedirect.tsx`, `src/components/public/LegacyRedirect.tsx`, `src/components/public/PublicLanguageWrapper.tsx`, `src/components/public/PublicNav.tsx` +4 more
-- `src/context/CopilotContext.tsx` ← `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/Fleet.tsx`, `src/components/MarketTerminal.tsx`, `src/components/Marketplace.tsx` +3 more
-- `src/utils/marketProduct.ts` ← `src/components/Marketplace.tsx`, `src/components/OrderPlaceModal.tsx`, `src/components/PriceAlertManager.tsx`, `src/components/SupplierDemandFeed.tsx`, `src/components/TradeHistoryPage.tsx` +3 more
-- `src/components/ui/Tooltip.tsx` ← `src/components/BuyerMap.tsx`, `src/components/OrderBook.tsx`, `src/components/SupplierQuotes.tsx`, `src/components/fleet/VesselDetailModal.tsx`, `src/components/layout/Header.tsx` +2 more
+- `src/types.ts` ← `src/App.tsx`, `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/DataAnalytics.tsx`, `src/components/ForwardCurveWorkspace.tsx` +67 more
+- `src/hooks/useNamespace.ts` ← `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/Compliance.tsx`, `src/components/GuidedTutorial.tsx`, `src/components/Marketplace.tsx` +46 more
+- `src/services/api.ts` ← `src/components/BuyerMap.tsx`, `src/components/CommandCenter.tsx`, `src/components/DataAnalytics.tsx`, `src/components/ForwardCurveWorkspace.tsx`, `src/components/Marketplace.tsx` +28 more
+- `src/services/analytics.ts` ← `src/App.tsx`, `src/components/AnalyticsProvider.tsx`, `src/components/ErrorBoundary.tsx`, `src/components/GuidedTutorial.tsx`, `src/components/Marketplace.tsx` +18 more
+- `src/context/AuthContext.tsx` ← `src/App.tsx`, `src/components/DataAnalytics.tsx`, `src/components/GuidedTutorial.tsx`, `src/components/Layout.tsx`, `src/components/Marketplace.tsx` +14 more
+- `src/types/productAnalytics.ts` ← `src/components/admin/product-analytics/AcquisitionTab.tsx`, `src/components/admin/product-analytics/ActivationTab.tsx`, `src/components/admin/product-analytics/AggregateJourney.tsx`, `src/components/admin/product-analytics/AnalyticsFilterRail.tsx`, `src/components/admin/product-analytics/AnalyticsStates.tsx` +14 more
+- `src/services/config.ts` ← `src/components/ReferralsTab.tsx`, `src/components/Settings.tsx`, `src/context/AuthContext.tsx`, `src/hooks/useSSE.ts`, `src/pages/CreateOrganizationPage.tsx` +12 more
+- `src/tests/test-utils.tsx` ← `src/tests/benchmark-price-block.test.tsx`, `src/tests/compliance-estimator-card.test.tsx`, `src/tests/compliance-price-hint.test.tsx`, `src/tests/data-analytics.test.tsx`, `src/tests/features.test.ts` +10 more
+- `src/i18n.ts` ← `src/components/LanguageSelector.tsx`, `src/components/public/HeroSection.tsx`, `src/components/public/LanguageRedirect.tsx`, `src/components/public/LegacyRedirect.tsx`, `src/components/public/PublicLanguageWrapper.tsx` +9 more
+- `src/components/admin/product-analytics/AnalyticsStates.tsx` ← `src/components/admin/product-analytics/AcquisitionTab.tsx`, `src/components/admin/product-analytics/ActivationTab.tsx`, `src/components/admin/product-analytics/AggregateJourney.tsx`, `src/components/admin/product-analytics/CohortGrid.tsx`, `src/components/admin/product-analytics/EngagementTab.tsx` +8 more

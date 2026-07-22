@@ -13,6 +13,15 @@ import { reliability } from './analytics';
 import { getAccessToken, refreshAccessToken } from './authToken';
 import { isBackendUnavailableStatus } from './backendAvailability';
 import { API_URL } from './config';
+import type {
+    AssistedListing,
+    CreateAuthorizationInput,
+    MarketSupportCapability,
+    Page,
+    SupportAuthorization,
+    SupportContext,
+    SupportOrganization,
+} from '../types/marketSupport';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -71,7 +80,11 @@ const handleResponse = async (res: Response) => {
         const errorText = await res.text();
         try {
             const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.detail || res.statusText);
+            const detail = errorJson.detail;
+            const message = typeof detail === 'string'
+                ? detail
+                : detail?.message || errorJson.message || res.statusText;
+            throw new Error(message);
         } catch (e) {
             if (e instanceof Error && e.message !== errorText) throw e;
             throw new Error(errorText || res.statusText);
@@ -788,6 +801,65 @@ export const api = {
         commissionSummary: async () => {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
         },
+    },
+
+    marketSupport: {
+        capabilities: (): Promise<MarketSupportCapability[]> =>
+            fetchApi('/admin/market-support/capabilities'),
+        organizations: (query = ''): Promise<Page<SupportOrganization>> => {
+            const params = new URLSearchParams({ limit: '100' });
+            if (query.trim()) params.set('query', query.trim());
+            return fetchApi(`/admin/market-support/organizations?${params.toString()}`);
+        },
+        context: (organizationId: string): Promise<SupportContext> =>
+            fetchApi(`/admin/market-support/organizations/${organizationId}/context`),
+        createAuthorization: (
+            organizationId: string,
+            input: CreateAuthorizationInput,
+            idempotencyKey: string,
+        ): Promise<SupportAuthorization> => fetchApi(
+            `/admin/market-support/organizations/${organizationId}/authorizations`,
+            {
+                method: 'POST',
+                headers: { 'Idempotency-Key': idempotencyKey },
+                body: JSON.stringify(input),
+            },
+        ),
+        revokeAuthorization: (
+            organizationId: string,
+            authorizationId: string,
+            reason: string,
+        ): Promise<SupportAuthorization> => fetchApi(
+            `/admin/market-support/organizations/${organizationId}/authorizations/${authorizationId}/revoke`,
+            { method: 'POST', body: JSON.stringify({ reason }) },
+        ),
+        publishListing: (
+            organizationId: string,
+            authorizationId: string,
+            idempotencyKey: string,
+        ): Promise<AssistedListing> => fetchApi(
+            `/admin/market-support/organizations/${organizationId}/listings`,
+            {
+                method: 'POST',
+                headers: { 'Idempotency-Key': idempotencyKey },
+                body: JSON.stringify({
+                    authorization_id: authorizationId,
+                    acknowledge_executable_standing_order: true,
+                }),
+            },
+        ),
+        cancelListing: (
+            organizationId: string,
+            listing: AssistedListing,
+            reason: string,
+        ): Promise<AssistedListing> => fetchApi(
+            `/admin/market-support/organizations/${organizationId}/listings/${listing.order.id}/cancel`,
+            {
+                method: 'POST',
+                headers: { 'If-Match': listing.etag },
+                body: JSON.stringify({ reason }),
+            },
+        ),
     },
 
     curves: {

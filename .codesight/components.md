@@ -1,65 +1,79 @@
 # Components
 
-- **LoadingScreen** — props: page, viewMode — `src/App.tsx`
-- **ActivityFeed** — `src/components/ActivityFeed.tsx`
-- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick, isActive — `src/components/BuyerMap.tsx`
-- **CommandCenter** — props: viewMode, onNavigate, openOrderId — `src/components/CommandCenter.tsx`
+- **AppRoutes** — `src/App.tsx`
+- **AnalyticsProvider** — `src/components/AnalyticsProvider.tsx`
+- **BuyerMap** — props: onPortSelect, onNavigate, onOrderClick — `src/components/BuyerMap.tsx`
+- **CommandCenter** — props: viewMode, onNavigate, onOpenSlice, openOrderId — `src/components/CommandCenter.tsx`
 - **BuyerDashboard** — `src/components/CommandCenter.tsx`
 - **SupplierDashboard** — `src/components/CommandCenter.tsx`
 - **Compliance** — `src/components/Compliance.tsx`
 - **DataAnalytics** — `src/components/DataAnalytics.tsx`
 - **ErrorFallback** — props: fallback — `src/components/ErrorBoundary.tsx`
-- **Fleet** — `src/components/Fleet.tsx`
-- **ForwardCurve** — props: initialProductId, fuelType, marketProductCode, deliveryPointName, onPeriodClick, embedded — `src/components/ForwardCurve.tsx`
+- **ForwardCurveWorkspace** — props: onNavigate, onOpenSlice — `src/components/ForwardCurveWorkspace.tsx`
 - **GuidedTutorial** — props: viewMode — `src/components/GuidedTutorial.tsx`
 - **LanguageSelector** — props: onLanguageChange, variant — `src/components/LanguageSelector.tsx`
 - **Layout** — props: viewMode, onSwitchView, currentPage, onNavigate, onPrefetchPage, onPrimaryAction — `src/components/Layout.tsx`
-- **MarketFeed** — props: viewMode, onNavigate — `src/components/MarketFeed.tsx`
-- **MarketTerminal** — props: onNavigate — `src/components/MarketTerminal.tsx`
-- **Marketplace** — props: initialPort, onNavigate — `src/components/Marketplace.tsx`
+- **Marketplace** — props: initialPort, viewMode, initialSlice — `src/components/Marketplace.tsx`
 - **MatchSuggestions** — props: onViewTrade, onCountChange, onNavigate — `src/components/MatchSuggestions.tsx`
+- **MobileDesktopGate** — `src/components/MobileDesktopGate.tsx`
 - **MyTrades** — `src/components/MyTrades.tsx`
 - **NeedsAttentionFeed** — props: trades, viewMode, onNavigate, onConfirmTrade, onPostOrder — `src/components/NeedsAttentionFeed.tsx`
-- **NewsCard** — `src/components/NewsCard.tsx`
-- **NewsFeed** — `src/components/NewsFeed.tsx`
-- **OrderBook** — props: fuelType, marketProduct, availability, productLabel, region, actionableSide, onPriceClick, onInstantTrade, onLevelClick — `src/components/OrderBook.tsx`
-- **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillMarketProduct, prefillDeliveryPointId, prefillAvailabilityWindow, prefillPrice, onNavigate — `src/components/OrderPlaceModal.tsx`
-- **PriceAlertManager** — props: isOpen, onClose — `src/components/PriceAlertManager.tsx`
-- **RFQPanel** — props: role, sortBy, region, fuelType, availability — `src/components/RFQPanel.tsx`
+- **NewsFeed** — props: embedded — `src/components/NewsFeed.tsx`
+- **OrderBook** — props: fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade — `src/components/OrderBook.tsx`
+- **OrderPlaceModal** — props: isOpen, onClose, side, prefillFuelType, prefillRegion, prefillMarketProduct, prefillDeliveryPointId, prefillAvailabilityWindow, prefillPrice — `src/components/OrderPlaceModal.tsx`
 - **ReferralsTab** — `src/components/ReferralsTab.tsx`
 - **Settings** — props: viewMode — `src/components/Settings.tsx`
-- **Stats** — `src/components/Stats.tsx`
 - **SupplierAnalytics** — `src/components/SupplierAnalytics.tsx`
-- **SupplierDemandFeed** — props: onNavigate, onPostAsk — `src/components/SupplierDemandFeed.tsx`
-- **SupplierInventory** — `src/components/SupplierInventory.tsx`
-- **SupplierListingConsole** — `src/components/SupplierListingConsole.tsx`
+- **SupplierDemandFeed** — props: onNavigate, onOpenSlice — `src/components/SupplierDemandFeed.tsx`
 - **SupplierQuotes** — `src/components/SupplierQuotes.tsx`
-- **SupplierStats** — `src/components/SupplierStats.tsx`
 - **TradeHistoryPage** — `src/components/TradeHistoryPage.tsx`
 - **TradeNotifier** — `src/components/TradeNotifier.tsx`
-- **TradeTape** — props: fuelType, marketProduct, availability, region — `src/components/TradeTape.tsx`
+- **TradeTape** — props: fuelType, marketProduct, availability, region, deliveryPointId — `src/components/TradeTape.tsx`
 - **Training** — `src/components/Training.tsx`
 - **WatchlistPage** — `src/components/WatchlistPage.tsx`
 - **AdminDashboard** — `src/components/admin/AdminDashboard.tsx`
-- **Copilot** — props: viewMode, currentPage — `src/components/ai/Copilot.tsx`
-- **CreateBidModal** — props: onSubmit, onCancel, isLoading — `src/components/buyer/CreateBidModal.tsx`
+- **MarketSupportWorkspace** — `src/components/admin/market-support/MarketSupportWorkspace.tsx`
+- **AcquisitionTab** — props: data, compare — `src/components/admin/product-analytics/AcquisitionTab.tsx`
+- **ActivationTab** — props: data — `src/components/admin/product-analytics/ActivationTab.tsx`
+- **AggregateJourney** — props: stages — `src/components/admin/product-analytics/AggregateJourney.tsx`
+- **AnalyticsFilterRail** — props: filters, onChange — `src/components/admin/product-analytics/AnalyticsFilterRail.tsx`
+- **TabLoading** — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **TabError** — props: message, onRetry — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **EmptyNote** — props: label — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **SectionHeading** — props: title, hint — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **DeltaBadge** — props: metric — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **KpiCell** — props: label, metric, compare — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **CoverageNote** — props: meta, source — `src/components/admin/product-analytics/AnalyticsStates.tsx`
+- **AnalyticsTabRail** — props: active, onSelect — `src/components/admin/product-analytics/AnalyticsTabRail.tsx`
+- **CohortGrid** — props: rows, emptyLabel — `src/components/admin/product-analytics/CohortGrid.tsx`
+- **EngagementTab** — props: data, compare — `src/components/admin/product-analytics/EngagementTab.tsx`
+- **FeatureAdoptionTable** — props: rows — `src/components/admin/product-analytics/FeatureAdoptionTable.tsx`
+- **LifecycleSpine** — props: stages, onSelectTab — `src/components/admin/product-analytics/LifecycleSpine.tsx`
+- **MarketActivityMatrix** — props: cells — `src/components/admin/product-analytics/MarketActivityMatrix.tsx`
+- **MarketplaceTab** — props: data, compare — `src/components/admin/product-analytics/MarketplaceTab.tsx`
+- **MetricStrip** — props: items, compare — `src/components/admin/product-analytics/MetricStrip.tsx`
+- **OverviewTab** — props: data, compare, onSelectTab — `src/components/admin/product-analytics/OverviewTab.tsx`
+- **ProductAnalyticsWorkspace** — `src/components/admin/product-analytics/ProductAnalyticsWorkspace.tsx`
+- **ReliabilityStatusList** — props: collector, meta — `src/components/admin/product-analytics/ReliabilityStatusList.tsx`
+- **ReliabilityTab** — props: data — `src/components/admin/product-analytics/ReliabilityTab.tsx`
+- **RetentionTab** — props: data, compare — `src/components/admin/product-analytics/RetentionTab.tsx`
+- **TrendChart** — props: series, emptyLabel, height — `src/components/admin/product-analytics/TrendChart.tsx`
 - **ComplianceDashboard** — props: onOpenLedger — `src/components/compliance/ComplianceDashboard.tsx`
 - **ComplianceDataInput** — `src/components/compliance/ComplianceDataInput.tsx`
 - **ComplianceLedgerModal** — props: onClose — `src/components/compliance/ComplianceLedgerModal.tsx`
 - **ComplianceTracing** — `src/components/compliance/ComplianceTracing.tsx`
 - **VesselDetailModal** — props: vessel, onClose — `src/components/fleet/VesselDetailModal.tsx`
 - **Header** — props: viewMode, onSwitchView, onOpenMobileSidebar — `src/components/layout/Header.tsx`
-- **IntelligencePanel** — props: isOpen, onClose, selectedPort, onPortSelect, onNavigate, ports, onArbitrageUpdate — `src/components/map/IntelligencePanel.tsx`
+- **ComplianceEstimatorCard** — props: selectedPort, portOptions, onSelectPort, onOpenMarketplace — `src/components/map/ComplianceEstimatorCard.tsx`
+- **IntelligencePanel** — props: isOpen, onClose, selectedPort, portOptions, onMapPortSelect, onPortSelect — `src/components/map/IntelligencePanel.tsx`
 - **MapLegend** — `src/components/map/MapLegend.tsx`
-- **MarketWatchTicker** — props: isPanelOpen, onOpenPanel — `src/components/map/MarketWatchTicker.tsx`
-- **VesselMarkers** — `src/components/map/VesselMarkers.tsx`
+- **MarketWatchTicker** — props: isPanelOpen, onOpenPanel, ports — `src/components/map/MarketWatchTicker.tsx`
 - **NotificationBell** — `src/components/notifications/NotificationBell.tsx`
 - **NotificationList** — props: onClose — `src/components/notifications/NotificationList.tsx`
 - **DataOcean** — props: style — `src/components/public/DataOcean.tsx`
 - **HeroSection** — `src/components/public/HeroSection.tsx`
 - **LanguageRedirect** — `src/components/public/LanguageRedirect.tsx`
 - **LegacyRedirect** — `src/components/public/LegacyRedirect.tsx`
-- **PilotApplicationForm** — `src/components/public/PilotApplicationForm.tsx`
 - **PriceTicker** — `src/components/public/PriceTicker.tsx`
 - **PublicFooter** — `src/components/public/PublicFooter.tsx`
 - **PublicLanguageWrapper** — `src/components/public/PublicLanguageWrapper.tsx`
@@ -74,22 +88,21 @@
 - **DotGrid** — props: style, color — `src/components/public/motionUtils.tsx`
 - **CircuitLines** — props: style, color — `src/components/public/motionUtils.tsx`
 - **GradientOrb** — props: style, color, size — `src/components/public/motionUtils.tsx`
-- **RFQOfferAlert** — props: onNavigateToRFQ — `src/components/rfq/RFQOfferAlert.tsx`
-- **CreateListingModal** — props: onSubmit, onCancel, isLoading — `src/components/supplier/CreateListingModal.tsx`
-- **CreateQuoteModal** — props: requestId, onClose, onSubmit — `src/components/supplier/CreateQuoteModal.tsx`
 - **BenchmarkPriceBlock** — props: priceUsd, benchmarkUsd, deltaUsd, align — `src/components/trading/BenchmarkPriceBlock.tsx`
-- **OrderbookDepth** — props: bids, asks, fuelType, region — `src/components/trading/OrderbookDepth.tsx`
+- **CompliancePriceHint** — props: overlay, assumptions — `src/components/trading/CompliancePriceHint.tsx`
+- **MarketActivityBadge** — props: activity, className, showLive, showUnknown — `src/components/trading/MarketActivityBadge.tsx`
 - **MarketRadarPanel** — props: radar, events, loading, error, onOpenRadar — `src/components/watchlist/MarketRadarPanel.tsx`
 - **AuthProvider** — `src/context/AuthContext.tsx`
-- **CopilotProvider** — `src/context/CopilotContext.tsx`
 - **NotificationProvider** — `src/context/NotificationContext.tsx`
 - **ThemeProvider** — `src/context/ThemeContext.tsx`
 - **TutorialProvider** — `src/context/TutorialContext.tsx`
-- **FALLBACK_COUNTRIES** — props: value, onChange, placeholder, searchPlaceholder, noResults, locale — `src/pages/CreateOrganizationPage.tsx`
+- **CREATE_ORGANIZATION_ORG_TYPES** — props: value, onChange, placeholder, searchPlaceholder, noResults — `src/pages/CreateOrganizationPage.tsx`
+- **ForcePasswordChangePage** — `src/pages/ForcePasswordChangePage.tsx`
 - **ForgotPasswordPage** — `src/pages/ForgotPasswordPage.tsx`
 - **InvitePage** — `src/pages/InvitePage.tsx`
 - **KycPage** — `src/pages/KycPage.tsx`
 - **LoginPage** — `src/pages/LoginPage.tsx`
+- **MaintenancePage** — props: onRetry, isRetrying — `src/pages/MaintenancePage.tsx`
 - **OnboardingPage** — `src/pages/OnboardingPage.tsx`
 - **RESEND_COOLDOWN** — `src/pages/RegisterPage.tsx`
 - **ResetPasswordPage** — `src/pages/ResetPasswordPage.tsx`

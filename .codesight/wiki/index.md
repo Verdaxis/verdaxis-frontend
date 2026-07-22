@@ -1,6 +1,6 @@
 # verdaxis-exchange — Wiki
 
-_Generated 2026-05-16 — re-run `npx codesight --wiki` if the codebase has changed._
+_Generated 2026-07-22 — re-run `npx codesight --wiki` if the codebase has changed._
 
 Structural map compiled from source code via AST. No LLM — deterministic, 200ms.
 
@@ -19,10 +19,10 @@ Structural map compiled from source code via AST. No LLM — deterministic, 200m
 
 ## Quick Stats
 
-- Routes: **120**
-- Models: **91**
-- Components: **116**
-- Env vars: **3** required, **1** with defaults
+- Routes: **158**
+- Models: **206**
+- Components: **129**
+- Env vars: **6** required, **1** with defaults
 
 ## How to Use
 
@@ -49,4 +49,4 @@ These exist in your codebase but are **not** reflected in wiki articles:
 When in doubt, search the source. The wiki is a starting point, not a complete inventory.
 
 ---
-_Last compiled: 2026-05-16 · 9 articles · [codesight](https://github.com/Houseofmvps/codesight)_
+_Last compiled: 2026-07-22 · 9 articles · [codesight](https://github.com/Houseofmvps/codesight)_

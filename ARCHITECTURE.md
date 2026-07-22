@@ -65,6 +65,7 @@ src/
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
+    admin/market-support/MarketSupportWorkspace.tsx # Capability-gated assisted supplier listing workspace
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -183,6 +184,16 @@ are valid; auto-tracking, replay, and heatmaps are disabled. Components emit sel
 allowlisted events, and the adapter drops unknown properties and isolates all collector
 failures. The Admin Product Usage section consumes only the backend's aggregated,
 admin-authorized endpoint and degrades independently from commercial analytics.
+
+**Assisted listing boundary:** The admin Market Support tab is visible only when the
+backend confirms at least one durable market-support capability for the current admin.
+The workspace records exact one-use customer authorizations and can publish or cancel
+the linked supplier ASK; it provides no impersonation, customer credential, listing-edit,
+or trade-lifecycle controls. Raw evidence text is hashed in the browser and only its
+SHA-256 digest and operator-entered reference are sent to the backend. Backend ETags are
+forwarded on cancellation. Publication requires an explicit executable-standing-ASK
+acknowledgement; revoke and cancel actions require an operator-entered audit reason.
+Feature-off or capability-free responses hide the route.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

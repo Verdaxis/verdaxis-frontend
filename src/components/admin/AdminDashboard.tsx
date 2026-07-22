@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import {
   Users,
   BarChart3,
@@ -7,10 +7,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  Headphones,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
+import { MarketSupportWorkspace } from './market-support/MarketSupportWorkspace';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,20 +225,40 @@ const UsersTab: React.FC = () => {
 // Main Component
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'analytics' | 'users';
+type AdminTab = 'analytics' | 'users' | 'market-support';
 
 // Tab state lives in the URL so /app/admin and /app/admin/users are
 // bookmarkable and survive refresh (Sprint 3 item 11).
 const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   analytics: '/app/admin',
   users: '/app/admin/users',
+  'market-support': '/app/admin/market-support',
 };
 
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
-  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users') ? 'users' : 'analytics';
-  if (!ready) {
+  const [marketSupportAvailable, setMarketSupportAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    let active = true;
+    api.marketSupport.capabilities()
+      .then(capabilities => {
+        if (active) setMarketSupportAvailable(capabilities.length > 0);
+      })
+      .catch(() => {
+        if (active) setMarketSupportAvailable(false);
+      });
+    return () => { active = false; };
+  }, []);
+  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/market-support')
+    ? 'market-support'
+    : location.pathname.startsWith('/app/admin/users')
+      ? 'users'
+      : 'analytics';
+  if (activeTab === 'market-support' && marketSupportAvailable === false) {
+    return <Navigate to={ADMIN_TAB_PATHS.analytics} replace />;
+  }
+  if (!ready || (activeTab === 'market-support' && marketSupportAvailable === null)) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-verdaxis" />
@@ -258,6 +280,9 @@ export const AdminDashboard: React.FC = () => {
         {([
           { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
           { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
+          ...(marketSupportAvailable
+            ? [{ key: 'market-support' as const, label: 'Market Support', icon: <Headphones size={15} /> }]
+            : []),
         ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
           <Link
             key={key}
@@ -278,6 +303,8 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Analytics tab */}
       {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
+
+      {activeTab === 'market-support' && <MarketSupportWorkspace />}
     </div>
   );
 };
