@@ -53,7 +53,22 @@
     "availability": "供应量",
     "viewMarketplace": "查看市场",
     "showInsights": "显示洞察",
-    "overlays": "叠加层"
+    "overlays": "叠加层",
+    "layers": {
+      "button": "图层",
+      "dialogLabel": "地图图层",
+      "section": "地图显示",
+      "marketWatch": "市场行情",
+      "marketWatchDescription": "滚动显示所选燃料和港口的价格",
+      "marketActivity": "市场活动",
+      "marketActivityDescription": "显示开放供应量和近期挂牌摘要",
+      "ecaZones": "ECA / SECA 区域",
+      "ecaZonesDescription": "IMO 排放控制区参考边界",
+      "active": "已生效",
+      "transition": "过渡期",
+      "adopted": "已通过",
+      "focusEurope": "聚焦欧洲 ECA"
+    }
   },
   "supplierDashboard": {
     "title": "指挥中心",

@@ -53,7 +53,22 @@
     "availability": "Availability",
     "viewMarketplace": "View Marketplace",
     "showInsights": "Show Insights",
-    "overlays": "Overlays"
+    "overlays": "Overlays",
+    "layers": {
+      "button": "Layers",
+      "dialogLabel": "Map layers",
+      "section": "Map display",
+      "marketWatch": "Market Watch",
+      "marketWatchDescription": "Scrolling prices across selected fuels and ports",
+      "marketActivity": "Market activity",
+      "marketActivityDescription": "Open availability and recent listing summaries",
+      "ecaZones": "ECA / SECA zones",
+      "ecaZonesDescription": "IMO emission-control reference boundaries",
+      "active": "Active",
+      "transition": "Transition",
+      "adopted": "Adopted",
+      "focusEurope": "Focus European ECAs"
+    }
   },
   "supplierDashboard": {
     "title": "Command Center",
