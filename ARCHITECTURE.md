@@ -217,7 +217,9 @@ exposing party identities.
 references from the generated `data/eca-zones-web.json` bundle through
 `map/addEcaLayers.ts`. The frontend must not maintain a separate hand-drawn
 polygon set. These polygons are visual regulatory references only, not a
-navigation product or a legal-compliance determination.
+navigation product or a legal-compliance determination. The map's Layers menu
+independently controls Market Watch, market activity widgets, and ECA geometry;
+it must not reintroduce a parent overlay switch that can mask a child state.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +

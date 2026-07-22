@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Eye, EyeOff, Shield } from 'lucide-react';
+import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
@@ -38,6 +38,42 @@ const getSpreadColor = (spreadPct: number): string => {
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 
+interface LayerSwitchProps {
+    checked: boolean;
+    description: string;
+    label: string;
+    onChange: () => void;
+    children: React.ReactNode;
+}
+
+const LayerSwitch: React.FC<LayerSwitchProps> = ({ checked, description, label, onChange, children }) => (
+    <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={onChange}
+        className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+    >
+        <span className="mt-0.5 text-slate-400 dark:text-slate-500">{children}</span>
+        <span className="min-w-0 flex-1">
+            <span className="block text-xs font-bold text-slate-700 dark:text-slate-200">{label}</span>
+            <span className="mt-0.5 block text-[10px] leading-4 text-slate-500 dark:text-slate-400">{description}</span>
+        </span>
+        <span
+            aria-hidden="true"
+            className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
+                checked ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+            }`}
+        >
+            <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                    checked ? 'translate-x-[18px]' : 'translate-x-0.5'
+                }`}
+            />
+        </span>
+    </button>
+);
+
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
@@ -45,8 +81,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [loading, setLoading] = useState(true);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
-    const [showOverlays, setShowOverlays] = useState(true);
+    const [showMarketWatch, setShowMarketWatch] = useState(true);
+    const [showMarketWidgets, setShowMarketWidgets] = useState(true);
     const [showSecaZones, setShowSecaZones] = useState(true);
+    const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
@@ -54,6 +92,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
     const popupRef = useRef<maplibregl.Popup | null>(null);
+    const layersMenuRef = useRef<HTMLDivElement>(null);
     const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     // Fetch Ports, Listings, and Aggregated data from Backend
@@ -138,11 +177,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         }
     }, [focusMapPort]);
 
-    const focusSecaZones = useCallback(() => {
+    const focusEuropeanEcaZones = useCallback(() => {
         const map = mapRef.current;
         if (!map) return;
-        setShowOverlays(true);
         setShowSecaZones(true);
+        setIsLayersMenuOpen(false);
         map.fitBounds([[-11, 29], [37, 67]], {
             padding: {
                 top: 130,
@@ -154,6 +193,26 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             essential: true,
         });
     }, [isPanelOpen]);
+
+    useEffect(() => {
+        if (!isLayersMenuOpen) return;
+
+        const closeOnOutsideClick = (event: MouseEvent) => {
+            if (!layersMenuRef.current?.contains(event.target as Node)) {
+                setIsLayersMenuOpen(false);
+            }
+        };
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setIsLayersMenuOpen(false);
+        };
+
+        document.addEventListener('mousedown', closeOnOutsideClick);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOnOutsideClick);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [isLayersMenuOpen]);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
@@ -442,7 +501,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
         const install = () => addEcaLayers(map, {
             isDark,
-            visible: showOverlays && showSecaZones,
+            visible: showSecaZones,
         });
 
         if (map.loaded()) {
@@ -454,13 +513,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return () => {
             map.off('load', install);
         };
-    }, [isDark, loading, showOverlays, showSecaZones]);
+    }, [isDark, loading, showSecaZones]);
 
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        setEcaLayersVisible(map, showOverlays && showSecaZones);
-    }, [showOverlays, showSecaZones]);
+        setEcaLayersVisible(map, showSecaZones);
+    }, [showSecaZones]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -589,6 +648,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const mapChromeStyle = {
         '--verdaxis-map-rail-offset': isPanelOpen ? '344px' : '24px',
     } as React.CSSProperties;
+    const activeLayerCount = [showMarketWatch, showMarketWidgets, showSecaZones].filter(Boolean).length;
 
     return (
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
@@ -597,7 +657,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
-                {showOverlays && (
+                {showMarketWidgets && (
                     <div className={`absolute bottom-6 left-6 z-[8] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
 
                         {/* Top Row: Widgets */}
@@ -660,7 +720,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </div>
                 )}
 
-                {showOverlays && (
+                {showMarketWatch && (
                     <div className="pointer-events-auto absolute left-6 right-[var(--verdaxis-map-rail-offset)] top-6 z-[30] transition-all duration-300">
                         <MarketWatchTicker
                             isPanelOpen={isPanelOpen}
@@ -670,51 +730,85 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </div>
                 )}
 
-                {/* Overlay Toggle + Fuel Filter (Top-left) */}
+                {/* Layer controls + fuel filter (Top-left) */}
                 <div className="absolute top-20 left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex items-center gap-2 transition-all duration-300">
-                    <button
-                        onClick={() => setShowOverlays(!showOverlays)}
-                        className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-2.5 flex items-center gap-2 hover:bg-white dark:hover:bg-slate-800 transition-colors"
-                        title={showOverlays ? t('buyerMap.overlays') : t('buyerMap.overlays')}
-                    >
-                        {showOverlays ? (
-                            <Eye size={16} className="text-emerald-500" />
-                        ) : (
-                            <EyeOff size={16} className="text-slate-400" />
+                    <div ref={layersMenuRef} className="relative">
+                        <button
+                            type="button"
+                            aria-haspopup="dialog"
+                            aria-expanded={isLayersMenuOpen}
+                            onClick={() => setIsLayersMenuOpen(current => !current)}
+                            className={`flex items-center gap-2 rounded-lg border bg-white/90 px-3 py-2.5 text-xs font-bold shadow-lg backdrop-blur-sm transition-colors dark:bg-slate-900/90 ${
+                                isLayersMenuOpen
+                                    ? 'border-emerald-400 text-emerald-700 dark:border-emerald-500/60 dark:text-emerald-300'
+                                    : 'border-slate-200 text-slate-700 hover:bg-white dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'
+                            }`}
+                        >
+                            <Layers size={16} />
+                            <span>{t('buyerMap.layers.button')}</span>
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-100 px-1.5 font-mono text-[10px] text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                {activeLayerCount}
+                            </span>
+                        </button>
+
+                        {isLayersMenuOpen && (
+                            <div
+                                role="dialog"
+                                aria-label={t('buyerMap.layers.dialogLabel')}
+                                className="absolute left-0 top-full z-[40] mt-2 w-72 rounded-lg border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95"
+                            >
+                                <div className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">
+                                    {t('buyerMap.layers.section')}
+                                </div>
+                                <LayerSwitch
+                                    checked={showMarketWatch}
+                                    label={t('buyerMap.layers.marketWatch')}
+                                    description={t('buyerMap.layers.marketWatchDescription')}
+                                    onChange={() => setShowMarketWatch(current => !current)}
+                                >
+                                    <TrendingUp size={16} />
+                                </LayerSwitch>
+                                <LayerSwitch
+                                    checked={showMarketWidgets}
+                                    label={t('buyerMap.layers.marketActivity')}
+                                    description={t('buyerMap.layers.marketActivityDescription')}
+                                    onChange={() => setShowMarketWidgets(current => !current)}
+                                >
+                                    <BarChart3 size={16} />
+                                </LayerSwitch>
+                                <LayerSwitch
+                                    checked={showSecaZones}
+                                    label={t('buyerMap.layers.ecaZones')}
+                                    description={t('buyerMap.layers.ecaZonesDescription')}
+                                    onChange={() => setShowSecaZones(current => !current)}
+                                >
+                                    <Shield size={16} />
+                                </LayerSwitch>
+
+                                <div className="mx-2 mb-2 flex items-center gap-3 pl-7 text-[9px] font-semibold text-slate-500 dark:text-slate-400">
+                                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-sky-400" />{t('buyerMap.layers.active')}</span>
+                                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-400" />{t('buyerMap.layers.transition')}</span>
+                                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-violet-500" />{t('buyerMap.layers.adopted')}</span>
+                                </div>
+
+                                <div className="border-t border-slate-100 px-2 pt-2 dark:border-slate-800">
+                                    <button
+                                        type="button"
+                                        onClick={focusEuropeanEcaZones}
+                                        className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-sky-500/40 dark:hover:bg-sky-500/10 dark:hover:text-sky-300"
+                                    >
+                                        <LocateFixed size={14} />
+                                        {t('buyerMap.layers.focusEurope')}
+                                    </button>
+                                </div>
+                            </div>
                         )}
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                            {t('buyerMap.overlays')}
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => setShowSecaZones(current => !current)}
-                        className={`bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border p-2.5 flex items-center gap-2 transition-colors ${
-                            showOverlays && showSecaZones
-                                ? 'border-sky-300 text-sky-700 hover:bg-sky-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10'
-                                : 'border-slate-200 text-slate-400 hover:bg-white hover:text-slate-600 dark:border-slate-700 dark:hover:bg-slate-800'
-                        }`}
-                        title="Show or hide SECA/ECA reference zones"
-                    >
-                        <Shield size={16} />
-                        <span className="text-xs font-bold">
-                            SECA/ECA
-                        </span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={focusSecaZones}
-                        className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:bg-white hover:text-sky-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-sky-300"
-                    >
-                        View zones
-                    </button>
+                    </div>
 
                     {/* Product filter — controls which product's spread colors the port circles */}
                     {availableProducts.length > 0 && (
                         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex items-center gap-1">
-                            <Layers size={14} className="text-slate-400 ml-1" />
+                            <Fuel size={14} className="text-slate-400 ml-1" />
                             <button
                                 onClick={() => setSelectedProduct(undefined)}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
