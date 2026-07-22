@@ -68,6 +68,10 @@ export const MapLegend: React.FC = () => {
                                     <span>Newer IMO ECA phase-in reference</span>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <div className="h-3 w-5 rounded border border-violet-600 bg-violet-300/10"></div>
+                                    <span>Adopted future IMO ECA reference</span>
+                                </div>
+                                <div className="flex items-center gap-2">
                                     <div className="w-4 h-1.5 rounded-full bg-emerald-500"></div>
                                     <span>Avails — available volume by port</span>
                                 </div>

@@ -14,7 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
-import { SECA_ZONE_COLLECTION, SECA_ZONE_LAYER_IDS } from '../data/secaZones';
+import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -38,17 +38,6 @@ const getSpreadColor = (spreadPct: number): string => {
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 
-type SecaOverlayShape = {
-    id: string;
-    name: string;
-    shortLabel: string;
-    note: string;
-    status: 'active' | 'phase-in';
-    path: string;
-    labelX: number;
-    labelY: number;
-};
-
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { theme } = useTheme();
@@ -61,7 +50,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
-    const [secaOverlayShapes, setSecaOverlayShapes] = useState<SecaOverlayShape[]>([]);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const mapRef = useRef<maplibregl.Map | null>(null);
@@ -166,40 +154,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             essential: true,
         });
     }, [isPanelOpen]);
-
-    const updateSecaOverlayShapes = useCallback(() => {
-        const map = mapRef.current;
-        if (!map || !showOverlays || !showSecaZones) {
-            setSecaOverlayShapes([]);
-            return;
-        }
-
-        const shapes = SECA_ZONE_COLLECTION.features.map((feature) => {
-            const ring = feature.geometry.coordinates[0] ?? [];
-            const projected = ring.map(([lng, lat]) => map.project([lng, lat]));
-            if (projected.length < 3) return null;
-
-            const path = projected
-                .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
-                .join(' ') + ' Z';
-            const labelPoints = projected.slice(0, -1);
-            const labelX = labelPoints.reduce((sum, point) => sum + point.x, 0) / labelPoints.length;
-            const labelY = labelPoints.reduce((sum, point) => sum + point.y, 0) / labelPoints.length;
-
-            return {
-                id: feature.properties.id,
-                name: feature.properties.name,
-                shortLabel: feature.properties.shortLabel,
-                note: feature.properties.note,
-                status: feature.properties.status,
-                path,
-                labelX,
-                labelY,
-            };
-        }).filter((shape): shape is SecaOverlayShape => Boolean(shape));
-
-        setSecaOverlayShapes(shapes);
-    }, [showOverlays, showSecaZones]);
 
     // Pre-compute market data for each port
     const portMarketMap = useMemo(() => {
@@ -481,133 +435,32 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         }
     }, [ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
 
-    // IMO SECA/ECA reference overlays
+    // Versioned IMO ECA reference overlay generated from the shared geofence bundle.
     useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
 
-        const addSecaLayers = () => {
-            const zoneBeforeLayer = map.getLayer('port-fills') ? 'port-fills' : undefined;
-
-            if (!map.getSource('seca-zones')) {
-                map.addSource('seca-zones', {
-                    type: 'geojson',
-                    data: SECA_ZONE_COLLECTION as any,
-                });
-            }
-
-            if (!map.getLayer('seca-zones-fill')) {
-                map.addLayer({
-                    id: 'seca-zones-fill',
-                    type: 'fill',
-                    source: 'seca-zones',
-                    paint: {
-                        'fill-color': [
-                            'case',
-                            ['==', ['get', 'status'], 'phase-in'],
-                            '#F59E0B',
-                            '#38BDF8',
-                        ],
-                        'fill-opacity': [
-                            'case',
-                            ['==', ['get', 'status'], 'phase-in'],
-                            0.2,
-                            0.26,
-                        ],
-                    },
-                }, zoneBeforeLayer);
-            } else if (zoneBeforeLayer) {
-                map.moveLayer('seca-zones-fill', zoneBeforeLayer);
-            }
-
-            if (!map.getLayer('seca-zones-outline')) {
-                map.addLayer({
-                    id: 'seca-zones-outline',
-                    type: 'line',
-                    source: 'seca-zones',
-                    paint: {
-                        'line-color': [
-                            'case',
-                            ['==', ['get', 'status'], 'phase-in'],
-                            '#D97706',
-                            '#0284C7',
-                        ],
-                        'line-width': [
-                            'case',
-                            ['==', ['get', 'status'], 'phase-in'],
-                            1.6,
-                            2.2,
-                        ],
-                        'line-opacity': 0.9,
-                    },
-                }, zoneBeforeLayer);
-            } else if (zoneBeforeLayer) {
-                map.moveLayer('seca-zones-outline', zoneBeforeLayer);
-            }
-
-            if (!map.getLayer('seca-zones-label')) {
-                map.addLayer({
-                    id: 'seca-zones-label',
-                    type: 'symbol',
-                    source: 'seca-zones',
-                    layout: {
-                        'text-field': ['get', 'shortLabel'],
-                        'text-size': ['interpolate', ['linear'], ['zoom'], 2, 10, 5, 12],
-                        'text-letter-spacing': 0.03,
-                        'text-transform': 'uppercase',
-                        'text-allow-overlap': true,
-                        'symbol-placement': 'point',
-                    },
-                    paint: {
-                        'text-color': [
-                            'case',
-                            ['==', ['get', 'status'], 'phase-in'],
-                            '#92400E',
-                            '#075985',
-                        ],
-                        'text-halo-color': isDark ? '#0F172A' : '#F8FAFC',
-                        'text-halo-width': 1.8,
-                        'text-opacity': 0.95,
-                    },
-                }, zoneBeforeLayer);
-            } else if (zoneBeforeLayer) {
-                map.moveLayer('seca-zones-label', zoneBeforeLayer);
-            }
-        };
+        const install = () => addEcaLayers(map, {
+            isDark,
+            visible: showOverlays && showSecaZones,
+        });
 
         if (map.loaded()) {
-            addSecaLayers();
+            install();
         } else {
-            map.once('load', addSecaLayers);
+            map.once('load', install);
         }
-    }, [isDark]);
-
-    useEffect(() => {
-        const map = mapRef.current;
-        if (!map) return;
-        const visibility = showOverlays && showSecaZones ? 'visible' : 'none';
-        SECA_ZONE_LAYER_IDS.forEach((layerId) => {
-            if (map.getLayer(layerId)) {
-                map.setLayoutProperty(layerId, 'visibility', visibility);
-            }
-        });
-    }, [showOverlays, showSecaZones]);
-
-    useEffect(() => {
-        const map = mapRef.current;
-        if (!map) return;
-
-        updateSecaOverlayShapes();
-        map.on('move', updateSecaOverlayShapes);
-        map.on('zoom', updateSecaOverlayShapes);
-        map.on('resize', updateSecaOverlayShapes);
 
         return () => {
-            map.off('move', updateSecaOverlayShapes);
-            map.off('zoom', updateSecaOverlayShapes);
-            map.off('resize', updateSecaOverlayShapes);
+            map.off('load', install);
         };
-    }, [loading, updateSecaOverlayShapes]);
+    }, [isDark, loading, showOverlays, showSecaZones]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        setEcaLayersVisible(map, showOverlays && showSecaZones);
+    }, [showOverlays, showSecaZones]);
 
     // Vessel markers layer
     useEffect(() => {
@@ -742,43 +595,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
-
-                {secaOverlayShapes.length > 0 && (
-                    <svg
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-[7] h-full w-full overflow-hidden"
-                    >
-                        {secaOverlayShapes.map((shape) => {
-                            const isPhaseIn = shape.status === 'phase-in';
-                            return (
-                                <g key={shape.id}>
-                                    <path
-                                        d={shape.path}
-                                        fill={isPhaseIn ? '#F59E0B' : '#38BDF8'}
-                                        fillOpacity={isPhaseIn ? 0.14 : 0.18}
-                                        stroke={isPhaseIn ? '#D97706' : '#0284C7'}
-                                        strokeOpacity={0.95}
-                                        strokeWidth={2}
-                                        vectorEffect="non-scaling-stroke"
-                                    />
-                                    <text
-                                        x={shape.labelX}
-                                        y={shape.labelY}
-                                        textAnchor="middle"
-                                        dominantBaseline="middle"
-                                        className="select-none text-[10px] font-black uppercase tracking-wide"
-                                        fill={isPhaseIn ? '#92400E' : '#075985'}
-                                        stroke={isDark ? '#0F172A' : '#F8FAFC'}
-                                        strokeWidth={3}
-                                        paintOrder="stroke"
-                                    >
-                                        {shape.shortLabel}
-                                    </text>
-                                </g>
-                            );
-                        })}
-                    </svg>
-                )}
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showOverlays && (

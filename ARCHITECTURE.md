@@ -85,10 +85,15 @@ src/
     public/                        # 15 marketing pages (landing, education, use cases, etc.)
 
   data/
+    eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
+    secaZones.ts                   # ECA geometry types, bundle metadata, and MapLibre source identifiers
     producerProjects.ts            # Static producer project dataset (locations, capacities)
     fuelPrices.ts                  # MarinaPulse fuel benchmark adapter for public ticker
     calculatorDefaults.ts          # Defaults for energy calculator
     educationArticles.ts           # Education article content/metadata
+
+  map/
+    addEcaLayers.ts                # Installs and toggles generated ECA polygon and label layers in MapLibre
 
   tests/
     setup.ts                       # Vitest jsdom polyfills (matchMedia, ResizeObserver, etc.)
@@ -207,6 +212,12 @@ forward cells, watchlist events, and trade tape entries carry `source_kind`, `sc
 `observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so
 demo-seeded, benchmark-reference, mixed-source, and live activity are labelled consistently without
 exposing party identities.
+
+**ECA map overlay:** `BuyerMap` renders active, transition, and adopted ECA/SECA
+references from the generated `data/eca-zones-web.json` bundle through
+`map/addEcaLayers.ts`. The frontend must not maintain a separate hand-drawn
+polygon set. These polygons are visual regulatory references only, not a
+navigation product or a legal-compliance determination.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
