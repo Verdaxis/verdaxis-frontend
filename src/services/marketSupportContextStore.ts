@@ -16,7 +16,7 @@ export function getMarketSupportContextId(): string | null {
 
 export function setMarketSupportContextId(contextId: string): void {
   const normalized = contextId.trim();
-  if (!normalized) throw new Error('A Market Support context id is required');
+  if (!normalized) throw new Error('An assisted-workspace context id is required');
   storage()?.setItem(MARKET_SUPPORT_CONTEXT_STORAGE_KEY, normalized);
 }
 

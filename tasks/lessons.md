@@ -514,3 +514,9 @@
 - **Trigger:** User clarified that the Product Analytics workspace should not be implemented here; they want a reviewed plan to hand to Claude.
 - **Rule:** Once the user requests a plan-only handoff, make no product-code or deployment changes and optimize the artifact for execution by the named downstream agent.
 - **Why:** Continuing into implementation would duplicate work and violate the intended division of responsibility.
+
+### Separate Assisted-Listing Security From Pilot Policy
+- **Date:** 2026-07-23
+- **Trigger:** User rejected principal-level authority, seven-day order/instruction limits, mandatory evidence text, and supplier-only access for assisted listings.
+- **Rule:** Keep identity, audit, tenant isolation, idempotency, and post-only controls, but make assisted access organization-scoped and avoid imposing temporary pilot restrictions without explicit product approval.
+- **Why:** The first-pass implementation treated conservative rollout policy as a permanent security boundary, unnecessarily limiting authorized administrators.

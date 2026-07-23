@@ -294,7 +294,7 @@ const DashboardLayout: React.FC = () => {
   });
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
 
-  const effectiveViewMode: ViewMode = context ? 'SUPPLIER' : viewMode;
+  const effectiveViewMode: ViewMode = viewMode;
 
   useEffect(() => {
     if (context && location.pathname.startsWith('/app/admin')) {
@@ -327,7 +327,6 @@ const DashboardLayout: React.FC = () => {
   }, [effectiveViewMode, location.pathname]);
 
   const handleSwitchView = (mode: ViewMode) => {
-    if (context) return;
     setViewMode(mode);
     sessionStorage.setItem('verdaxis_viewMode', mode);
     navigate('/app/home');
@@ -349,7 +348,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   if (isMarketSupportLoading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">Restoring Market Support context…</div>;
+    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">Restoring assisted workspace…</div>;
   }
 
   return (

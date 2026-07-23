@@ -112,16 +112,14 @@ describe('market support API transport', () => {
 
     await api.marketSupport.start({
       organizationId: 'org-1',
-      principalId: 'supplier-1',
       supportReference: 'CASE-1',
-      scope: ['ASK_CREATE', 'ASK_CANCEL'],
+      scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       replaceActive: true,
     });
 
     const [, options] = vi.mocked(fetch).mock.calls[0];
     expect(JSON.parse(String(options?.body))).toEqual({
       organization_id: 'org-1',
-      accountable_user_id: 'supplier-1',
       support_reference: 'CASE-1',
       confirm_replacement: true,
     });

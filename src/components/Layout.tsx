@@ -70,7 +70,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 {context && <ActingOrganizationBanner context={context} onExit={() => {
                     setExitError(null);
                     void exit().then(() => navigate('/app/admin/users')).catch((error) => {
-                        setExitError(error instanceof Error ? error.message : 'Exit request failed. Local Market Support state was detached.');
+                        setExitError(error instanceof Error ? error.message : 'Exit request failed. The local assisted workspace was detached.');
                         navigate('/app/home');
                     });
                 }} />}

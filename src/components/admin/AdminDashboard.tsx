@@ -113,13 +113,13 @@ const UsersTab: React.FC = () => {
     }
   };
 
-  const handleEnterSupplierPlatform = async (user: AdminUserEntry) => {
+  const handleEnterOrganization = async (user: AdminUserEntry) => {
     setEntryError(null);
     setEntry(null);
     setEntryLoading(true);
     try {
       const organizationId = user.organization_id ?? '';
-      if (!organizationId || !user.org_name) throw new Error('This supplier organization could not be resolved.');
+      if (!organizationId || !user.org_name) throw new Error('This organization could not be resolved.');
       const organization: SupportOrganization = {
         id: organizationId,
         name: user.org_name,
@@ -155,7 +155,7 @@ const UsersTab: React.FC = () => {
         )
       ) {
         setReplacementInput(input);
-        setEntryError('An active Market Support context already exists. Confirm replacement explicitly to continue.');
+        setEntryError('An assisted workspace is already active. Confirm replacement to continue.');
         return;
       }
       throw error;
@@ -170,7 +170,7 @@ const UsersTab: React.FC = () => {
       closeEntry();
       navigate('/app/home');
     } catch (error) {
-      setEntryError(error instanceof Error ? error.message : 'Could not replace the active Market Support context.');
+      setEntryError(error instanceof Error ? error.message : 'Could not replace the active assisted workspace.');
     }
   };
 
@@ -178,10 +178,10 @@ const UsersTab: React.FC = () => {
     setEntryError(null);
     try {
       const active = await resume();
-      if (!active) throw new Error('No active Market Support context is available to resume.');
+      if (!active) throw new Error('No assisted workspace is available to resume.');
       navigate('/app/home');
     } catch (error) {
-      setEntryError(error instanceof Error ? error.message : 'Could not resume the Market Support context.');
+      setEntryError(error instanceof Error ? error.message : 'Could not resume the assisted workspace.');
     }
   };
 
@@ -237,9 +237,8 @@ const UsersTab: React.FC = () => {
               {users.map((u) => {
                 const isActioning = actioning === u.id;
                 const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || '—';
-                const canEnterSupplierPlatform = (
+                const canEnterOrganization = (
                   u.status === 'APPROVED'
-                  && u.role === 'SUPPLIER'
                   && u.org_provenance === 'REAL'
                   && Boolean(u.organization_id && u.org_name)
                 );
@@ -248,13 +247,13 @@ const UsersTab: React.FC = () => {
                     <td className="px-4 py-3 text-verdaxis-text font-medium">{name}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted font-mono text-xs">{u.email}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted">
-                      {canEnterSupplierPlatform ? (
+                      {canEnterOrganization ? (
                         <button
                           type="button"
-                          onClick={() => handleEnterSupplierPlatform(u)}
+                          onClick={() => handleEnterOrganization(u)}
                           disabled={entryLoading}
                           className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:opacity-50"
-                          aria-label={`Enter ${u.org_name} supplier platform`}
+                          aria-label={`Enter ${u.org_name} organization workspace`}
                         >
                           {u.org_name}
                           {u.org_type && (
@@ -344,8 +343,8 @@ const UsersTab: React.FC = () => {
         isOpen={Boolean(replacementInput)}
         onClose={() => setReplacementInput(null)}
         onConfirm={() => { void replaceContext(); }}
-        title="Replace active Market Support context?"
-        message="The existing support context will be ended and replaced for this admin session. This does not alter existing supplier listings."
+        title="Replace active assisted workspace?"
+        message="The existing assisted-order context will be ended and replaced for this admin session. This does not alter existing orders."
         confirmText="Replace context"
         variant="warning"
       />

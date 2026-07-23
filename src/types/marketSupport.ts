@@ -25,7 +25,6 @@ export interface MarketSupportSession {
   version: number;
   startedAt: string;
   organization: SupportOrganization;
-  accountablePrincipal: SupportPrincipal;
   actor: { id: string; name: string; email: string };
   supportReference: string;
   expiresAt: string;
@@ -36,12 +35,10 @@ export interface MarketSupportEntry {
   eligible: boolean;
   reason?: string | null;
   organization?: SupportOrganization;
-  eligiblePrincipals: SupportPrincipal[];
 }
 
 export interface MarketSupportStartInput {
   organizationId: string;
-  principalId: string;
   supportReference: string;
   scope: string[];
   replaceActive?: boolean;

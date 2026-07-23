@@ -115,7 +115,7 @@ export class MarketSupportContextChangedError extends Error {
     readonly code = 'MARKET_SUPPORT_CONTEXT_CHANGED';
 
     constructor() {
-        super('Market Support context changed while refreshing. The request was not retried.');
+        super('The assisted workspace changed while refreshing. The request was not retried.');
         this.name = 'AbortError';
     }
 }
@@ -740,7 +740,7 @@ export const api = {
         cancel: async (id: string, options?: { reason?: string; etag?: string }) => {
             if (getMarketSupportContextId() && !options?.etag) {
                 throw new ApiError(
-                    'A current listing version is required before cancelling in Market Support mode.',
+                    'A current listing version is required before cancelling in the assisted workspace.',
                     428,
                     'MARKET_SUPPORT_ETAG_REQUIRED',
                 );
@@ -935,18 +935,9 @@ export const api = {
         entry: async (organizationId: string): Promise<MarketSupportEntry> => {
             const raw = await fetchApi(`/admin/market-support/organizations/${organizationId}/entry`) as any;
             return {
-                eligible: raw?.eligible === true || (
-                    raw?.eligible == null
-                    && Array.isArray(raw?.eligible_principals)
-                    && raw.eligible_principals.length > 0
-                ),
+                eligible: raw?.eligible === true,
                 reason: raw?.reason ?? null,
                 organization: raw?.organization,
-                eligiblePrincipals: (raw?.eligible_principals ?? raw?.eligiblePrincipals ?? []).map((item: any) => ({
-                    id: String(item.id ?? item.user_id),
-                    email: String(item.email ?? ''),
-                    name: String(item.name ?? item.email ?? 'Supplier'),
-                })),
             };
         },
         start: (input: MarketSupportStartInput): Promise<MarketSupportSession> =>
@@ -954,7 +945,6 @@ export const api = {
                 method: 'POST',
                 body: JSON.stringify({
                     organization_id: input.organizationId,
-                    accountable_user_id: input.principalId,
                     support_reference: input.supportReference,
                     confirm_replacement: input.replaceActive ?? false,
                 }),

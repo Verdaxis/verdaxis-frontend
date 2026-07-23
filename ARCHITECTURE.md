@@ -190,15 +190,15 @@ allowlisted events, and the adapter drops unknown properties and isolates all co
 failures. The Admin Product Usage section consumes only the backend's aggregated,
 admin-authorized endpoint and degrades independently from commercial analytics.
 
-**Market Support context boundary:** Admin Users exposes entry only for approved REAL
-supplier organizations. The browser stores only an opaque context id in sessionStorage;
+**Assisted order-entry context boundary:** Admin Users exposes entry only for approved REAL
+organizations. The browser stores only an opaque context id in sessionStorage;
 the real admin token remains the sole credential. `MarketSupportProvider` rehydrates and
 expires the context, while `services/api.ts` adds the context header only to the scoped
-customer allowlist and preserves it across refresh retries. The normal supplier shell is
-forced into supplier mode with a persistent acting-organization banner. ASK creation uses
-the normal order form plus a final support confirmation; unsupported customer mutations
-are hidden or routed away. Own-order cancellation uses the canonical POST route with
-reason and ETag, and errors remain visible.
+customer allowlist and preserves it across refresh retries. Buyer and supplier views remain
+available under a persistent acting-organization banner. BID and ASK creation use the normal
+order form plus a compact final confirmation, with GTC or dated expiry and no evidence-text
+requirement. Orders remain post-only. Own assisted-order cancellation uses the canonical
+POST route with reason and ETag; unsupported customer mutations remain denied.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

@@ -871,7 +871,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            {(!isMarketSupportActive || configBase.primaryAction.side === 'ASK') && <button
+                            <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
@@ -879,7 +879,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
-                            </button>}
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => fetchData(false, currentSkip)}
@@ -1295,7 +1295,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-center">
-                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (!isMarketSupportActive || (order.side === 'ASK' && order.creation_method === 'MARKET_SUPPORT')) && (
+                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (!isMarketSupportActive || order.creation_method === 'MARKET_SUPPORT') && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleCancelOrder(order)}

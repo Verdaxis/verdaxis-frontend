@@ -116,10 +116,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (!isOpen) return;
 
         const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow);
-        if (side === 'ASK' && marketSupportContext) {
-            initialForm.expiry_type = 'date';
-            initialForm.expiry_date = '';
-        }
         setFormData(initialForm);
         setModalState('form');
         setErrorMessage('');
@@ -231,6 +227,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }, [availabilityOptions, formData.availability_window]);
 
     const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
+        side,
         product: selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
         availabilityWindow: availabilitySummary || formData.availability_window,
@@ -246,7 +243,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         carbonIntensityMethod: 'Supplier declaration',
         feedstock: formData.feedstock.trim(),
         origin: formData.origin.trim(),
-    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct]);
+    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct, side]);
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
@@ -262,9 +259,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.carbon_intensity_gco2_mj > 0 &&
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
-    const hasRequiredSupportExpiry = !marketSupportContext || side !== 'ASK'
-        || (formData.expiry_type === 'date' && formData.expiry_date !== '');
-
     const isValid =
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
@@ -272,7 +266,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.price_per_mt_usd > 0 &&
         (side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
-    const isValidOrder = isValid && hasRequiredSupportExpiry;
+    const isValidOrder = isValid;
 
     const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
         if (selectedProduct?.market_product && selectedDeliveryPoint) {
@@ -345,7 +339,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isValidOrder) return;
-        if (side === 'ASK' && marketSupportContext) {
+        if (marketSupportContext) {
             setSupportDraft(buildSupportDraft());
             setModalState('support_confirmation');
             setErrorMessage('');
@@ -478,7 +472,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         return (
             <MarketSupportFinalConfirmation
                 organizationName={marketSupportContext.organization.name}
-                supplierName={marketSupportContext.accountablePrincipal.name}
                 supportReference={marketSupportContext.supportReference}
                 draft={supportDraft}
                 onBack={backFromSupportConfirmation}
@@ -825,8 +818,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <div className="flex gap-2 mb-2">
                                             <button
                                                 type="button"
-                                                onClick={() => !marketSupportContext && handleChange('expiry_type', 'GTC')}
-                                                disabled={Boolean(marketSupportContext)}
+                                                onClick={() => handleChange('expiry_type', 'GTC')}
                                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors flex-1 ${
                                                     formData.expiry_type === 'GTC'
                                                         ? side === 'BID'
@@ -835,7 +827,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         : 'bg-white dark:bg-slate-900 text-slate-500 border border-slate-200 dark:border-slate-600 hover:border-slate-400'
                                                 }`}
                                             >
-                                                {marketSupportContext ? 'GTC unavailable in Market Support' : t('orderPlaceModal.expiry.gtc')}
+                                                {t('orderPlaceModal.expiry.gtc')}
                                             </button>
                                             <button
                                                 type="button"
@@ -854,6 +846,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         {formData.expiry_type === 'date' && (
                                             <input
                                                 type="date"
+                                                min={new Date().toISOString().slice(0, 10)}
                                                 value={formData.expiry_date}
                                                 onChange={(e) => handleChange('expiry_date', e.target.value)}
                                                 className={inputClass}

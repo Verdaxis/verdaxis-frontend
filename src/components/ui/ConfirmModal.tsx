@@ -13,6 +13,8 @@ export interface ConfirmModalProps {
     isLoading?: boolean;
     confirmDisabled?: boolean;
     children?: React.ReactNode;
+    maxWidth?: 'md' | 'lg';
+    compact?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -27,6 +29,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     isLoading = false,
     confirmDisabled = false,
     children,
+    maxWidth = 'md',
+    compact = false,
 }) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(isLoading);
@@ -118,17 +122,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     };
 
     const styles = getVariantStyles();
+    const widthClass = maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" tabIndex={-1} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full max-h-[90dvh] overflow-y-auto transform scale-100 transition-all">
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" tabIndex={-1} className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl ${widthClass} w-full max-h-[90dvh] overflow-y-auto transform scale-100 transition-all`}>
                 {/* Header */}
-                <div className="p-6 pb-0 flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${styles.iconBg} flex-shrink-0`}>
+                <div className={`${compact ? 'p-5 pb-0 gap-3' : 'p-6 pb-0 gap-4'} flex items-start`}>
+                    <div className={`${compact ? 'p-2.5' : 'p-3'} rounded-xl ${styles.iconBg} flex-shrink-0`}>
                         {styles.icon}
                     </div>
                     <div className="flex-1">
-                        <h3 id="confirm-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                        <h3 id="confirm-modal-title" className={`${compact ? 'text-lg mb-1' : 'text-xl mb-2'} font-bold text-slate-900 dark:text-slate-100`}>
                             {title}
                         </h3>
                         <p id="confirm-modal-description" className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
@@ -137,10 +142,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     </div>
                 </div>
 
-                {children && <div className="px-6">{children}</div>}
+                {children && <div className={compact ? 'px-5' : 'px-6'}>{children}</div>}
 
                 {/* Actions */}
-                <div className="p-6 flex gap-3 justify-end mt-4">
+                <div className={`${compact ? 'p-5 pt-4 mt-0' : 'p-6 mt-4'} flex gap-3 justify-end`}>
                     {cancelText && (
                         <button
                             onClick={onClose}

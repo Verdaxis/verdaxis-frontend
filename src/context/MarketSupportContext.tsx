@@ -5,7 +5,6 @@ import type {
   MarketSupportEntry,
   MarketSupportSession,
   MarketSupportStartInput,
-  SupportPrincipal,
   SupportOrganization,
 } from '../types/marketSupport';
 import {
@@ -34,8 +33,8 @@ const EMPTY_CONTEXT: MarketSupportContextValue = {
   isLoading: false,
   error: null,
   isActive: false,
-  start: async () => { throw new Error('Market Support context is not available'); },
-  enter: async () => { throw new Error('Market Support context is not available'); },
+  start: async () => { throw new Error('Assisted order entry is not available'); },
+  enter: async () => { throw new Error('Assisted order entry is not available'); },
   resume: async () => null,
   exit: async () => undefined,
   invalidate: () => undefined,
@@ -47,15 +46,6 @@ const MarketSupportContextState = createContext<MarketSupportContextValue>(EMPTY
 const asRecord = (value: unknown): Record<string, any> => (
   value && typeof value === 'object' ? value as Record<string, any> : {}
 );
-
-const principal = (value: unknown): SupportPrincipal => {
-  const item = asRecord(value);
-  return {
-    id: String(item.id ?? item.user_id ?? item.principal_id ?? ''),
-    name: String(item.name ?? item.email ?? 'Unknown supplier'),
-    email: String(item.email ?? ''),
-  };
-};
 
 const organization = (value: unknown): SupportOrganization => {
   const item = asRecord(value);
@@ -71,14 +61,12 @@ export const normalizeMarketSupportSession = (value: unknown, actorFallback?: { 
   const envelope = asRecord(value);
   const raw = asRecord(envelope.context ?? envelope.session ?? value);
   const actorRaw = asRecord(raw.actor ?? raw.admin ?? raw.admin_user ?? raw.created_by ?? actorFallback);
-  const accountable = raw.accountable_principal ?? raw.accountablePrincipal ?? raw.accountable_user ?? raw.principal;
   return {
     id: String(raw.id ?? raw.context_id ?? ''),
     status: String(raw.status ?? 'ACTIVE').toUpperCase(),
     version: Number(raw.version ?? raw.context_version ?? 0),
     startedAt: String(raw.started_at ?? raw.startedAt ?? raw.created_at ?? ''),
     organization: organization(raw.organization ?? raw.effective_organization),
-    accountablePrincipal: principal(accountable),
     actor: {
       id: String(actorRaw.id ?? actorRaw.user_id ?? raw.actor_user_id ?? ''),
       name: String(actorRaw.name ?? ([actorRaw.first_name, actorRaw.last_name].filter(Boolean).join(' ') || actorRaw.email || 'Administrator')),
@@ -88,7 +76,7 @@ export const normalizeMarketSupportSession = (value: unknown, actorFallback?: { 
     expiresAt: String(raw.expires_at ?? raw.expiresAt ?? ''),
     scope: Array.isArray(raw.scope ?? raw.allowed_actions ?? raw.actions ?? raw.scopes)
       ? (raw.scope ?? raw.allowed_actions ?? raw.actions ?? raw.scopes).map(String)
-      : ['ASK_CREATE', 'ASK_CANCEL'],
+      : ['ORDER_CREATE', 'ORDER_CANCEL'],
   };
 };
 
@@ -109,12 +97,10 @@ export class MarketSupportExitError extends Error {
 
 const normalizeEntry = (value: unknown): MarketSupportEntry => {
   const raw = asRecord(value);
-  const principals = raw.eligible_principals ?? raw.eligiblePrincipals ?? [];
   return {
-    eligible: raw.eligible === true || (raw.eligible == null && principals.length > 0),
+    eligible: raw.eligible === true,
     reason: raw.reason ?? null,
     organization: raw.organization ? organization(raw.organization) : undefined,
-    eligiblePrincipals: Array.isArray(principals) ? principals.map(principal) : [],
   };
 };
 
@@ -149,7 +135,7 @@ export const MarketSupportProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch {
       if (generation !== bootstrapGeneration.current) return;
       invalidate('expired', true);
-      setError('This Market Support context has expired or is no longer available.');
+      setError('This assisted workspace has expired or is no longer available.');
     }
   }, [authLoading, invalidate, user]);
 
@@ -204,7 +190,7 @@ export const MarketSupportProvider: React.FC<{ children: React.ReactNode }> = ({
   const start = useCallback(async (input: MarketSupportStartInput) => {
     setError(null);
     const next = normalizeMarketSupportSession(await api.marketSupport.start(input), user);
-    if (!next.id || !isAttachableMarketSupportSession(next)) throw new Error('Market Support did not return an active, future context');
+    if (!next.id || !isAttachableMarketSupportSession(next)) throw new Error('Assisted order entry did not return an active workspace');
     setMarketSupportContextId(next.id);
     setContext(next);
     if (input.replaceActive) broadcastMarketSupportReplacement();
@@ -232,8 +218,8 @@ export const MarketSupportProvider: React.FC<{ children: React.ReactNode }> = ({
       setContext(null);
       broadcastMarketSupportInvalidation('exit-failed', currentId ?? undefined);
       throw new MarketSupportExitError(caught instanceof Error
-        ? `${caught.message} Local Market Support state was detached.`
-        : 'Exit request failed. Local Market Support state was detached.');
+        ? `${caught.message} The local assisted workspace was detached.`
+        : 'Exit request failed. The local assisted workspace was detached.');
     } finally {
       if (currentId && getMarketSupportContextId() === currentId) {
         clearMarketSupportContextId();

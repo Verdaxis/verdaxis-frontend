@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
 
                     {isProfileOpen && (
                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-100 dark:border-slate-700 py-1 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]">
-                            {user?.role === 'ADMIN' && !isMarketSupportActive && (
+                            {user?.role === 'ADMIN' && (
                                 <>
                                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
                                         <p className="text-xs font-bold text-slate-400 uppercase">{t('header.roleSwitcher')}</p>

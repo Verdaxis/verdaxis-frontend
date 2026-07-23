@@ -8,9 +8,9 @@ describe('MarketSupportFinalConfirmation', () => {
     render(
       <MarketSupportFinalConfirmation
         organizationName="Northstar Fuels"
-        supplierName="Amina Supplier"
         supportReference="CASE-42"
         draft={{
+          side: 'ASK',
           product: 'Bio Methanol',
           deliveryPoint: 'Singapore',
           availabilityWindow: 'Q4 2026',
@@ -44,18 +44,20 @@ describe('MarketSupportFinalConfirmation', () => {
     render(
       <MarketSupportFinalConfirmation
         organizationName="Northstar Fuels"
-        supplierName="Amina Supplier"
         supportReference="CASE-42"
-        draft={{ product: 'Bio Methanol', deliveryPoint: 'Singapore', availabilityWindow: 'Spot', quantityMt: 500, pricePerMtUsd: 700, expiresAt: '2026-08-01T23:59:59.000Z', certificationScheme: 'ISCC EU', specificationStandard: 'ISO 8217', msdsAvailable: true, carbonIntensity: 18, carbonIntensityMethod: 'Declared', feedstock: 'UCO', origin: 'NL' }}
+        draft={{ side: 'BID', product: 'Bio Methanol', deliveryPoint: 'Singapore', availabilityWindow: 'Spot', quantityMt: 500, pricePerMtUsd: 700, expiresAt: '', certificationScheme: '', specificationStandard: '', msdsAvailable: false, carbonIntensity: 0, feedstock: '', origin: '' }}
         onBack={vi.fn()}
         onConfirm={onConfirm}
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /evidence excerpt/i }), { target: { value: 'Exact instruction' } });
     fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing ask/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit/i }));
-    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ evidence_excerpt: 'Exact instruction' }));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      external_instruction_reference: 'CASE-42',
+      acknowledge_executable_standing_order: true,
+    }));
+    expect(screen.getByText('Good till cancelled')).toBeTruthy();
   });
 });

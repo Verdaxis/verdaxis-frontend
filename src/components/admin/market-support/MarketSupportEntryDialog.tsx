@@ -23,21 +23,16 @@ export const MarketSupportEntryDialog: React.FC<MarketSupportEntryDialogProps> =
 }) => {
   const dialogRef = useRef<HTMLFormElement>(null);
   const submittingRef = useRef(false);
-  const [principalId, setPrincipalId] = useState('');
   const [supportReference, setSupportReference] = useState('');
   const [scopeConfirmed, setScopeConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const principals = entry?.eligiblePrincipals ?? [];
-  const selectedPrincipalId = principalId || principals[0]?.id || '';
-  const canSubmit = Boolean(entry?.eligible && selectedPrincipalId && supportReference.trim() && scopeConfirmed && !loading && !submitting);
+  const canSubmit = Boolean(entry?.eligible && supportReference.trim() && scopeConfirmed && !loading && !submitting);
 
   const reason = useMemo(() => {
     if (entry?.reason) return entry.reason;
-    if (organization.type !== 'REAL') return 'Only approved REAL supplier organizations are supported.';
-    if (!entry?.eligiblePrincipals.length) return 'No approved, email-verified, execution-eligible supplier is available.';
     return null;
-  }, [entry, organization.type]);
+  }, [entry]);
 
   useEffect(() => {
     submittingRef.current = submitting;
@@ -84,12 +79,11 @@ export const MarketSupportEntryDialog: React.FC<MarketSupportEntryDialogProps> =
     try {
       await onStart({
         organizationId: organization.id,
-        principalId: selectedPrincipalId,
         supportReference: supportReference.trim(),
-        scope: ['ASK_CREATE', 'ASK_CANCEL'],
+        scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       });
     } catch (caught) {
-      setSubmitError(caught instanceof Error ? caught.message : 'Could not enter the supplier platform.');
+      setSubmitError(caught instanceof Error ? caught.message : 'Could not enter the organization workspace.');
     } finally {
       setSubmitting(false);
     }
@@ -100,9 +94,9 @@ export const MarketSupportEntryDialog: React.FC<MarketSupportEntryDialogProps> =
       <form ref={dialogRef} onSubmit={submit} className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-2xl border border-verdaxis-border bg-verdaxis-bg p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-verdaxis">Market Support</p>
-            <h2 id="market-support-entry-title" className="mt-1 text-xl font-bold text-verdaxis-text">Enter supplier platform</h2>
-            <p className="mt-1 text-sm text-verdaxis-text-muted">Act for {organization.name} using the normal supplier routes.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-verdaxis">Assisted order entry</p>
+            <h2 id="market-support-entry-title" className="mt-1 text-xl font-bold text-verdaxis-text">Enter organization workspace</h2>
+            <p className="mt-1 text-sm text-verdaxis-text-muted">Create and manage bids or asks for {organization.name}.</p>
           </div>
           <button type="button" aria-label="Close" onClick={onClose} className="rounded-lg p-2 text-verdaxis-text-muted hover:bg-verdaxis-border/30"><X size={18} /></button>
         </div>
@@ -114,30 +108,24 @@ export const MarketSupportEntryDialog: React.FC<MarketSupportEntryDialogProps> =
         ) : !entry?.eligible ? (
           <div className="mt-6 flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-            <span>{reason ?? 'This organization is not eligible for Market Support.'}</span>
+            <span>{reason ?? 'This organization is not eligible for assisted order entry.'}</span>
           </div>
         ) : (
           <div className="mt-6 space-y-4">
-            <label className="block text-sm font-semibold text-verdaxis-text">
-              Accountable supplier
-              <select value={selectedPrincipalId} onChange={(event) => setPrincipalId(event.target.value)} className="mt-1 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-sm">
-                {principals.map((principal) => <option key={principal.id} value={principal.id}>{principal.name} · {principal.email}</option>)}
-              </select>
-            </label>
             <label className="block text-sm font-semibold text-verdaxis-text">
               Support reference
               <input aria-label="Support reference" value={supportReference} onChange={(event) => setSupportReference(event.target.value)} placeholder="Case, ticket, or instruction reference" className="mt-1 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-sm" />
             </label>
             <label className="flex items-start gap-3 rounded-lg border border-verdaxis-border bg-verdaxis-border/10 p-3 text-sm text-verdaxis-text">
               <input type="checkbox" aria-label="Scope confirmation" checked={scopeConfirmed} onChange={(event) => setScopeConfirmed(event.target.checked)} className="mt-0.5" />
-              <span>I understand this context permits only supplier ASK creation and cancellation for this organization.</span>
+              <span>I understand that my actions are audited and create post-only orders owned by this organization.</span>
             </label>
           </div>
         )}
 
         <div className="mt-7 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-verdaxis-border px-4 py-2 text-sm font-semibold text-verdaxis-text-muted hover:text-verdaxis-text">Cancel</button>
-          <button type="submit" disabled={!canSubmit} className="rounded-lg bg-verdaxis px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Enter supplier platform</button>
+          <button type="submit" disabled={!canSubmit} className="rounded-lg bg-verdaxis px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">Enter workspace</button>
         </div>
       </form>
     </div>
