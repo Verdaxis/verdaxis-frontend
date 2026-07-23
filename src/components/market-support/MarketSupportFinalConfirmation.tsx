@@ -36,7 +36,13 @@ interface MarketSupportFinalConfirmationProps {
 
 const formatExpiry = (value: string) => {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'medium',
+        timeZone: 'UTC',
+      }) + ' UTC';
 };
 
 export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirmationProps> = ({
