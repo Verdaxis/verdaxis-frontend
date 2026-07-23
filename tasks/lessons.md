@@ -2,6 +2,12 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Initialize Assisted Workspaces From Organization Side
+- **Date:** 2026-07-23
+- **Trigger:** Entering a fuel supplier organization retained the admin's previously saved Buyer View and displayed Place Bid.
+- **Rule:** When an assisted context starts for a clearly one-sided organization type, initialize the platform to that organization's side once while preserving the admin's ability to switch afterward.
+- **Why:** Changing the effective organization did not update the independent `verdaxis_viewMode` session preference, so stale admin navigation state overrode the expected supplier experience.
+
 ### Detect Browser/Backend Release Skew
 - **Date:** 2026-07-23
 - **Trigger:** After the organization-scoped assisted-order deployment, an already-open tab still rendered the retired Accountable Supplier dropdown against the new API and left it empty.

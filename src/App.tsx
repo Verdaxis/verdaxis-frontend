@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { MarketSupportProvider, useMarketSupport } from './context/MarketSupportContext';
+import { defaultMarketSupportView } from './types/marketSupport';
 import { GuidedTutorial } from './components/GuidedTutorial';
 import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -294,8 +295,23 @@ const DashboardLayout: React.FC = () => {
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
+  const initializedSupportContext = useRef<string | null>(null);
 
   const effectiveViewMode: ViewMode = viewMode;
+
+  useEffect(() => {
+    if (!context) {
+      initializedSupportContext.current = null;
+      return;
+    }
+    if (initializedSupportContext.current === context.id) return;
+    initializedSupportContext.current = context.id;
+
+    const defaultView = defaultMarketSupportView(context.organization.type);
+    if (!defaultView) return;
+    setViewMode(defaultView);
+    sessionStorage.setItem('verdaxis_viewMode', defaultView);
+  }, [context]);
 
   useEffect(() => {
     if (context && location.pathname.startsWith('/app/admin')) {

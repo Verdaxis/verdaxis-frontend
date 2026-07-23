@@ -196,7 +196,9 @@ organizations. The browser stores only an opaque context id in sessionStorage;
 the real admin token remains the sole credential. `MarketSupportProvider` rehydrates and
 expires the context, while `services/api.ts` adds the context header only to the scoped
 customer allowlist and preserves it across refresh retries. Buyer and supplier views remain
-available under a persistent acting-organization banner. BID and ASK creation use the normal
+available under a persistent acting-organization banner. Entering a clearly one-sided
+organization defaults the shell to its matching view once; the admin may still switch views.
+BID and ASK creation use the normal
 order form plus a compact final confirmation, with GTC or dated expiry and no evidence-text
 requirement. Orders remain post-only. Own assisted-order cancellation uses the canonical
 POST route with reason and ETag; unsupported customer mutations remain denied.

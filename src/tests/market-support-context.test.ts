@@ -6,6 +6,7 @@ import {
   setMarketSupportContextId,
 } from '../services/marketSupportContextStore';
 import { normalizeMarketSupportSession, isAttachableMarketSupportSession } from '../context/MarketSupportContext';
+import { defaultMarketSupportView } from '../types/marketSupport';
 
 describe('market support context storage', () => {
   beforeEach(() => sessionStorage.clear());
@@ -46,5 +47,11 @@ describe('market support context storage', () => {
     });
     expect(isAttachableMarketSupportSession(session, new Date('2026-07-23T08:30:00.000Z'))).toBe(true);
     expect(isAttachableMarketSupportSession({ ...session, status: 'EXPIRED' }, new Date('2026-07-23T08:30:00.000Z'))).toBe(false);
+  });
+
+  it('defaults a clear organization type to its matching assisted platform view', () => {
+    expect(defaultMarketSupportView('FUEL_SUPPLIER')).toBe('SUPPLIER');
+    expect(defaultMarketSupportView('fuel_buyer')).toBe('BUYER');
+    expect(defaultMarketSupportView('FUEL_TRADER')).toBeNull();
   });
 });

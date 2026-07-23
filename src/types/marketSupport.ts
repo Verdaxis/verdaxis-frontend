@@ -43,3 +43,17 @@ export interface MarketSupportStartInput {
   scope: string[];
   replaceActive?: boolean;
 }
+
+const BUYER_ORGANIZATION_TYPES = new Set([
+  'SHIPPING_LINE',
+  'SHIP_MANAGER',
+  'FUEL_BUYER',
+  'CHARTERER',
+]);
+
+export const defaultMarketSupportView = (organizationType: string): 'BUYER' | 'SUPPLIER' | null => {
+  const normalizedType = organizationType.trim().toUpperCase();
+  if (normalizedType === 'FUEL_SUPPLIER') return 'SUPPLIER';
+  if (BUYER_ORGANIZATION_TYPES.has(normalizedType)) return 'BUYER';
+  return null;
+};
