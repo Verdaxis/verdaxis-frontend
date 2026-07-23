@@ -67,6 +67,7 @@ describe('DataAnalytics', () => {
       expect(fleetIntelligenceGetMock).toHaveBeenCalled();
     });
 
+    expect(subscriptionsMeMock).not.toHaveBeenCalled();
     expect(screen.queryByText('Unlock Full S&D Intelligence')).toBeNull();
     expect(screen.getByText('Supply: Producer Pipeline')).toBeTruthy();
     expect(screen.getByText('Demand: Dual-Fuel Fleet')).toBeTruthy();

@@ -24,9 +24,11 @@ export const DataAnalytics: React.FC = () => {
     const [fleetLastUpdated, setFleetLastUpdated] = useState<string>('');
 
     useEffect(() => {
-        api.subscriptions.me()
-            .then(setSubscription)
-            .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
+        if (user?.role !== 'ADMIN') {
+            api.subscriptions.me()
+                .then(setSubscription)
+                .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
+        }
 
         // Fetch live fleet demand data
         api.fleetIntelligence.get()
@@ -42,7 +44,7 @@ export const DataAnalytics: React.FC = () => {
                 setFleetLastUpdated(data.last_updated);
             })
             .catch(() => { /* keep fallback */ });
-    }, []);
+    }, [user?.role]);
     const hasPremiumAccess = user?.role === 'ADMIN' || !!(subscription && subscription.tier !== 'free');
     const DEMAND_FLEET = demandFleet;
     const supplyByStatus = useMemo(() => {
