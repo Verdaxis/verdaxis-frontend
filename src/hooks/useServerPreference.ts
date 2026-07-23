@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '../context/AuthContext';
+import { useMarketSupport } from '../context/MarketSupportContext';
 import { api } from '../services/api';
 
 const DEBOUNCE_MS = 1000;
@@ -123,6 +124,7 @@ export const useServerPreference = <T>(
   defaultValue: T,
 ): [T, ServerPreferenceSetter<T>] => {
   const { isAuthenticated, user } = useAuth();
+  const { isActive: isMarketSupportActive } = useMarketSupport();
   const initialLocal = useMemo(
     () => readLocalPreference(localStorageKey, sanitize, defaultValue),
     [defaultValue, localStorageKey, sanitize],
@@ -131,6 +133,7 @@ export const useServerPreference = <T>(
   const valueRef = useRef(value);
   const sanitizeRef = useRef(sanitize);
   const authenticatedRef = useRef(isAuthenticated);
+  const supportModeRef = useRef(isMarketSupportActive);
   const userIdRef = useRef(user?.id ?? '');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const migratedRef = useRef(false);
@@ -142,22 +145,23 @@ export const useServerPreference = <T>(
 
   useEffect(() => {
     authenticatedRef.current = isAuthenticated;
+    supportModeRef.current = isMarketSupportActive;
     userIdRef.current = user?.id ?? '';
-    if (!isAuthenticated && timerRef.current) {
+    if ((!isAuthenticated || isMarketSupportActive) && timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, isMarketSupportActive, user?.id]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isMarketSupportActive) return;
 
     const userId = user?.id ?? 'authenticated';
     let cancelled = false;
 
     loadAllPreferences(userId)
       .then((preferences) => {
-        if (cancelled || !authenticatedRef.current) return;
+        if (cancelled || !authenticatedRef.current || supportModeRef.current) return;
         if (Object.prototype.hasOwnProperty.call(preferences, namespace)) {
           const sanitized = sanitizeRef.current(preferences[namespace]);
           if (sanitized !== null) {
@@ -171,7 +175,7 @@ export const useServerPreference = <T>(
         if (!initialLocalRef.current.hasStoredValue || migratedRef.current) return;
         migratedRef.current = true;
         const localValue = initialLocalRef.current.value;
-        void putWithRetry(namespace, localValue, () => !cancelled && authenticatedRef.current)
+        void putWithRetry(namespace, localValue, () => !cancelled && authenticatedRef.current && !supportModeRef.current)
           .then(() => {
             updateCachedPreference(userId, namespace, localValue);
           });
@@ -181,7 +185,7 @@ export const useServerPreference = <T>(
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, localStorageKey, namespace, user?.id]);
+  }, [isAuthenticated, isMarketSupportActive, localStorageKey, namespace, user?.id]);
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -197,13 +201,13 @@ export const useServerPreference = <T>(
     writeLocalPreference(localStorageKey, next);
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    if (!authenticatedRef.current) return;
+    if (!authenticatedRef.current || supportModeRef.current) return;
 
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
-      if (!authenticatedRef.current) return;
+      if (!authenticatedRef.current || supportModeRef.current) return;
       const userId = userIdRef.current || 'authenticated';
-      void putWithRetry(namespace, next, () => authenticatedRef.current)
+      void putWithRetry(namespace, next, () => authenticatedRef.current && !supportModeRef.current)
         .then(() => {
           updateCachedPreference(userId, namespace, next);
         });

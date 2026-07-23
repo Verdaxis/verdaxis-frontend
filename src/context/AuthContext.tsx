@@ -64,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearAccessToken();
         sessionStorage.removeItem('verdaxis_currentPage');
         sessionStorage.removeItem('verdaxis_viewMode');
+        window.dispatchEvent(new CustomEvent('verdaxis:auth-logout'));
         setToken(null);
         setUser(null);
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);

@@ -19,7 +19,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { ApiError, api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
 import { PORTS } from '../data';
@@ -50,6 +50,8 @@ import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 import { CompliancePriceHint } from './trading/CompliancePriceHint';
 import { analytics } from '../services/analytics';
+import { useMarketSupport } from '../context/MarketSupportContext';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -222,9 +224,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
+    const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
+    const { isActive: isMarketSupportActive } = useMarketSupport();
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
+    const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
+    const [cancellationReason, setCancellationReason] = useState('');
+    const [cancellationLoading, setCancellationLoading] = useState(false);
 
     // ─── News panel toggle ──────────────────────────────────────
 
@@ -540,11 +547,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     /* ---- My Orders fetch ---- */
     const fetchMyOrders = useCallback(async () => {
         setMyOrdersLoading(true);
+        setMyOrdersError(null);
         try {
             const data = await api.orderbook.myOrders();
             setMyOrders(Array.isArray(data) ? data : data.items ?? []);
-        } catch {
+        } catch (error) {
             setMyOrders([]);
+            setMyOrdersError(error instanceof Error ? error.message : 'Could not load your orders.');
         } finally {
             setMyOrdersLoading(false);
         }
@@ -579,12 +588,35 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return true;
     }), [availability, marketProduct, outstandingMyOrders, resolvedDeliveryPointId, resolvedPort]);
 
-    const handleCancelOrder = async (orderId: string) => {
+    const handleCancelOrder = async (order: OrderBookOrder) => {
+        setPendingCancellation(order);
+        setCancellationReason(isMarketSupportActive ? 'Customer requested cancellation' : 'User requested cancellation');
+        setMyOrdersError(null);
+    };
+
+    const confirmCancelOrder = async () => {
+        if (!pendingCancellation || !cancellationReason.trim()) return;
+        if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
+            setMyOrdersError('This assisted listing is missing its version tag. Refresh the list before cancelling.');
+            await fetchMyOrders();
+            setPendingCancellation(null);
+            return;
+        }
+        setCancellationLoading(true);
         try {
-            await api.orderbook.cancel(orderId);
-            setMyOrders(prev => prev.filter(o => o.id !== orderId));
-        } catch {
-            // Silently fail — order may already be filled/cancelled
+            await api.orderbook.cancel(pendingCancellation.id, { reason: cancellationReason, etag: pendingCancellation.etag });
+            setMyOrders(prev => prev.filter(o => o.id !== pendingCancellation.id));
+            setPendingCancellation(null);
+        } catch (error) {
+            if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
+                await fetchMyOrders();
+                setMyOrdersError('This listing changed before cancellation. The latest listing data has been reloaded.');
+                setPendingCancellation(null);
+            } else {
+                setMyOrdersError(error instanceof Error ? error.message : 'Could not cancel this order.');
+            }
+        } finally {
+            setCancellationLoading(false);
         }
     };
 
@@ -763,7 +795,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
-                            {isExecutable ? (
+                            {isExecutable && !isMarketSupportActive ? (
                                 <button
                                     type="button"
                                     data-tour="marketplace-listing-action"
@@ -781,7 +813,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             : t('marketplace.status.closed')}
                                 </span>
                             )}
-                            {pinnable && (
+                            {pinnable && !isMarketSupportActive && (
                                 <button
                                     type="button"
                                     onClick={async (e) => {
@@ -839,7 +871,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <button
+                            {(!isMarketSupportActive || configBase.primaryAction.side === 'ASK') && <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
                                 onClick={() => setOrderModalSide(configBase.primaryAction.side)}
@@ -847,7 +879,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             >
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
-                            </button>
+                            </button>}
                             <button
                                 type="button"
                                 onClick={() => fetchData(false, currentSkip)}
@@ -856,7 +888,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                                 <span className="hidden sm:inline">{t('marketplace.btn.refresh')}</span>
                             </button>
-                            <button
+                            {!isMarketSupportActive && <button
                                 type="button"
                                 onClick={async () => {
                                     if (!currentSliceTarget) return;
@@ -868,7 +900,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             >
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
                                 <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
-                            </button>
+                            </button>}
                         </div>
                     </div>
 
@@ -1143,8 +1175,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         region={resolvedPort || undefined}
                                         deliveryPointId={resolvedDeliveryPointId || undefined}
                                         availability={availability || undefined}
-                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                                        onLevelClick={handleOrderbookLevelClick}
+                                        actionableSide={isMarketSupportActive ? undefined : (role === 'BUYER' ? 'ASK' : 'BID')}
+                                        onLevelClick={isMarketSupportActive ? undefined : handleOrderbookLevelClick}
                                     />
                                     <TradeTape
                                         marketProduct={marketProduct}
@@ -1163,6 +1195,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             {marketTab === 'my_orders' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
+                        {myOrdersError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
                         {myOrdersLoading ? (
                             <div className="flex items-center justify-center py-20 text-slate-400">
                                 <Loader2 className="animate-spin mr-2" size={20} /> {t('marketplace.myOrders.loading')}
@@ -1202,6 +1235,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </div>
                         ) : (
                             <div className="min-h-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
+                                {myOrdersError && <div role="alert" className="m-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
                                 <table className="w-full min-w-[980px] border-collapse text-sm">
                                     <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                         <tr>
@@ -1257,14 +1291,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             order.status === 'FILLED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
                                                             'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500'
                                                         }`}>
-                                                            {order.status.replaceAll('_', ' ')}
+                                                            {getStatusConfig(order.status).label}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-center">
-                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (
+                                                        {(order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED') && (!isMarketSupportActive || (order.side === 'ASK' && order.creation_method === 'MARKET_SUPPORT')) && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleCancelOrder(order.id)}
+                                                                onClick={() => handleCancelOrder(order)}
                                                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                                                 title="Cancel order"
                                                             >
@@ -1555,6 +1589,30 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* ─── Order Placement Modal ────────────────────────────── */}
+            <ConfirmModal
+                isOpen={Boolean(pendingCancellation)}
+                onClose={() => setPendingCancellation(null)}
+                onConfirm={() => { void confirmCancelOrder(); }}
+                title="Cancel listing?"
+                message="Cancellation is recorded against this listing. Confirm the reason before continuing."
+                confirmText="Cancel listing"
+                variant="danger"
+                isLoading={cancellationLoading}
+                confirmDisabled={cancellationReason.trim().length < 3}
+            >
+                <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
+                    Cancellation reason
+                    <textarea
+                        aria-label="Cancellation reason"
+                        autoFocus
+                        rows={3}
+                        maxLength={500}
+                        value={cancellationReason}
+                        onChange={(event) => setCancellationReason(event.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                    />
+                </label>
+            </ConfirmModal>
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
                 onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}

@@ -8,9 +8,11 @@ import { api } from '../services/api';
 import MarkdownRenderer from './ui/MarkdownRenderer';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { useNamespace } from '../hooks/useNamespace';
+import { useMarketSupport } from '../context/MarketSupportContext';
 
 export const SupplierQuotes: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
+    const { isActive: isMarketSupportActive } = useMarketSupport();
     const [orders, setOrders] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -285,7 +287,7 @@ export const SupplierQuotes: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString() : t('supplierQuotes.table.spot')}</td>
                                         <td className="px-6 py-4 text-right">
-                                            {req.status === 'PENDING_CONFIRMATION' ? (
+                                            {!isMarketSupportActive && req.status === 'PENDING_CONFIRMATION' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleAccept(req.id)}
@@ -302,7 +304,7 @@ export const SupplierQuotes: React.FC = () => {
                                                         <XCircle size={20} />
                                                     </button>
                                                 </div>
-                                            ) : req.status === 'CONFIRMED' ? (
+                                            ) : !isMarketSupportActive && req.status === 'CONFIRMED' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleComplete(req.id, req)}
@@ -312,7 +314,7 @@ export const SupplierQuotes: React.FC = () => {
                                                         <Truck size={12} /> {t('supplierQuotes.table.confirmDelivery')}
                                                     </button>
                                                 </div>
-                                            ) : req.status === 'DELIVERED' ? (
+                                            ) : !isMarketSupportActive && req.status === 'DELIVERED' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleMarkPaid(req.id)}

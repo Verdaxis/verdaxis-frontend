@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 // Copilot removed per Gavin feedback — was unreliable and exposed API key in client bundle
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
+import { MarketSupportProvider, useMarketSupport } from './context/MarketSupportContext';
 import { GuidedTutorial } from './components/GuidedTutorial';
 import LoginPage from './pages/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -284,6 +285,7 @@ const pathToPage = (pathname: string, viewMode: ViewMode): Page => {
 
 const DashboardLayout: React.FC = () => {
   const { user } = useAuth();
+  const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
   const location = useLocation();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -292,10 +294,18 @@ const DashboardLayout: React.FC = () => {
   });
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
 
+  const effectiveViewMode: ViewMode = context ? 'SUPPLIER' : viewMode;
+
+  useEffect(() => {
+    if (context && location.pathname.startsWith('/app/admin')) {
+      navigate('/app/home', { replace: true });
+    }
+  }, [context, location.pathname, navigate]);
+
   // Bare /app only redirects; it must not clobber the stored page the
   // index redirect is about to restore, and it is not a navigation.
   const isBareAppPath = location.pathname === '/app' || location.pathname === '/app/';
-  const currentPage = pathToPage(location.pathname, viewMode);
+  const currentPage = pathToPage(location.pathname, effectiveViewMode);
 
   // Session persistence: the sole writer of the legacy Page value.
   useEffect(() => {
@@ -311,19 +321,20 @@ const DashboardLayout: React.FC = () => {
     const previousPage = previousPageRef.current;
     previousPageRef.current = currentPage;
     if (previousPage === null || previousPage === currentPage) return;
-    recordDashboardNavigationStart(previousPage, currentPage, viewMode);
-    recordDashboardContentReady(currentPage, viewMode);
+    recordDashboardNavigationStart(previousPage, currentPage, effectiveViewMode);
+    recordDashboardContentReady(currentPage, effectiveViewMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, viewMode]);
+  }, [effectiveViewMode, location.pathname]);
 
   const handleSwitchView = (mode: ViewMode) => {
+    if (context) return;
     setViewMode(mode);
     sessionStorage.setItem('verdaxis_viewMode', mode);
     navigate('/app/home');
   };
 
   const handleNavigate = (page: Page) => {
-    analytics.track('platform_navigation', { destination: PAGE_SLUGS[sanitizeDashboardPage(page)], view_mode: viewMode });
+    analytics.track('platform_navigation', { destination: PAGE_SLUGS[sanitizeDashboardPage(page)], view_mode: effectiveViewMode });
     navigate(pageToPath(page));
   };
 
@@ -332,20 +343,24 @@ const DashboardLayout: React.FC = () => {
   };
 
   const outletContext: DashboardOutletContext = {
-    viewMode,
+    viewMode: effectiveViewMode,
     onNavigate: handleNavigate,
     onOpenSlice: handleOpenSlice,
   };
 
+  if (isMarketSupportLoading) {
+    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">Restoring Market Support context…</div>;
+  }
+
   return (
     <Layout
-      viewMode={viewMode}
+      viewMode={effectiveViewMode}
       onSwitchView={handleSwitchView}
       currentPage={currentPage}
       onNavigate={handleNavigate}
-      onPrimaryAction={() => setSidebarModalSide(viewMode === 'BUYER' ? 'BID' : 'ASK')}
+      onPrimaryAction={() => setSidebarModalSide(effectiveViewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
-      <GuidedTutorial viewMode={viewMode} />
+      {!context && <GuidedTutorial viewMode={effectiveViewMode} />}
       <ErrorBoundary>
         <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">Loading...</div>}>
           <Outlet context={outletContext} />
@@ -442,12 +457,21 @@ const TrainingRoute: React.FC = () => {
 
 const SettingsRoute: React.FC = () => {
   const { viewMode } = useDashboard();
+  const { isActive } = useMarketSupport();
+  if (isActive) return <Navigate to="/app/home" replace />;
   return <Settings viewMode={viewMode} />;
+};
+
+const SupportRestrictedRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { isActive } = useMarketSupport();
+  return isActive ? <Navigate to="/app/home" replace /> : children;
 };
 
 const AdminRoute: React.FC = () => {
   const { user } = useAuth();
+  const { isActive } = useMarketSupport();
   if (user?.role !== 'ADMIN') return <Navigate to="/app/home" replace />;
+  if (isActive) return <Navigate to="/app/home" replace />;
   return <AdminDashboard />;
 };
 
@@ -550,9 +574,9 @@ export const AppRoutes: React.FC = () => {
                         <Route path="marketplace" element={<MarketplaceRoute />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
-                        <Route path="watchlist" element={<WatchlistPage />} />
+                        <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />
                         <Route path="analytics" element={<AnalyticsRoute />} />
-                        <Route path="trades" element={<TradeHistoryPage />} />
+                        <Route path="trades" element={<SupportRestrictedRoute><TradeHistoryPage /></SupportRestrictedRoute>} />
                         <Route path="quotes" element={<QuotesRoute />} />
                         <Route path="compliance" element={<ComplianceRoute />} />
                         <Route path="training" element={<TrainingRoute />} />
@@ -574,6 +598,7 @@ const App: React.FC = () => {
     <ErrorBoundary>
     <ThemeProvider>
       <AuthProvider>
+        <MarketSupportProvider>
         <ToastProvider>
         <NotificationProvider>
             <TutorialProvider>
@@ -588,6 +613,7 @@ const App: React.FC = () => {
         <TradeNotifier />
         </NotificationProvider>
         </ToastProvider>
+        </MarketSupportProvider>
       </AuthProvider>
     </ThemeProvider>
     </ErrorBoundary>

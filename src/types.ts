@@ -250,6 +250,8 @@ export interface OrderBookOrder {
     is_demo_listing?: boolean;
     updated_at?: string;
     trade_count?: number; // Only in "my" view
+    creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;
+    etag?: string;
 }
 
 export interface Trade {

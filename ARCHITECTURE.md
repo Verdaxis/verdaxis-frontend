@@ -21,6 +21,7 @@ src/
 
   context/
     AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
+    MarketSupportContext.tsx        # Opaque admin-to-supplier context lifecycle and scope
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
     TutorialContext.tsx             # Guided tutorial state
@@ -28,6 +29,7 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     ai.ts                          # Supplier risk AI export
     ai-engine/
@@ -65,7 +67,8 @@ src/
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
-    admin/market-support/MarketSupportWorkspace.tsx # Capability-gated assisted supplier listing workspace
+    admin/market-support/MarketSupportEntryDialog.tsx # Eligible supplier organization entry flow
+    market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final ASK confirmation
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -119,6 +122,8 @@ index.html --> index.tsx --> App.tsx
                  +-------------+-------------+
                  |             |             |
             ThemeProvider AuthProvider
+                               |
+                    MarketSupportProvider
                                |
                       NotificationProvider
                                |
@@ -185,15 +190,15 @@ allowlisted events, and the adapter drops unknown properties and isolates all co
 failures. The Admin Product Usage section consumes only the backend's aggregated,
 admin-authorized endpoint and degrades independently from commercial analytics.
 
-**Assisted listing boundary:** The admin Market Support tab is visible only when the
-backend confirms at least one durable market-support capability for the current admin.
-The workspace records exact one-use customer authorizations and can publish or cancel
-the linked supplier ASK; it provides no impersonation, customer credential, listing-edit,
-or trade-lifecycle controls. Raw evidence text is hashed in the browser and only its
-SHA-256 digest and operator-entered reference are sent to the backend. Backend ETags are
-forwarded on cancellation. Publication requires an explicit executable-standing-ASK
-acknowledgement; revoke and cancel actions require an operator-entered audit reason.
-Feature-off or capability-free responses hide the route.
+**Market Support context boundary:** Admin Users exposes entry only for approved REAL
+supplier organizations. The browser stores only an opaque context id in sessionStorage;
+the real admin token remains the sole credential. `MarketSupportProvider` rehydrates and
+expires the context, while `services/api.ts` adds the context header only to the scoped
+customer allowlist and preserves it across refresh retries. The normal supplier shell is
+forced into supplier mode with a persistent acting-organization banner. ASK creation uses
+the normal order form plus a final support confirmation; unsupported customer mutations
+are hidden or routed away. Own-order cancellation uses the canonical POST route with
+reason and ETag, and errors remain visible.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

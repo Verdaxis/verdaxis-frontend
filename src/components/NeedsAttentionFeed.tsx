@@ -6,7 +6,7 @@ interface NeedsAttentionFeedProps {
     trades: Trade[];
     viewMode: ViewMode;
     onNavigate: (page: Page) => void;
-    onConfirmTrade: (tradeId: string) => void;
+    onConfirmTrade?: (tradeId: string) => void;
     onPostOrder?: () => void;
 }
 
@@ -77,12 +77,12 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                             </div>
                         </div>
 
-                        <button
+                        {onConfirmTrade && <button
                             onClick={() => onConfirmTrade(trade.id)}
                             className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity"
                         >
                             Confirm
-                        </button>
+                        </button>}
                     </div>
                 );
             })}

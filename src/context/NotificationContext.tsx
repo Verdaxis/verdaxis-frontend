@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { Notification } from '../types';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { useMarketSupport } from './MarketSupportContext';
 
 interface NotificationContextType {
     notifications: Notification[];
@@ -16,11 +17,12 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
+    const { isActive: isMarketSupportActive } = useMarketSupport();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
 
     const fetchNotifications = async () => {
-        if (!user) return;
+        if (!user || isMarketSupportActive) return;
         const [listResult, countResult] = await Promise.allSettled([
             api.notifications.list(),
             api.notifications.getUnreadCount(),
@@ -40,6 +42,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     const markAsRead = async (id: string) => {
+        if (isMarketSupportActive) return;
         try {
             await api.notifications.markRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -50,6 +53,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     const markAllAsRead = async () => {
+        if (isMarketSupportActive) return;
         try {
             await api.notifications.markAllRead();
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -68,12 +72,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     // Polling every 30 seconds
     useEffect(() => {
-        if (user) {
+        if (user && !isMarketSupportActive) {
             fetchNotifications();
             const interval = setInterval(fetchNotifications, 30000);
             return () => clearInterval(interval);
         }
-    }, [user]);
+    }, [isMarketSupportActive, user]);
 
     return (
         <NotificationContext.Provider value={{ notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead, addNotification }}>

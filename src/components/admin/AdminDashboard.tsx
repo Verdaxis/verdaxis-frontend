@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users,
   BarChart3,
@@ -7,12 +7,14 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
-  Headphones,
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { ApiError, api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
-import { MarketSupportWorkspace } from './market-support/MarketSupportWorkspace';
+import { MarketSupportEntryDialog } from './market-support/MarketSupportEntryDialog';
+import { useMarketSupport } from '../../context/MarketSupportContext';
+import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +30,7 @@ interface AdminUserEntry {
   created_at: string;
   org_name: string | null;
   org_type: string | null;
+  organization_id?: string | null;
 }
 
 type UserStatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
@@ -66,6 +69,13 @@ const UsersTab: React.FC = () => {
   const [total, setTotal]   = useState(0);
   const [loading, setLoading]     = useState(true);
   const [actioning, setActioning] = useState<string | null>(null); // user id being acted on
+  const [entryOrganization, setEntryOrganization] = useState<SupportOrganization | null>(null);
+  const [entry, setEntry] = useState<MarketSupportEntry | null>(null);
+  const [entryLoading, setEntryLoading] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [replacementInput, setReplacementInput] = useState<MarketSupportStartInput | null>(null);
+  const navigate = useNavigate();
+  const { start, resume } = useMarketSupport();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,6 +112,78 @@ const UsersTab: React.FC = () => {
     }
   };
 
+  const handleEnterSupplierPlatform = async (user: AdminUserEntry) => {
+    setEntryError(null);
+    setEntry(null);
+    setEntryLoading(true);
+    try {
+      const organizationId = user.organization_id ?? '';
+      if (!organizationId || !user.org_name) throw new Error('This supplier organization could not be resolved.');
+      const organization: SupportOrganization = {
+        id: organizationId,
+        name: user.org_name,
+        domain: null,
+        type: String(user.org_type ?? 'REAL').toUpperCase(),
+      };
+      setEntryOrganization(organization);
+      setEntry(await api.marketSupport.entry(organizationId));
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not check organization eligibility.');
+    } finally {
+      setEntryLoading(false);
+    }
+  };
+
+  const closeEntry = () => {
+    setEntryOrganization(null);
+    setEntry(null);
+    setEntryError(null);
+    setReplacementInput(null);
+  };
+
+  const startContext = async (input: MarketSupportStartInput) => {
+    try {
+      await start(input);
+      closeEntry();
+      navigate('/app/home');
+    } catch (error) {
+      if (
+        error instanceof ApiError
+        && /ACTIVE_CONTEXT|CONTEXT_ALREADY_ACTIVE|CONTEXT_REPLACEMENT_REQUIRED/.test(
+          error.code ?? ''
+        )
+      ) {
+        setReplacementInput(input);
+        setEntryError('An active Market Support context already exists. Confirm replacement explicitly to continue.');
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const replaceContext = async () => {
+    if (!replacementInput) return;
+    setEntryError(null);
+    try {
+      await start({ ...replacementInput, replaceActive: true });
+      closeEntry();
+      navigate('/app/home');
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not replace the active Market Support context.');
+    }
+  };
+
+  const resumeContext = async () => {
+    setEntryError(null);
+    try {
+      const active = await resume();
+      if (!active) throw new Error('No active Market Support context is available to resume.');
+      navigate('/app/home');
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not resume the Market Support context.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filter chips */}
@@ -122,6 +204,9 @@ const UsersTab: React.FC = () => {
         <span className="ml-auto text-xs text-verdaxis-text-muted self-center">
           {total} {total === 1 ? 'user' : 'users'}
         </span>
+        <button type="button" onClick={() => { void resumeContext(); }} className="rounded-full border border-verdaxis px-3 py-1.5 text-xs font-semibold text-verdaxis hover:bg-verdaxis/10">
+          Resume active context
+        </button>
       </div>
 
       {/* Table */}
@@ -209,6 +294,15 @@ const UsersTab: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      {u.status === 'APPROVED' && u.role === 'SUPPLIER' && String(u.org_type ?? '').toUpperCase() === 'REAL' && u.org_name && (
+                        <button
+                          onClick={() => handleEnterSupplierPlatform(u)}
+                          disabled={entryLoading}
+                          className="mt-2 flex items-center gap-1 rounded bg-verdaxis/15 px-2.5 py-1 text-xs font-semibold text-verdaxis hover:bg-verdaxis/25 disabled:opacity-50"
+                        >
+                          Enter supplier platform
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -217,6 +311,27 @@ const UsersTab: React.FC = () => {
           </table>
         </div>
       )}
+      {entryError && <p role="alert" className="text-sm text-red-400">{entryError}</p>}
+      {entryOrganization && (
+        <MarketSupportEntryDialog
+          open
+          organization={entryOrganization}
+          entry={entry}
+          loading={entryLoading}
+          onStart={startContext}
+          error={entryError}
+          onClose={closeEntry}
+        />
+      )}
+      <ConfirmModal
+        isOpen={Boolean(replacementInput)}
+        onClose={() => setReplacementInput(null)}
+        onConfirm={() => { void replaceContext(); }}
+        title="Replace active Market Support context?"
+        message="The existing support context will be ended and replaced for this admin session. This does not alter existing supplier listings."
+        confirmText="Replace context"
+        variant="warning"
+      />
     </div>
   );
 };
@@ -225,40 +340,25 @@ const UsersTab: React.FC = () => {
 // Main Component
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'analytics' | 'users' | 'market-support';
+type AdminTab = 'analytics' | 'users';
 
 // Tab state lives in the URL so /app/admin and /app/admin/users are
 // bookmarkable and survive refresh (Sprint 3 item 11).
 const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   analytics: '/app/admin',
   users: '/app/admin/users',
-  'market-support': '/app/admin/market-support',
 };
 
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
-  const [marketSupportAvailable, setMarketSupportAvailable] = useState<boolean | null>(null);
-  useEffect(() => {
-    let active = true;
-    api.marketSupport.capabilities()
-      .then(capabilities => {
-        if (active) setMarketSupportAvailable(capabilities.length > 0);
-      })
-      .catch(() => {
-        if (active) setMarketSupportAvailable(false);
-      });
-    return () => { active = false; };
-  }, []);
-  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/market-support')
-    ? 'market-support'
-    : location.pathname.startsWith('/app/admin/users')
+  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users')
       ? 'users'
       : 'analytics';
-  if (activeTab === 'market-support' && marketSupportAvailable === false) {
+  if (location.pathname.startsWith('/app/admin/market-support')) {
     return <Navigate to={ADMIN_TAB_PATHS.analytics} replace />;
   }
-  if (!ready || (activeTab === 'market-support' && marketSupportAvailable === null)) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-verdaxis" />
@@ -280,9 +380,6 @@ export const AdminDashboard: React.FC = () => {
         {([
           { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
           { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
-          ...(marketSupportAvailable
-            ? [{ key: 'market-support' as const, label: 'Market Support', icon: <Headphones size={15} /> }]
-            : []),
         ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
           <Link
             key={key}
@@ -304,7 +401,6 @@ export const AdminDashboard: React.FC = () => {
       {/* Analytics tab */}
       {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
 
-      {activeTab === 'market-support' && <MarketSupportWorkspace />}
     </div>
   );
 };
