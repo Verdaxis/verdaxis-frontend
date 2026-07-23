@@ -21,7 +21,7 @@ src/
 
   context/
     AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
-    MarketSupportContext.tsx        # Opaque admin-to-supplier context lifecycle and scope
+    MarketSupportContext.tsx        # Opaque admin-to-organization context lifecycle and scope
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
     TutorialContext.tsx             # Guided tutorial state
@@ -38,6 +38,7 @@ src/
 
   components/
     AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
+    DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
@@ -67,8 +68,8 @@ src/
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
-    admin/market-support/MarketSupportEntryDialog.tsx # Eligible supplier organization entry flow
-    market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final ASK confirmation
+    admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
+    market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx

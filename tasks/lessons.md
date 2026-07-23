@@ -2,6 +2,12 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Detect Browser/Backend Release Skew
+- **Date:** 2026-07-23
+- **Trigger:** After the organization-scoped assisted-order deployment, an already-open tab still rendered the retired Accountable Supplier dropdown against the new API and left it empty.
+- **Rule:** Long-lived frontend sessions must detect a newly deployed entry bundle and offer an explicit refresh before stale UI can silently call a newer API contract.
+- **Why:** Immutable hashed assets keep an existing JavaScript runtime valid in memory, but that runtime can become contract-incompatible with a separately deployed backend.
+
 ### Run Requested Design Review Before UI Edits
 - **Date:** 2026-06-20
 - **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.

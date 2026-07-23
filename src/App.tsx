@@ -14,6 +14,7 @@ import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
+import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { analytics } from './services/analytics';
 import RegisterPage from './pages/RegisterPage';
 import { InvitePage } from './pages/InvitePage';
@@ -605,6 +606,7 @@ const App: React.FC = () => {
                 <AnalyticsProvider>
                 <ScrollToTop />
                 <IdleRoutePrefetch />
+                <DeploymentUpdateNotice />
                 <AppRoutes />
                 </AnalyticsProvider>
             </BrowserRouter>

@@ -85,6 +85,9 @@
   "notifications.title": "Notifications",
   "notifications.empty": "No notifications",
   "notifications.markAllRead": "Mark all read",
+  "deploymentUpdate.title": "Verdaxis has been updated",
+  "deploymentUpdate.message": "Refresh before continuing to use the latest platform version.",
+  "deploymentUpdate.refresh": "Refresh",
   "pilotForm": {
     "success": {
       "heading": "Application Received",
