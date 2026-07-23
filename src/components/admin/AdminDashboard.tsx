@@ -30,6 +30,7 @@ interface AdminUserEntry {
   created_at: string;
   org_name: string | null;
   org_type: string | null;
+  org_provenance: string | null;
   organization_id?: string | null;
 }
 
@@ -236,16 +237,41 @@ const UsersTab: React.FC = () => {
               {users.map((u) => {
                 const isActioning = actioning === u.id;
                 const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || '—';
+                const canEnterSupplierPlatform = (
+                  u.status === 'APPROVED'
+                  && u.role === 'SUPPLIER'
+                  && u.org_provenance === 'REAL'
+                  && Boolean(u.organization_id && u.org_name)
+                );
                 return (
                   <tr key={u.id} className="border-b border-verdaxis-border/50 last:border-0 hover:bg-verdaxis-border/10 transition-colors">
                     <td className="px-4 py-3 text-verdaxis-text font-medium">{name}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted font-mono text-xs">{u.email}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted">
-                      {u.org_name ?? '—'}
-                      {u.org_type && (
-                        <span className="ml-1 text-xs opacity-60 capitalize">
-                          ({u.org_type.replace(/_/g, ' ').toLowerCase()})
-                        </span>
+                      {canEnterSupplierPlatform ? (
+                        <button
+                          type="button"
+                          onClick={() => handleEnterSupplierPlatform(u)}
+                          disabled={entryLoading}
+                          className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:opacity-50"
+                          aria-label={`Enter ${u.org_name} supplier platform`}
+                        >
+                          {u.org_name}
+                          {u.org_type && (
+                            <span className="ml-1 text-xs font-normal opacity-60 capitalize">
+                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <>
+                          {u.org_name ?? '—'}
+                          {u.org_type && (
+                            <span className="ml-1 text-xs opacity-60 capitalize">
+                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted capitalize">{u.role.toLowerCase()}</td>
@@ -293,15 +319,6 @@ const UsersTab: React.FC = () => {
                             Re-approve
                           </button>
                         </div>
-                      )}
-                      {u.status === 'APPROVED' && u.role === 'SUPPLIER' && String(u.org_type ?? '').toUpperCase() === 'REAL' && u.org_name && (
-                        <button
-                          onClick={() => handleEnterSupplierPlatform(u)}
-                          disabled={entryLoading}
-                          className="mt-2 flex items-center gap-1 rounded bg-verdaxis/15 px-2.5 py-1 text-xs font-semibold text-verdaxis hover:bg-verdaxis/25 disabled:opacity-50"
-                        >
-                          Enter supplier platform
-                        </button>
                       )}
                     </td>
                   </tr>
