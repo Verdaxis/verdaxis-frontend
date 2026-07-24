@@ -2,7 +2,7 @@
 
 > **Navigation aid.** Route list and file locations extracted via AST. Read the source files listed below before implementing or modifying this subsystem.
 
-The Openapi.json subsystem handles **87 routes**.
+The Openapi.json subsystem handles **98 routes**.
 
 ## Routes
 
@@ -28,9 +28,7 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `GET` `/api/listings/my`
   `openapi.json`
-- `GET` `/api/compliance/ledger` → out: ComplianceLedgerResponse[]
-  `openapi.json`
-- `POST` `/api/ai/chat` → in: Body_chat_api_ai_chat_post
+- `POST` `/api/ai/chat` → in: AIChatRequest
   `openapi.json`
 - `GET` `/api/notifications` → out: NotificationResponse[] [notifications]
   `openapi.json`
@@ -40,6 +38,10 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `PATCH` `/api/notifications/read-all` [notifications]
   `openapi.json`
+- `GET` `/api/users/me/preferences` [preferences]
+  `openapi.json`
+- `PUT` `/api/users/me/preferences/:namespace` params(namespace) [preferences]
+  `openapi.json`
 - `GET` `/api/orderbook/bids` → out: PaginatedResponse_OrderResponse_ [orderbook]
   `openapi.json`
 - `GET` `/api/orderbook/asks` → out: PaginatedResponse_OrderResponse_ [orderbook]
@@ -47,6 +49,8 @@ The Openapi.json subsystem handles **87 routes**.
 - `GET` `/api/orderbook/with-ci` → out: OrderResponseWithCI[] [orderbook]
   `openapi.json`
 - `GET` `/api/orderbook/my` → out: OrderMyResponse[] [orderbook]
+  `openapi.json`
+- `GET` `/api/orderbook/my/latest-ask-template` [orderbook]
   `openapi.json`
 - `GET` `/api/orderbook/aggregated` → out: AggregatedOrderbookResponse[] [orderbook]
   `openapi.json`
@@ -58,7 +62,7 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `GET` `/api/orderbook` → out: OrderResponse[] [orderbook]
   `openapi.json`
-- `POST` `/api/orderbook` → in: OrderCreate, out: OrderResponse [orderbook]
+- `POST` `/api/orderbook` → in: OrderCreate-Input, out: OrderResponse [orderbook]
   `openapi.json`
 - `PUT` `/api/orderbook/:order_id` params(order_id) → in: OrderUpdate, out: OrderResponse [orderbook]
   `openapi.json`
@@ -102,6 +106,8 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `POST` `/api/compliance/scenario` → in: ScenarioInput, out: ComplianceScoreResponse [compliance]
   `openapi.json`
+- `POST` `/api/compliance/pricing-overlay` → in: PricingOverlayRequest, out: PricingOverlayResponse [compliance]
+  `openapi.json`
 - `GET` `/api/compliance/fuels` → out: object [compliance]
   `openapi.json`
 - `POST` `/api/kyc/submit` [kyc]
@@ -111,6 +117,12 @@ The Openapi.json subsystem handles **87 routes**.
 - `GET` `/api/catalog/products` → out: ProductResponse[] [catalog]
   `openapi.json`
 - `GET` `/api/catalog/delivery-points` → out: DeliveryPointResponse[] [catalog]
+  `openapi.json`
+- `GET` `/api/curves/forward/table` → out: ForwardCurveTableResponse [forward-curve]
+  `openapi.json`
+- `GET` `/api/curves/forward/slice` → out: ForwardCurveSliceResponse [forward-curve]
+  `openapi.json`
+- `GET` `/api/curves/forward/board` → out: ForwardCurveBoardResponse [forward-curve]
   `openapi.json`
 - `GET` `/api/curves/forward` → out: ForwardCurveResponse [forward-curve]
   `openapi.json`
@@ -142,11 +154,23 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `POST` `/api/watchlists` → in: WatchlistCreateRequest, out: WatchlistResponse [watchlists]
   `openapi.json`
+- `GET` `/api/watchlists/me` → out: WatchlistSummaryResponse [watchlists]
+  `openapi.json`
+- `GET` `/api/watchlists/:watchlist_id` params(watchlist_id) → out: WatchlistDetailResponse [watchlists]
+  `openapi.json`
+- `DELETE` `/api/watchlists/:watchlist_id` params(watchlist_id) [watchlists]
+  `openapi.json`
+- `POST` `/api/watchlists/:watchlist_id/targets` params(watchlist_id) → out: WatchlistTargetResponse [watchlists]
+  `openapi.json`
+- `DELETE` `/api/watchlists/:watchlist_id/targets/:target_id` params(watchlist_id, target_id) [watchlists]
+  `openapi.json`
+- `GET` `/api/watchlists/:watchlist_id/events` params(watchlist_id) → out: WatchlistEventsPageResponse [watchlists]
+  `openapi.json`
+- `PATCH` `/api/watchlists/:watchlist_id/events/:event_id` params(watchlist_id, event_id) → out: WatchlistEventResponse [watchlists]
+  `openapi.json`
 - `POST` `/api/watchlists/:watchlist_id/entries` params(watchlist_id) → in: WatchlistEntryAddRequest, out: WatchlistEntryResponse [watchlists]
   `openapi.json`
 - `DELETE` `/api/watchlists/:watchlist_id/entries/:entry_id` params(watchlist_id, entry_id) [watchlists]
-  `openapi.json`
-- `DELETE` `/api/watchlists/:watchlist_id` params(watchlist_id) [watchlists]
   `openapi.json`
 - `GET` `/api/rfq` → out: RFQListResponse [rfq]
   `openapi.json`
@@ -176,9 +200,7 @@ The Openapi.json subsystem handles **87 routes**.
   `openapi.json`
 - `GET` `/api/fleet-intelligence` → out: FleetDemandResponse [fleet-intelligence]
   `openapi.json`
-- `GET` `/api/dashboard/health` → out: SystemHealth [dashboard]
-  `openapi.json`
-- `GET` `/api/dashboard/logs` [dashboard]
+- `GET` `/api/benchmarks` → out: BenchmarkQuoteResponse [benchmarks]
   `openapi.json`
 
 ## Source Files

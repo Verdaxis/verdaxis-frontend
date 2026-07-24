@@ -2,6 +2,18 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Initialize Assisted Workspaces From Organization Side
+- **Date:** 2026-07-23
+- **Trigger:** Entering a fuel supplier organization retained the admin's previously saved Buyer View and displayed Place Bid.
+- **Rule:** When an assisted context starts for a clearly one-sided organization type, initialize the platform to that organization's side once while preserving the admin's ability to switch afterward.
+- **Why:** Changing the effective organization did not update the independent `verdaxis_viewMode` session preference, so stale admin navigation state overrode the expected supplier experience.
+
+### Detect Browser/Backend Release Skew
+- **Date:** 2026-07-23
+- **Trigger:** After the organization-scoped assisted-order deployment, an already-open tab still rendered the retired Accountable Supplier dropdown against the new API and left it empty.
+- **Rule:** Long-lived frontend sessions must detect a newly deployed entry bundle and offer an explicit refresh before stale UI can silently call a newer API contract.
+- **Why:** Immutable hashed assets keep an existing JavaScript runtime valid in memory, but that runtime can become contract-incompatible with a separately deployed backend.
+
 ### Run Requested Design Review Before UI Edits
 - **Date:** 2026-06-20
 - **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.
@@ -514,3 +526,9 @@
 - **Trigger:** User clarified that the Product Analytics workspace should not be implemented here; they want a reviewed plan to hand to Claude.
 - **Rule:** Once the user requests a plan-only handoff, make no product-code or deployment changes and optimize the artifact for execution by the named downstream agent.
 - **Why:** Continuing into implementation would duplicate work and violate the intended division of responsibility.
+
+### Separate Assisted-Listing Security From Pilot Policy
+- **Date:** 2026-07-23
+- **Trigger:** User rejected principal-level authority, seven-day order/instruction limits, mandatory evidence text, and supplier-only access for assisted listings.
+- **Rule:** Keep identity, audit, tenant isolation, idempotency, and post-only controls, but make assisted access organization-scoped and avoid imposing temporary pilot restrictions without explicit product approval.
+- **Why:** The first-pass implementation treated conservative rollout policy as a permanent security boundary, unnecessarily limiting authorized administrators.

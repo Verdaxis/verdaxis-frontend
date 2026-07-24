@@ -147,11 +147,6 @@ Before exploring the tree, read:
 2. `.codesight/wiki/overview.md` — architecture and high-impact files
 3. Load topic articles on demand: `.codesight/wiki/<topic>.md` (auth, database, payments, users, ui, etc.)
 4. `.codesight/CODESIGHT.md` — full route/schema/lib map (fallback if wiki missing)
-2. `.codesight/libs.md` if present
-3. `.codesight/graph.md` if the task touches service flow or module relationships
-4. `.codesight/routes.md` if the task touches routes or handlers
-5. `.codesight/schema.md` if the task touches models or database code
-6. `.codesight/components.md` if the task touches UI components
 
 Only open full source files after consulting the wiki first.
 <!-- codesight-local:end -->

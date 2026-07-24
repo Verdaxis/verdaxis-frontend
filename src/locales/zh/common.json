@@ -85,6 +85,9 @@
   "notifications.title": "通知",
   "notifications.empty": "暂无通知",
   "notifications.markAllRead": "全部标为已读",
+  "deploymentUpdate.title": "Verdaxis 已更新",
+  "deploymentUpdate.message": "请刷新页面后继续使用最新版本。",
+  "deploymentUpdate.refresh": "刷新",
   "pilotForm": {
     "success": {
       "heading": "申请已收到",

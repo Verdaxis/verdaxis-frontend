@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import type { MarketProduct, WatchlistEvent, WatchlistSummary } from '../types';
 import { getWatchlistSliceKey, getWatchlistSliceKeyFromParts } from '../utils/watchlist';
+import { useMarketSupport } from '../context/MarketSupportContext';
 
 interface SliceToggleInput {
     marketProductCode: MarketProduct;
@@ -27,6 +28,7 @@ interface UseWatchlistResult {
 }
 
 export function useWatchlist(): UseWatchlistResult {
+    const { isActive: isMarketSupportActive } = useMarketSupport();
     const [radar, setRadar] = useState<WatchlistSummary | null>(null);
     const [events, setEvents] = useState<WatchlistEvent[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -34,6 +36,14 @@ export function useWatchlist(): UseWatchlistResult {
     const [error, setError] = useState<string | null>(null);
 
     const refresh = useCallback(async () => {
+        if (isMarketSupportActive) {
+            setRadar(null);
+            setEvents([]);
+            setNextCursor(null);
+            setError(null);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -47,7 +57,7 @@ export function useWatchlist(): UseWatchlistResult {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isMarketSupportActive]);
 
     useEffect(() => {
         refresh();
@@ -68,7 +78,7 @@ export function useWatchlist(): UseWatchlistResult {
     }, [radar]);
 
     const toggleSlice = useCallback(async (input: SliceToggleInput) => {
-        if (!radar) return false;
+        if (isMarketSupportActive || !radar) return false;
         const sliceKey = getWatchlistSliceKeyFromParts(
             input.marketProductCode,
             input.deliveryPointId,
@@ -87,10 +97,10 @@ export function useWatchlist(): UseWatchlistResult {
         });
         await refresh();
         return true;
-    }, [radar, refresh]);
+    }, [isMarketSupportActive, radar, refresh]);
 
     const togglePin = useCallback(async (orderId: string) => {
-        if (!radar) return false;
+        if (isMarketSupportActive || !radar) return false;
         const existing = radar.slices.flatMap((slice) => slice.pins).find((pin) => pin.order_id === orderId);
         if (existing) {
             await api.watchlists.removeTarget(radar.id, existing.id);
@@ -100,26 +110,26 @@ export function useWatchlist(): UseWatchlistResult {
         await api.watchlists.createPinTarget(radar.id, orderId);
         await refresh();
         return true;
-    }, [radar, refresh]);
+    }, [isMarketSupportActive, radar, refresh]);
 
     const removeTarget = useCallback(async (targetId: string) => {
-        if (!radar) return;
+        if (isMarketSupportActive || !radar) return;
         await api.watchlists.removeTarget(radar.id, targetId);
         await refresh();
-    }, [radar, refresh]);
+    }, [isMarketSupportActive, radar, refresh]);
 
     const markEventRead = useCallback(async (eventId: string) => {
-        if (!radar) return;
+        if (isMarketSupportActive || !radar) return;
         await api.watchlists.markEventRead(radar.id, eventId);
         await refresh();
-    }, [radar, refresh]);
+    }, [isMarketSupportActive, radar, refresh]);
 
     const loadMoreEvents = useCallback(async () => {
-        if (!radar || !nextCursor) return;
+        if (isMarketSupportActive || !radar || !nextCursor) return;
         const page = await api.watchlists.listEvents(radar.id, { cursor: nextCursor, limit: 25 });
         setEvents((current) => [...current, ...page.items]);
         setNextCursor(page.next_cursor ?? null);
-    }, [radar, nextCursor]);
+    }, [isMarketSupportActive, radar, nextCursor]);
 
     return {
         radar,

@@ -21,6 +21,7 @@ src/
 
   context/
     AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
+    MarketSupportContext.tsx        # Opaque admin-to-organization context lifecycle and scope
     ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
     NotificationContext.tsx        # 30s polling for notifications, read/unread state
     TutorialContext.tsx             # Guided tutorial state
@@ -28,6 +29,7 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     ai.ts                          # Supplier risk AI export
     ai-engine/
@@ -36,6 +38,7 @@ src/
 
   components/
     AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
+    DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
@@ -65,6 +68,8 @@ src/
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
+    admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
+    market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation
     map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
     compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
     notifications/{NotificationBell,NotificationList}.tsx
@@ -118,6 +123,8 @@ index.html --> index.tsx --> App.tsx
                  +-------------+-------------+
                  |             |             |
             ThemeProvider AuthProvider
+                               |
+                    MarketSupportProvider
                                |
                       NotificationProvider
                                |
@@ -183,6 +190,18 @@ are valid; auto-tracking, replay, and heatmaps are disabled. Components emit sel
 allowlisted events, and the adapter drops unknown properties and isolates all collector
 failures. The Admin Product Usage section consumes only the backend's aggregated,
 admin-authorized endpoint and degrades independently from commercial analytics.
+
+**Assisted order-entry context boundary:** Admin Users exposes entry only for approved REAL
+organizations. The browser stores only an opaque context id in sessionStorage;
+the real admin token remains the sole credential. `MarketSupportProvider` rehydrates and
+expires the context, while `services/api.ts` adds the context header only to the scoped
+customer allowlist and preserves it across refresh retries. Buyer and supplier views remain
+available under a persistent acting-organization banner. Entering a clearly one-sided
+organization defaults the shell to its matching view once; the admin may still switch views.
+BID and ASK creation use the normal
+order form plus a compact final confirmation, with GTC or dated expiry and no evidence-text
+requirement. Orders remain post-only. Own assisted-order cancellation uses the canonical
+POST route with reason and ETag; unsupported customer mutations remain denied.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

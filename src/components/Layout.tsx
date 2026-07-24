@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ViewMode, Page } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
+import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
+import { useMarketSupport } from '../context/MarketSupportContext';
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -26,6 +29,9 @@ export const Layout: React.FC<LayoutProps> = ({
     onPrimaryAction
 }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+    const { context, exit } = useMarketSupport();
+    const [exitError, setExitError] = useState<string | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -49,6 +55,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 onMobileClose={() => setIsMobileSidebarOpen(false)}
                 userRole={user?.role}
                 onPrimaryAction={onPrimaryAction}
+                isMarketSupportActive={Boolean(context)}
             />
 
             {/* Main Content */}
@@ -57,7 +64,17 @@ export const Layout: React.FC<LayoutProps> = ({
                     viewMode={viewMode}
                     onSwitchView={onSwitchView}
                     onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+                    isMarketSupportActive={Boolean(context)}
                 />
+
+                {context && <ActingOrganizationBanner context={context} onExit={() => {
+                    setExitError(null);
+                    void exit().then(() => navigate('/app/admin/users')).catch((error) => {
+                        setExitError(error instanceof Error ? error.message : 'Exit request failed. The local assisted workspace was detached.');
+                        navigate('/app/home');
+                    });
+                }} />}
+                {exitError && <div role="alert" className="border-b border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-100">Exit request failed; this tab was detached locally. {exitError}</div>}
 
                 <main
                     data-dashboard-page={currentPage}

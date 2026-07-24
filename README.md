@@ -9,6 +9,7 @@ React/Vite frontend for the Verdaxis maritime fuel procurement platform. It serv
 - **Supplier workspace:** supplier dashboard, inventory, listing console, demand feed, quotes, analytics, and trade history.
 - **AI assistance:** supplier risk memos call the backend `/api/ai/chat` proxy. The old floating Copilot chat UI is removed.
 - **Data wiring:** `src/services/api.ts` calls the live backend through `VITE_API_URL`; mock values are limited to display fallbacks and tests.
+- **Market support:** Capability-gated admins can record exact customer authority and publish or cancel one assisted supplier ASK without impersonating the customer. The tab stays hidden while the backend feature is disabled.
 
 ## Tech Stack
 

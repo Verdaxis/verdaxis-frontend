@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users,
   BarChart3,
@@ -8,9 +8,13 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
-import { api } from '../../services/api';
+import { ApiError, api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
+import { MarketSupportEntryDialog } from './market-support/MarketSupportEntryDialog';
+import { useMarketSupport } from '../../context/MarketSupportContext';
+import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,6 +30,8 @@ interface AdminUserEntry {
   created_at: string;
   org_name: string | null;
   org_type: string | null;
+  org_provenance: string | null;
+  organization_id?: string | null;
 }
 
 type UserStatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
@@ -64,6 +70,13 @@ const UsersTab: React.FC = () => {
   const [total, setTotal]   = useState(0);
   const [loading, setLoading]     = useState(true);
   const [actioning, setActioning] = useState<string | null>(null); // user id being acted on
+  const [entryOrganization, setEntryOrganization] = useState<SupportOrganization | null>(null);
+  const [entry, setEntry] = useState<MarketSupportEntry | null>(null);
+  const [entryLoading, setEntryLoading] = useState(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
+  const [replacementInput, setReplacementInput] = useState<MarketSupportStartInput | null>(null);
+  const navigate = useNavigate();
+  const { start, resume } = useMarketSupport();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +113,78 @@ const UsersTab: React.FC = () => {
     }
   };
 
+  const handleEnterOrganization = async (user: AdminUserEntry) => {
+    setEntryError(null);
+    setEntry(null);
+    setEntryLoading(true);
+    try {
+      const organizationId = user.organization_id ?? '';
+      if (!organizationId || !user.org_name) throw new Error('This organization could not be resolved.');
+      const organization: SupportOrganization = {
+        id: organizationId,
+        name: user.org_name,
+        domain: null,
+        type: String(user.org_type ?? 'REAL').toUpperCase(),
+      };
+      setEntryOrganization(organization);
+      setEntry(await api.marketSupport.entry(organizationId));
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not check organization eligibility.');
+    } finally {
+      setEntryLoading(false);
+    }
+  };
+
+  const closeEntry = () => {
+    setEntryOrganization(null);
+    setEntry(null);
+    setEntryError(null);
+    setReplacementInput(null);
+  };
+
+  const startContext = async (input: MarketSupportStartInput) => {
+    try {
+      await start(input);
+      closeEntry();
+      navigate('/app/home');
+    } catch (error) {
+      if (
+        error instanceof ApiError
+        && /ACTIVE_CONTEXT|CONTEXT_ALREADY_ACTIVE|CONTEXT_REPLACEMENT_REQUIRED/.test(
+          error.code ?? ''
+        )
+      ) {
+        setReplacementInput(input);
+        setEntryError('An assisted workspace is already active. Confirm replacement to continue.');
+        return;
+      }
+      throw error;
+    }
+  };
+
+  const replaceContext = async () => {
+    if (!replacementInput) return;
+    setEntryError(null);
+    try {
+      await start({ ...replacementInput, replaceActive: true });
+      closeEntry();
+      navigate('/app/home');
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not replace the active assisted workspace.');
+    }
+  };
+
+  const resumeContext = async () => {
+    setEntryError(null);
+    try {
+      const active = await resume();
+      if (!active) throw new Error('No assisted workspace is available to resume.');
+      navigate('/app/home');
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : 'Could not resume the assisted workspace.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filter chips */}
@@ -120,6 +205,9 @@ const UsersTab: React.FC = () => {
         <span className="ml-auto text-xs text-verdaxis-text-muted self-center">
           {total} {total === 1 ? 'user' : 'users'}
         </span>
+        <button type="button" onClick={() => { void resumeContext(); }} className="rounded-full border border-verdaxis px-3 py-1.5 text-xs font-semibold text-verdaxis hover:bg-verdaxis/10">
+          Resume active context
+        </button>
       </div>
 
       {/* Table */}
@@ -149,16 +237,40 @@ const UsersTab: React.FC = () => {
               {users.map((u) => {
                 const isActioning = actioning === u.id;
                 const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || '—';
+                const canEnterOrganization = (
+                  u.status === 'APPROVED'
+                  && u.org_provenance === 'REAL'
+                  && Boolean(u.organization_id && u.org_name)
+                );
                 return (
                   <tr key={u.id} className="border-b border-verdaxis-border/50 last:border-0 hover:bg-verdaxis-border/10 transition-colors">
                     <td className="px-4 py-3 text-verdaxis-text font-medium">{name}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted font-mono text-xs">{u.email}</td>
                     <td className="px-4 py-3 text-verdaxis-text-muted">
-                      {u.org_name ?? '—'}
-                      {u.org_type && (
-                        <span className="ml-1 text-xs opacity-60 capitalize">
-                          ({u.org_type.replace(/_/g, ' ').toLowerCase()})
-                        </span>
+                      {canEnterOrganization ? (
+                        <button
+                          type="button"
+                          onClick={() => handleEnterOrganization(u)}
+                          disabled={entryLoading}
+                          className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:opacity-50"
+                          aria-label={`Enter ${u.org_name} organization workspace`}
+                        >
+                          {u.org_name}
+                          {u.org_type && (
+                            <span className="ml-1 text-xs font-normal opacity-60 capitalize">
+                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <>
+                          {u.org_name ?? '—'}
+                          {u.org_type && (
+                            <span className="ml-1 text-xs opacity-60 capitalize">
+                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted capitalize">{u.role.toLowerCase()}</td>
@@ -215,6 +327,27 @@ const UsersTab: React.FC = () => {
           </table>
         </div>
       )}
+      {entryError && <p role="alert" className="text-sm text-red-400">{entryError}</p>}
+      {entryOrganization && (
+        <MarketSupportEntryDialog
+          open
+          organization={entryOrganization}
+          entry={entry}
+          loading={entryLoading}
+          onStart={startContext}
+          error={entryError}
+          onClose={closeEntry}
+        />
+      )}
+      <ConfirmModal
+        isOpen={Boolean(replacementInput)}
+        onClose={() => setReplacementInput(null)}
+        onConfirm={() => { void replaceContext(); }}
+        title="Replace active assisted workspace?"
+        message="The existing assisted-order context will be ended and replaced for this admin session. This does not alter existing orders."
+        confirmText="Replace context"
+        variant="warning"
+      />
     </div>
   );
 };
@@ -235,7 +368,12 @@ const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
 export const AdminDashboard: React.FC = () => {
   const { t, ready } = useNamespace('admin');
   const location = useLocation();
-  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users') ? 'users' : 'analytics';
+  const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users')
+      ? 'users'
+      : 'analytics';
+  if (location.pathname.startsWith('/app/admin/market-support')) {
+    return <Navigate to={ADMIN_TAB_PATHS.analytics} replace />;
+  }
   if (!ready) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -278,6 +416,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Analytics tab */}
       {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
+
     </div>
   );
 };

@@ -10,6 +10,13 @@ import type { AvailabilityWindow } from '../types';
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
 const createOrderMock = vi.fn();
+const marketSupportControl = vi.hoisted(() => ({
+  current: {
+    context: null as any,
+    isActive: false,
+    isLoading: false,
+  },
+}));
 
 vi.mock('../hooks/useNamespace', () => ({
   useNamespace: () => ({
@@ -39,6 +46,10 @@ vi.mock('../services/api', () => ({
       create: (...args: unknown[]) => createOrderMock(...args),
     },
   },
+}));
+
+vi.mock('../context/MarketSupportContext', () => ({
+  useMarketSupport: () => marketSupportControl.current,
 }));
 
 describe('OrderPlaceModal', () => {
@@ -71,6 +82,7 @@ describe('OrderPlaceModal', () => {
       },
     ]);
     createOrderMock.mockResolvedValue({ trades: [] });
+    marketSupportControl.current = { context: null, isActive: false, isLoading: false };
   });
 
   it('resets to the new canonical slice when reopened', async () => {
@@ -373,6 +385,118 @@ describe('OrderPlaceModal', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
     expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('requires final support confirmation before submitting an assisted ASK', async () => {
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1',
+        organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42',
+        expiresAt: '2026-07-23T18:00:00.000Z',
+        scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
+      },
+    };
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
+
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '555' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), { target: { value: 'IMPCA' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 40'), { target: { value: '42.5' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+
+    expect(createOrderMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: /confirm assisted order/i })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/external instruction reference/i), { target: { value: 'INSTR-7' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit ask/i }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
+      support_confirmation: expect.objectContaining({
+        external_instruction_reference: 'INSTR-7',
+        acknowledge_exact_terms: true,
+        acknowledge_executable_standing_order: true,
+      }),
+    })));
+  });
+
+  it('retries an ambiguous assisted ASK with the identical payload and idempotency key', async () => {
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1',
+        organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42',
+        expiresAt: '2026-07-23T18:00:00.000Z',
+        scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
+      },
+    };
+    createOrderMock
+      .mockRejectedValueOnce(new Error('The request status is unknown'))
+      .mockResolvedValueOnce({ trades: [] });
+
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '555' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), { target: { value: 'IMPCA' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 40'), { target: { value: '42.5' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit ask/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    const firstPayload = createOrderMock.mock.calls[0]?.[0];
+    expect(firstPayload?.idempotency_key).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
+    expect(createOrderMock.mock.calls[1]?.[0]).toEqual(firstPayload);
+  });
+
+  it('supports an organization-scoped GTC BID without evidence text', async () => {
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1',
+        organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42',
+        expiresAt: '2099-07-23T18:00:00.000Z',
+        scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
+      },
+    };
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    expect(screen.queryByLabelText(/evidence excerpt/i)).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
+      side: 'BID',
+      support_confirmation: expect.objectContaining({
+        external_instruction_reference: 'CASE-42',
+      }),
+    })));
+    expect(createOrderMock.mock.calls[0]?.[0]?.expires_at).toBeUndefined();
   });
 
 });

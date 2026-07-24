@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
 export interface ConfirmModalProps {
@@ -11,6 +11,10 @@ export interface ConfirmModalProps {
     cancelText?: string;
     variant?: 'danger' | 'warning' | 'info' | 'success';
     isLoading?: boolean;
+    confirmDisabled?: boolean;
+    children?: React.ReactNode;
+    maxWidth?: 'md' | 'lg';
+    compact?: boolean;
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -23,7 +27,65 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     cancelText = 'Cancel',
     variant = 'info',
     isLoading = false,
+    confirmDisabled = false,
+    children,
+    maxWidth = 'md',
+    compact = false,
 }) => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const loadingRef = useRef(isLoading);
+
+    useEffect(() => {
+        loadingRef.current = isLoading;
+    }, [isLoading]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const previousFocus = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        const dialog = dialogRef.current;
+        const focusableSelector = [
+            'button:not([disabled])',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])',
+        ].join(',');
+        const focusable = () => Array.from(
+            dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? []
+        );
+        focusable()[0]?.focus();
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && !loadingRef.current) {
+                event.preventDefault();
+                onClose();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const items = focusable();
+            if (items.length === 0) {
+                event.preventDefault();
+                dialog?.focus();
+                return;
+            }
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            previousFocus?.focus();
+        };
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     const getVariantStyles = () => {
@@ -60,27 +122,30 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     };
 
     const styles = getVariantStyles();
+    const widthClass = maxWidth === 'lg' ? 'max-w-lg' : 'max-w-md';
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform scale-100 transition-all">
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" tabIndex={-1} className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl ${widthClass} w-full max-h-[90dvh] overflow-y-auto transform scale-100 transition-all`}>
                 {/* Header */}
-                <div className="p-6 pb-0 flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${styles.iconBg} flex-shrink-0`}>
+                <div className={`${compact ? 'p-5 pb-0 gap-3' : 'p-6 pb-0 gap-4'} flex items-start`}>
+                    <div className={`${compact ? 'p-2.5' : 'p-3'} rounded-xl ${styles.iconBg} flex-shrink-0`}>
                         {styles.icon}
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                        <h3 id="confirm-modal-title" className={`${compact ? 'text-lg mb-1' : 'text-xl mb-2'} font-bold text-slate-900 dark:text-slate-100`}>
                             {title}
                         </h3>
-                        <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
+                        <p id="confirm-modal-description" className="text-slate-600 dark:text-slate-400 leading-relaxed text-sm">
                             {message}
                         </p>
                     </div>
                 </div>
 
+                {children && <div className={compact ? 'px-5' : 'px-6'}>{children}</div>}
+
                 {/* Actions */}
-                <div className="p-6 flex gap-3 justify-end mt-4">
+                <div className={`${compact ? 'p-5 pt-4 mt-0' : 'p-6 mt-4'} flex gap-3 justify-end`}>
                     {cancelText && (
                         <button
                             onClick={onClose}
@@ -92,7 +157,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     )}
                     <button
                         onClick={onConfirm}
-                        disabled={isLoading}
+                        disabled={isLoading || confirmDisabled}
                         className={`px-6 py-2 font-bold rounded-lg transition-colors shadow-lg shadow-black/5 flex items-center justify-center gap-2 min-w-[100px] ${styles.buttonBg} ${styles.buttonText} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {isLoading ? (

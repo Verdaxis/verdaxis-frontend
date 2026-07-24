@@ -23,9 +23,10 @@ interface HeaderProps {
     viewMode: ViewMode;
     onSwitchView: (mode: ViewMode) => void;
     onOpenMobileSidebar: () => void;
+    isMarketSupportActive?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar }) => {
+export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMobileSidebar, isMarketSupportActive = false }) => {
     const { user, logout } = useAuth();
     const { start: startTutorial } = useTutorial();
     const { t } = useTranslation();
@@ -56,8 +57,8 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 {/* Language Selector */}
                 <LanguageSelector />
 
-                {/* Platform Tour Button */}
-                <Tooltip content={t('header.platformTour')} position="bottom">
+                {/* Platform Tour is unavailable in the deny-by-default support scope. */}
+                {!isMarketSupportActive && <Tooltip content={t('header.platformTour')} position="bottom">
                     <button
                         onClick={startTutorial}
                         data-tour="tour-button"
@@ -66,14 +67,14 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                         <Compass size={14} />
                         <span className="hidden md:inline">{t('header.platformTour')}</span>
                     </button>
-                </Tooltip>
+                </Tooltip>}
 
                 {/* Notifications Dropdown */}
-                <div className="relative" data-tour="notification-bell">
+                {!isMarketSupportActive && <div className="relative" data-tour="notification-bell">
                     <Tooltip content={t('header.viewNotifications')} position="bottom">
                         <NotificationBell />
                     </Tooltip>
-                </div>
+                </div>}
 
                 {/* Profile Dropdown */}
                 <div className="relative">

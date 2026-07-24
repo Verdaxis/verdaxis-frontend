@@ -23,6 +23,7 @@ interface SidebarProps {
     onMobileClose: () => void;
     userRole?: string | null;
     onPrimaryAction?: () => void;
+    isMarketSupportActive?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -35,11 +36,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onMobileClose,
     userRole,
     onPrimaryAction,
+    isMarketSupportActive = false,
 }) => {
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
 
-    const sidebarItems = buildPrimarySidebarItems(t, viewMode);
+    const sidebarItems = buildPrimarySidebarItems(t, viewMode).filter((item) => (
+        !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
+    ));
 
     const handleNavigate = (page: Page) => {
         onNavigate(page);
@@ -127,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </nav>
 
             <div className="p-4 border-t border-[#2A3344] space-y-1">
-                {userRole === 'ADMIN' && (
+                {userRole === 'ADMIN' && !isMarketSupportActive && (
                     <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
                         <NavLink
                             to="/app/admin"
@@ -143,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </NavLink>
                     </Tooltip>
                 )}
-                <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
+                {!isMarketSupportActive && <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
                     <NavLink
                         to="/app/settings"
                         onClick={onMobileClose}
@@ -156,7 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <SettingsIcon size={20} className={`flex-shrink-0 ${currentPage === 'SETTINGS' ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
                         {!isCollapsed && <span className="truncate">{t('sidebar.settings')}</span>}
                     </NavLink>
-                </Tooltip>
+                </Tooltip>}
 
                 {isCollapsed && (
                     <button

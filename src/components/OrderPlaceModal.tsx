@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
@@ -12,6 +12,8 @@ import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { analytics } from '../services/analytics';
+import { useMarketSupport } from '../context/MarketSupportContext';
+import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -56,7 +58,7 @@ const CERTIFICATION_SCHEME_OPTIONS = [
     { value: 'REDcert EU', label: 'REDcert EU', description: 'EU renewable fuels certification scheme' },
 ];
 
-type ModalState = 'form' | 'submitting' | 'success' | 'auto_matched' | 'error';
+type ModalState = 'form' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
 
 function createInitialFormData(
     side: 'BID' | 'ASK',
@@ -95,6 +97,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 }) => {
     const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
+    const { context: marketSupportContext } = useMarketSupport();
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [catalogLoading, setCatalogLoading] = useState(false);
@@ -105,14 +108,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
+    const idempotencyKeyRef = useRef<string | null>(null);
+    const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation: MarketSupportConfirmation } | null>(null);
+    const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
 
-        setFormData(createInitialFormData(side, prefillPrice, prefillAvailabilityWindow));
+        const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow);
+        setFormData(initialForm);
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
+        idempotencyKeyRef.current = null;
+        supportRequestRef.current = null;
+        setSupportDraft(null);
         setAdvancedOpen(side === 'ASK');
 
         setCatalogLoading(true);
@@ -161,6 +171,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         prefillFuelType,
         prefillDeliveryPointId,
         prefillRegion,
+        marketSupportContext,
     ]);
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
@@ -215,6 +226,31 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         }
     }, [availabilityOptions, formData.availability_window]);
 
+    const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
+        side,
+        product: selectedProduct?.name || formData.product_id,
+        deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
+        availabilityWindow: availabilitySummary || formData.availability_window,
+        quantityMt: formData.quantity_mt,
+        pricePerMtUsd: formData.price_per_mt_usd,
+        expiresAt: formData.expiry_type === 'date' && formData.expiry_date
+            ? new Date(formData.expiry_date + 'T23:59:59Z').toISOString()
+            : '',
+        certificationScheme: formData.certification_scheme.trim(),
+        specificationStandard: formData.specification_standard.trim(),
+        msdsAvailable: formData.msds_available,
+        carbonIntensity: formData.carbon_intensity_gco2_mj,
+        carbonIntensityMethod: 'Supplier declaration',
+        feedstock: formData.feedstock.trim(),
+        origin: formData.origin.trim(),
+    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct, side]);
+
+    const backFromSupportConfirmation = useCallback(() => {
+        setSupportDraft(null);
+        supportRequestRef.current = null;
+        setModalState('form');
+    }, []);
+
     if (!isOpen || !ready) return null;
 
     const hasRequiredAskMetadata =
@@ -223,7 +259,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.carbon_intensity_gco2_mj > 0 &&
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
-
     const isValid =
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
@@ -231,11 +266,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.price_per_mt_usd > 0 &&
         (side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
+    const isValidOrder = isValid;
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!isValid) return;
-
+    const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
         if (selectedProduct?.market_product && selectedDeliveryPoint) {
             analytics.track('order_form_submitted', {
                 product: selectedProduct.market_product,
@@ -249,32 +282,39 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setErrorMessage('');
 
         try {
-            const payload: Record<string, any> = {
-                side,
-                product_id: formData.product_id,
-                delivery_point_id: formData.delivery_point_id,
-                quantity_mt: formData.quantity_mt,
-                price_per_mt_usd: formData.price_per_mt_usd,
-                availability_window: formData.availability_window,
-                is_anonymous: true,
-            };
-            if (side === 'BID' && formData.certifications.length > 0) {
-                payload.certifications = formData.certifications;
-            }
-            if (formData.certification_scheme.trim()) {
-                payload.certification_scheme = formData.certification_scheme.trim();
-            }
-            if (side === 'ASK') {
-                payload.certification_declared = formData.certification_declared;
-                payload.certifications = [formData.certification_scheme.trim()];
-                payload.specification_standard = formData.specification_standard.trim();
-                payload.msds_available = formData.msds_available;
-                payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
-                payload.feedstock = formData.feedstock.trim();
-                payload.origin = formData.origin.trim();
-            }
-            if (formData.expiry_type === 'date' && formData.expiry_date) {
-                payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
+            let payload = supportConfirmation ? supportRequestRef.current?.payload : undefined;
+            if (!payload) {
+                payload = {
+                    side,
+                    product_id: formData.product_id,
+                    delivery_point_id: formData.delivery_point_id,
+                    quantity_mt: formData.quantity_mt,
+                    price_per_mt_usd: formData.price_per_mt_usd,
+                    availability_window: formData.availability_window,
+                    is_anonymous: true,
+                };
+                if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
+                if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
+                if (side === 'ASK') {
+                    payload.certification_declared = formData.certification_declared;
+                    payload.certifications = [formData.certification_scheme.trim()];
+                    payload.specification_standard = formData.specification_standard.trim();
+                    payload.msds_available = formData.msds_available;
+                    payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
+                    payload.feedstock = formData.feedstock.trim();
+                    payload.origin = formData.origin.trim();
+                }
+                if (formData.expiry_type === 'date' && formData.expiry_date) payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
+                if (supportConfirmation) {
+                    if (!idempotencyKeyRef.current) {
+                        idempotencyKeyRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                            ? crypto.randomUUID()
+                            : `ms-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                    }
+                    payload.support_confirmation = supportConfirmation;
+                    payload.idempotency_key = idempotencyKeyRef.current;
+                    supportRequestRef.current = { payload, confirmation: supportConfirmation };
+                }
             }
 
             const result = await api.orderbook.create(payload as any);
@@ -291,10 +331,34 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         }
     };
 
+    const retrySupportOrder = () => {
+        const request = supportRequestRef.current;
+        if (request) void submitOrder(request.confirmation);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!isValidOrder) return;
+        if (marketSupportContext) {
+            setSupportDraft(buildSupportDraft());
+            setModalState('support_confirmation');
+            setErrorMessage('');
+            return;
+        }
+        await submitOrder();
+    };
+
+    const handleSupportConfirm = async (confirmation: MarketSupportConfirmation) => {
+        await submitOrder(confirmation);
+    };
+
     const handleClose = () => {
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
+        idempotencyKeyRef.current = null;
+        supportRequestRef.current = null;
+        setSupportDraft(null);
         setAdvancedOpen(side === 'ASK');
         onClose();
     };
@@ -316,6 +380,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
+                                {supportRequestRef.current && <button type="button" onClick={retrySupportOrder} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">Retry safely with the same request</button>}
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
@@ -400,6 +465,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
                 </div>
             </div>
+        );
+    }
+
+    if (modalState === 'support_confirmation' && marketSupportContext && supportDraft) {
+        return (
+            <MarketSupportFinalConfirmation
+                organizationName={marketSupportContext.organization.name}
+                supportReference={marketSupportContext.supportReference}
+                draft={supportDraft}
+                onBack={backFromSupportConfirmation}
+                onConfirm={handleSupportConfirm}
+            />
         );
     }
 
@@ -769,6 +846,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         {formData.expiry_type === 'date' && (
                                             <input
                                                 type="date"
+                                                min={new Date().toISOString().slice(0, 10)}
                                                 value={formData.expiry_date}
                                                 onChange={(e) => handleChange('expiry_date', e.target.value)}
                                                 className={inputClass}

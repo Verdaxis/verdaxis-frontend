@@ -23,9 +23,17 @@
   - function getEducationArticles: () => EducationArticle[]
   - interface EducationArticle
   - const educationArticles: EducationArticle[]
-- `src/hooks/useDemoMode.ts` — function useDemoMode: () => [boolean, () => void], function isDemoMode: () => boolean
+- `src/data/fuelPrices.ts` — function fetchFuelPrices, interface FuelPrice
 - `src/hooks/useLocalePath.ts` — function useLocalePath: () => void
 - `src/hooks/useNamespace.ts` — function useNamespace: (ns) => void
+- `src/hooks/useProductAnalyticsFilters.ts`
+  - function parseProductAnalyticsFilters
+  - function serializeProductAnalyticsFilters
+  - function useProductAnalyticsFilters
+  - interface ProductAnalyticsFilters
+  - type AnalyticsPeriod
+  - const ANALYTICS_TABS: readonly AnalyticsTab[]
+  - _...1 more_
 - `src/hooks/useSSE.ts` — function useSSE: (channel, onEvent, enabled) => void
 - `src/hooks/useWatchlist.ts` — function useWatchlist: () => UseWatchlistResult
 - `src/i18n.ts`
@@ -33,27 +41,39 @@
   - function loadNamespace: (ns) => Promise<void>
   - type SupportedLang
   - const SUPPORTED_LANGS
-- `src/services/ai-engine/cache.ts` — function getCachedData, function setCachedData
-- `src/services/ai-engine/chat.ts`
-  - function chatWithCopilot
-  - interface ChatResponse
-  - const SYSTEM_INSTRUCTION
-- `src/services/ai-engine/generators.ts`
-  - function generateMarketNarrative
-  - function generateArbitrageInsight
-  - function analyzeRisk
-  - function fetchLiveMarketData
-  - function performWebSearch
-  - interface MarketDataResult
+- `src/map/addEcaLayers.ts` — function addEcaLayers, function setEcaLayersVisible
+- `src/services/ai-engine/cache.ts`
+  - function getCachedData
+  - function setCachedData
+  - function clearCache
+- `src/services/ai-engine/generators.ts` — function analyzeRisk
+- `src/services/analytics.ts`
+  - function normalizeAnalyticsPath
+  - function createAnalytics
+  - function routeFamilyFromPath
+  - function navigationLatencyBucket
+  - function createReliabilityReporter
+  - interface AnalyticsEventMap
+  - _...9 more_
 - `src/services/api.ts`
   - function mapPortResponse
-  - function __resetApiReadCachesForTests
+  - function isAbortError
   - interface PaginatedResult
-  - const api
+  - interface ProductUsageResponse
+  - type ProductUsagePeriod
+  - type ProductUsageStatus
+  - _...1 more_
 - `src/services/authToken.ts`
   - function getAccessToken: () => string | null
   - function setAccessToken: (token) => void
   - function clearAccessToken: () => void
+  - function refreshSession: () => Promise<RefreshOutcome>
+  - function refreshAccessToken: () => Promise<string | null>
+  - type RefreshOutcome
+- `src/services/backendAvailability.ts`
+  - function isBackendUnavailableStatus
+  - function notifyBackendUnavailable
+  - const BACKEND_UNAVAILABLE_EVENT
 - `src/utils/availabilityWindow.ts`
   - function normalizeAvailabilityWindow: (value) => string
   - function compareAvailabilityWindows: (left, right) => number
@@ -61,12 +81,18 @@
   - function formatAvailabilityWindowPeriod: (value) => string
   - function getAvailabilityWindowOptions: (options?) => AvailabilityWindowOption[]
   - function getAvailabilityWindowSummary: (value, options?) => void
-  - _...2 more_
+  - _...5 more_
 - `src/utils/buyerMapMarket.ts`
-  - function isGreenFuel
   - function computePortMarketData
   - interface PortMarketRow
   - interface PortMarketData
+- `src/utils/complianceEstimator.ts`
+  - function estimateCompliancePlanning: (input) => ComplianceEstimatorResult
+  - interface FuelAssumption
+  - interface ComplianceEstimatorInput
+  - interface ComplianceEstimatorResult
+  - const GREEN_FUEL_ASSUMPTIONS: FuelAssumption[]
+  - const DEFAULT_COMPLIANCE_ESTIMATOR_INPUT: Omit<ComplianceEstimatorInput, 'greenFuel'>
 - `src/utils/curveChart.ts` — function serializeChartTime, const availabilityWindowToChartTime
 - `src/utils/fuel.ts`
   - function getFuelRowClasses: (fuelType) => string
@@ -76,7 +102,15 @@
   - function getStatusConfig: (status) => StatusConfig
   - function formatExpiry: (order) => React.ReactNode
   - _...2 more_
-- `src/utils/marketPorts.ts` — function filterPortsByActiveDeliveryPoints
+- `src/utils/marketActivity.ts`
+  - function isDemoMarketActivity: (activity) => boolean
+  - function describeMarketActivity: (activity) => MarketActivityDescriptor
+  - function describeForwardCurveSignal: (signal) => MarketActivityDescriptor
+  - function marketActivityTextClass: (tone) => string
+  - function marketActivityBadgeClass: (tone) => string
+  - interface MarketActivityDescriptor
+  - _...4 more_
+- `src/utils/marketPorts.ts` — function resolveApprovedMapPorts, function filterPortsByActiveDeliveryPoints
 - `src/utils/marketProduct.ts`
   - function formatMarketProduct: (value) => string
   - function getProductDisplayName: (product) => string
@@ -96,6 +130,10 @@
   - function recordDashboardContentReady
   - function getDashboardNavigationEventName
   - interface DashboardNavigationMetric
+- `src/utils/sliceUrl.ts`
+  - function sliceToPath
+  - function parseSlicePath
+  - interface MarketSlice
 - `src/utils/tradeAnalytics.ts`
   - function isActiveTradeStatus: (status) => boolean
   - function isCompletedTradeStatus: (status) => boolean
@@ -104,13 +142,18 @@
   - function tradeDisplayQuantityMt: (trade) => number
   - function tradeDisplayPricePerMt: (trade) => number
   - _...7 more_
+- `src/utils/tradingPorts.ts`
+  - function normalizeTradingPortName
+  - function isApprovedTradingPortName
+  - const filterApprovedTradingPorts
 - `src/utils/watchlist.ts`
   - function getWatchlistSliceKeyFromParts: (marketProductCode?, deliveryPointId?, availabilityWindowCode?) => string
   - function getWatchlistSliceKey: (target) => string
   - function formatWatchlistSliceLabel: (slice) => string
   - function describeWatchlistEvent: (event) => string
+  - function getWatchlistEventActivity: (event) => MarketActivityInput
   - function getLatestEventForSlice: (slice, events) => WatchlistEvent | undefined
-  - function getLatestEventForTarget: (target, events) => WatchlistEvent | undefined
+  - _...1 more_
 - `src/utils.ts`
   - function createCustomIcon
   - function calculateHeading

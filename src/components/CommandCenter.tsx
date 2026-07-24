@@ -12,6 +12,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 import { SupplierDemandFeed } from './SupplierDemandFeed';
+import { useMarketSupport } from '../context/MarketSupportContext';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
@@ -39,6 +40,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [orderModalOpen, setOrderModalOpen] = useState(false);
     const [matchCount, setMatchCount] = useState(0);
     const { radar, events, loading: radarLoading, error: radarError } = useWatchlist();
+    const { isActive: isMarketSupportActive } = useMarketSupport();
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -161,7 +163,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
 
-                    <button
+                    {!isMarketSupportActive && <button
                         onClick={() => onNavigate('TRADES')}
                         className="group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/40 dark:to-slate-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-slate-500/10 hover:border-slate-300 dark:hover:border-slate-600"
                     >
@@ -169,7 +171,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">View My Deals</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Trade history & settlements</p>
                         <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </button>
+                    </button>}
                 </div>
             </div>
 
@@ -198,7 +200,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
             </div> */}
 
-            <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />
+            {!isMarketSupportActive && <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />}
 
             {viewMode === 'SUPPLIER' && (
                 <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
@@ -211,7 +213,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     trades={trades}
                     viewMode={viewMode}
                     onNavigate={onNavigate}
-                    onConfirmTrade={handleConfirmTrade}
+                    onConfirmTrade={isMarketSupportActive ? undefined : handleConfirmTrade}
                     onPostOrder={() => setOrderModalOpen(true)}
                 />
             </div>

@@ -13,6 +13,16 @@ import { reliability } from './analytics';
 import { getAccessToken, refreshAccessToken } from './authToken';
 import { isBackendUnavailableStatus } from './backendAvailability';
 import { API_URL } from './config';
+import {
+    getMarketSupportContextId,
+    MARKET_SUPPORT_CONTEXT_HEADER,
+} from './marketSupportContextStore';
+import type {
+    MarketSupportCapability,
+    MarketSupportEntry,
+    MarketSupportSession,
+    MarketSupportStartInput,
+} from '../types/marketSupport';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -46,6 +56,70 @@ const getHeaders = () => {
 
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
+/**
+ * Only organization-scoped customer routes receive the context locator.
+ * Admin lifecycle routes and authentication requests must never carry it.
+ * This allowlist is deliberately narrow so a newly-added mutation cannot
+ * become available in support mode by accident.
+ */
+export const isMarketSupportScopedRequest = (path: string, method = 'GET'): boolean => {
+    const route = path.split('?')[0];
+    if (route.startsWith('/auth/') || route.startsWith('/admin/')) return false;
+    const normalizedMethod = method.toUpperCase();
+    if (route === '/orderbook' && (normalizedMethod === 'GET' || normalizedMethod === 'POST')) return true;
+    if (route.startsWith('/orderbook/') && normalizedMethod === 'GET') return true;
+    if (route.endsWith('/cancel') && normalizedMethod === 'POST') return true;
+    if (normalizedMethod === 'GET' && (
+        route.startsWith('/trades/my')
+        || route.startsWith('/inventory')
+        || route.startsWith('/notifications')
+        || route.startsWith('/catalog')
+    )) return true;
+    return false;
+};
+
+const isMarketSupportLifecycleRequest = (path: string, method: string): boolean => {
+    const route = path.split('?')[0];
+    const normalizedMethod = method.toUpperCase();
+    return normalizedMethod === 'POST'
+        && (route === '/admin/market-support/contexts'
+            || /^\/admin\/market-support\/contexts\/[^/]+\/exit$/.test(route));
+};
+
+export const isMarketSupportAllowedMutation = (path: string, method = 'GET'): boolean =>
+    isMarketSupportScopedRequest(path, method) || isMarketSupportLifecycleRequest(path, method);
+
+const isStateChangingGet = (path: string, method: string): boolean => {
+    if (method.toUpperCase() !== 'GET') return false;
+    const route = path.split('?')[0];
+    return route === '/watchlists/me'
+        || route === '/referrals/my-code'
+        || route === '/auth/verify-email';
+};
+
+export class ApiError extends Error {
+    readonly status: number;
+    readonly code: string | null;
+    readonly details: unknown;
+
+    constructor(message: string, status: number, code: string | null = null, details?: unknown) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.code = code;
+        this.details = details;
+    }
+}
+
+export class MarketSupportContextChangedError extends Error {
+    readonly code = 'MARKET_SUPPORT_CONTEXT_CHANGED';
+
+    constructor() {
+        super('The assisted workspace changed while refreshing. The request was not retried.');
+        this.name = 'AbortError';
+    }
+}
+
 const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Headers => {
     const merged = new Headers(headers);
     if (!merged.has('Content-Type')) merged.set('Content-Type', 'application/json');
@@ -58,7 +132,7 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
     return merged;
 };
 
-const handleResponse = async (res: Response) => {
+const handleResponse = async (res: Response, contextId?: string | null) => {
     if (!res.ok) {
         if (res.status === 429) {
             // Surface throttling globally — callers routinely swallow request
@@ -69,14 +143,26 @@ const handleResponse = async (res: Response) => {
             }));
         }
         const errorText = await res.text();
+        let errorJson: any = null;
         try {
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.detail || res.statusText);
-        } catch (e) {
-            if (e instanceof Error && e.message !== errorText) throw e;
-            throw new Error(errorText || res.statusText);
+            errorJson = JSON.parse(errorText);
+        } catch {
+            // Plain-text errors are still represented as typed ApiErrors below.
         }
+        const detail = errorJson?.detail;
+        const structuredDetail = detail && typeof detail === 'object' ? detail : errorJson;
+        const code = typeof structuredDetail?.code === 'string' ? structuredDetail.code : null;
+        const message = typeof detail === 'string'
+            ? detail
+            : structuredDetail?.message || errorJson?.message || errorText || res.statusText;
+        if (code && /MARKET_SUPPORT_CONTEXT_(INVALID|EXPIRED|NOT_FOUND)|CONTEXT_(INVALID|EXPIRED|NOT_FOUND)/.test(code)) {
+            window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
+                detail: { reason: 'expired', code, status: res.status, ...(contextId ? { contextId } : {}) },
+            }));
+        }
+        throw new ApiError(message, res.status, code, structuredDetail);
     }
+    if (res.status === 204 || res.status === 205) return undefined;
     return res.json();
 };
 
@@ -125,9 +211,24 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     const isMutation = options?.method && options.method !== 'GET';
     const timeout = isMutation ? 30000 : 15000;
     const url = `${API_URL}${path}`;
+    const initialHeaders = withAuthHeader(options?.headers);
+    const contextId = getMarketSupportContextId();
+    const method = options?.method || 'GET';
+    if (
+        contextId
+        && (
+            isStateChangingGet(path, method)
+            || (method.toUpperCase() !== 'GET' && !isMarketSupportAllowedMutation(path, method))
+        )
+    ) {
+        throw new ApiError('This action is unavailable while acting for a supplier organization.', 403, 'MARKET_SUPPORT_MUTATION_BLOCKED');
+    }
+    if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
+        initialHeaders.set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
+    }
     const initialOptions: RequestInit = {
         ...options,
-        headers: withAuthHeader(options?.headers),
+        headers: initialHeaders,
     };
 
     let res: Response;
@@ -144,18 +245,41 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         reliability.reportBackendUnavailable();
     }
 
+    if (contextId && (
+        res.status === 410
+        || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
+    )) {
+        window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
+            detail: { reason: 'expired', contextId },
+        }));
+    }
+
     if (res.status === 401 && !shouldSkipRefresh(path)) {
         const refreshedToken = await refreshAccessToken();
         if (refreshedToken) {
+            if (getMarketSupportContextId() !== contextId) {
+                throw new MarketSupportContextChangedError();
+            }
             const retryOptions: RequestInit = {
                 ...options,
                 headers: withAuthHeader(options?.headers, refreshedToken),
             };
+            if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
+                (retryOptions.headers as Headers).set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
+            }
             res = await fetchWithTimeout(url, retryOptions, timeout);
+            if (contextId && (
+                res.status === 410
+                || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
+            )) {
+                window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
+                    detail: { reason: 'expired', status: res.status, contextId },
+                }));
+            }
         }
     }
 
-    return handleResponse(res);
+    return handleResponse(res, contextId);
 };
 
 // Paginated response shape from backend
@@ -595,11 +719,15 @@ export const api = {
             delivery_window_start?: string;
             delivery_window_end?: string;
             expires_at?: string;
-        }) => {
+        } & { idempotency_key?: string }) => {
+            const { idempotency_key: idempotencyKey, ...requestData } = data;
             return fetchApi('/orderbook', {
                 method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(data),
+                headers: {
+                    ...getHeaders(),
+                    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+                },
+                body: JSON.stringify(requestData),
             });
         },
         update: async (id: string, data: any) => {
@@ -609,10 +737,21 @@ export const api = {
                 body: JSON.stringify(data),
             });
         },
-        cancel: async (id: string) => {
-            return fetchApi(`/orderbook/${id}`, {
-                method: 'DELETE',
-                headers: getHeaders(),
+        cancel: async (id: string, options?: { reason?: string; etag?: string }) => {
+            if (getMarketSupportContextId() && !options?.etag) {
+                throw new ApiError(
+                    'A current listing version is required before cancelling in the assisted workspace.',
+                    428,
+                    'MARKET_SUPPORT_ETAG_REQUIRED',
+                );
+            }
+            return fetchApi(`/orderbook/${id}/cancel`, {
+                method: 'POST',
+                headers: {
+                    ...getHeaders(),
+                    ...(options?.etag ? { 'If-Match': options.etag } : {}),
+                },
+                body: JSON.stringify({ reason: options?.reason?.trim() || 'User requested cancellation' }),
             });
         },
         aggregated: async () => {
@@ -788,6 +927,34 @@ export const api = {
         commissionSummary: async () => {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
         },
+    },
+
+    marketSupport: {
+        capabilities: (): Promise<MarketSupportCapability[]> =>
+            fetchApi('/admin/market-support/capabilities'),
+        entry: async (organizationId: string): Promise<MarketSupportEntry> => {
+            const raw = await fetchApi(`/admin/market-support/organizations/${organizationId}/entry`) as any;
+            return {
+                eligible: raw?.eligible === true,
+                reason: raw?.reason ?? null,
+                organization: raw?.organization,
+            };
+        },
+        start: (input: MarketSupportStartInput): Promise<MarketSupportSession> =>
+            fetchApi('/admin/market-support/contexts', {
+                method: 'POST',
+                body: JSON.stringify({
+                    organization_id: input.organizationId,
+                    support_reference: input.supportReference,
+                    confirm_replacement: input.replaceActive ?? false,
+                }),
+            }),
+        active: (): Promise<MarketSupportSession | null> =>
+            fetchApi('/admin/market-support/contexts/active'),
+        getContext: (contextId: string): Promise<MarketSupportSession> =>
+            fetchApi(`/admin/market-support/contexts/${contextId}`),
+        exit: (contextId: string): Promise<void> =>
+            fetchApi(`/admin/market-support/contexts/${contextId}/exit`, { method: 'POST' }),
     },
 
     curves: {
