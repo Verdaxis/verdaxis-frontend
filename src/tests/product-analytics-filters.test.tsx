@@ -71,10 +71,14 @@ describe('product analytics URL filters', () => {
   });
 
   it('serialization preserves unrelated query parameters and omits defaults', () => {
-    const existing = params('utm_source=deck&analytics=overview&period=7d&compare=0');
+    const existing = params(
+      'utm_source=deck&analytics=overview&period=7d&compare=0&token=secret&refresh=secret',
+    );
     const filters = parseProductAnalyticsFilters(existing);
     const serialized = serializeProductAnalyticsFilters(filters, existing);
     expect(serialized.get('utm_source')).toBe('deck');
+    expect(serialized.get('token')).toBeNull();
+    expect(serialized.get('refresh')).toBeNull();
     expect(serialized.get('analytics')).toBe('overview');
     expect(serialized.get('period')).toBe('7d');
     expect(serialized.get('compare')).toBe('0');
