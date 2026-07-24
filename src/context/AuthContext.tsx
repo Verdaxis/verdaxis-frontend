@@ -50,6 +50,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [token, setToken] = useState<string | null>(getAccessToken());
     const [isLoading, setIsLoading] = useState(true);
     const [isBackendUnavailable, setIsBackendUnavailable] = useState(false);
+    const [initialUrlAuth] = useState(() => {
+        if (typeof window === 'undefined') return { token: null, refresh: null };
+        const params = new URLSearchParams(window.location.search);
+        return {
+            token: params.get('token'),
+            refresh: params.get('refresh'),
+        };
+    });
     // Auth checks flip maintenance state through this helper so every
     // backend-unavailable observation also emits the deduplicated
     // reliability event (Product Analytics plan §2.5).
@@ -263,9 +271,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setIsLoading(false);
             return;
         }
-        const params = new URLSearchParams(window.location.search);
-        const urlToken = params.get('token');
-        const urlRefresh = params.get('refresh');
+        const urlToken = initialUrlAuth.token;
+        const urlRefresh = initialUrlAuth.refresh;
         if (urlToken) {
             // Clean URL params
             window.history.replaceState({}, '', window.location.pathname);
