@@ -226,6 +226,8 @@ entry had been absent since the 2026-04 pilot cleanup. Its capabilities are cove
 Forward Curve for monitoring, Marketplace for execution, and the Trade History Alerts tab for
 price alerts; the old implementation remains recoverable from git history if needed. Forward Curve consumes `/curves/forward/table`
 for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
+The compact table payload carries product and delivery-point identity once per row; the workspace
+rehydrates that row context onto cells before selection, charting, or Marketplace handoff.
 It does not execute trades, and it does not render the old pre-click global curve chart. Price summaries,
 forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
 `observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so

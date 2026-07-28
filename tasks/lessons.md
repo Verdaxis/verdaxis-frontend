@@ -532,3 +532,9 @@
 - **Trigger:** User rejected principal-level authority, seven-day order/instruction limits, mandatory evidence text, and supplier-only access for assisted listings.
 - **Rule:** Keep identity, audit, tenant isolation, idempotency, and post-only controls, but make assisted access organization-scoped and avoid imposing temporary pilot restrictions without explicit product approval.
 - **Why:** The first-pass implementation treated conservative rollout policy as a permanent security boundary, unnecessarily limiting authorized administrators.
+
+### Verify downstream projections after restoring market data
+- **Date:** 2026-07-28
+- **Trigger:** I restored production demo liquidity but did not catch that the Forward Curve frontend discarded the compact table cells and still appeared empty.
+- **Rule:** After restoring shared market data, visually verify every dependent projection, including Marketplace, Forward Curve, and Intelligence Map, before reporting completion.
+- **Why:** Healthy source records and API counts do not prove that downstream response normalization and rendering still honor the wire contract.
