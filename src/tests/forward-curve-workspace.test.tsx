@@ -579,6 +579,24 @@ describe('ForwardCurveWorkspace', () => {
     expect(sliceMock).not.toHaveBeenCalled();
   });
 
+  it('hydrates compact API cells from their parent market row', async () => {
+    const table = makeTable();
+    const { market_product, delivery_point_id, delivery_point_name, availability_window, ...compactCell } =
+      table.rows[0].cells.SPOT;
+    table.rows[0].cells.SPOT = compactCell as ForwardCurveMarketCell;
+    tableMock.mockResolvedValue(table);
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('Price Evidence');
+    expect(sliceMock).toHaveBeenCalledWith({
+      market_product,
+      delivery_point_id,
+      availability_window,
+    });
+    expect(screen.getAllByText(delivery_point_name).length).toBeGreaterThan(0);
+  });
+
   it('scales selected-period evidence when backend decimals arrive as strings', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 

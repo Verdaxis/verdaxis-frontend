@@ -138,19 +138,26 @@ const isApprovedMarketProduct = (marketProduct: string | null | undefined): mark
     MARKET_PRODUCTS.includes(marketProduct as MarketProduct)
 );
 
-const isApprovedForwardCurveCell = (cell: ForwardCurveMarketCell | null | undefined): cell is ForwardCurveMarketCell => (
-    Boolean(cell)
-    && isApprovedMarketProduct(cell?.market_product)
-    && isApprovedTradingPortName(cell?.delivery_point_name)
-);
-
 const filterApprovedForwardCurveTable = (response: ForwardCurveTableResponse): ForwardCurveTableResponse => {
     const rows = response.rows
         .filter(row => isApprovedMarketProduct(row.market_product) && isApprovedTradingPortName(row.delivery_point_name))
         .map(row => ({
             ...row,
             cells: Object.fromEntries(
-                Object.entries(row.cells).filter(([, cell]) => isApprovedForwardCurveCell(cell))
+                Object.entries(row.cells).map(([availabilityWindow, cell]) => [
+                    availabilityWindow,
+                    {
+                        ...cell,
+                        market_product: row.market_product,
+                        product_name: row.product_name,
+                        representative_product_id: row.representative_product_id,
+                        product_count: row.product_count,
+                        delivery_point_id: row.delivery_point_id,
+                        delivery_point_name: row.delivery_point_name,
+                        region: row.region,
+                        availability_window: availabilityWindow,
+                    },
+                ])
             ) as Record<string, ForwardCurveMarketCell>,
         }))
         .filter(row => Object.keys(row.cells).length > 0);
