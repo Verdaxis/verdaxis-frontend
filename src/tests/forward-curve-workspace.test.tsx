@@ -210,18 +210,22 @@ describe('ForwardCurveWorkspace', () => {
     });
   });
 
-  it('renders the monitored signals, matrix, and selected-period evidence without the old chart model', async () => {
+  it('renders the forward curve above the matrix with selected-period range evidence', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await screen.findByText('Latest Monitored Signals');
-    expect(document.querySelector('[data-tour="forward-curve-chart"]')).toBeTruthy();
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]');
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]');
+    expect(chart).toBeTruthy();
+    expect(matrix).toBeTruthy();
+    expect(chart!.compareDocumentPosition(matrix!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText('Market Matrix')).toBeTruthy();
     expect(screen.getByText('Selected Period')).toBeTruthy();
     expect(screen.getAllByText('Bio Methanol · Singapore').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
 
     await waitFor(() => {
-      expect(screen.getByText('Price Evidence')).toBeTruthy();
+      expect(screen.getByText('Indicative Period Range')).toBeTruthy();
     });
 
     expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
@@ -528,7 +532,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Price Evidence');
+    await screen.findByText('Indicative Period Range');
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
 
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
@@ -588,7 +592,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Price Evidence');
+    await screen.findByText('Indicative Period Range');
     expect(sliceMock).toHaveBeenCalledWith({
       market_product,
       delivery_point_id,
@@ -600,7 +604,7 @@ describe('ForwardCurveWorkspace', () => {
   it('scales selected-period evidence when backend decimals arrive as strings', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Price Evidence');
+    await screen.findByText('Indicative Period Range');
 
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
     expect(screen.getAllByText('$1050').length).toBeGreaterThan(0);
