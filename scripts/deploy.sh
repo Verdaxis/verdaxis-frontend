@@ -8,11 +8,11 @@
 # The VPS Caddy config serves:
 #   prod:    /home/verdaxis-prod/verdaxis/prod/fe/dist
 #   staging: /home/verdaxis-prod/verdaxis/staging/fe/dist
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$(dirname "$SCRIPT_DIR")"
-TARGET="${1:-prod}"
+TARGET="${1:-staging}"
 
 echo "=== Verdaxis Frontend Deployment ==="
 echo "Timestamp: $(date)"
@@ -21,13 +21,13 @@ echo "Target: $TARGET"
 cd "$FRONTEND_DIR"
 
 case "$TARGET" in
-    prod|production)
-        MODE="production"
-        API_URL="https://api.verdaxis.exchange/api"
-        ;;
     staging)
         MODE="staging"
         API_URL="https://api-staging.verdaxis.exchange/api"
+        ;;
+    prod|production)
+        echo "Production is released only through the Release Vercel Production workflow." >&2
+        exit 2
         ;;
     *)
         echo "Unknown target '$TARGET'. Use 'prod' or 'staging'." >&2
@@ -42,11 +42,7 @@ fi
 
 echo ">>> Building static bundle with $API_URL..."
 VITE_API_URL="$API_URL" npm run build -- --mode "$MODE"
-
-if ! grep -R "$API_URL" dist/assets >/dev/null 2>&1; then
-    echo "Built bundle does not contain expected API URL: $API_URL" >&2
-    exit 1
-fi
+npm run build:check:staging
 
 echo ""
 echo "=== Frontend Build Complete ==="

@@ -13,11 +13,16 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "i18n:check": "npx tsx scripts/check-translations.ts",
-    "build:check": "node scripts/check-build-artifacts.mjs",
+    "build:check": "npm run build:check:prod",
+    "build:check:prod": "node scripts/check-build-artifacts.mjs --target production --root dist",
+    "build:check:staging": "node scripts/check-build-artifacts.mjs --target staging --root dist",
+    "test:artifact-check": "node --test scripts/check-build-artifacts.test.mjs",
+    "test:release-smoke": "python3 scripts/test_smoke_release.py && bash scripts/release-vercel.sh --self-test",
     "smoke:navigation:setup": "python3 -m pip install -r scripts/requirements-navigation-smoke.txt && python3 -m playwright install chromium",
     "smoke:navigation": "python3 scripts/smoke_navigation.py",
+    "smoke:release": "python3 scripts/smoke_release.py",
     "smoke:live": "node scripts/smoke-live.mjs",
-    "verify": "npm run test && npm run i18n:check && npm run build:prod && npm run build:check && npm run typecheck"
+    "verify": "npm run test && npm run test:artifact-check && npm run test:release-smoke && npm run i18n:check && npm run build:prod && npm run build:check:prod && npm run typecheck"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",

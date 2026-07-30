@@ -65,7 +65,12 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 ## Deployment
 
-CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
+CI (`.github/workflows/frontend-ci.yml`) runs tests, release-guard tests,
+typecheck, i18n checks, and independently validates staging and production
+artifacts on pushes/PRs to `staging` and `prod`. Production deploys use the
+manual, serialized `Release Vercel Production` workflow; staging remains an
+operator-run VPS deployment. `vercel.json` disables automatic Git deployments,
+so pushing a branch cannot bypass the release workflow.
 
 **Server:** `verdaxis-prod@144.126.151.136`
 **Production site:** `app.verdaxis.exchange`, `verdaxis.exchange`, and `www.verdaxis.exchange` (Vercel project `verdaxis-frontend`)
@@ -82,17 +87,12 @@ npm run build:staging
 
 ### Deploy command
 
-Production is built and deployed through the linked Vercel project. The
-project's production `VITE_API_URL` must be
-`https://api.verdaxis.exchange/api`; `vercel.json` runs the artifact check as
-part of the build and rejects localhost or missing production API targets.
-
-```bash
-vercel pull --yes --environment=production
-vercel build --prod
-vercel deploy --prebuilt --prod
-npm run smoke:live -- prod
-```
+Production is released only through `.github/workflows/release-vercel.yml`.
+Start it from GitHub Actions with `candidate_only=true` to validate the exact
+artifact without moving production, or `candidate_only=false` to validate and
+promote it. The workflow checks out `prod`, builds once, assigns the candidate
+to `canary.verdaxis.exchange`, runs rendered browser checks, and promotes that
+same deployment. See `docs/vercel-production-release.md`.
 
 Staging remains a verified Caddy-served VPS artifact:
 
@@ -124,16 +124,17 @@ npm run dev
 
 ## Environment Configuration
 
-Production API URL is set in `.env.production` and staging API URL is set in `.env.staging`. Vite loads the correct file from `vite build --mode production` or `vite build --mode staging`, and `scripts/deploy.sh` also passes the target API URL explicitly.
+Production API URL is set in `.env.production` and staging API URL is set in `.env.staging`. Vite loads the correct file from `vite build --mode production` or `vite build --mode staging`, and `scripts/deploy.sh` also passes the staging API URL explicitly.
 
 - **`.env`** — local dev only (`VITE_API_URL=/api`), gitignored
 - **`.env.production`** — local production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
 - **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
 
-Vercel production also defines `VITE_API_URL`; an empty remote value overrides
-the committed mode file, so every Vercel deployment must pass the compiled
-artifact check before aliases move.
+Vercel Production must not define `VITE_API_URL`. The release workflow removes
+the downloaded Vercel env file before building, and release-mode Vite builds
+reject missing, empty, local, staging/production-crossed, or otherwise
+unexpected API targets before emitting an artifact.
 
 Behavioral analytics is optional. Set both `VITE_ANALYTICS_HOST` and
 `VITE_ANALYTICS_WEBSITE_ID` to load the Umami tracker; leaving either blank

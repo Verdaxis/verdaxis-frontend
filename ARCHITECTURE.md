@@ -8,10 +8,13 @@ React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-char
 
 The production static frontend is deployed on Vercel for `verdaxis.exchange`,
 `www.verdaxis.exchange`, and `app.verdaxis.exchange`. Staging remains a
-Caddy-served VPS build at `staging.verdaxis.exchange`. Vercel production
-builds run `scripts/check-build-artifacts.mjs` and fail before deployment if
-the compiled bundle does not target the production API or contains a localhost
-API fallback.
+Caddy-served VPS build at `staging.verdaxis.exchange`. Production uses one
+immutable Vercel artifact: build, target-strict artifact validation, stable
+canary alias, rendered browser smoke, then promotion without rebuilding.
+Repeated deterministic frontend failure after promotion can roll back only to
+the captured prior deployment while the production API is independently
+healthy. Vercel's Git integration remains connected for source metadata, but
+automatic Git deployments are disabled in `vercel.json`.
 
 ## File Map
 
@@ -115,14 +118,18 @@ src/
     *.test.ts                      # Unit tests (utils, pricing, matchmaking, map, etc.)
 
 scripts/
-  deploy.sh                       # Static prod/staging build script with API-target validation
+  check-build-artifacts.mjs       # Target-strict production/staging bundle validation
+  deploy.sh                       # Staging-only static build helper
+  release-vercel.sh               # Immutable candidate, promotion, and narrow rollback controller
+  smoke_release.py                # Rendered release smoke and bounded failure classification
   smoke-live.mjs                  # Prod/staging live smoke checks
   start-frontend.sh               # Local development server helper
   seed_listings.sh                 # Seed marketplace data
   geocode_projects.py             # Geocode producer project locations
 
-database/schema.txt                # Backend DB schema reference
-.github/workflows/frontend-ci.yml # CI: tests/typecheck/i18n/builds on staging+prod pushes and PRs (no deploy)
+database/schema.txt                   # Backend DB schema reference
+.github/workflows/frontend-ci.yml     # CI: tests/typecheck/i18n/target-strict builds
+.github/workflows/release-vercel.yml  # Manual protected Vercel production release
 ```
 
 ## Dependency Flow

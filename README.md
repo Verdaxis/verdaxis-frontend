@@ -44,6 +44,8 @@ npm run build:prod
 npm run build:staging
 npm run test
 npm run test:watch
+npm run test:artifact-check
+npm run test:release-smoke
 npm run i18n:check
 npm run smoke:live
 npm run verify
@@ -64,4 +66,8 @@ npm run verify
 - Auth uses Verdaxis JWTs held in memory only (never `localStorage`); the session persists via an HttpOnly refresh cookie and is validated through `/api/auth/me`. SSE streams authenticate with single-purpose 60s stream tokens from `/api/auth/stream-token`.
 - RFQ UI code is retained but hidden unless `VITE_ENABLE_RFQ=true`; orderbook/listing flows are the default market workflow.
 - `openapi.json` is a generated backend contract snapshot, not a hand-authored source file. Regenerate it from the active backend `/openapi.json` after backend contract changes and keep it in sync with source-regression tests.
-- Production is served from `/home/verdaxis-prod/verdaxis/prod/fe/dist`; staging is served from `/home/verdaxis-prod/verdaxis/staging/fe/dist`.
+- Production is released from `prod` through the protected Vercel workflow;
+  staging is served from `/home/verdaxis-prod/verdaxis/staging/fe/dist`.
+- Vercel Production must not define `VITE_API_URL`; committed
+  `.env.production` is authoritative. See
+  `docs/vercel-production-release.md`.

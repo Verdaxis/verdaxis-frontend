@@ -1,0 +1,71 @@
+name: Release Vercel Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_only:
+        description: Validate the production candidate without promoting it
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verdaxis-vercel-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: production
+    steps:
+      - name: Check out the production source
+        uses: actions/checkout@v4
+        with:
+          ref: prod
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install release tooling
+        run: |
+          npm install --global vercel@50.37.2
+          python -m pip install --requirement scripts/requirements-navigation-smoke.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Validate and release the immutable candidate
+        env:
+          VERDAXIS_RELEASE_CONTEXT: github-actions
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [[ "${{ inputs.candidate_only }}" == "true" ]]; then
+            bash scripts/release-vercel.sh --candidate-only
+          else
+            bash scripts/release-vercel.sh
+          fi
+
+      - name: Upload the bounded release report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verdaxis-vercel-release-${{ github.run_id }}
+          path: release-report/
+          if-no-files-found: warn
+          retention-days: 14

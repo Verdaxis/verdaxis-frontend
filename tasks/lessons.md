@@ -2,6 +2,12 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Confirm Abrupt Cross-Project Requests
+- **Date:** 2026-07-30
+- **Trigger:** A TrekTogether-specific request was accidentally sent inside the active Verdaxis session and was implemented before the user corrected the target.
+- **Rule:** When a request abruptly switches to an unrelated product or domain, confirm the target project before editing, committing, pushing, or deploying.
+- **Why:** Workspace-wide search can find a plausible match even when the message belongs to a different chat, so technical certainty does not establish user intent.
+
 ### Initialize Assisted Workspaces From Organization Side
 - **Date:** 2026-07-23
 - **Trigger:** Entering a fuel supplier organization retained the admin's previously saved Buyer View and displayed Place Bid.

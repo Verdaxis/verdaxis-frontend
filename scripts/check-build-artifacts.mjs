@@ -2,13 +2,18 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const DIST_DIR = path.resolve(process.cwd(), 'dist');
-const ASSETS_DIR = path.join(DIST_DIR, 'assets');
-const INDEX_HTML = path.join(DIST_DIR, 'index.html');
-const PRODUCTION_API_URL = 'https://api.verdaxis.exchange/api';
-const STAGING_API_URL = 'https://api-staging.verdaxis.exchange/api';
-const LOCAL_API_URL = 'http://localhost:8000/api';
+const TARGETS = {
+  production: {
+    requiredApiUrl: 'https://api.verdaxis.exchange/api',
+    forbiddenApiUrl: 'https://api-staging.verdaxis.exchange/api',
+  },
+  staging: {
+    requiredApiUrl: 'https://api-staging.verdaxis.exchange/api',
+    forbiddenApiUrl: 'https://api.verdaxis.exchange/api',
+  },
+};
 
 const EXPECTED_VENDOR_CHUNKS = [
   'vendor-maplibre',
@@ -22,26 +27,29 @@ const LEGACY_VENDOR_CHUNKS = [
   'vendor-charts',
 ];
 
-const HEAVY_VENDOR_CHUNKS = [
-  'vendor-maplibre',
-  'vendor-leaflet',
-  'vendor-lightweight-charts',
-  'vendor-recharts',
+const LOCAL_API_PATTERNS = [
+  /https?:\/\/localhost(?::\d+)?\/api/i,
+  /https?:\/\/127(?:\.\d{1,3}){3}(?::\d+)?\/api/i,
+  /https?:\/\/0\.0\.0\.0(?::\d+)?\/api/i,
+  /https?:\/\/\[::1\](?::\d+)?\/api/i,
 ];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-function assetFiles() {
-  assert(existsSync(DIST_DIR), `Missing build output directory: ${DIST_DIR}`);
-  assert(existsSync(ASSETS_DIR), `Missing build assets directory: ${ASSETS_DIR}`);
-  assert(existsSync(INDEX_HTML), `Missing build HTML: ${INDEX_HTML}`);
-  return readdirSync(ASSETS_DIR).filter((file) => file.endsWith('.js'));
+function javascriptFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...javascriptFiles(entryPath));
+    if (entry.isFile() && entry.name.endsWith('.js')) files.push(entryPath);
+  }
+  return files;
 }
 
 function findChunk(files, prefix) {
-  return files.filter((file) => file.startsWith(`${prefix}-`) && file.endsWith('.js'));
+  return files.filter((file) => path.basename(file).startsWith(`${prefix}-`));
 }
 
 function assertChunkSplit(files) {
@@ -49,55 +57,70 @@ function assertChunkSplit(files) {
     const matches = findChunk(files, prefix);
     assert(
       matches.length === 1,
-      `Expected exactly one ${prefix} JS chunk, found ${matches.length}: ${matches.join(', ') || 'none'}`
+      `Expected exactly one ${prefix} JS chunk, found ${matches.length}`
     );
   }
 
   for (const prefix of LEGACY_VENDOR_CHUNKS) {
-    const matches = findChunk(files, prefix);
-    assert(
-      matches.length === 0,
-      `Legacy grouped vendor chunk still exists for ${prefix}: ${matches.join(', ')}`
-    );
+    assert(findChunk(files, prefix).length === 0, `Legacy grouped vendor chunk still exists: ${prefix}`);
   }
 }
 
-function assertInitialHtmlDoesNotEagerLoadHeavyChunks() {
-  const html = readFileSync(INDEX_HTML, 'utf8');
-  for (const prefix of HEAVY_VENDOR_CHUNKS) {
+function assertInitialHtmlDoesNotEagerLoadHeavyChunks(indexHtml) {
+  const html = readFileSync(indexHtml, 'utf8');
+  for (const prefix of EXPECTED_VENDOR_CHUNKS) {
     const eagerReference = new RegExp(`(?:src|href)=["'][^"']*${prefix}-`);
-    assert(
-      !eagerReference.test(html),
-      `Initial HTML eagerly references heavy vendor chunk ${prefix}`
-    );
+    assert(!eagerReference.test(html), `Initial HTML eagerly references heavy vendor chunk ${prefix}`);
   }
 }
 
-function assertApiTarget(files) {
-  const source = files
-    .map((file) => readFileSync(path.join(ASSETS_DIR, file), 'utf8'))
-    .join('\n');
+function assertApiTarget(files, target) {
+  const contract = TARGETS[target];
+  assert(contract, `Unknown artifact target '${target}'. Use production or staging.`);
 
-  assert(!source.includes(LOCAL_API_URL), `Release bundle contains forbidden API target: ${LOCAL_API_URL}`);
-
-  const expectedApiUrl = process.env.VERCEL_ENV === 'production'
-    ? PRODUCTION_API_URL
-    : process.env.VERDAXIS_EXPECTED_API_URL?.trim();
-
-  if (expectedApiUrl) {
-    assert(source.includes(expectedApiUrl), `Release bundle is missing expected API target: ${expectedApiUrl}`);
-    return;
-  }
-
+  const source = files.map((file) => readFileSync(file, 'utf8')).join('\n');
   assert(
-    source.includes(PRODUCTION_API_URL) || source.includes(STAGING_API_URL),
-    'Release bundle is missing a deployable Verdaxis API target'
+    source.includes(contract.requiredApiUrl),
+    `Release bundle is missing expected API target: ${contract.requiredApiUrl}`
   );
+  assert(
+    !source.includes(contract.forbiddenApiUrl),
+    `Release bundle contains cross-environment API target: ${contract.forbiddenApiUrl}`
+  );
+  for (const pattern of LOCAL_API_PATTERNS) {
+    assert(!pattern.test(source), `Release bundle contains a local API target matching ${pattern}`);
+  }
 }
 
-const files = assetFiles();
-assertChunkSplit(files);
-assertInitialHtmlDoesNotEagerLoadHeavyChunks();
-assertApiTarget(files);
+export function checkBuildArtifacts({ root, target }) {
+  const artifactRoot = path.resolve(root);
+  const assetsDirectory = path.join(artifactRoot, 'assets');
+  const indexHtml = path.join(artifactRoot, 'index.html');
 
-console.log('Build artifact checks passed.');
+  assert(existsSync(artifactRoot), `Missing build output directory: ${artifactRoot}`);
+  assert(existsSync(assetsDirectory), `Missing build assets directory: ${assetsDirectory}`);
+  assert(existsSync(indexHtml), `Missing build HTML: ${indexHtml}`);
+
+  const files = javascriptFiles(assetsDirectory);
+  assert(files.length > 0, `No JavaScript assets found under ${assetsDirectory}`);
+  assertChunkSplit(files);
+  assertInitialHtmlDoesNotEagerLoadHeavyChunks(indexHtml);
+  assertApiTarget(files, target);
+}
+
+function parseArgs(argv) {
+  const values = {};
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    assert(flag?.startsWith('--') && value, 'Usage: --target production|staging --root <artifact-root>');
+    values[flag.slice(2)] = value;
+  }
+  assert(values.target && values.root, 'Usage: --target production|staging --root <artifact-root>');
+  return values;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  checkBuildArtifacts(parseArgs(process.argv.slice(2)));
+  console.log('Build artifact checks passed.');
+}

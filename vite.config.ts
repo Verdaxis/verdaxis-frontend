@@ -2,8 +2,29 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
+export const RELEASE_API_URLS = {
+    production: 'https://api.verdaxis.exchange/api',
+    staging: 'https://api-staging.verdaxis.exchange/api',
+} as const;
+
+export function validateReleaseApiUrl(
+    mode: string,
+    loadedEnv: Record<string, string>,
+    inheritedEnv: Record<string, string | undefined> = process.env,
+) {
+    const expected = RELEASE_API_URLS[mode as keyof typeof RELEASE_API_URLS];
+    if (!expected) return;
+
+    const inherited = Object.prototype.hasOwnProperty.call(inheritedEnv, 'VITE_API_URL');
+    const actual = (inherited ? inheritedEnv.VITE_API_URL : loadedEnv.VITE_API_URL)?.trim();
+    if (actual !== expected) {
+        throw new Error(`Invalid VITE_API_URL for ${mode} build`);
+    }
+}
+
+export default defineConfig(({ command, mode }) => {
     const env = loadEnv(mode, '.', '');
+    if (command === 'build') validateReleaseApiUrl(mode, env);
     return {
       server: {
         port: 5173,
