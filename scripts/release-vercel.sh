@@ -348,7 +348,11 @@ jq -n \
 [[ -n "$(vc whoami)" ]] || die "Vercel authentication failed"
 REMOTE_ENV="$(vc env ls production --format json)"
 if jq -e '.envs // [] | any(.key == "VITE_API_URL")' <<<"$REMOTE_ENV" >/dev/null; then
-  die "Vercel Production must not define VITE_API_URL"
+  echo "Removing redundant Vercel Production VITE_API_URL override..."
+  vc env rm VITE_API_URL production --yes
+  REMOTE_ENV="$(vc env ls production --format json)"
+  jq -e '.envs // [] | any(.key == "VITE_API_URL") | not' <<<"$REMOTE_ENV" >/dev/null ||
+    die "could not remove Vercel Production VITE_API_URL"
 fi
 
 STAGE="source verification"

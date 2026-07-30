@@ -131,7 +131,8 @@ Production API URL is set in `.env.production` and staging API URL is set in `.e
 - **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
 
-Vercel Production must not define `VITE_API_URL`. The release workflow removes
+Release preflight removes a redundant Vercel Production `VITE_API_URL`
+override, if present, and verifies that it is gone. The workflow also removes
 the downloaded Vercel env file before building, and release-mode Vite builds
 reject missing, empty, local, staging/production-crossed, or otherwise
 unexpected API targets before emitting an artifact.

@@ -9,7 +9,8 @@ Git deployments so a branch push cannot bypass these gates.
 ## Configuration Authority
 
 - `.env.production` is the only production source for public Vite settings.
-- Vercel Production must not define `VITE_API_URL`.
+- Release preflight removes a redundant Vercel Production `VITE_API_URL`
+  override, if present, and verifies that it is gone before building.
 - Secrets remain in the protected GitHub `production` environment.
 - `VERCEL_TOKEN` is loaded through a temporary mode-`0600` CLI auth directory
   and must never appear in arguments, logs, artifacts, or source.
