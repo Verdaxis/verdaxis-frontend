@@ -34,7 +34,9 @@ const VerifyEmailPage: React.FC = () => {
 
     const verify = async () => {
       try {
-        const res = await fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
+        const res = await fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+          method: 'POST',
+        });
         if (res.ok) {
           const data = await res.json();
           setVerifiedEmail(data.email ?? null);

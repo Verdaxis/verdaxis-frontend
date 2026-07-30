@@ -5,7 +5,6 @@ import {
   BarChart3,
   Loader2,
   ShieldCheck,
-  CheckCircle2,
   XCircle,
 } from 'lucide-react';
 import { ApiError, api } from '../../services/api';
@@ -33,6 +32,37 @@ interface AdminUserEntry {
   org_provenance: string | null;
   organization_id?: string | null;
 }
+
+interface AdminReviewOrganization {
+  id: string;
+  name: string;
+  type?: string | null;
+  verification_status: string;
+}
+
+interface AdminReviewRequest {
+  request_id: string;
+  status: string;
+  organization: AdminReviewOrganization | null;
+}
+
+interface AdminReviewCase {
+  user_id: string;
+  email: string;
+  email_verified: boolean;
+  account_status: string;
+  role: string;
+  created_at: string;
+  current_organization: AdminReviewOrganization | null;
+  requested_organizations: AdminReviewRequest[];
+}
+
+type ReviewAction =
+  | { kind: 'resend' }
+  | { kind: 'account' }
+  | { kind: 'organization'; organizationId: string }
+  | { kind: 'membership'; requestId: string }
+  | null;
 
 type UserStatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 
@@ -64,12 +94,33 @@ const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
   { label: 'Rejected',value: 'REJECTED'},
 ];
 
+const nextReviewAction = (review: AdminReviewCase): ReviewAction => {
+  if (!review.email_verified) return { kind: 'resend' };
+  if (review.account_status !== 'APPROVED') return { kind: 'account' };
+
+  const pendingJoin = review.requested_organizations.find(request => request.status === 'PENDING');
+  const organization = pendingJoin?.organization ?? review.current_organization;
+  if (organization && organization.verification_status !== 'APPROVED') {
+    return { kind: 'organization', organizationId: organization.id };
+  }
+  if (pendingJoin) return { kind: 'membership', requestId: pendingJoin.request_id };
+  return null;
+};
+
 const UsersTab: React.FC = () => {
   const [filter, setFilter] = useState<UserStatusFilter>('PENDING');
   const [users, setUsers]   = useState<AdminUserEntry[]>([]);
   const [total, setTotal]   = useState(0);
   const [loading, setLoading]     = useState(true);
   const [actioning, setActioning] = useState<string | null>(null); // user id being acted on
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const [reviewByUser, setReviewByUser] = useState<Record<string, AdminReviewCase>>({});
+  const [reviewCase, setReviewCase] = useState<AdminReviewCase | null>(null);
+  const [reviewActioning, setReviewActioning] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [entryOrganization, setEntryOrganization] = useState<SupportOrganization | null>(null);
   const [entry, setEntry] = useState<MarketSupportEntry | null>(null);
   const [entryLoading, setEntryLoading] = useState(false);
@@ -80,12 +131,23 @@ const UsersTab: React.FC = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setUserError(null);
     try {
       const params = new URLSearchParams({ limit: '100' });
       if (filter !== 'ALL') params.set('status', filter);
-      const data = await api.admin.users(params.toString());
+      const [data, queue] = await Promise.all([
+        api.admin.users(params.toString()),
+        filter === 'PENDING'
+          ? api.admin.reviewQueue(100)
+          : Promise.resolve({ items: [] }),
+      ]);
       setUsers(data.items ?? []);
       setTotal(data.total ?? 0);
+      setReviewByUser(Object.fromEntries(
+        (queue.items ?? []).map((review: AdminReviewCase) => [review.user_id, review]),
+      ));
+    } catch (error) {
+      setUserError(error instanceof Error ? error.message : 'Could not load users.');
     } finally {
       setLoading(false);
     }
@@ -93,23 +155,68 @@ const UsersTab: React.FC = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleApprove = async (userId: string) => {
-    setActioning(userId);
+  const handleReview = async (userId: string) => {
+    setReviewing(userId);
+    setReviewError(null);
+    setReviewNotice(null);
+    setVerificationSent(false);
     try {
-      await api.admin.approveUser(userId);
-      await load();
+      setReviewCase(await api.admin.reviewCase(userId));
+    } catch (error) {
+      setUserError(error instanceof Error ? error.message : 'Could not load this onboarding review.');
     } finally {
-      setActioning(null);
+      setReviewing(null);
     }
   };
 
   const handleReject = async (userId: string) => {
     setActioning(userId);
+    setUserError(null);
     try {
       await api.admin.rejectUser(userId);
       await load();
+    } catch (error) {
+      setUserError(error instanceof Error ? error.message : 'Could not reject this account.');
     } finally {
       setActioning(null);
+    }
+  };
+
+  const closeReview = () => {
+    setReviewCase(null);
+    setReviewError(null);
+    setReviewNotice(null);
+    setVerificationSent(false);
+  };
+
+  const handleReviewAction = async () => {
+    if (!reviewCase) return;
+    const action = nextReviewAction(reviewCase);
+    if (!action || (action.kind === 'resend' && verificationSent)) return;
+
+    setReviewActioning(true);
+    setReviewError(null);
+    setReviewNotice(null);
+    try {
+      if (action.kind === 'resend') {
+        await api.admin.resendVerification(reviewCase.email);
+        setVerificationSent(true);
+        setReviewNotice('Verification email sent. Approval remains locked until the user opens it.');
+        return;
+      }
+      if (action.kind === 'account') {
+        await api.admin.approveUser(reviewCase.user_id);
+      } else if (action.kind === 'organization') {
+        await api.admin.approveOrganization(action.organizationId);
+      } else {
+        await api.admin.approveOrganizationJoin(action.requestId);
+      }
+      setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
+      await load();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Could not complete this review step.');
+    } finally {
+      setReviewActioning(false);
     }
   };
 
@@ -185,6 +292,19 @@ const UsersTab: React.FC = () => {
     }
   };
 
+  const reviewAction = reviewCase ? nextReviewAction(reviewCase) : null;
+  const pendingJoin = reviewCase?.requested_organizations.find(request => request.status === 'PENDING');
+  const reviewOrganization = pendingJoin?.organization ?? reviewCase?.current_organization ?? null;
+  const reviewConfirmText = reviewAction?.kind === 'resend'
+    ? (verificationSent ? 'Verification email sent' : 'Send verification email')
+    : reviewAction?.kind === 'account'
+      ? 'Approve account'
+      : reviewAction?.kind === 'organization'
+        ? 'Approve organization'
+        : reviewAction?.kind === 'membership'
+          ? 'Approve membership'
+          : 'Onboarding complete';
+
   return (
     <div className="space-y-4">
       {/* Filter chips */}
@@ -236,6 +356,12 @@ const UsersTab: React.FC = () => {
             <tbody>
               {users.map((u) => {
                 const isActioning = actioning === u.id;
+                const isReviewing = reviewing === u.id;
+                const queuedReview = reviewByUser[u.id];
+                const queuedJoin = queuedReview?.requested_organizations.find(request => request.status === 'PENDING');
+                const queuedOrganization = queuedReview?.current_organization ?? queuedJoin?.organization;
+                const displayOrganizationName = u.org_name ?? queuedOrganization?.name ?? null;
+                const displayOrganizationType = u.org_type ?? queuedOrganization?.type ?? null;
                 const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || '—';
                 const canEnterOrganization = (
                   u.status === 'APPROVED'
@@ -264,10 +390,10 @@ const UsersTab: React.FC = () => {
                         </button>
                       ) : (
                         <>
-                          {u.org_name ?? '—'}
-                          {u.org_type && (
+                          {displayOrganizationName ?? '—'}
+                          {displayOrganizationType && (
                             <span className="ml-1 text-xs opacity-60 capitalize">
-                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                              ({displayOrganizationType.replace(/_/g, ' ').toLowerCase()})
                             </span>
                           )}
                         </>
@@ -282,16 +408,16 @@ const UsersTab: React.FC = () => {
                       {u.status === 'PENDING' && (
                         <div className="flex gap-2 justify-end">
                           <button
-                            onClick={() => handleApprove(u.id)}
-                            disabled={isActioning}
+                            onClick={() => handleReview(u.id)}
+                            disabled={isActioning || isReviewing}
                             className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isActioning ? (
+                            {isReviewing ? (
                               <Loader2 size={12} className="animate-spin" />
                             ) : (
-                              <CheckCircle2 size={12} />
+                              <ShieldCheck size={12} />
                             )}
-                            Approve
+                            Review
                           </button>
                           <button
                             onClick={() => handleReject(u.id)}
@@ -310,12 +436,12 @@ const UsersTab: React.FC = () => {
                       {u.status === 'REJECTED' && (
                         <div className="flex justify-end">
                           <button
-                            onClick={() => handleApprove(u.id)}
-                            disabled={isActioning}
+                            onClick={() => handleReview(u.id)}
+                            disabled={isActioning || isReviewing}
                             className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isActioning ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                            Re-approve
+                            {isReviewing ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                            Review
                           </button>
                         </div>
                       )}
@@ -327,6 +453,7 @@ const UsersTab: React.FC = () => {
           </table>
         </div>
       )}
+      {userError && <p role="alert" className="text-sm text-red-400">{userError}</p>}
       {entryError && <p role="alert" className="text-sm text-red-400">{entryError}</p>}
       {entryOrganization && (
         <MarketSupportEntryDialog
@@ -339,6 +466,48 @@ const UsersTab: React.FC = () => {
           onClose={closeEntry}
         />
       )}
+      <ConfirmModal
+        isOpen={Boolean(reviewCase)}
+        onClose={closeReview}
+        onConfirm={() => { void handleReviewAction(); }}
+        title={`Review ${reviewCase?.email ?? 'account'}`}
+        message="Complete each independent onboarding check in order."
+        confirmText={reviewConfirmText}
+        cancelText="Close"
+        variant={reviewAction ? 'info' : 'success'}
+        isLoading={reviewActioning}
+        confirmDisabled={!reviewAction || (reviewAction.kind === 'resend' && verificationSent)}
+        maxWidth="lg"
+        compact
+      >
+        {reviewCase && (
+          <div className="mt-5 divide-y divide-verdaxis-border rounded-lg border border-verdaxis-border">
+            {[
+              ['Email', reviewCase.email_verified ? 'Verified' : 'Awaiting verification', reviewCase.email_verified],
+              ['Account', reviewCase.account_status.toLowerCase(), reviewCase.account_status === 'APPROVED'],
+              ['Organization', reviewOrganization ? `${reviewOrganization.name} · ${reviewOrganization.verification_status.toLowerCase()}` : 'Not requested', reviewOrganization?.verification_status === 'APPROVED'],
+              ['Membership', reviewCase.current_organization ? 'Approved' : pendingJoin ? pendingJoin.status.toLowerCase() : 'Not requested', Boolean(reviewCase.current_organization)],
+            ].map(([label, value, complete]) => (
+              <div key={String(label)} className="flex items-center justify-between gap-4 px-3 py-2.5 text-sm">
+                <span className="text-verdaxis-text-muted">{String(label)}</span>
+                <span className={`font-semibold capitalize ${complete ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {reviewNotice && (
+          <p role="status" className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+            {reviewNotice}
+          </p>
+        )}
+        {reviewError && (
+          <p role="alert" className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            {reviewError}
+          </p>
+        )}
+      </ConfirmModal>
       <ConfirmModal
         isOpen={Boolean(replacementInput)}
         onClose={() => setReplacementInput(null)}
