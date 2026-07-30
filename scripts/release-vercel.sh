@@ -12,6 +12,7 @@ PROJECT_NAME="${VERCEL_PROJECT_NAME:-verdaxis-frontend}"
 STAGE="initialization"
 OUTCOME="failed"
 PRIOR_ID=""
+PRIOR_URL=""
 PRIOR_ASSET=""
 CANDIDATE_ID=""
 CANDIDATE_URL=""
@@ -97,32 +98,14 @@ should_auto_rollback() {
   [[ "$1" == "10,10,10" && "$2" == "true" && "$3" == "true" && "$4" == "true" ]]
 }
 
-alias_transition_state() {
-  local expected_id="$1" expected_type="$2" current_id="$3"
-  local target_id="$4" request_type="$5" job_status="$6" observed="$7"
-
-  if [[ "$target_id" == "$expected_id" && "$request_type" == "$expected_type" ]]; then
-    case "$job_status" in
-      succeeded)
-        [[ "$current_id" == "$expected_id" ]] && echo success || echo failed
-        ;;
-      pending|in-progress)
-        echo waiting
-        ;;
-      *)
-        echo failed
-        ;;
-    esac
-    return
-  fi
-  if [[ "$job_status" == "pending" || "$job_status" == "in-progress" ]]; then
-    echo conflict
-  elif [[ "$current_id" == "$expected_id" ]]; then
+deployment_transition_state() {
+  local expected_id="$1" prior_id="$2" current_id="$3"
+  if [[ "$current_id" == "$expected_id" ]]; then
     echo success
-  elif [[ "$observed" == "true" ]]; then
-    echo failed
+  elif [[ "$current_id" == "$prior_id" ]]; then
+    echo waiting
   else
-    echo awaiting
+    echo conflict
   fi
 }
 
@@ -132,38 +115,43 @@ self_test() {
   ! should_auto_rollback "10,10,10" false true true
   ! should_auto_rollback "10,10,10" true false true
   ! should_auto_rollback "10,10,10" true true false
-  [[ "$(alias_transition_state candidate promote candidate candidate promote succeeded false)" == "success" ]]
-  [[ "$(alias_transition_state candidate promote prior candidate promote pending false)" == "waiting" ]]
-  [[ "$(alias_transition_state candidate promote prior other promote pending false)" == "conflict" ]]
-  [[ "$(alias_transition_state candidate promote candidate other promote pending true)" == "conflict" ]]
-  [[ "$(alias_transition_state candidate promote prior '' '' '' false)" == "awaiting" ]]
-  [[ "$(alias_transition_state candidate promote prior '' '' '' true)" == "failed" ]]
+  [[ "$(deployment_transition_state candidate prior candidate)" == "success" ]]
+  [[ "$(deployment_transition_state candidate prior prior)" == "waiting" ]]
+  [[ "$(deployment_transition_state candidate prior other)" == "conflict" ]]
+
+  AUTH_DIR="/tmp/vercel-auth-test"
+  VERCEL_ORG_ID="team-test"
+  MOCK_VERCEL_CODE=7
+  MOCK_CURRENT_ID="candidate"
+  vercel() {
+    MOCK_VERCEL_ARGS="$*"
+    return "$MOCK_VERCEL_CODE"
+  }
+  deployment_id_for() {
+    printf '%s\n' "$MOCK_CURRENT_ID"
+  }
+
+  run_alias_operation promote "https://candidate.example" candidate prior >/dev/null
+  [[ "$MOCK_VERCEL_ARGS" == *"--scope team-test promote https://candidate.example --yes --timeout=3m" ]]
+
+  MOCK_VERCEL_CODE=0
+  MOCK_CURRENT_ID="prior"
+  run_alias_operation rollback "https://prior.example" prior candidate >/dev/null
+  [[ "$MOCK_VERCEL_ARGS" == *"--scope team-test rollback https://prior.example --yes --timeout=3m" ]]
+
+  MOCK_CURRENT_ID="other"
+  ! (run_alias_operation promote "https://candidate.example" candidate prior >/dev/null 2>&1)
+  MOCK_CURRENT_ID="prior"
+  ! (wait_for_current_deployment candidate prior promotion 1 0 >/dev/null 2>&1)
   echo "Release rollback policy checks passed."
 }
-
-MODE="release"
-case "${1:-}" in
-  "")
-    ;;
-  --candidate-only)
-    MODE="candidate-only"
-    ;;
-  --self-test)
-    self_test
-    exit 0
-    ;;
-  *)
-    usage
-    exit 2
-    ;;
-esac
 
 require_command() {
   command -v "$1" >/dev/null || die "missing required command: $1"
 }
 
 vc() {
-  vercel --global-config "$AUTH_DIR" --no-color "$@"
+  vercel --global-config "$AUTH_DIR" --no-color --scope "$VERCEL_ORG_ID" "$@"
 }
 
 entry_asset() {
@@ -178,89 +166,36 @@ deployment_id_for() {
     jq -er '.id'
 }
 
-alias_request_json() {
-  VERCEL_API_TOKEN="$VERCEL_TOKEN" \
-  VERCEL_API_PROJECT_ID="$VERCEL_PROJECT_ID" \
-  VERCEL_API_ORG_ID="$VERCEL_ORG_ID" \
-  python3 - <<'PY'
-import json
-import os
-import urllib.parse
-import urllib.request
-
-project_id = os.environ["VERCEL_API_PROJECT_ID"]
-team_id = os.environ["VERCEL_API_ORG_ID"]
-url = (
-    f"https://api.vercel.com/v9/projects/{urllib.parse.quote(project_id, safe='')}"
-    f"?teamId={urllib.parse.quote(team_id, safe='')}"
-)
-request = urllib.request.Request(
-    url,
-    headers={
-        "Accept": "application/json",
-        "Authorization": f"Bearer {os.environ['VERCEL_API_TOKEN']}",
-    },
-)
-with urllib.request.urlopen(request, timeout=20) as response:
-    payload = json.load(response)
-if payload.get("id") != project_id:
-    raise SystemExit("Vercel returned the wrong project")
-print(json.dumps(payload.get("lastAliasRequest") or {}, separators=(",", ":")))
-PY
-}
-
-assert_no_active_alias_job() {
-  local request status
-  request="$(alias_request_json)" || die "cannot verify Vercel alias-job state"
-  status="$(jq -r '.jobStatus // ""' <<<"$request")"
-  [[ "$status" != "pending" && "$status" != "in-progress" ]] ||
-    die "another Vercel promotion or rollback is active"
-}
-
-wait_for_alias_transition() {
-  local expected_id="$1" expected_type="$2"
-  local request current target request_type status state
-  local observed=false
-  local awaiting_count=0
-
-  while true; do
-    if ! request="$(alias_request_json)"; then
-      sleep 3
-      continue
-    fi
+wait_for_current_deployment() {
+  local expected_id="$1" prior_id="$2" operation="$3"
+  local max_attempts="${4:-60}" delay_seconds="${5:-5}"
+  local attempt current state
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
     if ! current="$(deployment_id_for "$APP_URL")"; then
-      sleep 3
+      sleep "$delay_seconds"
       continue
     fi
-    target="$(jq -r '.toDeploymentId // ""' <<<"$request")"
-    request_type="$(jq -r '.type // ""' <<<"$request")"
-    status="$(jq -r '.jobStatus // ""' <<<"$request")"
-    state="$(alias_transition_state \
-      "$expected_id" "$expected_type" "$current" \
-      "$target" "$request_type" "$status" "$observed")"
-
+    state="$(deployment_transition_state "$expected_id" "$prior_id" "$current")"
     case "$state" in
       success)
         return
         ;;
-      waiting)
-        observed=true
-        awaiting_count=0
-        ;;
-      awaiting)
-        awaiting_count=$((awaiting_count + 1))
-        [[ "$awaiting_count" -le 150 ]] ||
-          die "Vercel did not expose the requested $expected_type job"
-        ;;
       conflict)
-        die "a different Vercel alias job superseded the requested $expected_type"
-        ;;
-      *)
-        die "Vercel $expected_type did not complete at deployment $expected_id"
+        die "production moved to unexpected deployment $current during $operation"
         ;;
     esac
-    sleep 2
+    sleep "$delay_seconds"
   done
+  die "Vercel $operation did not make deployment $expected_id current"
+}
+
+run_alias_operation() {
+  local operation="$1" target_url="$2" expected_id="$3" prior_id="$4"
+  local code=0
+  vc "$operation" "$target_url" --yes --timeout=3m || code=$?
+  [[ $code -eq 0 ]] ||
+    echo "Vercel $operation command returned $code; reconciling the public deployment..."
+  wait_for_current_deployment "$expected_id" "$prior_id" "$operation"
 }
 
 api_is_ready() {
@@ -289,7 +224,8 @@ run_smoke() {
 
 verify_public_assets() {
   local expected_asset="$1"
-  local domain actual attempt matched
+  local expected_id="$2"
+  local domain actual actual_id attempt matched
   for domain in \
     "https://verdaxis.exchange" \
     "https://www.verdaxis.exchange" \
@@ -297,17 +233,42 @@ verify_public_assets() {
   do
     matched=false
     for attempt in 1 2 3 4 5 6; do
-      actual="$(entry_asset "$domain")"
-      if [[ "$(basename "$actual")" == "$(basename "$expected_asset")" ]]; then
+      if ! actual="$(entry_asset "$domain")"; then
+        sleep 5
+        continue
+      fi
+      if ! actual_id="$(deployment_id_for "$domain")"; then
+        sleep 5
+        continue
+      fi
+      if [[ "$actual_id" == "$expected_id" &&
+            "$(basename "$actual")" == "$(basename "$expected_asset")" ]]; then
         matched=true
         break
       fi
       sleep 5
     done
     [[ "$matched" == "true" ]] ||
-      die "$domain serves $(basename "$actual"), expected $(basename "$expected_asset")"
+      die "$domain serves deployment $actual_id / $(basename "$actual"), expected $expected_id / $(basename "$expected_asset")"
   done
 }
+
+MODE="release"
+case "${1:-}" in
+  "")
+    ;;
+  --candidate-only)
+    MODE="candidate-only"
+    ;;
+  --self-test)
+    self_test
+    exit 0
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
 
 STAGE="preflight"
 for command in git jq curl flock node npm python3 vercel; do
@@ -384,6 +345,8 @@ CANDIDATE_ASSET="$(
 STAGE="candidate deployment"
 PRIOR_JSON="$(vc inspect app.verdaxis.exchange --format json)"
 PRIOR_ID="$(jq -er '.id' <<<"$PRIOR_JSON")"
+PRIOR_URL="$(jq -er '.url' <<<"$PRIOR_JSON")"
+[[ "$PRIOR_URL" == https://* ]] || PRIOR_URL="https://$PRIOR_URL"
 PRIOR_ASSET="$(entry_asset "$APP_URL")"
 
 DEPLOY_JSON="$(vc deploy --prebuilt --prod --skip-domain --yes --format json)"
@@ -400,6 +363,8 @@ INSPECT_JSON="$(vc inspect "$CANDIDATE_ID" --wait --timeout 3m --format json)"
   die "candidate is not a production-target artifact"
 
 vc alias set "$CANDIDATE_URL" "canary.verdaxis.exchange"
+[[ "$(deployment_id_for "$CANARY_URL")" == "$CANDIDATE_ID" ]] ||
+  die "canary alias does not resolve to candidate deployment $CANDIDATE_ID"
 STAGE="candidate smoke"
 run_smoke "$CANARY_URL" "canary"
 
@@ -412,14 +377,10 @@ if [[ "$MODE" == "candidate-only" ]]; then
 fi
 
 STAGE="promotion"
-assert_no_active_alias_job
 [[ "$(deployment_id_for "$APP_URL")" == "$PRIOR_ID" ]] ||
   die "production changed after the prior deployment was captured"
-set +e
-vc promote "$CANDIDATE_ID" --yes --timeout 0
-set -e
-wait_for_alias_transition "$CANDIDATE_ID" promote
-verify_public_assets "$CANDIDATE_ASSET"
+run_alias_operation promote "$CANDIDATE_URL" "$CANDIDATE_ID" "$PRIOR_ID"
+verify_public_assets "$CANDIDATE_ASSET" "$CANDIDATE_ID"
 
 STAGE="post-promotion smoke"
 POST_CODES=()
@@ -450,18 +411,14 @@ if [[ "${POST_CODES[-1]}" -ne 0 ]]; then
 
   if should_auto_rollback "$code_csv" "$api_ready" "$current_matches" "$same_failure"; then
     STAGE="automatic rollback"
-    assert_no_active_alias_job
     [[ "$(deployment_id_for "$APP_URL")" == "$CANDIDATE_ID" ]] ||
       die "candidate stopped being current before rollback"
     api_is_ready || die "production API stopped being healthy before rollback"
-    set +e
-    vc rollback "$PRIOR_ID" --yes --timeout 0
-    set -e
-    wait_for_alias_transition "$PRIOR_ID" rollback
+    run_alias_operation rollback "$PRIOR_URL" "$PRIOR_ID" "$CANDIDATE_ID"
     RESTORED_ID="$PRIOR_ID"
     RESTORED_ASSET="$PRIOR_ASSET"
     OUTCOME="rollback_verification_failed"
-    verify_public_assets "$PRIOR_ASSET"
+    verify_public_assets "$PRIOR_ASSET" "$PRIOR_ID"
     run_smoke "$APP_URL" "rollback" "$PRIOR_ASSET"
     OUTCOME="rolled_back"
     write_report

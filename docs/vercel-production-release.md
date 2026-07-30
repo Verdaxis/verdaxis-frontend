@@ -27,8 +27,8 @@ Git deployments so a branch push cannot bypass these gates.
 8. Point `canary.verdaxis.exchange` at that exact candidate.
 9. Run the rendered release smoke against the canary.
 10. Reconfirm the captured prior deployment is still current, request promotion
-    of the same candidate without rebuilding, and follow Vercel's project-level
-    alias job to a terminal state.
+    of the same candidate without rebuilding, and reconcile against the actual
+    deployment served by `app.verdaxis.exchange`.
 11. Verify all production domains serve the candidate asset and run the
     rendered smoke against `app.verdaxis.exchange`.
 
