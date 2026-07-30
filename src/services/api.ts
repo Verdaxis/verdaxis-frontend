@@ -898,10 +898,36 @@ export const api = {
         users: async (query?: string) => {
             return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
         },
+        reviewQueue: async (limit: number = 100) => {
+            return fetchApi(`/auth/admin/review-queue?limit=${limit}`, { headers: getHeaders() });
+        },
+        reviewCase: async (userId: string) => {
+            return fetchApi(`/auth/admin/review-queue/${userId}`, { headers: getHeaders() });
+        },
+        resendVerification: async (email: string) => {
+            return fetchApi('/auth/resend-verification-email', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ email }),
+            });
+        },
         approveUser: async (userId: string) => {
             return fetchApi(`/auth/approve/${userId}`, {
                 method: 'PUT',
                 headers: getHeaders(),
+            });
+        },
+        approveOrganization: async (organizationId: string) => {
+            return fetchApi(`/auth/organization/${organizationId}/approve`, {
+                method: 'PUT',
+                headers: getHeaders(),
+            });
+        },
+        approveOrganizationJoin: async (requestId: string) => {
+            return fetchApi(`/auth/organization-joins/${requestId}/approve`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify({ review_note: 'Approved through admin onboarding review.' }),
             });
         },
         rejectUser: async (userId: string) => {

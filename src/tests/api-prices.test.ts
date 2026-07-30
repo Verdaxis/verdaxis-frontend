@@ -104,15 +104,26 @@ describe('price discovery API client', () => {
         vi.stubGlobal('fetch', fetchMock);
 
         await api.admin.users('limit=100&status=APPROVED');
+        await api.admin.reviewQueue();
+        await api.admin.reviewCase('user-123');
+        await api.admin.resendVerification('candidate@example.test');
         await api.admin.approveUser('user-123');
+        await api.admin.approveOrganization('org-123');
+        await api.admin.approveOrganizationJoin('join-123');
         await api.admin.rejectUser('user-456');
 
-        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock).toHaveBeenCalledTimes(8);
         expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/admin/analytics/users?limit=100&status=APPROVED');
-        expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/auth/approve/user-123');
-        expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: 'PUT' });
-        expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/admin/analytics/users/user-456/reject');
-        expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ method: 'PUT' });
+        expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/auth/admin/review-queue?limit=100');
+        expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/auth/admin/review-queue/user-123');
+        expect(String(fetchMock.mock.calls[3]?.[0])).toContain('/auth/resend-verification-email');
+        expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ method: 'POST' });
+        expect(String(fetchMock.mock.calls[4]?.[0])).toContain('/auth/approve/user-123');
+        expect(fetchMock.mock.calls[4]?.[1]).toMatchObject({ method: 'PUT' });
+        expect(String(fetchMock.mock.calls[5]?.[0])).toContain('/auth/organization/org-123/approve');
+        expect(String(fetchMock.mock.calls[6]?.[0])).toContain('/auth/organization-joins/join-123/approve');
+        expect(String(fetchMock.mock.calls[7]?.[0])).toContain('/admin/analytics/users/user-456/reject');
+        expect(fetchMock.mock.calls[7]?.[1]).toMatchObject({ method: 'PUT' });
     });
 
 });

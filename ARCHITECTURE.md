@@ -67,6 +67,7 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
+    admin/AdminDashboard.tsx      # Product analytics, user review, and organization membership onboarding
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
     admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
     market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation
@@ -261,6 +262,10 @@ must resolve to canonical month/quarter codes before requests are sent.
 **Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
 `AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
 while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
+Email links open `/verify-email`, which exchanges the one-time token through a `POST`
+mutation. Admin user review then presents email verification, account admission,
+organization verification, and membership as separate ordered decisions; none is
+silently collapsed into another.
 
 ## Entry Points
 
