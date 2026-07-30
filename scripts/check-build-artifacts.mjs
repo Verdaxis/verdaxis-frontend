@@ -6,6 +6,9 @@ import path from 'node:path';
 const DIST_DIR = path.resolve(process.cwd(), 'dist');
 const ASSETS_DIR = path.join(DIST_DIR, 'assets');
 const INDEX_HTML = path.join(DIST_DIR, 'index.html');
+const PRODUCTION_API_URL = 'https://api.verdaxis.exchange/api';
+const STAGING_API_URL = 'https://api-staging.verdaxis.exchange/api';
+const LOCAL_API_URL = 'http://localhost:8000/api';
 
 const EXPECTED_VENDOR_CHUNKS = [
   'vendor-maplibre',
@@ -70,8 +73,31 @@ function assertInitialHtmlDoesNotEagerLoadHeavyChunks() {
   }
 }
 
+function assertApiTarget(files) {
+  const source = files
+    .map((file) => readFileSync(path.join(ASSETS_DIR, file), 'utf8'))
+    .join('\n');
+
+  assert(!source.includes(LOCAL_API_URL), `Release bundle contains forbidden API target: ${LOCAL_API_URL}`);
+
+  const expectedApiUrl = process.env.VERCEL_ENV === 'production'
+    ? PRODUCTION_API_URL
+    : process.env.VERDAXIS_EXPECTED_API_URL?.trim();
+
+  if (expectedApiUrl) {
+    assert(source.includes(expectedApiUrl), `Release bundle is missing expected API target: ${expectedApiUrl}`);
+    return;
+  }
+
+  assert(
+    source.includes(PRODUCTION_API_URL) || source.includes(STAGING_API_URL),
+    'Release bundle is missing a deployable Verdaxis API target'
+  );
+}
+
 const files = assetFiles();
 assertChunkSplit(files);
 assertInitialHtmlDoesNotEagerLoadHeavyChunks();
+assertApiTarget(files);
 
 console.log('Build artifact checks passed.');

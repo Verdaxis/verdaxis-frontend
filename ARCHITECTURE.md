@@ -4,6 +4,15 @@
 
 React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
 
+## Runtime
+
+The production static frontend is deployed on Vercel for `verdaxis.exchange`,
+`www.verdaxis.exchange`, and `app.verdaxis.exchange`. Staging remains a
+Caddy-served VPS build at `staging.verdaxis.exchange`. Vercel production
+builds run `scripts/check-build-artifacts.mjs` and fail before deployment if
+the compiled bundle does not target the production API or contains a localhost
+API fallback.
+
 ## File Map
 
 ```

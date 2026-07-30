@@ -68,7 +68,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
 
 **Server:** `verdaxis-prod@144.126.151.136`
-**Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
+**Production site:** `app.verdaxis.exchange`, `verdaxis.exchange`, and `www.verdaxis.exchange` (Vercel project `verdaxis-frontend`)
 **Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
 **API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
 **Staging API:** `api-staging.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8001`)
@@ -82,13 +82,21 @@ npm run build:staging
 
 ### Deploy command
 
-Build a verified artifact, then rsync `dist/` into the Caddy-served folder for the target environment.
+Production is built and deployed through the linked Vercel project. The
+project's production `VITE_API_URL` must be
+`https://api.verdaxis.exchange/api`; `vercel.json` runs the artifact check as
+part of the build and rejects localhost or missing production API targets.
 
 ```bash
-bash ./scripts/deploy.sh prod
-rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/prod/fe/dist/
+vercel pull --yes --environment=production
+vercel build --prod
+vercel deploy --prebuilt --prod
 npm run smoke:live -- prod
+```
 
+Staging remains a verified Caddy-served VPS artifact:
+
+```bash
 bash ./scripts/deploy.sh staging
 rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/staging/fe/dist/
 npm run smoke:live -- staging
@@ -119,9 +127,13 @@ npm run dev
 Production API URL is set in `.env.production` and staging API URL is set in `.env.staging`. Vite loads the correct file from `vite build --mode production` or `vite build --mode staging`, and `scripts/deploy.sh` also passes the target API URL explicitly.
 
 - **`.env`** — local dev only (`VITE_API_URL=/api`), gitignored
-- **`.env.production`** — production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
+- **`.env.production`** — local production builds (`VITE_API_URL=https://api.verdaxis.exchange/api`), committed
 - **`.env.staging`** — staging builds (`VITE_API_URL=https://api-staging.verdaxis.exchange/api`), committed
 - **`.env.example`** — reference template, committed
+
+Vercel production also defines `VITE_API_URL`; an empty remote value overrides
+the committed mode file, so every Vercel deployment must pass the compiled
+artifact check before aliases move.
 
 Behavioral analytics is optional. Set both `VITE_ANALYTICS_HOST` and
 `VITE_ANALYTICS_WEBSITE_ID` to load the Umami tracker; leaving either blank
@@ -129,7 +141,9 @@ keeps analytics fully disabled. These are public collector coordinates only.
 Umami credentials must remain backend-only and must never use the `VITE_`
 prefix. See `docs/behavioral-analytics.md` for the privacy and event contract.
 
-**Never rely on the server's `.env` file for production/staging builds.** Use the explicit build mode or `scripts/deploy.sh`; otherwise the wrong API can be baked into the bundle.
+**Never rely on an unchecked environment file for production/staging builds.**
+Use the target deployment workflow and require the artifact check to pass;
+otherwise the wrong API can be baked into the bundle.
 
 ## Known Gotchas
 
