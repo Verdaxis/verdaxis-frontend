@@ -202,7 +202,8 @@ organization defaults the shell to its matching view once; the admin may still s
 BID and ASK creation use the normal
 order form plus a compact final confirmation, with GTC or dated expiry and no evidence-text
 requirement. Orders remain post-only. Own assisted-order cancellation uses the canonical
-POST route with reason and ETag; unsupported customer mutations remain denied.
+POST route with reason and ETag. Role-appropriate orderbook rows remain inspection
+shortcuts into Listings; hit/lift actions and unsupported customer mutations remain denied.
 
 **Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
 backs Market Watch ticker config, notification toggles, and tutorial completion with

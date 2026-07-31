@@ -71,6 +71,10 @@ if (!window.scrollTo) {
   window.scrollTo = vi.fn();
 }
 
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = vi.fn(() => null);
 }

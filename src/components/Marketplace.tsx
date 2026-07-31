@@ -1175,8 +1175,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         region={resolvedPort || undefined}
                                         deliveryPointId={resolvedDeliveryPointId || undefined}
                                         availability={availability || undefined}
-                                        actionableSide={isMarketSupportActive ? undefined : (role === 'BUYER' ? 'ASK' : 'BID')}
-                                        onLevelClick={isMarketSupportActive ? undefined : handleOrderbookLevelClick}
+                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
+                                        onLevelClick={handleOrderbookLevelClick}
                                     />
                                     <TradeTape
                                         marketProduct={marketProduct}
