@@ -5,8 +5,9 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 
-const { userRole, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
+  marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
@@ -25,6 +26,10 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
     user: { role: userRole.current },
   }),
+}));
+
+vi.mock('../context/MarketSupportContext', () => ({
+  useMarketSupport: () => ({ isActive: marketSupportActive.current }),
 }));
 
 vi.mock('../hooks/useWatchlist', () => ({
@@ -163,6 +168,7 @@ describe('Marketplace green fuels surface', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userRole.current = 'BUYER';
+    marketSupportActive.current = false;
     localStorage.clear();
     listAsksPaged.mockImplementation(async (params?: { market_product?: string }) => {
       if (!params?.market_product || params.market_product === 'BIO_METHANOL') {
@@ -313,6 +319,21 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByText(/one exact product, port, and availability window/i)).toBeTruthy();
     expect(screen.getByText(/delivery-point trade tape history/i)).toBeTruthy();
     expect(await screen.findByText('Trade Tape')).toBeTruthy();
+  });
+
+  it('keeps orderbook inspection available while assisted trade execution stays blocked', async () => {
+    marketSupportActive.current = true;
+    setMarketplaceSlice();
+
+    renderWithProviders(<Marketplace />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /^orderbook$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /open ask .* in listings/i }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-order-id="ask-1"]')?.className).toContain('ring-2');
+    });
+    expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
   });
 
   it('labels trade tape as region-level when the selected port has no resolved delivery point', async () => {
