@@ -212,7 +212,7 @@ describe('Marketplace green fuels surface', () => {
     });
     expect(screen.getByRole('button', { name: /e-Methanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Bio Ethanol/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Synthetic Ethanol/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /e-Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
   });

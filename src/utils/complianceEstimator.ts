@@ -70,7 +70,7 @@ export const GREEN_FUEL_ASSUMPTIONS: FuelAssumption[] = [
     },
     {
         marketProduct: 'SYNTHETIC_ETHANOL',
-        label: 'Synthetic Ethanol',
+        label: 'e-Ethanol',
         energyDensityMjPerKg: 26.8,
         carbonIntensityGco2ePerMj: 5,
         referencePriceUsdPerMt: 740,

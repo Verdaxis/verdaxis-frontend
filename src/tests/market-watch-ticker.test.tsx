@@ -5,6 +5,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { MarketWatchTicker } from '../components/map/MarketWatchTicker';
 import { PORTS } from '../data';
+import type { AggregatedOrderbook } from '../types';
 import { renderWithProviders } from './test-utils';
 
 const priceSummariesMock = vi.fn();
@@ -54,6 +55,29 @@ const makeSummary = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const DEMO_ORDERBOOK: AggregatedOrderbook[] = [
+  {
+    market_product: 'BIO_METHANOL', delivery_point_name: 'Rotterdam', availability_window: '2026-08',
+    region: 'Europe', fuel_type: 'Methanol', side: 'BID', min_price: 900, max_price: 900,
+    total_quantity: 1500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+  },
+  {
+    market_product: 'BIO_METHANOL', delivery_point_name: 'Rotterdam', availability_window: '2026-08',
+    region: 'Europe', fuel_type: 'Methanol', side: 'ASK', min_price: 975, max_price: 975,
+    total_quantity: 1500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+  },
+  {
+    market_product: 'BIO_METHANOL', delivery_point_name: 'Santos', availability_window: '2026-08',
+    region: 'South America', fuel_type: 'Methanol', side: 'BID', min_price: 820, max_price: 820,
+    total_quantity: 1500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+  },
+  {
+    market_product: 'BIO_METHANOL', delivery_point_name: 'Santos', availability_window: '2026-08',
+    region: 'South America', fuel_type: 'Methanol', side: 'ASK', min_price: 895, max_price: 895,
+    total_quantity: 1500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+  },
+];
+
 describe('MarketWatchTicker', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -70,7 +94,7 @@ describe('MarketWatchTicker', () => {
     }));
   };
 
-  it('renders mixed monitored, reference, and no-data rows with row-level source labels', async () => {
+  it('renders mixed trade summaries and marketplace-derived demo rows without blanks', async () => {
     setSingleProductPreferences();
     priceSummariesMock.mockImplementation(({ market_product }) => Promise.resolve({
       summaries: market_product === 'BIO_METHANOL'
@@ -79,17 +103,25 @@ describe('MarketWatchTicker', () => {
       generated_at: new Date().toISOString(),
     }));
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(
+      <MarketWatchTicker
+        isPanelOpen={false}
+        onOpenPanel={vi.fn()}
+        ports={PORTS}
+        aggregatedData={DEMO_ORDERBOOK}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText('$777')).toBeTruthy();
     });
 
-    expect(screen.getByText('$680')).toBeTruthy();
-    expect(screen.getByText('--')).toBeTruthy();
+    expect(screen.getByText('$938')).toBeTruthy();
+    expect(screen.getByText('$858')).toBeTruthy();
     expect(screen.getByText('Mixed')).toBeTruthy();
-    expect(screen.getByText('Reference')).toBeTruthy();
-    expect(screen.getByText('No data')).toBeTruthy();
+    expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Reference')).toBeNull();
+    expect(screen.queryByText('No data')).toBeNull();
     expect(screen.getByText(/MIXED SOURCES/)).toBeTruthy();
     expect(screen.queryByText(/RECENT FEED/)).toBeNull();
     expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -143,7 +175,7 @@ describe('MarketWatchTicker', () => {
       expect(screen.getByText('$777')).toBeTruthy();
     });
 
-    visible.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+    visible.forEach((label) => expect(screen.getAllByText(label).length).toBeGreaterThan(0));
     absent.forEach((label) => expect(screen.queryByText(label)).toBeNull());
     if (sourcePattern) {
       expect(screen.getByText(sourcePattern)).toBeTruthy();
@@ -159,10 +191,17 @@ describe('MarketWatchTicker', () => {
       generated_at: new Date().toISOString(),
     }));
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(
+      <MarketWatchTicker
+        isPanelOpen={false}
+        onOpenPanel={vi.fn()}
+        ports={PORTS}
+        aggregatedData={DEMO_ORDERBOOK}
+      />,
+    );
 
     await waitFor(() => {
-      expect(screen.getAllByText('No data').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
     });
     expect(screen.queryByText('$777')).toBeNull();
   });

@@ -1,3 +1,8 @@
+import type { AggregatedOrderbook, MarketProduct } from '../types';
+import { API_URL } from '../services/config';
+import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
+import { formatMarketProduct } from '../utils/marketProduct';
+
 export interface FuelPrice {
   fuel: string;
   region: string;
@@ -7,119 +12,73 @@ export interface FuelPrice {
   source: string;
   sourceLabel: string;
   priceDate: string;
+  availabilityWindow: string;
 }
 
-interface MarinaPulseFuelPrice {
-  source: string;
-  commodity: string;
-  region: string | null;
-  price_usd: number | string | null;
-  unit: string | null;
-  price_date: string;
-}
-
-interface MarinaPulseFuelPricesResponse {
-  items: MarinaPulseFuelPrice[];
-}
-
-interface BenchmarkConfig {
-  commodity: string;
-  region: string;
-  fuel: string;
-  displayRegion: string;
-}
-
-const MARINA_PULSE_FUEL_PRICES_URL =
-  'https://pulse.marinachain.io/api/fuels/prices?limit=220';
-
-const BENCHMARKS: BenchmarkConfig[] = [
-  { commodity: 'VLSFO', region: 'Global', fuel: 'VLSFO', displayRegion: 'Global bunker' },
-  { commodity: 'MGO', region: 'Global', fuel: 'Marine Gas Oil', displayRegion: 'Global bunker' },
-  { commodity: 'IFO380', region: 'Global', fuel: 'IFO380', displayRegion: 'Global bunker' },
-  { commodity: 'Brent Crude Futures', region: 'Global', fuel: 'Brent', displayRegion: 'Global futures' },
-  { commodity: 'WTI Crude Futures', region: 'US', fuel: 'WTI', displayRegion: 'US futures' },
-  { commodity: 'Heating Oil Futures (ULSD)', region: 'US', fuel: 'ULSD', displayRegion: 'US futures' },
-  { commodity: 'Corn Futures (CBOT)', region: 'US', fuel: 'Corn', displayRegion: 'Biofuel feedstock' },
-  { commodity: 'Soybean Futures (CBOT)', region: 'US', fuel: 'Soybeans', displayRegion: 'Biofuel feedstock' },
+const DEMO_PRODUCTS: MarketProduct[] = [
+  'BIO_METHANOL',
+  'E_METHANOL',
+  'BIO_ETHANOL',
+  'SYNTHETIC_ETHANOL',
 ];
+const DEMO_PORTS = ['Singapore', 'Shanghai'];
 
-const SOURCE_LABELS: Record<string, string> = {
-  ship_bunker: 'Ship & Bunker',
-  yfinance: 'Yahoo Finance',
-  eia: 'EIA',
-  worldbank: 'World Bank',
+const previewPrices: Record<string, number> = {
+  'Singapore|BIO_METHANOL': 985,
+  'Singapore|E_METHANOL': 1188,
+  'Singapore|BIO_ETHANOL': 863,
+  'Singapore|SYNTHETIC_ETHANOL': 1278,
+  'Shanghai|BIO_METHANOL': 935,
+  'Shanghai|E_METHANOL': 1095,
+  'Shanghai|BIO_ETHANOL': 843,
+  'Shanghai|SYNTHETIC_ETHANOL': 1208,
 };
 
-const toNumber = (value: number | string | null): number | null => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
+export const DEMO_FUEL_PRICES: FuelPrice[] = DEMO_PORTS.flatMap(region => (
+  DEMO_PRODUCTS.map(product => ({
+    fuel: formatMarketProduct(product),
+    region,
+    price: previewPrices[`${region}|${product}`],
+    unit: 'USD/mt',
+    change: null,
+    source: 'marketplace-demo',
+    sourceLabel: 'Demo',
+    priceDate: '',
+    availabilityWindow: 'Preview',
+  }))
+));
 
-const normalizeDate = (value: string): string => {
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? value : new Date(timestamp).toISOString().slice(0, 10);
-};
+const buildTickerItems = (rows: AggregatedOrderbook[]): FuelPrice[] => {
+  const quotes = new Map(
+    buildDemoMarketQuotes(rows).map(quote => [
+      `${quote.port.toLowerCase()}|${quote.product}`,
+      quote,
+    ]),
+  );
 
-const calculateChange = (
-  latest: MarinaPulseFuelPrice,
-  previous?: MarinaPulseFuelPrice
-): number | null => {
-  const latestPrice = toNumber(latest.price_usd);
-  const previousPrice = toNumber(previous?.price_usd ?? null);
-
-  if (latestPrice === null || previousPrice === null || previousPrice === 0) {
-    return null;
-  }
-
-  return ((latestPrice - previousPrice) / previousPrice) * 100;
-};
-
-const buildTickerItems = (items: MarinaPulseFuelPrice[]): FuelPrice[] => {
-  return BENCHMARKS.flatMap((benchmark) => {
-    const rows = items
-      .filter((item) => (
-        item.commodity === benchmark.commodity
-        && (item.region ?? '') === benchmark.region
-        && toNumber(item.price_usd) !== null
-      ))
-      .sort((a, b) => normalizeDate(b.price_date).localeCompare(normalizeDate(a.price_date)));
-
-    const latest = rows[0];
-    if (!latest) {
-      return [];
-    }
-
-    const latestDate = normalizeDate(latest.price_date);
-    const previous = rows.find((row) => normalizeDate(row.price_date) < latestDate);
-    const price = toNumber(latest.price_usd);
-
-    if (price === null) {
-      return [];
-    }
-
-    return [{
-      fuel: benchmark.fuel,
-      region: benchmark.displayRegion,
-      price,
-      unit: latest.unit ?? '',
-      change: calculateChange(latest, previous),
-      source: latest.source,
-      sourceLabel: SOURCE_LABELS[latest.source] ?? latest.source,
-      priceDate: latestDate,
-    }];
+  return DEMO_FUEL_PRICES.map((fallback) => {
+    const product = DEMO_PRODUCTS.find(value => formatMarketProduct(value) === fallback.fuel);
+    const quote = product ? quotes.get(`${fallback.region.toLowerCase()}|${product}`) : undefined;
+    if (!quote) return fallback;
+    return {
+      ...fallback,
+      price: quote.price,
+      priceDate: quote.observedAt?.slice(0, 10) ?? '',
+      availabilityWindow: quote.availabilityWindow,
+    };
   });
 };
 
 export const fetchFuelPrices = async (signal?: AbortSignal): Promise<FuelPrice[]> => {
-  const response = await fetch(MARINA_PULSE_FUEL_PRICES_URL, {
+  const response = await fetch(`${API_URL}/orderbook/aggregated`, {
     headers: { Accept: 'application/json' },
     signal,
   });
 
   if (!response.ok) {
-    throw new Error(`MarinaPulse prices request failed: ${response.status}`);
+    throw new Error(`Marketplace prices request failed: ${response.status}`);
   }
 
-  const payload = await response.json() as MarinaPulseFuelPricesResponse;
-  return buildTickerItems(payload.items ?? []);
+  const payload = await response.json() as AggregatedOrderbook[];
+  return buildTickerItems(Array.isArray(payload) ? payload : []);
 };

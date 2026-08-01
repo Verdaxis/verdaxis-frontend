@@ -165,7 +165,7 @@ Concrete tasks:
    - Bio Methanol
    - e-Methanol
    - Bio Ethanol
-   - Synthetic Ethanol
+   - e-Ethanol
 3. Confirm executable and monitoring surfaces use approved trading ports,
    resolved to active delivery points where available:
    - Dalian

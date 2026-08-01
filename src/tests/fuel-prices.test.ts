@@ -6,75 +6,81 @@ describe('fetchFuelPrices', () => {
     vi.unstubAllGlobals();
   });
 
-  it('maps MarinaPulse rows into ticker benchmarks with daily movement', async () => {
+  it('uses the nearest demo marketplace window without mixing products or ports', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        items: [
-          {
-            source: 'ship_bunker',
-            commodity: 'VLSFO',
-            region: 'Global',
-            price_usd: 896.5,
-            unit: 'USD/mt',
-            price_date: '2026-04-24',
-          },
-          {
-            source: 'ship_bunker',
-            commodity: 'VLSFO',
-            region: 'Global',
-            price_usd: 890,
-            unit: 'USD/mt',
-            price_date: '2026-04-23',
-          },
-          {
-            source: 'yfinance',
-            commodity: 'Corn Futures (CBOT)',
-            region: 'US',
-            price_usd: 464,
-            unit: 'USc/bu',
-            price_date: '2026-04-24',
-          },
-          {
-            source: 'yfinance',
-            commodity: 'Corn Futures (CBOT)',
-            region: 'US',
-            price_usd: 460,
-            unit: 'USc/bu',
-            price_date: '2026-04-23',
-          },
-        ],
-      }),
+      json: async () => [
+        {
+          market_product: 'E_METHANOL',
+          delivery_point_name: 'Singapore',
+          availability_window: '2026-08',
+          side: 'BID',
+          min_price: '1090',
+          max_price: '1170',
+          source_kind: 'DEMO_SEED',
+          demo_status: 'DEMO_ONLY',
+          observed_at: '2026-08-01T00:00:00Z',
+        },
+        {
+          market_product: 'E_METHANOL',
+          delivery_point_name: 'Singapore',
+          availability_window: '2026-08',
+          side: 'ASK',
+          min_price: '1205',
+          max_price: '1285',
+          source_kind: 'DEMO_SEED',
+          demo_status: 'DEMO_ONLY',
+          observed_at: '2026-08-01T00:00:00Z',
+        },
+        {
+          market_product: 'E_METHANOL',
+          delivery_point_name: 'Singapore',
+          availability_window: '2026-09',
+          side: 'BID',
+          min_price: '2000',
+          max_price: '2000',
+          source_kind: 'DEMO_SEED',
+          demo_status: 'DEMO_ONLY',
+        },
+        {
+          market_product: 'BIO_METHANOL',
+          delivery_point_name: 'Shanghai',
+          availability_window: '2026-08',
+          side: 'ASK',
+          min_price: '945',
+          max_price: '985',
+          source_kind: 'DEMO_SEED',
+          demo_status: 'DEMO_ONLY',
+        },
+      ],
     }));
 
     const prices = await fetchFuelPrices();
+    const singaporeEMethanol = prices.find(price => (
+      price.fuel === 'e-Methanol' && price.region === 'Singapore'
+    ));
 
-    expect(prices).toEqual([
-      expect.objectContaining({
-        fuel: 'VLSFO',
-        region: 'Global bunker',
-        price: 896.5,
-        unit: 'USD/mt',
-        sourceLabel: 'Ship & Bunker',
-      }),
-      expect.objectContaining({
-        fuel: 'Corn',
-        region: 'Biofuel feedstock',
-        price: 464,
-        unit: 'USc/bu',
-        sourceLabel: 'Yahoo Finance',
-      }),
-    ]);
-    expect(prices[0].change).toBeCloseTo(0.73, 2);
-    expect(prices[1].change).toBeCloseTo(0.87, 2);
+    expect(prices).toHaveLength(8);
+    expect(new Set(prices.map(price => price.fuel))).toEqual(new Set([
+      'Bio Methanol',
+      'e-Methanol',
+      'Bio Ethanol',
+      'e-Ethanol',
+    ]));
+    expect(singaporeEMethanol).toEqual(expect.objectContaining({
+      price: 1187.5,
+      unit: 'USD/mt',
+      sourceLabel: 'Demo',
+      availabilityWindow: '2026-08',
+    }));
   });
 
-  it('throws on MarinaPulse API errors', async () => {
+  it('throws on marketplace API errors so the ticker can retain its built-in demo values', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
     }));
 
-    await expect(fetchFuelPrices()).rejects.toThrow('MarinaPulse prices request failed: 502');
+    await expect(fetchFuelPrices()).rejects.toThrow('Marketplace prices request failed: 502');
   });
 });

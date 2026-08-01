@@ -153,14 +153,14 @@ describe('BuyerMap market data', () => {
         expect(result.fuelRows.map((row) => row.label).sort()).toEqual([
             'Bio Ethanol',
             'Bio Methanol',
-            'Synthetic Ethanol',
+            'e-Ethanol',
             'e-Methanol',
         ]);
         expect(result.fuelRows.map((row) => row.label)).not.toContain('Methanol');
         expect(result.fuelRows.map((row) => row.label)).not.toContain('Ethanol');
 
         const bioMethanol = result.fuelRows.find((row) => row.label === 'Bio Methanol');
-        const syntheticEthanol = result.fuelRows.find((row) => row.label === 'Synthetic Ethanol');
+        const syntheticEthanol = result.fuelRows.find((row) => row.label === 'e-Ethanol');
 
         expect(bioMethanol).toMatchObject({ bestBid: 1083, bestAsk: 1056 });
         expect(syntheticEthanol).toMatchObject({ bestBid: 760.5, bestAsk: 785 });

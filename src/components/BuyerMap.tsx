@@ -15,6 +15,7 @@ import { computePortMarketData, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
+import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 
 interface BuyerMapProps {
     onPortSelect: (port: Port) => void;
@@ -223,14 +224,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return map;
     }, [ports, aggregatedData, selectedProduct]);
 
-    // All distinct market products across all ports (for product filter selector)
-    const availableProducts = useMemo(() => {
-        const products = new Set<string>();
-        Object.values(portMarketMap).forEach(mkt => {
-            mkt.fuelRows.forEach(row => products.add(row.key));
-        });
-        return Array.from(products).sort();
-    }, [portMarketMap]);
+    const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.label);
 
     // Max volume across all ports (for radius scaling)
     const maxVolume = useMemo(() => {
@@ -726,6 +720,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             isPanelOpen={isPanelOpen}
                             onOpenPanel={() => setIsPanelOpen(true)}
                             ports={ports}
+                            aggregatedData={aggregatedData}
                         />
                     </div>
                 )}

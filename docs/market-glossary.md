@@ -49,4 +49,4 @@ A specific resting bid or ask that the user has saved from Listings.
 One of the public Verdaxis green fuel products that can be selected in Marketplace.
 
 ## Public Marketplace Products
-The Marketplace-visible product set: Bio Methanol, e-Methanol, Bio Ethanol, and Synthetic Ethanol.
+The Marketplace-visible product set: Bio Methanol, e-Methanol, Bio Ethanol, and e-Ethanol.

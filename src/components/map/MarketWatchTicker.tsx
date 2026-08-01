@@ -5,7 +5,9 @@ import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useServerPreference } from '../../hooks/useServerPreference';
 import { api } from '../../services/api';
-import type { DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
+import type { AggregatedOrderbook, DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
+import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
+import { buildDemoMarketQuotes, type DemoMarketQuote } from '../../utils/demoMarketQuotes';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
 import { formatMarketProduct } from '../../utils/marketProduct';
 import { filterApprovedTradingPorts } from '../../utils/tradingPorts';
@@ -14,6 +16,7 @@ interface MarketWatchTickerProps {
     isPanelOpen: boolean;
     onOpenPanel: () => void;
     ports?: Port[];
+    aggregatedData?: AggregatedOrderbook[];
 }
 
 type RowStatus = 'LOADING' | 'LIVE' | 'STALE' | 'DEMO' | 'REFERENCE' | 'MIXED' | 'UNAVAILABLE';
@@ -34,23 +37,18 @@ interface TickerRow {
     status: RowStatus;
 }
 
-interface ReferenceQuote {
-    product: MarketProduct;
-    deliveryPointId: string;
-    price: number;
-}
-
 const MARKET_WATCH_PREFERENCES_KEY = 'verdaxis_market_watch_preferences_v1';
 const DEFAULT_PINNED_PORT_NAMES = ['Rotterdam', 'Singapore', 'Santos', 'Houston', 'Shanghai'];
 const DEFAULT_PINNED_PORT_COUNT = 5;
 const MIN_AUTO_SCROLL_ROWS = 4;
+const EMPTY_AGGREGATED_DATA: AggregatedOrderbook[] = [];
 
-const REFERENCE_QUOTES: ReferenceQuote[] = [
-    { product: 'BIO_METHANOL', deliveryPointId: 'nl-rtm', price: 680 },
-    { product: 'E_METHANOL', deliveryPointId: 'sg-sin', price: 1250 },
-    { product: 'BIO_ETHANOL', deliveryPointId: 'br-ssz', price: 590 },
-    { product: 'SYNTHETIC_ETHANOL', deliveryPointId: 'us-hou', price: 740 },
-];
+const DEMO_PREVIEW_PRICES: Record<MarketProduct, number> = {
+    BIO_METHANOL: 960,
+    E_METHANOL: 1150,
+    BIO_ETHANOL: 850,
+    SYNTHETIC_ETHANOL: 1240,
+};
 
 const productValues = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value);
 const DEFAULT_PRODUCTS = productValues;
@@ -149,30 +147,15 @@ const getSummaryStatus = (summary: PriceSummary): RowStatus => {
     return hoursOld <= 24 ? 'LIVE' : 'STALE';
 };
 
-const buildReferenceRow = (port: Port, product: MarketProduct): TickerRow => {
-    const reference = REFERENCE_QUOTES.find(
-        quote => quote.product === product && quote.deliveryPointId === port.id
-    );
-    if (!reference) {
-        return {
-            key: `${product}-${port.id}`,
-            port,
-            product,
-            value: '--',
-            change: 'No data',
-            up: false,
-            status: 'UNAVAILABLE',
-        };
-    }
-
+const buildDemoRow = (port: Port, product: MarketProduct, quote?: DemoMarketQuote): TickerRow => {
     return {
         key: `${product}-${port.id}`,
         port,
         product,
-        value: currency(reference.price),
-        change: '',
+        value: currency(quote?.price ?? DEMO_PREVIEW_PRICES[product]),
+        change: quote ? formatAvailabilityWindowPeriod(quote.availabilityWindow) : 'Preview',
         up: true,
-        status: 'REFERENCE',
+        status: 'DEMO',
     };
 };
 
@@ -204,7 +187,12 @@ const buildSummaryRow = (port: Port, product: MarketProduct, summary: PriceSumma
     };
 };
 
-export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpen, onOpenPanel, ports }) => {
+export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
+    isPanelOpen,
+    onOpenPanel,
+    ports,
+    aggregatedData = EMPTY_AGGREGATED_DATA,
+}) => {
     const { t, ready } = useNamespace('dashboard');
     const editorId = useId();
     const titleId = useId();
@@ -296,6 +284,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
     const selectedProducts = useMemo(() => preferences.products.filter(product => (
         productValues.includes(product)
     )), [preferences.products]);
+    const demoQuotes = useMemo(() => buildDemoMarketQuotes(aggregatedData), [aggregatedData]);
 
     useEffect(() => {
         let cancelled = false;
@@ -320,10 +309,14 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
 
             const nextRows = slices.map(({ port, product }) => {
                 const deliveryPointId = getCatalogDeliveryPointId(port, deliveryPoints);
-                if (!deliveryPointId) return buildReferenceRow(port, product);
-                const summary = findMatchingSummary(summariesByProduct.get(product) ?? [], product, deliveryPointId);
+                const summary = deliveryPointId
+                    ? findMatchingSummary(summariesByProduct.get(product) ?? [], product, deliveryPointId)
+                    : undefined;
                 const summaryRow = summary ? buildSummaryRow(port, product, summary) : null;
-                return summaryRow ?? buildReferenceRow(port, product);
+                const demoQuote = demoQuotes.find(quote => (
+                    quote.product === product && normalize(quote.port) === normalize(port.name)
+                ));
+                return summaryRow ?? buildDemoRow(port, product, demoQuote);
             });
             if (!cancelled) setRows(nextRows);
         };
@@ -332,7 +325,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({ isPanelOpe
         return () => {
             cancelled = true;
         };
-    }, [deliveryPoints, selectedPorts, selectedProducts]);
+    }, [deliveryPoints, demoQuotes, selectedPorts, selectedProducts]);
 
     const headerStatus: HeaderStatus = useMemo(() => {
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';

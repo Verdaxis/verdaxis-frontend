@@ -1,10 +1,10 @@
 {
   "landing": {
     "stats": {
-      "fuelPathways": "燃料路径",
-      "regulatoryFrameworks": "监管框架",
-      "chainOfCustody": "监管链",
-      "doubleCounting": "防止重复计算"
+      "fuelProducts": "燃料产品",
+      "tradingPorts": "交易港口",
+      "complianceRegimes": "合规制度",
+      "marketAccess": "市场接入"
     },
     "why": {
       "eyebrow": "平台简介",

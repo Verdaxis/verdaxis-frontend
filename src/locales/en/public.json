@@ -1,10 +1,10 @@
 {
   "landing": {
     "stats": {
-      "fuelPathways": "Fuel Pathways",
-      "regulatoryFrameworks": "Regulatory Frameworks",
-      "chainOfCustody": "Chain-of-Custody",
-      "doubleCounting": "Double-Counting"
+      "fuelProducts": "Fuel Products",
+      "tradingPorts": "Trading Ports",
+      "complianceRegimes": "Compliance Regimes",
+      "marketAccess": "Market Access"
     },
     "why": {
       "eyebrow": "The Platform",
