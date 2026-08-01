@@ -60,38 +60,10 @@ const partners = [
 
 const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
 
-/* ── Animated counter component ── */
-const AnimatedStat: React.FC<{ value: number; suffix: string; label: string }> = ({ value, suffix, label }) => {
-  const numRef = useRef<HTMLDivElement>(null);
-  const hasAnimated = useRef(false);
-
-  useEffect(() => {
-    const el = numRef.current;
-    if (!el) return;
-
-    ScrollTrigger.create({
-      trigger: el,
-      start: 'top 85%',
-      onEnter: () => {
-        if (hasAnimated.current) return;
-        hasAnimated.current = true;
-        const obj = { val: 0 };
-        gsap.to(obj, {
-          val: value,
-          duration: 1.6,
-          ease: 'power2.out',
-          onUpdate: () => {
-            el.textContent = Math.round(obj.val) + suffix;
-          },
-        });
-      },
-    });
-  }, [value, suffix]);
-
+const Stat: React.FC<{ value: number; suffix: string; label: string }> = ({ value, suffix, label }) => {
   return (
     <div>
       <div
-        ref={numRef}
         style={{
           fontFamily: '"DM Serif Display", serif',
           fontSize: 42,
@@ -100,7 +72,7 @@ const AnimatedStat: React.FC<{ value: number; suffix: string; label: string }> =
           marginBottom: 6,
         }}
       >
-        0{suffix}
+        {value}{suffix}
       </div>
       <div
         style={{
@@ -228,10 +200,10 @@ export const PartnerLandingPage: React.FC = () => {
   ];
 
   const stats = [
-    { value: 10,  suffix: '+', label: t('landing.stats.fuelPathways') },
-    { value: 6,   suffix: '',  label: t('landing.stats.regulatoryFrameworks') },
-    { value: 100, suffix: '%', label: t('landing.stats.chainOfCustody') },
-    { value: 0,   suffix: '',  label: t('landing.stats.doubleCounting') },
+    { value: 4, suffix: '', label: t('landing.stats.fuelProducts') },
+    { value: 8, suffix: '', label: t('landing.stats.tradingPorts') },
+    { value: 2, suffix: '', label: t('landing.stats.complianceRegimes') },
+    { value: 24, suffix: '/7', label: t('landing.stats.marketAccess') },
   ];
 
   return (
@@ -261,7 +233,7 @@ export const PartnerLandingPage: React.FC = () => {
           className="landing-stats-grid"
         >
           {stats.map((s) => (
-            <AnimatedStat key={s.label} value={s.value} suffix={s.suffix} label={s.label} />
+            <Stat key={s.label} value={s.value} suffix={s.suffix} label={s.label} />
           ))}
         </div>
       </section>

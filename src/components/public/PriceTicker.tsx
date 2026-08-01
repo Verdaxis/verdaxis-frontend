@@ -1,65 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, TrendingDown, TrendingUp } from 'lucide-react';
-import { fetchFuelPrices, type FuelPrice } from '../../data/fuelPrices';
+import { FlaskConical } from 'lucide-react';
+import { DEMO_FUEL_PRICES, fetchFuelPrices, type FuelPrice } from '../../data/fuelPrices';
+import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
 
-const formatPrice = (price: number, unit: string) => {
-  if (unit.startsWith('USD/')) {
-    return `$${price.toLocaleString(undefined, {
-      maximumFractionDigits: price >= 100 ? 0 : 2,
-      minimumFractionDigits: price >= 100 ? 0 : 2,
-    })}`;
-  }
+const formatPrice = (price: number) => `$${price.toLocaleString(undefined, {
+  maximumFractionDigits: 0,
+})}`;
 
-  if (unit === 'USc/bu') {
-    return `${price.toLocaleString(undefined, { maximumFractionDigits: 0 })}c`;
-  }
-
-  return price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-};
-
-const formatDate = (value: string) => {
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    day: '2-digit',
-    month: 'short',
-  }).format(new Date(timestamp));
-};
+const formatWindow = (value: string) => (
+  value === 'Preview' ? value : formatAvailabilityWindowPeriod(value)
+);
 
 export const PriceTicker: React.FC = () => {
-  const [prices, setPrices] = useState<FuelPrice[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [prices, setPrices] = useState<FuelPrice[]>(DEMO_FUEL_PRICES);
 
   useEffect(() => {
     const controller = new AbortController();
 
     fetchFuelPrices(controller.signal)
-      .then((items) => {
-        setPrices(items);
-        setStatus(items.length > 0 ? 'ready' : 'error');
-      })
+      .then(setPrices)
       .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return;
-        }
-        setStatus('error');
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        // Keep the visible, explicitly labelled Demo snapshot on feed failure.
       });
 
     return () => controller.abort();
   }, []);
 
   const doubled = [...prices, ...prices];
-  const showStatus = status !== 'ready' || doubled.length === 0;
   const midpoint = prices.length;
 
   return (
     <div
       className="public-price-ticker"
-      tabIndex={showStatus ? undefined : 0}
-      aria-label={showStatus ? undefined : 'Market benchmark ticker. Focus or hover to pause scrolling.'}
+      tabIndex={0}
+      aria-label="Demo marketplace price ticker. Illustrative, non-executable values. Focus or hover to pause scrolling."
       style={{
         background: '#0F172A',
         height: 42,
@@ -71,7 +46,6 @@ export const PriceTicker: React.FC = () => {
         borderBottom: '1px solid #1E293B',
       }}
     >
-      {/* Fade edges */}
       <div
         style={{
           position: 'absolute',
@@ -97,99 +71,50 @@ export const PriceTicker: React.FC = () => {
         }}
       />
 
-      {showStatus ? (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '0 24px',
-            color: '#94A3B8',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          <Activity size={13} color={status === 'loading' ? '#5DADE2' : '#64748B'} />
-          {status === 'loading' ? 'Loading market benchmarks…' : 'Market benchmarks unavailable'}
-        </div>
-      ) : (
-        <div
-          className="public-price-ticker__track"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {doubled.map((fp, i) => {
-            const isPositive = (fp.change ?? 0) >= 0;
-            const duplicate = i >= midpoint;
-            return (
-              <div
-                key={`${fp.fuel}-${fp.region}-${fp.priceDate}-${i}`}
-                aria-hidden={duplicate ? true : undefined}
-                data-ticker-sequence={duplicate ? 'duplicate' : 'primary'}
+      <div
+        className="public-price-ticker__track"
+        style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}
+      >
+        {doubled.map((price, index) => {
+          const duplicate = index >= midpoint;
+          return (
+            <div
+              key={`${price.fuel}-${price.region}-${index}`}
+              aria-hidden={duplicate ? true : undefined}
+              data-ticker-sequence={duplicate ? 'duplicate' : 'primary'}
+              title="Illustrative midpoint derived from disclosed Demo marketplace bids and asks. Not an executable quote."
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '0 24px',
+                fontSize: 13,
+                height: 42,
+              }}
+            >
+              <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{price.fuel}</span>
+              <span style={{ color: '#64748B', fontSize: 12 }}>{price.region}</span>
+              <span style={{ color: '#F8FAFC', fontWeight: 700 }}>{formatPrice(price.price)}</span>
+              <span style={{ color: '#64748B', fontSize: 11 }}>{price.unit}</span>
+              <span style={{ color: '#64748B', fontSize: 11 }}>{formatWindow(price.availabilityWindow)}</span>
+              <span
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 8,
-                  padding: '0 24px',
-                  fontSize: 13,
-                  height: 42,
+                  gap: 4,
+                  color: '#F59E0B',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
                 }}
               >
-                <span style={{ color: '#F8FAFC', fontWeight: 600, letterSpacing: '-0.01em' }}>
-                  {fp.fuel}
-                </span>
-                <span style={{ color: '#64748B', fontSize: 12 }}>
-                  {fp.region}
-                </span>
-                <span style={{ color: '#F8FAFC', fontWeight: 700 }}>
-                  {formatPrice(fp.price, fp.unit)}
-                </span>
-                <span style={{ color: '#64748B', fontSize: 11 }}>
-                  {fp.unit}
-                </span>
-                {fp.change !== null && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      color: isPositive ? '#4CAF50' : '#EF4444',
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {isPositive ? (
-                      <TrendingUp size={11} />
-                    ) : (
-                      <TrendingDown size={11} />
-                    )}
-                    {isPositive ? '+' : ''}{fp.change.toFixed(1)}%
-                  </span>
-                )}
-                <span
-                  style={{
-                    color: '#94A3B8',
-                    fontSize: 11,
-                    padding: '2px 6px',
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: 4,
-                  }}
-                >
-                  {fp.sourceLabel}
-                </span>
-                <span style={{ color: '#475569', fontSize: 11 }}>
-                  {formatDate(fp.priceDate)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                <FlaskConical size={11} aria-hidden="true" />
+                {price.sourceLabel}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

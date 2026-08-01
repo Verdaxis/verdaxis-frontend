@@ -302,6 +302,11 @@ export interface AggregatedOrderbook {
     max_price: number;
     total_quantity: number;
     order_count: number;
+    evidence_class?: string;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
+    observed_at?: string;
 }
 
 // ============== Price Discovery Types ==============

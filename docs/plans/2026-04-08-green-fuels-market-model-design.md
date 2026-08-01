@@ -23,7 +23,7 @@ Instead, the commercial market surface should be a controlled set of buyer-facin
 - `Bio Methanol`
 - `e-Methanol`
 - `Bio Ethanol`
-- `Synthetic Ethanol`
+- `e-Ethanol`
 
 These are the only primary market products exposed in the demo.
 
@@ -98,7 +98,7 @@ Examples:
 - `Bio Methanol + Singapore + Spot`
 - `e-Methanol + Rotterdam + M+1`
 - `Bio Ethanol + ARA + Q3 2026`
-- `Synthetic Ethanol + Houston + Spot`
+- `e-Ethanol + Houston + Spot`
 
 ### Listing display
 

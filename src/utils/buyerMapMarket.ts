@@ -25,12 +25,13 @@ const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
     BIO_METHANOL: 'Bio Methanol',
     E_METHANOL: 'e-Methanol',
     BIO_ETHANOL: 'Bio Ethanol',
-    SYNTHETIC_ETHANOL: 'Synthetic Ethanol',
+    SYNTHETIC_ETHANOL: 'e-Ethanol',
 };
 
-const canonicalProductLabels = new Map(
-    Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label])
-);
+const canonicalProductLabels = new Map([
+    ...Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label] as const),
+    ['synthetic ethanol', CANONICAL_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
+]);
 
 const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
     if (typeof row.market_product === 'string' && CANONICAL_PRODUCT_LABELS[row.market_product]) {

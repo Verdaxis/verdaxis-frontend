@@ -6,30 +6,45 @@ import { fetchFuelPrices } from '../../../data/fuelPrices';
 
 vi.mock('../../../data/fuelPrices', () => ({
   fetchFuelPrices: vi.fn(),
+  DEMO_FUEL_PRICES: [
+    {
+      fuel: 'Bio Methanol',
+      region: 'Singapore',
+      price: 985,
+      unit: 'USD/mt',
+      change: null,
+      source: 'marketplace-demo',
+      sourceLabel: 'Demo',
+      priceDate: '',
+      availabilityWindow: '2026-08',
+    },
+  ],
 }));
 
 const mockedFetchFuelPrices = vi.mocked(fetchFuelPrices);
 
 const fuelPrices = [
   {
-    fuel: 'VLSFO',
-    region: 'Global bunker',
-    price: 896.5,
+    fuel: 'Bio Methanol',
+    region: 'Singapore',
+    price: 985,
     unit: 'USD/mt',
-    change: 0.73,
-    source: 'ship_bunker',
-    sourceLabel: 'Ship & Bunker',
-    priceDate: '2026-04-24',
+    change: null,
+    source: 'marketplace-demo',
+    sourceLabel: 'Demo',
+    priceDate: '2026-08-01',
+    availabilityWindow: '2026-08',
   },
   {
-    fuel: 'Corn',
-    region: 'Biofuel feedstock',
-    price: 464,
-    unit: 'USc/bu',
-    change: -0.87,
-    source: 'yfinance',
-    sourceLabel: 'Yahoo Finance',
-    priceDate: '2026-04-24',
+    fuel: 'e-Ethanol',
+    region: 'Shanghai',
+    price: 1207.5,
+    unit: 'USD/mt',
+    change: null,
+    source: 'marketplace-demo',
+    sourceLabel: 'Demo',
+    priceDate: '2026-08-01',
+    availabilityWindow: '2026-08',
   },
 ];
 
@@ -42,35 +57,34 @@ describe('PriceTicker', () => {
     vi.clearAllMocks();
   });
 
-  it('renders ready benchmark items in a focus-pausable ticker', async () => {
+  it('renders marketplace demo items in a focus-pausable ticker', async () => {
     const { container } = render(<PriceTicker />);
 
-    const ticker = await screen.findByLabelText(/market benchmark ticker/i);
+    const ticker = await screen.findByLabelText(/demo marketplace price ticker/i);
     const track = container.querySelector('.public-price-ticker__track');
 
     expect(ticker).toBeTruthy();
     expect((ticker as HTMLElement).tabIndex).toBe(0);
     expect(track).toBeTruthy();
-    expect(screen.getAllByText('VLSFO')).toHaveLength(2);
-    expect(screen.getAllByText('Corn')).toHaveLength(2);
+    expect(screen.getAllByText('Bio Methanol')).toHaveLength(2);
+    expect(screen.getAllByText('e-Ethanol')).toHaveLength(2);
+    expect(screen.getAllByText('Demo')).toHaveLength(4);
     expect(container.querySelectorAll('[data-ticker-sequence="primary"]')).toHaveLength(fuelPrices.length);
     expect(container.querySelectorAll('[data-ticker-sequence="duplicate"][aria-hidden="true"]')).toHaveLength(fuelPrices.length);
     expect(mockedFetchFuelPrices).toHaveBeenCalledTimes(1);
     expect(mockedFetchFuelPrices.mock.calls[0][0]).toBeInstanceOf(AbortSignal);
   });
 
-  it('keeps loading and error states non-focusable', async () => {
+  it('retains visible demo values if the marketplace request fails', async () => {
     mockedFetchFuelPrices.mockRejectedValue(new Error('unavailable'));
 
     const { container } = render(<PriceTicker />);
 
-    expect(screen.getByRole('status').textContent).toContain('Loading market benchmarks…');
-
     await waitFor(() => {
-      expect(screen.getByText('Market benchmarks unavailable')).toBeTruthy();
+      expect(screen.getAllByText('Bio Methanol')).toHaveLength(2);
     });
 
-    expect(container.querySelector('.public-price-ticker')?.getAttribute('tabindex')).toBeNull();
-    expect(screen.queryByLabelText(/market benchmark ticker/i)).toBeNull();
+    expect(container.querySelector('.public-price-ticker')?.getAttribute('tabindex')).toBe('0');
+    expect(screen.queryByText(/unavailable/i)).toBeNull();
   });
 });

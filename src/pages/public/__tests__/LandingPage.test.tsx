@@ -92,7 +92,17 @@ describe('LandingPage', () => {
 
   it('renders price ticker with fuel data', () => {
     renderWithRouter(<LandingPage />);
-    expect(screen.getByText(/market benchmarks/i)).toBeTruthy();
+    expect(screen.getByLabelText(/demo marketplace price ticker/i)).toBeTruthy();
+  });
+
+  it('renders stable scope facts and working internal links without animation', () => {
+    renderWithRouter(<LandingPage />);
+
+    const fuelProducts = screen.getByText('Fuel Products');
+    expect(fuelProducts.previousElementSibling?.textContent).toBe('4');
+    expect(screen.getByText('Trading Ports').previousElementSibling?.textContent).toBe('8');
+    expect(screen.getAllByRole('link', { name: /see full process/i })[0].getAttribute('href')).toBe('/en/how-it-works');
+    expect(screen.getAllByRole('link', { name: /learn more/i })[0].getAttribute('href')).toBe('/en/for-producers');
   });
 
   it('renders CTA buttons', () => {

@@ -360,7 +360,7 @@ describe('ForwardCurveWorkspace', () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await waitFor(() => {
-      expect(screen.getAllByText('Synthetic Ethanol · Santos').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('e-Ethanol · Santos').length).toBeGreaterThan(0);
     });
 
     expect(screen.getAllByText('Indication').length).toBeGreaterThan(0);

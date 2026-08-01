@@ -106,7 +106,7 @@ src/
     eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
     secaZones.ts                   # ECA geometry types, bundle metadata, and MapLibre source identifiers
     producerProjects.ts            # Static producer project dataset (locations, capacities)
-    fuelPrices.ts                  # MarinaPulse fuel benchmark adapter for public ticker
+    fuelPrices.ts                  # Public ticker adapter for disclosed Demo orderbook midpoints
     calculatorDefaults.ts          # Defaults for energy calculator
     educationArticles.ts           # Education article content/metadata
 
@@ -232,6 +232,12 @@ supplier listings. Benchmark comparisons key on `market_product + delivery_point
 Demo liquidity is labelled and blocked from execution, row watchlist controls use compact visible
 copy with explicit accessible labels, and crossed-market indicators only consider real resting orders
 so seeded preview prices do not look executable.
+Canonical product selectors are catalog-driven rather than liquidity-driven, so Bio Methanol,
+e-Methanol, Bio Ethanol, and e-Ethanol remain visible even when a slice has no orders. The public
+price ticker and map Market Watch derive clearly labelled Demo midpoints from the nearest exact
+`market_product + delivery_point + availability_window` orderbook slice. They never present those
+values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
+the public orderbook endpoint is temporarily unavailable.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
