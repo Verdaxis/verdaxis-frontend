@@ -73,7 +73,12 @@ export const PriceTicker: React.FC = () => {
 
       <div
         className="public-price-ticker__track"
-        style={{ display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          whiteSpace: 'nowrap',
+          animationDuration: `${Math.max(40, prices.length * 5)}s`,
+        }}
       >
         {doubled.map((price, index) => {
           const duplicate = index >= midpoint;
