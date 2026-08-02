@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildFuelTickerItems, fetchFuelPrices, type FuelPrice } from '../data/fuelPrices';
+import { fetchFuelPrices } from '../data/fuelPrices';
 
 describe('fetchFuelPrices', () => {
   afterEach(() => {
@@ -82,43 +82,5 @@ describe('fetchFuelPrices', () => {
     }));
 
     await expect(fetchFuelPrices()).rejects.toThrow('Marketplace prices request failed: 502');
-  });
-
-  it('adds only like-for-like location spreads and pathway premiums', () => {
-    const prices: FuelPrice[] = [
-      { fuel: 'Bio Methanol', region: 'Singapore', price: 985, unit: 'USD/mt', change: null, source: 'marketplace-demo', sourceLabel: 'Demo', priceDate: '2026-08-01', availabilityWindow: '2026-08' },
-      { fuel: 'e-Methanol', region: 'Singapore', price: 1188, unit: 'USD/mt', change: null, source: 'marketplace-demo', sourceLabel: 'Demo', priceDate: '2026-08-01', availabilityWindow: '2026-08' },
-      { fuel: 'Bio Methanol', region: 'Shanghai', price: 935, unit: 'USD/mt', change: null, source: 'marketplace-demo', sourceLabel: 'Demo', priceDate: '2026-08-01', availabilityWindow: '2026-08' },
-      { fuel: 'e-Methanol', region: 'Shanghai', price: 1095, unit: 'USD/mt', change: null, source: 'marketplace-demo', sourceLabel: 'Demo', priceDate: '2026-08-01', availabilityWindow: '2026-09' },
-    ];
-
-    const items = buildFuelTickerItems(prices);
-
-    expect(items).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        kind: 'location-spread',
-        fuel: 'Bio Methanol spread',
-        region: 'Singapore vs Shanghai',
-        price: 50,
-      }),
-      expect.objectContaining({
-        kind: 'pathway-premium',
-        fuel: 'e-Methanol premium',
-        region: 'Singapore vs Bio Methanol',
-        price: 203,
-      }),
-    ]));
-    expect(items).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        kind: 'location-spread',
-        fuel: 'e-Methanol spread',
-      }),
-    ]));
-    expect(items).not.toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        kind: 'pathway-premium',
-        region: 'Shanghai vs Bio Methanol',
-      }),
-    ]));
   });
 });

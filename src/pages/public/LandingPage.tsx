@@ -24,7 +24,6 @@ import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
 import i18n from '../../i18n';
 import { analytics, type AnalyticsLanguage } from '../../services/analytics';
-import { COMPLIANCE_FRAMEWORKS } from '../../data/complianceFrameworks';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -172,6 +171,8 @@ export const LandingPage: React.FC = () => {
     { value: 2, suffix: '', label: t('landing.stats.complianceRegimes') },
     { value: 24, suffix: '/7', label: t('landing.stats.marketAccess') },
   ];
+
+  const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -655,13 +656,10 @@ export const LandingPage: React.FC = () => {
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
                 color: '#94A3B8',
-                marginBottom: 8,
+                marginBottom: 28,
               }}
             >
               {t('landing.frameworks.label')}
-            </p>
-            <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, margin: '0 auto 28px', maxWidth: 620 }}>
-              {t('landing.frameworks.subtitle')}
             </p>
           </RevealSection>
           <RevealSection delay={0.15}>
@@ -673,39 +671,23 @@ export const LandingPage: React.FC = () => {
                 gap: 16,
               }}
             >
-              {COMPLIANCE_FRAMEWORKS.map(({ name, status }) => (
+              {frameworks.map((name) => (
                 <motion.div
                   key={name}
                   whileHover={{ y: -2, borderColor: '#CBD5E1' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   style={{
-                    padding: '8px 10px 8px 16px',
+                    padding: '10px 20px',
                     background: '#FFFFFF',
                     border: '1px solid #E2E8F0',
                     borderRadius: 8,
                     fontSize: 14,
                     fontWeight: 600,
                     color: '#334155',
-                    letterSpacing: 0,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   {name}
-                  <span
-                    style={{
-                      padding: '3px 7px',
-                      borderRadius: 4,
-                      background: status === 'modelled' ? '#E8F5E9' : '#F1F5F9',
-                      color: status === 'modelled' ? '#2E7D32' : '#64748B',
-                      fontSize: 10,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {t(`landing.frameworks.${status}`)}
-                  </span>
                 </motion.div>
               ))}
             </div>

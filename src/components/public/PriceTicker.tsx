@@ -1,45 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { FlaskConical } from 'lucide-react';
-import {
-  buildFuelTickerItems,
-  DEMO_FUEL_PRICES,
-  fetchFuelPrices,
-  type FuelPrice,
-  type FuelTickerItem,
-} from '../../data/fuelPrices';
+import { DEMO_FUEL_PRICES, fetchFuelPrices, type FuelPrice } from '../../data/fuelPrices';
 import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
 
-const priceDateFormatter = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
-const formatPrice = (price: number, kind: FuelTickerItem['kind']) => {
-  const amount = Math.abs(price).toLocaleString(undefined, {
-    maximumFractionDigits: 0,
-  });
-  if (kind === 'price') return `$${amount}`;
-  return `${price >= 0 ? '+' : '-'}$${amount}`;
-};
+const formatPrice = (price: number) => `$${price.toLocaleString(undefined, {
+  maximumFractionDigits: 0,
+})}`;
 
 const formatWindow = (value: string) => (
   value === 'Preview' ? value : formatAvailabilityWindowPeriod(value)
 );
-
-const formatDate = (value: string) => {
-  const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day) return 'Undated';
-  return priceDateFormatter.format(new Date(Date.UTC(year, month - 1, day)));
-};
-
-const describeItem = (item: FuelTickerItem) => {
-  const metric = item.kind === 'price'
-    ? 'midpoint'
-    : item.kind === 'pathway-premium' ? 'pathway premium' : 'location spread';
-  return `Illustrative ${metric} derived from disclosed Verdaxis Demo marketplace bids and asks for the same delivery window. Non-executable. Observed ${formatDate(item.priceDate)}.`;
-};
 
 export const PriceTicker: React.FC = () => {
   const [prices, setPrices] = useState<FuelPrice[]>(DEMO_FUEL_PRICES);
@@ -57,15 +27,14 @@ export const PriceTicker: React.FC = () => {
     return () => controller.abort();
   }, []);
 
-  const items = buildFuelTickerItems(prices);
-  const doubled = [...items, ...items];
-  const midpoint = items.length;
+  const doubled = [...prices, ...prices];
+  const midpoint = prices.length;
 
   return (
     <div
       className="public-price-ticker"
       tabIndex={0}
-      aria-label="Verdaxis Demo marketplace price ticker with like-for-like spreads. Illustrative, non-executable values. Focus or hover to pause scrolling."
+      aria-label="Demo marketplace price ticker. Illustrative, non-executable values. Focus or hover to pause scrolling."
       style={{
         background: '#0F172A',
         height: 42,
@@ -110,10 +79,10 @@ export const PriceTicker: React.FC = () => {
           const duplicate = index >= midpoint;
           return (
             <div
-              key={`${price.kind}-${price.fuel}-${price.region}-${index}`}
+              key={`${price.fuel}-${price.region}-${index}`}
               aria-hidden={duplicate ? true : undefined}
               data-ticker-sequence={duplicate ? 'duplicate' : 'primary'}
-              title={describeItem(price)}
+              title="Illustrative midpoint derived from disclosed Demo marketplace bids and asks. Not an executable quote."
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -125,11 +94,9 @@ export const PriceTicker: React.FC = () => {
             >
               <span style={{ color: '#F8FAFC', fontWeight: 600 }}>{price.fuel}</span>
               <span style={{ color: '#64748B', fontSize: 12 }}>{price.region}</span>
-              <span style={{ color: '#F8FAFC', fontWeight: 700 }}>{formatPrice(price.price, price.kind)}</span>
+              <span style={{ color: '#F8FAFC', fontWeight: 700 }}>{formatPrice(price.price)}</span>
               <span style={{ color: '#64748B', fontSize: 11 }}>{price.unit}</span>
               <span style={{ color: '#64748B', fontSize: 11 }}>{formatWindow(price.availabilityWindow)}</span>
-              <span style={{ color: '#64748B', fontSize: 11 }}>Verdaxis</span>
-              <span style={{ color: '#64748B', fontSize: 11 }}>{formatDate(price.priceDate)}</span>
               <span
                 style={{
                   display: 'inline-flex',

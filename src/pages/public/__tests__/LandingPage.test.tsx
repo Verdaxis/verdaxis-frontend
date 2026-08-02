@@ -101,10 +101,6 @@ describe('LandingPage', () => {
     const fuelProducts = screen.getByText('Fuel Products');
     expect(fuelProducts.previousElementSibling?.textContent).toBe('4');
     expect(screen.getByText('Trading Ports').previousElementSibling?.textContent).toBe('8');
-    expect(screen.getByText('Compliance Regimes Modelled').previousElementSibling?.textContent).toBe('2');
-    expect(screen.getByText('6 regulatory frameworks monitored')).toBeTruthy();
-    expect(screen.getAllByText('Modelled')).toHaveLength(2);
-    expect(screen.getAllByText('Tracked')).toHaveLength(4);
     expect(screen.getAllByRole('link', { name: /see full process/i })[0].getAttribute('href')).toBe('/en/how-it-works');
     expect(screen.getAllByRole('link', { name: /learn more/i })[0].getAttribute('href')).toBe('/en/for-producers');
   });
