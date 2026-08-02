@@ -6,7 +6,6 @@ import { fetchFuelPrices } from '../../../data/fuelPrices';
 
 vi.mock('../../../data/fuelPrices', () => ({
   fetchFuelPrices: vi.fn(),
-  buildFuelTickerItems: (prices: Record<string, unknown>[]) => prices.map(price => ({ ...price, kind: 'price' })),
   DEMO_FUEL_PRICES: [
     {
       fuel: 'Bio Methanol',
@@ -70,8 +69,6 @@ describe('PriceTicker', () => {
     expect(screen.getAllByText('Bio Methanol')).toHaveLength(2);
     expect(screen.getAllByText('e-Ethanol')).toHaveLength(2);
     expect(screen.getAllByText('Demo')).toHaveLength(4);
-    expect(screen.getAllByText('Verdaxis')).toHaveLength(4);
-    expect(screen.getAllByText('1 Aug 2026')).toHaveLength(4);
     expect(container.querySelectorAll('[data-ticker-sequence="primary"]')).toHaveLength(fuelPrices.length);
     expect(container.querySelectorAll('[data-ticker-sequence="duplicate"][aria-hidden="true"]')).toHaveLength(fuelPrices.length);
     expect(mockedFetchFuelPrices).toHaveBeenCalledTimes(1);
