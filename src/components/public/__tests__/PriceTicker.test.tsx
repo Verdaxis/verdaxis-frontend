@@ -6,7 +6,7 @@ import { fetchFuelPrices } from '../../../data/fuelPrices';
 
 vi.mock('../../../data/fuelPrices', () => ({
   fetchFuelPrices: vi.fn(),
-  buildFuelTickerItems: (prices: unknown[]) => prices.map(price => ({ ...price, kind: 'price' })),
+  buildFuelTickerItems: (prices: Record<string, unknown>[]) => prices.map(price => ({ ...price, kind: 'price' })),
   DEMO_FUEL_PRICES: [
     {
       fuel: 'Bio Methanol',
