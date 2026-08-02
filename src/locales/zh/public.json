@@ -3,17 +3,17 @@
     "stats": {
       "fuelProducts": "燃料产品",
       "tradingPorts": "交易港口",
-      "complianceRegimes": "合规制度",
+      "complianceRegimes": "已建模合规制度",
       "marketAccess": "市场接入"
     },
     "why": {
       "eyebrow": "平台简介",
       "title": "为何选择 Verdaxis",
-      "subtitle": "可持续海洋燃料的统一交易所——为碎片化市场带来价格发现、透明度和流动性。",
+      "subtitle": "可持续海洋燃料的统一市场——在流动性逐步形成的过程中，汇集买价、卖价、市场意向及注明来源的参考数据。",
       "cards": {
         "0": {
           "title": "价格发现",
-          "body": "供需实时聚合，推动可持续海洋燃料的透明市场化定价。"
+          "body": "将买价、卖价、市场意向及注明来源的参考数据集中呈现，并随着市场参与度提升逐步形成透明的价格发现。"
         },
         "1": {
           "title": "透明度",
@@ -118,9 +118,11 @@
     },
     "frameworks": {
       "eyebrow": "监管合规",
-      "label": "面向全球合规框架构建",
+      "label": "监测 6 项监管框架",
+      "modelled": "已建模",
+      "tracked": "持续跟踪",
       "title": "符合全球法规要求",
-      "subtitle": "Verdaxis 内置对主要可持续发展框架的支持，持续更新以跟进监管动态。"
+      "subtitle": "EU ETS 与 FuelEU Maritime 已纳入主动建模；另有四项框架用于政策背景跟踪。"
     }
   },
   "howItWorks": {

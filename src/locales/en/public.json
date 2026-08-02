@@ -3,17 +3,17 @@
     "stats": {
       "fuelProducts": "Fuel Products",
       "tradingPorts": "Trading Ports",
-      "complianceRegimes": "Compliance Regimes",
+      "complianceRegimes": "Compliance Regimes Modelled",
       "marketAccess": "Market Access"
     },
     "why": {
       "eyebrow": "The Platform",
       "title": "Why Verdaxis",
-      "subtitle": "A unified exchange for sustainable marine fuels — bringing price discovery, transparency, and liquidity to a fragmented market.",
+      "subtitle": "A unified marketplace for sustainable marine fuels — bringing bids, asks, market indications, and attributed references together as liquidity develops.",
       "cards": {
         "0": {
           "title": "Price Discovery",
-          "body": "Real-time aggregation of supply and demand drives transparent, market-driven pricing for sustainable marine fuels."
+          "body": "Brings bids, asks, market indications, and attributed reference data into one view, building transparent price discovery as participation grows."
         },
         "1": {
           "title": "Transparency",
@@ -95,7 +95,10 @@
       }
     },
     "frameworks": {
-      "label": "Built for global compliance frameworks"
+      "label": "6 regulatory frameworks monitored",
+      "subtitle": "EU ETS and FuelEU Maritime are actively modelled. Four additional frameworks are tracked for policy context.",
+      "modelled": "Modelled",
+      "tracked": "Tracked"
     },
     "cta": {
       "eyebrow": "Join the Pilot",

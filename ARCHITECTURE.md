@@ -94,7 +94,7 @@ src/
     eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
     secaZones.ts                   # ECA geometry types, bundle metadata, and MapLibre source identifiers
     producerProjects.ts            # Static producer project dataset (locations, capacities)
-    fuelPrices.ts                  # Public ticker adapter for disclosed Demo orderbook midpoints
+    fuelPrices.ts                  # Public ticker adapter for disclosed Demo midpoints and like-for-like spreads
     calculatorDefaults.ts          # Defaults for energy calculator
     educationArticles.ts           # Education article content/metadata
 
@@ -221,7 +221,9 @@ e-Methanol, Bio Ethanol, and e-Ethanol remain visible even when a slice has no o
 price ticker and map Market Watch derive clearly labelled Demo midpoints from the nearest exact
 `market_product + delivery_point + availability_window` orderbook slice. They never present those
 values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
-the public orderbook endpoint is temporarily unavailable.
+the public orderbook endpoint is temporarily unavailable. The public ticker also derives location
+spreads and e-fuel pathway premiums only when source, unit, observation date, and delivery window
+match; every item retains visible Demo provenance and observation context.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user

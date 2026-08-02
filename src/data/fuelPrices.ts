@@ -15,6 +15,10 @@ export interface FuelPrice {
   availabilityWindow: string;
 }
 
+export interface FuelTickerItem extends FuelPrice {
+  kind: 'price' | 'location-spread' | 'pathway-premium';
+}
+
 const DEMO_PRODUCTS: MarketProduct[] = [
   'BIO_METHANOL',
   'E_METHANOL',
@@ -43,10 +47,65 @@ export const DEMO_FUEL_PRICES: FuelPrice[] = DEMO_PORTS.flatMap(region => (
     change: null,
     source: 'marketplace-demo',
     sourceLabel: 'Demo',
-    priceDate: '',
+    priceDate: '2026-08-01',
     availabilityWindow: 'Preview',
   }))
 ));
+
+const comparable = (left: FuelPrice, right: FuelPrice) => (
+  Boolean(left.priceDate)
+  && left.unit === right.unit
+  && left.source === right.source
+  && left.priceDate === right.priceDate
+  && left.availabilityWindow === right.availabilityWindow
+);
+
+export const buildFuelTickerItems = (prices: FuelPrice[]): FuelTickerItem[] => {
+  const byMarket = new Map(prices.map(price => [`${price.region}|${price.fuel}`, price]));
+  const comparisons: FuelTickerItem[] = [];
+
+  DEMO_PRODUCTS.forEach((product) => {
+    const fuel = formatMarketProduct(product);
+    const singapore = byMarket.get(`Singapore|${fuel}`);
+    const shanghai = byMarket.get(`Shanghai|${fuel}`);
+    if (!singapore || !shanghai || !comparable(singapore, shanghai)) return;
+
+    comparisons.push({
+      ...singapore,
+      kind: 'location-spread',
+      fuel: `${fuel} spread`,
+      region: 'Singapore vs Shanghai',
+      price: singapore.price - shanghai.price,
+    });
+  });
+
+  ([
+    ['BIO_METHANOL', 'E_METHANOL'],
+    ['BIO_ETHANOL', 'SYNTHETIC_ETHANOL'],
+  ] as const).forEach(([bioProduct, syntheticProduct]) => {
+    const bioFuel = formatMarketProduct(bioProduct);
+    const eFuel = formatMarketProduct(syntheticProduct);
+    DEMO_PORTS.forEach((port) => {
+      const bio = byMarket.get(`${port}|${bioFuel}`);
+      const synthetic = byMarket.get(`${port}|${eFuel}`);
+      if (!bio || !synthetic || !comparable(bio, synthetic)) return;
+
+      comparisons.push({
+        ...synthetic,
+        kind: 'pathway-premium',
+        fuel: `${eFuel} premium`,
+        region: `${port} vs ${bioFuel}`,
+        price: synthetic.price - bio.price,
+      });
+    });
+  });
+
+  return [
+    ...comparisons.filter(item => item.kind === 'pathway-premium'),
+    ...comparisons.filter(item => item.kind === 'location-spread'),
+    ...prices.map(price => ({ ...price, kind: 'price' as const })),
+  ];
+};
 
 const buildTickerItems = (rows: AggregatedOrderbook[]): FuelPrice[] => {
   const quotes = new Map(
