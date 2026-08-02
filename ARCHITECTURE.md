@@ -218,10 +218,12 @@ copy with explicit accessible labels, and crossed-market indicators only conside
 so seeded preview prices do not look executable.
 Canonical product selectors are catalog-driven rather than liquidity-driven, so Bio Methanol,
 e-Methanol, Bio Ethanol, and e-Ethanol remain visible even when a slice has no orders. The public
-price ticker and map Market Watch derive clearly labelled Demo midpoints from the nearest exact
+price ticker joins active approved delivery points and active catalog products to the Demo
+orderbook, rendering every quoted pair in port-major order. The ticker and map Market Watch derive
+clearly labelled Demo midpoints from the nearest exact
 `market_product + delivery_point + availability_window` orderbook slice. They never present those
 values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
-the public orderbook endpoint is temporarily unavailable.
+the public market endpoints are temporarily unavailable.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
