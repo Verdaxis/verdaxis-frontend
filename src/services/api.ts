@@ -405,6 +405,36 @@ const productAnalyticsTab = <T>(tab: string) =>
             { signal },
         ) as Promise<T>;
 
+export interface AdminFeedbackEntry {
+    id: string;
+    created_at: string;
+    message: string;
+    page: string | null;
+    user_email: string | null;
+    user_name: string | null;
+    org_name: string | null;
+}
+
+export interface AdminFeedbackResponse {
+    items: AdminFeedbackEntry[];
+    total: number;
+}
+
+export interface OnboardingAttentionItem {
+    email: string;
+    name: string | null;
+    role: string | null;
+    stage: string;
+    since: string;
+    organization_name: string | null;
+    last_login: string | null;
+}
+
+export interface OnboardingAttentionResponse {
+    items: OnboardingAttentionItem[];
+    generated_at: string;
+}
+
 export const api = {
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -952,6 +982,21 @@ export const api = {
         },
         commissionSummary: async () => {
             return fetchApi('/orders/admin/commissions/summary', { headers: getHeaders() });
+        },
+        feedback: async (limit: number = 100, offset: number = 0): Promise<AdminFeedbackResponse> => {
+            return fetchApi(`/admin/feedback?limit=${limit}&offset=${offset}`, { headers: getHeaders() });
+        },
+        onboardingAttention: async (): Promise<OnboardingAttentionResponse> => {
+            return fetchApi('/admin/onboarding-attention', { headers: getHeaders() });
+        },
+    },
+    feedback: {
+        submit: async (message: string, page?: string | null) => {
+            return fetchApi('/feedback', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ message, page: page ?? null }),
+            });
         },
     },
 
