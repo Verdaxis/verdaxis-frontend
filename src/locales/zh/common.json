@@ -95,5 +95,13 @@
       "createAccount": "创建账户",
       "redirecting": "3秒后跳转至注册页面…"
     }
-  }
+  },
+  "feedback.button": "反馈",
+  "feedback.title": "发送反馈",
+  "feedback.message": "告诉我们哪里有问题、令人困惑或缺失。",
+  "feedback.placeholder": "发生了什么？您期望的是什么？",
+  "feedback.submit": "发送",
+  "feedback.sentShort": "已发送",
+  "feedback.sent": "谢谢——我们会阅读每一条反馈。",
+  "feedback.error": "反馈发送失败，请重试。"
 }

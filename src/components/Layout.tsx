@@ -7,6 +7,7 @@ import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { FeedbackButton } from './FeedbackButton';
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -85,6 +86,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 </main>
 
                 {/* Copilot removed per Gavin feedback */}
+                <FeedbackButton />
             </div>
         </div>
     );

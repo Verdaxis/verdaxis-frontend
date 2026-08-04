@@ -95,5 +95,13 @@
       "createAccount": "Create Your Account",
       "redirecting": "Redirecting to registration in 3s…"
     }
-  }
+  },
+  "feedback.button": "Feedback",
+  "feedback.title": "Send feedback",
+  "feedback.message": "Tell us what is broken, confusing, or missing.",
+  "feedback.placeholder": "What happened? What did you expect?",
+  "feedback.submit": "Send",
+  "feedback.sentShort": "Sent",
+  "feedback.sent": "Thanks — we read every message.",
+  "feedback.error": "Could not send feedback. Please try again."
 }

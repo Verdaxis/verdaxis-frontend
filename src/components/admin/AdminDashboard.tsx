@@ -4,10 +4,16 @@ import {
   Users,
   BarChart3,
   Loader2,
+  MessageSquareText,
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
-import { ApiError, api } from '../../services/api';
+import {
+  AdminFeedbackEntry as FeedbackEntry,
+  ApiError,
+  OnboardingAttentionItem,
+  api,
+} from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsWorkspace';
 import { MarketSupportEntryDialog } from './market-support/MarketSupportEntryDialog';
@@ -105,6 +111,122 @@ const nextReviewAction = (review: AdminReviewCase): ReviewAction => {
   }
   if (pendingJoin) return { kind: 'membership', requestId: pendingJoin.request_id };
   return null;
+};
+
+// Human labels for the onboarding_attention stage taxonomy (BE service).
+const ATTENTION_STAGES: Record<string, string> = {
+  rejected: 'Rejected',
+  organization_setup_expiring: 'Organization setup expiring',
+  verification_stalled: 'Email verification stalled',
+  approval_required: 'Approval required',
+  first_login_overdue: 'Approved, never logged in',
+};
+
+const fmtSince = (iso: string) => {
+  const hours = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3_600_000));
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
+};
+
+// Who is stuck at which onboarding step, with an email link to reach out.
+// Identity deliberately lives here (operational surface), never in the
+// aggregate analytics tabs.
+const OutreachPanel: React.FC = () => {
+  const [items, setItems] = useState<OnboardingAttentionItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.admin.onboardingAttention()
+      .then(response => { if (!cancelled) setItems(response.items); })
+      .catch(() => { /* panel is best-effort; the users table still loads */ })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!loaded || items.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4" data-testid="outreach-panel">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-2">
+        Needs outreach — stalled in onboarding
+      </h3>
+      <ul className="space-y-1.5">
+        {items.map(item => (
+          <li key={`${item.email}-${item.stage}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-500">
+              {ATTENTION_STAGES[item.stage] ?? item.stage}
+            </span>
+            <span className="text-verdaxis-text font-medium">{item.name ?? '—'}</span>
+            <a href={`mailto:${item.email}`} className="font-mono text-xs text-verdaxis underline decoration-verdaxis/40 underline-offset-2 hover:decoration-verdaxis">
+              {item.email}
+            </a>
+            {item.organization_name && (
+              <span className="text-verdaxis-text-muted text-xs">{item.organization_name}</span>
+            )}
+            <span className="text-verdaxis-text-muted text-xs ml-auto whitespace-nowrap">
+              {fmtSince(item.since)} stalled
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const FeedbackTab: React.FC = () => {
+  const [entries, setEntries] = useState<FeedbackEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.admin.feedback()
+      .then(response => {
+        if (cancelled) return;
+        setEntries(response.items);
+        setTotal(response.total);
+      })
+      .catch(err => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load feedback.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-verdaxis" />
+      </div>
+    );
+  }
+  if (error) return <p role="alert" className="text-sm text-red-400">{error}</p>;
+  if (entries.length === 0) {
+    return <p className="text-verdaxis-text-muted text-sm py-6 text-center">No feedback yet.</p>;
+  }
+  return (
+    <div className="space-y-3" data-testid="admin-feedback-list">
+      <p className="text-xs text-verdaxis-text-muted">{total} {total === 1 ? 'entry' : 'entries'}</p>
+      {entries.map(entry => (
+        <div key={entry.id} className="rounded-lg border border-verdaxis-border bg-verdaxis-card px-4 py-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-verdaxis-text-muted mb-1.5">
+            <span className="whitespace-nowrap">{fmtDate(entry.created_at)}</span>
+            {entry.user_email ? (
+              <a href={`mailto:${entry.user_email}`} className="font-mono text-verdaxis underline decoration-verdaxis/40 underline-offset-2 hover:decoration-verdaxis">
+                {entry.user_email}
+              </a>
+            ) : (
+              <span>—</span>
+            )}
+            {entry.org_name && <span>{entry.org_name}</span>}
+            {entry.page && <span className="font-mono ml-auto">{entry.page}</span>}
+          </div>
+          <p className="text-sm text-verdaxis-text whitespace-pre-wrap">{entry.message}</p>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 const UsersTab: React.FC = () => {
@@ -307,6 +429,7 @@ const UsersTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      <OutreachPanel />
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
         {STATUS_FILTERS.map(({ label, value }) => (
@@ -371,7 +494,11 @@ const UsersTab: React.FC = () => {
                 return (
                   <tr key={u.id} className="border-b border-verdaxis-border/50 last:border-0 hover:bg-verdaxis-border/10 transition-colors">
                     <td className="px-4 py-3 text-verdaxis-text font-medium">{name}</td>
-                    <td className="px-4 py-3 text-verdaxis-text-muted font-mono text-xs">{u.email}</td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <a href={`mailto:${u.email}`} className="text-verdaxis-text-muted underline decoration-transparent underline-offset-2 transition-colors hover:text-verdaxis hover:decoration-verdaxis/60">
+                        {u.email}
+                      </a>
+                    </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted">
                       {canEnterOrganization ? (
                         <button
@@ -525,13 +652,14 @@ const UsersTab: React.FC = () => {
 // Main Component
 // ---------------------------------------------------------------------------
 
-type AdminTab = 'analytics' | 'users';
+type AdminTab = 'analytics' | 'users' | 'feedback';
 
 // Tab state lives in the URL so /app/admin and /app/admin/users are
 // bookmarkable and survive refresh (Sprint 3 item 11).
 const ADMIN_TAB_PATHS: Record<AdminTab, string> = {
   analytics: '/app/admin',
   users: '/app/admin/users',
+  feedback: '/app/admin/feedback',
 };
 
 export const AdminDashboard: React.FC = () => {
@@ -539,7 +667,9 @@ export const AdminDashboard: React.FC = () => {
   const location = useLocation();
   const activeTab: AdminTab = location.pathname.startsWith('/app/admin/users')
       ? 'users'
-      : 'analytics';
+      : location.pathname.startsWith('/app/admin/feedback')
+        ? 'feedback'
+        : 'analytics';
   if (location.pathname.startsWith('/app/admin/market-support')) {
     return <Navigate to={ADMIN_TAB_PATHS.analytics} replace />;
   }
@@ -565,6 +695,7 @@ export const AdminDashboard: React.FC = () => {
         {([
           { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
           { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
+          { key: 'feedback',  label: 'Feedback',  icon: <MessageSquareText size={15} /> },
         ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
           <Link
             key={key}
@@ -585,6 +716,9 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Analytics tab */}
       {activeTab === 'analytics' && <ProductAnalyticsWorkspace />}
+
+      {/* Feedback tab */}
+      {activeTab === 'feedback' && <FeedbackTab />}
 
     </div>
   );
