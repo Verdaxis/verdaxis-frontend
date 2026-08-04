@@ -538,3 +538,14 @@
 - **Trigger:** I restored production demo liquidity but did not catch that the Forward Curve frontend discarded the compact table cells and still appeared empty.
 - **Rule:** After restoring shared market data, visually verify every dependent projection, including Marketplace, Forward Curve, and Intelligence Map, before reporting completion.
 - **Why:** Healthy source records and API counts do not prove that downstream response normalization and rendering still honor the wire contract.
+### Gate Vercel Aliases On The Compiled API Target
+- **Date:** 2026-07-30
+- **Trigger:** I deployed a Vercel production bundle while its remote `VITE_API_URL` was empty, compiling the localhost fallback and activating the maintenance screen.
+- **Rule:** Before moving any production alias, require the compiled Vercel artifact to contain `https://api.verdaxis.exchange/api`, reject localhost targets, and pass the rendered monitor.
+- **Why:** Vercel environment values override committed Vite mode files, and the manual prebuilt path bypassed the VPS deployment script's existing API-target check.
+
+### Recover From Used Verification Links Without Re-registration
+- **Date:** 2026-08-04
+- **Trigger:** The user clarified that a reused verification link should guide an existing account holder toward sign-in or password recovery instead of registration.
+- **Rule:** When an email verification link is invalid, expired, or already consumed, make Sign In and Reset Password the recovery actions; do not make re-registration the primary path.
+- **Why:** The backend cannot distinguish every legacy consumed token from an invalid token, and encouraging registration creates confusion for an account that may already be verified and approved.

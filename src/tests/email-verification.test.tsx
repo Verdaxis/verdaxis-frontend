@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,5 +27,18 @@ describe('email verification', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'POST' });
+  });
+
+  it('routes invalid verification links to sign in or password recovery', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 400 })));
+
+    render(
+      <MemoryRouter initialEntries={['/verify-email?token=used-token']}>
+        <VerifyEmailPage />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findByRole('link', { name: 'Sign In' })).getAttribute('href')).toBe('/login');
+    expect(screen.getByRole('link', { name: 'Reset Password' }).getAttribute('href')).toBe('/forgot-password');
   });
 });
