@@ -37,6 +37,9 @@ interface AdminUserEntry {
   org_type: string | null;
   org_provenance: string | null;
   organization_id?: string | null;
+  email_verified?: boolean;
+  last_login?: string | null;
+  org_has_orders?: boolean;
 }
 
 interface AdminReviewOrganization {
@@ -93,6 +96,15 @@ const statusBadge = (status: string) => {
   );
 };
 
+// Furthest point an account has actually reached in the journey.
+const journeyStage = (u: AdminUserEntry): { label: string; cls: string } => {
+  if (!u.email_verified) return { label: 'Registered', cls: 'bg-slate-500/15 text-slate-400' };
+  if (u.status !== 'APPROVED') return { label: 'Verified', cls: 'bg-amber-500/15 text-amber-400' };
+  if (!u.last_login) return { label: 'Approved', cls: 'bg-amber-500/15 text-amber-400' };
+  if (!u.org_has_orders) return { label: 'Logged in', cls: 'bg-sky-500/15 text-sky-400' };
+  return { label: 'Ordered', cls: 'bg-emerald-500/15 text-emerald-400' };
+};
+
 const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
   { label: 'Pending', value: 'PENDING' },
   { label: 'All',     value: 'ALL'     },
@@ -146,11 +158,11 @@ const OutreachPanel: React.FC = () => {
 
   if (!loaded || items.length === 0) return null;
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4" data-testid="outreach-panel">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-2">
-        Needs outreach — stalled in onboarding
-      </h3>
-      <ul className="space-y-1.5">
+    <details className="rounded-lg border border-amber-500/30 bg-amber-500/5" data-testid="outreach-panel">
+      <summary className="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-wide text-amber-500">
+        Needs outreach — {items.length} stalled in onboarding
+      </summary>
+      <ul className="space-y-1.5 px-4 pb-4">
         {items.map(item => (
           <li key={`${item.email}-${item.stage}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
             <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-500">
@@ -169,7 +181,7 @@ const OutreachPanel: React.FC = () => {
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   );
 };
 
@@ -472,6 +484,7 @@ const UsersTab: React.FC = () => {
                 <th className="text-left px-4 py-3">Organization</th>
                 <th className="text-left px-4 py-3">Role</th>
                 <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Reached</th>
                 <th className="text-left px-4 py-3">Joined</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -528,6 +541,20 @@ const UsersTab: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted capitalize">{u.role.toLowerCase()}</td>
                     <td className="px-4 py-3">{statusBadge(u.status)}</td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const stage = journeyStage(u);
+                        return (
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-medium ${stage.cls}`}
+                            title={u.last_login ? `Last login ${fmtDate(u.last_login)}` : 'Never logged in'}
+                            data-testid={`journey-${u.id}`}
+                          >
+                            {stage.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted text-xs whitespace-nowrap">
                       {fmtDate(u.created_at)}
                     </td>

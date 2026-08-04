@@ -152,6 +152,35 @@ describe('admin feedback tab and outreach panel', () => {
     expect(mailto.href).toBe('mailto:stalled@example.com');
   });
 
+  it('shows how far each user reached in the journey', async () => {
+    mocks.users.mockResolvedValue({
+      total: 2,
+      items: [
+        {
+          id: 'u-1', email: 'ada@example.com', first_name: 'Ada', last_name: 'Lovelace',
+          role: 'BUYER', status: 'APPROVED', created_at: '2026-07-01T00:00:00Z',
+          organization_id: 'org-1', org_name: 'Acme Shipping', org_type: 'REAL', org_provenance: 'REAL',
+          email_verified: true, last_login: '2026-08-01T00:00:00Z', org_has_orders: false,
+        },
+        {
+          id: 'u-2', email: 'new@example.com', first_name: 'New', last_name: 'User',
+          role: 'SUPPLIER', status: 'PENDING', created_at: '2026-08-01T00:00:00Z',
+          organization_id: null, org_name: null, org_type: null, org_provenance: null,
+          email_verified: false, last_login: null, org_has_orders: false,
+        },
+      ],
+    });
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    const first = await screen.findByTestId('journey-u-1');
+    expect(first.textContent).toBe('Logged in');
+    expect(screen.getByTestId('journey-u-2').textContent).toBe('Registered');
+  });
+
   it('hides the outreach panel when nobody is stalled', async () => {
     mocks.onboardingAttention.mockResolvedValue({ generated_at: '2026-08-04T08:00:00Z', items: [] });
     render(
