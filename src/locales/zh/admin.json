@@ -295,5 +295,6 @@
   "pa.reliability.total": "合计 {{total}}",
   "pa.reliability.latencyHint": "按 10% 会话采样;不提供按目的地拆分",
   "pa.reliability.allDestinations": "全部目的地",
-  "pa.reliability.auditHint": "仅操作与角色——不含操作者或 IP 地址"
+  "pa.reliability.auditHint": "仅操作与角色——不含操作者或 IP 地址",
+  "pa.lifecycle.openUsers": "在“用户”中查看这些账户 →"
 }

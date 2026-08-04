@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MarketplaceTab } from '../components/admin/product-analytics/MarketplaceTab';
@@ -13,7 +14,7 @@ const noop = () => undefined;
 
 describe('overview tab', () => {
   it('renders the lifecycle spine with counts, deltas, and no conversion rates', () => {
-    render(<OverviewTab data={paOverview()} compare onSelectTab={noop} />);
+    render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
     const spine = screen.getByTestId('lifecycle-spine');
     expect(within(spine).getAllByRole('button')).toHaveLength(6);
     expect(within(spine).getByText('120')).toBeTruthy();
@@ -23,15 +24,21 @@ describe('overview tab', () => {
 
   it('clicking a lifecycle stage opens its detail tab', async () => {
     const onSelectTab = vi.fn();
-    render(<OverviewTab data={paOverview()} compare onSelectTab={onSelectTab} />);
+    render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={onSelectTab} /></MemoryRouter>);
     fireEvent.click(
       within(screen.getByTestId('lifecycle-spine')).getAllByRole('button')[5],
     );
     expect(onSelectTab).toHaveBeenCalledWith('retention');
   });
 
+  it('links from the lifecycle to the Users tab for account-level detail', () => {
+    render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
+    const link = screen.getByTestId('lifecycle-open-users') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/app/admin/users');
+  });
+
   it('renders the activity trend as small multiples, one facet per series', () => {
-    render(<OverviewTab data={paOverview()} compare onSelectTab={noop} />);
+    render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
     const facets = screen.getByTestId('trend-facets');
     // Mixed-scale series (visitors vs. trades) each get their own y-axis;
     // a shared-axis overlay would flatten the business series.
@@ -40,7 +47,7 @@ describe('overview tab', () => {
   });
 
   it('marks suppressed balance cells and lists needs-attention rules', () => {
-    render(<OverviewTab data={paOverview()} compare onSelectTab={noop} />);
+    render(<MemoryRouter><OverviewTab data={paOverview()} compare onSelectTab={noop} /></MemoryRouter>);
     // Suppressed segmented cells show the privacy marker, not zero.
     expect(screen.getAllByText('< 3').length).toBeGreaterThanOrEqual(2);
     const attention = screen.getByTestId('needs-attention');
