@@ -34,13 +34,16 @@ export const OverviewTab: React.FC<{
       </div>
       <div>
         <SectionHeading title={t('pa.section.activityTrend')} />
+        {/* Faceted: visitors and trades differ by orders of magnitude, so a
+            shared y-axis would flatten the business series. */}
         <TrendChart
+          facet
           emptyLabel={t('pa.state.sparse')}
           series={[
-            { key: 'visitors', label: t('pa.series.visitors'), color: '#60a5fa', points: data.activity_trend.visitors },
-            { key: 'active_members', label: t('pa.series.activeMembers'), color: '#34d399', points: data.activity_trend.active_members },
-            { key: 'orders', label: t('pa.series.orders'), color: '#a78bfa', points: data.activity_trend.orders },
-            { key: 'confirmed_trades', label: t('pa.series.confirmedTrades'), color: '#f59e0b', points: data.activity_trend.confirmed_trades },
+            { key: 'visitors', label: t('pa.series.visitors'), color: 'var(--chart-1)', points: data.activity_trend.visitors },
+            { key: 'active_members', label: t('pa.series.activeMembers'), color: 'var(--chart-2)', points: data.activity_trend.active_members },
+            { key: 'orders', label: t('pa.series.orders'), color: 'var(--chart-3)', points: data.activity_trend.orders },
+            { key: 'confirmed_trades', label: t('pa.series.confirmedTrades'), color: 'var(--chart-4)', points: data.activity_trend.confirmed_trades },
           ]}
         />
         <CoverageNote meta={data.meta} source="behavioral" />
