@@ -186,16 +186,16 @@ const VerifyEmailPage: React.FC = () => {
               </p>
               <div className="flex items-center justify-center gap-4 pt-2">
                 <Link
-                  to="/register"
+                  to="/login"
                   className="inline-block bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-6 py-2.5 rounded-lg transition-all"
                 >
-                  {t('verifyEmail.error.registerAgain')}
+                  {t('verifyEmail.error.signIn')}
                 </Link>
                 <Link
-                  to="/login"
+                  to="/forgot-password"
                   className="text-slate-400 hover:text-white text-sm transition-colors"
                 >
-                  {t('verifyEmail.error.backToSignIn')}
+                  {t('verifyEmail.error.resetPassword')}
                 </Link>
               </div>
             </div>
