@@ -295,5 +295,6 @@
   "pa.reliability.total": "total {{total}}",
   "pa.reliability.latencyHint": "sampled at 10% of sessions; per-destination split unavailable",
   "pa.reliability.allDestinations": "All destinations",
-  "pa.reliability.auditHint": "actions and roles only — no actors or IP addresses"
+  "pa.reliability.auditHint": "actions and roles only — no actors or IP addresses",
+  "pa.lifecycle.openUsers": "See who these accounts are in Users →"
 }

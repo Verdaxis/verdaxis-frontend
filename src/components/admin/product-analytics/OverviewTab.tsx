@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { AnalyticsTab, OverviewResponse } from '../../../types/productAnalytics';
@@ -29,6 +30,16 @@ export const OverviewTab: React.FC<{
       <div>
         <SectionHeading title={t('pa.section.lifecycle')} hint={t('pa.section.lifecycleHint')} />
         <LifecycleSpine stages={data.lifecycle} onSelectTab={onSelectTab} />
+        {/* Aggregate stages stay identity-free; account-level detail lives in
+            the Users tab (outreach panel, join dates, mailto). This link is
+            the bridge. Visitors remain anonymous — no identity exists. */}
+        <Link
+          to="/app/admin/users"
+          className="inline-block mt-2 text-xs font-medium text-verdaxis underline decoration-verdaxis/40 underline-offset-4 hover:decoration-verdaxis"
+          data-testid="lifecycle-open-users"
+        >
+          {t('pa.lifecycle.openUsers')}
+        </Link>
         <CoverageNote meta={data.meta} source="login_history" />
         <CoverageNote meta={data.meta} source="status_history" />
       </div>
