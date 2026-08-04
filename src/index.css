@@ -26,6 +26,15 @@
   /* Supplier accent — AA-safe (#22D37A is 8.9:1 on dark, was #4CAF50 which failed) */
   --supplier: #22D37A;
   --supplier-dim: rgba(34, 211, 122, 0.10);
+
+  /* Chart series — validated per mode (OKLCH band, CVD ΔE, ≥3:1 on --bg-card).
+     Color follows the entity: 1=visitors/buyers, 2=members/bids,
+     3=orders/suppliers, 4=trades/asks. --chart-bad is status, never a series. */
+  --chart-1: #2563eb;
+  --chart-2: #059669;
+  --chart-3: #7c3aed;
+  --chart-4: #d97706;
+  --chart-bad: #dc2626;
 }
 
 .dark {
@@ -44,6 +53,12 @@
   --terminal-dim: #555555;
   --terminal-input-bg: #050A14;
   --terminal-input-border: rgba(0, 102, 255, 0.3);
+
+  --chart-1: #3b82f6;
+  --chart-2: #059669;
+  --chart-3: #8b5cf6;
+  --chart-4: #d97706;
+  --chart-bad: #f87171;
 }
 
 /* ============================================

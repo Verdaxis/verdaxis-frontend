@@ -61,7 +61,7 @@ export const AcquisitionTab: React.FC<{
         <SectionHeading title={t('pa.section.visitorsTrend')} />
         <TrendChart
           emptyLabel={t('pa.state.sparse')}
-          series={[{ key: 'visitors', label: t('pa.series.visitors'), color: '#60a5fa', points: data.visitors_trend }]}
+          series={[{ key: 'visitors', label: t('pa.series.visitors'), color: 'var(--chart-1)', points: data.visitors_trend }]}
         />
         <CoverageNote meta={data.meta} source="behavioral" />
       </div>

@@ -62,6 +62,12 @@ zeros are genuine. UI renders suppression as “< 3”.
   fan-out slowly; the 5-minute behavioral cache absorbs everything after, and
   the UI shows the tab-scoped loading state meanwhile. Authoritative-only
   tabs are within the cold budget (≤ 513 ms).
+- Since 2026-08-04 the workspace mitigates that cold exception client-side:
+  after the active tab renders, it prefetches the remaining tabs strictly one
+  at a time (behavioral first), so the slow Umami fan-out usually happens
+  during idle time rather than on a tab click. Tab responses younger than 60s
+  are also served from a bounded in-session cache without refetching. Initial
+  page load is still a single request.
 - SQL: ≤ 8 round trips per single-source tab. Documented exception:
   Marketplace `activity=ALL` composes reference coverage for **10** bounded
   lookups (no loops). Enforced by statement-count tests.

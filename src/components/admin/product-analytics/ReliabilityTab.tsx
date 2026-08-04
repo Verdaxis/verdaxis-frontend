@@ -47,7 +47,7 @@ export const ReliabilityTab: React.FC<{
           <TrendChart
             height={140}
             emptyLabel={t('pa.state.sparse')}
-            series={[{ key: 'failures', label: t('pa.section.loginFailures'), color: '#f87171', points: data.login_failures.trend }]}
+            series={[{ key: 'failures', label: t('pa.section.loginFailures'), color: 'var(--chart-bad)', points: data.login_failures.trend }]}
           />
         </div>
       </div>

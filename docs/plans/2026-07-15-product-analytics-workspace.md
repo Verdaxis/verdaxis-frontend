@@ -147,7 +147,11 @@ and denominator use the same entity and compatible collection window.
 
 Below the spine:
 
-- Activity trend: visitors, active members, orders, and confirmed trades as toggleable series.
+- Activity trend: visitors, active members, orders, and confirmed trades as
+  small multiples — one mini chart per series with its own y-axis (amended
+  2026-08-04: visitors and trades differ by orders of magnitude, so the
+  original shared-axis overlay flattened the business series; dual axes are
+  not acceptable).
 - Marketplace balance: unique buyer organizations vs supplier organizations plus bid/ask order counts.
 - Needs attention: deterministic rules only, such as approved members never logged in, signup submission drop, one-sided live market activity, elevated login failures, or degraded analytics collection.
 
@@ -509,7 +513,12 @@ registries must not appear in the UI contract.
 ### 2.6 Performance and storage budgets
 
 - Each tab endpoint: p95 <= 500ms warm and <= 1500ms cold on staging for a 90-day unfiltered query.
-- Seven-tab initial page load requests Overview only; no hidden-tab waterfall.
+- Seven-tab initial page load requests the active tab only; no hidden-tab
+  burst. Amended 2026-08-04: after the active tab resolves, the client warms
+  the remaining tabs strictly one at a time (behavioral tabs first) to absorb
+  the documented Umami cold start, and serves tab responses younger than 60s
+  from a bounded session cache without refetching (60s matches the
+  authoritative-cache mutation-visibility bound below).
 - At most eight SQL round trips per endpoint. No per-user, per-organization, per-product, or per-day query loops.
 - Behavioral cache is a 32-entry bounded LRU with per-key single-flight locks. Keys include normalized `[start,end)`, comparison range, audience, activity source, product, delivery point, window, requested event/property filters, breakdown set, source/website ID, and schema-version constant. Success TTL <= 300s; failure TTL <= 30s.
 - Authoritative responses may cache for <= 60s by normalized filter key, but user/approval mutations and order/trade writes must not be hidden longer than that.

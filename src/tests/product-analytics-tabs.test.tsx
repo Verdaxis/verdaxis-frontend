@@ -30,6 +30,15 @@ describe('overview tab', () => {
     expect(onSelectTab).toHaveBeenCalledWith('retention');
   });
 
+  it('renders the activity trend as small multiples, one facet per series', () => {
+    render(<OverviewTab data={paOverview()} compare onSelectTab={noop} />);
+    const facets = screen.getByTestId('trend-facets');
+    // Mixed-scale series (visitors vs. trades) each get their own y-axis;
+    // a shared-axis overlay would flatten the business series.
+    expect(within(facets).getByText('Visitors')).toBeTruthy();
+    expect(within(facets).getByText('Confirmed trades')).toBeTruthy();
+  });
+
   it('marks suppressed balance cells and lists needs-attention rules', () => {
     render(<OverviewTab data={paOverview()} compare onSelectTab={noop} />);
     // Suppressed segmented cells show the privacy marker, not zero.

@@ -40,7 +40,7 @@ export const EngagementTab: React.FC<{
         <SectionHeading title={t('pa.section.activeMembersTrend')} />
         <TrendChart
           emptyLabel={t('pa.state.sparse')}
-          series={[{ key: 'members', label: t('pa.series.activeMembers'), color: '#34d399', points: data.active_members_trend }]}
+          series={[{ key: 'members', label: t('pa.series.activeMembers'), color: 'var(--chart-2)', points: data.active_members_trend }]}
         />
         <CoverageNote meta={data.meta} source="login_history" />
       </div>

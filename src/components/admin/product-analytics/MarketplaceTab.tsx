@@ -120,10 +120,10 @@ const ActivitySection: React.FC<{
             <TrendChart
               emptyLabel={t('pa.state.sparse')}
               series={[
-                { key: 'bids', label: t('pa.balance.bids'), color: '#34d399', points: section.balance_trend.bids },
-                { key: 'asks', label: t('pa.balance.asks'), color: '#f59e0b', points: section.balance_trend.asks },
-                { key: 'buyers', label: t('pa.balance.buyerOrgs'), color: '#60a5fa', points: section.balance_trend.buyer_organizations },
-                { key: 'suppliers', label: t('pa.balance.supplierOrgs'), color: '#a78bfa', points: section.balance_trend.supplier_organizations },
+                { key: 'bids', label: t('pa.balance.bids'), color: 'var(--chart-2)', points: section.balance_trend.bids },
+                { key: 'asks', label: t('pa.balance.asks'), color: 'var(--chart-4)', points: section.balance_trend.asks },
+                { key: 'buyers', label: t('pa.balance.buyerOrgs'), color: 'var(--chart-1)', points: section.balance_trend.buyer_organizations },
+                { key: 'suppliers', label: t('pa.balance.supplierOrgs'), color: 'var(--chart-3)', points: section.balance_trend.supplier_organizations },
               ]}
             />
           </div>
