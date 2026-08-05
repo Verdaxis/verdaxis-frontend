@@ -166,6 +166,64 @@ describe('BuyerMap market data', () => {
         expect(syntheticEthanol).toMatchObject({ bestBid: 760.5, bestAsk: 785 });
     });
 
+    it('derives the reference from the selected product exact SPOT book', () => {
+        const aggregated = [
+            {
+                product_name: 'Bio Methanol',
+                market_product: 'BIO_METHANOL',
+                fuel_type: 'Methanol',
+                delivery_point_name: 'Singapore',
+                availability_window: 'SPOT',
+                region: 'Singapore',
+                side: 'BID',
+                min_price: '940.00',
+                max_price: '950.00',
+                total_quantity: '1000.00',
+                order_count: 2,
+                source_kind: 'DEMO_SEED',
+                demo_status: 'DEMO_ONLY',
+            },
+            {
+                product_name: 'Bio Methanol',
+                market_product: 'BIO_METHANOL',
+                fuel_type: 'Methanol',
+                delivery_point_name: 'Singapore',
+                availability_window: 'SPOT',
+                region: 'Singapore',
+                side: 'ASK',
+                min_price: '1000.00',
+                max_price: '1010.00',
+                total_quantity: '1000.00',
+                order_count: 2,
+                source_kind: 'DEMO_SEED',
+                demo_status: 'DEMO_ONLY',
+            },
+            {
+                product_name: 'Bio Methanol',
+                market_product: 'BIO_METHANOL',
+                fuel_type: 'Methanol',
+                delivery_point_name: 'Singapore',
+                availability_window: '2027-Q1',
+                region: 'Singapore',
+                side: 'ASK',
+                min_price: '520.00',
+                max_price: '520.00',
+                total_quantity: '1000.00',
+                order_count: 1,
+                source_kind: 'DEMO_SEED',
+                demo_status: 'DEMO_ONLY',
+            },
+        ];
+
+        const result = computePortMarketData(aggregated as any, 'Singapore');
+
+        expect(result.reference).toEqual({
+            productLabel: 'Bio Methanol',
+            price: 975,
+            source: 'DEMO',
+        });
+    });
+
     it('does not pull unsupported delivery points into approved ports through country or broad region matching', () => {
         const aggregated = [
             {
@@ -296,5 +354,23 @@ describe('BuyerMap market data', () => {
         expect(singapore?.id).toBe('sg-sin');
         expect(singapore?.catalogDeliveryPointId).toBe('11111111-1111-1111-1111-111111111111');
         expect(singapore?.priceMethanol).toBe(615);
+    });
+
+    it('does not restore legacy static prices when live port intelligence is empty', () => {
+        const livePorts = [
+            mapPortResponse({
+                id: 'sg-sin',
+                name: 'Singapore',
+                country: 'Singapore',
+                lat: 1.26,
+                lng: 103.82,
+                intelligence: null,
+            }),
+        ];
+
+        const singapore = resolveApprovedMapPorts(PORTS, livePorts).find(port => port.name === 'Singapore');
+
+        expect(singapore?.priceMethanol).toBe(0);
+        expect(singapore?.methanolSupply).toBe('Unknown');
     });
 });

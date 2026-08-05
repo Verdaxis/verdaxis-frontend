@@ -95,7 +95,6 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
 const Compliance = lazyWithRetry(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
-const SupplierAnalytics = lazyWithRetry(() => import('./components/SupplierAnalytics').then((module) => ({ default: module.SupplierAnalytics })));
 const AdminDashboard = lazyWithRetry(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
 
 type Prefetcher = () => Promise<unknown>;
@@ -266,7 +265,7 @@ const pageToPath = (page: Page): string => `/app/${PAGE_SLUGS[sanitizeDashboardP
 
 // Legacy Page value per route — feeds Sidebar active state, the
 // <main data-dashboard-page> dogfood contract, and session persistence.
-const pathToPage = (pathname: string, viewMode: ViewMode): Page => {
+const pathToPage = (pathname: string): Page => {
   if (pathname.startsWith('/app/admin')) return 'ADMIN';
   if (pathname.startsWith('/app/m/')) return 'MARKETPLACE';
   switch (pathname.split('/')[2] ?? '') {
@@ -275,7 +274,7 @@ const pathToPage = (pathname: string, viewMode: ViewMode): Page => {
     case 'marketplace': return 'MARKETPLACE';
     case 'curve': return 'FORWARD_CURVE';
     case 'watchlist': return 'WATCHLISTS';
-    case 'analytics': return viewMode === 'SUPPLIER' ? 'ANALYTICS' : 'DATA_ANALYTICS';
+    case 'analytics': return 'DATA_ANALYTICS';
     case 'trades': return 'TRADES';
     case 'quotes': return 'QUOTES';
     case 'compliance': return 'COMPLIANCE';
@@ -322,7 +321,7 @@ const DashboardLayout: React.FC = () => {
   // Bare /app only redirects; it must not clobber the stored page the
   // index redirect is about to restore, and it is not a navigation.
   const isBareAppPath = location.pathname === '/app' || location.pathname === '/app/';
-  const currentPage = pathToPage(location.pathname, effectiveViewMode);
+  const currentPage = pathToPage(location.pathname);
 
   // Session persistence: the sole writer of the legacy Page value.
   useEffect(() => {
@@ -449,8 +448,7 @@ const CurveRoute: React.FC = () => {
 };
 
 const AnalyticsRoute: React.FC = () => {
-  const { viewMode } = useDashboard();
-  return viewMode === 'SUPPLIER' ? <SupplierAnalytics /> : <DataAnalytics />;
+  return <DataAnalytics />;
 };
 
 const QuotesRoute: React.FC = () => {

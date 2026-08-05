@@ -16,7 +16,7 @@
 | `/app/m/:product/:port/:window` | Marketplace with the slice preselected | see slug codec below; invalid slice → redirect `/app/marketplace` |
 | `/app/curve` | ForwardCurveWorkspace | `FORWARD_CURVE` |
 | `/app/watchlist` | WatchlistPage | `WATCHLISTS` |
-| `/app/analytics` | per viewMode: BUYER → DATA_ANALYTICS component, SUPPLIER → SupplierAnalytics | one path, viewMode picks |
+| `/app/analytics` | DataAnalytics | shared supply-and-demand intelligence in BUYER and SUPPLIER view modes |
 | `/app/trades` | Trade History | `TRADES` |
 | `/app/quotes` | SupplierQuotes | SUPPLIER-viewMode only; other viewModes → `/app/home` |
 | `/app/compliance` | Compliance | BUYER-viewMode only; same guard |

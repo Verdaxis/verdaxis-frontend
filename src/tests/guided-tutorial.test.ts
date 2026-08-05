@@ -24,7 +24,7 @@ describe('guided tutorial contract', () => {
 
   it.each(['BUYER', 'SUPPLIER'] as const)('keeps %s routed steps aligned with sidebar navigation', (mode) => {
     const t = ((key: string) => key) as TFunction;
-    const sidebarItems = buildPrimarySidebarItems(t, mode);
+    const sidebarItems = buildPrimarySidebarItems(t);
     const keys = new Set(sidebarItems.map((item) => item.key));
 
     getGuidedTutorialStepDefinitions(mode).forEach((step) => {

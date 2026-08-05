@@ -43,12 +43,15 @@
     "recentActivity": "Recent Activity",
     "recentTrades": "Recent Trades",
     "spot": "Spot",
-    "referenceSpot": "Reference spot",
-    "referenceAvailability": "Ref avail",
+    "spotIndication": "{{product}} spot indication",
+    "spotIndicationUnavailable": "Spot indication",
+    "referenceWindow": "Window",
     "benchmarkReference": "Benchmark ref",
     "swapReference": "Swap ref",
     "source": "Source",
-    "reference": "Reference",
+    "demoMarketplace": "Demo marketplace",
+    "mixedMarketplace": "Mixed marketplace",
+    "marketplace": "Marketplace",
     "noOpenListingIndications": "No open listing indications yet.",
     "availability": "Availability",
     "viewMarketplace": "View Marketplace",
@@ -329,42 +332,6 @@
       "paid": "Paid",
       "declined": "Declined",
       "cancelled": "Cancelled"
-    }
-  },
-  "supplierAnalytics": {
-    "title": "Revenue Analytics",
-    "subtitle": "Business intelligence on revenue, fuel mix, regional performance, and order conversion.",
-    "loading": "Loading analytics...",
-    "error": {
-      "title": "Unable to load analytics",
-      "body": "Something went wrong while loading your revenue data. Please try again later."
-    },
-    "emptyState": {
-      "title": "No analytics data yet",
-      "body": "Revenue analytics will appear here once orders start flowing through the platform. Publish inventory, attract buyers, and track your performance."
-    },
-    "kpi": {
-      "totalRevenue": "Total Revenue",
-      "completedOrders": "From {{count}} completed order",
-      "completedOrdersPlural": "From {{count}} completed orders",
-      "volumeSold": "Volume Sold",
-      "deliveredAndPaid": "Delivered & Paid orders",
-      "avgDealSize": "Avg Deal Size",
-      "perCompletedOrder": "Per completed order",
-      "conversionRate": "Conversion Rate",
-      "ordersCompleted": "{{completed}} of {{total}} orders completed"
-    },
-    "charts": {
-      "revenueOverTime": "Revenue Over Time",
-      "revenueOverTimeSubtitle": "Monthly revenue from completed orders",
-      "revenueByFuel": "Revenue by Fuel Type",
-      "revenueByFuelSubtitle": "Breakdown of completed order revenue",
-      "volumeByRegion": "Volume by Region",
-      "volumeByRegionSubtitle": "Total quantity sold per region (MT)",
-      "orderStatusBreakdown": "Order Status Breakdown",
-      "orderStatusSubtitle": "Distribution of all incoming orders",
-      "noCompletedOrders": "No completed orders yet",
-      "noOrders": "No orders yet"
     }
   },
   "intelligencePanel": {

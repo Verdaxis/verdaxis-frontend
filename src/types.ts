@@ -31,7 +31,7 @@ export interface Port {
     methanolSupply: 'High' | 'Medium' | 'Low' | 'Unknown';
     biofuelSupply: 'High' | 'Medium' | 'Low' | 'Unknown';
     priceMethanol: number; // USD per MT
-    priceTrend: number; // Percentage change
+    priceTrend?: number; // Percentage change when supplied by live intelligence
     details?: PortDetails; // Dynamic intelligence data
 }
 
@@ -414,8 +414,8 @@ export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS
 
 // URL slug under /app for every legacy Page value. Legacy pages that no
 // longer have their own view (INVENTORY, ORDERBOOK, DEMAND_FEED) map to
-// the page that renders today; both ANALYTICS variants share one path
-// and viewMode picks the component.
+// the page that renders today. ANALYTICS remains a legacy session alias for
+// the shared DATA_ANALYTICS route.
 export const PAGE_SLUGS: Record<Page, string> = {
     MAP: 'map',
     MARKETPLACE: 'marketplace',

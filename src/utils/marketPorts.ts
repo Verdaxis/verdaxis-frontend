@@ -26,15 +26,23 @@ export const resolveApprovedMapPorts = (
 
     return approvedPorts.map(canonicalPort => {
         const livePort = portsById.get(canonicalPort.id) || portsByName.get(normalizePortName(canonicalPort.name));
-        if (!livePort) return canonicalPort;
+        if (!livePort) {
+            return {
+                ...canonicalPort,
+                priceMethanol: 0,
+                priceTrend: undefined,
+                methanolSupply: 'Unknown',
+                biofuelSupply: 'Unknown',
+            };
+        }
 
         return {
             ...canonicalPort,
             catalogDeliveryPointId: getCatalogDeliveryPointId(livePort, deliveryPoints),
-            priceMethanol: livePort.priceMethanol > 0 ? livePort.priceMethanol : canonicalPort.priceMethanol,
-            priceTrend: livePort.priceTrend || canonicalPort.priceTrend,
-            methanolSupply: livePort.methanolSupply !== 'Unknown' ? livePort.methanolSupply : canonicalPort.methanolSupply,
-            biofuelSupply: livePort.biofuelSupply !== 'Unknown' ? livePort.biofuelSupply : canonicalPort.biofuelSupply,
+            priceMethanol: livePort.priceMethanol,
+            priceTrend: livePort.priceTrend,
+            methanolSupply: livePort.methanolSupply,
+            biofuelSupply: livePort.biofuelSupply,
             details: {
                 ...canonicalPort.details,
                 ...livePort.details,

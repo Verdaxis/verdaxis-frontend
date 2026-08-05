@@ -99,7 +99,6 @@ vi.mock('../components/CommandCenter', () => ({
 }));
 vi.mock('../components/SupplierQuotes', () => ({ SupplierQuotes: () => <div data-testid="page-quotes" /> }));
 vi.mock('../components/DataAnalytics', () => ({ DataAnalytics: () => <div data-testid="page-data-analytics" /> }));
-vi.mock('../components/SupplierAnalytics', () => ({ SupplierAnalytics: () => <div data-testid="page-supplier-analytics" /> }));
 vi.mock('../components/Training', () => ({ Training: () => <div data-testid="page-training" /> }));
 vi.mock('../components/Settings', () => ({
   Settings: ({ viewMode }: { viewMode: string }) => <div data-testid="page-settings">{viewMode}</div>,
@@ -256,7 +255,7 @@ describe('app routing', () => {
       setRole('SUPPLIER');
       const cases: Array<[string, string, string]> = [
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
-        ['/app/analytics', 'page-supplier-analytics', 'ANALYTICS'],
+        ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
@@ -268,11 +267,11 @@ describe('app routing', () => {
       }
     });
 
-    it('lets an admin-switched viewMode pick the analytics component', async () => {
+    it('keeps the shared analytics component when an admin switches viewMode', async () => {
       setRole('ADMIN');
       sessionStorage.setItem('verdaxis_viewMode', 'SUPPLIER');
       const supplierView = renderApp('/app/analytics');
-      expect(await screen.findByTestId('page-supplier-analytics')).toBeTruthy();
+      expect(await screen.findByTestId('page-data-analytics')).toBeTruthy();
       supplierView.unmount();
 
       sessionStorage.setItem('verdaxis_viewMode', 'BUYER');
