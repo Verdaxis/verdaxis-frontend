@@ -21,6 +21,7 @@ import RegisterPage from './pages/RegisterPage';
 import { InvitePage } from './pages/InvitePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import AcceptInvitationPage from './pages/AcceptInvitationPage';
 import ForcePasswordChangePage from './pages/ForcePasswordChangePage';
 import MaintenancePage from './pages/MaintenancePage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -503,6 +504,7 @@ export const AppRoutes: React.FC = () => {
                     <Route path="/verify-email" element={<BackendRequiredRoute><VerifyEmailPage /></BackendRequiredRoute>} />
                     <Route path="/forgot-password" element={<BackendRequiredRoute><ForgotPasswordPage /></BackendRequiredRoute>} />
                     <Route path="/reset-password" element={<BackendRequiredRoute><ResetPasswordPage /></BackendRequiredRoute>} />
+                    <Route path="/accept-invite" element={<BackendRequiredRoute><AcceptInvitationPage /></BackendRequiredRoute>} />
 
                     {/* Root → detect language → redirect */}
                     <Route path="/" element={<LanguageRedirect />} />

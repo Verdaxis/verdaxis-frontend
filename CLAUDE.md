@@ -25,7 +25,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 
 All routes are defined in `src/App.tsx`. There are three route groups:
 
-1. **Auth routes** (`/login`, `/register`) -- unauthenticated
+1. **Auth routes** (`/login`, `/register`, `/accept-invite`) -- unauthenticated
 2. **Public routes** (`/`, `/how-it-works`, `/fuels`, `/education/:slug`, etc.) -- wrapped in `PublicLayout`
 3. **Authenticated app** (`/app`) -- wrapped in `ProtectedRoute` > `RequireOrganization` > `RequireProfile`
 
@@ -34,6 +34,8 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 **Gotcha:** a view having a render case does not mean it is reachable. The old `TERMINAL` view was archived in 2026-07 after its sidebar entry had been absent since the 2026-04 pilot cleanup. Check the sidebar's link list before treating a view as live.
 
 **Auth guard chain:** `ProtectedRoute` (must be logged in) -> `RequireOrganization` (must have org) -> `RequireProfile` (must have role set, else redirect to `/onboarding`).
+
+**Admin invitation flow:** The Admin Users tab prepares a buyer or supplier in an existing approved real organization and returns a copied, single-use link. `/accept-invite` resolves that link, requires Terms/Privacy acceptance and a new password, then enters through the normal authenticated app without another approval.
 
 ## API Integration
 

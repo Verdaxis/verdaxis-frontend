@@ -67,7 +67,7 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
-    admin/AdminDashboard.tsx      # Product analytics, user review, and organization membership onboarding
+    admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved invites, organization entry
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
     admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
     market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation
@@ -86,6 +86,7 @@ src/
   pages/
     LoginPage.tsx                  # Email/password login
     RegisterPage.tsx               # User registration
+    AcceptInvitationPage.tsx       # One-page pre-approved account claim, agreement, password, and sign-in
     OnboardingPage.tsx             # Post-registration role selection + profile setup
     CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
     public/                        # 15 marketing pages (landing, education, use cases, etc.)
