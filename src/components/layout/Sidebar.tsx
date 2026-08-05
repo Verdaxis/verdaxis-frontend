@@ -41,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
 
-    const sidebarItems = buildPrimarySidebarItems(t, viewMode).filter((item) => (
+    const sidebarItems = buildPrimarySidebarItems(t).filter((item) => (
         !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
     ));
 

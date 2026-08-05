@@ -11,23 +11,23 @@ const t = ((key: string) => key) as TFunction;
 
 describe('sidebar config', () => {
   it('keeps buyer and supplier nav labels in the same order', () => {
-    const buyer = buildPrimarySidebarItems(t, 'BUYER');
-    const supplier = buildPrimarySidebarItems(t, 'SUPPLIER');
+    const buyer = buildPrimarySidebarItems(t);
+    const supplier = buildPrimarySidebarItems(t);
 
     expect(buyer.map((item) => item.key)).toEqual(supplier.map((item) => item.key));
     expect(buyer.map((item) => item.label)).toEqual(supplier.map((item) => item.label));
   });
 
-  it('routes analytics to the correct page for each role', () => {
-    const buyerAnalytics = buildPrimarySidebarItems(t, 'BUYER').find((item) => item.key === 'ANALYTICS');
-    const supplierAnalytics = buildPrimarySidebarItems(t, 'SUPPLIER').find((item) => item.key === 'ANALYTICS');
+  it('routes analytics to the shared data page for each role', () => {
+    const buyerAnalytics = buildPrimarySidebarItems(t).find((item) => item.key === 'ANALYTICS');
+    const supplierAnalytics = buildPrimarySidebarItems(t).find((item) => item.key === 'ANALYTICS');
 
     expect(buyerAnalytics?.page).toBe('DATA_ANALYTICS');
-    expect(supplierAnalytics?.page).toBe('ANALYTICS');
+    expect(supplierAnalytics?.page).toBe('DATA_ANALYTICS');
   });
 
   it('exposes a route path for every nav item', () => {
-    const buyer = buildPrimarySidebarItems(t, 'BUYER');
+    const buyer = buildPrimarySidebarItems(t);
 
     expect(Object.fromEntries(buyer.map((item) => [item.key, item.path]))).toEqual({
       DASHBOARD: '/app/home',
@@ -39,13 +39,12 @@ describe('sidebar config', () => {
       TRADES: '/app/trades',
     });
 
-    // Both analytics Page values share one path; viewMode picks the component.
-    const supplierAnalytics = buildPrimarySidebarItems(t, 'SUPPLIER').find((item) => item.key === 'ANALYTICS');
+    const supplierAnalytics = buildPrimarySidebarItems(t).find((item) => item.key === 'ANALYTICS');
     expect(supplierAnalytics?.path).toBe('/app/analytics');
   });
 
   it('routes Forward Curve to the monitoring workspace', () => {
-    const forwardCurve = buildPrimarySidebarItems(t, 'BUYER').find((item) => item.key === 'FORWARD_CURVE');
+    const forwardCurve = buildPrimarySidebarItems(t).find((item) => item.key === 'FORWARD_CURVE');
 
     expect(forwardCurve?.page).toBe('FORWARD_CURVE');
     expect(forwardCurve?.label).toBe('sidebar.forwardCurve');

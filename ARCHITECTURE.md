@@ -55,11 +55,12 @@ src/
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
-    BuyerMap.tsx                   # MapLibre intelligence map using approved trading ports plus live API intelligence
+    BuyerMap.tsx                   # MapLibre intelligence map using approved ports and product-specific marketplace SPOT references
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
+    DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
     Fleet.tsx                      # Vessel list with compliance and voyage info
     Stats.tsx                      # Buyer analytics and trade history
@@ -72,7 +73,6 @@ src/
     SupplierInventory.tsx          # Fuel inventory by port
     SupplierListingConsole.tsx     # Create/manage marketplace listings
     SupplierStats.tsx              # Supplier-specific stats
-    SupplierAnalytics.tsx          # Revenue and performance analytics
     SupplierDemandFeed.tsx         # Live demand signals from buyers
     WatchlistPage.tsx              # Slice-first Market Radar detail view and event feed
     # Modals

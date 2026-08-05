@@ -2,6 +2,18 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Keep Shared Navigation Destinations Role-Consistent
+- **Date:** 2026-08-05
+- **Trigger:** The shared Analytics link opened supply-and-demand intelligence for Buyer view but an empty revenue-only screen for Supplier view.
+- **Rule:** When a navigation destination is intended to be shared, route every view mode to the same canonical component unless the product explicitly requires different role workflows.
+- **Why:** One URL and label concealed a legacy component split, making identical navigation appear broken for suppliers without completed trades.
+
+### Do Not Mix Legacy Fuel References With Canonical Markets
+- **Date:** 2026-08-05
+- **Trigger:** The Intelligence Map compared a hardcoded conventional-methanol reference with current bio/e-methanol and ethanol demo listings.
+- **Rule:** Price references must use the same canonical product, delivery point, and availability window as the market data they accompany, with provenance shown.
+- **Why:** A legacy port-level mock survived beside pathway-specific marketplace data, producing a plausible-looking but invalid comparison.
+
 ### Confirm Abrupt Cross-Project Requests
 - **Date:** 2026-07-30
 - **Trigger:** A TrekTogether-specific request was accidentally sent inside the active Verdaxis session and was implemented before the user corrected the target.

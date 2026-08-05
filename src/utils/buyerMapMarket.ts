@@ -13,6 +13,13 @@ export interface PortMarketData {
     totalVolume: number;
     fuelRows: PortMarketRow[];
     spreadPct: number;
+    reference: PortMarketReference | null;
+}
+
+export interface PortMarketReference {
+    productLabel: string;
+    price: number;
+    source: 'DEMO' | 'MIXED' | 'MARKET';
 }
 
 interface PortMarketIdentity {
@@ -45,6 +52,22 @@ const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null =
 };
 
 const normalizeLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+const isSpot = (row: AggregatedOrderbook) => row.availability_window?.trim().toUpperCase() === 'SPOT';
+const isDemo = (row: AggregatedOrderbook) => (
+    row.source_kind === 'DEMO_SEED'
+    || row.demo_status === 'DEMO_ONLY'
+    || row.evidence_class === 'DEMO'
+);
+
+const referenceSource = (rows: AggregatedOrderbook[]): PortMarketReference['source'] => {
+    const hasDemo = rows.some(isDemo);
+    const hasNonDemo = rows.some(row => !isDemo(row));
+    const explicitlyMixed = rows.some(row => (
+        row.source_kind === 'MIXED_SOURCE' || row.demo_status === 'MIXED'
+    ));
+    if (explicitlyMixed || (hasDemo && hasNonDemo)) return 'MIXED';
+    return hasDemo ? 'DEMO' : 'MARKET';
+};
 
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
@@ -73,6 +96,7 @@ export const computePortMarketData = (
     });
 
     let totalVolume = 0;
+    const references: PortMarketReference[] = [];
     const fuelRows = Object.entries(byProduct).map(([label, { bids, asks }]) => {
         const bestBid = bids.length > 0 ? Math.max(...bids.map(bid => Number(bid.max_price))) : null;
         const bestAsk = asks.length > 0 ? Math.min(...asks.map(ask => Number(ask.min_price))) : null;
@@ -80,6 +104,25 @@ export const computePortMarketData = (
             + asks.reduce((sum, ask) => sum + Number(ask.order_count), 0);
         totalVolume += bids.reduce((sum, bid) => sum + Number(bid.total_quantity), 0)
             + asks.reduce((sum, ask) => sum + Number(ask.total_quantity), 0);
+
+        const spotBids = bids.filter(isSpot);
+        const spotAsks = asks.filter(isSpot);
+        const spotBid = spotBids.length > 0
+            ? Math.max(...spotBids.map(bid => Number(bid.max_price)))
+            : null;
+        const spotAsk = spotAsks.length > 0
+            ? Math.min(...spotAsks.map(ask => Number(ask.min_price)))
+            : null;
+        const spotPrice = spotBid !== null && spotAsk !== null
+            ? (spotBid + spotAsk) / 2
+            : spotBid ?? spotAsk;
+        if (spotPrice !== null) {
+            references.push({
+                productLabel: label,
+                price: spotPrice,
+                source: referenceSource([...spotBids, ...spotAsks]),
+            });
+        }
 
         let spreadPct = 999;
         if (bestBid !== null && bestAsk !== null) {
@@ -107,5 +150,10 @@ export const computePortMarketData = (
         }
     }
 
-    return { totalVolume, fuelRows, spreadPct };
+    const referenceProduct = selectedProduct || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
+    const reference = references.find(item => item.productLabel === referenceProduct)
+        ?? references[0]
+        ?? null;
+
+    return { totalVolume, fuelRows, spreadPct, reference };
 };

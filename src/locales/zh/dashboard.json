@@ -43,12 +43,15 @@
     "recentActivity": "近期活动",
     "recentTrades": "近期交易",
     "spot": "现货",
-    "referenceSpot": "参考现货",
-    "referenceAvailability": "参考供应",
+    "spotIndication": "{{product}} 现货指示",
+    "spotIndicationUnavailable": "现货指示",
+    "referenceWindow": "窗口",
     "benchmarkReference": "基准参考",
     "swapReference": "掉期参考",
     "source": "来源",
-    "reference": "参考",
+    "demoMarketplace": "演示市场",
+    "mixedMarketplace": "混合市场",
+    "marketplace": "市场",
     "noOpenListingIndications": "暂无开放挂牌指示。",
     "availability": "供应量",
     "viewMarketplace": "查看市场",
@@ -329,42 +332,6 @@
       "paid": "已付款",
       "declined": "已拒绝",
       "cancelled": "已取消"
-    }
-  },
-  "supplierAnalytics": {
-    "title": "收入数据分析",
-    "subtitle": "收入、燃料组合、区域业绩及订单转化的商业智能分析。",
-    "loading": "正在加载数据分析...",
-    "error": {
-      "title": "无法加载数据分析",
-      "body": "加载收入数据时出错，请稍后重试。"
-    },
-    "emptyState": {
-      "title": "暂无数据分析",
-      "body": "一旦订单开始流入平台，收入分析将在此显示。发布库存，吸引买家，追踪您的业绩。"
-    },
-    "kpi": {
-      "totalRevenue": "总收入",
-      "completedOrders": "来自 {{count}} 笔已完成订单",
-      "completedOrdersPlural": "来自 {{count}} 笔已完成订单",
-      "volumeSold": "已售量",
-      "deliveredAndPaid": "已交付和已付款订单",
-      "avgDealSize": "平均成交额",
-      "perCompletedOrder": "每笔完成订单",
-      "conversionRate": "转化率",
-      "ordersCompleted": "{{total}} 笔订单中 {{completed}} 笔已完成"
-    },
-    "charts": {
-      "revenueOverTime": "收入趋势",
-      "revenueOverTimeSubtitle": "已完成订单的月度收入",
-      "revenueByFuel": "按燃料类型划分的收入",
-      "revenueByFuelSubtitle": "已完成订单收入明细",
-      "volumeByRegion": "按区域划分的销售量",
-      "volumeByRegionSubtitle": "各区域累计销售量（MT）",
-      "orderStatusBreakdown": "订单状态分布",
-      "orderStatusSubtitle": "所有传入订单的状态分布",
-      "noCompletedOrders": "暂无已完成订单",
-      "noOrders": "暂无订单"
     }
   },
   "intelligencePanel": {

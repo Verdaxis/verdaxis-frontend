@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import type { TFunction } from 'i18next';
 
-import { PAGE_SLUGS, type Page, type ViewMode } from '../../types';
+import { PAGE_SLUGS, type Page } from '../../types';
 
 export interface SidebarNavItem {
     key: string;
@@ -24,7 +24,7 @@ interface SidebarNavBlueprint {
     key: string;
     icon: LucideIcon;
     labelKey: string;
-    page: Page | ((viewMode: ViewMode) => Page);
+    page: Page;
 }
 
 const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
@@ -35,20 +35,19 @@ const PRIMARY_SIDEBAR_BLUEPRINTS: SidebarNavBlueprint[] = [
     { key: 'WATCHLISTS', page: 'WATCHLISTS', labelKey: 'sidebar.watchlists', icon: Star },
     {
         key: 'ANALYTICS',
-        page: (viewMode: ViewMode) => (viewMode === 'BUYER' ? 'DATA_ANALYTICS' : 'ANALYTICS'),
+        page: 'DATA_ANALYTICS',
         labelKey: 'sidebar.analytics',
         icon: BarChart3,
     },
     { key: 'TRADES', page: 'TRADES', labelKey: 'sidebar.tradeHistory', icon: ArrowLeftRight },
 ];
 
-export function buildPrimarySidebarItems(t: TFunction, viewMode: ViewMode): SidebarNavItem[] {
+export function buildPrimarySidebarItems(t: TFunction): SidebarNavItem[] {
     return PRIMARY_SIDEBAR_BLUEPRINTS.map((item) => {
-        const page = typeof item.page === 'function' ? item.page(viewMode) : item.page;
         return {
             key: item.key,
-            page,
-            path: `/app/${PAGE_SLUGS[page]}`,
+            page: item.page,
+            path: `/app/${PAGE_SLUGS[item.page]}`,
             label: t(item.labelKey),
             icon: item.icon,
         };

@@ -119,8 +119,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         fetchData();
     }, []);
 
-    const selectedPort = ports.find(p => p.id === selectedPortId);
-
     const approvedListingLocationMap = useMemo(() => {
         const map = new Map<string, string>();
         ports.forEach((port) => {
@@ -224,6 +222,16 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return map;
     }, [ports, aggregatedData, selectedProduct]);
 
+    const selectedPort = useMemo(() => {
+        const port = ports.find(item => item.id === selectedPortId);
+        if (!port) return undefined;
+        return {
+            ...port,
+            priceMethanol: portMarketMap[port.id]?.reference?.price ?? 0,
+            priceTrend: undefined,
+        };
+    }, [portMarketMap, ports, selectedPortId]);
+
     const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.label);
 
     // Max volume across all ports (for radius scaling)
@@ -319,7 +327,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
             // Build GeoJSON for ports
             const portFeatures = ports.map(port => {
-                const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999 };
+                const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
                 const radius = getPortRadius(mkt.totalVolume, maxVolume);
                 const spreadColor = getSpreadColor(mkt.spreadPct);
                 return {
@@ -331,7 +339,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         country: port.country,
                         radius,
                         color: spreadColor,
-                        priceMethanol: port.priceMethanol,
+                        referencePrice: mkt.reference?.price ?? 0,
+                        referenceProduct: mkt.reference?.productLabel ?? '',
                         totalVolume: mkt.totalVolume,
                         selected: port.id === selectedPortId,
                     },
@@ -373,8 +382,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const f = e.features[0];
                     const props = f.properties;
                     const coords = (f.geometry as any).coordinates.slice();
-                    const pricePart = props.priceMethanol
-                        ? ' <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + props.priceMethanol + '</span>'
+                    const pricePart = props.referencePrice
+                        ? ' <span style="color:#94A3B8">' + props.referenceProduct + '</span> <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + Number(props.referencePrice).toFixed(0) + '</span>'
                         : '';
                     const volumePart = props.totalVolume > 0
                         ? '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + Math.round(props.totalVolume).toLocaleString() + ' MT open</div>'
@@ -402,7 +411,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     // Show popup
                     if (popupRef.current) popupRef.current.remove();
 
-                    const mkt = portMarketMap[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999 };
+                    const mkt = portMarketMap[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
                     const port = ports.find(p => p.id === portId);
                     if (!port) return;
 
@@ -425,40 +434,42 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No open orders at this port</div>';
 
                     // Market intelligence section
-                    const spotPrice = port.priceMethanol > 0 ? '$' + port.priceMethanol : '--';
-                    const availabilityLabel = port.methanolSupply && port.methanolSupply !== 'Unknown' ? port.methanolSupply : '--';
-                    const availColor = availabilityLabel === 'High'
-                        ? '#10B981'
-                        : availabilityLabel === 'Medium'
-                            ? '#F59E0B'
-                            : availabilityLabel === 'Low'
-                                ? '#EF4444'
-                                : '#94A3B8';
+                    const spotPrice = mkt.reference ? '$' + mkt.reference.price.toFixed(0) : '--';
+                    const referenceLabel = mkt.reference
+                        ? t('buyerMap.spotIndication', { product: mkt.reference.productLabel })
+                        : t('buyerMap.spotIndicationUnavailable');
+                    const referenceSource = mkt.reference?.source === 'DEMO'
+                        ? t('buyerMap.demoMarketplace')
+                        : mkt.reference?.source === 'MIXED'
+                            ? t('buyerMap.mixedMarketplace')
+                            : t('buyerMap.marketplace');
                     const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
+                    const externalReferencesHtml = plattsPrice !== '--' || swapPrice !== '--'
+                        ? '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
+                            + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
+                            + '<span style="color:#E8373E;font-weight:600">' + t('buyerMap.benchmarkReference') + '</span>'
+                            + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
+                            + '</div>'
+                            + '<div style="display:flex;justify-content:space-between;font-size:11px">'
+                            + '<span style="color:#94A3B8;font-weight:600">' + t('buyerMap.swapReference') + '</span>'
+                            + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
+                            + '</div>'
+                            + '</div>'
+                        : '';
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
-                        // Spot + Availability row
+                        // Product-specific SPOT indication
                         + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceSpot') + '</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceAvailability') + '</span> <span style="font-size:12px;font-weight:700;color:' + availColor + ';margin-left:4px">' + availabilityLabel + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + referenceLabel + '</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
+                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceWindow') + '</span> <span style="font-size:12px;font-weight:700;color:#10B981;margin-left:4px">SPOT</span></div>'
                         + '</div>'
-                        // Platts & Swap box
-                        + '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
-                        + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
-                        + '<span style="color:#E8373E;font-weight:600">' + t('buyerMap.benchmarkReference') + '</span>'
-                        + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
-                        + '</div>'
-                        + '<div style="display:flex;justify-content:space-between;font-size:11px">'
-                        + '<span style="color:#94A3B8;font-weight:600">' + t('buyerMap.swapReference') + '</span>'
-                        + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
-                        + '</div>'
-                        + '</div>'
+                        + externalReferencesHtml
                         // Congestion row
                         + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
                         + '<div><span style="color:#94A3B8;font-weight:600">Congestion</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + congestion + '</span></div>'
-                        + '<div><span style="color:#94A3B8;font-weight:600">' + t('buyerMap.source') + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + t('buyerMap.reference') + '</span></div>'
+                        + '<div><span style="color:#94A3B8;font-weight:600">' + t('buyerMap.source') + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + referenceSource + '</span></div>'
                         + '</div>'
                         + '</div>';
 
