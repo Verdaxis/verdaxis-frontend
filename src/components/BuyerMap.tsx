@@ -438,11 +438,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const referenceLabel = mkt.reference
                         ? t('buyerMap.spotIndication', { product: mkt.reference.productLabel })
                         : t('buyerMap.spotIndicationUnavailable');
-                    const referenceSource = mkt.reference?.source === 'DEMO'
-                        ? t('buyerMap.demoMarketplace')
-                        : mkt.reference?.source === 'MIXED'
-                            ? t('buyerMap.mixedMarketplace')
-                            : t('buyerMap.marketplace');
+                    const referenceSource = !mkt.reference
+                        ? '--'
+                        : mkt.reference.source === 'DEMO'
+                            ? t('buyerMap.demoMarketplace')
+                            : mkt.reference.source === 'MIXED'
+                                ? t('buyerMap.mixedMarketplace')
+                                : t('buyerMap.marketplace');
                     const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
@@ -461,9 +463,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         : '';
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Product-specific SPOT indication
-                        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + referenceLabel + '</span> <span style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace;margin-left:4px">' + spotPrice + '</span></div>'
-                        + '<div><span style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600">' + t('buyerMap.referenceWindow') + '</span> <span style="font-size:12px;font-weight:700;color:#10B981;margin-left:4px">SPOT</span></div>'
+                        + '<div style="margin-bottom:6px">'
+                        + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600;margin-bottom:2px">' + referenceLabel + '</div>'
+                        + '<div style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace">' + spotPrice + '</div>'
                         + '</div>'
                         + externalReferencesHtml
                         // Congestion row

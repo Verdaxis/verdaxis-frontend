@@ -45,7 +45,6 @@
     "spot": "现货",
     "spotIndication": "{{product}} 现货指示",
     "spotIndicationUnavailable": "现货指示",
-    "referenceWindow": "窗口",
     "benchmarkReference": "基准参考",
     "swapReference": "掉期参考",
     "source": "来源",
