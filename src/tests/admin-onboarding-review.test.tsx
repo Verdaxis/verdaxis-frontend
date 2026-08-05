@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   approveOrganization: vi.fn(),
   approveOrganizationJoin: vi.fn(),
   rejectUser: vi.fn(),
+  invitationOrganizations: vi.fn(),
+  createInvitation: vi.fn(),
 }));
 
 vi.mock('../services/api', async importOriginal => {
@@ -84,6 +86,22 @@ describe('admin onboarding review', () => {
     mocks.resendVerification.mockResolvedValue({
       message: 'Verification email sent.',
     });
+    mocks.invitationOrganizations.mockResolvedValue({
+      items: [{
+        id: 'org-1',
+        name: 'Goldwind Green Methanol',
+        type: 'FUEL_SUPPLIER',
+      }],
+    });
+    mocks.createInvitation.mockResolvedValue({
+      user_id: 'invited-user-1',
+      email: 'abdullah@customer.example',
+      role: 'SUPPLIER',
+      organization_name: 'Goldwind Green Methanol',
+      acceptance_url: 'https://app.verdaxis.exchange/accept-invite#token=claim-secret',
+      expires_at: '2026-08-12T12:00:00Z',
+      reissued: false,
+    });
   });
 
   it('shows the requested organization and blocks approval on email verification', async () => {
@@ -102,5 +120,34 @@ describe('admin onboarding review', () => {
     await waitFor(() => {
       expect(mocks.resendVerification).toHaveBeenCalledWith('hesham.nasr@hlag.com');
     });
+  });
+
+  it('generates a pre-approved invitation for an existing organization', async () => {
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Invite user' }));
+    await screen.findByRole('option', { name: 'Goldwind Green Methanol' });
+
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Abdullah' } });
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Rahman' } });
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'abdullah@customer.example' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'SUPPLIER' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate invitation' }));
+
+    await waitFor(() => {
+      expect(mocks.createInvitation).toHaveBeenCalledWith({
+        email: 'abdullah@customer.example',
+        first_name: 'Abdullah',
+        last_name: 'Rahman',
+        role: 'SUPPLIER',
+        organization_id: 'org-1',
+      });
+    });
+    expect(await screen.findByText('Invitation ready')).toBeTruthy();
+    expect(screen.getByDisplayValue('https://app.verdaxis.exchange/accept-invite#token=claim-secret')).toBeTruthy();
   });
 });

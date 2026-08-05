@@ -7,9 +7,15 @@ import {
   MessageSquareText,
   ShieldCheck,
   XCircle,
+  UserPlus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   AdminFeedbackEntry as FeedbackEntry,
+  AdminInvitationInput,
+  AdminInvitationOrganization,
+  AdminInvitationResponse,
   ApiError,
   OnboardingAttentionItem,
   api,
@@ -40,6 +46,7 @@ interface AdminUserEntry {
   email_verified?: boolean;
   last_login?: string | null;
   org_has_orders?: boolean;
+  must_change_password?: boolean;
 }
 
 interface AdminReviewOrganization {
@@ -98,6 +105,7 @@ const statusBadge = (status: string) => {
 
 // Furthest point an account has actually reached in the journey.
 const journeyStage = (u: AdminUserEntry): { label: string; cls: string } => {
+  if (!u.email_verified && u.must_change_password) return { label: 'Invited', cls: 'bg-sky-500/15 text-sky-400' };
   if (!u.email_verified) return { label: 'Registered', cls: 'bg-slate-500/15 text-slate-400' };
   if (u.status !== 'APPROVED') return { label: 'Verified', cls: 'bg-amber-500/15 text-amber-400' };
   if (!u.last_login) return { label: 'Approved', cls: 'bg-amber-500/15 text-amber-400' };
@@ -111,6 +119,14 @@ const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
   { label: 'Approved',value: 'APPROVED'},
   { label: 'Rejected',value: 'REJECTED'},
 ];
+
+const EMPTY_INVITATION: AdminInvitationInput = {
+  email: '',
+  first_name: '',
+  last_name: null,
+  role: 'BUYER',
+  organization_id: '',
+};
 
 const nextReviewAction = (review: AdminReviewCase): ReviewAction => {
   if (!review.email_verified) return { kind: 'resend' };
@@ -260,6 +276,14 @@ const UsersTab: React.FC = () => {
   const [entryLoading, setEntryLoading] = useState(false);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [replacementInput, setReplacementInput] = useState<MarketSupportStartInput | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState<AdminInvitationInput>(EMPTY_INVITATION);
+  const [inviteOrganizations, setInviteOrganizations] = useState<AdminInvitationOrganization[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<AdminInvitationResponse | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const navigate = useNavigate();
   const { start, resume } = useMarketSupport();
 
@@ -321,6 +345,65 @@ const UsersTab: React.FC = () => {
     setReviewError(null);
     setReviewNotice(null);
     setVerificationSent(false);
+  };
+
+  const openInvite = async () => {
+    setInviteOpen(true);
+    setInviteLoading(true);
+    setInviteError(null);
+    setInvitation(null);
+    setInviteCopied(false);
+    setInviteForm(EMPTY_INVITATION);
+    try {
+      const data = await api.admin.invitationOrganizations();
+      const organizations = data.items ?? [];
+      setInviteOrganizations(organizations);
+      setInviteForm({ ...EMPTY_INVITATION, organization_id: organizations[0]?.id ?? '' });
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Could not load organizations.');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const closeInvite = () => {
+    setInviteOpen(false);
+    setInviteError(null);
+    setInvitation(null);
+    setInviteCopied(false);
+  };
+
+  const handleInviteConfirm = async () => {
+    if (invitation) {
+      closeInvite();
+      return;
+    }
+    setInviteSubmitting(true);
+    setInviteError(null);
+    try {
+      const created = await api.admin.createInvitation({
+        ...inviteForm,
+        email: inviteForm.email.trim().toLowerCase(),
+        first_name: inviteForm.first_name.trim(),
+        last_name: inviteForm.last_name?.trim() || null,
+      });
+      setInvitation(created);
+      await load();
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Could not create this invitation.');
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
+  const copyInvitation = async () => {
+    if (!invitation) return;
+    try {
+      await navigator.clipboard.writeText(invitation.acceptance_url);
+      setInviteCopied(true);
+    } catch {
+      setInviteError('Copy failed. Select the link and copy it manually.');
+    }
   };
 
   const handleReviewAction = async () => {
@@ -460,6 +543,14 @@ const UsersTab: React.FC = () => {
         <span className="ml-auto text-xs text-verdaxis-text-muted self-center">
           {total} {total === 1 ? 'user' : 'users'}
         </span>
+        <button
+          type="button"
+          onClick={() => { void openInvite(); }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-verdaxis px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
+        >
+          <UserPlus size={13} />
+          Invite user
+        </button>
         <button type="button" onClick={() => { void resumeContext(); }} className="rounded-full border border-verdaxis px-3 py-1.5 text-xs font-semibold text-verdaxis hover:bg-verdaxis/10">
           Resume active context
         </button>
@@ -620,6 +711,121 @@ const UsersTab: React.FC = () => {
           onClose={closeEntry}
         />
       )}
+      <ConfirmModal
+        isOpen={inviteOpen}
+        onClose={closeInvite}
+        onConfirm={() => { void handleInviteConfirm(); }}
+        title={invitation ? 'Invitation ready' : 'Invite a pre-approved user'}
+        message={invitation
+          ? 'Send this single-use link to the recipient. It expires after seven days.'
+          : 'Prepare an approved account in an existing organization. The recipient only needs to accept and set a password.'}
+        confirmText={invitation ? 'Done' : 'Generate invitation'}
+        cancelText={invitation ? '' : 'Cancel'}
+        variant={invitation ? 'success' : 'info'}
+        isLoading={inviteSubmitting}
+        confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.organization_id}
+        maxWidth="lg"
+        compact
+      >
+        {invitation ? (
+          <div className="mt-5 space-y-3">
+            <div className="text-sm text-verdaxis-text-muted">
+              <span className="font-semibold text-verdaxis-text">{invitation.email}</span>
+              <span className="mx-2">·</span>
+              {invitation.organization_name}
+              <span className="mx-2">·</span>
+              {invitation.role === 'BUYER' ? 'Buyer' : 'Supplier'}
+            </div>
+            <label htmlFor="admin-invitation-link" className="block text-xs font-semibold uppercase text-verdaxis-text-muted">
+              Invitation link
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="admin-invitation-link"
+                readOnly
+                value={invitation.acceptance_url}
+                className="min-w-0 flex-1 rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 font-mono text-xs text-verdaxis-text"
+                onFocus={(event) => event.currentTarget.select()}
+              />
+              <button
+                type="button"
+                onClick={() => { void copyInvitation(); }}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-verdaxis-border text-verdaxis-text-muted hover:border-verdaxis hover:text-verdaxis"
+                aria-label="Copy invitation link"
+                title="Copy invitation link"
+              >
+                {inviteCopied ? <Check size={16} /> : <Copy size={16} />}
+              </button>
+            </div>
+            {invitation.reissued && (
+              <p className="text-xs text-amber-400">A previous unclaimed link was replaced. Only this link will work.</p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-sm text-verdaxis-text-muted">
+              First name
+              <input
+                required
+                value={inviteForm.first_name}
+                onChange={(event) => setInviteForm({ ...inviteForm, first_name: event.target.value })}
+                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+              />
+            </label>
+            <label className="text-sm text-verdaxis-text-muted">
+              Last name
+              <input
+                value={inviteForm.last_name ?? ''}
+                onChange={(event) => setInviteForm({ ...inviteForm, last_name: event.target.value || null })}
+                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+              />
+            </label>
+            <label className="text-sm text-verdaxis-text-muted sm:col-span-2">
+              Email address
+              <input
+                type="email"
+                required
+                value={inviteForm.email}
+                onChange={(event) => setInviteForm({ ...inviteForm, email: event.target.value })}
+                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+                placeholder="name@company.com"
+              />
+            </label>
+            <label className="text-sm text-verdaxis-text-muted">
+              Role
+              <select
+                value={inviteForm.role}
+                onChange={(event) => setInviteForm({ ...inviteForm, role: event.target.value as 'BUYER' | 'SUPPLIER' })}
+                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+              >
+                <option value="BUYER">Buyer</option>
+                <option value="SUPPLIER">Supplier</option>
+              </select>
+            </label>
+            <label className="text-sm text-verdaxis-text-muted">
+              Organization
+              <select
+                value={inviteForm.organization_id}
+                onChange={(event) => setInviteForm({ ...inviteForm, organization_id: event.target.value })}
+                disabled={inviteLoading || inviteOrganizations.length === 0}
+                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
+              >
+                {inviteOrganizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>{organization.name}</option>
+                ))}
+              </select>
+            </label>
+            {!inviteLoading && inviteOrganizations.length === 0 && !inviteError && (
+              <p className="sm:col-span-2 text-sm text-amber-400">No approved real organizations are available.</p>
+            )}
+          </div>
+        )}
+        {inviteError && (
+          <p role="alert" className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+            {inviteError}
+          </p>
+        )}
+      </ConfirmModal>
       <ConfirmModal
         isOpen={Boolean(reviewCase)}
         onClose={closeReview}

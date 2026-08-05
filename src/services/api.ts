@@ -435,6 +435,30 @@ export interface OnboardingAttentionResponse {
     generated_at: string;
 }
 
+export interface AdminInvitationOrganization {
+    id: string;
+    name: string;
+    type: string;
+}
+
+export interface AdminInvitationInput {
+    email: string;
+    first_name: string;
+    last_name: string | null;
+    role: 'BUYER' | 'SUPPLIER';
+    organization_id: string;
+}
+
+export interface AdminInvitationResponse {
+    user_id: string;
+    email: string;
+    role: 'BUYER' | 'SUPPLIER';
+    organization_name: string;
+    acceptance_url: string;
+    expires_at: string;
+    reissued: boolean;
+}
+
 export const api = {
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
@@ -927,6 +951,16 @@ export const api = {
         },
         users: async (query?: string) => {
             return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
+        },
+        invitationOrganizations: async (): Promise<{ items: AdminInvitationOrganization[] }> => {
+            return fetchApi('/auth/admin/invitations/organizations', { headers: getHeaders() });
+        },
+        createInvitation: async (input: AdminInvitationInput): Promise<AdminInvitationResponse> => {
+            return fetchApi('/auth/admin/invitations', {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(input),
+            });
         },
         reviewQueue: async (limit: number = 100) => {
             return fetchApi(`/auth/admin/review-queue?limit=${limit}`, { headers: getHeaders() });
