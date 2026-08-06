@@ -275,7 +275,7 @@ const OrganizationTypeDropdown: React.FC<OrganizationTypeDropdownProps> = ({
 
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-          {groupedOptions.map((group, groupIndex) => (
+          {groupedOptions.filter(group => group.options.length > 0).map((group, groupIndex) => (
             <div key={group.side} className={groupIndex > 0 ? 'border-t border-slate-700/80' : undefined}>
               <div className={`px-3 py-2 text-[11px] font-bold uppercase tracking-[0.14em] bg-slate-900/70 ${sideStyles[group.side].header}`}>
                 {group.label}
