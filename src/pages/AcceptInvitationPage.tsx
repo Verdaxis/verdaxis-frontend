@@ -25,9 +25,33 @@ interface InvitationDetails {
   expires_at: string;
 }
 
+const INVITATION_HISTORY_KEY = 'verdaxisInvitationToken';
+
 const invitationToken = (): string | null => {
   const fragmentToken = new URLSearchParams(window.location.hash.slice(1)).get('token');
-  return fragmentToken || new URLSearchParams(window.location.search).get('token');
+  const historyState = window.history.state && typeof window.history.state === 'object'
+    ? window.history.state
+    : {};
+  if (fragmentToken) {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    window.history.replaceState(
+      { ...historyState, [INVITATION_HISTORY_KEY]: fragmentToken },
+      '',
+      `${url.pathname}${url.search}`,
+    );
+    return fragmentToken;
+  }
+  const storedToken = historyState[INVITATION_HISTORY_KEY];
+  return typeof storedToken === 'string' ? storedToken : null;
+};
+
+const clearInvitationToken = () => {
+  const historyState = window.history.state && typeof window.history.state === 'object'
+    ? { ...window.history.state }
+    : {};
+  delete historyState[INVITATION_HISTORY_KEY];
+  window.history.replaceState(historyState, '', `${window.location.pathname}${window.location.search}`);
 };
 
 const errorMessage = async (response: Response, fallback: string): Promise<string> => {
@@ -51,14 +75,6 @@ const AcceptInvitationPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
-    const url = new URL(window.location.href);
-    url.hash = '';
-    url.searchParams.delete('token');
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
-  }, [token]);
-
-  useEffect(() => {
     if (!token) {
       setLoading(false);
       return;
@@ -70,7 +86,10 @@ const AcceptInvitationPage: React.FC = () => {
       body: JSON.stringify({ token }),
       signal: controller.signal,
     }).then(async (response) => {
-      if (!response.ok) throw new Error(await errorMessage(response, t('acceptInvite.invalid.message')));
+      if (!response.ok) {
+        if (response.status === 400) clearInvitationToken();
+        throw new Error(await errorMessage(response, t('acceptInvite.invalid.message')));
+      }
       setDetails(await response.json());
     }).catch((reason: unknown) => {
       if (reason instanceof DOMException && reason.name === 'AbortError') return;
@@ -101,6 +120,7 @@ const AcceptInvitationPage: React.FC = () => {
       });
       if (!response.ok) throw new Error(await errorMessage(response, t('acceptInvite.error.failed')));
       const payload = await response.json();
+      clearInvitationToken();
       await login(payload.access_token);
       navigate('/app', { replace: true });
     } catch (reason) {

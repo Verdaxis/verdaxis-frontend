@@ -93,21 +93,30 @@ export const CREATE_ORGANIZATION_ORG_TYPES = [
   { value: 'FUEL_SUPPLIER', side: 'SELLER', labelKey: 'fuelSupplier', descriptionKey: 'fuelSupplierDesc' },
 ] as const;
 
+type RegistrationRole = 'BUYER' | 'SUPPLIER';
+type OrganizationType = typeof CREATE_ORGANIZATION_ORG_TYPES[number]['value'];
+
+export const organizationTypesForRole = (role?: RegistrationRole) => (
+  role
+    ? CREATE_ORGANIZATION_ORG_TYPES.filter(type => type.side === (role === 'SUPPLIER' ? 'SELLER' : 'BUYER'))
+    : CREATE_ORGANIZATION_ORG_TYPES
+);
+
 type OrganizationSide = 'BUYER' | 'SELLER';
 
 interface OrganizationTypeOption {
-  value: string;
+  value: OrganizationType;
   side: OrganizationSide;
   label: string;
   description: string;
 }
 
 interface OrganizationTypeDropdownProps {
-  value: string;
+  value: OrganizationType;
   options: OrganizationTypeOption[];
   buyerLabel: string;
   sellerLabel: string;
-  onChange: (value: string) => void;
+  onChange: (value: OrganizationType) => void;
 }
 
 export function formatApiErrorDetail(detail: unknown, fallback: string): string {
@@ -303,6 +312,8 @@ const CreateOrganizationPage: React.FC = () => {
   const { t, ready } = useNamespace('auth');
 
   const registrationToken = location.state?.registration_token;
+  const registrationRole = location.state?.role as RegistrationRole | undefined;
+  const availableOrgTypes = organizationTypesForRole(registrationRole);
 
   useEffect(() => {
     if (!registrationToken) {
@@ -312,7 +323,7 @@ const CreateOrganizationPage: React.FC = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'SHIPPING_LINE',
+    type: availableOrgTypes[0]?.value ?? 'SHIPPING_LINE',
     tax_id: '',
     country_code: ''
   });
@@ -332,7 +343,7 @@ const CreateOrganizationPage: React.FC = () => {
 
   if (!ready) return null;
 
-  const ORG_TYPES = CREATE_ORGANIZATION_ORG_TYPES.map((type) => ({
+  const ORG_TYPES = availableOrgTypes.map((type) => ({
     value: type.value,
     side: type.side,
     label: t(`createOrg.orgType.${type.labelKey}`),
@@ -419,18 +430,16 @@ const CreateOrganizationPage: React.FC = () => {
   const selectedOrgType = ORG_TYPES.find(t => t.value === formData.type);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white relative overflow-hidden">
+    <div className="relative min-h-[100dvh] overflow-y-auto bg-slate-950 py-6 text-white sm:py-10 lg:flex lg:items-center lg:justify-center">
       <div className="absolute inset-0 bg-[#0F172A] z-0"></div>
-      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-[100px] z-0 pointer-events-none"></div>
 
-      <div className="w-full max-w-lg p-8 relative z-10">
-        <div className="text-center mb-10">
+      <div className="relative z-10 mx-auto w-full max-w-lg px-4 sm:px-8">
+        <div className="mb-6 text-center sm:mb-8">
           <h1 className="text-4xl font-light tracking-tight text-white mb-2">Verdaxis</h1>
           <p className="text-slate-400">{t('createOrg.subtitle')}</p>
         </div>
 
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-5 shadow-2xl backdrop-blur-xl sm:p-8">
           {registeredEmail ? (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto">

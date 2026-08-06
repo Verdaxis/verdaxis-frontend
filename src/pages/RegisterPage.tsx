@@ -120,7 +120,7 @@ const RegisterPage: React.FC = () => {
           analytics.track('signup_organization_required', { role: formData.role as 'BUYER' | 'SUPPLIER' });
           // Email domain has no org — go to org creation flow
           navigate('/create-organization', {
-            state: { registration_token: data.registration_token }
+            state: { registration_token: data.registration_token, role: formData.role }
           });
         } else {
           analytics.track('signup_submitted', { role: formData.role as 'BUYER' | 'SUPPLIER', organization_path: 'existing' });
