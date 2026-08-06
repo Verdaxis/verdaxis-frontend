@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CREATE_ORGANIZATION_ORG_TYPES,
   formatApiErrorDetail,
+  organizationTypesForRole,
 } from '../pages/CreateOrganizationPage';
 
 describe('formatApiErrorDetail', () => {
@@ -45,6 +46,16 @@ describe('CREATE_ORGANIZATION_ORG_TYPES', () => {
       { value: 'FUEL_BUYER', side: 'BUYER' },
       { value: 'CHARTERER', side: 'BUYER' },
       { value: 'FUEL_SUPPLIER', side: 'SELLER' },
+    ]);
+  });
+
+  it('offers only organization types matching the selected account side', () => {
+    expect(organizationTypesForRole('SUPPLIER').map(({ value }) => value)).toEqual(['FUEL_SUPPLIER']);
+    expect(organizationTypesForRole('BUYER').map(({ value }) => value)).toEqual([
+      'SHIPPING_LINE',
+      'SHIP_MANAGER',
+      'FUEL_BUYER',
+      'CHARTERER',
     ]);
   });
 });

@@ -100,6 +100,23 @@ describe('market support API transport', () => {
     window.removeEventListener('verdaxis:market-support-context-invalidated', invalidation);
   });
 
+  it('renders FastAPI validation arrays as readable error messages', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      detail: [{ msg: 'Enter a valid email address' }],
+    }), { status: 422 }));
+
+    const error = await api.admin.createInvitation({
+      email: 'invalid',
+      first_name: 'Test',
+      last_name: null,
+      role: 'BUYER',
+      organization_id: 'org-1',
+    }).catch((caught) => caught);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.message).toBe('Enter a valid email address');
+  });
+
   it('handles successful 204 responses without trying to parse JSON', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 

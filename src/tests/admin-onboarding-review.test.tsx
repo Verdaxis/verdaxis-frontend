@@ -90,6 +90,7 @@ describe('admin onboarding review', () => {
       items: [{
         id: 'org-1',
         name: 'Goldwind Green Methanol',
+        domain: 'goldwind.example',
         type: 'FUEL_SUPPLIER',
       }],
     });
@@ -130,12 +131,13 @@ describe('admin onboarding review', () => {
     );
 
     fireEvent.click(await screen.findByRole('button', { name: 'Invite user' }));
-    await screen.findByRole('option', { name: 'Goldwind Green Methanol' });
+    expect(await screen.findByRole('option', { name: 'Select role' })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Abdullah' } });
     fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Rahman' } });
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'abdullah@customer.example' } });
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'SUPPLIER' } });
+    fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate invitation' }));
 
     await waitFor(() => {

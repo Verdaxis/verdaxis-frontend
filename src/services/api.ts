@@ -152,9 +152,12 @@ const handleResponse = async (res: Response, contextId?: string | null) => {
         const detail = errorJson?.detail;
         const structuredDetail = detail && typeof detail === 'object' ? detail : errorJson;
         const code = typeof structuredDetail?.code === 'string' ? structuredDetail.code : null;
+        const validationMessage = Array.isArray(detail)
+            ? detail.map(item => typeof item?.msg === 'string' ? item.msg : '').filter(Boolean).join(' ')
+            : '';
         const message = typeof detail === 'string'
             ? detail
-            : structuredDetail?.message || errorJson?.message || errorText || res.statusText;
+            : validationMessage || structuredDetail?.message || errorJson?.message || errorText || res.statusText;
         if (code && /MARKET_SUPPORT_CONTEXT_(INVALID|EXPIRED|NOT_FOUND)|CONTEXT_(INVALID|EXPIRED|NOT_FOUND)/.test(code)) {
             window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
                 detail: { reason: 'expired', code, status: res.status, ...(contextId ? { contextId } : {}) },
@@ -438,6 +441,7 @@ export interface OnboardingAttentionResponse {
 export interface AdminInvitationOrganization {
     id: string;
     name: string;
+    domain: string | null;
     type: string;
 }
 

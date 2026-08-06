@@ -25,6 +25,7 @@ import { ProductAnalyticsWorkspace } from './product-analytics/ProductAnalyticsW
 import { MarketSupportEntryDialog } from './market-support/MarketSupportEntryDialog';
 import { useMarketSupport } from '../../context/MarketSupportContext';
 import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
+import { defaultMarketSupportView } from '../../types/marketSupport';
 import { ConfirmModal } from '../ui/ConfirmModal';
 
 // ---------------------------------------------------------------------------
@@ -120,11 +121,15 @@ const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
   { label: 'Rejected',value: 'REJECTED'},
 ];
 
-const EMPTY_INVITATION: AdminInvitationInput = {
+type InvitationForm = Omit<AdminInvitationInput, 'role'> & {
+  role: '' | AdminInvitationInput['role'];
+};
+
+const EMPTY_INVITATION: InvitationForm = {
   email: '',
   first_name: '',
   last_name: null,
-  role: 'BUYER',
+  role: '',
   organization_id: '',
 };
 
@@ -277,7 +282,7 @@ const UsersTab: React.FC = () => {
   const [entryError, setEntryError] = useState<string | null>(null);
   const [replacementInput, setReplacementInput] = useState<MarketSupportStartInput | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState<AdminInvitationInput>(EMPTY_INVITATION);
+  const [inviteForm, setInviteForm] = useState<InvitationForm>(EMPTY_INVITATION);
   const [inviteOrganizations, setInviteOrganizations] = useState<AdminInvitationOrganization[]>([]);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
@@ -358,7 +363,7 @@ const UsersTab: React.FC = () => {
       const data = await api.admin.invitationOrganizations();
       const organizations = data.items ?? [];
       setInviteOrganizations(organizations);
-      setInviteForm({ ...EMPTY_INVITATION, organization_id: organizations[0]?.id ?? '' });
+      setInviteForm(EMPTY_INVITATION);
     } catch (error) {
       setInviteError(error instanceof Error ? error.message : 'Could not load organizations.');
     } finally {
@@ -378,11 +383,14 @@ const UsersTab: React.FC = () => {
       closeInvite();
       return;
     }
+    const role = inviteForm.role;
+    if (!role || !inviteForm.organization_id) return;
     setInviteSubmitting(true);
     setInviteError(null);
     try {
       const created = await api.admin.createInvitation({
         ...inviteForm,
+        role,
         email: inviteForm.email.trim().toLowerCase(),
         first_name: inviteForm.first_name.trim(),
         last_name: inviteForm.last_name?.trim() || null,
@@ -395,6 +403,10 @@ const UsersTab: React.FC = () => {
       setInviteSubmitting(false);
     }
   };
+
+  const eligibleInviteOrganizations = inviteForm.role
+    ? inviteOrganizations.filter(organization => defaultMarketSupportView(organization.type) === inviteForm.role)
+    : [];
 
   const copyInvitation = async () => {
     if (!invitation) return;
@@ -723,7 +735,7 @@ const UsersTab: React.FC = () => {
         cancelText={invitation ? '' : 'Cancel'}
         variant={invitation ? 'success' : 'info'}
         isLoading={inviteSubmitting}
-        confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.organization_id}
+        confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.role || !inviteForm.organization_id}
         maxWidth="lg"
         compact
       >
@@ -795,9 +807,14 @@ const UsersTab: React.FC = () => {
               Role
               <select
                 value={inviteForm.role}
-                onChange={(event) => setInviteForm({ ...inviteForm, role: event.target.value as 'BUYER' | 'SUPPLIER' })}
+                onChange={(event) => setInviteForm({
+                  ...inviteForm,
+                  role: event.target.value as InvitationForm['role'],
+                  organization_id: '',
+                })}
                 className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
               >
+                <option value="">Select role</option>
                 <option value="BUYER">Buyer</option>
                 <option value="SUPPLIER">Supplier</option>
               </select>
@@ -807,16 +824,21 @@ const UsersTab: React.FC = () => {
               <select
                 value={inviteForm.organization_id}
                 onChange={(event) => setInviteForm({ ...inviteForm, organization_id: event.target.value })}
-                disabled={inviteLoading || inviteOrganizations.length === 0}
+                disabled={inviteLoading || !inviteForm.role || eligibleInviteOrganizations.length === 0}
                 className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
               >
-                {inviteOrganizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>{organization.name}</option>
+                <option value="">Select organization</option>
+                {eligibleInviteOrganizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name}{organization.domain ? ` — ${organization.domain}` : ''}
+                  </option>
                 ))}
               </select>
             </label>
-            {!inviteLoading && inviteOrganizations.length === 0 && !inviteError && (
-              <p className="sm:col-span-2 text-sm text-amber-400">No approved real organizations are available.</p>
+            {!inviteLoading && inviteForm.role && eligibleInviteOrganizations.length === 0 && !inviteError && (
+              <p className="sm:col-span-2 text-sm text-amber-400">
+                No approved real {inviteForm.role === 'BUYER' ? 'buyer' : 'supplier'} organizations are available.
+              </p>
             )}
           </div>
         )}
