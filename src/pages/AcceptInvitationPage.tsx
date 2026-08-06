@@ -28,19 +28,27 @@ interface InvitationDetails {
 const INVITATION_HISTORY_KEY = 'verdaxisInvitationToken';
 
 const invitationToken = (): string | null => {
+  const url = new URL(window.location.href);
   const fragmentToken = new URLSearchParams(window.location.hash.slice(1)).get('token');
   const historyState = window.history.state && typeof window.history.state === 'object'
     ? window.history.state
     : {};
   if (fragmentToken) {
-    const url = new URL(window.location.href);
     url.hash = '';
+    url.searchParams.delete('token');
     window.history.replaceState(
       { ...historyState, [INVITATION_HISTORY_KEY]: fragmentToken },
       '',
       `${url.pathname}${url.search}`,
     );
     return fragmentToken;
+  }
+  if (url.searchParams.has('token')) {
+    url.searchParams.delete('token');
+    const cleanState = { ...historyState };
+    delete cleanState[INVITATION_HISTORY_KEY];
+    window.history.replaceState(cleanState, '', `${url.pathname}${url.search}`);
+    return null;
   }
   const storedToken = historyState[INVITATION_HISTORY_KEY];
   return typeof storedToken === 'string' ? storedToken : null;
