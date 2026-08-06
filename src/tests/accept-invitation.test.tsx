@@ -93,5 +93,7 @@ describe('pre-approved invitation acceptance', () => {
 
     expect(await screen.findByRole('heading', { name: /invitation/i })).toBeTruthy();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.location.search).toBe('');
+    expect(window.history.state.verdaxisInvitationToken).toBeUndefined();
   });
 });

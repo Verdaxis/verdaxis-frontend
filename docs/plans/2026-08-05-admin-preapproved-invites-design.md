@@ -15,9 +15,10 @@ the same name. This frontend implements two surfaces only:
    recipient.
 2. `/accept-invite` accepts the token only from the URL fragment, immediately
    removes it from the address bar while retaining it in the current history
-   entry for reload recovery, and shows the prepared
-   account details, requires a compliant password and explicit agreement to the
-   Terms and Privacy Policy, then signs the recipient in and routes to `/app`.
+   entry for reload recovery, strips rejected query-string token values, and
+   shows the prepared account details, requires a compliant password and
+   explicit agreement to the Terms and Privacy Policy, then signs the recipient
+   in and routes to `/app`.
 
 Expired, already-used, or otherwise invalid links use one recovery state with
 Sign In and Forgot Password actions. The page remains usable at compact desktop
