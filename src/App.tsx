@@ -66,6 +66,7 @@ import { PartnerLandingPage } from './pages/public/PartnerLandingPage';
 import { PrivacyPage } from './pages/public/PrivacyPage';
 import { TermsPage } from './pages/public/TermsPage';
 import { NotFoundPage } from './pages/public/NotFoundPage';
+import { useTranslation } from 'react-i18next';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
 const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
@@ -150,13 +151,14 @@ const ScrollToTop: React.FC = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     const { user, isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
+    const { t } = useTranslation('common');
 
     if (isBackendUnavailable) {
         return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
     }
 
     if (isLoading) {
-        return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">Loading...</div>;
+        return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">{t('loading')}</div>;
     }
 
     if (!isAuthenticated) {
@@ -290,6 +292,7 @@ const DashboardLayout: React.FC = () => {
   const { context, isLoading: isMarketSupportLoading } = useMarketSupport();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = sessionStorage.getItem('verdaxis_viewMode');
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
@@ -365,7 +368,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   if (isMarketSupportLoading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">Restoring assisted workspace…</div>;
+    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">{t('marketSupport.restoring')}</div>;
   }
 
   return (
@@ -378,7 +381,7 @@ const DashboardLayout: React.FC = () => {
     >
       {!context && <GuidedTutorial viewMode={effectiveViewMode} />}
       <ErrorBoundary>
-        <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">Loading...</div>}>
+        <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
           <Outlet context={outletContext} />
         </Suspense>
       </ErrorBoundary>
@@ -493,8 +496,9 @@ const AdminRoute: React.FC = () => {
 // Exported for route-level tests: everything inside the router, without
 // the BrowserRouter/provider shell.
 export const AppRoutes: React.FC = () => {
+  const { t } = useTranslation('common');
   return (
-                <Suspense fallback={<div className="min-h-screen bg-white p-10 text-center text-emerald-600 dark:bg-slate-950">Loading...</div>}>
+                <Suspense fallback={<div className="min-h-screen bg-white p-10 text-center text-emerald-600 dark:bg-slate-950">{t('loading')}</div>}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />

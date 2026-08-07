@@ -8,6 +8,7 @@ import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { FeedbackButton } from './FeedbackButton';
+import { useTranslation } from 'react-i18next';
 // Copilot removed per Gavin feedback
 
 interface LayoutProps {
@@ -32,6 +33,7 @@ export const Layout: React.FC<LayoutProps> = ({
     const { user } = useAuth();
     const navigate = useNavigate();
     const { context, exit } = useMarketSupport();
+    const { t } = useTranslation('common');
     const [exitError, setExitError] = useState<string | null>(null);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -71,11 +73,12 @@ export const Layout: React.FC<LayoutProps> = ({
                 {context && <ActingOrganizationBanner context={context} onExit={() => {
                     setExitError(null);
                     void exit().then(() => navigate('/app/admin/users')).catch((error) => {
-                        setExitError(error instanceof Error ? error.message : 'Exit request failed. The local assisted workspace was detached.');
+                        console.error('Failed to exit assisted workspace', error);
+                        setExitError(t('marketSupport.exitError'));
                         navigate('/app/home');
                     });
                 }} />}
-                {exitError && <div role="alert" className="border-b border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-100">Exit request failed; this tab was detached locally. {exitError}</div>}
+                {exitError && <div role="alert" className="border-b border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-100">{exitError}</div>}
 
                 <main
                     data-dashboard-page={currentPage}

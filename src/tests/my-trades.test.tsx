@@ -4,8 +4,17 @@ import { screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { MyTrades } from '../components/MyTrades';
+import i18n from '../i18n';
 
 const myTradesMock = vi.fn();
+const namespaceControl = vi.hoisted(() => ({
+  ready: true,
+  t: (key: string) => {
+    if (key === 'myTrades.note.offPlatform') return 'Off-platform after confirmation';
+    if (key === 'myTrades.error.message') return '无法加载交易，请重试。';
+    return key;
+  },
+}));
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
@@ -23,13 +32,7 @@ vi.mock('../components/Toast', () => ({
 }));
 
 vi.mock('../hooks/useNamespace', () => ({
-  useNamespace: () => ({
-    ready: true,
-    t: (key: string) => {
-      if (key === 'myTrades.note.offPlatform') return 'Off-platform after confirmation';
-      return key;
-    },
-  }),
+  useNamespace: () => namespaceControl,
 }));
 
 vi.mock('../services/api', () => ({
@@ -45,8 +48,10 @@ vi.mock('../services/api', () => ({
 }));
 
 describe('MyTrades lifecycle', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    namespaceControl.ready = true;
+    await i18n.changeLanguage('en');
     myTradesMock.mockResolvedValue([
       {
         id: 'trade-1',
@@ -88,5 +93,22 @@ describe('MyTrades lifecycle', () => {
     expect(screen.queryByText(/Revealed after payment/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /Confirm Delivery/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Mark as Paid/i })).toBeNull();
+  });
+
+  it('waits for Chinese trading translations before loading and suppresses backend errors', async () => {
+    await i18n.changeLanguage('zh');
+    namespaceControl.ready = false;
+    myTradesMock.mockRejectedValue(new Error('Raw backend failure detail'));
+
+    const { rerender } = renderWithProviders(<MyTrades />);
+
+    expect(myTradesMock).not.toHaveBeenCalled();
+
+    namespaceControl.ready = true;
+    rerender(<MyTrades />);
+
+    expect(await screen.findByText('无法加载交易，请重试。')).toBeTruthy();
+    expect(screen.queryByText('Raw backend failure detail')).toBeNull();
+    expect(myTradesMock).toHaveBeenCalledTimes(1);
   });
 });

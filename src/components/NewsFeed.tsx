@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Newspaper, ExternalLink, Clock } from 'lucide-react';
 import { api } from '../services/api';
+import { useNamespace } from '../hooks/useNamespace';
 
 interface NewsItem {
     id: string;
@@ -22,44 +23,48 @@ const CATEGORY_COLORS: Record<string, string> = {
     commodities: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
 
-const FILTER_CATEGORIES = ['All', 'Bunkers', 'Shipping', 'Regulation', 'Carbon', 'Markets'];
-
-function relativeTime(iso: string): string {
-    const now = Date.now();
-    const then = new Date(iso).getTime();
-    const diffMs = now - then;
-    const minutes = Math.floor(diffMs / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-}
+const FILTER_CATEGORIES = ['all', 'bunkers', 'shipping', 'regulation', 'carbon', 'markets'] as const;
+type FilterCategory = typeof FILTER_CATEGORIES[number];
 
 interface NewsFeedProps {
     embedded?: boolean;
 }
 
 export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
+    const { t, ready } = useNamespace('dashboard');
     const [items, setItems] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [category, setCategory] = useState('All');
+    const [error, setError] = useState(false);
+    const [category, setCategory] = useState<FilterCategory>('all');
+
+    const relativeTime = (iso: string): string => {
+        const publishedAt = new Date(iso).getTime();
+        if (!Number.isFinite(publishedAt)) return t('newsFeed.time.unknown');
+        const minutes = Math.floor((Date.now() - publishedAt) / 60000);
+        if (minutes < 1) return t('newsFeed.time.justNow');
+        if (minutes < 60) return t('newsFeed.time.minutesAgo', { count: minutes });
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return t('newsFeed.time.hoursAgo', { count: hours });
+        return t('newsFeed.time.daysAgo', { count: Math.floor(hours / 24) });
+    };
 
     const fetchNews = useCallback(async () => {
         try {
+            setError(false);
             const params: { limit: number; category?: string } = { limit: 10 };
-            if (category !== 'All') params.category = category.toLowerCase();
+            if (category !== 'all') params.category = category;
             const data = await api.news.list(params);
             setItems(data);
         } catch (e) {
             console.error('Failed to fetch news', e);
+            setError(true);
         } finally {
             setLoading(false);
         }
     }, [category]);
 
     useEffect(() => {
+        setItems([]);
         setLoading(true);
         fetchNews();
     }, [fetchNews]);
@@ -72,20 +77,22 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
         return () => clearInterval(interval);
     }, [fetchNews]);
 
+    if (!ready) return null;
+
     return (
         <div className={`${embedded ? '' : 'rounded-xl border border-slate-200 bg-white shadow-lg backdrop-blur-md dark:border-white/10 dark:bg-white/5'} h-full flex flex-col overflow-hidden`}>
             {/* Header */}
             <div className="px-3 py-2.5 border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                     <Newspaper size={14} className="text-emerald-500 dark:text-emerald-400" />
-                    <h3 className="text-xs font-bold text-slate-700 dark:text-white">News Feed</h3>
+                    <h3 className="text-xs font-bold text-slate-700 dark:text-white">{t('newsFeed.title')}</h3>
                     {(() => {
                         const latestMs = items.length > 0 ? new Date(items[0].published_at).getTime() : 0;
                         const isRecent = Date.now() - latestMs < 24 * 60 * 60 * 1000;
                         return isRecent ? (
                             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Live</span>
+                                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('newsFeed.live')}</span>
                             </span>
                         ) : items.length > 0 ? (
                             <span className="text-[9px] text-slate-500">{relativeTime(items[0].published_at)}</span>
@@ -96,17 +103,17 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
 
             {/* Category filter chips */}
             <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10 flex gap-1.5 flex-wrap shrink-0">
-                {FILTER_CATEGORIES.map((cat) => (
+                {FILTER_CATEGORIES.map((code) => (
                     <button
-                        key={cat}
-                        onClick={() => setCategory(cat)}
+                        key={code}
+                        onClick={() => setCategory(code)}
                         className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                            category === cat
+                            category === code
                                 ? 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30 dark:text-emerald-400'
                                 : 'text-slate-500 hover:text-slate-700 border border-transparent dark:hover:text-slate-300'
                         }`}
                     >
-                        {cat}
+                        {t(`newsFeed.categories.${code}`)}
                     </button>
                 ))}
             </div>
@@ -114,7 +121,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
             {/* Feed items */}
             <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5">
                 {loading ? (
-                    <div className="p-3 space-y-2">
+                    <div className="p-3 space-y-2" role="status" aria-label={t('newsFeed.loading')}>
+                        <span className="sr-only">{t('newsFeed.loading')}</span>
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="animate-pulse space-y-1.5">
                                 <div className="h-2.5 bg-slate-200 dark:bg-white/10 rounded w-4/5" />
@@ -122,9 +130,13 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
                             </div>
                         ))}
                     </div>
+                ) : error && items.length === 0 ? (
+                    <div className="p-4 text-center text-slate-500 text-xs" role="alert">
+                        {t('newsFeed.error')}
+                    </div>
                 ) : items.length === 0 ? (
                     <div className="p-4 text-center text-slate-500 text-xs">
-                        No news for this category
+                        {t('newsFeed.empty')}
                     </div>
                 ) : (
                     items.map((item) => (
@@ -144,8 +156,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
                                         <span className="text-[9px] font-bold text-emerald-600/80 uppercase dark:text-emerald-400/80">
                                             {item.source}
                                         </span>
-                                        <span className={`text-[8px] font-bold uppercase px-1 py-px rounded border ${CATEGORY_COLORS[item.category] || CATEGORY_COLORS.markets}`}>
-                                            {item.category}
+                                        <span className={`text-[8px] font-bold uppercase px-1 py-px rounded border ${CATEGORY_COLORS[item.category.toLowerCase()] || CATEGORY_COLORS.markets}`}>
+                                            {t(`newsFeed.categories.${item.category.toLowerCase()}`, { defaultValue: t('newsFeed.categories.other') })}
                                         </span>
                                         <span className="text-[9px] text-slate-500 flex items-center gap-0.5 ml-auto dark:text-slate-600">
                                             <Clock size={8} />

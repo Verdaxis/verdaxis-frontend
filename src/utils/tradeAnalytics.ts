@@ -70,8 +70,8 @@ function tradePrice(trade: Trade): number {
   return Number(trade.final_price_per_mt ?? trade.price_per_mt_usd ?? 0);
 }
 
-function tradeFuelLabel(trade: Trade): string {
-  return trade.product_name || trade.fuel_type || 'Unknown fuel';
+function tradeFuelLabel(trade: Trade, unknownFuelLabel: string): string {
+  return trade.product_name || trade.fuel_type || unknownFuelLabel;
 }
 
 export function tradeSliceKey(trade: Trade): string {
@@ -84,7 +84,8 @@ export function tradeSliceKey(trade: Trade): string {
 
 export function buildTradePerformanceModel(
   trades: Trade[],
-  referenceBySlice: Record<string, number> = {}
+  referenceBySlice: Record<string, number> = {},
+  options: { locale?: string; unknownFuelLabel?: string } = {},
 ): TradePerformanceModel {
   const confirmedTrades = trades.filter((trade) => trade.status !== 'CANCELLED' && trade.status !== 'DECLINED');
   const totalVolumeMt = confirmedTrades.reduce((sum, trade) => sum + tradeQuantity(trade), 0);
@@ -95,7 +96,7 @@ export function buildTradePerformanceModel(
 
   const volumeByFuel = Array.from(
     confirmedTrades.reduce((groups, trade) => {
-      const fuel = tradeFuelLabel(trade);
+      const fuel = tradeFuelLabel(trade, options.unknownFuelLabel ?? '');
       groups.set(fuel, (groups.get(fuel) ?? 0) + tradeQuantity(trade));
       return groups;
     }, new Map<string, number>())
@@ -103,8 +104,8 @@ export function buildTradePerformanceModel(
     .map(([fuel, volumeMt]) => ({ fuel, volumeMt }))
     .sort((a, b) => b.volumeMt - a.volumeMt);
 
-  const monthlyTradeCounts = buildMonthlyTradeCounts(confirmedTrades);
-  const fuelComparisons = buildFuelComparisons(confirmedTrades, referenceBySlice);
+  const monthlyTradeCounts = buildMonthlyTradeCounts(confirmedTrades, options.locale);
+  const fuelComparisons = buildFuelComparisons(confirmedTrades, referenceBySlice, options.unknownFuelLabel ?? '');
 
   return {
     totalTrades: confirmedTrades.length,
@@ -117,14 +118,14 @@ export function buildTradePerformanceModel(
   };
 }
 
-function buildMonthlyTradeCounts(trades: Trade[]): MonthlyTradeCount[] {
+function buildMonthlyTradeCounts(trades: Trade[], locale = 'en'): MonthlyTradeCount[] {
   const now = new Date();
   const buckets: MonthlyTradeCount[] = [];
 
   for (let i = 5; i >= 0; i -= 1) {
     const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     buckets.push({
-      label: month.toLocaleString(undefined, { month: 'short' }),
+      label: month.toLocaleString(locale, { month: 'short' }),
       count: 0,
     });
   }
@@ -136,7 +137,7 @@ function buildMonthlyTradeCounts(trades: Trade[]): MonthlyTradeCount[] {
     const date = new Date(rawDate);
     if (Number.isNaN(date.getTime())) continue;
 
-    const label = date.toLocaleString(undefined, { month: 'short' });
+    const label = date.toLocaleString(locale, { month: 'short' });
     const bucket = buckets.find((entry) => entry.label === label);
     if (bucket) bucket.count += 1;
   }
@@ -146,7 +147,8 @@ function buildMonthlyTradeCounts(trades: Trade[]): MonthlyTradeCount[] {
 
 function buildFuelComparisons(
   trades: Trade[],
-  referenceBySlice: Record<string, number>
+  referenceBySlice: Record<string, number>,
+  unknownFuelLabel: string,
 ): FuelComparison[] {
   interface Accumulator {
     executionNotional: number;
@@ -161,7 +163,7 @@ function buildFuelComparisons(
     const quantity = tradeQuantity(trade);
     if (!benchmark || quantity <= 0) continue;
 
-    const fuel = tradeFuelLabel(trade);
+    const fuel = tradeFuelLabel(trade, unknownFuelLabel);
     const current = groups.get(fuel) ?? {
       executionNotional: 0,
       benchmarkNotional: 0,

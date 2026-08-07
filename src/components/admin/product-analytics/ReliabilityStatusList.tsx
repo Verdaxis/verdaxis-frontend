@@ -1,10 +1,16 @@
 import React from 'react';
+import { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { AnalyticsMeta, CollectorState } from '../../../types/productAnalytics';
 
 const tone = (status: string): string =>
   status === 'available' ? 'bg-emerald-500' : status === 'partial' ? 'bg-amber-500' : 'bg-red-400';
+
+export const reliabilityLabel = (t: TFunction, group: string, value: string): string =>
+  t(`pa.reliability.${group}_${value.replace(/[^a-z0-9]+/gi, '_')}`, {
+    defaultValue: t('pa.reliability.unknown'),
+  });
 
 // Source freshness and collector state — status is text plus a dot, never
 // color alone (§1.7).
@@ -24,7 +30,9 @@ export const ReliabilityStatusList: React.FC<{ collector: CollectorState; meta: 
           <span className="text-verdaxis-text-muted">{t(`pa.reliability.source_${row.key}`)}</span>
           <span>{t(`pa.reliability.status_${row.status}`)}</span>
           {row.diagnostic && (
-            <span className="text-xs text-verdaxis-text-muted">({row.diagnostic})</span>
+            <span className="text-xs text-verdaxis-text-muted">
+              ({reliabilityLabel(t, 'diagnostic', row.diagnostic)})
+            </span>
           )}
           {row.observed && (
             <span className="text-xs text-verdaxis-text-muted ml-auto tabular-nums">

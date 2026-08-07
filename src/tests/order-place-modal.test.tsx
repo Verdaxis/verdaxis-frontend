@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from './test-utils';
 import { OrderPlaceModal } from '../components/OrderPlaceModal';
+import i18n, { loadNamespace } from '../i18n';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import type { AvailabilityWindow } from '../types';
 
@@ -16,24 +17,6 @@ const marketSupportControl = vi.hoisted(() => ({
     isActive: false,
     isLoading: false,
   },
-}));
-
-vi.mock('../hooks/useNamespace', () => ({
-  useNamespace: () => ({
-    ready: true,
-    t: (key: string, options?: Record<string, unknown>) => {
-      if (key === 'orderPlaceModal.title') {
-        return `Place ${String(options?.side ?? '')}`;
-      }
-      if (key === 'orderPlaceModal.btn.place') {
-        return `Place ${String(options?.side ?? '')}`;
-      }
-      if (key === 'orderPlaceModal.btn.placing') {
-        return `Placing ${String(options?.side ?? '')}`;
-      }
-      return key;
-    },
-  }),
 }));
 
 vi.mock('../services/api', () => ({
@@ -53,7 +36,9 @@ vi.mock('../context/MarketSupportContext', () => ({
 }));
 
 describe('OrderPlaceModal', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('en');
     productsMock.mockReset();
     deliveryPointsMock.mockReset();
     createOrderMock.mockReset();
@@ -179,7 +164,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '575' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
     fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), {
       target: { value: 'IMPCA' },
     });
@@ -192,7 +177,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), {
       target: { value: 'Netherlands' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
 
     await waitFor(() => {
@@ -241,10 +226,10 @@ describe('OrderPlaceModal', () => {
     }, { timeout: 10000 });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Place Bid' })).toBeTruthy(), { timeout: 10000 });
 
-    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 
-    expect(screen.queryByText('orderPlaceModal.label.anonymous')).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: /orderPlaceModal.label.anonymous/i })).toBeNull();
+    expect(screen.queryByText('Anonymous Order')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /anonymous order/i })).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '540' },
@@ -284,7 +269,7 @@ describe('OrderPlaceModal', () => {
       expect(deliveryPointsMock).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /orderPlaceModal.label.advanced/i }));
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'ISCC EU' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'REDcert EU' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
@@ -325,7 +310,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), {
       target: { value: '555' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
     fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), {
       target: { value: 'IMPCA' },
     });
@@ -338,7 +323,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), {
       target: { value: 'Singapore hub' },
     });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
 
     await waitFor(() => {
@@ -379,7 +364,7 @@ describe('OrderPlaceModal', () => {
       expect(deliveryPointsMock).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'orderPlaceModal.btn.cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
@@ -404,12 +389,12 @@ describe('OrderPlaceModal', () => {
 
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '555' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
     fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), { target: { value: 'IMPCA' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. 40'), { target: { value: '42.5' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
 
     expect(createOrderMock).not.toHaveBeenCalled();
@@ -448,12 +433,12 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '555' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.certificationDeclared/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
     fireEvent.change(screen.getByPlaceholderText('e.g. IMPCA'), { target: { value: 'IMPCA' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. 40'), { target: { value: '42.5' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: /orderPlaceModal.label.msdsAvailable/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
     fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
@@ -497,6 +482,43 @@ describe('OrderPlaceModal', () => {
       }),
     })));
     expect(createOrderMock.mock.calls[0]?.[0]?.expires_at).toBeUndefined();
+  });
+
+  it('uses natural Chinese order actions without mixing BID into prose', async () => {
+    await i18n.changeLanguage('zh');
+    deliveryPointsMock.mockResolvedValue([
+      {
+        id: 'dp-1',
+        name: 'Singapore',
+        region: 'Asia',
+        timezone: 'Asia/Singapore',
+        is_active: true,
+      },
+      {
+        id: 'dp-unknown',
+        name: 'Rotterdam',
+        region: 'Unmapped Region',
+        timezone: 'UTC',
+        is_active: true,
+      },
+    ]);
+
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+
+    expect(await screen.findByRole('heading', { name: '发布买单' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '发布买单' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /高级选项 可成交期限：现货/ })).toBeTruthy();
+    expect(screen.getByText('该产品适用平台目录中的标准规格；下单前请核对认证、质量和交付要求。')).toBeTruthy();
+    expect(screen.getByText('亚洲')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('combobox', { name: '订单交付点' }));
+
+    expect(screen.getAllByText('亚洲').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('其他地区')).toBeTruthy();
+    expect(screen.queryByText('Asia')).toBeNull();
+    expect(screen.queryByText('Unmapped Region')).toBeNull();
+    expect(screen.queryByText('Test product')).toBeNull();
+    expect(screen.queryByText(/发布BID/i)).toBeNull();
   });
 
 });

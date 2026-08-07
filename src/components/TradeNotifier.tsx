@@ -14,7 +14,7 @@ export const TradeNotifier: React.FC = () => {
     const { addToast } = useToast();
     const { isAuthenticated } = useAuth();
     const { addNotification } = useNotifications();
-    const { t } = useNamespace('trading');
+    const { t, ready } = useNamespace('trading');
 
     const handleTradeEvent = useCallback((event: string, data: any) => {
         let title = '';
@@ -24,22 +24,32 @@ export const TradeNotifier: React.FC = () => {
         switch (event) {
             case 'trade_auto_matched':
                 title = t('tradeNotifier.autoMatched.title');
-                message = `${data.quantity} MT of ${data.fuel_type} at $${data.price}/MT`;
+                message = t('tradeNotifier.autoMatched.message', {
+                    quantity: data.quantity,
+                    fuelType: data.fuel_type,
+                    price: data.price,
+                });
                 toastType = 'trade';
                 break;
             case 'trade_confirmed':
                 title = t('tradeNotifier.confirmed.title');
-                message = `${data.quantity} MT confirmed at $${data.price}/MT`;
+                message = t('tradeNotifier.confirmed.message', {
+                    quantity: data.quantity,
+                    price: data.price,
+                });
                 toastType = 'success';
                 break;
             case 'trade_delivered':
                 title = t('tradeNotifier.delivered.title');
-                message = `${data.final_quantity} MT delivered — $${data.final_total} total`;
+                message = t('tradeNotifier.delivered.message', {
+                    quantity: data.final_quantity,
+                    total: data.final_total,
+                });
                 toastType = 'info';
                 break;
             case 'trade_paid':
                 title = t('tradeNotifier.paid.title');
-                message = `Trade for ${data.quantity} MT marked as paid`;
+                message = t('tradeNotifier.paid.message', { quantity: data.quantity });
                 toastType = 'success';
                 break;
             default:
@@ -62,7 +72,7 @@ export const TradeNotifier: React.FC = () => {
         addNotification(notification);
     }, [addToast, addNotification, t]);
 
-    useSSE('trades', handleTradeEvent, isAuthenticated);
+    useSSE('trades', handleTradeEvent, isAuthenticated && ready);
 
     return null; // Invisible — only listens
 };

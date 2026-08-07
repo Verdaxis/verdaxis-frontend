@@ -64,9 +64,9 @@ export function getOrderDisplayName(order: {
   product_name?: string;
   market_product?: string;
   fuel_type?: string;
-}): string {
+}, fallback = ''): string {
   return formatMarketProduct(order.market_product)
     || formatMarketProduct(order.product_name)
     || formatMarketProduct(order.fuel_type)
-    || 'Unknown product';
+    || fallback;
 }

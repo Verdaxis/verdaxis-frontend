@@ -5,8 +5,8 @@ export const PrivacyPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
 
     useEffect(() => {
-        document.title = 'Privacy Policy — Verdaxis';
-    }, []);
+        if (ready) document.title = `${t('privacy.title')} — Verdaxis`;
+    }, [ready, t]);
 
     if (!ready) return null;
 

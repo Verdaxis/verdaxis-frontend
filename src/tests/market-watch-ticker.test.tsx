@@ -1,10 +1,11 @@
 import React from 'react';
 import { act } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { MarketWatchTicker } from '../components/map/MarketWatchTicker';
 import { PORTS } from '../data';
+import i18n, { loadNamespace } from '../i18n';
 import type { AggregatedOrderbook } from '../types';
 import { renderWithProviders } from './test-utils';
 
@@ -87,12 +88,49 @@ describe('MarketWatchTicker', () => {
     priceSummariesMock.mockResolvedValue({ summaries: [], generated_at: new Date().toISOString() });
   });
 
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
   const setSingleProductPreferences = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       products: ['BIO_METHANOL'],
       portIds: ['nl-rtm', 'sg-sin', 'br-ssz'],
     }));
   };
+
+  it('formats availability windows and market status copy in Chinese', async () => {
+    await loadNamespace('dashboard');
+    await i18n.changeLanguage('zh');
+    setSingleProductPreferences();
+    priceSummariesMock.mockResolvedValue({
+      summaries: [makeSummary({
+        source_kind: 'LIVE_ORDER',
+        last_trade_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+      })],
+      generated_at: new Date().toISOString(),
+    });
+
+    renderWithProviders(
+      <MarketWatchTicker
+        isPanelOpen={false}
+        onOpenPanel={vi.fn()}
+        ports={PORTS}
+        aggregatedData={DEMO_ORDERBOOK}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('$777')).toBeTruthy();
+    });
+    expect(screen.getAllByText('2026年8月').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('数据过期').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '配置市场监控' }));
+    expect(screen.getByText('选择一个或多个市场产品和交付点。行情条会按港口分组显示所选燃料。演示数据为预置的产品演示活动；参考数据为基准或模型背景，不代表可成交流动性。')).toBeTruthy();
+  });
 
   it('renders mixed trade summaries and marketplace-derived demo rows without blanks', async () => {
     setSingleProductPreferences();

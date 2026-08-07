@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
+import i18n, { loadNamespace } from '../i18n';
 import type { ForwardCurveMarketCell, ForwardCurveSliceResponse, ForwardCurveTableResponse, MarketProduct } from '../types';
 import { renderWithProviders } from './test-utils';
 
@@ -195,7 +196,9 @@ const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSl
 });
 
 describe('ForwardCurveWorkspace', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('en');
     localStorage.clear();
     tableMock.mockReset();
     sliceMock.mockReset();
@@ -220,7 +223,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(matrix).toBeTruthy();
     expect(chart!.compareDocumentPosition(matrix!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText('Market Matrix')).toBeTruthy();
-    expect(screen.getByText('Selected Period')).toBeTruthy();
+    expect(screen.getAllByText('Selected Period').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Bio Methanol · Singapore').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
 
@@ -625,5 +628,22 @@ describe('ForwardCurveWorkspace', () => {
         availability_window: 'SPOT',
       });
     });
+  });
+
+  it('renders the monitored forward workflow in Chinese', async () => {
+    await i18n.changeLanguage('zh');
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('最新监控信号');
+    expect(screen.getByText('市场矩阵')).toBeTruthy();
+    expect(await screen.findByText('所选期限的指示性价格区间')).toBeTruthy();
+    expect(await screen.findByText('买单、卖单、成交、意向报价和公允价值标记')).toBeTruthy();
+    expect(screen.getAllByText('所选期限').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('现货').length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('演示订单簿中间价')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('买单深度')).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText(/买单深度$/)).toBeTruthy();
+    expect(screen.queryByText('Latest Monitored Signals')).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, Lock, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 
 const ResetPasswordPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -57,9 +58,10 @@ const ResetPasswordPage: React.FC = () => {
         setSuccess(true);
       } else {
         const errData = await res.json().catch(() => null);
-        setError(errData?.detail || t('resetPassword.error.failed'));
+        setError(localizedAuthError(errData, t, 'resetPassword.error.failed', 'reset password failed'));
       }
-    } catch {
+    } catch (caught) {
+      console.error('[auth] reset password network error', caught);
       setError(t('resetPassword.error.connectionFailed'));
     } finally {
       setIsSubmitting(false);

@@ -6,6 +6,8 @@ import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
 import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
 
+const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
 interface IntelligencePanelProps {
     isOpen: boolean;
     onClose: () => void;
@@ -27,31 +29,37 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     const [activeTab, setActiveTab] = useState<'PRIMARY' | 'NEWS'>('NEWS');
 
     // Real forward curve data from API
-    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: string; sourceKey: 'productLevelReference' }[]>([]);
+    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: 'contango' | 'backwardation'; sourceKey: 'productLevelReference' }[]>([]);
 
     const marketPriceLabel = selectedPort && selectedPort.priceMethanol > 0
         ? `$${selectedPort.priceMethanol}`
         : '--';
-    const availabilityLabel = selectedPort && selectedPort.methanolSupply !== 'Unknown'
+    const availabilityValue = selectedPort && selectedPort.methanolSupply !== 'Unknown'
         ? selectedPort.methanolSupply
+        : null;
+    const availabilityLabel = availabilityValue
+        ? t(`intelligencePanel.availabilityLevels.${enumKey(availabilityValue)}`, { defaultValue: t('intelligencePanel.availabilityLevels.unknown') })
         : '--';
-    const availabilityTone = availabilityLabel === 'High'
+    const availabilityTone = availabilityValue === 'High'
         ? 'text-emerald-500'
-        : availabilityLabel === 'Medium'
+        : availabilityValue === 'Medium'
             ? 'text-amber-500'
-            : availabilityLabel === 'Low'
+            : availabilityValue === 'Low'
                 ? 'text-red-500'
                 : 'text-slate-400 dark:text-slate-500';
-    const availabilityDotTone = availabilityLabel === 'High'
+    const availabilityDotTone = availabilityValue === 'High'
         ? 'bg-emerald-500 animate-pulse'
-        : availabilityLabel === 'Medium'
+        : availabilityValue === 'Medium'
             ? 'bg-amber-500'
-            : availabilityLabel === 'Low'
+            : availabilityValue === 'Low'
                 ? 'bg-red-500'
                 : 'bg-slate-400';
     const hasPriceHistory = Boolean(selectedPort?.details?.priceHistory?.length);
-    const congestionLabel = selectedPort?.details?.congestionLevel && selectedPort.details.congestionLevel !== 'Unknown'
+    const congestionValue = selectedPort?.details?.congestionLevel && selectedPort.details.congestionLevel !== 'Unknown'
         ? selectedPort.details.congestionLevel
+        : null;
+    const congestionLabel = congestionValue
+        ? t(`intelligencePanel.congestionLevels.${enumKey(congestionValue)}`, { defaultValue: t('intelligencePanel.congestionLevels.unknown') })
         : '--';
 
     useEffect(() => {
@@ -79,7 +87,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             price: mid > 0 ? `$${mid.toFixed(0)}` : '--',
                             change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
                             up: isContango,
-                            curve: isContango ? 'Contango' : 'Backwardation',
+                            curve: isContango ? 'contango' : 'backwardation',
                             sourceKey: 'productLevelReference',
                         };
                     })
@@ -131,7 +139,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                                 {item.change}
                             </div>
                             <div className="mt-0.5 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                {item.curve}
+                                {t(`intelligencePanel.${item.curve}`)}
                             </div>
                         </div>
                     </div>
@@ -183,7 +191,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             <div className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
                                 <Anchor size={10} /> {t('intelligencePanel.congestion')}
                             </div>
-                            <div className={`text-sm font-bold ${congestionLabel === 'High' ? 'text-red-500' : congestionLabel === 'Moderate' ? 'text-amber-500' : 'text-green-600'}`}>
+                            <div className={`text-sm font-bold ${congestionValue === 'High' ? 'text-red-500' : congestionValue === 'Moderate' ? 'text-amber-500' : 'text-green-600'}`}>
                                 {congestionLabel}
                             </div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.waitAvg', { hours: selectedPort.details.avgWaitingTime })}</div>
@@ -194,7 +202,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                             <div className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
                                 <Ship size={10} /> {t('intelligencePanel.supply')}
                             </div>
-                            <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{selectedPort.details.forecastSupply}</div>
+                            <div className="text-sm font-bold text-[#334155] dark:text-slate-200">
+                                {t(`intelligencePanel.supplyLevels.${enumKey(selectedPort.details.forecastSupply)}`, { defaultValue: t('intelligencePanel.supplyLevels.unknown') })}
+                            </div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.activeBarges', { count: selectedPort.details.activeBarges })}</div>
                         </div>
                     )}
@@ -241,7 +251,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         })}
                     </div>
                 ) : (
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">No port intelligence history yet.</div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.noPortHistory')}</div>
                 )}
             </div>
 
@@ -285,6 +295,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 </div>
                 <button 
                     onClick={onClose}
+                    aria-label={t('intelligencePanel.close')}
                     className="text-slate-400 hover:text-slate-600"
                 >
                     <PanelRightClose size={20} />

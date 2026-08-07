@@ -10,9 +10,12 @@ vi.mock('../context/AuthContext', () => ({
 }));
 
 import AcceptInvitationPage from '../pages/AcceptInvitationPage';
+import i18n, { loadNamespace } from '../i18n';
 
 describe('pre-approved invitation acceptance', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadNamespace('auth');
+    await i18n.changeLanguage('en');
     vi.clearAllMocks();
     window.history.pushState({}, '', '/accept-invite#token=claim-secret');
     vi.stubGlobal('fetch', vi.fn()
@@ -95,5 +98,27 @@ describe('pre-approved invitation acceptance', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(window.location.search).toBe('');
     expect(window.history.state.verdaxisInvitationToken).toBeUndefined();
+  });
+
+  it('cold-loads Chinese errors and changes their language without resolving the token twice', async () => {
+    i18n.removeResourceBundle('zh', 'auth');
+    await i18n.changeLanguage('zh');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      code: 'INVITATION_EXPIRED',
+    }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      render(<MemoryRouter><AcceptInvitationPage /></MemoryRouter>);
+      expect(await screen.findByText('此邀请已过期。')).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await i18n.changeLanguage('en');
+      expect(await screen.findByText('This invitation has expired.')).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      await loadNamespace('auth');
+      await i18n.changeLanguage('en');
+    }
   });
 });

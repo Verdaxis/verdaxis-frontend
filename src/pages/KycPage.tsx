@@ -4,6 +4,7 @@ import { Upload, FileText, CheckCircle2, XCircle, Loader2, AlertCircle } from 'l
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 
 type SubmitState = 'idle' | 'submitting' | 'approved' | 'rejected' | 'error';
 
@@ -47,7 +48,10 @@ const KycPage: React.FC = () => {
         if (data.kyc_status === 'APPROVED') {
           setSubmitState('approved');
         } else if (data.kyc_status === 'REJECTED') {
-          setRejectionMessage(data.message || t('kyc.rejected.defaultMessage'));
+          if (data.message) console.error('[auth] KYC rejected', data.message);
+          setRejectionMessage(document.documentElement.lang.startsWith('zh')
+            ? t('kyc.rejected.defaultMessage')
+            : data.message || t('kyc.rejected.defaultMessage'));
           setSubmitState('rejected');
         } else {
           // PENDING or any other status — treat as pending confirmation
@@ -55,10 +59,11 @@ const KycPage: React.FC = () => {
         }
       } else {
         const errData = await res.json().catch(() => null);
-        setErrorMessage(errData?.detail || t('kyc.error.failed'));
+        setErrorMessage(localizedAuthError(errData, t, 'kyc.error.failed', 'KYC submission failed'));
         setSubmitState('error');
       }
-    } catch {
+    } catch (error) {
+      console.error('[auth] KYC network error', error);
       setErrorMessage(t('kyc.error.connectionFailed'));
       setSubmitState('error');
     }

@@ -131,6 +131,7 @@ export const ProductAnalyticsWorkspace: React.FC = () => {
       })
       .catch((error: unknown) => {
         if (isAbortError(error)) return;
+        console.error(`[product-analytics] ${requestKey}`, error);
         commit(requestKey, requestKey, {
           status: 'error',
           message: error instanceof Error ? error.message : String(error),

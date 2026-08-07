@@ -23,12 +23,12 @@ interface CommandCenterProps {
 
 const CTA_CONFIG = {
     BUYER: {
-        primary: { icon: Gavel, label: 'Post a Bid', desc: 'Request green fuel at your price', side: 'BID' as const },
-        secondary: { icon: Search, label: 'Browse Supply', desc: 'Explore available fuel listings' },
+        primary: { icon: Gavel, labelKey: 'common:commandCenter.actions.postBid', descKey: 'common:commandCenter.actions.postBidDescription', side: 'BID' as const },
+        secondary: { icon: Search, labelKey: 'common:commandCenter.actions.browseSupply', descKey: 'common:commandCenter.actions.browseSupplyDescription' },
     },
     SUPPLIER: {
-        primary: { icon: HandCoins, label: 'Post Supply', desc: 'List your fuel inventory', side: 'ASK' as const },
-        secondary: { icon: Search, label: 'Browse Demand', desc: 'Explore active buyer bids' },
+        primary: { icon: HandCoins, labelKey: 'common:commandCenter.actions.postSupply', descKey: 'common:commandCenter.actions.postSupplyDescription', side: 'ASK' as const },
+        secondary: { icon: Search, labelKey: 'common:commandCenter.actions.browseDemand', descKey: 'common:commandCenter.actions.browseDemandDescription' },
     },
 };
 
@@ -103,16 +103,23 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
-                    title: t(`${prefix}.modal.successTitle`),
-                    message: t(`${prefix}.modal.successMessage`),
+                    title: viewMode === 'BUYER'
+                        ? t('buyerDashboard.modal.successTitle')
+                        : t('common:commandCenter.supplier.acceptOrder.successTitle'),
+                    message: viewMode === 'BUYER'
+                        ? t('buyerDashboard.modal.successMessage')
+                        : t('common:commandCenter.supplier.acceptOrder.successMessage'),
                     variant: 'success',
                 });
             } catch (e: any) {
+                console.error('Failed to confirm trade', e);
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
                     title: t(`${prefix}.modal.errorTitle`),
-                    message: t(`${prefix}.modal.errorMessage`) + (e.message || ''),
+                    message: viewMode === 'BUYER'
+                        ? t('common:commandCenter.buyer.confirmTrade.errorMessage')
+                        : t('supplierDashboard.modal.errorMessage'),
                     variant: 'danger',
                 });
             } finally {
@@ -148,8 +155,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         className="group relative overflow-hidden rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700"
                     >
                         <cta.primary.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{cta.primary.label}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{cta.primary.desc}</p>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t(cta.primary.labelKey)}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t(cta.primary.descKey)}</p>
                         <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
 
@@ -158,8 +165,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         className="group relative overflow-hidden rounded-xl border border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-300 dark:hover:border-blue-700"
                     >
                         <cta.secondary.icon className="h-8 w-8 text-blue-600 dark:text-blue-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{cta.secondary.label}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{cta.secondary.desc}</p>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t(cta.secondary.labelKey)}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t(cta.secondary.descKey)}</p>
                         <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
 
@@ -168,8 +175,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         className="group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/40 dark:to-slate-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-slate-500/10 hover:border-slate-300 dark:hover:border-slate-600"
                     >
                         <FileText className="h-8 w-8 text-slate-600 dark:text-slate-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">View My Deals</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Trade history & settlements</p>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('common:commandCenter.actions.viewDeals')}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('common:commandCenter.actions.viewDealsDescription')}</p>
                         <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>}
                 </div>
@@ -178,25 +185,25 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             {/* ─── Activity Stats ─── */}
             <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Pending Actions</div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('supplierDashboard.kpi.pendingActions')}</div>
                     <div className="text-2xl font-black text-slate-900 dark:text-white">{pendingCount}</div>
                 </div>
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Matches Found</div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('supplierListingConsole.kpi.orderMatches')}</div>
                     <div className="flex items-center gap-2">
                         <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{matchCount}</div>
                         {matchCount > 0 && <Sparkles size={16} className="text-emerald-500" />}
                     </div>
                 </div>
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Deals</div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('stats.kpi.trades')}</div>
                     <div className="text-2xl font-black text-slate-900 dark:text-white">{completedCount}</div>
                 </div>
             </div>
 
             {/* ─── Match Suggestions (hidden until matching algorithm is solidified) ─── */}
             {/* <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Recommended Matches</h2>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('common:commandCenter.recommendedMatches')}</h2>
                 <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
             </div> */}
 
@@ -208,7 +215,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
 
             {/* ─── Needs Attention ─── */}
             <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">Needs Attention</h2>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('supplierDashboard.table.actionRequired')}</h2>
                 <NeedsAttentionFeed
                     trades={trades}
                     viewMode={viewMode}
@@ -235,8 +242,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 message={confirmState.message}
                 variant={confirmState.variant}
                 isLoading={processing}
-                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
-                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? '' : t('common:btn.cancel')}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? t('common:btn.close') : t('common:btn.confirm')}
             />
         </div>
     );

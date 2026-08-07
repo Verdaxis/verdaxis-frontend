@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users,
@@ -87,39 +89,45 @@ type UserStatusFilter = 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
 // Formatting helpers
 // ---------------------------------------------------------------------------
 
-const fmtDate = (iso: string) => {
+const fmtDate = (iso: string, locale?: string) => {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 };
 
-const statusBadge = (status: string) => {
-  const cfg: Record<string, { cls: string; label: string }> = {
-    PENDING:  { cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30',   label: 'Pending'  },
-    APPROVED: { cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', label: 'Approved' },
-    REJECTED: { cls: 'bg-red-500/15 text-red-400 border-red-500/30',         label: 'Rejected' },
+const statusBadge = (status: string, t: TFunction) => {
+  const cfg: Record<string, string> = {
+    PENDING: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
   };
-  const { cls, label } = cfg[status] ?? { cls: 'bg-slate-500/15 text-slate-400', label: status };
+  const cls = cfg[status] ?? 'bg-slate-500/15 text-slate-400';
+  const label = t(`users.status.${status}`, { defaultValue: t('users.status.unknown') });
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-medium border ${cls}`}>{label}</span>
   );
 };
 
 // Furthest point an account has actually reached in the journey.
-const journeyStage = (u: AdminUserEntry): { label: string; cls: string } => {
-  if (!u.email_verified && u.must_change_password) return { label: 'Invited', cls: 'bg-sky-500/15 text-sky-400' };
-  if (!u.email_verified) return { label: 'Registered', cls: 'bg-slate-500/15 text-slate-400' };
-  if (u.status !== 'APPROVED') return { label: 'Verified', cls: 'bg-amber-500/15 text-amber-400' };
-  if (!u.last_login) return { label: 'Approved', cls: 'bg-amber-500/15 text-amber-400' };
-  if (!u.org_has_orders) return { label: 'Logged in', cls: 'bg-sky-500/15 text-sky-400' };
-  return { label: 'Ordered', cls: 'bg-emerald-500/15 text-emerald-400' };
+const journeyStage = (u: AdminUserEntry, t: TFunction): { label: string; cls: string } => {
+  if (!u.email_verified && u.must_change_password) return { label: t('users.journey.invited'), cls: 'bg-sky-500/15 text-sky-400' };
+  if (!u.email_verified) return { label: t('users.journey.registered'), cls: 'bg-slate-500/15 text-slate-400' };
+  if (u.status !== 'APPROVED') return { label: t('users.journey.verified'), cls: 'bg-amber-500/15 text-amber-400' };
+  if (!u.last_login) return { label: t('users.journey.approved'), cls: 'bg-amber-500/15 text-amber-400' };
+  if (!u.org_has_orders) return { label: t('users.journey.loggedIn'), cls: 'bg-sky-500/15 text-sky-400' };
+  return { label: t('users.journey.ordered'), cls: 'bg-emerald-500/15 text-emerald-400' };
 };
 
-const STATUS_FILTERS: { label: string; value: UserStatusFilter }[] = [
-  { label: 'Pending', value: 'PENDING' },
-  { label: 'All',     value: 'ALL'     },
-  { label: 'Approved',value: 'APPROVED'},
-  { label: 'Rejected',value: 'REJECTED'},
-];
+const STATUS_FILTERS: UserStatusFilter[] = ['PENDING', 'ALL', 'APPROVED', 'REJECTED'];
+
+const safeAdminError = (error: unknown, t: TFunction, language: string, fallbackKey: string) => {
+  console.error(`[admin] ${fallbackKey}`, error);
+  const fallback = t(fallbackKey);
+  if (error instanceof ApiError && error.code) {
+    const mapped = t(`errors.code.${error.code}`, { defaultValue: fallback });
+    if (language.startsWith('zh') || mapped !== fallback) return mapped;
+  }
+  return language.startsWith('zh') ? fallback : error instanceof Error ? error.message : fallback;
+};
 
 type InvitationForm = Omit<AdminInvitationInput, 'role'> & {
   role: '' | AdminInvitationInput['role'];
@@ -147,24 +155,17 @@ const nextReviewAction = (review: AdminReviewCase): ReviewAction => {
 };
 
 // Human labels for the onboarding_attention stage taxonomy (BE service).
-const ATTENTION_STAGES: Record<string, string> = {
-  rejected: 'Rejected',
-  organization_setup_expiring: 'Organization setup expiring',
-  verification_stalled: 'Email verification stalled',
-  approval_required: 'Approval required',
-  first_login_overdue: 'Approved, never logged in',
-};
-
-const fmtSince = (iso: string) => {
+const fmtSince = (iso: string, t: TFunction) => {
   const hours = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 3_600_000));
-  if (hours < 48) return `${hours}h`;
-  return `${Math.round(hours / 24)}d`;
+  if (hours < 48) return t('users.time.hours', { count: hours });
+  return t('users.time.days', { count: Math.round(hours / 24) });
 };
 
 // Who is stuck at which onboarding step, with an email link to reach out.
 // Identity deliberately lives here (operational surface), never in the
 // aggregate analytics tabs.
 const OutreachPanel: React.FC = () => {
+  const { t } = useTranslation('admin');
   const [items, setItems] = useState<OnboardingAttentionItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -181,13 +182,13 @@ const OutreachPanel: React.FC = () => {
   return (
     <details className="rounded-lg border border-amber-500/30 bg-amber-500/5" data-testid="outreach-panel">
       <summary className="cursor-pointer select-none px-4 py-3 text-xs font-semibold uppercase tracking-wide text-amber-500">
-        Needs outreach — {items.length} stalled in onboarding
+        {t('users.outreach.summary', { count: items.length })}
       </summary>
       <ul className="space-y-1.5 px-4 pb-4">
         {items.map(item => (
           <li key={`${item.email}-${item.stage}`} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
             <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-500/15 text-amber-500">
-              {ATTENTION_STAGES[item.stage] ?? item.stage}
+              {t(`users.outreach.stage.${item.stage}`, { defaultValue: t('users.outreach.stage.unknown') })}
             </span>
             <span className="text-verdaxis-text font-medium">{item.name ?? '—'}</span>
             <a href={`mailto:${item.email}`} className="font-mono text-xs text-verdaxis underline decoration-verdaxis/40 underline-offset-2 hover:decoration-verdaxis">
@@ -197,7 +198,7 @@ const OutreachPanel: React.FC = () => {
               <span className="text-verdaxis-text-muted text-xs">{item.organization_name}</span>
             )}
             <span className="text-verdaxis-text-muted text-xs ml-auto whitespace-nowrap">
-              {fmtSince(item.since)} stalled
+              {t('users.outreach.stalled', { time: fmtSince(item.since, t) })}
             </span>
           </li>
         ))}
@@ -207,6 +208,7 @@ const OutreachPanel: React.FC = () => {
 };
 
 const FeedbackTab: React.FC = () => {
+  const { t, i18n } = useTranslation('admin');
   const [entries, setEntries] = useState<FeedbackEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -221,11 +223,11 @@ const FeedbackTab: React.FC = () => {
         setTotal(response.total);
       })
       .catch(err => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load feedback.');
+        if (!cancelled) setError(safeAdminError(err, t, i18n.resolvedLanguage ?? i18n.language, 'feedback.loadingError'));
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [i18n.language, i18n.resolvedLanguage, t]);
 
   if (loading) {
     return (
@@ -236,15 +238,15 @@ const FeedbackTab: React.FC = () => {
   }
   if (error) return <p role="alert" className="text-sm text-red-400">{error}</p>;
   if (entries.length === 0) {
-    return <p className="text-verdaxis-text-muted text-sm py-6 text-center">No feedback yet.</p>;
+    return <p className="text-verdaxis-text-muted text-sm py-6 text-center">{t('feedback.empty')}</p>;
   }
   return (
     <div className="space-y-3" data-testid="admin-feedback-list">
-      <p className="text-xs text-verdaxis-text-muted">{total} {total === 1 ? 'entry' : 'entries'}</p>
+      <p className="text-xs text-verdaxis-text-muted">{t('feedback.entries', { count: total })}</p>
       {entries.map(entry => (
         <div key={entry.id} className="rounded-lg border border-verdaxis-border bg-verdaxis-card px-4 py-3">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-verdaxis-text-muted mb-1.5">
-            <span className="whitespace-nowrap">{fmtDate(entry.created_at)}</span>
+            <span className="whitespace-nowrap">{fmtDate(entry.created_at, i18n.resolvedLanguage)}</span>
             {entry.user_email ? (
               <a href={`mailto:${entry.user_email}`} className="font-mono text-verdaxis underline decoration-verdaxis/40 underline-offset-2 hover:decoration-verdaxis">
                 {entry.user_email}
@@ -263,6 +265,8 @@ const FeedbackTab: React.FC = () => {
 };
 
 const UsersTab: React.FC = () => {
+  const { t, i18n } = useTranslation('admin');
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const [filter, setFilter] = useState<UserStatusFilter>('PENDING');
   const [users, setUsers]   = useState<AdminUserEntry[]>([]);
   const [total, setTotal]   = useState(0);
@@ -310,11 +314,11 @@ const UsersTab: React.FC = () => {
         (queue.items ?? []).map((review: AdminReviewCase) => [review.user_id, review]),
       ));
     } catch (error) {
-      setUserError(error instanceof Error ? error.message : 'Could not load users.');
+      setUserError(safeAdminError(error, t, language, 'users.error.load'));
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, language, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -326,7 +330,7 @@ const UsersTab: React.FC = () => {
     try {
       setReviewCase(await api.admin.reviewCase(userId));
     } catch (error) {
-      setUserError(error instanceof Error ? error.message : 'Could not load this onboarding review.');
+      setUserError(safeAdminError(error, t, language, 'users.error.review'));
     } finally {
       setReviewing(null);
     }
@@ -339,7 +343,7 @@ const UsersTab: React.FC = () => {
       await api.admin.rejectUser(userId);
       await load();
     } catch (error) {
-      setUserError(error instanceof Error ? error.message : 'Could not reject this account.');
+      setUserError(safeAdminError(error, t, language, 'users.error.reject'));
     } finally {
       setActioning(null);
     }
@@ -365,7 +369,7 @@ const UsersTab: React.FC = () => {
       setInviteOrganizations(organizations);
       setInviteForm(EMPTY_INVITATION);
     } catch (error) {
-      setInviteError(error instanceof Error ? error.message : 'Could not load organizations.');
+      setInviteError(safeAdminError(error, t, language, 'users.error.organizations'));
     } finally {
       setInviteLoading(false);
     }
@@ -398,7 +402,7 @@ const UsersTab: React.FC = () => {
       setInvitation(created);
       await load();
     } catch (error) {
-      setInviteError(error instanceof Error ? error.message : 'Could not create this invitation.');
+      setInviteError(safeAdminError(error, t, language, 'users.error.invite'));
     } finally {
       setInviteSubmitting(false);
     }
@@ -413,8 +417,9 @@ const UsersTab: React.FC = () => {
     try {
       await navigator.clipboard.writeText(invitation.acceptance_url);
       setInviteCopied(true);
-    } catch {
-      setInviteError('Copy failed. Select the link and copy it manually.');
+    } catch (error) {
+      console.error('[admin] copy invitation', error);
+      setInviteError(t('users.error.copy'));
     }
   };
 
@@ -430,7 +435,7 @@ const UsersTab: React.FC = () => {
       if (action.kind === 'resend') {
         await api.admin.resendVerification(reviewCase.email);
         setVerificationSent(true);
-        setReviewNotice('Verification email sent. Approval remains locked until the user opens it.');
+        setReviewNotice(t('review.verificationSent'));
         return;
       }
       if (action.kind === 'account') {
@@ -443,7 +448,7 @@ const UsersTab: React.FC = () => {
       setReviewCase(await api.admin.reviewCase(reviewCase.user_id));
       await load();
     } catch (error) {
-      setReviewError(error instanceof Error ? error.message : 'Could not complete this review step.');
+      setReviewError(safeAdminError(error, t, language, 'users.error.reviewStep'));
     } finally {
       setReviewActioning(false);
     }
@@ -455,7 +460,7 @@ const UsersTab: React.FC = () => {
     setEntryLoading(true);
     try {
       const organizationId = user.organization_id ?? '';
-      if (!organizationId || !user.org_name) throw new Error('This organization could not be resolved.');
+      if (!organizationId || !user.org_name) throw new Error('ORGANIZATION_UNRESOLVED');
       const organization: SupportOrganization = {
         id: organizationId,
         name: user.org_name,
@@ -465,7 +470,7 @@ const UsersTab: React.FC = () => {
       setEntryOrganization(organization);
       setEntry(await api.marketSupport.entry(organizationId));
     } catch (error) {
-      setEntryError(error instanceof Error ? error.message : 'Could not check organization eligibility.');
+      setEntryError(safeAdminError(error, t, language, error instanceof Error && error.message === 'ORGANIZATION_UNRESOLVED' ? 'users.error.resolveOrganization' : 'users.error.eligibility'));
     } finally {
       setEntryLoading(false);
     }
@@ -491,7 +496,7 @@ const UsersTab: React.FC = () => {
         )
       ) {
         setReplacementInput(input);
-        setEntryError('An assisted workspace is already active. Confirm replacement to continue.');
+        setEntryError(t('users.error.contextReplacement'));
         return;
       }
       throw error;
@@ -506,7 +511,7 @@ const UsersTab: React.FC = () => {
       closeEntry();
       navigate('/app/home');
     } catch (error) {
-      setEntryError(error instanceof Error ? error.message : 'Could not replace the active assisted workspace.');
+      setEntryError(safeAdminError(error, t, language, 'users.error.replaceContext'));
     }
   };
 
@@ -514,10 +519,10 @@ const UsersTab: React.FC = () => {
     setEntryError(null);
     try {
       const active = await resume();
-      if (!active) throw new Error('No assisted workspace is available to resume.');
+      if (!active) throw new Error('NO_ACTIVE_CONTEXT');
       navigate('/app/home');
     } catch (error) {
-      setEntryError(error instanceof Error ? error.message : 'Could not resume the assisted workspace.');
+      setEntryError(safeAdminError(error, t, language, error instanceof Error && error.message === 'NO_ACTIVE_CONTEXT' ? 'users.error.noContext' : 'users.error.resumeContext'));
     }
   };
 
@@ -525,21 +530,21 @@ const UsersTab: React.FC = () => {
   const pendingJoin = reviewCase?.requested_organizations.find(request => request.status === 'PENDING');
   const reviewOrganization = pendingJoin?.organization ?? reviewCase?.current_organization ?? null;
   const reviewConfirmText = reviewAction?.kind === 'resend'
-    ? (verificationSent ? 'Verification email sent' : 'Send verification email')
+    ? (verificationSent ? t('review.verificationSent') : t('review.sendVerification'))
     : reviewAction?.kind === 'account'
-      ? 'Approve account'
+      ? t('review.approveAccount')
       : reviewAction?.kind === 'organization'
-        ? 'Approve organization'
+        ? t('review.approveOrganization')
         : reviewAction?.kind === 'membership'
-          ? 'Approve membership'
-          : 'Onboarding complete';
+          ? t('review.approveMembership')
+          : t('review.complete');
 
   return (
     <div className="space-y-4">
       <OutreachPanel />
       {/* Filter chips */}
       <div className="flex gap-2 flex-wrap">
-        {STATUS_FILTERS.map(({ label, value }) => (
+        {STATUS_FILTERS.map((value) => (
           <button
             key={value}
             onClick={() => setFilter(value)}
@@ -549,11 +554,11 @@ const UsersTab: React.FC = () => {
                 : 'bg-verdaxis-border/40 text-verdaxis-text-muted hover:text-verdaxis-text'
             }`}
           >
-            {label}
+            {t(`users.filters.${value}`)}
           </button>
         ))}
         <span className="ml-auto text-xs text-verdaxis-text-muted self-center">
-          {total} {total === 1 ? 'user' : 'users'}
+          {t('users.count', { count: total })}
         </span>
         <button
           type="button"
@@ -561,10 +566,10 @@ const UsersTab: React.FC = () => {
           className="inline-flex items-center gap-1.5 rounded-full bg-verdaxis px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
         >
           <UserPlus size={13} />
-          Invite user
+          {t('users.invite')}
         </button>
         <button type="button" onClick={() => { void resumeContext(); }} className="rounded-full border border-verdaxis px-3 py-1.5 text-xs font-semibold text-verdaxis hover:bg-verdaxis/10">
-          Resume active context
+          {t('users.resumeContext')}
         </button>
       </div>
 
@@ -575,20 +580,22 @@ const UsersTab: React.FC = () => {
         </div>
       ) : users.length === 0 ? (
         <p className="text-verdaxis-text-muted text-sm py-6 text-center">
-          No {filter !== 'ALL' ? filter.toLowerCase() : ''} users found.
+          {filter === 'ALL'
+            ? t('users.empty')
+            : t('users.emptyFiltered', { status: t(`users.filters.${filter}`) })}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-verdaxis-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-verdaxis-border text-verdaxis-text-muted text-xs uppercase">
-                <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Email</th>
-                <th className="text-left px-4 py-3">Organization</th>
-                <th className="text-left px-4 py-3">Role</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3">Reached</th>
-                <th className="text-left px-4 py-3">Joined</th>
+                <th className="text-left px-4 py-3">{t('users.columns.name')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.email')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.organization')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.role')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.status')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.reached')}</th>
+                <th className="text-left px-4 py-3">{t('users.columns.joined')}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -622,12 +629,12 @@ const UsersTab: React.FC = () => {
                           onClick={() => handleEnterOrganization(u)}
                           disabled={entryLoading}
                           className="text-left font-semibold text-verdaxis underline decoration-verdaxis/40 underline-offset-4 transition-colors hover:decoration-verdaxis disabled:opacity-50"
-                          aria-label={`Enter ${u.org_name} organization workspace`}
+                          aria-label={t('users.enterOrganization', { organization: u.org_name })}
                         >
                           {u.org_name}
                           {u.org_type && (
                             <span className="ml-1 text-xs font-normal opacity-60 capitalize">
-                              ({u.org_type.replace(/_/g, ' ').toLowerCase()})
+                              ({t(`users.organizationType.${u.org_type}`, { defaultValue: t('users.organizationType.unknown') })})
                             </span>
                           )}
                         </button>
@@ -636,21 +643,21 @@ const UsersTab: React.FC = () => {
                           {displayOrganizationName ?? '—'}
                           {displayOrganizationType && (
                             <span className="ml-1 text-xs opacity-60 capitalize">
-                              ({displayOrganizationType.replace(/_/g, ' ').toLowerCase()})
+                              ({t(`users.organizationType.${displayOrganizationType}`, { defaultValue: t('users.organizationType.unknown') })})
                             </span>
                           )}
                         </>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-verdaxis-text-muted capitalize">{u.role.toLowerCase()}</td>
-                    <td className="px-4 py-3">{statusBadge(u.status)}</td>
+                    <td className="px-4 py-3 text-verdaxis-text-muted">{t(`users.role.${u.role}`, { defaultValue: t('users.role.unknown') })}</td>
+                    <td className="px-4 py-3">{statusBadge(u.status, t)}</td>
                     <td className="px-4 py-3">
                       {(() => {
-                        const stage = journeyStage(u);
+                        const stage = journeyStage(u, t);
                         return (
                           <span
                             className={`px-2 py-0.5 rounded text-xs font-medium ${stage.cls}`}
-                            title={u.last_login ? `Last login ${fmtDate(u.last_login)}` : 'Never logged in'}
+                            title={u.last_login ? t('users.lastLogin', { date: fmtDate(u.last_login, language) }) : t('users.neverLoggedIn')}
                             data-testid={`journey-${u.id}`}
                           >
                             {stage.label}
@@ -659,7 +666,7 @@ const UsersTab: React.FC = () => {
                       })()}
                     </td>
                     <td className="px-4 py-3 text-verdaxis-text-muted text-xs whitespace-nowrap">
-                      {fmtDate(u.created_at)}
+                      {fmtDate(u.created_at, language)}
                     </td>
                     <td className="px-4 py-3">
                       {u.status === 'PENDING' && (
@@ -674,7 +681,7 @@ const UsersTab: React.FC = () => {
                             ) : (
                               <ShieldCheck size={12} />
                             )}
-                            Review
+                            {t('users.review')}
                           </button>
                           <button
                             onClick={() => handleReject(u.id)}
@@ -686,7 +693,7 @@ const UsersTab: React.FC = () => {
                             ) : (
                               <XCircle size={12} />
                             )}
-                            Reject
+                            {t('users.reject')}
                           </button>
                         </div>
                       )}
@@ -698,7 +705,7 @@ const UsersTab: React.FC = () => {
                             className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isReviewing ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-                            Review
+                            {t('users.review')}
                           </button>
                         </div>
                       )}
@@ -727,12 +734,12 @@ const UsersTab: React.FC = () => {
         isOpen={inviteOpen}
         onClose={closeInvite}
         onConfirm={() => { void handleInviteConfirm(); }}
-        title={invitation ? 'Invitation ready' : 'Invite a pre-approved user'}
+        title={invitation ? t('invite.readyTitle') : t('invite.title')}
         message={invitation
-          ? 'Send this single-use link to the recipient. It expires after seven days.'
-          : 'Prepare an approved account in an existing organization. The recipient only needs to accept and set a password.'}
-        confirmText={invitation ? 'Done' : 'Generate invitation'}
-        cancelText={invitation ? '' : 'Cancel'}
+          ? t('invite.readyMessage')
+          : t('invite.message')}
+        confirmText={invitation ? t('invite.done') : t('invite.generate')}
+        cancelText={invitation ? '' : t('marketSupport.cancel')}
         variant={invitation ? 'success' : 'info'}
         isLoading={inviteSubmitting}
         confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.role || !inviteForm.organization_id}
@@ -746,10 +753,10 @@ const UsersTab: React.FC = () => {
               <span className="mx-2">·</span>
               {invitation.organization_name}
               <span className="mx-2">·</span>
-              {invitation.role === 'BUYER' ? 'Buyer' : 'Supplier'}
+              {t(`users.role.${invitation.role}`)}
             </div>
             <label htmlFor="admin-invitation-link" className="block text-xs font-semibold uppercase text-verdaxis-text-muted">
-              Invitation link
+              {t('invite.link')}
             </label>
             <div className="flex gap-2">
               <input
@@ -763,20 +770,20 @@ const UsersTab: React.FC = () => {
                 type="button"
                 onClick={() => { void copyInvitation(); }}
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-verdaxis-border text-verdaxis-text-muted hover:border-verdaxis hover:text-verdaxis"
-                aria-label="Copy invitation link"
-                title="Copy invitation link"
+                aria-label={t('invite.copy')}
+                title={t('invite.copy')}
               >
                 {inviteCopied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             </div>
             {invitation.reissued && (
-              <p className="text-xs text-amber-400">A previous unclaimed link was replaced. Only this link will work.</p>
+              <p className="text-xs text-amber-400">{t('invite.reissued')}</p>
             )}
           </div>
         ) : (
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-sm text-verdaxis-text-muted">
-              First name
+              {t('invite.firstName')}
               <input
                 required
                 value={inviteForm.first_name}
@@ -785,7 +792,7 @@ const UsersTab: React.FC = () => {
               />
             </label>
             <label className="text-sm text-verdaxis-text-muted">
-              Last name
+              {t('invite.lastName')}
               <input
                 value={inviteForm.last_name ?? ''}
                 onChange={(event) => setInviteForm({ ...inviteForm, last_name: event.target.value || null })}
@@ -793,7 +800,7 @@ const UsersTab: React.FC = () => {
               />
             </label>
             <label className="text-sm text-verdaxis-text-muted sm:col-span-2">
-              Email address
+              {t('invite.email')}
               <input
                 type="email"
                 required
@@ -804,7 +811,7 @@ const UsersTab: React.FC = () => {
               />
             </label>
             <label className="text-sm text-verdaxis-text-muted">
-              Role
+              {t('invite.role')}
               <select
                 value={inviteForm.role}
                 onChange={(event) => setInviteForm({
@@ -814,20 +821,20 @@ const UsersTab: React.FC = () => {
                 })}
                 className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
               >
-                <option value="">Select role</option>
-                <option value="BUYER">Buyer</option>
-                <option value="SUPPLIER">Supplier</option>
+                <option value="">{t('invite.selectRole')}</option>
+                <option value="BUYER">{t('users.role.BUYER')}</option>
+                <option value="SUPPLIER">{t('users.role.SUPPLIER')}</option>
               </select>
             </label>
             <label className="text-sm text-verdaxis-text-muted">
-              Organization
+              {t('invite.organization')}
               <select
                 value={inviteForm.organization_id}
                 onChange={(event) => setInviteForm({ ...inviteForm, organization_id: event.target.value })}
                 disabled={inviteLoading || !inviteForm.role || eligibleInviteOrganizations.length === 0}
                 className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
               >
-                <option value="">Select organization</option>
+                <option value="">{t('invite.selectOrganization')}</option>
                 {eligibleInviteOrganizations.map((organization) => (
                   <option key={organization.id} value={organization.id}>
                     {organization.name}{organization.domain ? ` — ${organization.domain}` : ''}
@@ -837,7 +844,7 @@ const UsersTab: React.FC = () => {
             </label>
             {!inviteLoading && inviteForm.role && eligibleInviteOrganizations.length === 0 && !inviteError && (
               <p className="sm:col-span-2 text-sm text-amber-400">
-                No approved real {inviteForm.role === 'BUYER' ? 'buyer' : 'supplier'} organizations are available.
+                {t('invite.noOrganizations', { role: t(`users.role.${inviteForm.role}`) })}
               </p>
             )}
           </div>
@@ -852,10 +859,10 @@ const UsersTab: React.FC = () => {
         isOpen={Boolean(reviewCase)}
         onClose={closeReview}
         onConfirm={() => { void handleReviewAction(); }}
-        title={`Review ${reviewCase?.email ?? 'account'}`}
-        message="Complete each independent onboarding check in order."
+        title={t('review.title', { account: reviewCase?.email ?? t('review.accountFallback') })}
+        message={t('review.message')}
         confirmText={reviewConfirmText}
-        cancelText="Close"
+        cancelText={t('marketSupport.close')}
         variant={reviewAction ? 'info' : 'success'}
         isLoading={reviewActioning}
         confirmDisabled={!reviewAction || (reviewAction.kind === 'resend' && verificationSent)}
@@ -865,10 +872,10 @@ const UsersTab: React.FC = () => {
         {reviewCase && (
           <div className="mt-5 divide-y divide-verdaxis-border rounded-lg border border-verdaxis-border">
             {[
-              ['Email', reviewCase.email_verified ? 'Verified' : 'Awaiting verification', reviewCase.email_verified],
-              ['Account', reviewCase.account_status.toLowerCase(), reviewCase.account_status === 'APPROVED'],
-              ['Organization', reviewOrganization ? `${reviewOrganization.name} · ${reviewOrganization.verification_status.toLowerCase()}` : 'Not requested', reviewOrganization?.verification_status === 'APPROVED'],
-              ['Membership', reviewCase.current_organization ? 'Approved' : pendingJoin ? pendingJoin.status.toLowerCase() : 'Not requested', Boolean(reviewCase.current_organization)],
+              [t('review.email'), reviewCase.email_verified ? t('users.journey.verified') : t('review.awaitingVerification'), reviewCase.email_verified],
+              [t('review.account'), t(`users.status.${reviewCase.account_status}`, { defaultValue: t('users.status.unknown') }), reviewCase.account_status === 'APPROVED'],
+              [t('review.organization'), reviewOrganization ? `${reviewOrganization.name} · ${t(`users.status.${reviewOrganization.verification_status}`, { defaultValue: t('users.status.unknown') })}` : t('review.notRequested'), reviewOrganization?.verification_status === 'APPROVED'],
+              [t('review.membership'), reviewCase.current_organization ? t('users.status.APPROVED') : pendingJoin ? t(`users.status.${pendingJoin.status}`, { defaultValue: t('users.status.unknown') }) : t('review.notRequested'), Boolean(reviewCase.current_organization)],
             ].map(([label, value, complete]) => (
               <div key={String(label)} className="flex items-center justify-between gap-4 px-3 py-2.5 text-sm">
                 <span className="text-verdaxis-text-muted">{String(label)}</span>
@@ -894,9 +901,9 @@ const UsersTab: React.FC = () => {
         isOpen={Boolean(replacementInput)}
         onClose={() => setReplacementInput(null)}
         onConfirm={() => { void replaceContext(); }}
-        title="Replace active assisted workspace?"
-        message="The existing assisted-order context will be ended and replaced for this admin session. This does not alter existing orders."
-        confirmText="Replace context"
+        title={t('review.replaceTitle')}
+        message={t('review.replaceMessage')}
+        confirmText={t('review.replace')}
         variant="warning"
       />
     </div>
@@ -948,9 +955,9 @@ export const AdminDashboard: React.FC = () => {
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-verdaxis-border">
         {([
-          { key: 'analytics', label: 'Analytics', icon: <BarChart3 size={15} /> },
-          { key: 'users',     label: 'Users',     icon: <Users size={15} />    },
-          { key: 'feedback',  label: 'Feedback',  icon: <MessageSquareText size={15} /> },
+          { key: 'analytics', label: t('tabs.analytics'), icon: <BarChart3 size={15} /> },
+          { key: 'users',     label: t('tabs.users'),     icon: <Users size={15} />    },
+          { key: 'feedback',  label: t('tabs.feedback'),  icon: <MessageSquareText size={15} /> },
         ] as { key: AdminTab; label: string; icon: React.ReactNode }[]).map(({ key, label, icon }) => (
           <Link
             key={key}

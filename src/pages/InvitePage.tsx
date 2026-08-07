@@ -26,7 +26,10 @@ export const InvitePage = () => {
     fetch(`${API_URL}/referrals/resolve/${code}`)
       .then(r => r.json())
       .then(setData)
-      .catch(() => setData({ valid: false }))
+      .catch((error) => {
+        console.error('[auth] referral invitation resolution failed', error);
+        setData({ valid: false });
+      })
       .finally(() => setLoading(false));
   }, [code]);
 
@@ -60,7 +63,7 @@ export const InvitePage = () => {
             </p>
             {data.organization_type && (
               <p className="text-emerald-400 text-sm mb-8 capitalize">
-                {data.organization_type.replace(/_/g, ' ').toLowerCase()}
+                {t(`invite.organizationType.${data.organization_type}`, { defaultValue: t('invite.organizationType.unknown') })}
               </p>
             )}
             <p className="text-slate-400 mb-8">

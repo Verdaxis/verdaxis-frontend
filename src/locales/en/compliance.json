@@ -5,5 +5,132 @@
     "dashboard": "Dashboard",
     "fuelTracing": "Fuel Tracing",
     "dataInput": "Data Input"
+  },
+  "loading": "Loading compliance data...",
+  "error": {
+    "title": "Could not load compliance data",
+    "load": "Compliance data is temporarily unavailable.",
+    "scenario": "Scenario calculation failed. Please try again."
+  },
+  "empty": {
+    "title": "No Vessels Found",
+    "body": "Add vessels to your fleet to see compliance scores, EU ETS exposure, and FuelEU performance data. Navigate to My Fleet to register your vessels."
+  },
+  "overview": {
+    "title": "Fleet Compliance Overview",
+    "vessels_one": "{{count}} vessel · {{year}} YTD",
+    "vessels_other": "{{count}} vessels · {{year}} YTD",
+    "averageScore": "Avg Score"
+  },
+  "ets": {
+    "title": "EU ETS Exposure",
+    "period": "Period: {{year}} YTD",
+    "totalCo2": "Total Fleet CO2",
+    "tonnes": "{{value}} tonnes",
+    "euaPrice": "EUA Price",
+    "estimatedCost": "Estimated Fleet Cost",
+    "buyAllowances": "Buy Allowances",
+    "brokerageUnavailable": "Brokerage integration is under construction",
+    "viewLedger": "View Ledger"
+  },
+  "fuelEu": {
+    "title": "FuelEU Fleet Performance",
+    "intensityVsTarget": "GHG Intensity (gCO2eq/MJ) vs Target: {{target}}",
+    "target": "Target: {{target}} gCO2eq/MJ"
+  },
+  "vessels": {
+    "title": "Vessel Scores",
+    "vessel": "Vessel",
+    "score": "Score",
+    "status": "Status",
+    "cii": "CII",
+    "fuelEuIntensity": "FuelEU Intensity",
+    "etsCost": "ETS Cost",
+    "recommendation": "Recommendation"
+  },
+  "status": {
+    "EXCELLENT": "Excellent",
+    "GOOD": "Good",
+    "ADEQUATE": "Adequate",
+    "AT_RISK": "At risk",
+    "CRITICAL": "Critical",
+    "unknown": "Unknown"
+  },
+  "scenario": {
+    "title": "What-If Fuel Scenario",
+    "subtitle": "Model how different fuel mixes affect compliance scores",
+    "vessel": "Vessel",
+    "fuelMix": "Fuel Mix (fractions, sum to 1.0)",
+    "total": "Total: {{total}}",
+    "calculate": "Calculate",
+    "addFuel": "Add at least one fuel to the mix.",
+    "invalidTotal": "Fuel fractions must sum to 1.0 (currently {{total}}).",
+    "score": "Score: {{score}}",
+    "penalty": "Projected FuelEU Penalty: {{amount}}",
+    "help": "Configure a fuel mix and select Calculate to see projected compliance scores."
+  },
+  "recommendations": {
+    "fuelMix": "Consider increasing the biofuel or methanol blend to meet FuelEU targets.",
+    "etsExposure": "High ETS exposure — evaluate alternative fuels to reduce CO2 costs.",
+    "cii": "CII rating declining — implement speed reduction or efficiency measures.",
+    "penalty": "Projected FuelEU penalty: EUR {{amount}}. Switch to compliant fuels to avoid it.",
+    "generic": "Review this vessel's compliance inputs and planned fuel mix."
+  },
+  "filings": {
+    "title": "Regulatory Filings",
+    "submission": "Submission",
+    "receipt": "Receipt",
+    "report": "Report",
+    "mrv": "MRV Report 2025 — Final.pdf",
+    "ets": "ETS Surrender Confirmation Q4.pdf",
+    "fuelEu": "FuelEU Compliance Balance Statement.pdf",
+    "downloadUnavailable": "Download feature is under construction"
+  },
+  "upload": {
+    "title": "Upload Bunker Delivery Note (BDN)",
+    "description": "Drag and drop a PDF or image here. AI will automatically extract verification data.",
+    "select": "Select File & Simulate Upload",
+    "processing": "Processing Document...",
+    "processingDescription": "Running OCR extraction and compliance checks.",
+    "review": "Verify Extracted Data",
+    "confidence": "High Confidence Match",
+    "vessel": "Vessel Name",
+    "port": "Bunkering Port",
+    "fuel": "Fuel Type",
+    "quantity": "Quantity (MT)",
+    "cancel": "Cancel",
+    "confirm": "Confirm & Submit",
+    "success": "Data Ingested Successfully",
+    "successDescription": "Your compliance ledger has been updated. Verification ID: #BDN-2993"
+  },
+  "tracing": {
+    "title": "End-to-End Traceability",
+    "subtitle": "Chain of Custody for Voyage #SG-RTM-299",
+    "verified": "Verified Green",
+    "nanolumi": "Nanolumi Verified",
+    "events": {
+      "tr-1": { "stage": "Origin", "description": "UCO Biomass Collection" },
+      "tr-2": { "stage": "Production", "description": "Refinement to B100 Biofuel" },
+      "tr-3": { "stage": "Bunkering", "description": "Transfer to Verdaxis Pioneer" }
+    }
+  },
+  "ledger": {
+    "title": "Transaction Ledger",
+    "close": "Close transaction ledger",
+    "date": "Date",
+    "type": "Transaction Type",
+    "counterparty": "Counterparty",
+    "volume": "Volume",
+    "price": "Price/Unit",
+    "total": "Total",
+    "purchase": "Purchase",
+    "surrender": "Surrender",
+    "transfer": "Transfer",
+    "euaSpot": "EUA Spot",
+    "complianceQ3": "Compliance Q3",
+    "fuelEuCredit": "FuelEU Credit",
+    "euaFutures": "EUA Futures",
+    "export": "Export CSV",
+    "exportUnavailable": "Export CSV feature is under construction"
   }
 }

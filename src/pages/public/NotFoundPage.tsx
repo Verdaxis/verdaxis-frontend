@@ -6,8 +6,8 @@ export const NotFoundPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
 
     useEffect(() => {
-        document.title = 'Page Not Found — Verdaxis';
-    }, []);
+        if (ready) document.title = `${t('notFound.title')} — Verdaxis`;
+    }, [ready, t]);
 
     if (!ready) return null;
 
@@ -16,7 +16,7 @@ export const NotFoundPage: React.FC = () => {
             <div className="text-7xl font-extrabold text-slate-200 dark:text-slate-700 mb-4">404</div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">{t('notFound.title')}</h1>
             <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                {t('notFound.description')}
+                {t('notFound.message')}
             </p>
             <Link
                 to="/"

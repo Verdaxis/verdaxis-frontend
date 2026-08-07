@@ -288,7 +288,7 @@ export const PublicNav: React.FC = () => {
         <button
           className="public-nav-hamburger"
           onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
           style={{
             display: 'none',
             background: 'none',

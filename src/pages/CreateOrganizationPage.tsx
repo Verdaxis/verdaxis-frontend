@@ -5,6 +5,7 @@ import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X
 import { API_URL } from '../services/config';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 import { analytics } from '../services/analytics';
 
 const ISO_COUNTRY_CODES = [
@@ -80,6 +81,7 @@ export function getAvailableCountries(locale = 'en'): CountryOption[] {
 interface CountryDropdownProps {
   value: string;
   onChange: (code: string) => void;
+  locale: string;
   placeholder: string;
   searchPlaceholder: string;
   noResults: string;
@@ -139,13 +141,13 @@ export function formatApiErrorDetail(detail: unknown, fallback: string): string 
   return fallback;
 }
 
-const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, placeholder, searchPlaceholder, noResults }) => {
+const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, locale, placeholder, searchPlaceholder, noResults }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const countries = useMemo(
-    () => getAvailableCountries(typeof navigator === 'undefined' ? 'en' : navigator.language || 'en'),
-    [],
+    () => getAvailableCountries(locale),
+    [locale],
   );
 
   const filtered = countries.filter(c =>
@@ -417,7 +419,9 @@ const CreateOrganizationPage: React.FC = () => {
         startCooldown();
       } else {
         const errData = await res.json().catch(() => null);
-        setError(formatApiErrorDetail(errData?.detail ?? errData, t('createOrg.error.failed')));
+        setError(document.documentElement.lang.startsWith('zh')
+          ? localizedAuthError(errData, t, 'createOrg.error.failed', 'create organization failed')
+          : formatApiErrorDetail(errData?.detail ?? errData, t('createOrg.error.failed')));
       }
     } catch (err) {
       console.error(err);
@@ -547,6 +551,7 @@ const CreateOrganizationPage: React.FC = () => {
                   <CountryDropdown
                     value={formData.country_code}
                     onChange={code => setFormData({ ...formData, country_code: code })}
+                    locale={document.documentElement.lang || 'en'}
                     placeholder={t('createOrg.countryPlaceholder')}
                     searchPlaceholder={t('createOrg.countrySearch')}
                     noResults={t('createOrg.countryNoResults')}

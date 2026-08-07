@@ -18,11 +18,11 @@ export const TabLoading: React.FC = () => {
 };
 
 export const TabError: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => {
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   return (
     <div className="flex flex-col items-center justify-center min-h-[320px] gap-3" role="alert">
       <AlertCircle className="w-8 h-8 text-red-400" />
-      <p className="text-sm text-verdaxis-text">{message}</p>
+      <p className="text-sm text-verdaxis-text">{i18n.resolvedLanguage?.startsWith('zh') ? t('pa.state.genericError') : message}</p>
       <button onClick={onRetry} className="v-btn-primary text-sm px-4 py-2">
         {t('pa.state.retry')}
       </button>

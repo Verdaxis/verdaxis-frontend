@@ -4,6 +4,7 @@ import { producerProjects, fuelTypeColors } from '../data/producerProjects';
 import { api } from '../services/api';
 import { Subscription } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useNamespace } from '../hooks/useNamespace';
 
 // Fallback demand data (used while API loads)
 const DEMAND_FLEET_FALLBACK = [
@@ -16,8 +17,18 @@ const DEMAND_FLEET_FALLBACK = [
 
 interface FleetEntry { fuel: string; orderedVessels: number; deliveredVessels: number; avgConsumptionMt: number; color: string }
 
+const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const CANONICAL_TRADED_PRODUCTS = new Set([
+    'Bio Methanol',
+    'E-Methanol',
+    'e-Methanol',
+    'Bio Ethanol',
+    'e-Ethanol',
+]);
+
 export const DataAnalytics: React.FC = () => {
     const { user } = useAuth();
+    const { t, ready } = useNamespace('dashboard');
     const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [demandFleet, setDemandFleet] = useState<FleetEntry[]>(DEMAND_FLEET_FALLBACK);
     const [fleetSources, setFleetSources] = useState<string[]>([]);
@@ -78,36 +89,44 @@ export const DataAnalytics: React.FC = () => {
 
     const maxOrdered = Math.max(...DEMAND_FLEET.map(d => d.orderedVessels));
 
+    if (!ready) return null;
+
+    const fuelLabel = (fuel: string) => CANONICAL_TRADED_PRODUCTS.has(fuel)
+        ? fuel
+        : t(`dataAnalytics.fuels.${translationKey(fuel)}`, { defaultValue: t('dataAnalytics.fuels.other') });
+    const statusLabel = (status: string) => t(`dataAnalytics.status.${translationKey(status)}`, { defaultValue: t('dataAnalytics.status.unknown') });
+    const countryLabel = (country: string) => t(`countries.${translationKey(country)}`, { defaultValue: t('countries.unknown') });
+
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
             {/* Header */}
             <div>
                 <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 font-['Montserrat'] flex items-center gap-2">
                     <Database size={20} className="text-verdaxis" />
-                    Data & Analytics
+                    {t('dataAnalytics.title')}
                 </h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Supply & demand intelligence for low-carbon marine fuels
+                    {t('dataAnalytics.subtitle')}
                 </p>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-4 shadow-sm dark:shadow-none">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Projects Tracked</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">{t('dataAnalytics.kpi.projectsTracked')}</div>
                     <div className="text-2xl font-bold text-verdaxis">{producerProjects.length}</div>
                 </div>
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-4 shadow-sm dark:shadow-none">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Operational</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">{t('dataAnalytics.kpi.operational')}</div>
                     <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{operationalCapacity.toLocaleString()} <span className="text-sm font-normal text-slate-500">ktpa</span></div>
                 </div>
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-4 shadow-sm dark:shadow-none">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Pipeline</div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">{t('dataAnalytics.kpi.pipeline')}</div>
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{pipelineCapacity.toLocaleString()} <span className="text-sm font-normal text-slate-500">ktpa</span></div>
                 </div>
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg p-4 shadow-sm dark:shadow-none">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Dual-Fuel Orders</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{totalOrderedVessels} <span className="text-sm font-normal text-slate-500">vessels</span></div>
+                    <div className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">{t('dataAnalytics.kpi.dualFuelOrders')}</div>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{totalOrderedVessels} <span className="text-sm font-normal text-slate-500">{t('dataAnalytics.vessels')}</span></div>
                 </div>
             </div>
 
@@ -118,18 +137,18 @@ export const DataAnalytics: React.FC = () => {
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg overflow-hidden shadow-sm dark:shadow-none">
                     <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 flex items-center gap-2">
                         <Factory size={14} className="text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Supply: Producer Pipeline</span>
-                        <span className="ml-auto text-xs text-slate-500">{producerProjects.length} projects</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{t('dataAnalytics.supply.title')}</span>
+                        <span className="ml-auto text-xs text-slate-500">{t('dataAnalytics.projectsCount', { count: producerProjects.length })}</span>
                     </div>
                     <div className="overflow-x-auto max-h-80 overflow-y-auto">
                         <table className="w-full text-xs">
                             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
                                 <tr className="border-b border-slate-200 dark:border-slate-700/50 text-slate-500">
-                                    <th className="text-left pl-4 pr-2 py-2 font-medium">Project</th>
-                                    <th className="text-left px-2 py-2 font-medium">Fuel</th>
-                                    <th className="text-left px-2 py-2 font-medium">Country</th>
-                                    <th className="text-right px-2 py-2 font-medium">Cap (ktpa)</th>
-                                    <th className="text-left px-2 pr-4 py-2 font-medium">Status</th>
+                                    <th className="text-left pl-4 pr-2 py-2 font-medium">{t('dataAnalytics.table.project')}</th>
+                                    <th className="text-left px-2 py-2 font-medium">{t('dataAnalytics.table.fuel')}</th>
+                                    <th className="text-left px-2 py-2 font-medium">{t('dataAnalytics.table.country')}</th>
+                                    <th className="text-right px-2 py-2 font-medium">{t('dataAnalytics.table.capacity')}</th>
+                                    <th className="text-left px-2 pr-4 py-2 font-medium">{t('dataAnalytics.table.status')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -144,13 +163,13 @@ export const DataAnalytics: React.FC = () => {
                                             <td className="pl-4 pr-2 py-2 text-slate-700 dark:text-slate-300">{p.name}</td>
                                             <td className="px-2 py-2">
                                                 <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: fuelTypeColors[p.fuelType] || '#888' }} />
-                                                <span className="text-slate-600 dark:text-slate-400">{p.fuelType}</span>
+                                                <span className="text-slate-600 dark:text-slate-400">{fuelLabel(p.fuelType)}</span>
                                             </td>
-                                            <td className="px-2 py-2 text-slate-500">{p.country}</td>
+                                            <td className="px-2 py-2 text-slate-500">{countryLabel(p.country)}</td>
                                             <td className="px-2 py-2 text-right text-slate-700 dark:text-slate-300 font-mono">{p.capacityKtpa}</td>
                                             <td className="px-2 pr-4 py-2">
                                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${statusColor}`}>
-                                                    {p.status}
+                                                    {statusLabel(p.status)}
                                                 </span>
                                             </td>
                                         </tr>
@@ -161,11 +180,11 @@ export const DataAnalytics: React.FC = () => {
                     </div>
                     {/* Capacity by fuel summary */}
                     <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700/50">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">Capacity by Fuel Type</div>
+                        <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">{t('dataAnalytics.supply.capacityByFuel')}</div>
                         <div className="space-y-1.5">
                             {Object.entries(supplyByFuel).map(([fuel, data]) => (
                                 <div key={fuel} className="flex items-center justify-between">
-                                    <span className="text-xs text-slate-600 dark:text-slate-400">{fuel}</span>
+                                    <span className="text-xs text-slate-600 dark:text-slate-400">{fuelLabel(fuel)}</span>
                                     <span className="text-xs text-slate-700 dark:text-slate-300 font-mono">{data.capacity.toLocaleString()} ktpa ({data.count})</span>
                                 </div>
                             ))}
@@ -177,8 +196,8 @@ export const DataAnalytics: React.FC = () => {
                 <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg overflow-hidden shadow-sm dark:shadow-none">
                     <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700/50 flex items-center gap-2">
                         <Ship size={14} className="text-amber-500 dark:text-amber-400" />
-                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Demand: Dual-Fuel Fleet</span>
-                        <span className="ml-auto text-xs text-slate-500">{totalDelivered}/{totalOrderedVessels} delivered</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{t('dataAnalytics.demand.title')}</span>
+                        <span className="ml-auto text-xs text-slate-500">{t('dataAnalytics.deliveredCount', { delivered: totalDelivered, ordered: totalOrderedVessels })}</span>
                     </div>
                     <div className="p-4 space-y-4">
                         {DEMAND_FLEET.map((d) => {
@@ -186,9 +205,9 @@ export const DataAnalytics: React.FC = () => {
                             return (
                                 <div key={d.fuel}>
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{d.fuel}</span>
+                                        <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{fuelLabel(d.fuel)}</span>
                                         <span className="text-xs text-slate-500">
-                                            {d.deliveredVessels}/{d.orderedVessels} delivered
+                                            {t('dataAnalytics.deliveredCount', { delivered: d.deliveredVessels, ordered: d.orderedVessels })}
                                         </span>
                                     </div>
                                     <div className="w-full h-5 rounded-full bg-slate-200 dark:bg-slate-700/50 overflow-hidden flex">
@@ -203,10 +222,12 @@ export const DataAnalytics: React.FC = () => {
                                     </div>
                                     <div className="flex items-center justify-between mt-1">
                                         <span className="text-[10px] text-slate-500">
-                                            Avg consumption: {d.avgConsumptionMt.toLocaleString()} MT/yr per vessel
+                                            {t('dataAnalytics.demand.averageConsumption', { amount: d.avgConsumptionMt.toLocaleString() })}
                                         </span>
                                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                                            Est. demand: {estDemand > 0 ? `${(estDemand / 1000).toFixed(0)}k MT/yr` : 'Pending deliveries'}
+                                            {estDemand > 0
+                                                ? t('dataAnalytics.demand.estimatedDemand', { amount: `${(estDemand / 1000).toFixed(0)}k MT/yr` })
+                                                : t('dataAnalytics.demand.pendingDeliveries')}
                                         </span>
                                     </div>
                                 </div>
@@ -218,16 +239,16 @@ export const DataAnalytics: React.FC = () => {
                     <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700/50">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-2">
                             <TrendingUp size={10} className="inline mr-1" />
-                            Supply vs Demand Snapshot
+                            {t('dataAnalytics.balance.title')}
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="text-center p-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/30 rounded">
                                 <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{operationalCapacity.toLocaleString()}</div>
-                                <div className="text-[10px] text-slate-500">ktpa Producing</div>
+                                <div className="text-[10px] text-slate-500">{t('dataAnalytics.balance.producing')}</div>
                             </div>
                             <div className="text-center p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded">
                                 <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{(estDemandMt / 1000).toFixed(0)}k</div>
-                                <div className="text-[10px] text-slate-500">MT/yr Est. Demand</div>
+                                <div className="text-[10px] text-slate-500">{t('dataAnalytics.balance.estimatedDemand')}</div>
                             </div>
                         </div>
                     </div>
@@ -240,13 +261,13 @@ export const DataAnalytics: React.FC = () => {
                 <div className="p-6 rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-verdaxis/30 shadow-xl text-center max-w-sm">
                     <Lock size={24} className="mx-auto mb-3 text-verdaxis" />
                     <p className="text-base font-bold text-slate-800 dark:text-slate-100 mb-1">
-                        Unlock Full S&D Intelligence
+                        {t('dataAnalytics.paywall.title')}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                        Detailed producer profiles, vessel-level consumption data, regional demand forecasts, CI scoring, and exportable reports.
+                        {t('dataAnalytics.paywall.body')}
                     </p>
                     <button className="px-5 py-2 bg-verdaxis hover:bg-verdaxis/90 text-white text-sm font-bold rounded-lg transition-colors shadow-sm">
-                        Upgrade to Premium
+                        {t('dataAnalytics.paywall.cta')}
                     </button>
                 </div>
             </div>

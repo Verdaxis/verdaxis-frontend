@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, createContext, useContext } from 'react';
 import { CheckCircle2, AlertTriangle, Info, X, Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type ToastType = 'success' | 'warning' | 'info' | 'trade';
 
@@ -20,6 +21,7 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 let toastId = 0;
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { t } = useTranslation('common');
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
@@ -44,14 +46,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             lastRateLimitToastRef.current = now;
             addToast({
                 type: 'warning',
-                title: 'Slow down',
-                message: 'Requests are being rate-limited. Data may be briefly stale — retrying shortly.',
+                title: t('toast.rateLimit.title'),
+                message: t('toast.rateLimit.message'),
                 duration: 6000,
             });
         };
         window.addEventListener('verdaxis:rate-limited', onRateLimited);
         return () => window.removeEventListener('verdaxis:rate-limited', onRateLimited);
-    }, [addToast]);
+    }, [addToast, t]);
 
     return (
         <ToastContext.Provider value={{ addToast }}>

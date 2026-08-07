@@ -108,6 +108,7 @@ src/
 
 scripts/
   deploy.sh                       # Static prod/staging build script with API-target validation
+  check-translations.ts           # Recursive EN/ZH locale leaf-parity gate
   smoke-live.mjs                  # Prod/staging live smoke checks
   start-frontend.sh               # Local development server helper
   seed_listings.sh                 # Seed marketplace data
@@ -116,6 +117,11 @@ scripts/
 database/schema.txt                # Backend DB schema reference
 .github/workflows/frontend-ci.yml # CI: tests/typecheck/i18n/builds on staging+prod pushes and PRs (no deploy)
 ```
+
+Lazy i18n namespaces are readiness-gated before locale-dependent effects run. Controlled
+API values are translated at the UI boundary, unknown backend prose falls back to a safe
+localized message outside English, and user-facing third-party control labels follow the
+active locale.
 
 ## Dependency Flow
 

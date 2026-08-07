@@ -7,6 +7,7 @@ import { ReferralsTab } from './ReferralsTab';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
 import { useServerPreference } from '../hooks/useServerPreference';
+import { useTranslation } from 'react-i18next';
 
 interface SettingsProps {
     viewMode: ViewMode;
@@ -72,11 +73,14 @@ const ThemeOption: React.FC<ThemeOptionProps> = ({ label, icon, active, onClick 
 interface ToggleProps {
     enabled: boolean;
     onToggle: () => void;
+    label: string;
 }
 
-const Toggle: React.FC<ToggleProps> = ({ enabled, onToggle }) => (
+const Toggle: React.FC<ToggleProps> = ({ enabled, onToggle, label }) => (
     <button
         onClick={onToggle}
+        aria-label={label}
+        aria-pressed={enabled}
         className={`w-10 h-6 rounded-full relative transition-colors ${
             enabled ? 'bg-[#5DADE2]' : 'bg-slate-300 dark:bg-slate-600'
         }`}
@@ -91,6 +95,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const { theme, setTheme } = useTheme();
     const { user, token, login } = useAuth();
     const { t, ready } = useNamespace('settings');
+    const { i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -110,7 +115,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const lastName = user?.last_name || '';
     const email = user?.email || '';
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '?';
-    const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : '';
+    const roleLabel = user?.role ? t(`profile.role${user.role.charAt(0)}${user.role.slice(1).toLowerCase()}`, { defaultValue: user.role }) : '';
 
     const handlePasswordChange = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,9 +144,17 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                 setConfirmPassword('');
             } else {
                 const err = await res.json().catch(() => null);
-                setPwMessage({ type: 'error', text: err?.detail || t('security.errorGeneric') });
+                console.error('Failed to change password', err);
+                const detail = typeof err?.detail === 'string' ? err.detail : '';
+                setPwMessage({
+                    type: 'error',
+                    text: detail === 'Current password is incorrect'
+                        ? t('security.errorCurrentPassword')
+                        : i18n.resolvedLanguage?.startsWith('zh') ? t('security.errorGeneric') : detail || t('security.errorGeneric'),
+                });
             }
-        } catch {
+        } catch (error) {
+            console.error('Password change network error', error);
             setPwMessage({ type: 'error', text: t('security.errorNetwork') });
         } finally {
             setPwLoading(false);
@@ -226,8 +239,8 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                         <div className="v-card p-6">
                             <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('preferences.title')}</h2>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.emailNotifications')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.emailNotificationsDesc')}</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.marketAlerts')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.marketAlertsDesc')}</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
+                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.emailNotifications')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.emailNotificationsDesc')}</div></div><Toggle label={t('preferences.emailNotifications')} enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
+                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.marketAlerts')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.marketAlertsDesc')}</div></div><Toggle label={t('preferences.marketAlerts')} enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
                                 <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.currency')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.currencyDesc')}</div></div><select className="p-1 border border-slate-200 dark:border-slate-700 rounded text-sm font-bold text-[#334155] dark:text-slate-200 bg-transparent"><option>USD ($)</option><option>EUR</option><option>CNY</option></select></div>
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('preferences.appearance')}</h3>
@@ -248,18 +261,18 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                 <div>
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('notifications.email.heading')}</h3>
                                     <div className="space-y-3">
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.email')}</div></div><Toggle enabled={notifPrefs.email_trade_updates} onToggle={() => toggleNotifPref('email_trade_updates')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.email')}</div></div><Toggle enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.complianceDigest')}</div><div className="text-xs text-slate-500">{t('notifications.complianceDigestDesc')}</div></div><Toggle enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.systemAnnouncements')}</div><div className="text-xs text-slate-500">{t('notifications.systemAnnouncementsDesc')}</div></div><Toggle enabled={notifPrefs.email_system_announcements} onToggle={() => toggleNotifPref('email_system_announcements')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.email')}</div></div><Toggle label={t('notifications.tradeUpdates')} enabled={notifPrefs.email_trade_updates} onToggle={() => toggleNotifPref('email_trade_updates')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.email')}</div></div><Toggle label={t('notifications.marketAlerts')} enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.complianceDigest')}</div><div className="text-xs text-slate-500">{t('notifications.complianceDigestDesc')}</div></div><Toggle label={t('notifications.complianceDigest')} enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.systemAnnouncements')}</div><div className="text-xs text-slate-500">{t('notifications.systemAnnouncementsDesc')}</div></div><Toggle label={t('notifications.systemAnnouncements')} enabled={notifPrefs.email_system_announcements} onToggle={() => toggleNotifPref('email_system_announcements')} /></div>
                                     </div>
                                 </div>
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('notifications.inapp.heading')}</h3>
                                     <div className="space-y-3">
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.inapp')}</div></div><Toggle enabled={notifPrefs.inapp_trade_updates} onToggle={() => toggleNotifPref('inapp_trade_updates')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.inapp')}</div></div><Toggle enabled={notifPrefs.inapp_market_alerts} onToggle={() => toggleNotifPref('inapp_market_alerts')} /></div>
-                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.orderMatches')}</div><div className="text-xs text-slate-500">{t('notifications.orderMatchesDesc')}</div></div><Toggle enabled={notifPrefs.inapp_order_matches} onToggle={() => toggleNotifPref('inapp_order_matches')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.tradeUpdates')}</div><div className="text-xs text-slate-500">{t('notifications.tradeUpdatesDesc.inapp')}</div></div><Toggle label={t('notifications.tradeUpdates')} enabled={notifPrefs.inapp_trade_updates} onToggle={() => toggleNotifPref('inapp_trade_updates')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.marketAlerts')}</div><div className="text-xs text-slate-500">{t('notifications.marketAlertsDesc.inapp')}</div></div><Toggle label={t('notifications.marketAlerts')} enabled={notifPrefs.inapp_market_alerts} onToggle={() => toggleNotifPref('inapp_market_alerts')} /></div>
+                                        <div className="flex items-center justify-between"><div><div className="text-sm font-medium text-slate-700 dark:text-slate-300">{t('notifications.orderMatches')}</div><div className="text-xs text-slate-500">{t('notifications.orderMatchesDesc')}</div></div><Toggle label={t('notifications.orderMatches')} enabled={notifPrefs.inapp_order_matches} onToggle={() => toggleNotifPref('inapp_order_matches')} /></div>
                                     </div>
                                 </div>
                             </div>
@@ -277,8 +290,8 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                             {pwMessage.text}
                                         </div>
                                     )}
-                                    <div><label className="v-label">{t('security.currentPassword')}</label><div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.currentPasswordPlaceholder')} /><button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
-                                    <div><label className="v-label">{t('security.newPassword')}</label><div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.newPasswordPlaceholder')} /><button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label className="v-label">{t('security.currentPassword')}</label><div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.currentPasswordPlaceholder')} /><button type="button" aria-label={t(showCurrentPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label className="v-label">{t('security.newPassword')}</label><div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.newPasswordPlaceholder')} /><button type="button" aria-label={t(showNewPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
                                     <div><label className="v-label">{t('security.confirmPassword')}</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.confirmPasswordPlaceholder')} /></div>
                                     <button type="submit" disabled={pwLoading} className="flex items-center gap-2 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD0] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"><Lock size={14} />{pwLoading ? t('security.changingBtn') : t('security.changeBtn')}</button>
                                 </form>
@@ -306,7 +319,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                         <span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{t('billing.pilotBadge')}</span>
                                     </div>
                                     <p className="text-sm text-emerald-700 dark:text-emerald-400">{t('billing.pilotDesc')}</p>
-                                    <p className="text-xs text-emerald-600/70 dark:text-emerald-500/60 mt-1">Free during pilot period (first 6 months). Commission: $2/MT on executed trades.</p>
+                                    <p className="text-xs text-emerald-600/70 dark:text-emerald-500/60 mt-1">{t('billing.pilotFree')}</p>
                                 </div>
 
                                 {/* Subscription Tiers */}
@@ -315,35 +328,35 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         {/* Pilot (current) */}
                                         <div className="p-4 border-2 border-emerald-300 dark:border-emerald-700 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/5 relative">
-                                            <span className="absolute -top-2.5 left-3 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">CURRENT</span>
-                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200 mt-1">Pilot</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Market intelligence, orderbook access, basic compliance tools</p>
-                                            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">Free</p>
-                                            <p className="text-[10px] text-slate-400">+ $2/MT commission on trades</p>
+                                            <span className="absolute -top-2.5 left-3 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">{t('billing.currentBadge')}</span>
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200 mt-1">{t('billing.pilotName')}</h4>
+                                            <p className="text-xs text-slate-500 mt-1">{t('billing.pilotFeatures')}</p>
+                                            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">{t('billing.free')}</p>
+                                            <p className="text-[10px] text-slate-400">{t('billing.pilotCommission')}</p>
                                         </div>
 
                                         {/* Professional */}
                                         <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5DADE2]/30 transition-colors">
-                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Professional</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Full market monitoring, forward curves to 2030, price alerts, S&D analytics</p>
-                                            <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">/seat/month</span></p>
-                                            <p className="text-[10px] text-slate-400">+ $1.50/MT commission</p>
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.professional')}</h4>
+                                            <p className="text-xs text-slate-500 mt-1">{t('billing.professionalFeatures')}</p>
+                                            <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">{t('billing.perSeatMonth')}</span></p>
+                                            <p className="text-[10px] text-slate-400">{t('billing.professionalCommission')}</p>
                                             <button className="mt-3 w-full py-2 rounded-lg bg-[#5DADE2]/10 text-[#5DADE2] text-xs font-bold hover:bg-[#5DADE2]/20 transition-colors border border-[#5DADE2]/20">
-                                                Upgrade
+                                                {t('billing.upgrade')}
                                             </button>
                                         </div>
 
                                         {/* Enterprise */}
                                         <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-amber-500/30 transition-colors">
-                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">Enterprise</h4>
-                                            <p className="text-xs text-slate-500 mt-1">Dedicated account manager, custom API access, OTC brokering, priority matching</p>
-                                            <p className="text-2xl font-bold text-amber-500 mt-3">Custom</p>
-                                            <p className="text-[10px] text-slate-400">Negotiated commission rates</p>
+                                            <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.enterprise')}</h4>
+                                            <p className="text-xs text-slate-500 mt-1">{t('billing.enterpriseFeatures')}</p>
+                                            <p className="text-2xl font-bold text-amber-500 mt-3">{t('billing.custom')}</p>
+                                            <p className="text-[10px] text-slate-400">{t('billing.negotiatedCommission')}</p>
                                             <button
                                                 onClick={() => window.open('mailto:sales@verdaxis.exchange', '_blank')}
                                                 className="mt-3 w-full py-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors border border-amber-500/20"
                                             >
-                                                Contact Sales
+                                                {t('billing.contactSales')}
                                             </button>
                                         </div>
                                     </div>
@@ -351,31 +364,31 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
 
                                 {/* Commission Schedule */}
                                 <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-                                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Commission Schedule</h3>
+                                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">{t('billing.commissionSchedule')}</h3>
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-xs">
                                             <thead>
                                                 <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
-                                                    <th className="text-left py-2 pr-4 font-medium">Tier</th>
-                                                    <th className="text-right py-2 px-4 font-medium">Rate</th>
-                                                    <th className="text-right py-2 pl-4 font-medium">Min. Monthly</th>
+                                                    <th className="text-left py-2 pr-4 font-medium">{t('billing.tier')}</th>
+                                                    <th className="text-right py-2 px-4 font-medium">{t('billing.rate')}</th>
+                                                    <th className="text-right py-2 pl-4 font-medium">{t('billing.minimumMonthly')}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="text-slate-700 dark:text-slate-300">
                                                 <tr className="border-b border-slate-100 dark:border-slate-700/50">
-                                                    <td className="py-2 pr-4">Pilot</td>
+                                                    <td className="py-2 pr-4">{t('billing.pilotName')}</td>
                                                     <td className="py-2 px-4 text-right font-mono">$2.00/MT</td>
                                                     <td className="py-2 pl-4 text-right font-mono">—</td>
                                                 </tr>
                                                 <tr className="border-b border-slate-100 dark:border-slate-700/50">
-                                                    <td className="py-2 pr-4">Professional</td>
+                                                    <td className="py-2 pr-4">{t('billing.professional')}</td>
                                                     <td className="py-2 px-4 text-right font-mono">$1.50/MT</td>
                                                     <td className="py-2 pl-4 text-right font-mono">$500</td>
                                                 </tr>
                                                 <tr>
-                                                    <td className="py-2 pr-4">Enterprise</td>
-                                                    <td className="py-2 px-4 text-right font-mono">Negotiated</td>
-                                                    <td className="py-2 pl-4 text-right font-mono">Custom</td>
+                                                    <td className="py-2 pr-4">{t('billing.enterprise')}</td>
+                                                    <td className="py-2 px-4 text-right font-mono">{t('billing.negotiated')}</td>
+                                                    <td className="py-2 pl-4 text-right font-mono">{t('billing.custom')}</td>
                                                 </tr>
                                             </tbody>
                                         </table>

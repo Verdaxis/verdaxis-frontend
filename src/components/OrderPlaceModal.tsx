@@ -14,6 +14,7 @@ import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
+import i18n from '../i18n';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -53,10 +54,16 @@ const QUANTITY_PRESETS = [
 ];
 
 const CERTIFICATION_SCHEME_OPTIONS = [
-    { value: 'ISCC EU', label: 'ISCC EU', description: 'Renewable transport fuels certification' },
-    { value: 'ISCC PLUS', label: 'ISCC PLUS', description: 'Chain-of-custody for circular and bio-based feedstocks' },
-    { value: 'REDcert EU', label: 'REDcert EU', description: 'EU renewable fuels certification scheme' },
+    { value: 'ISCC EU', label: 'ISCC EU', descriptionKey: 'orderPlaceModal.certification.ISCC_EU' },
+    { value: 'ISCC PLUS', label: 'ISCC PLUS', descriptionKey: 'orderPlaceModal.certification.ISCC_PLUS' },
+    { value: 'REDcert EU', label: 'REDcert EU', descriptionKey: 'orderPlaceModal.certification.REDcert_EU' },
 ];
+
+const DELIVERY_POINT_REGION_KEYS: Record<string, string> = {
+    asia: 'orderPlaceModal.region.asia',
+    europe: 'orderPlaceModal.region.europe',
+    americas: 'orderPlaceModal.region.americas',
+};
 
 type ModalState = 'form' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
 
@@ -97,6 +104,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 }) => {
     const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const { context: marketSupportContext } = useMarketSupport();
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -176,10 +184,16 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
+    const getDeliveryPointRegionLabel = (region: string) => {
+        const key = DELIVERY_POINT_REGION_KEYS[region.trim().toLowerCase()];
+        if (key) return t(key);
+        return locale.startsWith('zh') ? t('orderPlaceModal.region.unknown') : region;
+    };
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({
         timeZone: selectedDeliveryPoint?.timezone || 'UTC',
-    }), [selectedDeliveryPoint?.timezone]);
-    const availabilitySummary = getAvailabilityWindowSummary(formData.availability_window, availabilityOptions);
+        locale,
+    }), [locale, selectedDeliveryPoint?.timezone]);
+    const availabilitySummary = getAvailabilityWindowSummary(formData.availability_window, availabilityOptions, locale);
 
     useEffect(() => {
         if (!isOpen || !selectedProduct?.market_product || !selectedDeliveryPoint || !formData.availability_window) return;
@@ -230,7 +244,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         side,
         product: selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
-        availabilityWindow: availabilitySummary || formData.availability_window,
+        availabilityWindow: formData.availability_window,
         quantityMt: formData.quantity_mt,
         pricePerMtUsd: formData.price_per_mt_usd,
         expiresAt: formData.expiry_type === 'date' && formData.expiry_date
@@ -240,10 +254,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         specificationStandard: formData.specification_standard.trim(),
         msdsAvailable: formData.msds_available,
         carbonIntensity: formData.carbon_intensity_gco2_mj,
-        carbonIntensityMethod: 'Supplier declaration',
+        carbonIntensityMethod: t('orderPlaceModal.carbonIntensityMethod.supplierDeclaration'),
         feedstock: formData.feedstock.trim(),
         origin: formData.origin.trim(),
-    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct, side]);
+    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct, side, t]);
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
@@ -326,7 +340,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 setModalState('success');
             }
         } catch (err: any) {
-            setErrorMessage(err.message || 'Failed to place order');
+            setErrorMessage(i18n.language.startsWith('zh') ? t('orderPlaceModal.error.fallback') : err.message || t('orderPlaceModal.error.fallback'));
             setModalState('error');
         }
     };
@@ -363,7 +377,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         onClose();
     };
 
-    const sideLabel = side === 'BID' ? 'Bid' : 'Ask';
+    const sideLabel = side === 'BID' ? t('side.bidNoun') : t('side.askNoun');
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
@@ -380,7 +394,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
-                                {supportRequestRef.current && <button type="button" onClick={retrySupportOrder} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">Retry safely with the same request</button>}
+                                {supportRequestRef.current && <button type="button" onClick={retrySupportOrder} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
@@ -392,13 +406,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
                                 </div>
                                 <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">
-                                    Instantly Matched!
+                                    {t('orderPlaceModal.autoMatched.title')}
                                 </h3>
                                 <p className="text-violet-600 dark:text-violet-400 text-sm font-semibold mb-1">
-                                    Your {sideLabel.toLowerCase()} found a counterparty
+                                    {t('orderPlaceModal.autoMatched.body', { side: sideLabel })}
                                 </p>
                                 <p className="text-slate-400 dark:text-slate-500 text-xs mb-5">
-                                    Executed at the maker's resting price (best available)
+                                    {t('orderPlaceModal.autoMatched.makerPrice')}
                                 </p>
                                 {matchResult?.trades?.map((trade: any, i: number) => {
                                     const totalValue = (trade.quantity_mt || 0) * (trade.price_per_mt_usd || 0);
@@ -407,32 +421,35 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-violet-200/40 dark:from-violet-600/10 to-transparent rounded-bl-full" />
                                             <div className="grid grid-cols-2 gap-3 relative">
                                                 <div>
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">Quantity</div>
-                                                    <div className="text-lg font-extrabold text-slate-900 dark:text-white">{trade.quantity_mt?.toLocaleString()} <span className="text-sm font-medium text-slate-400">MT</span></div>
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.quantity')}</div>
+                                                    <div className="text-lg font-extrabold text-slate-900 dark:text-white">{trade.quantity_mt?.toLocaleString(locale)} <span className="text-sm font-medium text-slate-400">MT</span></div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">Price</div>
+                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.price')}</div>
                                                     <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}<span className="text-sm font-medium">/MT</span></div>
                                                 </div>
                                             </div>
                                             <div className="mt-3 pt-3 border-t border-violet-200/60 dark:border-violet-700/30 flex justify-between items-center">
                                                 <div>
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500">Total Value</span>
-                                                    <div className="text-base font-bold text-slate-800 dark:text-slate-200">${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500">{t('orderPlaceModal.autoMatched.total')}</span>
+                                                    <div className="text-base font-bold text-slate-800 dark:text-slate-200">${totalValue.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700/50">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">CONFIRMED</span>
+                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{t('orderPlaceModal.autoMatched.confirmed')}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     );
                                 })}
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 mb-4">
-                                    Trade is confirmed and visible in your Trade History.
+                                    {t('orderPlaceModal.autoMatched.history')}
                                     {matchResult?.trades?.length > 0 && matchResult.trades[0].price_per_mt_usd !== formData.price_per_mt_usd && (
                                         <span className="block mt-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                                            Price improvement: you {side === 'BID' ? 'paid' : 'received'} ${matchResult.trades[0].price_per_mt_usd}/MT instead of your ${formData.price_per_mt_usd}/MT {sideLabel.toLowerCase()}.
+                                            {t(side === 'BID' ? 'orderPlaceModal.autoMatched.improvement.bid' : 'orderPlaceModal.autoMatched.improvement.ask', {
+                                                price: matchResult.trades[0].price_per_mt_usd,
+                                                requestedPrice: formData.price_per_mt_usd,
+                                            })}
                                         </span>
                                     )}
                                 </p>
@@ -447,9 +464,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
                                     {t('orderPlaceModal.success.body', {
-                                        side: sideLabel.toLowerCase(),
-                                        qty: formData.quantity_mt.toLocaleString(),
-                                        product: selectedProduct?.name || 'product',
+                                        side: sideLabel,
+                                        qty: formData.quantity_mt.toLocaleString(locale),
+                                        product: selectedProduct?.name || t('orderPlaceModal.productFallback'),
                                         price: formData.price_per_mt_usd,
                                     })}
                                 </p>
@@ -524,7 +541,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
                                 ) : (
                                     <VerdaxisSelect
-                                        ariaLabel="Order product"
+                                        ariaLabel={t('orderPlaceModal.aria.product')}
                                         value={formData.product_id}
                                         onChange={(value) => handleChange('product_id', value)}
                                         options={products.map(product => ({
@@ -545,13 +562,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
                                 ) : (
                                     <VerdaxisSelect
-                                        ariaLabel="Order delivery point"
+                                        ariaLabel={t('orderPlaceModal.aria.deliveryPoint')}
                                         value={formData.delivery_point_id}
                                         onChange={(value) => handleChange('delivery_point_id', value)}
                                         options={deliveryPoints.map(point => ({
                                             value: point.id,
                                             label: point.name,
-                                            description: point.region,
+                                            description: getDeliveryPointRegionLabel(point.region),
                                         }))}
                                         placeholder={t('orderPlaceModal.select.deliveryPoint')}
                                     />
@@ -581,13 +598,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     {selectedDeliveryPoint && (
                                         <div>
                                             <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.region')}</span>
-                                            <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedDeliveryPoint.region}</div>
+                                            <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{getDeliveryPointRegionLabel(selectedDeliveryPoint.region)}</div>
                                         </div>
                                     )}
                                 </div>
                                 {selectedProduct.spec_description && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
-                                        {selectedProduct.spec_description}
+                                        {locale.startsWith('zh')
+                                            ? t('orderPlaceModal.productSpecifications.generic')
+                                            : selectedProduct.spec_description}
                                     </p>
                                 )}
                             </div>
@@ -618,19 +637,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     type="number"
                                     value={formData.quantity_mt || ''}
                                     onChange={(e) => handleChange('quantity_mt', parseFloat(e.target.value) || 0)}
-                                    placeholder={selectedProduct ? `Min ${selectedProduct.min_lot_size.toLocaleString()} MT` : 'e.g. 2000'}
+                                    placeholder={selectedProduct
+                                        ? t('orderPlaceModal.placeholder.minQuantity', { quantity: selectedProduct.min_lot_size.toLocaleString(locale) })
+                                        : t('orderPlaceModal.placeholder.quantity')}
                                     min={selectedProduct?.min_lot_size || 0}
                                     step={1}
                                     className={inputClass}
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">(Delivered FOB)</span></label>
+                                <label className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span></label>
                                 <input
                                     type="number"
                                     value={formData.price_per_mt_usd || ''}
                                     onChange={(e) => handleChange('price_per_mt_usd', parseFloat(e.target.value) || 0)}
-                                    placeholder="e.g. 540"
+                                    placeholder={t('orderPlaceModal.placeholder.price')}
                                     min={0}
                                     step={0.01}
                                     className={inputClass}
@@ -663,7 +684,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.availability')}</label>
                                         <VerdaxisSelect
-                                            ariaLabel="Order availability window"
+                                            ariaLabel={t('orderPlaceModal.aria.availability')}
                                             value={formData.availability_window}
                                             onChange={(value) => handleChange('availability_window', value)}
                                             options={availabilityOptions.map(option => ({ value: option.value, label: option.label }))}
@@ -690,7 +711,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                             {t('orderPlaceModal.option.anyCertifiedScheme')}
                                                         </span>
                                                         <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                            Match any certified supplier listing in this slice.
+                                                            {t('orderPlaceModal.helper.anyCertifiedScheme')}
                                                         </span>
                                                     </span>
                                                 </label>
@@ -708,7 +729,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                                 {option.label}
                                                             </span>
                                                             <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                                {option.description}
+                                                                {t(option.descriptionKey)}
                                                             </span>
                                                         </span>
                                                     </label>
@@ -753,7 +774,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         type="text"
                                                         value={formData.specification_standard}
                                                         onChange={(e) => handleChange('specification_standard', e.target.value)}
-                                                        placeholder="e.g. IMPCA"
+                                                        placeholder={t('orderPlaceModal.placeholder.standard')}
                                                         className={inputClass}
                                                     />
                                                 </div>
@@ -763,7 +784,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         type="number"
                                                         value={formData.carbon_intensity_gco2_mj || ''}
                                                         onChange={(e) => handleChange('carbon_intensity_gco2_mj', parseFloat(e.target.value) || 0)}
-                                                        placeholder="e.g. 40"
+                                                        placeholder={t('orderPlaceModal.placeholder.carbonIntensity')}
                                                         min={0}
                                                         step={0.01}
                                                         className={inputClass}
@@ -778,7 +799,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         type="text"
                                                         value={formData.feedstock}
                                                         onChange={(e) => handleChange('feedstock', e.target.value)}
-                                                        placeholder="e.g. Waste residue"
+                                                        placeholder={t('orderPlaceModal.placeholder.feedstock')}
                                                         className={inputClass}
                                                     />
                                                 </div>
@@ -788,7 +809,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         type="text"
                                                         value={formData.origin}
                                                         onChange={(e) => handleChange('origin', e.target.value)}
-                                                        placeholder="e.g. Singapore hub"
+                                                        placeholder={t('orderPlaceModal.placeholder.origin')}
                                                         className={inputClass}
                                                     />
                                                 </div>

@@ -5,8 +5,8 @@ export const TermsPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
 
     useEffect(() => {
-        document.title = 'Terms of Service — Verdaxis';
-    }, []);
+        if (ready) document.title = `${t('terms.title')} — Verdaxis`;
+    }, [ready, t]);
 
     if (!ready) return null;
 
@@ -17,22 +17,22 @@ export const TermsPage: React.FC = () => {
                 {t('terms.lastUpdated')}
             </p>
             <div className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.0.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.0.title')}</h2>
                 <p>{t('terms.sections.0.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.1.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.1.title')}</h2>
                 <p>{t('terms.sections.1.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.2.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.2.title')}</h2>
                 <p>{t('terms.sections.2.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.3.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.3.title')}</h2>
                 <p>{t('terms.sections.3.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.4.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.4.title')}</h2>
                 <p>{t('terms.sections.4.body')}</p>
 
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.5.heading')}</h2>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white mt-8 mb-3">{t('terms.sections.5.title')}</h2>
                 <p>{t('terms.sections.5.body')}</p>
             </div>
         </div>

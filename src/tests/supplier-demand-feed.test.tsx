@@ -44,7 +44,7 @@ describe('SupplierDemandFeed', () => {
     expect(screen.getByText('Bio')).toBeTruthy();
     expect(screen.getByText('2,500 MT')).toBeTruthy();
     expect(screen.getByText('$720/MT')).toBeTruthy();
-    expect(screen.getByText('Singapore • SPOT')).toBeTruthy();
+    expect(screen.getByText('Singapore • Spot')).toBeTruthy();
     expect(listBidsMock).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /Methanol/i }));
@@ -56,7 +56,7 @@ describe('SupplierDemandFeed', () => {
 
     renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} />);
 
-    expect(await screen.findByText(/No buyer demand matching your profile yet/i)).toBeTruthy();
+    expect(await screen.findByText(/No buyer demand matches your profile yet/i)).toBeTruthy();
   });
 
   it('uses the same non-critical empty state when bid loading fails', async () => {
@@ -64,6 +64,6 @@ describe('SupplierDemandFeed', () => {
 
     renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} />);
 
-    expect(await screen.findByText(/No buyer demand matching your profile yet/i)).toBeTruthy();
+    expect(await screen.findByText(/No buyer demand matches your profile yet/i)).toBeTruthy();
   });
 });

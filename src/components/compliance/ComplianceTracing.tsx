@@ -1,17 +1,19 @@
 import React from 'react';
 import { CheckCircle2, ScanLine, FileCheck } from 'lucide-react';
 import { TRACE_EVENTS } from '../../data';
+import { useTranslation } from 'react-i18next';
 
 export const ComplianceTracing: React.FC = () => {
+    const { t } = useTranslation('compliance');
     return (
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 lg:p-10 animate-in fade-in duration-300">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h2 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">End-to-End Traceability</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Chain of Custody for Voyage #SG-RTM-299</p>
+                    <h2 className="text-xl font-['Montserrat'] font-bold text-[#334155] dark:text-white">{t('tracing.title')}</h2>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{t('tracing.subtitle')}</p>
                 </div>
                 <div className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={14} /> Verified Green
+                    <CheckCircle2 size={14} /> {t('tracing.verified')}
                 </div>
             </div>
 
@@ -23,8 +25,8 @@ export const ComplianceTracing: React.FC = () => {
                         
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start bg-slate-50 dark:bg-slate-900/30 p-4 rounded-lg border border-slate-100 dark:border-slate-700 group-hover:border-[#5DADE2] transition-colors">
                             <div className="flex-1">
-                                <div className="text-xs font-bold text-slate-400 uppercase mb-1">{event.stage}</div>
-                                <h3 className="font-bold text-[#334155] dark:text-white text-lg mb-1">{event.description}</h3>
+                                <div className="text-xs font-bold text-slate-400 uppercase mb-1">{t(`tracing.events.${event.id}.stage`, { defaultValue: event.stage })}</div>
+                                <h3 className="font-bold text-[#334155] dark:text-white text-lg mb-1">{t(`tracing.events.${event.id}.description`, { defaultValue: event.description })}</h3>
                                 <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
                                     <span>{event.location}</span>
                                     <span>•</span>
@@ -39,7 +41,7 @@ export const ComplianceTracing: React.FC = () => {
                                     {event.verificationId}
                                 </div>
                                 {event.verificationType === 'Physical Tracer' && (
-                                    <span className="text-[10px] text-indigo-500 font-bold mt-1">Nanolumi Verified</span>
+                                    <span className="text-[10px] text-indigo-500 font-bold mt-1">{t('tracing.nanolumi')}</span>
                                 )}
                             </div>
                         </div>

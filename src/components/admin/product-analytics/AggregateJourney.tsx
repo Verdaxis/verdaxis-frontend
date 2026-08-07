@@ -31,7 +31,7 @@ export const AggregateJourney: React.FC<{ stages: JourneyStage[] }> = ({ stages 
             {cellText(stage.total, suppressed)}
             {stage.buyer && stage.supplier && (
               <span className="ml-2 text-xs text-verdaxis-text-muted">
-                B {cellText(stage.buyer, suppressed)} / S {cellText(stage.supplier, suppressed)}
+                {t('pa.journey.buyer')} {cellText(stage.buyer, suppressed)} / {t('pa.journey.supplier')} {cellText(stage.supplier, suppressed)}
               </span>
             )}
           </span>

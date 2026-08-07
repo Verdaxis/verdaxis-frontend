@@ -9,6 +9,15 @@ export interface EducationArticle {
   content: string; // Plain text with paragraph breaks
 }
 
+export const EDUCATION_CATEGORY_KEYS = {
+  All: 'all',
+  Fundamentals: 'fundamentals',
+  Compliance: 'compliance',
+  Market: 'market',
+} as const;
+
+export type EducationCategoryFilter = keyof typeof EDUCATION_CATEGORY_KEYS;
+
 const SLUGS = [
   'what-is-carbon-intensity',
   'physical-vs-book-and-claim',

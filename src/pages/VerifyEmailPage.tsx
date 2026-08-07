@@ -7,9 +7,9 @@ import { useNamespace } from '../hooks/useNamespace';
 type VerifyState = 'loading' | 'success' | 'error';
 
 const ROLE_CARDS = [
-  { id: 'buyer',           emoji: '⛽', label: 'Fuel Buyer'        },
-  { id: 'supplier',        emoji: '🌿', label: 'Fuel Supplier'     },
-  { id: 'financier_other', emoji: '💼', label: 'Financier / Other' },
+  { id: 'buyer',           emoji: '⛽', labelKey: 'verifyEmail.role.buyer'          },
+  { id: 'supplier',        emoji: '🌿', labelKey: 'verifyEmail.role.supplier'       },
+  { id: 'financier_other', emoji: '💼', labelKey: 'verifyEmail.role.financierOther' },
 ] as const;
 type UseCase = typeof ROLE_CARDS[number]['id'];
 
@@ -124,11 +124,11 @@ const VerifyEmailPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="pt-6 border-t border-slate-800 space-y-4 text-left" style={{animation: 'fadeIn 0.3s ease 0.15s both'}}>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest">Quick question</p>
+                  <p className="text-xs text-slate-400 uppercase tracking-widest">{t('verifyEmail.quickQuestion')}</p>
 
                   {/* 3-column role cards */}
                   <div className="grid grid-cols-3 gap-2">
-                    {ROLE_CARDS.map(({ id, emoji, label }) => (
+                    {ROLE_CARDS.map(({ id, emoji, labelKey }) => (
                       <button
                         key={id}
                         onClick={() => setSelectedUseCase(id)}
@@ -139,7 +139,7 @@ const VerifyEmailPage: React.FC = () => {
                         }`}
                       >
                         <span className="text-xl">{emoji}</span>
-                        <span className="text-xs font-medium leading-tight">{label}</span>
+                        <span className="text-xs font-medium leading-tight">{t(labelKey)}</span>
                       </button>
                     ))}
                   </div>
@@ -147,7 +147,7 @@ const VerifyEmailPage: React.FC = () => {
                   {/* Optional referral source */}
                   <input
                     type="text"
-                    placeholder="How did you hear about us? (optional)"
+                    placeholder={t('verifyEmail.referralPlaceholder')}
                     value={referralSource}
                     onChange={e => setReferralSource(e.target.value)}
                     className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
@@ -161,13 +161,13 @@ const VerifyEmailPage: React.FC = () => {
                       className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
                     >
                       {surveySubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
-                      Continue
+                      {t('verifyEmail.continue')}
                     </button>
                     <button
                       onClick={() => setSurveyDone(true)}
                       className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
                     >
-                      Skip
+                      {t('verifyEmail.skip')}
                     </button>
                   </div>
                 </div>

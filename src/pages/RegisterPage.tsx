@@ -5,6 +5,7 @@ import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
 import i18n from '../i18n';
 import { analytics, type AnalyticsLanguage } from '../services/analytics';
+import { localizedAuthError } from './authApiError';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -130,8 +131,8 @@ const RegisterPage: React.FC = () => {
           startCooldown();
         }
       } else {
-        const errData = await res.json();
-        setError(errData.detail || t('register.error.failed'));
+        const errData = await res.json().catch(() => null);
+        setError(localizedAuthError(errData, t, 'register.error.failed', 'registration failed'));
       }
     } catch (err) {
       console.error(err);

@@ -1,11 +1,14 @@
 import React from 'react';
 import { Monitor } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface MobileDesktopGateProps {
   children: React.ReactNode;
 }
 
 export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }) => {
+  const { t } = useTranslation('common');
+
   return (
     <>
       <div className="desktop-only-content">
@@ -39,15 +42,15 @@ export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }
           />
           <div className="mobile-desktop-gate__divider" />
           <Monitor className="mobile-desktop-gate__icon" aria-hidden="true" />
-          <h1 className="mobile-desktop-gate__heading">Best viewed on desktop</h1>
+          <h1 className="mobile-desktop-gate__heading">{t('mobileGate.heading')}</h1>
           <p className="mobile-desktop-gate__body">
-            The Verdaxis trading platform is optimized for larger screens.
+            {t('mobileGate.bodyLine1')}
             <br />
-            Please revisit on a laptop or desktop for the full workspace.
+            {t('mobileGate.bodyLine2')}
           </p>
           <div className="mobile-desktop-gate__pill">
             <span className="mobile-desktop-gate__pill-dot" />
-            Trading Platform
+            {t('mobileGate.platform')}
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { User, Briefcase, LayoutDashboard } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { scheduleTutorial } from '../context/TutorialContext';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 
 export const OnboardingPage: React.FC = () => {
     const { token, login } = useAuth(); // We might need a method to refresh user profile
@@ -45,17 +46,18 @@ export const OnboardingPage: React.FC = () => {
             });
 
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || t('onboarding.error.failed'));
+                const errData = await response.json().catch(() => null);
+                setError(localizedAuthError(errData, t, 'onboarding.error.failed', 'onboarding failed'));
+                return;
             }
             
             // Schedule tutorial auto-start for new users after redirect
             scheduleTutorial();
             window.location.href = '/app'; 
             
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Onboarding error:", err);
-            setError(err.message || t('onboarding.error.generic'));
+            setError(t('onboarding.error.generic'));
         } finally {
             setIsLoading(false);
         }

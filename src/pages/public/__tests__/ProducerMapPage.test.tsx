@@ -1,13 +1,25 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import i18n, { loadNamespace } from '../../../i18n';
+
+const leafletMockState = vi.hoisted(() => ({ popupProps: [] as any[] }));
 
 // Mock react-leaflet to avoid JSDOM issues
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: any) => <div data-testid="map-container">{children}</div>,
   TileLayer: () => null,
+  ZoomControl: ({ zoomInTitle, zoomOutTitle }: any) => (
+    <div>
+      <button type="button" aria-label={zoomInTitle} title={zoomInTitle}>+</button>
+      <button type="button" aria-label={zoomOutTitle} title={zoomOutTitle}>−</button>
+    </div>
+  ),
   CircleMarker: ({ children }: any) => <div data-testid="circle-marker">{children}</div>,
-  Popup: ({ children }: any) => <div data-testid="popup">{children}</div>,
+  Popup: (props: any) => {
+    leafletMockState.popupProps.push(props);
+    return <div data-testid="popup">{props.children}</div>;
+  },
 }));
 
 // Mock leaflet CSS import
@@ -98,6 +110,51 @@ describe('ProducerMapPage', () => {
     ).toBeTruthy();
   });
 
+  it('renders the current-project count in natural Chinese', async () => {
+    await loadNamespace('public');
+    await i18n.changeLanguage('zh');
+
+    try {
+      renderWithRouter(<ProducerMapPage />);
+      expect(screen.getByText('共 6 个项目，当前显示 3 个')).toBeTruthy();
+    } finally {
+      cleanup();
+      await i18n.changeLanguage('en');
+    }
+  });
+
+  it('updates native Leaflet control labels for Chinese', async () => {
+    await loadNamespace('public');
+    leafletMockState.popupProps.length = 0;
+    const view = renderWithRouter(<ProducerMapPage />);
+
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeTruthy();
+
+    try {
+      await act(async () => {
+        await i18n.changeLanguage('zh');
+      });
+
+      expect(screen.getByRole('button', { name: '放大' }).getAttribute('title')).toBe('放大');
+      expect(screen.getByRole('button', { name: '缩小' }).getAttribute('title')).toBe('缩小');
+
+      const popupElement = document.createElement('div');
+      const closeButton = document.createElement('a');
+      closeButton.className = 'leaflet-popup-close-button';
+      popupElement.append(closeButton);
+      const popupProps = leafletMockState.popupProps.at(-1);
+      popupProps.eventHandlers.add({ target: { getElement: () => popupElement } });
+
+      expect(closeButton.getAttribute('aria-label')).toBe('关闭弹出窗口');
+      expect(closeButton.getAttribute('title')).toBe('关闭弹出窗口');
+    } finally {
+      view.unmount();
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
   it('renders CTA with link to pilot page', () => {
     renderWithRouter(<ProducerMapPage />);
     expect(screen.getByText(/want to list your project/i)).toBeTruthy();
@@ -139,6 +196,14 @@ describe('ProducerMapPage - Future Production tab', () => {
 
     const expressButtons = screen.getAllByText('Express Interest');
     expect(expressButtons.length).toBeGreaterThan(0);
+  });
+
+  it('uses the singular project label for one project', () => {
+    renderWithRouter(<ProducerMapPage />);
+
+    fireEvent.click(screen.getByText('Future Production'));
+
+    expect(screen.getByText(/1 project · 57 ktpa/)).toBeTruthy();
   });
 
   it('shows contextual CTA when on futures tab', () => {

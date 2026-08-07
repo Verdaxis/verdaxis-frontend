@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlaskConical } from 'lucide-react';
 import { DEMO_FUEL_PRICES, fetchFuelPrices, type FuelPrice } from '../../data/fuelPrices';
+import { useNamespace } from '../../hooks/useNamespace';
 import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
+
+const formatLocalizedAvailabilityWindowPeriod = formatAvailabilityWindowPeriod as (
+  value: string | null | undefined,
+  locale?: string,
+) => string;
 
 const formatPrice = (price: number) => `$${price.toLocaleString(undefined, {
   maximumFractionDigits: 0,
 })}`;
 
-const formatWindow = (value: string) => (
-  value === 'Preview' ? value : formatAvailabilityWindowPeriod(value)
-);
-
 export const PriceTicker: React.FC = () => {
+  const { t, ready } = useNamespace('public');
+  const { i18n } = useTranslation();
   const [prices, setPrices] = useState<FuelPrice[]>(DEMO_FUEL_PRICES);
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -30,11 +36,13 @@ export const PriceTicker: React.FC = () => {
   const doubled = [...prices, ...prices];
   const midpoint = prices.length;
 
+  if (!ready) return null;
+
   return (
     <div
       className="public-price-ticker"
       tabIndex={0}
-      aria-label="Demo marketplace price ticker. Illustrative, non-executable values. Focus or hover to pause scrolling."
+      aria-label={t('priceTicker.ariaLabel')}
       style={{
         background: '#0F172A',
         height: 42,
@@ -87,7 +95,7 @@ export const PriceTicker: React.FC = () => {
               key={`${price.fuel}-${price.region}-${index}`}
               aria-hidden={duplicate ? true : undefined}
               data-ticker-sequence={duplicate ? 'duplicate' : 'primary'}
-              title="Illustrative midpoint derived from disclosed Demo marketplace bids and asks. Not an executable quote."
+              title={t('priceTicker.tooltip')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -101,7 +109,11 @@ export const PriceTicker: React.FC = () => {
               <span style={{ color: '#64748B', fontSize: 12 }}>{price.region}</span>
               <span style={{ color: '#F8FAFC', fontWeight: 700 }}>{formatPrice(price.price)}</span>
               <span style={{ color: '#64748B', fontSize: 11 }}>{price.unit}</span>
-              <span style={{ color: '#64748B', fontSize: 11 }}>{formatWindow(price.availabilityWindow)}</span>
+              <span style={{ color: '#64748B', fontSize: 11 }}>
+                {price.availabilityWindow === 'Preview'
+                  ? t('priceTicker.preview')
+                  : formatLocalizedAvailabilityWindowPeriod(price.availabilityWindow, currentLanguage)}
+              </span>
               <span
                 style={{
                   display: 'inline-flex',
@@ -114,7 +126,7 @@ export const PriceTicker: React.FC = () => {
                 }}
               >
                 <FlaskConical size={11} aria-hidden="true" />
-                {price.sourceLabel}
+                {price.source === 'marketplace-demo' ? t('priceTicker.demo') : price.sourceLabel}
               </span>
             </div>
           );

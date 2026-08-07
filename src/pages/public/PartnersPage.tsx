@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Handshake, Clock, ArrowRight, Building2 } from 'lucide-react';
-import { getEducationArticles, type EducationArticle } from '../../data/educationArticles';
+import {
+  EDUCATION_CATEGORY_KEYS,
+  getEducationArticles,
+  type EducationArticle,
+  type EducationCategoryFilter,
+} from '../../data/educationArticles';
 import {
   Reveal,
   HoverCard,
@@ -36,7 +41,7 @@ const sectionPadding: React.CSSProperties = {
 /*  InsightCard (rebranded ArticleCard)                                */
 /* ------------------------------------------------------------------ */
 
-const InsightCard: React.FC<{ article: EducationArticle; readMoreLabel: string; minReadLabel: string }> = ({ article, readMoreLabel, minReadLabel }) => {
+const InsightCard: React.FC<{ article: EducationArticle; categoryLabel: string; readMoreLabel: string; minReadLabel: string }> = ({ article, categoryLabel, readMoreLabel, minReadLabel }) => {
   const colors = categoryColors[article.category] ?? { bg: '#F1F5F9', text: '#64748B' };
 
   return (
@@ -65,7 +70,7 @@ const InsightCard: React.FC<{ article: EducationArticle; readMoreLabel: string; 
             marginBottom: 16,
           }}
         >
-          {article.category}
+          {categoryLabel}
         </span>
 
         <h3
@@ -137,32 +142,18 @@ const InsightCard: React.FC<{ article: EducationArticle; readMoreLabel: string; 
 /* ================================================================== */
 
 export const PartnersPage: React.FC = () => {
-  const { t, ready } = useNamespace('public');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const { t, ready: publicReady } = useNamespace('public');
+  const { ready: educationReady } = useNamespace('education');
+  const [activeCategory, setActiveCategory] = useState<EducationCategoryFilter>('All');
 
-  if (!ready) return null;
+  if (!publicReady || !educationReady) return null;
 
-  const categories = [
-    t('partners.categories.all'),
-    t('partners.categories.fundamentals'),
-    t('partners.categories.compliance'),
-    t('partners.categories.market'),
-  ];
-
-  // Map translated label back to English key for filtering
-  const categoryKeyMap: Record<string, string> = {
-    [t('partners.categories.all')]: 'All',
-    [t('partners.categories.fundamentals')]: 'Fundamentals',
-    [t('partners.categories.compliance')]: 'Compliance',
-    [t('partners.categories.market')]: 'Market',
-  };
-
-  const activeCategoryKey = categoryKeyMap[activeCategory] ?? 'All';
+  const categories: EducationCategoryFilter[] = ['All', 'Fundamentals', 'Compliance', 'Market'];
 
   const filtered =
-    activeCategoryKey === 'All'
+    activeCategory === 'All'
       ? getEducationArticles()
-      : getEducationArticles().filter((a) => a.category === activeCategoryKey);
+      : getEducationArticles().filter((a) => a.category === activeCategory);
 
   return (
     <div>
@@ -363,7 +354,7 @@ export const PartnersPage: React.FC = () => {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {cat}
+                  {t(`partners.categories.${EDUCATION_CATEGORY_KEYS[cat]}`)}
                 </motion.button>
               );
             })}
@@ -382,6 +373,7 @@ export const PartnersPage: React.FC = () => {
               <StaggerItem key={article.slug}>
                 <InsightCard
                   article={article}
+                  categoryLabel={t(`partners.categories.${EDUCATION_CATEGORY_KEYS[article.category]}`)}
                   readMoreLabel={t('partners.insights.readMore')}
                   minReadLabel={t('partners.insights.minRead')}
                 />

@@ -4,6 +4,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import {
     SPOT_WINDOW,
     formatAvailabilityWindow,
+    formatAvailabilityWindowPeriod,
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
@@ -41,6 +42,22 @@ describe('Availability Windows', () => {
         expect(formatAvailabilityWindow(SPOT_WINDOW)).toBe('Spot');
         expect(formatAvailabilityWindow('2026-04')).toBe('Apr 2026');
         expect(formatAvailabilityWindow('2026-Q3')).toBe('Q3 2026');
+    });
+
+    it('should localize user-facing Chinese windows while keeping compact contract codes', () => {
+        expect(formatAvailabilityWindow(SPOT_WINDOW, 'zh')).toBe('现货');
+        expect(formatAvailabilityWindow('2026-04', 'zh')).toBe('2026年4月');
+        expect(formatAvailabilityWindow('2026-Q3', 'zh')).toBe('2026年第3季度');
+        expect(formatAvailabilityWindowPeriod('2026-Q3', 'zh')).toBe('26年第3季度');
+        expect(formatAvailabilityWindowPeriod('2027-CAL', 'zh')).toBe('2027年');
+
+        const options = getAvailabilityWindowOptions({
+            now: new Date('2026-04-08T00:00:00Z'),
+            timeZone: 'UTC',
+            quarterCount: 1,
+            locale: 'zh',
+        });
+        expect(options.find(option => option.value === '2026-Q3')?.label).toBe('2026年第3季度');
     });
 });
 

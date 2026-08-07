@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  COMPLIANCE_ESTIMATOR_MESSAGE_CODES,
   DEFAULT_COMPLIANCE_ESTIMATOR_INPUT,
   GREEN_FUEL_ASSUMPTIONS,
   estimateCompliancePlanning,
@@ -42,7 +43,7 @@ describe('estimateCompliancePlanning', () => {
     expect(result.blend.feasible).toBe(false);
     expect(result.blend.ratio).toBeNull();
     expect(result.blend.greenFuelMt).toBe(0);
-    expect(result.blend.noFeasibleReason).toBe('Selected fuel CI is above the planning target');
+    expect(result.blend.noFeasibleReason).toBe(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.SELECTED_FUEL_CI_ABOVE_TARGET);
   });
 
   it('allows a 100% green blend when selected green fuel CI exactly equals the target', () => {
@@ -70,10 +71,10 @@ describe('estimateCompliancePlanning', () => {
     }));
 
     expect(result.status).toBe('INVALID');
-    expect(result.errors).toContain('Voyage duration must be greater than zero');
-    expect(result.errors).toContain('Daily conventional fuel consumption must be greater than zero');
-    expect(result.errors).toContain('EUA price must be greater than zero');
-    expect(result.errors).toContain('EU ETS exposure coverage must be between 0% and 100%');
+    expect(result.errors).toContain(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.VOYAGE_DURATION_NON_POSITIVE);
+    expect(result.errors).toContain(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.DAILY_CONSUMPTION_NON_POSITIVE);
+    expect(result.errors).toContain(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.EUA_PRICE_NON_POSITIVE);
+    expect(result.errors).toContain(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.ETS_COVERAGE_OUT_OF_RANGE);
     expect(result.totalConventionalEstimateEur).toBe(0);
   });
 

@@ -33,13 +33,27 @@ const LEGACY_WINDOW_ALIASES: Record<string, string> = {
     'Forward 2030': '2030-CAL',
 };
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export interface AvailabilityWindowOption {
     value: string;
     label: string;
     summaryLabel: string;
     kind: 'spot' | 'month' | 'quarter' | 'calendar';
+}
+
+function normalizedLocale(locale = 'en'): string {
+    return locale.toLowerCase().startsWith('zh') ? 'zh-CN' : locale;
+}
+
+function spotLabel(locale = 'en'): string {
+    return normalizedLocale(locale) === 'zh-CN' ? '现货' : 'Spot';
+}
+
+function monthLabel(year: number, month: number, locale = 'en'): string {
+    return new Intl.DateTimeFormat(normalizedLocale(locale), {
+        year: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+    }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
 function getZonedYearMonth(now: Date, timeZone: string) {
@@ -147,36 +161,52 @@ export function compareAvailabilityWindows(left: string, right: string): number 
     return 0;
 }
 
-export function formatAvailabilityWindow(value: string | null | undefined): string {
+export function formatAvailabilityWindow(value: string | null | undefined, locale = 'en'): string {
     const parsed = parseWindow(value ?? SPOT_WINDOW);
-    if (parsed.kind === 'spot') return 'Spot';
-    if (parsed.kind === 'month') return `${MONTH_NAMES[parsed.month - 1]} ${parsed.year}`;
-    if (parsed.kind === 'quarter') return `Q${parsed.quarter} ${parsed.year}`;
+    const isChinese = normalizedLocale(locale) === 'zh-CN';
+    if (parsed.kind === 'spot') return spotLabel(locale);
+    if (parsed.kind === 'month') return monthLabel(parsed.year, parsed.month, locale);
+    if (parsed.kind === 'quarter') {
+        return isChinese ? `${parsed.year}年第${parsed.quarter}季度` : `Q${parsed.quarter} ${parsed.year}`;
+    }
+    if (isChinese) return `${parsed.year}年`;
     return `CAL ${parsed.year}`;
 }
 
-export function formatAvailabilityWindowPeriod(value: string | null | undefined): string {
+export function formatAvailabilityWindowPeriod(value: string | null | undefined, locale = 'en'): string {
     const parsed = parseWindow(value ?? SPOT_WINDOW);
-    if (parsed.kind === 'spot') return 'SPOT';
-    if (parsed.kind === 'month') return `${MONTH_NAMES[parsed.month - 1].toUpperCase()} ${String(parsed.year).slice(-2)}`;
-    if (parsed.kind === 'quarter') return `Q${parsed.quarter} ${String(parsed.year).slice(-2)}`;
-    return `CAL ${String(parsed.year).slice(-2)}`;
+    if (parsed.kind === 'spot') return normalizedLocale(locale) === 'zh-CN' ? '现货' : 'SPOT';
+    if (parsed.kind === 'month') {
+        const month = new Intl.DateTimeFormat(normalizedLocale(locale), {
+            month: 'short',
+            timeZone: 'UTC',
+        }).format(new Date(Date.UTC(parsed.year, parsed.month - 1, 1)));
+        return normalizedLocale(locale) === 'zh-CN' ? `${String(parsed.year).slice(-2)}年${month}` : `${month.toUpperCase()} ${String(parsed.year).slice(-2)}`;
+    }
+    if (parsed.kind === 'quarter') {
+        return normalizedLocale(locale) === 'zh-CN'
+            ? `${String(parsed.year).slice(-2)}年第${parsed.quarter}季度`
+            : `Q${parsed.quarter} ${String(parsed.year).slice(-2)}`;
+    }
+    return normalizedLocale(locale) === 'zh-CN' ? `${parsed.year}年` : `CAL ${String(parsed.year).slice(-2)}`;
 }
 
 export function getAvailabilityWindowOptions(options?: {
     now?: Date;
     timeZone?: string;
     quarterCount?: number;
+    locale?: string;
 }): AvailabilityWindowOption[] {
     const now = options?.now ?? new Date();
     const timeZone = options?.timeZone ?? 'UTC';
     const quarterCount = options?.quarterCount ?? 8;
+    const locale = options?.locale ?? 'en';
     const { year, month } = getZonedYearMonth(now, timeZone);
     const currentQuarter = getQuarter(month);
     const currentQuarterEndMonth = currentQuarter * 3;
 
     const result: AvailabilityWindowOption[] = [
-        { value: SPOT_WINDOW, label: 'Spot', summaryLabel: 'Spot', kind: 'spot' },
+        { value: SPOT_WINDOW, label: spotLabel(locale), summaryLabel: spotLabel(locale), kind: 'spot' },
     ];
 
     for (let currentMonth = month; currentMonth <= currentQuarterEndMonth; currentMonth += 1) {
@@ -185,7 +215,7 @@ export function getAvailabilityWindowOptions(options?: {
         const relative = offset === 0 ? 'M' : `M+${offset}`;
         result.push({
             value,
-            label: `${relative} (${MONTH_NAMES[currentMonth - 1]} ${year})`,
+            label: `${relative} (${monthLabel(year, currentMonth, locale)})`,
             summaryLabel: relative,
             kind: 'month',
         });
@@ -197,8 +227,8 @@ export function getAvailabilityWindowOptions(options?: {
         const quarter = (absoluteQuarter % 4) + 1;
         result.push({
             value: `${quarterYear}-Q${quarter}`,
-            label: `Q${quarter} ${quarterYear}`,
-            summaryLabel: `Q${quarter} ${quarterYear}`,
+            label: formatAvailabilityWindow(`${quarterYear}-Q${quarter}`, locale),
+            summaryLabel: formatAvailabilityWindow(`${quarterYear}-Q${quarter}`, locale),
             kind: 'quarter',
         });
     }
@@ -209,8 +239,9 @@ export function getAvailabilityWindowOptions(options?: {
 export function getAvailabilityWindowSummary(
     value: string | null | undefined,
     options?: AvailabilityWindowOption[],
+    locale = 'en',
 ) {
     const normalized = normalizeAvailabilityWindow(value);
     const match = options?.find(option => option.value === normalized);
-    return match?.summaryLabel ?? formatAvailabilityWindow(normalized);
+    return match?.summaryLabel ?? formatAvailabilityWindow(normalized, locale);
 }

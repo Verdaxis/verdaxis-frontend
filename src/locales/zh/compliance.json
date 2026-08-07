@@ -1,9 +1,136 @@
 {
   "title": "合规中心",
-  "subtitle": "监控 EU ETS 敞口、追踪绿色燃料并管理报告。",
+  "subtitle": "监控欧盟排放交易体系风险、追溯绿色燃料并管理报告。",
   "tabs": {
     "dashboard": "仪表板",
-    "fuelTracing": "燃料溯源",
-    "dataInput": "数据输入"
+    "fuelTracing": "燃料追溯",
+    "dataInput": "数据录入"
+  },
+  "loading": "正在加载合规数据...",
+  "error": {
+    "title": "无法加载合规数据",
+    "load": "合规数据暂时不可用。",
+    "scenario": "情景计算失败，请重试。"
+  },
+  "empty": {
+    "title": "未找到船舶",
+    "body": "请先将船舶添加到船队，以查看合规评分、EU ETS 风险和 FuelEU 表现数据。请前往“我的船队”登记船舶。"
+  },
+  "overview": {
+    "title": "船队合规概览",
+    "vessels_one": "{{count}} 艘船舶 · {{year}} 年至今",
+    "vessels_other": "{{count}} 艘船舶 · {{year}} 年至今",
+    "averageScore": "平均评分"
+  },
+  "ets": {
+    "title": "EU ETS 风险",
+    "period": "期间：{{year}} 年至今",
+    "totalCo2": "船队 CO2 总量",
+    "tonnes": "{{value}} 吨",
+    "euaPrice": "EUA 价格",
+    "estimatedCost": "预计船队成本",
+    "buyAllowances": "购买配额",
+    "brokerageUnavailable": "经纪集成功能正在建设中",
+    "viewLedger": "查看台账"
+  },
+  "fuelEu": {
+    "title": "FuelEU 船队表现",
+    "intensityVsTarget": "温室气体强度（gCO2eq/MJ）与目标值对比：{{target}}",
+    "target": "目标：{{target}} gCO2eq/MJ"
+  },
+  "vessels": {
+    "title": "船舶评分",
+    "vessel": "船舶",
+    "score": "评分",
+    "status": "状态",
+    "cii": "CII",
+    "fuelEuIntensity": "FuelEU 强度",
+    "etsCost": "ETS 成本",
+    "recommendation": "建议"
+  },
+  "status": {
+    "EXCELLENT": "优秀",
+    "GOOD": "良好",
+    "ADEQUATE": "达标",
+    "AT_RISK": "存在风险",
+    "CRITICAL": "严重",
+    "unknown": "未知"
+  },
+  "scenario": {
+    "title": "燃料情景分析",
+    "subtitle": "模拟不同燃料组合对合规评分的影响",
+    "vessel": "船舶",
+    "fuelMix": "燃料组合（比例之和应为 1.0）",
+    "total": "合计：{{total}}",
+    "calculate": "计算",
+    "addFuel": "请至少向组合中添加一种燃料。",
+    "invalidTotal": "燃料比例之和必须为 1.0（当前为 {{total}}）。",
+    "score": "评分：{{score}}",
+    "penalty": "预计 FuelEU 罚款：{{amount}}",
+    "help": "配置燃料组合并选择“计算”，即可查看预计合规评分。"
+  },
+  "recommendations": {
+    "fuelMix": "建议提高生物燃料或甲醇的混合比例，以达到 FuelEU 目标。",
+    "etsExposure": "ETS 风险较高——请评估替代燃料以降低 CO2 成本。",
+    "cii": "CII 评级正在下降——请采取降速或能效措施。",
+    "penalty": "预计 FuelEU 罚款：{{amount}} 欧元。请改用合规燃料以避免罚款。",
+    "generic": "请检查该船舶的合规输入和计划燃料组合。"
+  },
+  "filings": {
+    "title": "监管申报",
+    "submission": "提交件",
+    "receipt": "回执",
+    "report": "报告",
+    "mrv": "MRV 2025 年最终报告.pdf",
+    "ets": "ETS 2025 年第四季度配额清缴确认.pdf",
+    "fuelEu": "FuelEU 合规余额报表.pdf",
+    "downloadUnavailable": "下载功能正在建设中"
+  },
+  "upload": {
+    "title": "上传燃油交付单（BDN）",
+    "description": "将 PDF 或图片拖放到此处，AI 将自动提取验证数据。",
+    "select": "选择文件并模拟上传",
+    "processing": "正在处理文档...",
+    "processingDescription": "正在执行 OCR 提取和合规检查。",
+    "review": "核对提取的数据",
+    "confidence": "高置信度匹配",
+    "vessel": "船舶名称",
+    "port": "加油港口",
+    "fuel": "燃料类型",
+    "quantity": "数量（MT）",
+    "cancel": "取消",
+    "confirm": "确认并提交",
+    "success": "数据已成功录入",
+    "successDescription": "合规台账已更新。验证编号：#BDN-2993"
+  },
+  "tracing": {
+    "title": "端到端追溯",
+    "subtitle": "航次 #SG-RTM-299 的监管链",
+    "verified": "绿色验证通过",
+    "nanolumi": "Nanolumi 验证通过",
+    "events": {
+      "tr-1": { "stage": "来源", "description": "UCO 生物质收集" },
+      "tr-2": { "stage": "生产", "description": "精炼为 B100 生物燃料" },
+      "tr-3": { "stage": "加油", "description": "转运至 Verdaxis Pioneer" }
+    }
+  },
+  "ledger": {
+    "title": "交易台账",
+    "close": "关闭交易台账",
+    "date": "日期",
+    "type": "交易类型",
+    "counterparty": "交易对手",
+    "volume": "数量",
+    "price": "单价",
+    "total": "总额",
+    "purchase": "购买",
+    "surrender": "清缴",
+    "transfer": "转让",
+    "euaSpot": "EUA 现货",
+    "complianceQ3": "第三季度合规",
+    "fuelEuCredit": "FuelEU 信用额",
+    "euaFutures": "EUA 期货",
+    "export": "导出 CSV",
+    "exportUnavailable": "导出 CSV 功能正在建设中"
   }
 }

@@ -24,24 +24,32 @@ import {
   LeafDecor,
   HoverButton,
 } from '../../components/public/motionUtils';
+import { useLocalePath } from '../../hooks/useLocalePath';
 import { useNamespace } from '../../hooks/useNamespace';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
 /* ------------------------------------------------------------------ */
 
+type FuelId = 'methanol' | 'ethanol' | 'bioLng' | 'bioMgo' | 'ammonia' | 'saf' | 'ucome';
+
 interface FuelType {
-  name: string;
+  id: FuelId;
   icon: React.FC<{ size?: number; color?: string }>;
   accent: string;
   accentBg: string;
-  pathways: string[];
+  pathwayCount: number;
   ciRange: string;
   energyDensity: string;
-  keyMarkets: string;
-  note: string;
   comingSoon?: boolean;
   sectors: ('maritime' | 'aviation' | 'land')[];
+}
+
+interface LocalizedFuelType extends FuelType {
+  name: string;
+  pathways: string[];
+  keyMarkets: string;
+  note: string;
 }
 
 interface Attribute {
@@ -58,88 +66,74 @@ type Sector = 'maritime' | 'aviation' | 'land';
 
 const fuelTypes: FuelType[] = [
   {
-    name: 'Methanol',
+    id: 'methanol',
     icon: Droplets,
     accent: '#5DADE2',
     accentBg: 'rgba(93, 173, 226, 0.1)',
-    pathways: ['Bio-methanol (waste/biomass)', 'E-methanol (green H\u2082 + CO\u2082)', 'Fossil (grey)'],
+    pathwayCount: 3,
     ciRange: '3\u201394 gCO\u2082e/MJ',
     energyDensity: '19.9 MJ/kg',
-    keyMarkets: 'Maritime bunkering, chemical feedstock',
-    note: '\u223C2M mt expected production in 2026. Key producers: CRI (Iceland), GoldWind (China), MGC (Japan)',
     sectors: ['maritime', 'aviation'],
   },
   {
-    name: 'Ethanol',
+    id: 'ethanol',
     icon: Wheat,
     accent: '#4CAF50',
     accentBg: 'rgba(76, 175, 80, 0.1)',
-    pathways: ['1G (sugarcane/corn)', '2G (cellulosic/bagasse)', 'Waste-based'],
+    pathwayCount: 3,
     ciRange: '8\u201365 gCO\u2082e/MJ',
     energyDensity: '26.8 MJ/kg',
-    keyMarkets: 'Road transport blending, SAF feedstock, maritime',
-    note: 'Production could match methanol volumes. Cross-pollination with SAF pathways.',
     sectors: ['maritime', 'aviation', 'land'],
   },
   {
-    name: 'Bio-LNG',
+    id: 'bioLng',
     icon: Fuel,
     accent: '#26A69A',
     accentBg: 'rgba(38, 166, 154, 0.1)',
-    pathways: ['Anaerobic digestion (biogas)', 'Gasification (woody biomass)', 'Landfill gas upgrading'],
+    pathwayCount: 3,
     ciRange: '10\u201340 gCO\u2082e/MJ',
     energyDensity: '49.0 MJ/kg',
-    keyMarkets: 'Maritime bunkering, LNG-fuelled vessels',
-    note: 'Drop-in for the growing LNG-fuelled fleet. 700+ LNG-capable vessels in service or on order.',
     sectors: ['maritime'],
   },
   {
-    name: 'Bio-MGO / FAME Blends',
+    id: 'bioMgo',
     icon: Droplets,
     accent: '#7CB342',
     accentBg: 'rgba(124, 179, 66, 0.1)',
-    pathways: ['UCOME (used cooking oil methyl ester)', 'FAME B20\u2013B100 blends', 'HVO (hydrotreated vegetable oil)'],
+    pathwayCount: 3,
     ciRange: '15\u201355 gCO\u2082e/MJ',
     energyDensity: '37.0 MJ/kg',
-    keyMarkets: 'Maritime bunkering, drop-in blending',
-    note: 'Lowest-barrier entry for existing fleet. UCOME widely available at major bunkering hubs.',
     sectors: ['maritime'],
   },
   {
-    name: 'Ammonia',
+    id: 'ammonia',
     icon: Atom,
     accent: '#9C27B0',
     accentBg: 'rgba(156, 39, 176, 0.1)',
-    pathways: ['Green ammonia (electrolysis)', 'Blue ammonia (SMR + CCS)'],
+    pathwayCount: 2,
     ciRange: '0.5\u201330 gCO\u2082e/MJ',
     energyDensity: '18.6 MJ/kg',
-    keyMarkets: 'Maritime (next-gen engines), power generation, industrial heat',
-    note: 'MAN and W\u00e4rtsil\u00e4 ammonia engines in development. First commercial vessels expected 2026\u20132028.',
     comingSoon: true,
     sectors: ['maritime', 'land'],
   },
   {
-    name: 'Sustainable Aviation Fuel (SAF)',
+    id: 'saf',
     icon: Plane,
     accent: '#FF9800',
     accentBg: 'rgba(255, 152, 0, 0.1)',
-    pathways: ['HEFA (used cooking oil / tallow)', 'Fischer-Tropsch (gasification)', 'Alcohol-to-Jet (AtJ)'],
+    pathwayCount: 3,
     ciRange: '12\u201350 gCO\u2082e/MJ',
     energyDensity: '44.0 MJ/kg',
-    keyMarkets: 'Aviation, blending mandates (EU ReFuelEU)',
-    note: 'Global SAF mandates accelerating: EU 2% (2025), 6% (2030), 70% (2050). CORSIA Phase 1 starts 2027.',
     sectors: ['aviation'],
   },
   {
-    name: 'UCOME',
+    id: 'ucome',
     icon: Droplets,
     accent: '#8D6E63',
     accentBg: 'rgba(141, 110, 99, 0.1)',
-    pathways: ['Used cooking oil collection & processing', 'Waste grease transesterification'],
+    pathwayCount: 2,
     ciRange: '10\u201325 gCO\u2082e/MJ',
     energyDensity: '37.5 MJ/kg',
-    keyMarkets: 'SAF feedstock (HEFA pathway), biodiesel, maritime',
-    note: 'The dominant SAF feedstock today. Supply chain integrity critical \u2014 UCO fraud risk drives need for verified provenance.',
     sectors: ['aviation', 'maritime'],
   },
 ];
@@ -194,7 +188,7 @@ const responsiveStyles = `
 /* ------------------------------------------------------------------ */
 
 interface FuelCardProps {
-  fuel: FuelType;
+  fuel: LocalizedFuelType;
   labels: { comingSoon: string; pathways: string; ciRange: string; energyDensity: string; keyMarkets: string };
 }
 
@@ -396,6 +390,7 @@ const SectorTab: React.FC<{
 
 export const FuelCoveragePage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const { sector: urlSector } = useParams<{ sector?: string }>();
   const navigate = useNavigate();
 
@@ -446,7 +441,20 @@ export const FuelCoveragePage: React.FC = () => {
   ];
 
   const config = sectorConfigs[activeSector];
-  const filteredFuels = fuelTypes.filter((f) => f.sectors.includes(activeSector));
+  const localizedFuelTypes: LocalizedFuelType[] = fuelTypes.map((fuel) => {
+    const key = `fuelCoverage.fuels.${fuel.id}`;
+    return {
+      ...fuel,
+      name: t(`${key}.name`),
+      pathways: Array.from(
+        { length: fuel.pathwayCount },
+        (_, index) => t(`${key}.pathways.${index}`),
+      ),
+      keyMarkets: t(`${key}.keyMarkets`),
+      note: t(`${key}.note`),
+    };
+  });
+  const filteredFuels = localizedFuelTypes.filter((fuel) => fuel.sectors.includes(activeSector));
 
   const handleSectorChange = (sector: Sector) => {
     navigate(`/fuels/${sector}`, { replace: true });
@@ -553,7 +561,7 @@ export const FuelCoveragePage: React.FC = () => {
               }}
             >
               {filteredFuels.map((fuel) => (
-                <StaggerItem key={fuel.name}>
+                <StaggerItem key={fuel.id}>
                   <HoverCard>
                     <FuelCard fuel={fuel} labels={fuelCardLabels} />
                   </HoverCard>
@@ -626,7 +634,7 @@ export const FuelCoveragePage: React.FC = () => {
           <Reveal delay={0.15}>
             <HoverButton>
               <Link
-                to="/en/pilot"
+                to={localePath('/map/producers')}
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',

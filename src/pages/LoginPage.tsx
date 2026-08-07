@@ -6,6 +6,7 @@ import { API_URL } from '../services/config';
 import { DataOcean } from '../components/public/DataOcean';
 import { useNamespace } from '../hooks/useNamespace';
 import { analytics } from '../services/analytics';
+import { localizedAuthError } from './authApiError';
 
 type ErrorKind = 'generic' | 'unverified';
 
@@ -75,14 +76,16 @@ const LoginPage: React.FC = () => {
         } else if (res.status === 403) {
           analytics.track('login_failed', { reason_category: 'account_state' });
           const errData = await res.json().catch(() => null);
-          const detail: string = errData?.detail ?? '';
+          console.error('[auth] login access denied', errData);
+          const rawDetail = typeof errData?.detail === 'string' ? errData.detail : errData?.detail?.message;
+          const detail = typeof rawDetail === 'string' ? rawDetail : '';
           if (detail.toLowerCase().includes('verify') || detail.toLowerCase().includes('verification')) {
             setLoginError({
               kind: 'unverified',
               message: t('login.error.unverified'),
             });
           } else {
-            setLoginError({ kind: 'generic', message: detail || t('login.error.accessDenied') });
+            setLoginError({ kind: 'generic', message: localizedAuthError(errData, t, 'login.error.accessDenied', 'login access denied') });
           }
         } else if (res.status >= 500) {
           analytics.track('login_failed', { reason_category: 'server' });
@@ -90,7 +93,7 @@ const LoginPage: React.FC = () => {
         } else {
           analytics.track('login_failed', { reason_category: 'unknown' });
           const errData = await res.json().catch(() => null);
-          setLoginError({ kind: 'generic', message: errData?.detail || t('login.error.loginFailed') });
+          setLoginError({ kind: 'generic', message: localizedAuthError(errData, t, 'login.error.loginFailed', 'login failed') });
         }
       }
     } catch (err) {

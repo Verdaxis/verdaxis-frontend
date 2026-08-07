@@ -19,8 +19,11 @@ const ActivitySection: React.FC<{
   compare: boolean;
   live: boolean;
 }> = ({ label, section, compare, live }) => {
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const suppressed = t('pa.state.suppressed');
+  const statusLabel = (status: string) => t(`pa.status.${status}`, {
+    defaultValue: i18n.resolvedLanguage?.startsWith('zh') ? t('pa.status.unknown') : status,
+  });
   const execution = section.kpis.execution_rate;
   const liquidity = section.liquidity;
   return (
@@ -147,7 +150,7 @@ const ActivitySection: React.FC<{
           <SectionHeading title={t('pa.section.orderStatuses')} />
           {section.order_status_distribution.map(cell => (
             <div key={cell.key} className="flex justify-between py-0.5">
-              <span className="text-verdaxis-text-muted">{cell.key}</span>
+              <span className="text-verdaxis-text-muted">{statusLabel(cell.key)}</span>
               <span>{cellText(cell, suppressed)}</span>
             </div>
           ))}
@@ -156,7 +159,7 @@ const ActivitySection: React.FC<{
           <SectionHeading title={t('pa.section.tradeStatuses')} />
           {section.trade_status_distribution.map(cell => (
             <div key={cell.key} className="flex justify-between py-0.5">
-              <span className="text-verdaxis-text-muted">{cell.key}</span>
+              <span className="text-verdaxis-text-muted">{statusLabel(cell.key)}</span>
               <span>{cellText(cell, suppressed)}</span>
             </div>
           ))}

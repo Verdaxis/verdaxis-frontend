@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import i18n, { loadNamespace } from '../../../i18n';
 import { FuelCoveragePage } from '../FuelCoveragePage';
 
 const renderWithRouter = (ui: React.ReactElement, { route = '/fuels' } = {}) => {
@@ -66,10 +67,42 @@ describe('FuelCoveragePage', () => {
   });
 
   it('renders CTA with link to producer map', () => {
-    renderWithRouter(<FuelCoveragePage />);
+    render(
+      <MemoryRouter initialEntries={['/zh/fuels']}>
+        <Routes>
+          <Route path="/:lang/fuels" element={<FuelCoveragePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
     expect(screen.getByText(/explore producer map/i)).toBeTruthy();
     const link = screen.getByRole('link', { name: /explore producer map/i });
-    expect(link.getAttribute('href')).toBe('/en/pilot');
+    expect(link.getAttribute('href')).toBe('/zh/map/producers');
+  });
+
+  it('renders fuel-card content in Chinese', async () => {
+    await loadNamespace('public');
+    await i18n.changeLanguage('zh');
+
+    try {
+      render(
+        <MemoryRouter initialEntries={['/zh/fuels']}>
+          <Routes>
+            <Route path="/:lang/fuels" element={<FuelCoveragePage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      expect(screen.getByRole('heading', { name: '甲醇' })).toBeTruthy();
+      expect(screen.getByText('生物甲醇（废弃物/生物质）')).toBeTruthy();
+      expect(screen.getByText('船用燃料加注、化工原料')).toBeTruthy();
+      expect(screen.getByText(/预计 2026 年产量约为 2M mt/)).toBeTruthy();
+      expect(screen.queryByText('Bio-methanol (waste/biomass)')).toBeNull();
+      expect(screen.queryByText('Maritime bunkering, chemical feedstock')).toBeNull();
+      expect(screen.queryByText(/∼2M mt expected production/)).toBeNull();
+    } finally {
+      cleanup();
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('renders subtitle text', () => {

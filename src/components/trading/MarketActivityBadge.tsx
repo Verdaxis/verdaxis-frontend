@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNamespace } from '../../hooks/useNamespace';
 
 import { describeMarketActivity, marketActivityBadgeClass } from '../../utils/marketActivity';
 import type { MarketActivityInput } from '../../utils/marketActivity';
@@ -11,7 +12,9 @@ interface MarketActivityBadgeProps {
 }
 
 export const MarketActivityBadge: React.FC<MarketActivityBadgeProps> = ({ activity, className = '', showLive = false, showUnknown = false }) => {
-    const descriptor = describeMarketActivity(activity);
+    const { t, ready } = useNamespace('trading');
+    if (!ready) return null;
+    const descriptor = describeMarketActivity(activity, t);
     if (!showLive && (descriptor.tone === 'live' || descriptor.tone === 'empty')) return null;
     if (!showUnknown && descriptor.tone === 'unknown') return null;
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNamespace } from '../../hooks/useNamespace';
 
 interface BenchmarkPriceBlockProps {
   priceUsd: number;
@@ -20,10 +21,16 @@ export const BenchmarkPriceBlock: React.FC<BenchmarkPriceBlockProps> = ({
   deltaUsd,
   align = 'left',
 }) => {
+  const { t, ready } = useNamespace('trading');
+  if (!ready) return null;
   const hasBenchmark = typeof benchmarkUsd === 'number' && Number.isFinite(benchmarkUsd);
   const hasDelta = typeof deltaUsd === 'number' && Number.isFinite(deltaUsd);
-  const benchmarkLabel = hasBenchmark ? `Benchmark ref $${formatUsd(benchmarkUsd!)}` : 'No benchmark reference';
-  const benchmarkTitle = hasBenchmark ? `vs benchmark reference $${formatUsd(benchmarkUsd!)}/MT` : benchmarkLabel;
+  const benchmarkLabel = hasBenchmark
+    ? t('benchmark.reference', { price: formatUsd(benchmarkUsd!) })
+    : t('benchmark.none');
+  const benchmarkTitle = hasBenchmark
+    ? t('benchmark.comparison', { price: formatUsd(benchmarkUsd!) })
+    : benchmarkLabel;
   const deltaTone = !hasDelta || deltaUsd == null
     ? 'text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900'
     : deltaUsd <= 0

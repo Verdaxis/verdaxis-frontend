@@ -6,6 +6,8 @@ import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { describeMarketActivity } from '../utils/marketActivity';
 import { MarketActivityBadge } from './trading/MarketActivityBadge';
+import type { TFunction } from 'i18next';
+import i18n from '../i18n';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
     BIO_METHANOL: 'bg-violet-500',
@@ -29,41 +31,29 @@ function shortFuel(fuelType: string): string {
     return map[fuelType.toLowerCase()] ?? fuelType;
 }
 
-function gradeTag(grade?: string): string {
+function gradeTag(grade: string | undefined, t: TFunction): string {
     if (!grade) return '';
     const g = grade.toLowerCase();
-    if (g === 'green') return 'Grn';
-    if (g === 'bio') return 'Bio';
-    if (g === 'conventional') return 'Conv';
-    return grade.slice(0, 4);
+    if (g === 'green') return t('grade.greenShort');
+    if (g === 'bio') return t('grade.bioShort');
+    if (g === 'conventional') return t('grade.conventionalShort');
+    return t('grade.other');
 }
 
-function shouldShowActivityBadge(entry: TradeTapeEntry): boolean {
-    const descriptor = describeMarketActivity(entry);
+function shouldShowActivityBadge(entry: TradeTapeEntry, t: TFunction): boolean {
+    const descriptor = describeMarketActivity(entry, t);
     return descriptor.tone !== 'live' && descriptor.tone !== 'empty';
 }
 
-function relativeTime(dateStr: string): string {
+function relativeTime(dateStr: string, t: TFunction): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60_000);
-    if (mins < 1) return 'now';
-    if (mins < 60) return `${mins}m`;
+    if (mins < 1) return t('tradeTape.now');
+    if (mins < 60) return t('tradeTape.relative.minutes', { count: mins });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h`;
+    if (hrs < 24) return t('tradeTape.relative.hours', { count: hrs });
     const days = Math.floor(hrs / 24);
-    return `${days}d`;
-}
-
-function formatQuantityMt(value: number | string): string {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) return String(value);
-    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatPriceUsd(value: number | string): string {
-    const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) return String(value);
-    return numberValue.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return t('tradeTape.relative.days', { count: days });
 }
 
 interface TradeTapeProps {
@@ -112,6 +102,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
     }, [fetchData]);
 
     if (!ready) return null;
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
 
     if (loading) {
         return (
@@ -132,7 +123,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                         {t('tradeTape.title')}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                        {total} {total !== 1 ? 'trades' : 'trade'}
+                        {t('tradeTape.count', { count: total })}
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -157,20 +148,20 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
                                     {t2.market_product ? formatMarketProduct(t2.market_product) : shortFuel(t2.fuel_type)}
                                     {t2.fuel_grade && (
-                                        <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade)}</span>
+                                        <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade, t)}</span>
                                     )}
-                                    {shouldShowActivityBadge(t2) && <MarketActivityBadge activity={t2} className="ml-1" />}
+                                    {shouldShowActivityBadge(t2, t) && <MarketActivityBadge activity={t2} className="ml-1" />}
                                 </span>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                    {formatQuantityMt(t2.quantity_mt)} MT
+                                    {Number(t2.quantity_mt).toLocaleString(locale, { maximumFractionDigits: 2 })} MT
                                 </span>
                                 <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                    ${formatPriceUsd(t2.price_per_mt_usd)}/MT
+                                    ${Number(t2.price_per_mt_usd).toLocaleString(locale, { maximumFractionDigits: 2 })}/MT
                                 </span>
-                                <span className="text-[10px] text-slate-400 w-8 text-right">
-                                    {relativeTime(t2.confirmed_at)}
+                                <span className="min-w-8 whitespace-nowrap text-right text-[10px] text-slate-400">
+                                    {relativeTime(t2.confirmed_at, t)}
                                 </span>
                             </div>
                         </div>

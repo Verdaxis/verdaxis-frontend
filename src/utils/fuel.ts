@@ -3,6 +3,7 @@
  * Case-insensitive lookups fix the supplier bug where "ammonia (green)" missed exact-match.
  */
 import React from 'react';
+import type { TFunction } from 'i18next';
 import { OrderBookOrder } from '../types';
 import { formatAvailabilityWindow } from './availabilityWindow';
 
@@ -85,33 +86,35 @@ export interface StatusConfig {
   dot: string;
 }
 
-const STATUS_MAP: Record<string, StatusConfig> = {
-  OPEN:             { label: 'Open',     bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
-  PARTIALLY_FILLED: { label: 'Partial',  bg: 'bg-blue-500/10',   text: 'text-blue-600 dark:text-blue-400',      dot: 'bg-blue-500' },
-  FILLED:           { label: 'Filled',   bg: 'bg-amber-500/10',  text: 'text-amber-600 dark:text-amber-400',    dot: 'bg-amber-500' },
-  CANCELLED:        { label: 'Cancelled',bg: 'bg-red-500/10',    text: 'text-red-600 dark:text-red-400',        dot: 'bg-red-500' },
-  EXPIRED:          { label: 'Expired',  bg: 'bg-slate-500/10',  text: 'text-slate-600 dark:text-slate-400',    dot: 'bg-slate-500' },
+const STATUS_MAP: Record<string, Omit<StatusConfig, 'label'> & { labelKey: string }> = {
+  OPEN:             { labelKey: 'status.open',      bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+  PARTIALLY_FILLED: { labelKey: 'status.partial',   bg: 'bg-blue-500/10',   text: 'text-blue-600 dark:text-blue-400',      dot: 'bg-blue-500' },
+  FILLED:           { labelKey: 'status.filled',    bg: 'bg-amber-500/10',  text: 'text-amber-600 dark:text-amber-400',    dot: 'bg-amber-500' },
+  CANCELLED:        { labelKey: 'status.cancelled', bg: 'bg-red-500/10',    text: 'text-red-600 dark:text-red-400',        dot: 'bg-red-500' },
+  EXPIRED:          { labelKey: 'status.expired',   bg: 'bg-slate-500/10',  text: 'text-slate-600 dark:text-slate-400',    dot: 'bg-slate-500' },
 };
 
-export function getStatusConfig(status: string): StatusConfig {
-  return STATUS_MAP[status] ?? { label: status, bg: 'bg-slate-500/10', text: 'text-slate-500', dot: 'bg-slate-500' };
+export function getStatusConfig(status: string, t: TFunction): StatusConfig {
+  const config = STATUS_MAP[status];
+  if (!config) return { label: t('status.unknown'), bg: 'bg-slate-500/10', text: 'text-slate-500', dot: 'bg-slate-500' };
+  return { ...config, label: t(config.labelKey) };
 }
 
 // ─── Expiry Formatter ──────────────────────────────────────────
-export function formatExpiry(order: OrderBookOrder): React.ReactNode {
+export function formatExpiry(order: OrderBookOrder, locale = 'en'): React.ReactNode {
   const expiryDate = order.expires_at;
   if (!expiryDate) {
     return React.createElement('span', {
       className: 'text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono'
     }, 'GTC');
   }
-  const formatted = new Date(expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+  const formatted = new Date(expiryDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: '2-digit' });
   return React.createElement('span', {
     className: 'text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono whitespace-nowrap'
   }, formatted);
 }
 
 // ─── Availability Window ───────────────────────────────────────
-export function formatDeliveryWindow(order: OrderBookOrder): string {
-  return formatAvailabilityWindow(order.availability_window);
+export function formatDeliveryWindow(order: OrderBookOrder, locale = 'en'): string {
+  return formatAvailabilityWindow(order.availability_window, locale);
 }
