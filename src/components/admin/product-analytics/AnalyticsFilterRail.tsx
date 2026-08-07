@@ -7,6 +7,8 @@ import {
   ProductAnalyticsFilters,
 } from '../../../hooks/useProductAnalyticsFilters';
 import { AnalyticsActivity, AnalyticsAudience } from '../../../types/productAnalytics';
+import { formatAvailabilityWindow } from '../../../utils/availabilityWindow';
+import { getProductDisplayName } from '../../../utils/marketProduct';
 
 // One sticky filter rail below the tabs (§1.3): period and comparison stay in
 // place across tabs; irrelevant filters are hidden, never disabled.
@@ -20,7 +22,7 @@ export const AnalyticsFilterRail: React.FC<{
   filters: ProductAnalyticsFilters;
   onChange: (changes: Partial<ProductAnalyticsFilters>) => void;
 }> = ({ filters, onChange }) => {
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const [products, setProducts] = useState<CatalogOption[]>([]);
   const [points, setPoints] = useState<CatalogOption[]>([]);
   const marketplace = filters.tab === 'marketplace';
@@ -32,7 +34,7 @@ export const AnalyticsFilterRail: React.FC<{
     Promise.all([api.catalog.products(), api.catalog.deliveryPoints()])
       .then(([productRows, pointRows]) => {
         if (cancelled) return;
-        setProducts(productRows.map(row => ({ id: String(row.id), name: row.name })));
+        setProducts(productRows.map(row => ({ id: String(row.id), name: getProductDisplayName(row) })));
         setPoints(pointRows.map(row => ({ id: String(row.id), name: row.name })));
       })
       .catch(() => { /* filters degrade to period-only; data still loads */ });
@@ -149,7 +151,9 @@ export const AnalyticsFilterRail: React.FC<{
           >
             <option value="">{t('pa.filter.anyWindow')}</option>
             {WINDOWS.map(window => (
-              <option key={window} value={window}>{window}</option>
+              <option key={window} value={window}>
+                {formatAvailabilityWindow(window, i18n.resolvedLanguage)}
+              </option>
             ))}
           </select>
         </>
