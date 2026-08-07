@@ -27,6 +27,7 @@ vi.mock('../services/api', async importOriginal => {
 
 import { ProductAnalyticsWorkspace } from '../components/admin/product-analytics/ProductAnalyticsWorkspace';
 import { paMeta, paOverview, paRetention } from './product-analytics-fixtures';
+import i18n, { loadNamespace } from '../i18n';
 
 const renderWorkspace = (initial = '/app/admin') =>
   render(
@@ -139,5 +140,19 @@ describe('product analytics workspace shell', () => {
     expect(within(rail).queryByLabelText('Activity source')).toBeNull();
     expect(within(rail).queryByLabelText('Audience')).toBeNull();
     expect(within(rail).getByLabelText('From date')).toBeTruthy();
+  });
+
+  it('localizes marketplace availability-window options', async () => {
+    await loadNamespace('admin');
+    await i18n.changeLanguage('zh');
+    try {
+      renderWorkspace('/app/admin?analytics=marketplace');
+      const windowSelect = await screen.findByLabelText('供货窗口');
+      expect(within(windowSelect).getByRole('option', { name: '现货' })).toBeTruthy();
+      expect(within(windowSelect).getByRole('option', { name: '2026年第3季度' })).toBeTruthy();
+      expect(within(windowSelect).queryByRole('option', { name: 'SPOT' })).toBeNull();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });
