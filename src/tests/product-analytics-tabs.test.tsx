@@ -4,11 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MarketplaceTab } from '../components/admin/product-analytics/MarketplaceTab';
+import { AcquisitionTab } from '../components/admin/product-analytics/AcquisitionTab';
 import { AggregateJourney } from '../components/admin/product-analytics/AggregateJourney';
+import { EngagementTab } from '../components/admin/product-analytics/EngagementTab';
 import { OverviewTab } from '../components/admin/product-analytics/OverviewTab';
 import { RetentionTab } from '../components/admin/product-analytics/RetentionTab';
 import { ReliabilityTab } from '../components/admin/product-analytics/ReliabilityTab';
-import { ReliabilityResponse } from '../types/productAnalytics';
+import { AcquisitionResponse, EngagementResponse, ReliabilityResponse } from '../types/productAnalytics';
 import { paMarketplace, paMeta, paOverview, paRetention } from './product-analytics-fixtures';
 import i18n, { loadNamespace } from '../i18n';
 
@@ -101,6 +103,8 @@ describe('marketplace tab', () => {
       expect(screen.getAllByText('已成交').length).toBeGreaterThan(0);
       expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
       expect(screen.queryByText('OPEN')).toBeNull();
+      expect(screen.getAllByText('现货').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Spot')).toBeNull();
       market.unmount();
 
       render(<AggregateJourney stages={[{
@@ -113,6 +117,73 @@ describe('marketplace tab', () => {
       expect(screen.getByText(/买方 2 \/ 卖方 1/)).toBeTruthy();
       expect(screen.queryByText(/B 2 \/ S 1/)).toBeNull();
     } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+});
+
+describe('analytics event dimensions', () => {
+  it('localizes CTA, navigation, language, and tutorial identifiers in Chinese', async () => {
+    await loadNamespace('admin');
+    await i18n.changeLanguage('zh');
+    const metric = { value: 0, previous: null, suppressed: false };
+    let view: ReturnType<typeof render> | undefined;
+
+    try {
+      const acquisition: AcquisitionResponse = {
+        meta: paMeta(),
+        kpis: {
+          visitors: metric,
+          visits: metric,
+          pageviews: metric,
+          average_session_duration_seconds: { value: '0', previous: null, suppressed: false },
+          cta_clicks: metric,
+        },
+        visitors_trend: [],
+        previous_visitors_trend: [],
+        visits_trend: [],
+        referrers: [],
+        entry_pages: [],
+        cta_matrix: [
+          { cta: 'sign_in', placement: 'nav', clicks: 3, share_pct: null, suppressed: false },
+          { cta: 'pilot', placement: 'all', clicks: 1, share_pct: null, suppressed: false },
+        ],
+        languages: [{ key: 'zh', label: 'zh', count: 4, share_pct: '100', suppressed: false }],
+        calculator: { starts: metric, completions: metric },
+      };
+      view = render(<AcquisitionTab data={acquisition} compare={false} onSelectTab={noop} />);
+      expect(screen.getByText('登录')).toBeTruthy();
+      expect(screen.getByText('顶部导航')).toBeTruthy();
+      expect(screen.getByText('试点计划')).toBeTruthy();
+      expect(screen.getByText('全部位置')).toBeTruthy();
+      expect(screen.getByText('中文')).toBeTruthy();
+      expect(screen.queryByText('sign_in')).toBeNull();
+      expect(screen.queryByText('nav')).toBeNull();
+      view.unmount();
+
+      const cell = (key: string, count: number) => ({ key, count, suppressed: false });
+      const engagement: EngagementResponse = {
+        meta: paMeta(),
+        kpis: { dau: metric, wau: metric, mau: metric, stickiness_pct: null },
+        active_members_trend: [],
+        feature_adoption: [],
+        workflow_ratios: [],
+        navigation_destinations: [
+          { destination: 'marketplace', total: cell('marketplace', 3), buyer: null, supplier: null },
+          { destination: 'curve', total: cell('curve', 2), buyer: null, supplier: null },
+        ],
+        tutorial_steps: [
+          { step: 'buyer_1', completed: cell('buyer_1', 1), skipped: cell('buyer_1', 0) },
+        ],
+      };
+      view = render(<EngagementTab data={engagement} compare={false} onSelectTab={noop} />);
+      expect(screen.getByText('市场')).toBeTruthy();
+      expect(screen.getByText('远期曲线')).toBeTruthy();
+      expect(screen.getByText('采购方第 1 步')).toBeTruthy();
+      expect(screen.queryByText('marketplace')).toBeNull();
+      expect(screen.queryByText('buyer_1')).toBeNull();
+    } finally {
+      view?.unmount();
       await i18n.changeLanguage('en');
     }
   });

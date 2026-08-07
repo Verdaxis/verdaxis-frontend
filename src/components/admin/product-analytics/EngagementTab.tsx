@@ -15,6 +15,12 @@ export const EngagementTab: React.FC<{
   const { t } = useTranslation('admin');
   const suppressed = t('pa.state.suppressed');
   const loginCoverage = data.meta.coverage.login_history;
+  const tutorialStepLabel = (step: string) => {
+    const match = /^(buyer|supplier)_(\d+)$/.exec(step);
+    return match
+      ? t(`pa.tutorial.${match[1]}Step`, { count: Number(match[2]) })
+      : step;
+  };
   return (
     <div className="space-y-6">
       {loginCoverage.status === 'available' || loginCoverage.status === 'partial' ? (
@@ -66,7 +72,9 @@ export const EngagementTab: React.FC<{
             <tbody>
               {data.navigation_destinations.map(row => (
                 <tr key={row.destination} className="border-t border-verdaxis-border/60">
-                  <td className="py-1 text-verdaxis-text-muted">{row.destination}</td>
+                  <td className="py-1 text-verdaxis-text-muted">
+                    {t(`pa.reliability.destination_${row.destination}`)}
+                  </td>
                   <td className="py-1 text-right">{cellText(row.total, suppressed)}</td>
                 </tr>
               ))}
@@ -86,7 +94,7 @@ export const EngagementTab: React.FC<{
             <tbody>
               {data.tutorial_steps.map(row => (
                 <tr key={row.step} className="border-t border-verdaxis-border/60">
-                  <td className="py-1">{row.step}</td>
+                  <td className="py-1">{tutorialStepLabel(row.step)}</td>
                   <td className="py-1 text-right">{cellText(row.completed, suppressed)}</td>
                   <td className="py-1 text-right">{cellText(row.skipped, suppressed)}</td>
                 </tr>

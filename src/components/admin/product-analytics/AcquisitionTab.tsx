@@ -6,8 +6,13 @@ import { CoverageNote, EmptyNote, SectionHeading, metricText } from './Analytics
 import { MetricStrip } from './MetricStrip';
 import { TrendChart } from './TrendChart';
 
-const RankedTable: React.FC<{ rows: RankedRow[]; unitLabel: string; empty: string }> = ({
-  rows, unitLabel, empty,
+const RankedTable: React.FC<{
+  rows: RankedRow[];
+  unitLabel: string;
+  empty: string;
+  rowLabel?: (row: RankedRow) => string;
+}> = ({
+  rows, unitLabel, empty, rowLabel,
 }) => {
   const { t } = useTranslation('admin');
   if (rows.length === 0) return <EmptyNote label={empty} />;
@@ -24,7 +29,9 @@ const RankedTable: React.FC<{ rows: RankedRow[]; unitLabel: string; empty: strin
         <tbody>
           {rows.map(row => (
             <tr key={row.key} className="border-t border-verdaxis-border/60">
-              <td className="py-1 pr-4">{row.key === 'direct' ? t('pa.acquisition.direct') : row.label}</td>
+              <td className="py-1 pr-4">
+                {rowLabel?.(row) ?? (row.key === 'direct' ? t('pa.acquisition.direct') : row.label)}
+              </td>
               <td className="py-1 text-right">{row.suppressed ? t('pa.state.suppressed') : row.count ?? '—'}</td>
               <td className="py-1 text-right">{row.share_pct ? `${row.share_pct}%` : '—'}</td>
             </tr>
@@ -94,8 +101,8 @@ export const AcquisitionTab: React.FC<{
               <tbody>
                 {data.cta_matrix.map(row => (
                   <tr key={`${row.cta}|${row.placement}`} className="border-t border-verdaxis-border/60">
-                    <td className="py-1">{row.cta}</td>
-                    <td className="py-1">{row.placement}</td>
+                    <td className="py-1">{t(`pa.cta.value.${row.cta}`, { defaultValue: row.cta })}</td>
+                    <td className="py-1">{t(`pa.cta.placement.${row.placement}`, { defaultValue: row.placement })}</td>
                     <td className="py-1 text-right">{row.suppressed ? suppressed : row.clicks ?? '—'}</td>
                   </tr>
                 ))}
@@ -107,7 +114,12 @@ export const AcquisitionTab: React.FC<{
       <div className="grid md:grid-cols-2 gap-6">
         <div>
           <SectionHeading title={t('pa.section.languages')} />
-          <RankedTable rows={data.languages} unitLabel={t('pa.cta.clicks')} empty={t('pa.state.sparse')} />
+          <RankedTable
+            rows={data.languages}
+            unitLabel={t('pa.cta.clicks')}
+            empty={t('pa.state.sparse')}
+            rowLabel={(row) => t(`pa.language.${row.key}`, { defaultValue: row.label })}
+          />
         </div>
         <div>
           <SectionHeading title={t('pa.section.calculator')} />
