@@ -8,7 +8,7 @@ interface LanguageSelectorProps {
 }
 
 export default function LanguageSelector({ onLanguageChange, variant = 'dark' }: LanguageSelectorProps) {
-  const { i18n, t } = useTranslation();
+  const { i18n, t } = useTranslation('common');
   const currentLang = i18n.language?.split('-')[0] || 'en';
 
   const handleChange = (lang: SupportedLang) => {
@@ -27,7 +27,7 @@ export default function LanguageSelector({ onLanguageChange, variant = 'dark' }:
     <div className="relative group">
       <button
         className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors ${triggerClasses}`}
-        aria-label="Change language"
+        aria-label={t('language.change')}
       >
         <Globe size={16} />
         <span className="text-sm font-medium">

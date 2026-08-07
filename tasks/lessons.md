@@ -568,3 +568,9 @@
 - **Trigger:** The user clarified that a reused verification link should guide an existing account holder toward sign-in or password recovery instead of registration.
 - **Rule:** When an email verification link is invalid, expired, or already consumed, make Sign In and Reset Password the recovery actions; do not make re-registration the primary path.
 - **Why:** The backend cannot distinguish every legacy consumed token from an invalid token, and encouraging registration creates confusion for an account that may already be verified and approved.
+
+### Verify Localization Recursively And In The Browser
+- **Date:** 2026-08-07
+- **Trigger:** A Chinese-language client presentation exposed English application surfaces even though the translation check reported success.
+- **Rule:** Compare locale leaf paths recursively, audit hard-coded rendered copy, and dogfood every reachable product area in the non-default locale before calling i18n complete.
+- **Why:** The checker compared only top-level JSON keys, so nested schema drift and components bypassing i18n remained invisible.

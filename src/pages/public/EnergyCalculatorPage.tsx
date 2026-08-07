@@ -443,6 +443,13 @@ interface FuelResultRowProps {
     lowerCost: string;
     compliant: string;
     penalty: string;
+    efficiency: string;
+    coverage: string;
+    better: string;
+    worse: string;
+    fuelCost: string;
+    versus: string;
+    intensity: string;
   };
 }
 
@@ -492,7 +499,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           icon={<Flame size={14} color="#5DADE2" />}
           title={metricLabels.fuelBurn}
           mainValue={`${fmtNumber(result.fuelBurnT)} t`}
-          subLines={[`Eff: ${result.effTperDay} t/d`]}
+          subLines={[`${metricLabels.efficiency}: ${result.effTperDay} t/d`]}
         />
         <MetricCard
           icon={<Wind size={14} color="#5DADE2" />}
@@ -505,7 +512,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           title={metricLabels.euEtsCost}
           mainValue={fmtEur(result.etsCostEur)}
           subLines={[
-            `Coverage: ${Math.round(inputs.etsCoverage * 100)}%`,
+            `${metricLabels.coverage}: ${Math.round(inputs.etsCoverage * 100)}%`,
             `EUA: \u20AC${inputs.euaPrice}/t`,
           ]}
         />
@@ -517,7 +524,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           }
           title={metricLabels.fuelEu}
           mainValue={result.fueleuCompliant ? fmtEur(0) : fmtEur(result.fueleuPenaltyEur)}
-          subLines={[`Int: ${result.fueleuIntensity}`, `vs ${inputs.fueleuThreshold}`]}
+          subLines={[`${metricLabels.intensity}: ${result.fueleuIntensity}`, `${metricLabels.versus} ${inputs.fueleuThreshold}`]}
           badge={result.fueleuCompliant ? metricLabels.compliant : metricLabels.penalty}
           badgeColor={result.fueleuCompliant ? '#4CAF50' : '#EF4444'}
         />
@@ -525,7 +532,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           icon={<TrendingDown size={14} color="#5DADE2" />}
           title={metricLabels.ciiProxy}
           mainValue={String(result.ciiProxy)}
-          subLines={[isCheaper ? 'Better \u2191' : 'Worse \u2193']}
+          subLines={[isCheaper ? `${metricLabels.better} \u2191` : `${metricLabels.worse} \u2193`]}
         />
         <MetricCard
           icon={<DollarSign size={14} color="#5DADE2" />}
@@ -540,7 +547,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           icon={<DollarSign size={14} color={isCheaper ? '#4CAF50' : '#EF4444'} />}
           title={metricLabels.totalCost}
           mainValue={fmtUsd(result.totalCostUsd)}
-          subLines={[`Fuel: ${fmtUsd(result.fuelCostUsd)}`, '+ETS+FuelEU']}
+          subLines={[`${metricLabels.fuelCost}: ${fmtUsd(result.fuelCostUsd)}`, '+ETS+FuelEU']}
           highlight={costHighlight}
         />
       </div>
@@ -674,6 +681,13 @@ export const EnergyCalculatorPage: React.FC = () => {
     lowerCost: t('energyCalculator.metrics.lowerCost'),
     compliant: t('energyCalculator.metrics.compliant'),
     penalty: t('energyCalculator.metrics.penalty'),
+    efficiency: t('energyCalculator.metrics.efficiency'),
+    coverage: t('energyCalculator.metrics.coverage'),
+    better: t('energyCalculator.metrics.better'),
+    worse: t('energyCalculator.metrics.worse'),
+    fuelCost: t('energyCalculator.metrics.fuelCost'),
+    versus: t('energyCalculator.metrics.versus'),
+    intensity: t('energyCalculator.metrics.intensity'),
   };
 
   return (
@@ -818,7 +832,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               <CompassIcon color="#64748B" />
               {t('energyCalculator.voyageRegulatory')}
             </h3>
-            <SliderInput label={t('energyCalculator.labels.voyageDays')} value={inputs.voyageDays} onChange={(v) => update('voyageDays', v)} min={1} max={60} step={1} unit="days" accentColor="#64748B" />
+            <SliderInput label={t('energyCalculator.labels.voyageDays')} value={inputs.voyageDays} onChange={(v) => update('voyageDays', v)} min={1} max={60} step={1} unit={t('energyCalculator.units.days')} accentColor="#64748B" />
             <SliderInput label={t('energyCalculator.labels.euaPrice')} value={inputs.euaPrice} onChange={(v) => update('euaPrice', v)} min={20} max={200} step={1} unit={`\u20AC/tCO\u2082`} accentColor="#64748B" />
             <DropdownInput
               label={t('energyCalculator.labels.euEtsCoverage')}
@@ -968,7 +982,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             }}
           >
             <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, fontFamily: "'Lato', sans-serif" }}>
-              {'\u2248'} ${perTonneLow}{'\u2013'}${perTonneHigh} per tonne in effective value based on energy alone
+              {t('energyCalculator.savings.energyValueEstimate', { low: perTonneLow, high: perTonneHigh })}
             </p>
           </div>
         </div>

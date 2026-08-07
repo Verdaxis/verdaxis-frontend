@@ -4,8 +4,13 @@ import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget, getWatchlistEventActivity } from '../utils/watchlist';
 import { MarketActivityBadge } from './trading/MarketActivityBadge';
+import { useNamespace } from '../hooks/useNamespace';
+import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import i18n from '../i18n';
 
 export const WatchlistPage: React.FC = () => {
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
     const {
         radar,
@@ -21,16 +26,16 @@ export const WatchlistPage: React.FC = () => {
     const targetLabels = useMemo(() => {
         const labels = new Map<string, string>();
         for (const slice of radar?.slices ?? []) {
-            labels.set(slice.id, formatWatchlistSliceLabel(slice));
+            labels.set(slice.id, formatWatchlistSliceLabel(slice, t, locale));
             for (const pin of slice.pins) {
-                labels.set(pin.id, pin.snapshot_market_product || formatWatchlistSliceLabel(slice));
+                labels.set(pin.id, pin.snapshot_market_product || formatWatchlistSliceLabel(slice, t, locale));
             }
         }
         return labels;
-    }, [radar]);
+    }, [locale, radar, t, ready]);
 
     const handleRemoveTarget = async (targetId: string, label: string) => {
-        if (!window.confirm(`Remove ${label} from Watchlist?`)) return;
+        if (!window.confirm(t('watchlist.confirmRemove', { label }))) return;
         setPendingRemovalId(targetId);
         try {
             await removeTarget(targetId);
@@ -39,12 +44,13 @@ export const WatchlistPage: React.FC = () => {
         }
     };
 
+    if (!ready) return null;
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center">
                 <div className="flex items-center gap-3 text-slate-400">
                     <Loader2 size={24} className="animate-spin" />
-                    <span className="font-medium">Loading Watchlist...</span>
+                    <span className="font-medium">{t('watchlist.loading')}</span>
                 </div>
             </div>
         );
@@ -56,40 +62,40 @@ export const WatchlistPage: React.FC = () => {
                 <header className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
                         <Star size={14} />
-                        Watchlist
+                        {t('watchlist.title')}
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">Everything you are watching, in one place.</h1>
+                        <h1 className="text-3xl font-black text-slate-900 dark:text-white">{t('watchlist.hero')}</h1>
                         <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
-                            Track a market slice or pin a specific live order from Marketplace. Your Watchlist keeps both together so you can monitor the market and the exact executable rows you care about in one view.
+                            {t('watchlist.description')}
                         </p>
                     </div>
                     {radar && (
                         <div className="grid gap-3 sm:grid-cols-3">
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Tracked slices</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('watchlist.metrics.slices')}</div>
                                 <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.total_slice_count}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Unread events</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('watchlist.metrics.unread')}</div>
                                 <div className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">{radar.unread_event_count}</div>
                             </div>
                             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Pinned orders</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('watchlist.metrics.pins')}</div>
                                 <div className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{radar.slices.reduce((count, slice) => count + slice.pins.length, 0)}</div>
                             </div>
                         </div>
                     )}
                     {radar?.has_more_slices && (
                         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                            Showing the top {radar.slices.length} of {radar.total_slice_count} tracked slices. Refine the list if this grows further.
+                            {t('watchlist.truncated', { visible: radar.slices.length, total: radar.total_slice_count })}
                         </div>
                     )}
                 </header>
 
                 {error && (
                     <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-                        {error}
+                        {locale.startsWith('zh') ? t('watchlist.error') : error}
                     </div>
                 )}
 
@@ -100,40 +106,40 @@ export const WatchlistPage: React.FC = () => {
                             <article key={slice.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
-                                        <h2 className="text-lg font-black text-slate-900 dark:text-white">{formatWatchlistSliceLabel(slice)}</h2>
+                                        <h2 className="text-lg font-black text-slate-900 dark:text-white">{formatWatchlistSliceLabel(slice, t, locale)}</h2>
                                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{slice.active_order_count} live orders</span>
-                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{slice.pins.length} pins</span>
+                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{t('watchlist.count.liveOrders', { count: slice.active_order_count })}</span>
+                                            <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">{t('watchlist.count.pins', { count: slice.pins.length })}</span>
                                             {slice.unread_event_count > 0 && (
                                                 <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-bold text-emerald-700 dark:text-emerald-300">
-                                                    {slice.unread_event_count} unread
+                                                    {t('watchlist.count.unread', { count: slice.unread_event_count })}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleRemoveTarget(slice.id, formatWatchlistSliceLabel(slice))}
+                                        onClick={() => handleRemoveTarget(slice.id, formatWatchlistSliceLabel(slice, t, locale))}
                                         disabled={pendingRemovalId === slice.id}
                                         className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-400"
                                     >
                                         <Trash2 size={14} />
-                                        {pendingRemovalId === slice.id ? "Removing..." : "Untrack"}
+                                        {pendingRemovalId === slice.id ? t('watchlist.removing') : t('watchlist.untrack')}
                                     </button>
                                 </div>
 
                                 <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
                                     {latestEvent ? (
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <span>{describeWatchlistEvent(latestEvent)}</span>
+                                            <span>{describeWatchlistEvent(latestEvent, t, locale)}</span>
                                             <MarketActivityBadge activity={getWatchlistEventActivity(latestEvent)} />
                                         </div>
-                                    ) : 'No Watchlist signals have landed for this slice yet.'}
+                                    ) : t('watchlist.noSliceSignals')}
                                 </div>
 
                                 <div className="mt-4 space-y-2">
                                     {slice.pins.length === 0 ? (
                                         <div className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                            No pinned live orders in this slice yet.
+                                            {t('watchlist.noPins')}
                                         </div>
                                     ) : (
                                         slice.pins.map((pinTarget) => {
@@ -144,25 +150,28 @@ export const WatchlistPage: React.FC = () => {
                                                         <div>
                                                             <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
                                                                 <Pin size={14} className="text-emerald-500" />
-                                                                {pinTarget.snapshot_market_product || 'Pinned order'}
+                                                                {pinTarget.snapshot_market_product || t('watchlist.pinnedOrder')}
                                                             </div>
                                                             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                                {pinTarget.snapshot_delivery_point_name || slice.delivery_point_name} · {pinTarget.snapshot_availability_window || slice.availability_window_code}
+                                                                {pinTarget.snapshot_delivery_point_name || slice.delivery_point_name} · {formatAvailabilityWindow(pinTarget.snapshot_availability_window || slice.availability_window_code, locale)}
                                                             </div>
                                                             <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                                                                ${Number(pinTarget.snapshot_price_per_mt_usd ?? 0).toLocaleString()} / MT · {Number(pinTarget.snapshot_remaining_quantity_mt ?? 0).toLocaleString()} MT remaining
+                                                                {t('watchlist.pinTerms', {
+                                                                    price: Number(pinTarget.snapshot_price_per_mt_usd ?? 0).toLocaleString(locale),
+                                                                    quantity: Number(pinTarget.snapshot_remaining_quantity_mt ?? 0).toLocaleString(locale),
+                                                                })}
                                                             </div>
                                                         </div>
                                                         <button
-                                                            onClick={() => handleRemoveTarget(pinTarget.id, pinTarget.snapshot_market_product || "pinned order")}
+                                                            onClick={() => handleRemoveTarget(pinTarget.id, pinTarget.snapshot_market_product || t('watchlist.pinnedOrder').toLowerCase())}
                                                             disabled={pendingRemovalId === pinTarget.id}
                                                             className="text-xs font-semibold text-slate-500 transition-colors hover:text-red-600"
                                                         >
-                                                            {pendingRemovalId === pinTarget.id ? "Removing..." : "Unpin"}
+                                                            {pendingRemovalId === pinTarget.id ? t('watchlist.removing') : t('watchlist.unpin')}
                                                         </button>
                                                     </div>
                                                     <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                                        <span>{pinEvent ? describeWatchlistEvent(pinEvent) : 'No recent changes on this pinned order.'}</span>
+                                                        <span>{pinEvent ? describeWatchlistEvent(pinEvent, t, locale) : t('watchlist.noPinChanges')}</span>
                                                         {pinEvent && <MarketActivityBadge activity={getWatchlistEventActivity(pinEvent)} />}
                                                     </div>
                                                 </div>
@@ -178,12 +187,12 @@ export const WatchlistPage: React.FC = () => {
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
                         <BellDot size={18} className="text-emerald-500" />
-                        Event Feed
+                        {t('watchlist.eventFeed')}
                     </div>
                     <div className="space-y-3">
                         {events.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                No Watchlist activity yet. Track a slice or pin an order from Marketplace to start the feed.
+                                {t('watchlist.noActivity')}
                             </div>
                         ) : (
                             events.map((event) => (
@@ -191,20 +200,20 @@ export const WatchlistPage: React.FC = () => {
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
                                             <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">
-                                                {targetLabels.get(event.watchlist_target_id) || event.target_type}
+                                                {targetLabels.get(event.watchlist_target_id) || t(`watchlist.target.${event.target_type.toLowerCase()}`, { defaultValue: t('watchlist.target.unknown') })}
                                             </div>
                                             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                                <span>{describeWatchlistEvent(event)}</span>
+                                                <span>{describeWatchlistEvent(event, t, locale)}</span>
                                                 <MarketActivityBadge activity={getWatchlistEventActivity(event)} />
                                             </div>
-                                            <div className="mt-2 text-[11px] text-slate-400">{new Date(event.created_at).toLocaleString()}</div>
+                                            <div className="mt-2 text-[11px] text-slate-400">{new Date(event.created_at).toLocaleString(locale)}</div>
                                         </div>
                                         {!event.is_read && (
                                             <button
                                                 onClick={() => markEventRead(event.id)}
                                                 className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-300"
                                             >
-                                                Mark read
+                                                {t('watchlist.markRead')}
                                             </button>
                                         )}
                                     </div>
@@ -218,7 +227,7 @@ export const WatchlistPage: React.FC = () => {
                                 onClick={loadMoreEvents}
                                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:text-slate-200"
                             >
-                                Load more events
+                                {t('watchlist.loadMore')}
                             </button>
                         </div>
                     )}

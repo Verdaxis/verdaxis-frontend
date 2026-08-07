@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Activity, Check, FlaskConical, RefreshCw, Settings2, WifiOff, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useServerPreference } from '../../hooks/useServerPreference';
 import { api } from '../../services/api';
 import type { AggregatedOrderbook, DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
-import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
+import { formatAvailabilityWindow } from '../../utils/availabilityWindow';
 import { buildDemoMarketQuotes, type DemoMarketQuote } from '../../utils/demoMarketQuotes';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
 import { formatMarketProduct } from '../../utils/marketProduct';
@@ -147,13 +148,13 @@ const getSummaryStatus = (summary: PriceSummary): RowStatus => {
     return hoursOld <= 24 ? 'LIVE' : 'STALE';
 };
 
-const buildDemoRow = (port: Port, product: MarketProduct, quote?: DemoMarketQuote): TickerRow => {
+const buildDemoRow = (port: Port, product: MarketProduct, language: string, quote?: DemoMarketQuote): TickerRow => {
     return {
         key: `${product}-${port.id}`,
         port,
         product,
         value: currency(quote?.price ?? DEMO_PREVIEW_PRICES[product]),
-        change: quote ? formatAvailabilityWindowPeriod(quote.availabilityWindow) : 'Preview',
+        change: quote ? formatAvailabilityWindow(quote.availabilityWindow, language) : 'Preview',
         up: true,
         status: 'DEMO',
     };
@@ -194,6 +195,8 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
     aggregatedData = EMPTY_AGGREGATED_DATA,
 }) => {
     const { t, ready } = useNamespace('dashboard');
+    const { i18n } = useTranslation();
+    const language = i18n.resolvedLanguage || i18n.language || 'en';
     const editorId = useId();
     const titleId = useId();
     const helpId = useId();
@@ -316,7 +319,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                 const demoQuote = demoQuotes.find(quote => (
                     quote.product === product && normalize(quote.port) === normalize(port.name)
                 ));
-                return summaryRow ?? buildDemoRow(port, product, demoQuote);
+                return summaryRow ?? buildDemoRow(port, product, language, demoQuote);
             });
             if (!cancelled) setRows(nextRows);
         };
@@ -325,7 +328,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [deliveryPoints, demoQuotes, selectedPorts, selectedProducts]);
+    }, [deliveryPoints, demoQuotes, language, selectedPorts, selectedProducts]);
 
     const headerStatus: HeaderStatus = useMemo(() => {
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
@@ -408,7 +411,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
             </span>
             {row.change && row.status !== 'UNAVAILABLE' && row.status !== 'LOADING' && (
                 <span className={`text-xs font-bold ${row.up ? 'text-green-500' : 'text-red-500'}`}>
-                    {row.change}
+                    {row.change === 'Preview' ? t('marketWatch.preview') : row.change}
                 </span>
             )}
             <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider ${

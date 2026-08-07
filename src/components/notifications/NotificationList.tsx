@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Check, BellOff, Info, MessageSquare, Briefcase, UserCheck, CreditCard, FileText, TrendingUp, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import clsx from 'clsx';
 import { Notification } from '../../types';
 
@@ -14,38 +15,39 @@ interface NotificationListProps {
 /**
  * Format a date string into a human-readable relative time.
  */
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: TFunction, locale: string): string {
     const now = Date.now();
     const then = new Date(dateStr).getTime();
     const diffMs = now - then;
 
-    if (diffMs < 0) return 'just now';
+    if (diffMs < 0) return t('notifications.time.justNow');
 
     const seconds = Math.floor(diffMs / 1000);
-    if (seconds < 60) return 'just now';
+    if (seconds < 60) return t('notifications.time.justNow');
 
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return t('notifications.time.minutesAgo', { count: minutes });
 
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return t('notifications.time.hoursAgo', { count: hours });
 
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days < 7) return t('notifications.time.daysAgo', { count: days });
 
     if (days < 30) {
         const weeks = Math.floor(days / 7);
-        return `${weeks}w ago`;
+        return t('notifications.time.weeksAgo', { count: weeks });
     }
 
-    return new Date(dateStr).toLocaleDateString();
+    return new Date(dateStr).toLocaleDateString(locale);
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) => {
     const { notifications, markAsRead, markAllAsRead } = useNotifications();
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
+    const isEnglish = (i18n.resolvedLanguage || i18n.language).startsWith('en');
 
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.is_read) {
@@ -104,12 +106,22 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
             </div>
             
             <div className="overflow-y-auto flex-1 p-2 space-y-1">
-                {notifications.map((notification) => (
-                    <div 
+                {notifications.map((notification) => {
+                    const typeLabel = t(`notifications.type.${notification.type}`, { defaultValue: t('notifications.type.default') });
+                    const safeMessage = t(`notifications.message.${notification.type}`, { defaultValue: t('notifications.message.default') });
+                    const title = isEnglish ? notification.title : typeLabel;
+                    const message = isEnglish ? notification.message : safeMessage;
+                    const ariaLabel = isEnglish
+                        ? `${typeLabel}: ${title}. ${t(notification.is_read ? 'notifications.status.read' : 'notifications.status.unread')}`
+                        : `${title}: ${message} ${t(notification.is_read ? 'notifications.status.read' : 'notifications.status.unread')}`;
+
+                    return <button
+                        type="button"
                         key={notification.id}
                         onClick={() => handleNotificationClick(notification)}
+                        aria-label={ariaLabel}
                         className={clsx(
-                            "group p-3 rounded-md cursor-pointer transition-all border",
+                            "group w-full p-3 rounded-md cursor-pointer text-left transition-all border",
                             "hover:bg-slate-800",
                             notification.is_read 
                                 ? "bg-transparent border-transparent opacity-70" 
@@ -123,14 +135,14 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-2">
                                     <h4 className={clsx("text-sm font-medium truncate", notification.is_read ? "text-slate-400" : "text-white")}>
-                                        {notification.title}
+                                        {title}
                                     </h4>
                                     <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                                        {timeAgo(notification.created_at)}
+                                        {timeAgo(notification.created_at, t, i18n.language)}
                                     </span>
                                 </div>
                                 <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
-                                    {notification.message}
+                                    {message}
                                 </p>
                             </div>
                             {!notification.is_read && (
@@ -139,8 +151,8 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                                 </div>
                             )}
                         </div>
-                    </div>
-                ))}
+                    </button>;
+                })}
             </div>
         </div>
     );

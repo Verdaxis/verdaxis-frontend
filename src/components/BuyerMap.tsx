@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
@@ -38,6 +39,24 @@ const getSpreadColor = (spreadPct: number): string => {
 };
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const escapeHtml = (value: unknown) => String(value).replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+}[character]!));
+const MAPLIBRE_UI_LOCALES = {
+    en: {
+        'AttributionControl.ToggleAttribution': 'Toggle attribution',
+        'AttributionControl.MapFeedback': 'Map feedback',
+    },
+    zh: {
+        'AttributionControl.ToggleAttribution': '切换地图版权信息',
+        'AttributionControl.MapFeedback': '地图反馈',
+    },
+} as const;
 
 interface LayerSwitchProps {
     checked: boolean;
@@ -77,9 +96,15 @@ const LayerSwitch: React.FC<LayerSwitchProps> = ({ checked, description, label, 
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
+    const { i18n } = useTranslation();
+    const mapLanguage = (i18n.resolvedLanguage || i18n.language).toLowerCase().split('-')[0] === 'zh' ? 'zh' : 'en';
+    const mapLocale = MAPLIBRE_UI_LOCALES[mapLanguage];
+    const translateRef = useRef(t);
+    translateRef.current = t;
     const { theme } = useTheme();
     const [ports, setPorts] = useState<Port[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showMarketWatch, setShowMarketWatch] = useState(true);
@@ -112,6 +137,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 setAggregatedData(aggData);
             } catch (e) {
                 console.error("Failed to load map data", e);
+                setPorts(resolveApprovedMapPorts(APPROVED_MAP_PORTS, [], []));
+                setLoadError(true);
             } finally {
                 setLoading(false);
             }
@@ -307,6 +334,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             center: [10, 25],
             zoom: 2.5,
             attributionControl: false,
+            locale: mapLocale,
         });
 
         map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
@@ -314,7 +342,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         mapRef.current = map;
 
         return () => { map.remove(); mapRef.current = null; };
-    }, [loading, theme]);
+    }, [loading, mapLocale, theme]);
 
     // Port markers layer
     useEffect(() => {
@@ -379,17 +407,18 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 map.on('mouseenter', 'port-fills', (e) => {
                     map.getCanvas().style.cursor = 'pointer';
                     if (!e.features?.length) return;
+                    const translate = translateRef.current;
                     const f = e.features[0];
                     const props = f.properties;
                     const coords = (f.geometry as any).coordinates.slice();
                     const pricePart = props.referencePrice
-                        ? ' <span style="color:#94A3B8">' + props.referenceProduct + '</span> <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + Number(props.referencePrice).toFixed(0) + '</span>'
+                        ? ' <span style="color:#94A3B8">' + escapeHtml(props.referenceProduct) + '</span> <span style="color:#10B981;font-family:\'IBM Plex Mono\',monospace">$' + Number(props.referencePrice).toFixed(0) + '</span>'
                         : '';
                     const volumePart = props.totalVolume > 0
-                        ? '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + Math.round(props.totalVolume).toLocaleString() + ' MT open</div>'
+                        ? '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + escapeHtml(translate('buyerMap.openVolume', { volume: Math.round(props.totalVolume).toLocaleString() })) + '</div>'
                         : '';
                     const tooltipHtml = '<div style="background:#1E293B;color:#F8FAFC;border-radius:6px;padding:6px 10px;font-family:\'DM Sans\',\'Inter\',sans-serif;font-size:12px;white-space:nowrap">'
-                        + '<span style="font-weight:700">' + props.name + '</span>'
+                        + '<span style="font-weight:700">' + escapeHtml(props.name) + '</span>'
                         + pricePart
                         + volumePart
                         + '</div>';
@@ -404,6 +433,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 // Click handler for port popups
                 map.on('click', 'port-fills', (e) => {
                     if (!e.features?.length) return;
+                    const translate = translateRef.current;
                     const f = e.features[0];
                     const portId = f.properties.id;
                     handleMarkerClick(portId);
@@ -419,44 +449,47 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const fuelRowsHtml = mkt.fuelRows.length > 0
                         ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">'
                             + '<thead><tr style="border-bottom:1px solid rgba(148,163,184,0.3)">'
-                            + '<th style="text-align:left;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px;text-transform:uppercase">Fuel</th>'
-                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">Bid</th>'
-                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">Ask</th>'
+                            + '<th style="text-align:left;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px;text-transform:uppercase">' + escapeHtml(translate('buyerMap.popup.fuel')) + '</th>'
+                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">' + escapeHtml(translate('buyerMap.popup.bid')) + '</th>'
+                            + '<th style="text-align:right;padding:3px 4px;color:#94A3B8;font-weight:600;font-size:10px">' + escapeHtml(translate('buyerMap.popup.ask')) + '</th>'
                             + '<th style="text-align:right;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px">#</th>'
                             + '</tr></thead><tbody>'
                             + mkt.fuelRows.map((row, i) =>'<tr style="border-bottom:' + (i < mkt.fuelRows.length - 1 ? '1px solid rgba(148,163,184,0.1)' : 'none') + '">'
-                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + row.label + '</td>'
+                                + '<td style="padding:4px 0;font-weight:600;color:#E2E8F0">' + escapeHtml(row.label) + '</td>'
                                 + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#10B981;font-weight:600">' + (row.bestBid !== null ? '$' + row.bestBid.toFixed(0) : '--') + '</td>'
                                 + '<td style="text-align:right;padding:4px 4px;font-family:\'IBM Plex Mono\',monospace;color:#EF4444;font-weight:600">' + (row.bestAsk !== null ? '$' + row.bestAsk.toFixed(0) : '--') + '</td>'
                                 + '<td style="text-align:right;padding:4px 0;color:#94A3B8">' + row.orderCount + '</td>'
                                 + '</tr>').join('')
                             + '</tbody></table>'
-                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">No open orders at this port</div>';
+                        : '<div style="font-size:11px;color:#64748B;margin-bottom:10px;padding:8px 0;text-align:center">' + escapeHtml(translate('buyerMap.popup.noOpenOrders')) + '</div>';
 
                     // Market intelligence section
                     const spotPrice = mkt.reference ? '$' + mkt.reference.price.toFixed(0) : '--';
                     const referenceLabel = mkt.reference
-                        ? t('buyerMap.spotIndication', { product: mkt.reference.productLabel })
-                        : t('buyerMap.spotIndicationUnavailable');
+                        ? translate('buyerMap.spotIndication', { product: mkt.reference.productLabel })
+                        : translate('buyerMap.spotIndicationUnavailable');
                     const referenceSource = !mkt.reference
                         ? '--'
                         : mkt.reference.source === 'DEMO'
-                            ? t('buyerMap.demoMarketplace')
+                            ? translate('buyerMap.demoMarketplace')
                             : mkt.reference.source === 'MIXED'
-                                ? t('buyerMap.mixedMarketplace')
-                                : t('buyerMap.marketplace');
+                                ? translate('buyerMap.mixedMarketplace')
+                                : translate('buyerMap.marketplace');
                     const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
                     const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
+                    const congestionLabel = congestion === '--'
+                        ? congestion
+                        : translate(`intelligencePanel.congestionLevels.${translationKey(congestion)}`, { defaultValue: translate('intelligencePanel.congestionLevels.unknown') });
                     const congColor = congestion === 'Low' ? '#10B981' : congestion === 'Moderate' ? '#F59E0B' : congestion === 'High' ? '#EF4444' : '#94A3B8';
                     const externalReferencesHtml = plattsPrice !== '--' || swapPrice !== '--'
                         ? '<div style="background:rgba(148,163,184,0.08);padding:6px 8px;border-radius:6px;margin-bottom:6px">'
                             + '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">'
-                            + '<span style="color:#E8373E;font-weight:600">' + t('buyerMap.benchmarkReference') + '</span>'
+                            + '<span style="color:#E8373E;font-weight:600">' + escapeHtml(translate('buyerMap.benchmarkReference')) + '</span>'
                             + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + plattsPrice + '</span>'
                             + '</div>'
                             + '<div style="display:flex;justify-content:space-between;font-size:11px">'
-                            + '<span style="color:#94A3B8;font-weight:600">' + t('buyerMap.swapReference') + '</span>'
+                            + '<span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('buyerMap.swapReference')) + '</span>'
                             + '<span style="font-weight:700;color:#E2E8F0;font-family:\'IBM Plex Mono\',monospace">' + swapPrice + '</span>'
                             + '</div>'
                             + '</div>'
@@ -464,25 +497,27 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Product-specific SPOT indication
                         + '<div style="margin-bottom:6px">'
-                        + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600;margin-bottom:2px">' + referenceLabel + '</div>'
+                        + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600;margin-bottom:2px">' + escapeHtml(referenceLabel) + '</div>'
                         + '<div style="font-size:16px;font-weight:700;color:#F8FAFC;font-family:\'IBM Plex Mono\',monospace">' + spotPrice + '</div>'
                         + '</div>'
                         + externalReferencesHtml
                         // Congestion row
                         + '<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px">'
-                        + '<div><span style="color:#94A3B8;font-weight:600">Congestion</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + congestion + '</span></div>'
-                        + '<div><span style="color:#94A3B8;font-weight:600">' + t('buyerMap.source') + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + referenceSource + '</span></div>'
+                        + '<div><span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('intelligencePanel.congestion')) + '</span> <span style="color:' + congColor + ';font-weight:700;margin-left:3px">' + escapeHtml(congestionLabel) + '</span></div>'
+                        + '<div><span style="color:#94A3B8;font-weight:600">' + escapeHtml(translate('buyerMap.source')) + '</span> <span style="color:#E2E8F0;font-weight:600;margin-left:3px">' + escapeHtml(referenceSource) + '</span></div>'
                         + '</div>'
                         + '</div>';
 
                     const html = '<div style="width:260px;background:' + (isDark ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
                         + '<h3 style="font-family:\'Montserrat\',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.2)">'
-                        + (port.name || 'Unknown Port')
-                        + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + (port.country || 'Global') + '</span>'
+                        + escapeHtml(port.name || translate('buyerMap.popup.unknownPort'))
+                        + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + escapeHtml(port.country
+                            ? translate(`countries.${translationKey(port.country)}`, { defaultValue: port.country })
+                            : translate('buyerMap.popup.global')) + '</span>'
                         + '</h3>'
                         + fuelRowsHtml
                         + marketIntelHtml
-                        + '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(\'' + port.id + '\')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">Trade at ' + port.name + ' \u2192</button>'
+                        + '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(' + escapeHtml(JSON.stringify(port.id)) + ')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' + escapeHtml(translate('buyerMap.popup.tradeAt', { port: port.name })) + ' \u2192</button>'
                         + '</div>';
 
                     const coords = (f.geometry as any).coordinates.slice();
@@ -490,6 +525,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         .setLngLat(coords)
                         .setHTML(html)
                         .addTo(map);
+                    popupRef.current.getElement()?.querySelector('.maplibregl-popup-close-button')?.setAttribute('aria-label', translate('buyerMap.popup.close'));
                 });
             }
         };
@@ -599,12 +635,14 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             map.on('mouseenter', 'vessels-layer', (e) => {
                                 map.getCanvas().style.cursor = 'pointer';
                                 if (!e.features?.length) return;
+                                const translate = translateRef.current;
                                 const p = e.features[0].properties;
                                 const coords = (e.features[0].geometry as any).coordinates.slice();
                                 const ciiColor = ['A','B'].includes(p.ciiGrade) ? '#10B981' : p.ciiGrade === 'C' ? '#F59E0B' : '#EF4444';
-                                const html = '<div style="font-family:\'DM Sans\',sans-serif"><strong>' + p.name + '</strong>'
-                                    + '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + p.vesselType
-                                    + (p.ciiGrade ? ' <span style="color:' + ciiColor + ';font-weight:700">CII ' + p.ciiGrade + '</span>' : '')
+                                const vesselType = translate(`buyerMap.vesselTypes.${translationKey(p.vesselType || '')}`, { defaultValue: translate('buyerMap.vesselTypes.other') });
+                                const html = '<div style="font-family:\'DM Sans\',sans-serif"><strong>' + escapeHtml(p.name) + '</strong>'
+                                    + '<div style="font-size:10px;color:#94A3B8;margin-top:2px">' + escapeHtml(vesselType)
+                                    + (p.ciiGrade ? ' <span style="color:' + ciiColor + ';font-weight:700">CII ' + escapeHtml(p.ciiGrade) + '</span>' : '')
                                     + '</div></div>';
                                 vesselPopup.setLngLat(coords).setHTML(html).addTo(map);
                             });
@@ -661,7 +699,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
-                <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+                <div ref={mapContainer} role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                {loadError && (
+                    <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
+                        {t('buyerMap.error')}
+                    </div>
+                )}
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
                 {showMarketWidgets && (
@@ -693,7 +736,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         ))
                                     ) : (
                                         <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                                            No open asks available yet.
+                                            {t('buyerMap.noOpenAsks')}
                                         </div>
                                     )}
                                 </div>
@@ -825,7 +868,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                         : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                 }`}
                             >
-                                All
+                                {t('buyerMap.allProducts')}
                             </button>
                             {availableProducts.map(product => (
                                 <button
@@ -849,6 +892,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             {!isPanelOpen && (
                 <button
                     onClick={() => setIsPanelOpen(true)}
+                    aria-label={t('buyerMap.showInsights')}
                     className="absolute top-4 right-4 z-[20] bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm p-2 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-500 transition-colors"
                 >
                     <Tooltip content={t('buyerMap.showInsights')} position="left">

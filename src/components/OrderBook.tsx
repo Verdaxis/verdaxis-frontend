@@ -5,6 +5,8 @@ import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
+import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import i18n from '../i18n';
 
 interface OrderBookProps {
     fuelType?: string;
@@ -55,12 +57,12 @@ export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookO
     };
 }
 
-function formatPrice(price: number): string {
-    return `$${price.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+function formatPrice(price: number, locale = 'en'): string {
+    return `$${price.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
-function formatQty(qty: number): string {
-    return qty.toLocaleString('en-US', { maximumFractionDigits: 0 });
+function formatQty(qty: number, locale = 'en'): string {
+    return qty.toLocaleString(locale, { maximumFractionDigits: 0 });
 }
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
@@ -103,11 +105,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
             setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
             setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
         } catch (err: any) {
-            if (!silent) setError(err?.message || 'Failed to load orderbook');
+            if (!silent) setError(i18n.language.startsWith('zh') ? t('orderBook.error') : err?.message || t('orderBook.error'));
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [fuelType, marketProduct, region, deliveryPointId, availability]);
+    }, [fuelType, marketProduct, region, deliveryPointId, availability, t]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {
@@ -144,6 +146,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }, []);
 
     if (!ready) return null;
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
 
     if (loading) {
         return (
@@ -180,7 +183,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     )}
                     {availability && (
                         <span className="ml-1 text-xs font-semibold text-slate-400 normal-case">
-                            · {availability}
+                            · {formatAvailabilityWindow(availability, locale)}
                         </span>
                     )}
                 </h3>
@@ -254,7 +257,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         }}
                                         role={bidInteractive ? 'button' : undefined}
                                         tabIndex={bidInteractive ? 0 : undefined}
-                                        aria-label={bidInteractive ? `Open bid ${formatPrice(bid.price_per_mt_usd)} for ${formatQty(bid.remaining_quantity_mt)} MT in listings` : undefined}
+                                        aria-label={bidInteractive ? t('orderBook.openBid', { price: formatPrice(bid.price_per_mt_usd, locale), quantity: formatQty(bid.remaining_quantity_mt, locale) }) : undefined}
                                         aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
                                         className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors ${bidInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70' : 'cursor-default'} ${
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
@@ -279,21 +282,21 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
                                                 className="relative z-10 mr-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
-                                                Sell
+                                                {t('orderBook.sell')}
                                             </button>
                                         )}
                                         <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400">
-                                            {formatQty(bid.remaining_quantity_mt)}
+                                            {formatQty(bid.remaining_quantity_mt, locale)}
                                         </span>
                                         <span className={`relative z-10 text-xs font-mono font-bold text-right ${
                                             bidCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                                         }`}>
                                             {bidCrossed && (
                                                 <span className="mr-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />CROSS
+                                                    <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
                                                 </span>
                                             )}
-                                            {formatPrice(bid.price_per_mt_usd)}
+                                            {formatPrice(bid.price_per_mt_usd, locale)}
                                         </span>
                                     </div>
                                 ) : (
@@ -317,7 +320,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         }}
                                         role={askInteractive ? 'button' : undefined}
                                         tabIndex={askInteractive ? 0 : undefined}
-                                        aria-label={askInteractive ? `Open ask ${formatPrice(ask.price_per_mt_usd)} for ${formatQty(ask.remaining_quantity_mt)} MT in listings` : undefined}
+                                        aria-label={askInteractive ? t('orderBook.openAsk', { price: formatPrice(ask.price_per_mt_usd, locale), quantity: formatQty(ask.remaining_quantity_mt, locale) }) : undefined}
                                         aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
                                         className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors ${askInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70' : 'cursor-default'} ${
                                             askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
@@ -340,10 +343,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         <span className={`relative z-10 text-xs font-mono font-bold ${
                                             askCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
                                         }`}>
-                                            {formatPrice(ask.price_per_mt_usd)}
+                                            {formatPrice(ask.price_per_mt_usd, locale)}
                                             {askCrossed && (
                                                 <span className="ml-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />CROSS
+                                                    <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
                                                 </span>
                                             )}
                                             {ask.carbon_intensity_gco2_mj != null && (
@@ -354,19 +357,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                                         ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
                                                         : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                                                 }`}>
-                                                    CI {Math.round(ask.carbon_intensity_gco2_mj)}
+                                                    {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
                                                 </span>
                                             )}
                                         </span>
                                         <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
-                                            {formatQty(ask.remaining_quantity_mt)}
+                                            {formatQty(ask.remaining_quantity_mt, locale)}
                                         </span>
                                         {onInstantTrade && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
                                                 className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
-                                                Buy
+                                                {t('orderBook.buy')}
                                             </button>
                                         )}
                                     </div>
@@ -395,29 +398,29 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         </div>
                         {hoverTooltip.order.is_demo_listing && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
-                                Demo listing seeded for platform preview. Not user-posted liquidity.
+                                {t('marketplace.demo.tooltip')}
                             </div>
                         )}
                         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-600 dark:text-slate-300">
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Certification</span>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('marketplace.modal.certification')}</span>
                                 <span>{hoverTooltip.order.certification_scheme || hoverTooltip.order.certifications?.[0] || t('orderPlaceModal.option.anyCertifiedScheme')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Origin</span>
-                                <span>{hoverTooltip.order.origin || 'Not specified'}</span>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.origin')}</span>
+                                <span>{hoverTooltip.order.origin || t('common.notSpecified')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">Feedstock</span>
-                                <span>{hoverTooltip.order.feedstock || 'Not specified'}</span>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.feedstock')}</span>
+                                <span>{hoverTooltip.order.feedstock || t('common.notSpecified')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">CI</span>
-                                <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : 'N/A'}</span>
+                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderBook.ci')}</span>
+                                <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : t('common.notAvailable')}</span>
                             </div>
                         </div>
                         <div className="mt-3 border-t border-slate-200 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                            {hoverTooltip.order.delivery_point_name || hoverTooltip.order.region} · {hoverTooltip.order.availability_window}
+                            {hoverTooltip.order.delivery_point_name || hoverTooltip.order.region} · {formatAvailabilityWindow(hoverTooltip.order.availability_window, locale)}
                         </div>
                     </div>,
                     document.body,
@@ -440,7 +443,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                     {t('orderBook.crossed')}
                                 </span>
                             ) : (
-                                `${formatPrice(spread)} (${spreadPct.toFixed(2)}%)`
+                                `${formatPrice(spread, locale)} (${spreadPct.toFixed(2)}%)`
                             )}
                         </span>
                     </div>

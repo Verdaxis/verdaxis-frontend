@@ -1,8 +1,17 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import i18n, { loadNamespace } from '../../../i18n';
 import { PriceTicker } from '../PriceTicker';
 import { fetchFuelPrices } from '../../../data/fuelPrices';
+import { formatAvailabilityWindowPeriod } from '../../../utils/availabilityWindow';
+
+vi.mock('../../../utils/availabilityWindow', () => ({
+  formatAvailabilityWindowPeriod: vi.fn((value: string, locale = 'en') => {
+    if (locale.toLowerCase().startsWith('zh')) return value === 'SPOT' ? '现货' : '26年8月';
+    return value === 'SPOT' ? 'SPOT' : 'AUG 26';
+  }),
+}));
 
 vi.mock('../../../data/fuelPrices', () => ({
   fetchFuelPrices: vi.fn(),
@@ -22,6 +31,7 @@ vi.mock('../../../data/fuelPrices', () => ({
 }));
 
 const mockedFetchFuelPrices = vi.mocked(fetchFuelPrices);
+const mockedFormatAvailabilityWindowPeriod = vi.mocked(formatAvailabilityWindowPeriod);
 
 const fuelPrices = [
   {
@@ -86,5 +96,23 @@ describe('PriceTicker', () => {
 
     expect(container.querySelector('.public-price-ticker')?.getAttribute('tabindex')).toBe('0');
     expect(screen.queryByText(/unavailable/i)).toBeNull();
+  });
+
+  it('passes the current Chinese language to the availability formatter', async () => {
+    await loadNamespace('public');
+    await i18n.changeLanguage('zh');
+
+    try {
+      render(<PriceTicker />);
+
+      expect((await screen.findAllByText('26年8月')).length).toBeGreaterThan(0);
+      expect(mockedFormatAvailabilityWindowPeriod).toHaveBeenCalledWith(
+        '2026-08',
+        expect.stringMatching(/^zh/i),
+      );
+    } finally {
+      cleanup();
+      await i18n.changeLanguage('en');
+    }
   });
 });

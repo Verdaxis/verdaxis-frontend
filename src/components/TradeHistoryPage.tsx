@@ -19,20 +19,24 @@ import { useToast } from './Toast';
 import { MyTrades } from './MyTrades';
 import { buildTradePerformanceModel, tradeSliceKey } from '../utils/tradeAnalytics';
 import { getProductDisplayName, getProductDisplayNameFromReference } from '../utils/marketProduct';
+import { useNamespace } from '../hooks/useNamespace';
+import i18n from '../i18n';
 
 // ─── Types ───────────────────────────────────────────────────────
 type TabId = 'blotter' | 'performance' | 'alerts';
 
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: 'blotter', label: 'Blotter', icon: ArrowLeftRight },
-    { id: 'performance', label: 'Performance', icon: TrendingUp },
-    { id: 'alerts', label: 'Alerts', icon: Bell },
+const TABS: { id: TabId; labelKey: string; icon: React.ElementType }[] = [
+    { id: 'blotter', labelKey: 'tradeHistory.tab.blotter', icon: ArrowLeftRight },
+    { id: 'performance', labelKey: 'tradeHistory.tab.performance', icon: TrendingUp },
+    { id: 'alerts', labelKey: 'tradeHistory.tab.alerts', icon: Bell },
 ];
 
 const SELECT_CLASS = 'w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2]';
 
 // ─── Performance Tab ─────────────────────────────────────────────
 const PerformanceTab: React.FC = () => {
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [trades, setTrades] = useState<Trade[]>([]);
     const [referenceBySlice, setReferenceBySlice] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
@@ -100,8 +104,11 @@ const PerformanceTab: React.FC = () => {
     }, []);
 
     const model = useMemo(
-        () => buildTradePerformanceModel(trades, referenceBySlice),
-        [trades, referenceBySlice]
+        () => buildTradePerformanceModel(trades, referenceBySlice, {
+            locale,
+            unknownFuelLabel: t('tradeHistory.unknownFuel'),
+        }),
+        [locale, referenceBySlice, t, trades]
     );
 
     const maxVolume = model.volumeByFuel.length > 0
@@ -111,11 +118,13 @@ const PerformanceTab: React.FC = () => {
         ? Math.max(...model.monthlyTradeCounts.map((entry) => entry.count), 1)
         : 1;
 
+    if (!ready) return null;
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
                 <Loader2 className="animate-spin text-slate-400" size={32} />
-                <span className="ml-3 text-slate-500 dark:text-slate-400">Loading performance data...</span>
+                <span className="ml-3 text-slate-500 dark:text-slate-400">{t('tradeHistory.performance.loading')}</span>
             </div>
         );
     }
@@ -124,10 +133,10 @@ const PerformanceTab: React.FC = () => {
         <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Trades', value: model.totalTrades.toString(), icon: ArrowLeftRight, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-                    { label: 'Total Volume', value: `${model.totalVolumeMt.toLocaleString()} MT`, icon: Package, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-                    { label: 'Weighted Avg Price', value: `$${model.weightedAveragePriceUsd.toFixed(2)}`, icon: DollarSign, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-                    { label: 'Gross Notional', value: `$${model.grossNotionalUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20' },
+                    { label: t('tradeHistory.performance.totalTrades'), value: model.totalTrades.toString(), icon: ArrowLeftRight, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+                    { label: t('tradeHistory.performance.totalVolume'), value: `${model.totalVolumeMt.toLocaleString(locale)} MT`, icon: Package, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                    { label: t('tradeHistory.performance.weightedPrice'), value: `$${model.weightedAveragePriceUsd.toFixed(2)}`, icon: DollarSign, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+                    { label: t('tradeHistory.performance.grossNotional'), value: `$${model.grossNotionalUsd.toLocaleString(locale, { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-violet-500', bg: 'bg-violet-50 dark:bg-violet-900/20' },
                 ].map((kpi) => (
                     <div key={kpi.label} className="v-card p-4 lg:p-5">
                         <div className="flex items-center gap-3 mb-2">
@@ -143,16 +152,16 @@ const PerformanceTab: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="v-card p-5">
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">Volume by Fuel Type</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">{t('tradeHistory.performance.volumeByFuel')}</h3>
                     {model.volumeByFuel.length === 0 ? (
-                        <p className="text-sm text-slate-400 py-8 text-center">Confirm your first trade to see volume data</p>
+                        <p className="text-sm text-slate-400 py-8 text-center">{t('tradeHistory.performance.noVolume')}</p>
                     ) : (
                         <div className="space-y-3">
                             {model.volumeByFuel.map((entry) => (
                                 <div key={entry.fuel}>
                                     <div className="flex justify-between text-xs mb-1">
                                         <span className="font-bold text-slate-600 dark:text-slate-300">{entry.fuel}</span>
-                                        <span className="text-slate-500 dark:text-slate-400">{entry.volumeMt.toLocaleString()} MT</span>
+                                        <span className="text-slate-500 dark:text-slate-400">{entry.volumeMt.toLocaleString(locale)} MT</span>
                                     </div>
                                     <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div
@@ -167,7 +176,7 @@ const PerformanceTab: React.FC = () => {
                 </div>
 
                 <div className="v-card p-5">
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">Monthly Trade Count</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">{t('tradeHistory.performance.monthlyCount')}</h3>
                     <div className="flex items-end gap-4 h-40">
                         {model.monthlyTradeCounts.map((entry) => (
                             <div key={entry.label} className="flex-1 flex flex-col items-center">
@@ -189,18 +198,18 @@ const PerformanceTab: React.FC = () => {
             </div>
 
             <div className="v-card p-5">
-                <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">Execution vs Internal Reference</h3>
+                <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">{t('tradeHistory.performance.executionVsReference')}</h3>
                 {model.fuelComparisons.length === 0 ? (
-                    <p className="text-sm text-slate-400 py-8 text-center">No internal reference prices were available for your confirmed trades yet</p>
+                    <p className="text-sm text-slate-400 py-8 text-center">{t('tradeHistory.performance.noReference')}</p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-xs text-slate-500 dark:text-slate-400 uppercase border-b border-slate-100 dark:border-slate-700">
-                                    <th className="text-left py-2 font-bold">Fuel Type</th>
-                                    <th className="text-right py-2 font-bold">Avg Execution</th>
-                                    <th className="text-right py-2 font-bold">Internal Reference</th>
-                                    <th className="text-right py-2 font-bold">Difference</th>
+                                    <th className="text-left py-2 font-bold">{t('tradeHistory.col.fuel')}</th>
+                                    <th className="text-right py-2 font-bold">{t('tradeHistory.col.avgExecution')}</th>
+                                    <th className="text-right py-2 font-bold">{t('tradeHistory.col.internalReference')}</th>
+                                    <th className="text-right py-2 font-bold">{t('tradeHistory.col.difference')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
@@ -226,6 +235,8 @@ const PerformanceTab: React.FC = () => {
 // ─── Alerts Tab ──────────────────────────────────────────────────
 const AlertsTab: React.FC = () => {
     const { addToast } = useToast();
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [alerts, setAlerts] = useState<PriceAlert[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -278,7 +289,7 @@ const AlertsTab: React.FC = () => {
                 direction: formDirection,
                 threshold_usd: formThreshold,
             });
-            addToast({ type: 'success', title: 'Alert Created', message: 'Price alert has been set.' });
+            addToast({ type: 'success', title: t('tradeHistory.alert.createdTitle'), message: t('tradeHistory.alert.createdMessage') });
             setShowForm(false);
             setFormProductId('');
             setFormDpId('');
@@ -286,7 +297,7 @@ const AlertsTab: React.FC = () => {
             setFormThreshold(0);
             await fetchAlerts();
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Failed', message: err.message || 'Could not create alert.' });
+            addToast({ type: 'warning', title: t('tradeHistory.alert.failedTitle'), message: i18n.language.startsWith('zh') ? t('tradeHistory.alert.createFailed') : err.message || t('tradeHistory.alert.createFailed') });
         } finally {
             setCreating(false);
         }
@@ -296,10 +307,10 @@ const AlertsTab: React.FC = () => {
         setDeleting(id);
         try {
             await api.alerts.delete(id);
-            addToast({ type: 'info', title: 'Deleted', message: 'Alert removed.' });
+            addToast({ type: 'info', title: t('tradeHistory.alert.deletedTitle'), message: t('tradeHistory.alert.deletedMessage') });
             await fetchAlerts();
         } catch (err: any) {
-            addToast({ type: 'warning', title: 'Failed', message: err.message || 'Could not delete alert.' });
+            addToast({ type: 'warning', title: t('tradeHistory.alert.failedTitle'), message: i18n.language.startsWith('zh') ? t('tradeHistory.alert.deleteFailed') : err.message || t('tradeHistory.alert.deleteFailed') });
         } finally {
             setDeleting(null);
         }
@@ -309,13 +320,15 @@ const AlertsTab: React.FC = () => {
         alert.product_name
             || (alert.market_product ? getProductDisplayNameFromReference(alert.market_product, products) : '')
             || getProductDisplayNameFromReference(alert.product_id, products);
-    const getDpName = (id?: string) => id ? (deliveryPoints.find(d => d.id === id)?.name || 'Any') : 'Any';
+    const getDpName = (id?: string) => id ? (deliveryPoints.find(d => d.id === id)?.name || t('tradeHistory.alert.anyPort')) : t('tradeHistory.alert.anyPort');
+
+    if (!ready) return null;
 
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
                 <Loader2 className="animate-spin text-slate-400" size={32} />
-                <span className="ml-3 text-slate-500 dark:text-slate-400">Loading alerts...</span>
+                <span className="ml-3 text-slate-500 dark:text-slate-400">{t('tradeHistory.alert.loading')}</span>
             </div>
         );
     }
@@ -325,31 +338,31 @@ const AlertsTab: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Set price triggers to get notified when market prices cross your thresholds.
+                    {t('tradeHistory.alert.description')}
                 </p>
                 <button
                     onClick={() => setShowForm(!showForm)}
                     className="flex items-center gap-1.5 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white text-sm font-bold rounded-lg transition-colors"
                 >
                     {showForm ? <X size={14} /> : <Plus size={14} />}
-                    {showForm ? 'Cancel' : 'Create Alert'}
+                    {showForm ? t('common.cancel') : t('tradeHistory.alert.create')}
                 </button>
             </div>
 
             {/* Inline Create Form */}
             {showForm && (
                 <div className="v-card p-5 border-2 border-[#5DADE2]/30">
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">New Price Alert</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">{t('tradeHistory.alert.new')}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Fuel Type</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t('tradeHistory.col.fuel')}</label>
                             <select
-                                aria-label="Price alert fuel"
+                                aria-label={t('tradeHistory.alert.ariaFuel')}
                                 value={formProductId}
                                 onChange={(event) => setFormProductId(event.target.value)}
                                 className={SELECT_CLASS}
                             >
-                                <option value="">Select fuel...</option>
+                                <option value="">{t('tradeHistory.alert.selectFuel')}</option>
                                 {products
                                         .filter((product) => product.is_active)
                                         .map((product) => (
@@ -358,33 +371,33 @@ const AlertsTab: React.FC = () => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Port</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t('tradeHistory.col.port')}</label>
                             <select
-                                aria-label="Price alert port"
+                                aria-label={t('tradeHistory.alert.ariaPort')}
                                 value={formDpId}
                                 onChange={(event) => setFormDpId(event.target.value)}
                                 className={SELECT_CLASS}
                             >
-                                <option value="">Any port</option>
+                                <option value="">{t('tradeHistory.alert.anyPort')}</option>
                                 {deliveryPoints.map((dp) => (
                                     <option key={dp.id} value={dp.id}>{dp.name}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Direction</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t('tradeHistory.col.direction')}</label>
                             <select
-                                aria-label="Price alert direction"
+                                aria-label={t('tradeHistory.alert.ariaDirection')}
                                 value={formDirection}
                                 onChange={(event) => setFormDirection(event.target.value as 'above' | 'below')}
                                 className={SELECT_CLASS}
                             >
-                                <option value="above">Above</option>
-                                <option value="below">Below</option>
+                                <option value="above">{t('tradeHistory.alert.above')}</option>
+                                <option value="below">{t('tradeHistory.alert.below')}</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">Target Price (USD/MT)</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1.5">{t('tradeHistory.alert.targetPrice')}</label>
                             <div className="flex gap-2">
                                 <input
                                     type="number"
@@ -392,7 +405,7 @@ const AlertsTab: React.FC = () => {
                                     onChange={e => setFormThreshold(parseFloat(e.target.value) || 0)}
                                     min={0}
                                     step={1}
-                                    placeholder="e.g. 850"
+                                    placeholder={t('tradeHistory.alert.pricePlaceholder')}
                                     className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#5DADE2]"
                                 />
                                 <button
@@ -401,7 +414,7 @@ const AlertsTab: React.FC = () => {
                                     className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                                 >
                                     {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                                    Set
+                                    {t('tradeHistory.alert.set')}
                                 </button>
                             </div>
                         </div>
@@ -413,8 +426,8 @@ const AlertsTab: React.FC = () => {
             {alerts.length === 0 ? (
                 <div className="v-card p-12 text-center border-dashed">
                     <Bell className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-4" />
-                    <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">No Alerts Set</h3>
-                    <p className="text-slate-400 dark:text-slate-500 mt-1 text-sm">Create a price alert to get notified when market conditions match your criteria.</p>
+                    <h3 className="text-lg font-bold text-slate-500 dark:text-slate-400">{t('tradeHistory.alert.emptyTitle')}</h3>
+                    <p className="text-slate-400 dark:text-slate-500 mt-1 text-sm">{t('tradeHistory.alert.emptyBody')}</p>
                 </div>
             ) : (
                 <div className="v-card overflow-hidden">
@@ -422,11 +435,11 @@ const AlertsTab: React.FC = () => {
                         <table className="w-full text-left text-sm">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
-                                    <th className="px-4 lg:px-6 py-3">Fuel Type</th>
-                                    <th className="px-4 lg:px-6 py-3">Port</th>
-                                    <th className="px-4 lg:px-6 py-3">Direction</th>
-                                    <th className="px-4 lg:px-6 py-3 text-right">Target Price</th>
-                                    <th className="px-4 lg:px-6 py-3">Status</th>
+                                    <th className="px-4 lg:px-6 py-3">{t('tradeHistory.col.fuel')}</th>
+                                    <th className="px-4 lg:px-6 py-3">{t('tradeHistory.col.port')}</th>
+                                    <th className="px-4 lg:px-6 py-3">{t('tradeHistory.col.direction')}</th>
+                                    <th className="px-4 lg:px-6 py-3 text-right">{t('tradeHistory.col.targetPrice')}</th>
+                                    <th className="px-4 lg:px-6 py-3">{t('tradeHistory.col.status')}</th>
                                     <th className="px-4 lg:px-6 py-3"></th>
                                 </tr>
                             </thead>
@@ -446,26 +459,26 @@ const AlertsTab: React.FC = () => {
                                                 alert.direction === 'above' ? 'text-red-500' : 'text-emerald-500'
                                             }`}>
                                                 {alert.direction === 'above' ? <TrendingUp size={12} /> : <TrendingUp size={12} className="rotate-180" />}
-                                                {alert.direction.charAt(0).toUpperCase() + alert.direction.slice(1)}
+                                                {t(alert.direction === 'above' ? 'tradeHistory.alert.above' : 'tradeHistory.alert.below')}
                                             </span>
                                         </td>
                                         <td className="px-4 lg:px-6 py-3 text-right font-bold text-slate-700 dark:text-slate-200">
-                                            ${alert.threshold_usd.toLocaleString()}
+                                            ${alert.threshold_usd.toLocaleString(locale)}
                                         </td>
                                         <td className="px-4 lg:px-6 py-3">
                                             {alert.triggered_at ? (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full border border-amber-200 dark:border-amber-800">
                                                     <AlertTriangle size={10} />
-                                                    Triggered
+                                                    {t('tradeHistory.alert.triggered')}
                                                 </span>
                                             ) : alert.is_active ? (
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full border border-emerald-200 dark:border-emerald-800">
                                                     <CheckCircle2 size={10} />
-                                                    Active
+                                                    {t('tradeHistory.alert.active')}
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded-full border border-slate-200 dark:border-slate-700">
-                                                    Inactive
+                                                    {t('tradeHistory.alert.inactive')}
                                                 </span>
                                             )}
                                         </td>
@@ -474,7 +487,7 @@ const AlertsTab: React.FC = () => {
                                                 onClick={() => handleDelete(alert.id)}
                                                 disabled={deleting === alert.id}
                                                 className="p-1.5 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                                                title="Delete alert"
+                                                title={t('tradeHistory.alert.delete')}
                                             >
                                                 {deleting === alert.id ? (
                                                     <Loader2 size={14} className="animate-spin" />
@@ -496,15 +509,18 @@ const AlertsTab: React.FC = () => {
 
 // ─── Main TradeHistoryPage ───────────────────────────────────────
 export const TradeHistoryPage: React.FC = () => {
+    const { t, ready } = useNamespace('trading');
     const [activeTab, setActiveTab] = useState<TabId>('blotter');
+
+    if (!ready) return null;
 
     return (
         <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
             {/* Header */}
             <div className="mb-6 lg:mb-8">
-                <h1 className="text-2xl lg:text-3xl v-heading">Trade History</h1>
+                <h1 className="text-2xl lg:text-3xl v-heading">{t('tradeHistory.title')}</h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">
-                    Review your trade blotter, track performance, and manage price alerts.
+                    {t('tradeHistory.subtitle')}
                 </p>
             </div>
 
@@ -533,7 +549,7 @@ export const TradeHistoryPage: React.FC = () => {
                         }`}
                     >
                         <tab.icon size={13} />
-                        {tab.label}
+                        {t(tab.labelKey)}
                     </button>
                 ))}
             </div>

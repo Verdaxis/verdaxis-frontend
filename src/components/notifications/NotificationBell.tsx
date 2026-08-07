@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationList } from './NotificationList';
+import { useTranslation } from 'react-i18next';
 
 export const NotificationBell: React.FC = () => {
+    const { t } = useTranslation('common');
     const { unreadCount } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -25,6 +27,8 @@ export const NotificationBell: React.FC = () => {
         <div className="relative" ref={dropdownRef}>
             <button 
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={unreadCount > 0 ? t('notifications.unreadCount', { count: unreadCount }) : t('notifications.open')}
+                aria-expanded={isOpen}
                 className="relative p-2 text-slate-400 hover:text-emerald-400 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
             >
                 <Bell size={20} />

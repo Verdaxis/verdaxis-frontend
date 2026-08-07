@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MarketSupportFinalConfirmation } from '../components/market-support/MarketSupportFinalConfirmation';
+import i18n from '../i18n';
 
 describe('MarketSupportFinalConfirmation', () => {
   it('shows a frozen exact draft summary and critical supplier metadata', () => {
@@ -59,5 +60,28 @@ describe('MarketSupportFinalConfirmation', () => {
       acknowledge_executable_standing_order: true,
     }));
     expect(screen.getByText('Good till cancelled')).toBeTruthy();
+  });
+
+  it('uses natural Chinese side and availability labels in confirmation prose', async () => {
+    await i18n.changeLanguage('zh');
+    try {
+      render(
+        <MarketSupportFinalConfirmation
+          organizationName="Northstar Fuels"
+          supportReference="CASE-42"
+          draft={{ side: 'ASK', product: 'Bio Methanol', deliveryPoint: 'Singapore', availabilityWindow: '2026-Q4', quantityMt: 500, pricePerMtUsd: 700, expiresAt: '', certificationScheme: 'ISCC EU', specificationStandard: 'IMPCA', msdsAvailable: true, carbonIntensity: 18, feedstock: '废食用油', origin: '中国' }}
+          onBack={vi.fn()}
+          onConfirm={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText('卖单')).toBeTruthy();
+      expect(screen.getByText('2026年第4季度')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '确认并提交卖单' })).toBeTruthy();
+      expect(screen.getByText(/将为 Northstar Fuels 创建的卖单/)).toBeTruthy();
+      expect(screen.queryByText(/ASK/)).toBeNull();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

@@ -14,12 +14,13 @@ interface State {
 
 // Functional fallback UI so we can use hooks
 const ErrorFallback: React.FC<{ error: Error | null; onRetry: () => void }> = ({ error, onRetry }) => {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const isEnglish = (i18n.resolvedLanguage || i18n.language).startsWith('en');
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
       <div className="text-red-400 text-xl font-semibold mb-2">{t('error.boundary.title')}</div>
       <p className="text-slate-400 mb-4 max-w-md">
-        {error?.message || t('error.generic')}
+        {isEnglish && error?.message ? error.message : t('error.generic')}
       </p>
       <button
         onClick={onRetry}

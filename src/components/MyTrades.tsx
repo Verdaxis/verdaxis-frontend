@@ -26,6 +26,7 @@ import {
     tradeDisplayQuantityMt,
     tradeGrossNotionalUsd,
 } from '../utils/tradeAnalytics';
+import i18n from '../i18n';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 
@@ -42,6 +43,7 @@ export const MyTrades: React.FC = () => {
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
     const fetchTrades = useCallback(async (silent = false) => {
+        if (!ready) return;
         try {
             if (!silent) setIsLoading(true);
             else setIsRefreshing(true);
@@ -53,13 +55,13 @@ export const MyTrades: React.FC = () => {
             if (message.toLowerCase().includes('not found') || message.includes('404')) {
                 setTrades([]);
             } else if (!silent) {
-                setError(message || 'Failed to load trades');
+                setError(i18n.language.startsWith('zh') ? t('myTrades.error.message') : message || t('myTrades.error.message'));
             }
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, []);
+    }, [ready, t]);
 
     useEffect(() => {
         fetchTrades();
@@ -69,7 +71,7 @@ export const MyTrades: React.FC = () => {
         fetchTrades(true);
     }, [fetchTrades]);
 
-    useSSE('trades', handleTradeEvent, isAuthenticated);
+    useSSE('trades', handleTradeEvent, isAuthenticated && ready);
 
     const getUserSide = (trade: Trade): 'BUYER' | 'SELLER' | null => {
         if (!user) return null;
@@ -85,7 +87,11 @@ export const MyTrades: React.FC = () => {
             addToast({ type: 'success', title: t('myTrades.toast.confirmed.title'), message: t('myTrades.toast.confirmed.message') });
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: t('myTrades.toast.confirmFailed.title'), message: err.message || t('myTrades.toast.confirmFailed.message') });
+            addToast({
+                type: 'warning',
+                title: t('myTrades.toast.confirmFailed.title'),
+                message: i18n.language.startsWith('zh') ? t('myTrades.toast.confirmFailed.message') : err.message || t('myTrades.toast.confirmFailed.message'),
+            });
         } finally {
             setActionLoadingId(null);
         }
@@ -98,7 +104,11 @@ export const MyTrades: React.FC = () => {
             addToast({ type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
             fetchTrades(true);
         } catch (err: any) {
-            addToast({ type: 'warning', title: t('myTrades.toast.declineFailed.title'), message: err.message || t('myTrades.toast.declineFailed.message') });
+            addToast({
+                type: 'warning',
+                title: t('myTrades.toast.declineFailed.title'),
+                message: i18n.language.startsWith('zh') ? t('myTrades.toast.declineFailed.message') : err.message || t('myTrades.toast.declineFailed.message'),
+            });
         } finally {
             setActionLoadingId(null);
         }
@@ -117,6 +127,7 @@ export const MyTrades: React.FC = () => {
     };
 
     if (!ready) return null;
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
 
     const STATUS_CONFIG = {
         PENDING_CONFIRMATION: {
@@ -150,7 +161,7 @@ export const MyTrades: React.FC = () => {
                 return (
                     <span className="text-xs text-amber-600 dark:text-amber-400 italic flex items-center gap-1">
                         <Clock size={12} />
-                        Awaiting Confirmation
+                        {t('myTrades.awaiting.counterparty')}
                     </span>
                 );
             }
@@ -299,18 +310,24 @@ export const MyTrades: React.FC = () => {
                                 {filteredTrades.map((trade) => {
                                     const userSide = getUserSide(trade);
                                     const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
-                                    const displaySide = userSide === 'BUYER' ? 'BUY' : userSide === 'SELLER' ? 'SELL' : '—';
+                                    const displaySide = userSide === 'BUYER'
+                                        ? t('myTrades.side.buy')
+                                        : userSide === 'SELLER'
+                                            ? t('myTrades.side.sell')
+                                            : '—';
                                     const quantity = tradeDisplayQuantityMt(trade);
                                     const price = tradeDisplayPricePerMt(trade);
                                     const total = tradeGrossNotionalUsd(trade);
                                     const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.CANCELLED;
                                     const counterpartyIsHidden = trade.is_anonymous && trade.status === 'PENDING_CONFIRMATION';
-                                    const counterpartyName = userSide === 'BUYER' ? (trade.seller_name || 'Seller') : (trade.buyer_name || 'Buyer');
+                                    const counterpartyName = userSide === 'BUYER'
+                                        ? (trade.seller_name || t('myTrades.counterparty.seller'))
+                                        : (trade.buyer_name || t('myTrades.counterparty.buyer'));
 
                                     return (
                                         <tr key={trade.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                                                {new Date(trade.created_at).toLocaleDateString()}
+                                                {new Date(trade.created_at).toLocaleDateString(locale)}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
                                                 <span className="inline-block px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded border border-blue-100 dark:border-blue-800">
@@ -321,21 +338,21 @@ export const MyTrades: React.FC = () => {
                                                 {trade.delivery_point_name || trade.region}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${displaySide === 'BUY' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                                                    {displaySide === 'BUY' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                                                <span className={`inline-flex items-center gap-1.5 text-xs font-bold ${userSide === 'BUYER' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                    {userSide === 'BUYER' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                                                     {displaySide}
                                                 </span>
                                             </td>
                                             <td className="px-4 lg:px-6 py-4 text-right font-mono font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-                                                {quantity.toLocaleString()}
+                                                {quantity.toLocaleString(locale)}
                                             </td>
                                             {userRole !== 'BUYER' && (
                                                 <>
                                                     <td className="px-4 lg:px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                                                        ${price.toLocaleString()}
+                                                        ${price.toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-4 lg:px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
-                                                        ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        ${total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </td>
                                                 </>
                                             )}
@@ -343,7 +360,7 @@ export const MyTrades: React.FC = () => {
                                                 {counterpartyIsHidden ? (
                                                     <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 italic">
                                                         <EyeOff size={12} />
-                                                        Anonymous
+                                                        {t('myTrades.anonymous')}
                                                     </span>
                                                 ) : (
                                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">

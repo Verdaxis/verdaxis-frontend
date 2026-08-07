@@ -21,6 +21,9 @@ import { formatMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import type { MarketSlice } from '../utils/sliceUrl';
+import { useNamespace } from '../hooks/useNamespace';
+import type { TFunction } from 'i18next';
+import i18n from '../i18n';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
@@ -53,23 +56,32 @@ const numericValue = (value: number | string | null | undefined) => {
     return Number.isFinite(parsed) ? parsed : null;
 };
 
-const quantity = (value: number | string | null | undefined) => {
+const quantity = (value: number | string | null | undefined, locale = 'en') => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return '--';
     if (parsed >= 1000) return `${(parsed / 1000).toFixed(1)}k MT`;
-    return `${parsed.toLocaleString()} MT`;
+    return `${parsed.toLocaleString(locale)} MT`;
 };
 
-const ageLabel = (value: string | null | undefined) => {
-    if (!value) return 'No timestamp';
+const ageLabel = (value: string | null | undefined, t: TFunction) => {
+    if (!value) return t('forwardCurve.noTimestamp');
     const timestamp = new Date(value).getTime();
-    if (!Number.isFinite(timestamp)) return 'No timestamp';
+    if (!Number.isFinite(timestamp)) return t('forwardCurve.noTimestamp');
     const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return t('forwardCurve.age.minutes', { count: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 48) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 48) return t('forwardCurve.age.hours', { count: hours });
+    return t('forwardCurve.age.days', { count: Math.floor(hours / 24) });
 };
+
+const sourceLabel = (value: string, t: TFunction) => t(
+    `forwardCurve.sourceLabel.${value.toLowerCase().replace(/[^a-z0-9]+/g, '')}`,
+    {
+        defaultValue: i18n.resolvedLanguage?.startsWith('zh')
+            ? t('forwardCurve.sourceLabel.unknown')
+            : value,
+    },
+);
 
 const sliceKey = (slice: SelectedSlice | null | undefined) => (
     slice ? `${slice.marketProduct}|${slice.deliveryPointId}|${slice.availabilityWindow}` : ''
@@ -174,66 +186,68 @@ const filterApprovedForwardCurveTable = (response: ForwardCurveTableResponse): F
 
 const signalTone = (
     sourceKind: ForwardCurveSourceKind | null | undefined,
+    t: TFunction,
     demoStatus?: ForwardCurveMarketCell['demo_status'],
 ) => describeForwardCurveSignal({
     signal_source_kind: sourceKind,
     demo_status: demoStatus,
-});
+}, t);
 
-const sourceTone = (cell: ForwardCurveMarketCell) => signalTone(
+const sourceTone = (cell: ForwardCurveMarketCell, t: TFunction) => signalTone(
     cell.primary_source_kind,
+    t,
     cell.demo_status,
 );
 
-const evidenceLayerMeta: Record<ForwardCurveEvidenceLayer, {
+const getEvidenceLayerMeta = (t: TFunction): Record<ForwardCurveEvidenceLayer, {
     label: string;
     shortLabel: string;
     toneClass: string;
     markerClass: string;
-}> = {
+}> => ({
     HISTORICAL_TRADE: {
-        label: 'Last print',
-        shortLabel: 'LAST',
+        label: t('forwardCurve.layer.lastPrint'),
+        shortLabel: t('forwardCurve.layer.lastShort'),
         toneClass: 'text-cyan-300',
         markerClass: 'rounded-full bg-cyan-300',
     },
     ORDERBOOK_BID: {
-        label: 'Bid',
+        label: t('forwardCurve.layer.bid'),
         shortLabel: 'BID',
         toneClass: 'text-emerald-300',
         markerClass: 'rounded-sm bg-emerald-300',
     },
     ORDERBOOK_ASK: {
-        label: 'Ask',
+        label: t('forwardCurve.layer.ask'),
         shortLabel: 'ASK',
         toneClass: 'text-rose-300',
         markerClass: 'rounded-sm bg-rose-300',
     },
     MARKET_INDICATION: {
-        label: 'Indication',
-        shortLabel: 'IND',
+        label: t('forwardCurve.layer.indication'),
+        shortLabel: t('forwardCurve.layer.indicationShort'),
         toneClass: 'text-amber-300',
         markerClass: 'rotate-45 rounded-[2px] bg-amber-300',
     },
     FAIR_PRICE_BAND: {
-        label: 'Fair value',
-        shortLabel: 'FAIR',
+        label: t('forwardCurve.layer.fairValue'),
+        shortLabel: t('forwardCurve.layer.fairShort'),
         toneClass: 'text-fuchsia-300',
         markerClass: 'rounded-sm bg-fuchsia-300',
     },
     BENCHMARK_MID: {
-        label: 'Reference',
-        shortLabel: 'REF',
+        label: t('forwardCurve.layer.reference'),
+        shortLabel: t('forwardCurve.layer.referenceShort'),
         toneClass: 'text-blue-300',
         markerClass: 'w-0.5 rounded-none bg-blue-300',
     },
     PHYSICAL_STEM: {
-        label: 'Physical stem',
-        shortLabel: 'STEM',
+        label: t('forwardCurve.layer.physicalStem'),
+        shortLabel: t('forwardCurve.layer.stemShort'),
         toneClass: 'text-slate-300',
         markerClass: 'rounded-full bg-slate-300',
     },
-};
+});
 
 const cellCurveValue = (cell: ForwardCurveMarketCell | null | undefined) => {
     if (!cell) return null;
@@ -267,6 +281,8 @@ const ForwardCurveChart: React.FC<{
     onSelectCell: (cell: ForwardCurveMarketCell) => void;
     onOpenCell: (cell: ForwardCurveMarketCell) => void;
 }> = ({ table, columns, selectedCell, selectedKey, onSelectCell, onOpenCell }) => {
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const curveRow = useMemo(() => findCurveRow(table, selectedCell), [table, selectedCell]);
 
     const graph = useMemo(() => {
@@ -325,7 +341,7 @@ const ForwardCurveChart: React.FC<{
 
     const curveLabel = curveRow
         ? `${formatMarketProduct(curveRow.market_product)} · ${curveRow.delivery_point_name}`
-        : 'No market selected';
+        : t('forwardCurve.noMarketSelected');
     // One path per run of consecutive populated periods. Periods without
     // evidence break the line instead of being interpolated across.
     const pathSegments = useMemo(() => {
@@ -349,29 +365,30 @@ const ForwardCurveChart: React.FC<{
         return segments;
     }, [graph.cells, graph.points]);
 
+    if (!ready) return null;
     return (
         <section data-tour="forward-curve-chart" className="min-w-0 border border-slate-800 bg-[#05080d]">
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 px-3 py-2">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                         <TrendingUp size={12} className="text-blue-300" aria-hidden="true" />
-                        Forward Curve
+                        {t('forwardCurve.title')}
                     </div>
-                    <div className="mt-0.5 truncate text-[10px] text-slate-500">{curveLabel} across delivery periods; gaps mean no evidence</div>
+                    <div className="mt-0.5 truncate text-[10px] text-slate-500">{t('forwardCurve.chart.scope', { market: curveLabel })}</div>
                 </div>
                 <div className="shrink-0 text-right font-mono text-[9px] uppercase tracking-wider text-slate-500">
-                    <div>{currency(graph.min)} low</div>
-                    <div>{currency(graph.max)} high</div>
+                    <div>{currency(graph.min)} {t('forwardCurve.low')}</div>
+                    <div>{currency(graph.max)} {t('forwardCurve.high')}</div>
                 </div>
             </div>
 
             {graph.points.length === 0 ? (
                 <div className="flex h-[220px] items-center justify-center px-4 text-center text-[11px] text-slate-500">
-                    No forward curve evidence is available for this product and port yet.
+                    {t('forwardCurve.chart.empty')}
                 </div>
             ) : (
                 <div className="px-3 pb-2 pt-2">
-                    <svg className="h-56 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={`${curveLabel} forward curve`}>
+                    <svg className="h-56 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={t('forwardCurve.chart.aria', { market: curveLabel })}>
                         {[0.25, 0.5, 0.75].map(fraction => {
                             const y = 20 + fraction * 156;
                             return <line key={fraction} x1="42" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
@@ -389,7 +406,7 @@ const ForwardCurveChart: React.FC<{
                                 fontSize="11"
                                 textAnchor="middle"
                             >
-                                {formatAvailabilityWindowPeriod(point.cell.availability_window)}
+                                {formatAvailabilityWindowPeriod(point.cell.availability_window, locale)}
                             </text>
                         ))}
                         {pathSegments.map((segment, index) => (
@@ -407,7 +424,7 @@ const ForwardCurveChart: React.FC<{
                                     key={`${point.cell.delivery_point_id}-${point.cell.availability_window}`}
                                     role="button"
                                     tabIndex={0}
-                                    aria-label={`${formatAvailabilityWindowPeriod(point.cell.availability_window)} ${currency(point.value)}`}
+                                    aria-label={`${formatAvailabilityWindowPeriod(point.cell.availability_window, locale)} ${currency(point.value)}`}
                                     onClick={() => onSelectCell(point.cell)}
                                     onDoubleClick={(event) => {
                                         event.preventDefault();
@@ -422,7 +439,10 @@ const ForwardCurveChart: React.FC<{
                                     className="cursor-pointer"
                                 >
                                     <title>
-                                        {`${formatAvailabilityWindowPeriod(point.cell.availability_window)} ${currency(point.value)}. Enter selects this point; double-click opens Marketplace.`}
+                                        {t('forwardCurve.chart.pointTitle', {
+                                            period: formatAvailabilityWindowPeriod(point.cell.availability_window, locale),
+                                            price: currency(point.value),
+                                        })}
                                     </title>
                                     {bandY1 != null && bandY2 != null && (
                                         <line x1={point.x} x2={point.x} y1={bandY1} y2={bandY2} stroke="#475569" strokeWidth="5" strokeLinecap="round" />
@@ -437,15 +457,15 @@ const ForwardCurveChart: React.FC<{
                     <div className="mt-1 flex items-center gap-3 text-[9px] uppercase tracking-wider text-slate-500">
                         <span className="flex items-center gap-1">
                             <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
-                            Mid / primary
+                            {t('forwardCurve.chart.midPrimary')}
                         </span>
                         <span className="flex items-center gap-1">
                             <span className="h-3 w-1 rounded-full bg-slate-500" aria-hidden="true" />
-                            Bid-ask range
+                            {t('forwardCurve.chart.bidAskRange')}
                         </span>
                         <span className="flex items-center gap-1">
                             <span className="h-2.5 w-2.5 rounded-full border border-emerald-400 bg-transparent" aria-hidden="true" />
-                            Selected period
+                            {t('forwardCurve.selectedPeriod')}
                         </span>
                     </div>
                 </div>
@@ -455,6 +475,8 @@ const ForwardCurveChart: React.FC<{
 };
 
 const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; loading: boolean; hasSelection: boolean }> = ({ slice, loading, hasSelection }) => {
+    const { t, ready } = useNamespace('trading');
+    const evidenceLayerMeta = getEvidenceLayerMeta(t);
     const axis = useMemo(() => {
         const evidence = slice?.evidence_points ?? [];
         const priceValues = evidence.flatMap(point => [
@@ -475,11 +497,13 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
         return { evidence, min, max, range: Math.max(max - min, 1) };
     }, [slice]);
 
+    if (!ready) return null;
+
     if (loading) {
         return (
             <div className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] text-[11px] text-slate-500">
                 <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
-                Refreshing selected period...
+                {t('forwardCurve.evidence.refreshing')}
             </div>
         );
     }
@@ -487,7 +511,7 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
     if (!hasSelection) {
         return (
             <div data-tour="forward-period-detail" className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-[11px] text-slate-500">
-                Select a product, port, and period cell to inspect evidence.
+                {t('forwardCurve.evidence.select')}
             </div>
         );
     }
@@ -499,7 +523,7 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
     ))) {
         return (
             <div data-tour="forward-period-detail" className="flex min-h-[230px] items-center justify-center border border-slate-800 bg-[#05080d] px-4 text-center text-[11px] text-slate-500">
-                No price evidence for this exact period yet.
+                {t('forwardCurve.evidence.empty')}
             </div>
         );
     }
@@ -532,8 +556,8 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
         <div data-tour="forward-period-detail" className="border border-slate-800 bg-[#05080d] p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Indicative Period Range</div>
-                    <div className="mt-0.5 text-[9px] text-slate-500">Bid, ask, print, indication, and fair-value markers for this period</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('forwardCurve.evidence.title')}</div>
+                    <div className="mt-0.5 text-[9px] text-slate-500">{t('forwardCurve.evidence.subtitle')}</div>
                 </div>
                 <div className="shrink-0 text-right font-mono text-[9px] uppercase tracking-wider text-slate-500">
                     <div>{currency(axis.min)}</div>
@@ -555,7 +579,7 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
                             key={`${point.layer}-band-${index}`}
                             className="absolute top-1/2 h-6 -translate-y-1/2 border border-fuchsia-300/60 bg-fuchsia-300/15"
                             style={{ left: position(low), width: `${Math.max(1, ((high - low) / axis.range) * 100)}%` }}
-                            aria-label={`Fair value band ${currency(low)} to ${currency(high)}`}
+                            aria-label={t('forwardCurve.evidence.fairBand', { low: currency(low), high: currency(high) })}
                         />
                     );
                 })}
@@ -569,7 +593,7 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
                             key={`${point.layer}-marker-${index}`}
                             className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
                             style={{ left: position(pointPrice) }}
-                            aria-label={`${meta.label} ${currency(pointPrice)} ${point.public_source_label}`}
+                            aria-label={`${meta.label} ${currency(pointPrice)} ${sourceLabel(point.public_source_label, t)}`}
                         >
                             <div className="absolute left-1/2 top-1/2 h-12 w-px -translate-x-1/2 -translate-y-1/2 bg-slate-700" aria-hidden="true" />
                             <div className={`relative z-10 h-3 w-3 ${meta.markerClass}`} />
@@ -590,7 +614,7 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
                             </div>
                             <div className="min-w-0">
                                 <div className="truncate text-[9px] font-bold uppercase tracking-wider text-slate-500">{meta.label}</div>
-                                <div className="truncate text-[9px] text-slate-600">{point.public_source_label}</div>
+                                <div className="truncate text-[9px] text-slate-600">{sourceLabel(point.public_source_label, t)}</div>
                             </div>
                             <div className="font-mono text-[10px] font-bold text-slate-200">
                                 {evidencePriceLabel(point)}
@@ -603,27 +627,32 @@ const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; lo
     );
 };
 
-const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]; tone: 'bid' | 'ask' }> = ({ label, levels, tone }) => (
-    <div className="border border-slate-800 bg-[#080c13]">
+const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]; tone: 'bid' | 'ask' }> = ({ label, levels, tone }) => {
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    if (!ready) return null;
+    return <div className="border border-slate-800 bg-[#080c13]">
         <div className={`border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bid' ? 'text-emerald-300' : 'text-rose-300'}`}>
             {label}
         </div>
         <div className="max-h-[180px] divide-y divide-slate-900 overflow-y-auto">
             {levels.length === 0 ? (
                 <div className="px-3 py-6 text-center text-[11px] text-slate-500">
-                    {tone === 'bid' ? 'No visible bid levels in this selected period.' : 'No visible ask levels in this selected period.'}
+                    {tone === 'bid' ? t('forwardCurve.depth.noBids') : t('forwardCurve.depth.noAsks')}
                 </div>
             ) : levels.map((level, index) => (
                 <div key={`${label}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-[11px]">
                     <span className="font-mono font-bold text-slate-200">{currency(level.price_per_mt_usd)}</span>
-                    <span className="font-mono text-slate-500">{quantity(level.quantity_mt)}</span>
+                    <span className="font-mono text-slate-500">{quantity(level.quantity_mt, locale)}</span>
                 </div>
             ))}
         </div>
-    </div>
-);
+    </div>;
+};
 
 export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate, onOpenSlice }) => {
+    const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [table, setTable] = useState<ForwardCurveTableResponse | null>(null);
     const [selected, setSelected] = useState<SelectedSlice | null>(() => getStoredSelection());
     const [slice, setSlice] = useState<ForwardCurveSliceResponse | null>(null);
@@ -651,6 +680,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const hiddenColumnCount = table ? table.columns.length - visibleColumns.length : 0;
 
     const fetchTable = useCallback(async () => {
+        if (!ready) return;
         const requestId = tableRequestIdRef.current + 1;
         tableRequestIdRef.current = requestId;
         setLoadingTable(true);
@@ -671,19 +701,21 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         } catch (err) {
             if (requestId !== tableRequestIdRef.current) return;
             console.error('Failed to load forward curve table', err);
-            setError('Forward Curve monitoring is unavailable.');
+            setError(t('forwardCurve.error'));
         } finally {
             if (requestId === tableRequestIdRef.current) setLoadingTable(false);
         }
-    }, []);
+    }, [ready, t]);
 
     useEffect(() => {
+        if (!ready) return;
         fetchTable();
         const interval = window.setInterval(fetchTable, REFRESH_INTERVAL_MS);
         return () => window.clearInterval(interval);
-    }, [fetchTable]);
+    }, [fetchTable, ready]);
 
     useEffect(() => {
+        if (!ready) return;
         if (!selected || !selectedCell) {
             setSlice(null);
             setSliceSelectionKey('');
@@ -721,7 +753,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         }).finally(() => {
             if (requestId === sliceRequestIdRef.current) setLoadingSlice(false);
         });
-    }, [selected, selectedCell]);
+    }, [ready, selected, selectedCell]);
 
     const prepareSliceRefresh = (next: SelectedSlice) => {
         sliceRequestIdRef.current += 1;
@@ -776,7 +808,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const latestSignals = table?.latest_signals ?? [];
     const activeCell = activeSlice?.cell ?? selectedCell;
     const evidenceLoading = loadingSlice || waitingForActiveSlice || Boolean(activeCell && !activeSlice && failedSliceKey !== selectedKey);
-    const activeTone = activeCell ? sourceTone(activeCell) : null;
+    const activeTone = activeCell ? sourceTone(activeCell, t) : null;
+
+    if (!ready) return null;
 
     return (
         <div className="min-h-full bg-[#05070b] font-mono text-slate-100">
@@ -787,8 +821,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             <Activity size={17} aria-hidden="true" />
                         </div>
                         <div>
-                            <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Forward Curve</div>
-                            <div className="text-[11px] text-slate-500">Approved product, port, and period monitoring</div>
+                            <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">{t('forwardCurve.title')}</div>
+                            <div className="text-[11px] text-slate-500">{t('forwardCurve.subtitle')}</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -798,7 +832,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             className="inline-flex h-8 items-center gap-1 border border-slate-700 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
                             <RefreshCw size={12} className={loadingTable ? 'animate-spin' : ''} aria-hidden="true" />
-                            Refresh
+                            {t('common.refresh')}
                         </button>
                         <button
                             data-tour="forward-open-marketplace"
@@ -807,7 +841,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             disabled={!activeCell}
                             className="inline-flex h-8 items-center gap-1 bg-emerald-500 px-3 text-[11px] font-bold uppercase tracking-wider text-[#04110c] hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
                         >
-                            Open Marketplace
+                            {t('forwardCurve.openMarketplace')}
                             <ArrowRight size={13} aria-hidden="true" />
                         </button>
                     </div>
@@ -819,11 +853,11 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             ) : !table ? (
                 <div className="flex h-96 items-center justify-center text-xs text-slate-500">
                     <RefreshCw size={14} className="mr-2 animate-spin" aria-hidden="true" />
-                    Loading Forward Curve monitoring...
+                    {t('forwardCurve.loading')}
                 </div>
             ) : table.rows.length === 0 ? (
                 <div className="flex h-96 items-center justify-center px-6 text-center text-xs text-slate-500">
-                    No approved forward-curve markets are available yet. Check Marketplace for open spot and near-dated liquidity.
+                    {t('forwardCurve.emptyMarkets')}
                 </div>
             ) : (
                 <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_430px]">
@@ -840,13 +874,13 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     <section data-tour="forward-market-matrix" className="min-w-0 overflow-hidden border border-slate-800 bg-[#080c13]">
                         <div data-tour="forward-market-matrix-header" className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
                             <div>
-                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Market Matrix</div>
-                                <div className="text-[10px] text-slate-500">Click or press Enter to inspect; use Open Marketplace for handoff</div>
+                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('forwardCurve.matrix.title')}</div>
+                                <div className="text-[10px] text-slate-500">{t('forwardCurve.matrix.subtitle')}</div>
                             </div>
                             <div className="text-[10px] uppercase tracking-wider text-slate-500">
-                                {table.rows.length} rows · {visibleColumns.length} periods
+                                {t('forwardCurve.matrix.dimensions', { rows: table.rows.length, periods: visibleColumns.length })}
                                 {hiddenColumnCount > 0 && (
-                                    <span className="ml-1 text-slate-600">· {hiddenColumnCount} quiet hidden</span>
+                                    <span className="ml-1 text-slate-600">· {t('forwardCurve.matrix.hidden', { count: hiddenColumnCount })}</span>
                                 )}
                             </div>
                         </div>
@@ -859,12 +893,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 }}
                             >
                                 <div className="sticky left-0 top-0 z-20 bg-[#0b111a] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                                    Product / Port
+                                    {t('forwardCurve.matrix.productPort')}
                                 </div>
                                 {visibleColumns.map(column => (
                                     <div key={column.availability_window} className="sticky top-0 z-10 bg-[#0b111a] px-2 py-2 text-center">
-                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">{formatAvailabilityWindowPeriod(column.availability_window)}</div>
-                                        <div className="mt-0.5 text-[9px] uppercase text-slate-600">{column.group}</div>
+                                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-300">{formatAvailabilityWindowPeriod(column.availability_window, locale)}</div>
+                                        <div className="mt-0.5 text-[9px] uppercase text-slate-600">{t(`forwardCurve.group.${column.group.toLowerCase()}`, { defaultValue: t('forwardCurve.group.other') })}</div>
                                     </div>
                                 ))}
                                 {table.rows.map(row => (
@@ -878,7 +912,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             const cell = row.cells[column.availability_window];
                                             const selectedCellKey = sliceKey(cell ? cellToSlice(cell) : null);
                                             const selectedState = Boolean(cell && selectedCellKey === selectedKey);
-                                            const tone = cell ? sourceTone(cell) : null;
+                                            const tone = cell ? sourceTone(cell, t) : null;
                                             const empty = !cell || !cellHasSignal(cell);
                                             const stale = cell?.staleness_status === 'STALE';
                                             return (
@@ -889,7 +923,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                     onDoubleClick={() => cell && openMarketplaceForCell(cell)}
                                                     disabled={!cell}
                                                     aria-pressed={selectedState}
-                                                    title={cell ? 'Click to select; double-click to open this market slice' : undefined}
+                                                    title={cell ? t('forwardCurve.matrix.cellTitle') : undefined}
                                                     className={`min-h-[78px] bg-[#080c13] px-2 py-2 text-left transition hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 ${
                                                         selectedState ? 'outline outline-1 outline-emerald-400 bg-[#0b1f1a]' : ''
                                                     } ${empty ? 'text-slate-600' : 'text-slate-200'} disabled:cursor-not-allowed`}
@@ -904,17 +938,19 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="mt-1 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider">
-                                                        <span className="min-w-0 truncate text-slate-500">{cell?.public_source_label ?? 'No data'}</span>
+                                                    <div className="mt-1 flex items-center justify-between gap-2 text-[9px] tracking-wider">
+                                                        <span className="min-w-0 truncate text-slate-500">
+                                                            {cell ? sourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}
+                                                        </span>
                                                         {!empty && cell?.observed_at && (
-                                                            <span className={`shrink-0 font-mono ${stale ? 'font-bold text-amber-400' : 'text-slate-600'}`}>
-                                                                {ageLabel(cell.observed_at)}
+                                                            <span className={`shrink-0 font-mono uppercase ${stale ? 'font-bold text-amber-400' : 'text-slate-600'}`}>
+                                                                {ageLabel(cell.observed_at, t)}
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
-                                                        <span className="text-emerald-300">B {currency(cell?.best_bid)}</span>
-                                                        <span className="text-right text-rose-300">A {currency(cell?.best_ask)}</span>
+                                                        <span className="text-emerald-300">BID {currency(cell?.best_bid)}</span>
+                                                        <span className="text-right text-rose-300">ASK {currency(cell?.best_ask)}</span>
                                                     </div>
                                                 </button>
                                             );
@@ -932,19 +968,19 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 <div className="flex items-center gap-2">
                                     <TrendingUp size={13} className="text-blue-300" aria-hidden="true" />
                                     <div>
-                                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Latest Monitored Signals</div>
-                                        <div className="text-[9px] text-slate-500">Recent eligible matrix signals</div>
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('forwardCurve.signals.title')}</div>
+                                        <div className="text-[9px] text-slate-500">{t('forwardCurve.signals.subtitle')}</div>
                                     </div>
                                 </div>
-                                <div className="text-[10px] uppercase tracking-wider text-slate-500">{ageLabel(table.generated_at)}</div>
+                                <div className="text-[10px] uppercase tracking-wider text-slate-500">{ageLabel(table.generated_at, t)}</div>
                             </div>
                             <div className="grid max-h-[238px] gap-px overflow-y-auto bg-slate-900 md:grid-cols-2 xl:grid-cols-1">
                                 {latestSignals.length === 0 ? (
                                     <div className="bg-[#080c13] px-3 py-6 text-center text-[11px] text-slate-500 md:col-span-2 xl:col-span-1">
-                                        No monitored signals are available yet.
+                                        {t('forwardCurve.signals.empty')}
                                     </div>
                                 ) : latestSignals.slice(0, 8).map(signal => {
-                                    const tone = signalTone(signal.primary_source_kind, signal.demo_status);
+                                    const tone = signalTone(signal.primary_source_kind, t, signal.demo_status);
                                     const matchingCell = allCells.find(cell => (
                                         cell.market_product === signal.market_product
                                         && cell.delivery_point_id === signal.delivery_point_id
@@ -957,7 +993,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             onClick={() => matchingCell && selectCell(matchingCell)}
                                             onDoubleClick={() => matchingCell && openMarketplaceForCell(matchingCell)}
                                             disabled={!matchingCell}
-                                            title={matchingCell ? 'Click to select; double-click to open this market slice' : undefined}
+                                            title={matchingCell ? t('forwardCurve.matrix.cellTitle') : undefined}
                                             className="min-w-0 bg-[#080c13] px-3 py-1.5 text-left hover:bg-[#0d1520] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                                         >
                                             <div className="flex min-w-0 items-center justify-between gap-2">
@@ -969,7 +1005,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             <div className="mt-0.5 flex items-baseline justify-between gap-2">
                                                 <span className="font-mono text-sm font-bold text-slate-100">{currency(signal.primary_value)}</span>
                                                 <span className="truncate text-[9px] uppercase tracking-wider text-slate-500">
-                                                    {formatAvailabilityWindowPeriod(signal.availability_window)} · {ageLabel(signal.observed_at)}
+                                                    {formatAvailabilityWindowPeriod(signal.availability_window, locale)} · {ageLabel(signal.observed_at, t)}
                                                 </span>
                                             </div>
                                         </button>
@@ -983,13 +1019,13 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                     <Target size={12} aria-hidden="true" />
-                                    Selected Period
+                                    {t('forwardCurve.selectedPeriod')}
                                 </div>
                                 <div className="mt-1 truncate text-lg font-bold text-slate-100">
-                                    {activeCell ? `${formatMarketProduct(activeCell.market_product)} · ${activeCell.delivery_point_name}` : 'No period selected'}
+                                    {activeCell ? `${formatMarketProduct(activeCell.market_product)} · ${activeCell.delivery_point_name}` : t('forwardCurve.noPeriodSelected')}
                                 </div>
                                 <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">
-                                    {activeCell ? formatAvailabilityWindowPeriod(activeCell.availability_window) : 'Select a matrix cell'}
+                                    {activeCell ? formatAvailabilityWindowPeriod(activeCell.availability_window, locale) : t('forwardCurve.selectMatrixCell')}
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -998,7 +1034,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                     onClick={() => selectWindow(activeSlice?.previous_window)}
                                     disabled={!activeSlice?.previous_window}
                                     className="flex h-8 w-8 items-center justify-center border border-slate-700 text-slate-300 hover:border-blue-400/60 hover:text-blue-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-                                    aria-label="Previous period"
+                                    aria-label={t('forwardCurve.previousPeriod')}
                                 >
                                     <ChevronLeft size={14} aria-hidden="true" />
                                 </button>
@@ -1007,7 +1043,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                     onClick={() => selectWindow(activeSlice?.next_window)}
                                     disabled={!activeSlice?.next_window}
                                     className="flex h-8 w-8 items-center justify-center border border-slate-700 text-slate-300 hover:border-blue-400/60 hover:text-blue-200 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-                                    aria-label="Next period"
+                                    aria-label={t('forwardCurve.nextPeriod')}
                                 >
                                     <ChevronRight size={14} aria-hidden="true" />
                                 </button>
@@ -1017,21 +1053,21 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         {activeCell && (
                             <div className="grid grid-cols-3 gap-px bg-slate-900">
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Primary</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">{t('forwardCurve.primary')}</div>
                                     <div className="mt-1 font-mono text-xl font-bold text-slate-100">{currency(activeCell.primary_value)}</div>
                                 </div>
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Source</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">{t('forwardCurve.source')}</div>
                                     <div className={`mt-1 text-[10px] font-bold uppercase ${activeTone ? marketActivityTextClass(activeTone.tone) : 'text-slate-500'}`}>
-                                        {activeTone?.label ?? activeCell.public_source_label}
+                                        {activeTone?.label ?? t('marketActivity.unknown.label')}
                                     </div>
-                                    <div className="mt-0.5 truncate text-[9px] uppercase tracking-wider text-slate-600">
-                                        {activeCell.public_source_label}
+                                    <div className="mt-0.5 truncate text-[9px] tracking-wider text-slate-600">
+                                        {sourceLabel(activeCell.public_source_label, t)}
                                     </div>
                                 </div>
                                 <div className="bg-[#080c13] p-3">
-                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">Age</div>
-                                    <div className="mt-1 font-mono text-sm font-bold text-slate-300">{ageLabel(activeCell.observed_at)}</div>
+                                    <div className="text-[9px] uppercase tracking-widest text-slate-500">{t('forwardCurve.age')}</div>
+                                    <div className="mt-1 font-mono text-sm font-bold text-slate-300">{ageLabel(activeCell.observed_at, t)}</div>
                                 </div>
                             </div>
                         )}
@@ -1039,22 +1075,22 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         <div className="space-y-3 p-3">
                             <PriceEvidenceStrip slice={activeSlice} loading={evidenceLoading} hasSelection={Boolean(activeCell)} />
                             <div className="grid grid-cols-2 gap-3">
-                                <DepthList label="Bids" levels={activeSlice?.depth_bids ?? []} tone="bid" />
-                                <DepthList label="Asks" levels={activeSlice?.depth_asks ?? []} tone="ask" />
+                                <DepthList label={t('orderBook.bids')} levels={activeSlice?.depth_bids ?? []} tone="bid" />
+                                <DepthList label={t('orderBook.asks')} levels={activeSlice?.depth_asks ?? []} tone="ask" />
                             </div>
                             <div className="border border-slate-800 bg-[#080c13]">
                                 <div className="border-b border-slate-800 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                    Historical Prints
+                                    {t('forwardCurve.historicalPrints')}
                                 </div>
                                 <div className="max-h-[200px] divide-y divide-slate-900 overflow-y-auto">
                                     {!activeSlice || activeSlice.trades.length === 0 ? (
-                                        <div className="px-3 py-6 text-center text-[11px] text-slate-500">No confirmed prints in this selected period.</div>
+                                        <div className="px-3 py-6 text-center text-[11px] text-slate-500">{t('forwardCurve.noPrints')}</div>
                                     ) : activeSlice.trades.map((trade, index) => {
-                                        const tone = describeMarketActivity({ source_kind: trade.source_kind, demo_status: trade.demo_status });
+                                        const tone = describeMarketActivity({ source_kind: trade.source_kind, demo_status: trade.demo_status }, t);
                                         return (
                                             <div key={`${trade.confirmed_at}-${index}`} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-[11px]">
                                                 <span className="min-w-0 truncate text-slate-300">
-                                                    {quantity(trade.quantity_mt)}
+                                                    {quantity(trade.quantity_mt, locale)}
                                                     <span className={`ml-2 text-[9px] font-bold uppercase ${marketActivityTextClass(tone.tone)}`}>{tone.shortLabel}</span>
                                                 </span>
                                                 <span className="font-mono font-bold text-cyan-300">{currency(trade.price_per_mt_usd)}</span>
@@ -1070,7 +1106,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             )}
             {table && (
                 <div className="border-t border-slate-800 px-3 py-2 text-[10px] text-slate-500">
-                    {table.disclaimer}
+                    {locale.startsWith('zh') ? t('forwardCurve.disclaimer') : table.disclaimer}
                 </div>
             )}
         </div>

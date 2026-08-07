@@ -1,9 +1,10 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { WatchlistPage } from '../components/WatchlistPage';
+import i18n, { loadNamespace } from '../i18n';
 
 vi.mock('../hooks/useWatchlist', () => ({
   useWatchlist: () => ({
@@ -90,15 +91,31 @@ vi.mock('../hooks/useWatchlist', () => ({
 }));
 
 describe('WatchlistPage', () => {
+  beforeEach(async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('en');
+  });
+
   it('renders market slices, pinned orders, and event feed', () => {
     renderWithProviders(<WatchlistPage />);
 
     expect(screen.getByRole('heading', { name: /Everything you are watching, in one place\./i })).toBeTruthy();
     expect(screen.getAllByText(/Bio Methanol · Singapore · Spot/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/No Watchlist activity yet/i)).toBeNull();
-    expect(screen.getAllByText(/New ask entered the slice at \$1080.25/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/New ask entered the slice at \$1,080.25/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Pinned order partially filled.*600.5 MT/i).length).toBeGreaterThan(0);
     expect(screen.queryByText('Unknown')).toBeNull();
     expect(screen.getAllByRole('button', { name: /mark read/i }).length).toBeGreaterThan(0);
+  });
+
+  it('renders the watchlist workflow and event descriptions in Chinese', async () => {
+    await i18n.changeLanguage('zh');
+
+    renderWithProviders(<WatchlistPage />);
+
+    expect(screen.getByRole('heading', { name: '所有关注内容，尽在一处。' })).toBeTruthy();
+    expect(screen.getAllByText(/Bio Methanol · Singapore · 现货/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/此市场组合新增卖单，价格为 \$1,080\.25。/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/New ask entered/i)).toBeNull();
   });
 });

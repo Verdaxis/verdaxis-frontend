@@ -9,9 +9,11 @@ import MarkdownRenderer from './ui/MarkdownRenderer';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { useNamespace } from '../hooks/useNamespace';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import i18n from '../i18n';
+import { formatMarketProduct } from '../utils/marketProduct';
 
 export const SupplierQuotes: React.FC = () => {
-    const { t, ready } = useNamespace('dashboard');
+    const { t, ready } = useNamespace('trading');
     const { isActive: isMarketSupportActive } = useMarketSupport();
     const [orders, setOrders] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
@@ -124,7 +126,7 @@ export const SupplierQuotes: React.FC = () => {
                 ...prev,
                 type: 'ERROR',
                 title: t('supplierQuotes.modal.errorTitle'),
-                message: error.message || t('supplierQuotes.modal.errorFallback'),
+                message: i18n.language.startsWith('zh') ? t('supplierQuotes.modal.errorFallback') : error.message || t('supplierQuotes.modal.errorFallback'),
                 variant: 'danger',
                 isLoading: false,
             }));
@@ -190,9 +192,15 @@ export const SupplierQuotes: React.FC = () => {
         
         setIsAnalyzingRisk(true);
         setAiRiskAnalysis(null);
-        const analysis = await analyzeRisk(req.buyer_name || "Unknown", riskProfile as any);
-        setAiRiskAnalysis(analysis);
-        setIsAnalyzingRisk(false);
+        try {
+            const analysis = await analyzeRisk(req.buyer_name || t('supplierQuotes.table.anonymous'), riskProfile as any);
+            setAiRiskAnalysis(i18n.language.startsWith('zh') ? t('supplierQuotes.risk.localizedFallback') : analysis);
+        } catch (error) {
+            console.error('Risk analysis failed', error);
+            setAiRiskAnalysis(t('supplierQuotes.risk.error'));
+        } finally {
+            setIsAnalyzingRisk(false);
+        }
     };
 
     if (!ready) {
@@ -202,6 +210,7 @@ export const SupplierQuotes: React.FC = () => {
             </div>
         );
     }
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
@@ -248,7 +257,7 @@ export const SupplierQuotes: React.FC = () => {
                                 <React.Fragment key={req.id}>
                                     <tr className={`hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors relative ${expandedOrderId === req.id ? 'bg-slate-50 dark:bg-slate-700' : ''}`}>
                                         <td className="px-2 py-4 text-center">
-                                            <button onClick={() => toggleExpand(req.id)} className="text-slate-400 hover:text-slate-600">
+                                            <button onClick={() => toggleExpand(req.id)} aria-label={t('supplierQuotes.table.toggleDetails')} className="text-slate-400 hover:text-slate-600">
                                                 {expandedOrderId === req.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                             </button>
                                         </td>
@@ -279,27 +288,32 @@ export const SupplierQuotes: React.FC = () => {
                                                     {t('supplierQuotes.table.declined')}
                                                 </span>
                                             )}
+                                            {!['PENDING_CONFIRMATION', 'CONFIRMED', 'DELIVERED', 'PAID', 'DECLINED'].includes(req.status) && (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                                    {t('status.unknown')}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 font-medium text-[#334155] dark:text-slate-200">{req.buyer_name || t('supplierQuotes.table.anonymous')}</td>
                                         <td className="px-6 py-4 dark:text-slate-300">
-                                            {req.quantity_mt?.toLocaleString()} MT
-                                            <div className="text-xs text-slate-400">{req.fuel_type} &middot; {req.region}</div>
+                                            {req.quantity_mt?.toLocaleString(locale)} MT
+                                            <div className="text-xs text-slate-400">{formatMarketProduct(req.product_name || req.fuel_type)} &middot; {req.region}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString() : t('supplierQuotes.table.spot')}</td>
+                                        <td className="px-6 py-4 text-slate-500">{req.created_at ? new Date(req.created_at).toLocaleDateString(locale) : t('supplierQuotes.table.spot')}</td>
                                         <td className="px-6 py-4 text-right">
                                             {!isMarketSupportActive && req.status === 'PENDING_CONFIRMATION' ? (
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleAccept(req.id)}
                                                         className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                                                        title="Confirm Order"
+                                                        title={t('supplierQuotes.table.confirmOrder')}
                                                     >
                                                         <CheckCircle2 size={20} />
                                                     </button>
                                                     <button 
                                                         onClick={() => handleDecline(req.id)}
                                                         className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                                                        title="Decline Order"
+                                                        title={t('supplierQuotes.table.declineOrder')}
                                                     >
                                                         <XCircle size={20} />
                                                     </button>
@@ -309,7 +323,7 @@ export const SupplierQuotes: React.FC = () => {
                                                     <button 
                                                         onClick={() => handleComplete(req.id, req)}
                                                         className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-full hover:bg-blue-700 transition-colors flex items-center gap-1"
-                                                        title="Confirm Delivery (BDN)"
+                                                        title={t('supplierQuotes.table.confirmDeliveryBdn')}
                                                     >
                                                         <Truck size={12} /> {t('supplierQuotes.table.confirmDelivery')}
                                                     </button>
@@ -319,7 +333,7 @@ export const SupplierQuotes: React.FC = () => {
                                                     <button 
                                                         onClick={() => handleMarkPaid(req.id)}
                                                         className="px-3 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full hover:bg-emerald-700 transition-colors flex items-center gap-1"
-                                                        title="Mark as Paid"
+                                                        title={t('supplierQuotes.table.markPaid')}
                                                     >
                                                         <Banknote size={12} /> {t('supplierQuotes.table.markPaid')}
                                                     </button>
@@ -428,8 +442,8 @@ export const SupplierQuotes: React.FC = () => {
                 message={confirmState.message}
                 variant={confirmState.variant}
                 isLoading={confirmState.isLoading}
-                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : 'Cancel'}
-                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? 'Close' : 'Confirm'}
+                cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? undefined : t('common.cancel')}
+                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? t('common.close') : t('common.confirm')}
             />
         </div>
     );

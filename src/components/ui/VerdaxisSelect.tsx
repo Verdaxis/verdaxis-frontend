@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface VerdaxisSelectOption {
     value: string;
@@ -27,7 +28,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
     value,
     onChange,
     options,
-    placeholder = 'Select an option',
+    placeholder,
     disabled = false,
     className = '',
     triggerClassName = '',
@@ -35,6 +36,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
     ariaLabel,
     triggerTourId,
 }) => {
+    const { t } = useTranslation('common');
     const [open, setOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -172,7 +174,7 @@ export const VerdaxisSelect: React.FC<VerdaxisSelectProps> = ({
                 className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#5DADE2]/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 ${triggerClassName}`}
             >
                 <span className={selectedOption ? '' : 'text-slate-400 dark:text-slate-500'}>
-                    {selectedOption?.label ?? placeholder}
+                    {selectedOption?.label ?? placeholder ?? t('select.placeholder')}
                 </span>
                 <ChevronDown
                     size={16}

@@ -30,7 +30,7 @@ export const MapLegend: React.FC = () => {
                     <div className="space-y-4">
                         {/* Port Circles */}
                         <div>
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Port — Order Volume & Spread</div>
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('mapLegend.portVolumeSpread')}</div>
                             <div className="space-y-2.5">
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="flex items-center gap-1">
@@ -38,42 +38,42 @@ export const MapLegend: React.FC = () => {
                                         <span className="text-slate-400 mx-0.5">&rarr;</span>
                                         <div className="w-5 h-5 rounded-full border-2 border-slate-400 bg-white dark:bg-slate-800"></div>
                                     </div>
-                                    <span>Size = open order volume</span>
+                                    <span>{t('mapLegend.sizeOpenVolume')}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="w-3.5 h-3.5 rounded-full border-2 border-emerald-500 bg-white dark:bg-slate-800"></div>
-                                    <span>Tight spread (&lt;5%)</span>
+                                    <span>{t('mapLegend.tightSpread')}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="w-3.5 h-3.5 rounded-full border-2 border-amber-500 bg-white dark:bg-slate-800"></div>
-                                    <span>Moderate spread (5–15%)</span>
+                                    <span>{t('mapLegend.moderateSpread')}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-xs">
                                     <div className="w-3.5 h-3.5 rounded-full border-2 border-red-500 bg-white dark:bg-slate-800"></div>
-                                    <span>Wide spread (&gt;15%)</span>
+                                    <span>{t('mapLegend.wideSpread')}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Overlays */}
                         <div>
-                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Reference Overlays</div>
+                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">{t('mapLegend.referenceOverlays')}</div>
                             <div className="space-y-1.5 text-xs">
                                 <div className="flex items-center gap-2">
                                     <div className="h-3 w-5 rounded border border-sky-600 bg-sky-300/25"></div>
-                                    <span>Active IMO SOx ECA / SECA reference</span>
+                                    <span>{t('mapLegend.activeEca')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="h-3 w-5 rounded border border-amber-600 bg-amber-300/20"></div>
-                                    <span>Newer IMO ECA phase-in reference</span>
+                                    <span>{t('mapLegend.phaseInEca')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="h-3 w-5 rounded border border-violet-600 bg-violet-300/10"></div>
-                                    <span>Adopted future IMO ECA reference</span>
+                                    <span>{t('mapLegend.futureEca')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-4 h-1.5 rounded-full bg-emerald-500"></div>
-                                    <span>Avails — available volume by port</span>
+                                    <span>{t('mapLegend.avails')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 rounded border border-slate-400 flex items-center justify-center text-[8px] font-bold text-slate-500">$</div>

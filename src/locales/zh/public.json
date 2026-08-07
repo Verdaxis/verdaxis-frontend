@@ -17,7 +17,7 @@
         },
         "1": {
           "title": "透明度",
-          "body": "平台上每批燃料均提供经验证的可持续发展数据、碳强度评分及完整的监管链记录。"
+          "body": "平台上每批燃料均提供经核验的可持续发展数据、CI 评分及完整的监管链记录。"
         },
         "2": {
           "title": "低摩擦",
@@ -34,26 +34,25 @@
       "title": "Verdaxis\n如何运作",
       "subtitle": "从挂单到在 Verdaxis 交易所成交，只需三步。",
       "seeFullProcess": "查看完整流程",
-      "stepLabel": "第",
+      "stepLabel": "步骤",
       "mobileTitle": "Verdaxis 如何运作",
       "steps": {
         "0": {
-          "step": "第",
+          "step": "步骤",
           "title": "挂单与核验",
-          "body": "生产商登记燃料供应、碳强度评分及认证信息。"
+          "body": "生产商登记燃料供应、CI 评分及认证信息。"
         },
         "1": {
-          "step": "第",
+          "step": "步骤",
           "title": "发现与交易",
           "body": "通过统一市场获取已核验的可持续燃料供应商，享有实时定价和合规数据。"
         },
         "2": {
-          "step": "第",
+          "step": "步骤",
           "title": "管理与优化",
           "body": "集成风险管理、市场情报和对冲工具，包括掉期和远期工具。"
         }
-      },
-      "stepUnit": "步"
+      }
     },
     "roles": {
       "eyebrow": "市场参与者",
@@ -62,10 +61,7 @@
       "learnMore": "了解更多",
       "cards": {
         "0": {
-          "eyebrow": "生产商",
           "title": "燃料供应商",
-          "body": "在经核验的全球买家市场中挂单，提升知名度，简化销售流程。",
-          "cta": "生产商解决方案",
           "bullets": {
             "0": "直接触达合格买家",
             "1": "扩大市场覆盖与可见度",
@@ -73,10 +69,7 @@
           }
         },
         "1": {
-          "eyebrow": "买家",
           "title": "船东 & 租船方",
-          "body": "一站式获取所有可持续燃料类型，享有透明定价，轻松完成合规报告。",
-          "cta": "买家解决方案",
           "bullets": {
             "0": "一站式获取所有可持续燃料类型",
             "1": "透明、可靠的定价",
@@ -84,10 +77,7 @@
           }
         },
         "2": {
-          "eyebrow": "交易商",
           "title": "交易商 & 经纪商",
-          "body": "借助实时市场数据、价格发现及高效执行工具，把握套利机会。",
-          "cta": "交易商解决方案",
           "bullets": {
             "0": "获取市场流动性",
             "1": "使用对冲工具和掉期工具",
@@ -95,10 +85,7 @@
           }
         },
         "3": {
-          "eyebrow": "金融机构",
           "title": "金融机构",
-          "body": "获取合规核实数据和市场情报，为绿色融资及航运可持续发展投资决策提供支撑。",
-          "cta": "金融机构解决方案",
           "bullets": {
             "0": "经核验的可持续发展数据",
             "1": "集成风险管理",
@@ -107,21 +94,22 @@
         }
       }
     },
+    "frameworks": {
+      "label": "面向全球合规框架构建"
+    },
     "cta": {
       "eyebrow": "加入试点",
-      "title": "准备好了解可持续燃料的未来？",
-      "subtitle": "加入申请早期准入资格，成为首批在 Verdaxis 上完成可持续海洋燃料交易的用户。",
-      "primary": "申请早期准入",
-      "secondary": "了解更多",
+      "title": "准备好共同定义市场了吗？",
+      "subtitle": "Verdaxis 正在引入有限数量的试点参与者，包括希望共同塑造低碳燃料商业标准的生产商、买家、交易商和金融机构。",
       "applyButton": "申请试点",
       "registerButton": "登记意向"
-    },
-    "frameworks": {
-      "eyebrow": "监管合规",
-      "label": "面向全球合规框架构建",
-      "title": "符合全球法规要求",
-      "subtitle": "Verdaxis 内置对主要可持续发展框架的支持，持续更新以跟进监管动态。"
     }
+  },
+  "priceTicker": {
+    "ariaLabel": "演示市场价格滚动栏。数值仅供参考，不可执行。聚焦或悬停可暂停滚动。",
+    "tooltip": "根据已披露的演示市场买卖报价计算的参考中间价，不构成可执行报价。",
+    "preview": "预览",
+    "demo": "演示"
   },
   "howItWorks": {
     "hero": {
@@ -196,6 +184,12 @@
     "stewardship": {
       "title": "高完整性供应链的守护者",
       "subtitle": "只有 Verdaxis 能够安全促成可持续燃料的全程流转——从生产到入罐，我们是整个链条中每位参与者的唯一可信数据来源。",
+      "chain": {
+        "producer": "生产商",
+        "verdaxis": "Verdaxis",
+        "vessel": "船舶",
+        "tank": "油罐"
+      },
       "points": {
         "0": "从生产地点到加注油罐的端到端可见性",
         "1": "每笔交易均有记录、时间戳并可审计",
@@ -216,55 +210,42 @@
   },
   "buyer": {
     "hero": {
-      "eyebrow": "船东 & 租船方",
-      "title": "为买方打造",
-      "subtitle": "一站式获取所有可持续燃料类型，享有透明定价，轻松完成合规报告。"
+      "title": "面向船东与租船方",
+      "subtitle": "接入由经核验的可持续燃料供应商组成的统一市场，获得透明定价、完整燃料覆盖，以及管理价格风险所需的对冲工具。"
     },
-    "value": {
-      "title": "为什么选择 Verdaxis",
-      "subtitle": "专为船东和租船方量身设计，助您轻松应对可持续合规要求。",
+    "valueProps": {
+      "title": "买家为何选择 Verdaxis",
+      "subtitle": "市场、价格与工具，尽在同一平台。",
       "items": {
         "0": {
           "title": "统一市场准入",
-          "body": "在单一平台上获取所有可持续燃料类型——告别多渠道供应商谈判。"
+          "description": "在一个平台上连接经筛选和核验的可持续燃料供应商网络。无需再进行分散的双边谈判；Verdaxis 汇聚整个市场，助您高效比较、评估并完成交易。"
         },
         "1": {
-          "title": "透明定价",
-          "body": "实时价格基于实际供需关系，杜绝信息不对称与价格隐瞒。"
+          "title": "透明可靠的定价",
+          "description": "查看各类可持续燃料的实时价格与参考价格，全面掌握价格发现信息。Verdaxis 展示市场实际成交水平，而非单一交易对手的报价，让您始终基于充分信息进行谈判。"
         },
         "2": {
-          "title": "自动合规报告",
-          "body": "自动生成 FuelEU、ETS 等框架所需的 MRV 报告，节省时间与精力。"
+          "title": "覆盖所有可持续燃料类型",
+          "description": "一站式获取生物液化天然气（bio-LNG）、生物船用柴油（bio-MGO）、绿色甲醇、绿色氨、电子燃料等燃料。可在同一交易界面中按价格、可用性和能量含量并排比较不同方案。"
         },
         "3": {
-          "title": "对冲工具",
-          "body": "通过平台内置的掉期合约和衍生品工具管理燃料价格风险。"
+          "title": "快速高效执行",
+          "description": "一次发布需求，即可快速收到匹配报价。Verdaxis 撮合引擎根据您的数量、港口和交付窗口筛选最佳可用供应，将采购周期从数天缩短至数小时。"
         },
         "4": {
-          "title": "经核验的可持续数据",
-          "body": "每批燃料均附有完整碳强度评分、认证和监管链记录，简化尽职调查。"
+          "title": "对冲与价格风险工具",
+          "description": "通过平台直接提供的掉期工具管理价格波动。锁定未来燃料成本、对冲可持续燃料价格风险，并更有把握地规划采购预算。"
         }
       }
     },
     "howItWorks": {
       "title": "买家如何使用 Verdaxis",
+      "subtitle": "从提交燃料需求到执行交易，只需三步。",
       "steps": {
-        "0": {
-          "title": "注册并核验",
-          "body": "完成 KYC/KYB 核验，设置您的船队配置文件和合规参数。"
-        },
-        "1": {
-          "title": "浏览并发现",
-          "body": "通过全面的市场数据探索可持续燃料供应，按燃料类型、价格、碳强度及认证进行筛选。"
-        },
-        "2": {
-          "title": "交易与执行",
-          "body": "直接通过平台下单，获得即时价格确认，并与已核验的生产商完成点对点结算。"
-        },
-        "3": {
-          "title": "报告与合规",
-          "body": "自动生成监管报告，追踪碳强度指标，并在所有框架下保持合规状态。"
-        }
+        "0": "发布燃料需求，包括类型、数量、港口和交付窗口",
+        "1": "查看匹配报价，获得透明定价和完整的燃料类型覆盖",
+        "2": "执行交易，并可选择使用掉期工具对冲价格风险"
       }
     },
     "cta": {
@@ -275,55 +256,38 @@
   },
   "producer": {
     "hero": {
-      "eyebrow": "燃料生产商",
-      "title": "为生产商打造",
-      "subtitle": "在经核验的全球买家市场中挂单，提升知名度，简化销售流程。"
+      "title": "面向燃料生产商",
+      "subtitle": "向规模最大的合格买家群体展示您的燃料产能。在一个市场中扩大覆盖、降低获客成本并加快交易流转。"
     },
-    "value": {
-      "title": "为什么选择 Verdaxis",
-      "subtitle": "专为可持续燃料生产商量身设计，拓展市场覆盖，简化销售。",
+    "valueProps": {
+      "title": "生产商为何选择 Verdaxis",
+      "subtitle": "从首次挂单到签署合同，交易所围绕您扩大覆盖、提升可见度和降低摩擦的需求而构建。",
       "items": {
         "0": {
-          "title": "直接触达合格买家",
-          "body": "绕过中间商，直接与已核验的船东、租船方和交易商建立联系。"
+          "title": "最大化市场覆盖",
+          "description": "只需发布一次产能，即可面向市场上规模最大的合格燃料买家群体。更多曝光带来更具竞争力的报价和更快的交易流转。"
         },
         "1": {
           "title": "降低客户获取成本",
-          "body": "单一平台取代多渠道销售工作，集中管理交易关系与谈判。"
+          "description": "减少展会、冷启动拓客和经纪佣金支出。Verdaxis 将有明确采购意向的买家直接引向您的挂单，大幅降低寻找下一位承购方的成本。"
         },
         "2": {
-          "title": "透明定价",
-          "body": "在反映真实市场需求的透明交易所中进行价格发现，而非依赖不透明的双边谈判。"
+          "title": "交易流量分析与市场可见度",
+          "description": "了解挂单的浏览量、报价活动和市场价格基准。清楚掌握自身市场位置，更有信心地定价。"
         },
         "3": {
-          "title": "提前预销产能",
-          "body": "向经核验的买家预售未来产能，锁定收益，优化生产规划。"
-        },
-        "4": {
-          "title": "可持续数据管理",
-          "body": "与认证机构无缝集成，自动维护所有批次的完整监管链记录。"
+          "title": "提前预售未来产能",
+          "description": "在首批产品投产前完成远期销售。现在即可发布未来产能，锁定承诺买家，为项目提供可融资的收入确定性。"
         }
       }
     },
     "howItWorks": {
       "title": "生产商如何使用 Verdaxis",
+      "subtitle": "从发布挂单到完成交易，只需三步。",
       "steps": {
-        "0": {
-          "title": "注册燃料供应",
-          "body": "登记燃料批次，上传碳强度评分、认证文件及生产数据。"
-        },
-        "1": {
-          "title": "上架市场",
-          "body": "在统一市场上挂单，与平台上所有合格买家对接。"
-        },
-        "2": {
-          "title": "交易与结算",
-          "body": "通过平台流程完成谈判和合同签署，确保透明、可审计的执行记录。"
-        },
-        "3": {
-          "title": "报告与认证",
-          "body": "自动生成监管报告，维护完整的监管链记录，并保留认证合规状态。"
-        }
+        "0": "在 Verdaxis 市场发布当前库存或未来产能",
+        "1": "合格买家发现您的挂单并直接报价，无需中间环节",
+        "2": "借助内置合同工具协商条款、议定价格并更快完成交易"
       }
     },
     "cta": {
@@ -334,55 +298,38 @@
   },
   "trader": {
     "hero": {
-      "eyebrow": "交易商 & 经纪商",
-      "title": "为交易商打造",
-      "subtitle": "借助实时市场数据、价格发现及高效执行工具，把握套利机会。"
+      "title": "面向交易商与聚合商",
+      "subtitle": "深度流动性、对冲工具与掉期、实时价格发现和市场情报，专为专业燃料交易商打造。"
     },
-    "value": {
-      "title": "为什么选择 Verdaxis",
-      "subtitle": "专为可持续燃料交易商和经纪商量身设计，提升效率，挖掘市场机会。",
+    "valueProps": {
+      "title": "交易商为何选择 Verdaxis",
+      "subtitle": "在一个集成平台中获得交易所级的流动性、对冲、风险管理和市场数据工具。",
       "items": {
         "0": {
-          "title": "实时市场数据",
-          "body": "获取实时供需数据、实时价格及市场深度，支撑更优质的交易决策。"
+          "title": "深度流动性池",
+          "description": "Verdaxis 实时汇聚不同地区和交易对手的 BID 与 ASK，为交易商提供规模化执行所需的市场深度和即时性。"
         },
         "1": {
-          "title": "价格发现",
-          "body": "参与透明的价格发现机制，在基于真实市场条件的统一市场中高效执行。"
+          "title": "对冲工具与掉期",
+          "description": "在实物合同之外使用掉期和远期等纸面交易工具。通过标准化、交易所级结构管理风险敞口并锁定利润。"
         },
         "2": {
-          "title": "套利机会",
-          "body": "识别跨地区、跨燃料类型的价格差异，把握市场套利机会。"
+          "title": "价格发现与市场情报",
+          "description": "基于实时订单流形成透明价格。市场情报和预测工具帮助您预判走势，提前制定策略。"
         },
         "3": {
-          "title": "高效执行",
-          "body": "通过数字化平台简化合同谈判，提升结算效率，降低运营摩擦。"
-        },
-        "4": {
-          "title": "合规工具",
-          "body": "内置合规报告工具，自动满足不断演进的监管要求。"
+          "title": "集成风险管理",
+          "description": "在一个界面中监控未平仓头寸、保证金风险和结算义务。自动化工作流可减少人工对账和交易对手风险。"
         }
       }
     },
     "howItWorks": {
       "title": "交易商如何使用 Verdaxis",
+      "subtitle": "从订单簿到头寸结算，只需三步。",
       "steps": {
-        "0": {
-          "title": "接入市场",
-          "body": "完成核验，通过 API 或平台界面接入可持续燃料市场。"
-        },
-        "1": {
-          "title": "分析与发现",
-          "body": "利用实时市场数据、历史价格及分析工具识别交易机会。"
-        },
-        "2": {
-          "title": "执行交易",
-          "body": "通过平台高效执行交易，获得即时确认，并维护完整的可审计交易记录。"
-        },
-        "3": {
-          "title": "管理持仓",
-          "body": "追踪持仓，管理风险敞口，利用对冲工具优化投资组合。"
-        }
+        "0": "接入实时订单簿，查看各燃料类型与地区的 BID、ASK 和市场深度",
+        "1": "使用标准化条款和经核验的可持续发展数据执行现货、掉期或远期交易",
+        "2": "在同一仪表板中监控头寸、风险敞口和市场情报"
       }
     },
     "cta": {
@@ -393,149 +340,321 @@
   },
   "financier": {
     "hero": {
-      "eyebrow": "银行 & 金融机构",
-      "title": "为金融机构打造",
-      "subtitle": "获取合规核实数据和市场情报，为绿色融资及航运可持续发展投资决策提供支撑。"
+      "title": "面向金融机构与审计方",
+      "subtitle": "经核验的数据、集成风险管理和更低的尽调成本。Verdaxis 为绿色金融提供所需情报。"
     },
-    "value": {
-      "title": "为什么选择 Verdaxis",
-      "subtitle": "专为金融机构量身设计，提供可持续海洋融资所需的数据与工具。",
+    "valueProps": {
+      "title": "金融机构为何选择 Verdaxis",
+      "subtitle": "经核验的数据、集成风险工具和市场预测，满足绿色金融的投资情报需求。",
       "items": {
         "0": {
-          "title": "经核验的合规数据",
-          "body": "获取经平台核实的可持续发展数据，支持绿色融资合规文档要求。"
+          "title": "经核验的可持续发展数据",
+          "description": "Verdaxis 上的每个数据点均经过独立核验并带有时间戳。产量、CI 评分和合规认证从第一天起即可用于审计。"
         },
         "1": {
-          "title": "市场情报",
-          "body": "实时掌握市场动态、价格趋势及可持续燃料市场流动性。"
+          "title": "集成风险管理",
+          "description": "内置风险工具可在问题影响投资组合前提示交易对手风险、合规缺口和监管变化，并集中呈现在一个仪表板中。"
         },
         "2": {
-          "title": "风险评估工具",
-          "body": "利用平台数据，更准确地评估绿色航运资产及可持续燃料合同的风险。"
+          "title": "降低尽职调查成本",
+          "description": "经平台核验的交易对手、标准化数据格式和不可篡改的审计记录，可显著减少可持续发展尽调所需的时间和成本。"
         },
         "3": {
-          "title": "ESG 报告支持",
-          "body": "获取满足 ESG 报告要求所需的文档，以及所融资资产的可持续发展绩效数据。"
-        },
-        "4": {
-          "title": "投资机会",
-          "body": "识别可持续海洋燃料市场的增长机遇，依托可靠的市场数据做出投资决策。"
+          "title": "市场情报与预测",
+          "description": "获取远期价格曲线、供需信号和监管趋势分析，为投资决策提供依据，并对绿色金融结构开展压力测试。"
         }
       }
     },
     "howItWorks": {
       "title": "金融机构如何使用 Verdaxis",
+      "subtitle": "从经核验的数据到有把握的投资决策，只需三步。",
       "steps": {
-        "0": {
-          "title": "接入数据",
-          "body": "通过 API 或平台界面获取经核验的市场数据与合规报告。"
-        },
-        "1": {
-          "title": "评估与分析",
-          "body": "利用平台数据支持尽职调查，评估绿色航运资产风险。"
-        },
-        "2": {
-          "title": "结构化融资",
-          "body": "借助平台数据和监管链记录，为可持续燃料采购提供结构化融资方案。"
-        },
-        "3": {
-          "title": "监控与报告",
-          "body": "持续追踪可持续发展绩效，生成 ESG 报告所需的合规文档。"
-        }
+        "0": "获取覆盖所有平台参与者、可融资且可审计的可持续发展数据",
+        "1": "开展集成风险评估并审阅标准化合规报告",
+        "2": "运用市场情报与预测，为绿色金融交易设计结构并定价"
       }
     },
     "cta": {
       "title": "准备好了吗？",
       "subtitle": "联系我们，了解 Verdaxis 如何支持您的绿色航运融资业务。",
-      "button": "联系我们"
+      "button": "申请试点"
     }
   },
   "fuelCoverage": {
     "hero": {
       "title": "燃料覆盖范围",
-      "subtitle": "Verdaxis 支持所有主要可持续海洋燃料类型，并提供完整的合规与定价数据。"
+      "subtitle": "Verdaxis 覆盖海运、航空和陆路运输领域的可持续燃料。按行业探索燃料类型、生产路径和环境属性。"
+    },
+    "sectors": {
+      "maritime": {
+        "label": "海运",
+        "headline": "船用燃料",
+        "subtitle": "面向全球船队的低碳船用燃料，从可直接掺混的生物燃料到下一代氨和 E-Methanol。"
+      },
+      "aviation": {
+        "label": "航空",
+        "headline": "航空燃料",
+        "subtitle": "可持续航空燃料（SAF）及其原料路径，满足 ReFuelEU、CORSIA 和 Scope 3 要求。"
+      },
+      "land": {
+        "label": "陆路",
+        "headline": "陆路交通与电力",
+        "subtitle": "用于道路运输的乙醇和用于清洁发电的氨，为陆上脱碳提供过渡燃料。"
+      }
     },
     "fuels": {
-      "title": "支持的燃料类型",
-      "subtitle": "从生物燃料到绿色甲醇，Verdaxis 覆盖所有主要可持续燃料类别。",
-      "details": "查看详情",
-      "keySpecs": "主要规格",
-      "complianceInfo": "合规信息",
-      "tradingInfo": "交易信息"
+      "methanol": {
+        "name": "甲醇",
+        "pathways": {
+          "0": "生物甲醇（废弃物/生物质）",
+          "1": "E-Methanol（绿色 H₂ + CO₂）",
+          "2": "化石基甲醇（灰色）"
+        },
+        "keyMarkets": "船用燃料加注、化工原料",
+        "note": "预计 2026 年产量约为 2M mt。主要生产商：CRI（冰岛）、GoldWind（中国）、MGC（日本）。"
+      },
+      "ethanol": {
+        "name": "乙醇",
+        "pathways": {
+          "0": "1G（甘蔗/玉米）",
+          "1": "2G（纤维素/甘蔗渣）",
+          "2": "废弃物基"
+        },
+        "keyMarkets": "道路运输掺混、SAF 原料、海运",
+        "note": "产量有望达到与甲醇相当的规模，并可与 SAF 生产路径形成协同效应。"
+      },
+      "bioLng": {
+        "name": "生物液化天然气（Bio-LNG）",
+        "pathways": {
+          "0": "厌氧消化（沼气）",
+          "1": "气化（木质生物质）",
+          "2": "垃圾填埋气提纯"
+        },
+        "keyMarkets": "船用燃料加注、LNG 动力船舶",
+        "note": "可直接用于不断扩大的 LNG 动力船队。目前已有 700+ 艘具备 LNG 动力能力的船舶在役或已订购。"
+      },
+      "bioMgo": {
+        "name": "生物 MGO / FAME 混合燃料",
+        "pathways": {
+          "0": "UCOME（废弃食用油甲酯）",
+          "1": "FAME B20–B100 混合燃料",
+          "2": "HVO（加氢处理植物油）"
+        },
+        "keyMarkets": "船用燃料加注、直接掺混",
+        "note": "这是现有船队采用门槛最低的方案。UCOME 已在主要船用燃料加注枢纽广泛供应。"
+      },
+      "ammonia": {
+        "name": "氨",
+        "pathways": {
+          "0": "绿氨（电解）",
+          "1": "蓝氨（SMR + CCS）"
+        },
+        "keyMarkets": "海运（下一代发动机）、发电、工业供热",
+        "note": "MAN 和 Wärtsilä 正在开发氨燃料发动机。首批商业船舶预计将于 2026–2028 年投入运营。"
+      },
+      "saf": {
+        "name": "可持续航空燃料（SAF）",
+        "pathways": {
+          "0": "HEFA（废弃食用油/动物脂）",
+          "1": "费托合成（气化）",
+          "2": "醇制喷气燃料（AtJ）"
+        },
+        "keyMarkets": "航空、强制掺混要求（EU ReFuelEU）",
+        "note": "全球 SAF 强制掺混要求正在加速推进：EU 要求 2025 年达到 2%、2030 年达到 6%、2050 年达到 70%。CORSIA 第一阶段将于 2027 年启动。"
+      },
+      "ucome": {
+        "name": "UCOME",
+        "pathways": {
+          "0": "废弃食用油回收与加工",
+          "1": "废弃油脂酯交换"
+        },
+        "keyMarkets": "SAF 原料（HEFA 路径）、生物柴油、海运",
+        "note": "这是当前占主导地位的 SAF 原料。供应链完整性至关重要——UCO 欺诈风险凸显了核验来源的必要性。"
+      }
+    },
+    "fuelCard": {
+      "comingSoon": "即将推出",
+      "pathways": "生产路径",
+      "ciRange": "CI 范围",
+      "energyDensity": "能量密度",
+      "keyMarkets": "主要市场"
     },
     "attributes": {
       "title": "燃料属性与数据",
       "subtitle": "每种燃料在平台上均附有完整的可持续发展数据与认证信息。",
       "items": {
         "0": {
-          "title": "碳强度评分",
-          "body": "经认证机构核实的燃料生命周期碳强度（CI）评分。"
+          "title": "碳强度（CI）",
+          "description": "以 gCO₂e/MJ 计量，是比较不同燃料和生产路径环境影响的主要指标。CI 越低，全生命周期排放越低。"
         },
         "1": {
-          "title": "认证与核验",
-          "body": "支持 ISCC、RSB 等主要认证体系，并与认证机构直接集成。"
+          "title": "原料路径",
+          "description": "从原料到成品燃料的生产路线，决定 CI、监管适用性和溢价潜力。例如：废弃食用油、甘蔗渣、绿色氢 + CO₂。"
         },
         "2": {
-          "title": "监管链记录",
-          "body": "从生产到消费的完整可追溯监管链，支持所有可持续燃料类型的质量平衡核算。"
+          "title": "地域与价格发现",
+          "description": "Verdaxis 总部位于新加坡，但可为全球任意地点提供价格发现。实物交易可在全球任何港口或交付地点进行。"
         },
         "3": {
-          "title": "实时定价",
-          "body": "通过交易所实时获取所有支持燃料类型的市场价格。"
+          "title": "认证体系",
+          "description": "用于核验燃料声明的第三方认证。支持 ISCC EU、ISCC PLUS、RSB、RenovaBio 和 RED III 合规。"
         }
       }
     },
-    "sectors": {
-      "title": "按行业配置",
-      "subtitle": "Verdaxis 支持多种合规路径，满足不同行业需求。"
+    "cta": {
+      "title": "查看这些燃料在全球的生产布局",
+      "button": "探索生产商地图"
     }
   },
   "energyCalculator": {
     "hero": {
       "title": "能源换算计算器",
-      "subtitle": "通过精准的能量等效换算，跨燃料类型比较成本。"
+      "subtitle": "按能量含量而非仅按每吨价格比较燃料，了解计入 EU ETS 风险、FuelEU Maritime 合规和航次总成本后的真实经济差异。"
     },
-    "calculator": {
-      "fuelType": "燃料类型",
-      "quantity": "数量",
-      "unit": "单位",
-      "calculate": "计算",
-      "results": "换算结果",
-      "energyContent": "能量含量",
-      "co2Equivalent": "二氧化碳当量",
-      "costPerGj": "每吉焦成本",
-      "savings": {
-        "positive": "与传统重燃油相比，减少 {{percent}}% 的碳排放",
-        "neutral": "与传统重燃油相比，碳排放量相当",
-        "negative": "与传统重燃油相比，碳排放增加 {{percent}}%"
-      }
+    "fuelA": "燃料 A",
+    "fuelB": "燃料 B",
+    "voyageRegulatory": "航次与监管参数",
+    "totalVoyageCostComparison": "航次总成本比较",
+    "labels": {
+      "energyDensity": "能量密度",
+      "dailyConsumption": "日耗量",
+      "fuelPrice": "燃料价格",
+      "voyageDays": "航次天数",
+      "euaPrice": "EUA 价格",
+      "euEtsCoverage": "EU ETS 覆盖比例",
+      "fueleuThreshold": "FuelEU 阈值",
+      "eurUsdRate": "EUR/USD 汇率"
+    },
+    "metrics": {
+      "fuelBurn": "燃料消耗",
+      "co2Emissions": "CO₂ 排放",
+      "euEtsCost": "EU ETS 成本",
+      "fuelEu": "FuelEU",
+      "ciiProxy": "CII 代理值",
+      "pricePerGJ": "每 GJ 价格",
+      "totalCost": "总成本",
+      "lowerCost": "成本较低",
+      "compliant": "合规",
+      "penalty": "罚金",
+      "efficiency": "效率",
+      "better": "较优",
+      "worse": "较差",
+      "fuelCost": "燃料成本",
+      "versus": "对比",
+      "intensity": "强度",
+      "coverage": "覆盖比例"
+    },
+    "units": {
+      "days": "天"
+    },
+    "savings": {
+      "eyebrow": "每航次净节省",
+      "fuelBSaves": "与燃料 A 相比，燃料 B 可节省该金额",
+      "fuelASaves": "与燃料 B 相比，燃料 A 可节省该金额",
+      "equal": "两种燃料的航次总成本相同",
+      "fuelCostDelta": "燃料成本差额",
+      "etsCostDelta": "ETS 成本差额",
+      "fueleuPenaltyDelta": "FuelEU 罚金差额",
+      "energyValueEstimate": "≈ 仅按能量计算，每吨有效价值相差 ${{low}}–${{high}}"
+    },
+    "cta": {
+      "title": "想查看真实供应商提供的能量调整后价格？",
+      "subtitle": "加入 Verdaxis 试点，获取经审核燃料生产商提供的经核验能量密度数据、CI 评分和考虑合规因素的定价。",
+      "button": "申请试点"
     }
   },
   "producerMap": {
-    "hero": {
-      "title": "全球生产商地图",
-      "subtitle": "探索世界各地的可持续海洋燃料生产商。"
+    "fuelTypes": {
+      "eMethanol": "E-Methanol",
+      "bioMethanol": "Bio Methanol",
+      "greenMethanol": "绿色甲醇"
+    },
+    "statuses": {
+      "all": "全部",
+      "operational": "已投产",
+      "underConstruction": "建设中",
+      "engineering": "工程设计",
+      "preFeasibility": "预可行性研究"
+    },
+    "pathways": {
+      "biomass": "生物质",
+      "biomassRenewableHydrogen": "生物质 + H2（可再生）",
+      "biomethane": "生物甲烷",
+      "biomethaneNaturalGas": "生物甲烷 + 天然气",
+      "blackLiquor": "黑液",
+      "nonRenewableHydrogen": "CO2 + H2（非可再生）",
+      "renewableHydrogen": "CO2 + H2（可再生）",
+      "naturalGas": "天然气",
+      "residualWaste": "残余废弃物",
+      "residualWasteBiomass": "残余废弃物 + 生物质",
+      "residualWasteLowCarbonHydrogen": "残余废弃物 + H2（低碳）"
+    },
+    "header": {
+      "title": "生产商与项目地图",
+      "subtitle": "探索全球甲醇生产项目，并按燃料类型、项目状态和时间筛选。",
+      "projects_one": "个项目",
+      "projects_other": "个项目",
+      "countries": "个国家",
+      "ktpaCapacity": "ktpa 总产能"
     },
     "tabs": {
-      "map": "地图",
-      "list": "列表"
+      "projectMap": "项目地图",
+      "futureProduction": "未来产能"
     },
-    "filters": {
-      "allFuels": "全部燃料",
-      "allRegions": "全部地区",
-      "fuelType": "燃料类型",
-      "region": "地区"
+    "controls": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "closePopup": "关闭弹出窗口"
     },
     "sidebar": {
-      "producers": "生产商",
-      "noResults": "暂无符合条件的结果",
-      "viewDetails": "查看详情",
-      "capacity": "产能",
-      "certifications": "认证"
+      "searchPlaceholder": "按项目名称或公司搜索",
+      "fuelType": "燃料类型",
+      "status": "状态",
+      "codYearRange": "COD 年份范围",
+      "to": "至",
+      "showingProjects_one": "共 {{count}} 个项目，当前显示 {{shown}} 个",
+      "showingProjects_other": "共 {{count}} 个项目，当前显示 {{shown}} 个",
+      "legend": "图例",
+      "markerSizeNote": "标记大小表示产能（小型 <50，中型 50-500，大型 >500 ktpa）"
     },
-    "marketplace": {
-      "title": "市场即将上线",
-      "subtitle": "该地区的生产商市场正在建设中，敬请期待。"
+    "futures": {
+      "title": "未来产能市场",
+      "subtitle": "可签订承购协议的待投产产能。直接联系生产商以锁定未来供应。",
+      "upcomingProjects_one": "个待投产项目",
+      "upcomingProjects_other": "个待投产项目",
+      "ktpaPipeline": "ktpa 储备产能",
+      "searchPlaceholder": "搜索项目、公司或国家...",
+      "allFuelTypes": "全部燃料类型",
+      "sortByTimeline": "按时间排序",
+      "sortByCapacity": "按产能排序",
+      "showingProjects_one": "共 {{count}} 个未来项目，当前显示 {{shown}} 个",
+      "showingProjects_other": "共 {{count}} 个未来项目，当前显示 {{shown}} 个",
+      "noResults": "没有符合筛选条件的未来项目",
+      "tryAdjusting": "请调整搜索条件或燃料类型筛选",
+      "imminent": "即将投产",
+      "capacity": "产能",
+      "expectedCod": "预计 COD",
+      "location": "地点",
+      "pathway": "生产路径",
+      "expressInterest": "表达意向"
+    },
+    "popup": {
+      "capacity": "产能",
+      "cod": "COD",
+      "city": "城市",
+      "country": "国家"
+    },
+    "email": {
+      "subject": "承购意向：{{project}}",
+      "body": "我有意洽谈 {{project}} 项目的承购安排（{{fuelType}}，{{capacity}} ktpa，COD {{year}}）。"
+    },
+    "cta": {
+      "titleFutures": "有未来产能可供承购？",
+      "titleMap": "想在地图上展示您的项目？",
+      "subtitleFutures": "在 Verdaxis 市场发布待投产产能，在 COD 前对接买家并锁定承购协议。",
+      "subtitleMap": "加入试点，向全球买家、交易商和金融机构展示您的低碳燃料生产设施。",
+      "buttonFutures": "发布您的产能",
+      "buttonMap": "申请试点"
     }
   },
   "partners": {
@@ -551,48 +670,178 @@
     "insights": {
       "title": "洞察 & 资源",
       "subtitle": "来自 Verdaxis 合作伙伴生态的市场情报与专题解读。",
-      "readMore": "阅读更多"
+      "readMore": "阅读更多",
+      "minRead": "分钟阅读"
+    },
+    "categories": {
+      "all": "全部",
+      "fundamentals": "基础知识",
+      "compliance": "合规",
+      "market": "市场"
     }
   },
   "partnerShowcase": {
+    "partners": {
+      "0": {
+        "role": "行业标准组织",
+        "description": "全球甲醇行业贸易协会。其成员可通过 Verdaxis 平台直接获取经核验的价格、合规数据和市场流动性。"
+      },
+      "1": {
+        "role": "定价与基准",
+        "description": "全球大宗商品定价基准机构。Verdaxis 集成 Platts 评估，为所有燃料路径提供透明、达到参考级标准的定价。"
+      },
+      "2": {
+        "role": "监管机构",
+        "description": "新加坡海事监管机构，同时负责全球最大的船用燃料加注港。Verdaxis 与 MPA 的 Green Ship Programme 和未来燃料框架保持一致。"
+      },
+      "3": {
+        "role": "分析与技术",
+        "description": "芬兰能源技术公司，为工业和能源转型项目提供先进的项目分析、成本曲线建模和排放分析工具。"
+      }
+    },
+    "topBar": {
+      "brandName": "Verdaxis",
+      "label": "合作伙伴网络 — 预览"
+    },
     "hero": {
-      "title": "合作伙伴展示",
-      "subtitle": "与 Verdaxis 共同推动可持续海洋燃料市场发展的领先机构。"
+      "ecosystemLabel": "战略生态系统",
+      "title1": "获得",
+      "title2": "市场塑造者",
+      "title3": "的信赖",
+      "subtitle": "Verdaxis 与全球定价机构、海事监管机构、技术提供商和行业标准组织合作，共同建设最值得信赖的低碳燃料交易所。"
     },
-    "members": {
-      "title": "合作成员",
-      "subtitle": "与领先行业机构合作，共同构建可持续燃料市场基础设施。",
-      "representation": "代表性涵盖"
+    "memberRepresentation": {
+      "eyebrow": "成员展示",
+      "title": "机构成员在平台上的展示方式",
+      "subtitle": "合作机构的成员会在市场挂单中获得经核验的信任徽章，在不削弱 Verdaxis 品牌识别的前提下建立可信度。",
+      "exampleListing": "市场挂单示例",
+      "listingTitle": "绿色甲醇 — Rotterdam",
+      "listingMeta": "OCI Global · 5,000 MT · 现货",
+      "verifiedBadge": "Verdaxis 已核验",
+      "miMember": "MI 会员",
+      "plattsIndexed": "Platts 指数挂钩",
+      "labels": {
+        "ciScore": "CI 评分",
+        "energy": "能量",
+        "fuelEu": "FuelEU",
+        "pathway": "生产路径",
+        "compliant": "合规"
+      }
     },
-    "cta": {
-      "title": "有意向成为合作伙伴？",
-      "subtitle": "联系我们，了解如何加入 Verdaxis 合作伙伴网络。",
-      "button": "联系我们"
+    "partnerCard": {
+      "verifiedBadge": "VERDAXIS 已核验合作伙伴"
+    },
+    "footer": {
+      "confidentialNote": "本页为内部使用及合作伙伴洽谈提供的保密预览，不在 Verdaxis 公开网站发布。"
     }
   },
   "partnerLanding": {
-    "problem": {
+    "partners": {
+      "eyebrow": "深受领先机构信赖",
+      "title": "与市场共同构建，而非闭门造车",
+      "subtitle": "Verdaxis 与全球定价机构、海事监管机构、技术提供商和行业标准组织合作。"
+    },
+    "why": {
       "eyebrow": "行业痛点",
-      "title": "现有市场存在的问题",
-      "subtitle": "可持续海洋燃料市场面临结构性挑战，阻碍了能源转型进程。",
+      "title": "Verdaxis 为何存在",
+      "subtitle": "市场碎片化、数据不一致和合规不确定性阻碍了低碳燃料转型。",
       "cards": {
         "0": {
-          "title": "价格不透明",
-          "body": "双边谈判导致定价不透明、信息不对称，买卖双方均难以获取真实市场价格。"
+          "title": "低碳燃料稀缺",
+          "body": "低碳燃料供应有限，每一单位燃料都需要经核验的来源和透明定价。"
         },
         "1": {
-          "title": "碎片化供应",
-          "body": "供应商分散、认证标准不统一，买家难以在单一平台获取并比较所有燃料类型。"
+          "title": "标准碎片化",
+          "body": "RED III、45Z、RenovaBio、FuelEU Maritime、IMO NZF 各有不同规则和指标，需要由一个平台统一衔接。"
         },
         "2": {
-          "title": "合规负担繁重",
-          "body": "FuelEU、ETS 等监管框架持续演进，手动合规报告耗时费力，且容易出错。"
+          "title": "双重计算风险",
+          "body": "缺乏监管链完整性时，同一环境属性可能被多次申报。"
         },
         "3": {
-          "title": "双重计算风险",
-          "body": "纸质证书体系导致可持续数据存在重复使用风险，危及整个供应链的可信度。"
+          "title": "Scope 3 压力",
+          "body": "终端用户面临越来越大压力，需要证明真实减排，而不仅是购买证书。"
         }
       }
+    },
+    "how": {
+      "eyebrow": "解决方案",
+      "title": "Verdaxis\n如何运作",
+      "subtitle": "从燃料生产到可核验的下游声明，只需三步。",
+      "seeFullProcess": "查看完整流程",
+      "mobileTitle": "Verdaxis 如何运作",
+      "steps": {
+        "0": {
+          "title": "登记与核验",
+          "body": "生产商登记燃料批次的原料路径、CI 评分和认证，由第三方核验并锁定相关属性。"
+        },
+        "1": {
+          "title": "诚信交易",
+          "body": "买家和交易商可在市场中查看能量调整后价格、合规评分和完整监管链，并据此发现燃料。"
+        },
+        "2": {
+          "title": "可信申报",
+          "body": "下游声明可追溯至源头。每项环境属性均被锁定、可审计，且无法重复计算。"
+        }
+      }
+    },
+    "roles": {
+      "eyebrow": "面向所有角色",
+      "title": "为每类参与者而建",
+      "subtitle": "无论您生产、采购、交易还是融资低碳燃料，Verdaxis 都能提供所需工具与信任层。",
+      "learnMore": "了解更多",
+      "cards": {
+        "0": {
+          "title": "燃料生产商",
+          "bullets": {
+            "0": "更快达成承购",
+            "1": "发现产品溢价",
+            "2": "合规就绪的销售流程"
+          }
+        },
+        "1": {
+          "title": "燃料买家",
+          "bullets": {
+            "0": "经核验的 Scope 3 减排",
+            "1": "能量调整后定价",
+            "2": "降低合规风险"
+          }
+        },
+        "2": {
+          "title": "交易商",
+          "bullets": {
+            "0": "获取市场流动性",
+            "1": "标准化交易",
+            "2": "减少后台运营摩擦"
+          }
+        },
+        "3": {
+          "title": "金融机构",
+          "bullets": {
+            "0": "可融资的数据",
+            "1": "可追溯的声明",
+            "2": "降低尽职调查成本"
+          }
+        }
+      }
+    },
+    "frameworks": {
+      "label": "面向全球合规框架构建",
+      "items": {
+        "0": "FuelEU Maritime",
+        "1": "RED III",
+        "2": "IMO NZF",
+        "3": "45Z Tax Credit",
+        "4": "RenovaBio",
+        "5": "CORSIA"
+      }
+    },
+    "cta": {
+      "eyebrow": "加入试点",
+      "title": "准备好共同定义市场？",
+      "subtitle": "Verdaxis 正在引入有限数量的试点参与者，包括希望共同塑造低碳燃料商业标准的生产商、买家、交易商和金融机构。",
+      "applyButton": "申请试点",
+      "registerButton": "登记意向"
     }
   },
   "pilot": {
@@ -678,70 +927,196 @@
     },
     "browse": {
       "title": "浏览所有文章",
-      "subtitle": "从基础知识到深度解析，全面覆盖可持续航运领域各类主题。",
-      "allCategories": "全部分类",
-      "readMore": "阅读更多",
+      "subtitle": "从基础知识到深度解析，全面覆盖可持续航运领域各类主题。"
+    },
+    "articleCard": {
+      "readArticle": "阅读文章",
       "minRead": "分钟阅读"
+    },
+    "categories": {
+      "all": "全部",
+      "fundamentals": "基础知识",
+      "compliance": "合规",
+      "market": "市场"
     }
   },
   "educationArticle": {
     "backToEducation": "返回学习中心",
-    "backToPartners": "返回合作伙伴",
     "minRead": "分钟阅读",
     "notFound": {
       "title": "文章未找到",
-      "subtitle": "抱歉，您查找的文章不存在。",
-      "back": "返回学习中心"
+      "message": "您查找的文章不存在或已被移动。"
     }
   },
   "roadmap": {
     "hero": {
       "title": "产品路线图",
-      "subtitle": "Verdaxis 的发展愿景及各阶段里程碑规划。"
+      "subtitle": "Verdaxis 正在按审慎规划的阶段逐步构建。每个阶段都承接上一阶段，在保持平台完整性的同时扩展能力。不设日期——只明确先后顺序并兑现承诺。"
     },
     "phases": {
-      "title": "发展阶段",
-      "subtitle": "从先行试点到全面上线的分阶段建设路径。"
+      "0": {
+        "label": "第 1 阶段",
+        "title": "登记与核验",
+        "description": "夯实基础：燃料登记、属性核验和参与者入驻。",
+        "features": {
+          "0": "燃料与属性登记，包括 CI 评分",
+          "1": "接入第三方核验",
+          "2": "生产商与买家入驻",
+          "3": "提供教育资源的公开网站",
+          "4": "能源价值计算器",
+          "5": "生产商项目地图"
+        }
+      },
+      "1": {
+        "label": "第 2 阶段",
+        "title": "撮合与结构化承购",
+        "description": "连接参与者：基于经核验数据和考虑合规因素的定价开展双边撮合。",
+        "features": {
+          "0": "经核验参与者之间的双边撮合",
+          "1": "CI 调整后价格展示",
+          "2": "基于平台活动的真实价格发现",
+          "3": "接入实时数据的增强版生产商地图",
+          "4": "供应商需求信号",
+          "5": "区域燃料可用性地图"
+        }
+      },
+      "2": {
+        "label": "第 3 阶段",
+        "title": "实时 BID 与 ASK",
+        "description": "开放市场：通过实时订单簿形成透明价格。",
+        "features": {
+          "0": "含 BID 与 ASK 的实时订单簿",
+          "1": "实时价格发现",
+          "2": "远期合约与结构化承购",
+          "3": "评估机构数据源（Platts）",
+          "4": "Scope 3 价值实现工具",
+          "5": "自动化合规报告"
+        }
+      },
+      "3": {
+        "label": "第 4 阶段",
+        "title": "合规自动化与报告",
+        "description": "全面集成：自动化监管报告、绿色融资和完整交易所能力。",
+        "features": {
+          "0": "FuelEU Maritime 申报自动化",
+          "1": "EU ETS 配额清缴计算",
+          "2": "绿色融资模块",
+          "3": "供程序化接入的合作伙伴 API",
+          "4": "多燃料交叉协同工具",
+          "5": "具备结算与清算能力的完整交易所"
+        }
+      },
+      "current": "当前阶段"
     },
-    "principles": {
-      "title": "设计原则",
-      "subtitle": "指导 Verdaxis 产品开发的核心理念。"
+    "howWeBuild": {
+      "title": "我们的建设方式",
+      "subtitle": "三项原则指导 Verdaxis 平台的每一项功能决策。",
+      "principles": {
+        "0": {
+          "title": "诚信优先",
+          "description": "每项功能都会先由真实参与者测试，再逐步扩大范围。只有达到生产就绪标准后才会上线。"
+        },
+        "1": {
+          "title": "审慎扩展",
+          "description": "我们逐步增加参与者和交易量。为 10 位用户稳定运行的平台，胜过为 1,000 位用户频繁崩溃的平台。"
+        },
+        "2": {
+          "title": "监管一致",
+          "description": "每项功能都将合规纳入设计。我们在监管框架内构建，而不是绕开监管。"
+        }
+      }
     },
     "cta": {
       "title": "准备好了吗？",
-      "subtitle": "申请先行试点资格，率先体验 Verdaxis 平台。",
       "button": "申请早期准入"
     }
   },
   "governance": {
     "hero": {
-      "title": "平台治理",
-      "subtitle": "支撑 Verdaxis 交易所可信度与公正性的治理框架。"
+      "title": "治理与信任",
+      "subtitle": "在实时交易启动前，治理比用户界面更为重要。Verdaxis 建立在透明、独立和角色结构性分离的基础之上。"
     },
     "principles": {
       "title": "指导原则",
-      "subtitle": "Verdaxis 治理框架的核心价值理念。"
+      "subtitle": "三项基本原则为 Verdaxis 的每项决策提供指引。",
+      "items": {
+        "0": {
+          "title": "信任先于流动性",
+          "description": "平台必须先建立公信力，再扩大交易规模。相较于快速增长，我们更重视经核验的参与者、可审计流程和监管一致性。"
+        },
+        "1": {
+          "title": "规则先于价格",
+          "description": "在交易开始前先确立市场规则、合规标准和属性定义，确保所有参与者在同一框架下运作。"
+        },
+        "2": {
+          "title": "独立与中立",
+          "description": "Verdaxis 作为中立的基础设施提供方运营，平台利益与参与者利益在结构上相互分离。"
+        }
+      }
     },
-    "roles": {
-      "title": "结构性角色",
-      "subtitle": "维护平台完整性的关键治理角色。"
+    "structuralRoles": {
+      "title": "角色的结构性分离",
+      "subtitle": "Verdaxis 在平台运营、市场参与和核验之间保持清晰边界，以防止利益冲突。",
+      "items": {
+        "0": {
+          "title": "平台运营方",
+          "description": "Verdaxis 作为技术和登记服务提供方，负责平台完整性、规则执行和数据安全，不持有自营交易头寸。"
+        },
+        "1": {
+          "title": "市场参与者",
+          "description": "使用平台的生产商、买家、交易商和金融机构，须遵守平台规则、KYC 要求和合规标准。"
+        },
+        "2": {
+          "title": "核验机构",
+          "description": "核验环境属性的独立第三方认证机构，由认可的标准组织授权，与 Verdaxis 不存在关联关系。"
+        }
+      }
     },
     "dataNeutrality": {
       "title": "数据中立性",
-      "subtitle": "Verdaxis 对数据中立性的承诺。"
+      "points": {
+        "0": "Verdaxis 对所有参与者数据给予同等保密保护，不会利用任何一方的个别交易数据为其他方谋利。",
+        "1": "为促进价格发现，可发布汇总且匿名化的市场数据。",
+        "2": "个别交易数据绝不会与竞争对手共享，也不会用于自营分析。",
+        "3": "参与者保留其数据所有权，并可随时导出。"
+      }
     },
     "conflictOfInterest": {
       "title": "利益冲突管理",
-      "subtitle": "防范和管理平台运营中潜在利益冲突的政策。"
+      "points": {
+        "0": "若 Verdaxis、其关联方或负责人参与燃料交易活动，将向所有参与者充分披露。",
+        "1": "任何关联交易活动均适用与其他参与者相同的规则，不享有优先接入或信息优势。",
+        "2": "独立监督职能负责监测潜在利益冲突。",
+        "3": "参与者可通过保密渠道报告疑虑。"
+      }
     },
-    "advisory": {
+    "advisoryBoard": {
       "title": "顾问委员会",
-      "subtitle": "为平台治理提供独立指导的行业专家顾问团队。"
+      "subtitle": "Verdaxis 正在组建由独立行业专家构成的顾问委员会，为平台治理提供指导。",
+      "members": {
+        "0": {
+          "role": "海事监管专家",
+          "status": "待公布"
+        },
+        "1": {
+          "role": "碳市场专家",
+          "status": "待公布"
+        },
+        "2": {
+          "role": "燃料生产顾问",
+          "status": "待公布"
+        },
+        "3": {
+          "role": "金融合规顾问",
+          "status": "待公布"
+        }
+      },
+      "interestedText": "有意加入我们的顾问委员会？",
+      "contactUs": "联系我们"
     },
     "cta": {
-      "title": "了解平台架构",
-      "subtitle": "深入了解 Verdaxis 的运作机制。",
-      "button": "了解如何运作"
+      "title": "了解我们的试点计划与早期准入",
+      "button": "试点计划"
     }
   },
   "privacy": {
@@ -754,7 +1129,7 @@
       },
       "1": {
         "title": "2. 信息的使用方式",
-        "body": "我们使用您的信息运营交易平台、处理交易、履行监管合规要求，并向您发送与账户有关的重要通知。"
+        "body": "我们使用您的信息运营交易平台、处理交易、履行监管合规要求（EU ETS、FuelEU），并向您发送与账户有关的重要通知。"
       },
       "2": {
         "title": "3. 产品分析",
@@ -776,40 +1151,39 @@
   },
   "terms": {
     "title": "服务条款",
-    "subtitle": "使用 Verdaxis 平台即表示您同意以下条款和条件。",
-    "lastUpdated": "最后更新",
+    "lastUpdated": "最后更新：2026 年 2 月",
     "sections": {
-      "acceptance": {
-        "title": "条款接受",
-        "body": "访问或使用 Verdaxis 平台，即表示您同意受本服务条款约束。"
+      "0": {
+        "title": "1. 接受条款",
+        "body": "访问 Verdaxis Exchange 即表示您同意受本服务条款约束。如不同意，请勿使用本平台。"
       },
-      "services": {
-        "title": "平台服务",
-        "body": "Verdaxis 提供可持续海洋燃料交易、价格发现及合规报告服务。"
+      "1": {
+        "title": "2. 平台说明",
+        "body": "Verdaxis Exchange 是一个以合规为先的低碳船用燃料市场，促成燃料供应商与航运公司之间的交易。"
       },
-      "eligibility": {
-        "title": "使用资格",
-        "body": "使用我们的平台，您须为合法注册的企业实体，并完成所需的 KYC/KYB 核验。"
+      "2": {
+        "title": "3. 账户责任",
+        "body": "您有责任对账户凭证保密，并对账户下的所有活动负责。如发现任何未经授权的使用，请立即通知我们。"
       },
-      "prohibited": {
-        "title": "禁止行为",
-        "body": "禁止市场操纵、欺诈行为及任何违反适用法律法规的行为。"
+      "3": {
+        "title": "4. 交易规则",
+        "body": "平台上执行的所有交易均须遵守我们的交易规则和结算程序。BID 与 ASK 一经确认即具有约束力。"
       },
-      "liability": {
-        "title": "责任限制",
-        "body": "对于因使用或无法使用平台服务所造成的任何损失，Verdaxis 不承担相应责任。"
+      "4": {
+        "title": "5. 责任限制",
+        "body": "Verdaxis Exchange 按“现状”提供。对于超出我们合理控制范围的交易损失、数据中断或第三方服务故障，我们不承担责任。"
       },
-      "governing": {
-        "title": "适用法律",
-        "body": "本条款受新加坡法律管辖，任何争议须提交新加坡具有管辖权的法院解决。"
+      "5": {
+        "title": "6. 联系方式",
+        "body": "如对本条款有任何疑问，请发送电子邮件至 legal@verdaxis.exchange。"
       }
     }
   },
   "notFound": {
+    "code": "404",
     "title": "页面未找到",
-    "subtitle": "您访问的页面不存在或已移动。",
-    "backHome": "返回首页",
-    "code": "404"
+    "message": "您查找的页面不存在或已被移动。",
+    "backHome": "返回首页"
   },
   "hero": {
     "badge": "现正接受试点申请",

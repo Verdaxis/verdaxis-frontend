@@ -91,7 +91,7 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
         label: port.name,
         description: t('intelligencePanel.estimator.portBunkerDescription', {
             product: selectedFuel.label,
-            availability: port.methanolSupply,
+            availability: t(`intelligencePanel.availabilityLevels.${port.methanolSupply.toLowerCase()}`),
         }),
     })), [portOptions, selectedFuel.label, t]);
     const voyageDays = useMemo(() => (
@@ -395,7 +395,9 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
 
                     {!result.blend.feasible && (
                         <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                            {result.blend.noFeasibleReason}
+                            {result.blend.noFeasibleReason
+                                ? t(`intelligencePanel.estimator.messages.${result.blend.noFeasibleReason}`)
+                                : null}
                         </div>
                     )}
 

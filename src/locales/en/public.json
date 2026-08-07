@@ -105,6 +105,12 @@
       "registerButton": "Register Interest"
     }
   },
+  "priceTicker": {
+    "ariaLabel": "Demo marketplace price ticker. Illustrative, non-executable values. Focus or hover to pause scrolling.",
+    "tooltip": "Illustrative midpoint derived from disclosed Demo marketplace bids and asks. Not an executable quote.",
+    "preview": "Preview",
+    "demo": "Demo"
+  },
   "howItWorks": {
     "hero": {
       "title": "How Verdaxis Works",
@@ -383,7 +389,7 @@
       "maritime": {
         "label": "Maritime",
         "headline": "Maritime Fuels",
-        "subtitle": "Low-carbon bunker fuels for the global fleet — from drop-in biofuel blends to next-generation ammonia and e-methanol."
+        "subtitle": "Low-carbon bunker fuels for the global fleet — from drop-in biofuel blends to next-generation ammonia and E-Methanol."
       },
       "aviation": {
         "label": "Aviation",
@@ -394,6 +400,76 @@
         "label": "Land",
         "headline": "Land & Power",
         "subtitle": "Ethanol for road transport and ammonia for clean power generation — the bridge fuels for terrestrial decarbonisation."
+      }
+    },
+    "fuels": {
+      "methanol": {
+        "name": "Methanol",
+        "pathways": {
+          "0": "Bio Methanol (waste/biomass)",
+          "1": "E-Methanol (green H₂ + CO₂)",
+          "2": "Fossil (grey)"
+        },
+        "keyMarkets": "Maritime bunkering, chemical feedstock",
+        "note": "∼2M mt expected production in 2026. Key producers: CRI (Iceland), GoldWind (China), MGC (Japan)"
+      },
+      "ethanol": {
+        "name": "Ethanol",
+        "pathways": {
+          "0": "1G (sugarcane/corn)",
+          "1": "2G (cellulosic/bagasse)",
+          "2": "Waste-based"
+        },
+        "keyMarkets": "Road transport blending, SAF feedstock, maritime",
+        "note": "Production could match methanol volumes. Cross-pollination with SAF pathways."
+      },
+      "bioLng": {
+        "name": "Bio-LNG",
+        "pathways": {
+          "0": "Anaerobic digestion (biogas)",
+          "1": "Gasification (woody biomass)",
+          "2": "Landfill gas upgrading"
+        },
+        "keyMarkets": "Maritime bunkering, LNG-fuelled vessels",
+        "note": "Drop-in for the growing LNG-fuelled fleet. 700+ LNG-capable vessels in service or on order."
+      },
+      "bioMgo": {
+        "name": "Bio-MGO / FAME Blends",
+        "pathways": {
+          "0": "UCOME (used cooking oil methyl ester)",
+          "1": "FAME B20–B100 blends",
+          "2": "HVO (hydrotreated vegetable oil)"
+        },
+        "keyMarkets": "Maritime bunkering, drop-in blending",
+        "note": "Lowest-barrier entry for existing fleet. UCOME widely available at major bunkering hubs."
+      },
+      "ammonia": {
+        "name": "Ammonia",
+        "pathways": {
+          "0": "Green ammonia (electrolysis)",
+          "1": "Blue ammonia (SMR + CCS)"
+        },
+        "keyMarkets": "Maritime (next-gen engines), power generation, industrial heat",
+        "note": "MAN and Wärtsilä ammonia engines in development. First commercial vessels expected 2026–2028."
+      },
+      "saf": {
+        "name": "Sustainable Aviation Fuel (SAF)",
+        "pathways": {
+          "0": "HEFA (used cooking oil / tallow)",
+          "1": "Fischer-Tropsch (gasification)",
+          "2": "Alcohol-to-Jet (AtJ)"
+        },
+        "keyMarkets": "Aviation, blending mandates (EU ReFuelEU)",
+        "note": "Global SAF mandates accelerating: EU 2% (2025), 6% (2030), 70% (2050). CORSIA Phase 1 starts 2027."
+      },
+      "ucome": {
+        "name": "UCOME",
+        "pathways": {
+          "0": "Used cooking oil collection & processing",
+          "1": "Waste grease transesterification"
+        },
+        "keyMarkets": "SAF feedstock (HEFA pathway), biodiesel, maritime",
+        "note": "The dominant SAF feedstock today. Supply chain integrity critical — UCO fraud risk drives need for verified provenance."
       }
     },
     "fuelCard": {
@@ -459,7 +535,17 @@
       "totalCost": "Total Cost",
       "lowerCost": "Lower Cost",
       "compliant": "Compliant",
-      "penalty": "Penalty"
+      "penalty": "Penalty",
+      "efficiency": "Efficiency",
+      "better": "Better",
+      "worse": "Worse",
+      "fuelCost": "Fuel Cost",
+      "versus": "vs",
+      "intensity": "Intensity",
+      "coverage": "Coverage"
+    },
+    "units": {
+      "days": "days"
     },
     "savings": {
       "eyebrow": "Net Savings Per Voyage",
@@ -468,7 +554,8 @@
       "equal": "Both fuels are equal in total voyage cost",
       "fuelCostDelta": "Fuel Cost Delta",
       "etsCostDelta": "ETS Cost Delta",
-      "fueleuPenaltyDelta": "FuelEU Penalty Delta"
+      "fueleuPenaltyDelta": "FuelEU Penalty Delta",
+      "energyValueEstimate": "≈ ${{low}}–${{high}} per tonne in effective value based on energy alone"
     },
     "cta": {
       "title": "Want to see energy-adjusted prices from real suppliers?",
@@ -477,10 +564,36 @@
     }
   },
   "producerMap": {
+    "fuelTypes": {
+      "eMethanol": "E-Methanol",
+      "bioMethanol": "Bio Methanol",
+      "greenMethanol": "Green Methanol"
+    },
+    "statuses": {
+      "all": "All",
+      "operational": "Operational",
+      "underConstruction": "Under Construction",
+      "engineering": "Engineering",
+      "preFeasibility": "Pre-Feasibility"
+    },
+    "pathways": {
+      "biomass": "Biomass",
+      "biomassRenewableHydrogen": "Biomass + H2 (renewable)",
+      "biomethane": "Biomethane",
+      "biomethaneNaturalGas": "Biomethane + Natural gas",
+      "blackLiquor": "Black liquor",
+      "nonRenewableHydrogen": "CO2 + H2 (non-renewable)",
+      "renewableHydrogen": "CO2 + H2 (renewable)",
+      "naturalGas": "Natural gas",
+      "residualWaste": "Residual waste",
+      "residualWasteBiomass": "Residual waste + Biomass",
+      "residualWasteLowCarbonHydrogen": "Residual waste + H2 (low-carbon)"
+    },
     "header": {
       "title": "Producer & Project Map",
       "subtitle": "Explore methanol production projects worldwide. Filter by fuel type, project status, and timeline.",
-      "projects": "projects",
+      "projects_one": "project",
+      "projects_other": "projects",
       "countries": "countries",
       "ktpaCapacity": "ktpa total capacity"
     },
@@ -488,28 +601,34 @@
       "projectMap": "Project Map",
       "futureProduction": "Future Production"
     },
+    "controls": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "closePopup": "Close popup"
+    },
     "sidebar": {
       "searchPlaceholder": "Search by name or company",
       "fuelType": "Fuel Type",
       "status": "Status",
       "codYearRange": "COD Year Range",
       "to": "to",
-      "showing": "Showing",
-      "of": "of",
+      "showingProjects_one": "Showing {{shown}} of {{count}} project",
+      "showingProjects_other": "Showing {{shown}} of {{count}} projects",
       "legend": "Legend",
       "markerSizeNote": "Marker size indicates capacity (small <50, medium 50-500, large >500 ktpa)"
     },
     "futures": {
       "title": "Future Production Marketplace",
       "subtitle": "Upcoming production capacity available for off-take agreements. Contact producers directly to secure future supply.",
-      "upcomingProjects": "upcoming projects",
+      "upcomingProjects_one": "upcoming project",
+      "upcomingProjects_other": "upcoming projects",
       "ktpaPipeline": "ktpa pipeline",
       "searchPlaceholder": "Search projects, companies, countries...",
       "allFuelTypes": "All Fuel Types",
       "sortByTimeline": "Sort by Timeline",
       "sortByCapacity": "Sort by Capacity",
-      "showingOf": "Showing",
-      "futureProjects": "future projects",
+      "showingProjects_one": "Showing {{shown}} of {{count}} future project",
+      "showingProjects_other": "Showing {{shown}} of {{count}} future projects",
       "noResults": "No future projects match your filters",
       "tryAdjusting": "Try adjusting your search or fuel type filter",
       "imminent": "IMMINENT",
@@ -524,6 +643,10 @@
       "cod": "COD",
       "city": "City",
       "country": "Country"
+    },
+    "email": {
+      "subject": "Off-take Interest: {{project}}",
+      "body": "I am interested in discussing off-take arrangements for the {{project}} project ({{fuelType}}, {{capacity}} ktpa, COD {{year}})."
     },
     "cta": {
       "titleFutures": "Have future production to offer?",
@@ -558,6 +681,24 @@
     }
   },
   "partnerShowcase": {
+    "partners": {
+      "0": {
+        "role": "Industry Standards Body",
+        "description": "Global trade association for the methanol industry. Members gain direct access to verified pricing, compliance data, and marketplace liquidity through the Verdaxis platform."
+      },
+      "1": {
+        "role": "Pricing & Benchmarks",
+        "description": "The global benchmark for commodity pricing. Verdaxis integrates Platts assessments to provide transparent, reference-grade pricing across all fuel pathways."
+      },
+      "2": {
+        "role": "Regulatory Authority",
+        "description": "Singapore's maritime regulator and the world's largest bunkering port authority. Verdaxis aligns with MPA's Green Ship Programme and future fuels framework."
+      },
+      "3": {
+        "role": "Analytics & Technology",
+        "description": "Finnish energy technology company providing advanced project analytics, cost curve modelling, and emissions analysis tools for industrial and energy transition projects."
+      }
+    },
     "topBar": {
       "brandName": "Verdaxis",
       "label": "Partner Network — Preview"
@@ -685,7 +826,15 @@
       }
     },
     "frameworks": {
-      "label": "Built for global compliance frameworks"
+      "label": "Built for global compliance frameworks",
+      "items": {
+        "0": "FuelEU Maritime",
+        "1": "RED III",
+        "2": "IMO NZF",
+        "3": "45Z Tax Credit",
+        "4": "RenovaBio",
+        "5": "CORSIA"
+      }
     },
     "cta": {
       "eyebrow": "Join the Pilot",

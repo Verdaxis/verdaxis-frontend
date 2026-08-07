@@ -1,7 +1,7 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   users: vi.fn(),
@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   rejectUser: vi.fn(),
   invitationOrganizations: vi.fn(),
   createInvitation: vi.fn(),
+  onboardingAttention: vi.fn(),
 }));
 
 vi.mock('../services/api', async importOriginal => {
@@ -42,6 +43,7 @@ vi.mock('../components/admin/product-analytics/ProductAnalyticsWorkspace', () =>
 }));
 
 import { AdminDashboard } from '../components/admin/AdminDashboard';
+import i18n, { loadNamespace } from '../i18n';
 
 const reviewCase = {
   user_id: 'user-1',
@@ -103,6 +105,11 @@ describe('admin onboarding review', () => {
       expires_at: '2026-08-12T12:00:00Z',
       reissued: false,
     });
+    mocks.onboardingAttention.mockResolvedValue({ items: [], generated_at: '2026-08-07T00:00:00Z' });
+  });
+
+  afterEach(async () => {
+    await act(async () => { await i18n.changeLanguage('en'); });
   });
 
   it('shows the requested organization and blocks approval on email verification', async () => {
@@ -151,5 +158,49 @@ describe('admin onboarding review', () => {
     });
     expect(await screen.findByText('Invitation ready')).toBeTruthy();
     expect(screen.getByDisplayValue('https://app.verdaxis.exchange/accept-invite#token=claim-secret')).toBeTruthy();
+  });
+
+  it('does not expose unknown organization or outreach enums in Chinese', async () => {
+    await loadNamespace('admin');
+    await act(async () => { await i18n.changeLanguage('zh'); });
+    mocks.users.mockResolvedValue({
+      total: 1,
+      items: [{
+        id: 'future-user',
+        email: 'future@example.test',
+        first_name: 'Future',
+        last_name: 'User',
+        role: 'BUYER',
+        status: 'PENDING',
+        created_at: '2026-08-07T00:00:00Z',
+        org_name: 'Future Fuels Ltd.',
+        org_type: 'FUTURE_ORG',
+        org_provenance: 'REAL',
+        organization_id: 'future-org',
+      }],
+    });
+    mocks.onboardingAttention.mockResolvedValue({
+      generated_at: '2026-08-07T00:00:00Z',
+      items: [{
+        email: 'future@example.test',
+        name: 'Future User',
+        role: 'BUYER',
+        stage: 'FUTURE_STAGE',
+        since: '2026-08-06T00:00:00Z',
+        organization_name: 'Future Fuels Ltd.',
+        last_login: null,
+      }],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/其他机构类型/)).toBeTruthy();
+    expect(await screen.findByText('其他入驻阶段')).toBeTruthy();
+    expect(screen.queryByText('FUTURE_ORG')).toBeNull();
+    expect(screen.queryByText('FUTURE_STAGE')).toBeNull();
   });
 });

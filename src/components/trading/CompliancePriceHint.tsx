@@ -15,6 +15,11 @@ interface CompliancePriceHintProps {
  */
 export const CompliancePriceHint: React.FC<CompliancePriceHintProps> = ({ overlay, assumptions }) => {
     const { t } = useTranslation('trading');
+    const excludedFactor = (factor: string) => {
+        const key = `marketplace.fueleu.tooltip.factor.${factor}`;
+        const translated = t(key);
+        return translated === key ? t('marketplace.fueleu.tooltip.factor.other') : translated;
+    };
 
     const penaltyUsd = Number(overlay.penalty_avoided_usd_per_mt);
     const tco2e = Number(overlay.tco2e_avoided_per_mt);
@@ -37,7 +42,7 @@ export const CompliancePriceHint: React.FC<CompliancePriceHintProps> = ({ overla
                 ? t('marketplace.fueleu.tooltip.fleetOrg')
                 : t('marketplace.fueleu.tooltip.fleetDefault')}`,
             `EUR/USD ${Number(assumptions.eur_usd_rate)} (${t('marketplace.fueleu.tooltip.assumed')})`,
-            `${t('marketplace.fueleu.tooltip.excludes')}: ${assumptions.excluded_factors.join(', ')}`,
+            `${t('marketplace.fueleu.tooltip.excludes')}: ${assumptions.excluded_factors.map(excludedFactor).join(', ')}`,
         );
     }
     tooltipParts.push(t('marketplace.fueleu.tooltip.estimate'));

@@ -38,6 +38,8 @@
   },
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
+    "error": "Unable to load the Intelligence Map. Please try again later.",
+    "mapLabel": "Interactive market intelligence map",
     "marketAvails": "Open Market Avails",
     "lastDone": "Recent Listings",
     "recentActivity": "Recent Activity",
@@ -52,10 +54,33 @@
     "mixedMarketplace": "Mixed marketplace",
     "marketplace": "Marketplace",
     "noOpenListingIndications": "No open listing indications yet.",
+    "noOpenAsks": "No open asks available yet.",
+    "openVolume": "{{volume}} MT open",
+    "allProducts": "All",
     "availability": "Availability",
     "viewMarketplace": "View Marketplace",
     "showInsights": "Show Insights",
     "overlays": "Overlays",
+    "popup": {
+      "fuel": "Fuel",
+      "bid": "BID",
+      "ask": "ASK",
+      "noOpenOrders": "No open orders at this port",
+      "unknownPort": "Unknown Port",
+      "global": "Global",
+      "tradeAt": "Trade at {{port}}",
+      "close": "Close port details"
+    },
+    "vesselTypes": {
+      "methanoldualfuel": "Methanol dual-fuel",
+      "dualfuel": "Dual-fuel vessel",
+      "ammoniaready": "Ammonia-ready vessel",
+      "lngdualfuel": "LNG dual-fuel",
+      "containership": "Container ship",
+      "tanker": "Tanker",
+      "bulker": "Bulk carrier",
+      "other": "Vessel"
+    },
     "layers": {
       "button": "Layers",
       "dialogLabel": "Map layers",
@@ -71,6 +96,125 @@
       "adopted": "Adopted",
       "focusEurope": "Focus European ECAs"
     }
+  },
+  "dataAnalytics": {
+    "title": "Data & Analytics",
+    "subtitle": "Supply & demand intelligence for low-carbon marine fuels",
+    "kpi": {
+      "projectsTracked": "Projects Tracked",
+      "operational": "Operational",
+      "pipeline": "Pipeline",
+      "dualFuelOrders": "Dual-Fuel Orders"
+    },
+    "vessels": "vessels",
+    "projectsCount": "{{count}} projects",
+    "deliveredCount": "{{delivered}}/{{ordered}} delivered",
+    "table": {
+      "project": "Project",
+      "fuel": "Fuel",
+      "country": "Country",
+      "capacity": "Cap (ktpa)",
+      "status": "Status"
+    },
+    "supply": {
+      "title": "Supply: Producer Pipeline",
+      "capacityByFuel": "Capacity by Fuel Type"
+    },
+    "demand": {
+      "title": "Demand: Dual-Fuel Fleet",
+      "averageConsumption": "Avg consumption: {{amount}} MT/yr per vessel",
+      "estimatedDemand": "Est. demand: {{amount}}",
+      "pendingDeliveries": "Pending deliveries"
+    },
+    "balance": {
+      "title": "Supply vs Demand Snapshot",
+      "producing": "ktpa Producing",
+      "estimatedDemand": "MT/yr Est. Demand"
+    },
+    "paywall": {
+      "title": "Unlock Full Supply & Demand Intelligence",
+      "body": "Detailed producer profiles, vessel-level consumption data, regional demand forecasts, CI scoring, and exportable reports.",
+      "cta": "Upgrade to Premium"
+    },
+    "status": {
+      "operational": "Operational",
+      "underconstruction": "Under Construction",
+      "engineering": "Engineering",
+      "prefeasibility": "Pre-Feasibility",
+      "unknown": "Unknown status"
+    },
+    "fuels": {
+      "methanol": "Methanol",
+      "biofuel": "Biofuel",
+      "ammonia": "Ammonia",
+      "ethanol": "Ethanol",
+      "biomethane": "Biomethane",
+      "biomethanol": "Bio Methanol",
+      "emethanol": "E-Methanol",
+      "bioethanol": "Bio Ethanol",
+      "eethanol": "e-Ethanol",
+      "greenmethanol": "Green Methanol",
+      "other": "Other fuel"
+    }
+  },
+  "newsFeed": {
+    "title": "News Feed",
+    "live": "Live",
+    "loading": "Loading news...",
+    "error": "Unable to load news. Please try again later.",
+    "empty": "No news for this category",
+    "categories": {
+      "all": "All",
+      "bunkers": "Bunkers",
+      "shipping": "Shipping",
+      "regulation": "Regulation",
+      "carbon": "Carbon",
+      "markets": "Markets",
+      "commodities": "Commodities",
+      "other": "Other"
+    },
+    "time": {
+      "unknown": "Time unavailable",
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago"
+    }
+  },
+  "countries": {
+    "australia": "Australia",
+    "brazil": "Brazil",
+    "canada": "Canada",
+    "chile": "Chile",
+    "china": "China",
+    "denmark": "Denmark",
+    "estonia": "Estonia",
+    "finland": "Finland",
+    "france": "France",
+    "germany": "Germany",
+    "greece": "Greece",
+    "iceland": "Iceland",
+    "india": "India",
+    "indonesia": "Indonesia",
+    "italy": "Italy",
+    "japan": "Japan",
+    "koreasouth": "South Korea",
+    "southkorea": "South Korea",
+    "malaysia": "Malaysia",
+    "mexico": "Mexico",
+    "netherlands": "Netherlands",
+    "norway": "Norway",
+    "portugal": "Portugal",
+    "saudiarabia": "Saudi Arabia",
+    "singapore": "Singapore",
+    "southafrica": "South Africa",
+    "spain": "Spain",
+    "sweden": "Sweden",
+    "turkiye": "Turkiye",
+    "unitedkingdom": "United Kingdom",
+    "unitedstates": "United States",
+    "uruguay": "Uruguay",
+    "unknown": "Unknown country"
   },
   "supplierDashboard": {
     "title": "Command Center",
@@ -354,6 +498,26 @@
     "noDeliveryPointFilter": "no selected delivery point filter",
     "contango": "Contango",
     "backwardation": "Backwardation",
+    "noPortHistory": "No port intelligence history yet.",
+    "close": "Close intelligence panel",
+    "availabilityLevels": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "unknown": "Unknown"
+    },
+    "congestionLevels": {
+      "high": "High",
+      "moderate": "Moderate",
+      "low": "Low",
+      "unknown": "Unknown"
+    },
+    "supplyLevels": {
+      "surplus": "Surplus",
+      "balanced": "Balanced",
+      "tight": "Tight",
+      "unknown": "Unknown"
+    },
     "fleetAlert": "Fleet Alert",
     "fleetAlertMessage": "Vessel {{name}} has {{alertType}} status: {{status}}. CII Grade: {{grade}}.",
     "viewFleetStatus": "View Fleet Status",
@@ -397,12 +561,39 @@
       "greenVolume": "Green fuel volume",
       "resultsSummary": "Estimator results: {{fuelCost}} fuel cost, {{total}} total conventional estimate, {{ets}} EU ETS estimate, {{shortfall}} indicative FuelEU gap, {{blend}} green energy share, {{volume}} green fuel volume.",
       "assumptions": "Based on assumptions: {{product}}, CI {{fuelCi}} gCO2e/MJ, green fuel reference price ${{fuelPrice}}/MT, conventional fuel {{conventionalPrice}}/MT, EUA {{euaPrice}}/tCO2, ETS coverage {{etsCoverage}}, planning target {{target}} gCO2e/MJ, conventional ETS factor {{emissionFactor}} tCO2/MT.",
+      "messages": {
+        "voyageDurationNonPositive": "Voyage duration must be greater than zero",
+        "dailyConsumptionNonPositive": "Daily conventional fuel consumption must be greater than zero",
+        "conventionalPriceNonPositive": "Conventional fuel price must be greater than zero",
+        "conventionalEnergyDensityNonPositive": "Conventional fuel energy density must be greater than zero",
+        "conventionalCarbonIntensityNonPositive": "Conventional fuel carbon intensity must be greater than zero",
+        "conventionalEmissionFactorNonPositive": "Conventional fuel emission factor must be greater than zero",
+        "greenPriceNonPositive": "Green fuel price must be greater than zero",
+        "planningTargetNonPositive": "Planning CI target must be greater than zero",
+        "euaPriceNonPositive": "EUA price must be greater than zero",
+        "usdToEurNonPositive": "USD/EUR conversion must be greater than zero",
+        "shortfallFactorNonPositive": "Shortfall factor must be greater than zero",
+        "greenEnergyDensityNonPositive": "Green fuel energy density must be greater than zero",
+        "greenCarbonIntensityNonPositive": "Green fuel carbon intensity must be greater than zero",
+        "etsCoverageOutOfRange": "EU ETS exposure coverage must be between 0% and 100%",
+        "selectedFuelCiAboveTarget": "Selected fuel CI is above the planning target"
+      },
       "openMarketplace": "Open {{port}} spot market",
       "selectPort": "Select a port to open Marketplace"
     }
   },
   "mapLegend": {
     "title": "Map Intelligence Legend",
+    "portVolumeSpread": "Port — Order Volume & Spread",
+    "sizeOpenVolume": "Size = open order volume",
+    "tightSpread": "Tight spread (<5%)",
+    "moderateSpread": "Moderate spread (5–15%)",
+    "wideSpread": "Wide spread (>15%)",
+    "referenceOverlays": "Reference Overlays",
+    "activeEca": "Active IMO SOx ECA / SECA reference",
+    "phaseInEca": "Newer IMO ECA phase-in reference",
+    "futureEca": "Adopted future IMO ECA reference",
+    "avails": "Avails — available volume by port",
     "portMethanolSupply": "Port Product Supply",
     "highAvailability": "High Availability (>10kt)",
     "moderateTightening": "Moderate / Tightening",
@@ -422,6 +613,7 @@
     "reference": "REFERENCE",
     "connecting": "CONNECTING...",
     "offline": "UNAVAILABLE",
+    "preview": "Preview",
     "viewFullAnalytics": "View Full Analytics →",
     "retryConnection": "Retry Connection",
     "configure": "Configure market watch",

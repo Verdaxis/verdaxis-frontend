@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet';
+import type { Popup as LeafletPopup } from 'leaflet';
 import { Search, ArrowRight, Calendar, Factory, Zap, MapPin, Clock, Mail } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -18,6 +20,34 @@ import { useNamespace } from '../../hooks/useNamespace';
 
 const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Bio Methanol', 'Green Methanol'];
 const ALL_STATUSES: (ProjectStatus | 'All')[] = ['All', 'Operational', 'Under Construction', 'Engineering', 'Pre-Feasibility'];
+
+const fuelTypeKeys: Record<FuelType, string> = {
+  'E-Methanol': 'producerMap.fuelTypes.eMethanol',
+  'Bio Methanol': 'producerMap.fuelTypes.bioMethanol',
+  'Green Methanol': 'producerMap.fuelTypes.greenMethanol',
+};
+
+const statusKeys: Record<ProjectStatus | 'All', string> = {
+  All: 'producerMap.statuses.all',
+  Operational: 'producerMap.statuses.operational',
+  'Under Construction': 'producerMap.statuses.underConstruction',
+  Engineering: 'producerMap.statuses.engineering',
+  'Pre-Feasibility': 'producerMap.statuses.preFeasibility',
+};
+
+const pathwayKeys: Record<string, string> = {
+  Biomass: 'producerMap.pathways.biomass',
+  'Biomass + H2 (renewable)': 'producerMap.pathways.biomassRenewableHydrogen',
+  Biomethane: 'producerMap.pathways.biomethane',
+  'Biomethane + Natural gas': 'producerMap.pathways.biomethaneNaturalGas',
+  'Black liquor': 'producerMap.pathways.blackLiquor',
+  'CO2 + H2 (non-renewable)': 'producerMap.pathways.nonRenewableHydrogen',
+  'CO2 + H2 (renewable)': 'producerMap.pathways.renewableHydrogen',
+  'Natural gas': 'producerMap.pathways.naturalGas',
+  'Residual waste': 'producerMap.pathways.residualWaste',
+  'Residual waste + Biomass': 'producerMap.pathways.residualWasteBiomass',
+  'Residual waste + H2 (low-carbon)': 'producerMap.pathways.residualWasteLowCarbonHydrogen',
+};
 
 const statusColors: Record<ProjectStatus, string> = {
   Operational: '#4CAF50',
@@ -44,6 +74,16 @@ function formatCapacityShort(ktpa: number): string {
   return ktpa.toLocaleString();
 }
 
+function setPopupCloseButtonLabel(popup: LeafletPopup | null, label: string) {
+  const closeButton = popup
+    ?.getElement()
+    ?.querySelector<HTMLAnchorElement>('.leaflet-popup-close-button');
+
+  if (!closeButton) return;
+  closeButton.setAttribute('aria-label', label);
+  closeButton.setAttribute('title', label);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Summary stats (static)                                             */
 /* ------------------------------------------------------------------ */
@@ -64,7 +104,19 @@ type TabId = 'map' | 'futures';
 
 const FutureProjectCard: React.FC<{
   project: ProducerProject;
-  labels: { imminent: string; capacity: string; expectedCod: string; location: string; pathway: string; expressInterest: string };
+  labels: {
+    imminent: string;
+    capacity: string;
+    expectedCod: string;
+    location: string;
+    pathway: string;
+    expressInterest: string;
+    fuelType: string;
+    status: string;
+    projectPathway: string;
+    emailSubject: string;
+    emailBody: string;
+  };
 }> = ({ project, labels }) => {
   const fuelColor = fuelTypeColors[project.fuelType];
   const statusColor = statusColors[project.status];
@@ -125,7 +177,7 @@ const FutureProjectCard: React.FC<{
           }}
         >
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: fuelColor }} />
-          {project.fuelType}
+          {labels.fuelType}
         </span>
         <span
           style={{
@@ -138,7 +190,7 @@ const FutureProjectCard: React.FC<{
             color: statusColor,
           }}
         >
-          {project.status}
+          {labels.status}
         </span>
       </div>
 
@@ -181,13 +233,13 @@ const FutureProjectCard: React.FC<{
             <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.pathway}</span>
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#0F172A', lineHeight: 1.3 }}>
-            {project.pathway.length > 30 ? project.pathway.slice(0, 30) + '...' : project.pathway}
+            {labels.projectPathway.length > 30 ? labels.projectPathway.slice(0, 30) + '...' : labels.projectPathway}
           </div>
         </div>
       </div>
 
       <a
-        href={`mailto:info@verdaxis.exchange?subject=Off-take Interest: ${encodeURIComponent(project.name)}&body=${encodeURIComponent(`I am interested in discussing off-take arrangements for the ${project.name} project (${project.fuelType}, ${formatCapacity(project.capacityKtpa)} ktpa, COD ${project.codYear}).`)}`}
+        href={`mailto:info@verdaxis.exchange?subject=${encodeURIComponent(labels.emailSubject)}&body=${encodeURIComponent(labels.emailBody)}`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -221,10 +273,20 @@ const FutureProjectCard: React.FC<{
 
 const ProjectMarker: React.FC<{
   project: ProducerProject;
-  popupLabels: { capacity: string; cod: string; city: string; country: string };
-}> = ({ project, popupLabels }) => {
+  popupLabels: { capacity: string; cod: string; city: string; country: string; close: string };
+  displayLabels: { fuelType: string; status: string; pathway: string };
+}> = ({ project, popupLabels, displayLabels }) => {
   const color = fuelTypeColors[project.fuelType];
   const radius = getMarkerRadius(project.capacityKtpa);
+  const popupRef = useRef<LeafletPopup>(null);
+  const updateCloseButtonLabel = useCallback(
+    (popup: LeafletPopup | null) => setPopupCloseButtonLabel(popup, popupLabels.close),
+    [popupLabels.close],
+  );
+
+  useEffect(() => {
+    updateCloseButtonLabel(popupRef.current);
+  }, [updateCloseButtonLabel]);
 
   return (
     <CircleMarker
@@ -232,13 +294,18 @@ const ProjectMarker: React.FC<{
       radius={radius}
       pathOptions={{ color, fillColor: color, fillOpacity: 0.7, weight: 2 }}
     >
-      <Popup>
+      <Popup
+        ref={popupRef}
+        eventHandlers={{
+          add: (event) => updateCloseButtonLabel(event.target as LeafletPopup),
+        }}
+      >
         <div style={{ minWidth: 220, fontSize: 13, lineHeight: 1.6 }}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{project.name}</div>
           <div style={{ color: '#64748B', marginBottom: 6 }}>{project.company}</div>
           <div style={{ marginBottom: 4 }}>
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, marginRight: 6 }} />
-            {project.fuelType} &mdash; {project.pathway}
+            {displayLabels.fuelType} &mdash; {displayLabels.pathway}
           </div>
           <div style={{ marginBottom: 6 }}>
             <span
@@ -253,7 +320,7 @@ const ProjectMarker: React.FC<{
                 border: `1px solid ${statusColors[project.status]}44`,
               }}
             >
-              {project.status}
+              {displayLabels.status}
             </span>
           </div>
           <div><strong>{popupLabels.capacity}:</strong> {formatCapacity(project.capacityKtpa)} ktpa</div>
@@ -272,6 +339,7 @@ const ProjectMarker: React.FC<{
 
 export const ProducerMapPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const { i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('map');
   const [search, setSearch] = useState('');
   const [selectedFuelTypes, setSelectedFuelTypes] = useState<Set<FuelType>>(new Set(ALL_FUEL_TYPES));
@@ -281,6 +349,7 @@ export const ProducerMapPage: React.FC = () => {
   const [futuresSearch, setFuturesSearch] = useState('');
   const [futuresFuelFilter, setFuturesFuelFilter] = useState<FuelType | 'All'>('All');
   const [futuresSortBy, setFuturesSortBy] = useState<'codYear' | 'capacity'>('codYear');
+  const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
 
   const filteredProjects = useMemo(() => {
     const q = search.toLowerCase();
@@ -342,7 +411,14 @@ export const ProducerMapPage: React.FC = () => {
     cod: t('producerMap.popup.cod'),
     city: t('producerMap.popup.city'),
     country: t('producerMap.popup.country'),
+    close: t('producerMap.controls.closePopup'),
   };
+
+  const translatedProjectLabels = (project: ProducerProject) => ({
+    fuelType: fuelTypeKeys[project.fuelType] ? t(fuelTypeKeys[project.fuelType]) : project.fuelType,
+    status: t(statusKeys[project.status]),
+    pathway: pathwayKeys[project.pathway] ? t(pathwayKeys[project.pathway]) : project.pathway,
+  });
 
   return (
     <div style={{ background: '#fff', minHeight: '100vh' }}>
@@ -361,7 +437,7 @@ export const ProducerMapPage: React.FC = () => {
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 20, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
-            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalProjects}</strong> {t('producerMap.header.projects')}
+            <strong style={{ color: '#5DADE2', fontSize: 18 }}>{totalProjects}</strong> {t('producerMap.header.projects', { count: totalProjects })}
           </span>
           <span style={{ fontSize: 14, color: '#CBD5E1' }}>
             <strong style={{ color: '#5DADE2', fontSize: 18 }}>{uniqueCountries}</strong> {t('producerMap.header.countries')}
@@ -465,7 +541,7 @@ export const ProducerMapPage: React.FC = () => {
                   <label key={ft} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer', fontSize: 14, color: '#334155' }}>
                     <input type="checkbox" checked={selectedFuelTypes.has(ft)} onChange={() => toggleFuelType(ft)} style={{ accentColor: fuelTypeColors[ft] }} />
                     <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: fuelTypeColors[ft] }} />
-                    {ft}
+                    {t(fuelTypeKeys[ft])}
                   </label>
                 ))}
               </div>
@@ -491,7 +567,7 @@ export const ProducerMapPage: React.FC = () => {
                         cursor: 'pointer',
                       }}
                     >
-                      {s}
+                      {t(statusKeys[s])}
                     </button>
                   ))}
                 </div>
@@ -529,7 +605,7 @@ export const ProducerMapPage: React.FC = () => {
                   marginBottom: 20,
                 }}
               >
-                {t('producerMap.sidebar.showing')} {filteredProjects.length} {t('producerMap.sidebar.of')} {producerProjects.length} {t('producerMap.header.projects')}
+                {t('producerMap.sidebar.showingProjects', { shown: filteredProjects.length, count: producerProjects.length })}
               </div>
 
               {/* Legend */}
@@ -540,7 +616,7 @@ export const ProducerMapPage: React.FC = () => {
                 {ALL_FUEL_TYPES.map((ft) => (
                   <div key={ft} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13, color: '#475569' }}>
                     <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: fuelTypeColors[ft] }} />
-                    {ft}
+                    {t(fuelTypeKeys[ft])}
                   </div>
                 ))}
                 <div style={{ marginTop: 10, fontSize: 12, color: '#94A3B8' }}>
@@ -554,15 +630,26 @@ export const ProducerMapPage: React.FC = () => {
               <MapContainer
                 center={[20, 0]}
                 zoom={2}
+                zoomControl={false}
                 style={{ height: '100%', width: '100%', minHeight: 600 }}
                 scrollWheelZoom={true}
               >
+                <ZoomControl
+                  key={currentLanguage}
+                  zoomInTitle={t('producerMap.controls.zoomIn')}
+                  zoomOutTitle={t('producerMap.controls.zoomOut')}
+                />
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 {filteredProjects.map((project) => (
-                  <ProjectMarker key={project.id} project={project} popupLabels={popupLabels} />
+                  <ProjectMarker
+                    key={project.id}
+                    project={project}
+                    popupLabels={popupLabels}
+                    displayLabels={translatedProjectLabels(project)}
+                  />
                 ))}
               </MapContainer>
             </div>
@@ -586,7 +673,7 @@ export const ProducerMapPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ padding: '6px 14px', background: '#FFF8E1', border: '1px solid #FFE082', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#E65100' }}>
-                    {futureProjects.length} {t('producerMap.futures.upcomingProjects')}
+                    {futureProjects.length} {t('producerMap.futures.upcomingProjects', { count: futureProjects.length })}
                   </div>
                   <div style={{ padding: '6px 14px', background: '#E8F5E9', border: '1px solid #A5D6A7', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#2E7D32' }}>
                     {formatCapacityShort(futureCapacity)} {t('producerMap.futures.ktpaPipeline')}
@@ -622,7 +709,7 @@ export const ProducerMapPage: React.FC = () => {
                 >
                   <option value="All">{t('producerMap.futures.allFuelTypes')}</option>
                   {ALL_FUEL_TYPES.map((ft) => (
-                    <option key={ft} value={ft}>{ft}</option>
+                    <option key={ft} value={ft}>{t(fuelTypeKeys[ft])}</option>
                   ))}
                 </select>
 
@@ -636,7 +723,7 @@ export const ProducerMapPage: React.FC = () => {
                 </select>
 
                 <div style={{ fontSize: 13, color: '#64748B', fontWeight: 500, marginLeft: 'auto' }}>
-                  {t('producerMap.futures.showingOf')} {filteredFutures.length} {t('producerMap.sidebar.of')} {futureProjects.length} {t('producerMap.futures.futureProjects')}
+                  {t('producerMap.futures.showingProjects', { shown: filteredFutures.length, count: futureProjects.length })}
                 </div>
               </div>
             </div>
@@ -673,7 +760,7 @@ export const ProducerMapPage: React.FC = () => {
                     </div>
                     <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
                     <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>
-                      {projects.length} project{projects.length > 1 ? 's' : ''} &middot;{' '}
+                      {projects.length} {t('producerMap.header.projects', { count: projects.length })} &middot;{' '}
                       {formatCapacityShort(projects.reduce((s, p) => s + p.capacityKtpa, 0))} ktpa
                     </span>
                   </div>
@@ -682,9 +769,28 @@ export const ProducerMapPage: React.FC = () => {
                     className="futures-card-grid"
                     style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}
                   >
-                    {projects.map((project) => (
-                      <FutureProjectCard key={project.id} project={project} labels={cardLabels} />
-                    ))}
+                    {projects.map((project) => {
+                      const displayLabels = translatedProjectLabels(project);
+                      return (
+                        <FutureProjectCard
+                          key={project.id}
+                          project={project}
+                          labels={{
+                            ...cardLabels,
+                            fuelType: displayLabels.fuelType,
+                            status: displayLabels.status,
+                            projectPathway: displayLabels.pathway,
+                            emailSubject: t('producerMap.email.subject', { project: project.name }),
+                            emailBody: t('producerMap.email.body', {
+                              project: project.name,
+                              fuelType: displayLabels.fuelType,
+                              capacity: formatCapacity(project.capacityKtpa),
+                              year: project.codYear,
+                            }),
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               ))

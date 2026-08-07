@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getEducationArticles } from '../../data/educationArticles';
+import { EDUCATION_CATEGORY_KEYS, getEducationArticles } from '../../data/educationArticles';
 import { Reveal, GradientOrb, HoverButton } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
 
@@ -22,10 +22,12 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 
 export const EducationArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { t, ready } = useNamespace('public');
-  const article = getEducationArticles().find((a) => a.slug === slug);
+  const { t, ready: publicReady } = useNamespace('public');
+  const { ready: educationReady } = useNamespace('education');
 
-  if (!ready) return null;
+  if (!publicReady || !educationReady) return null;
+
+  const article = getEducationArticles().find((a) => a.slug === slug);
 
   /* ---- Not found ---- */
   if (!article) {
@@ -49,7 +51,7 @@ export const EducationArticlePage: React.FC = () => {
           {t('educationArticle.notFound.title')}
         </h1>
         <p style={{ fontSize: 16, color: '#64748B', marginBottom: 24 }}>
-          {t('educationArticle.notFound.description')}
+          {t('educationArticle.notFound.message')}
         </p>
         <HoverButton>
           <Link
@@ -143,7 +145,7 @@ export const EducationArticlePage: React.FC = () => {
                 borderRadius: 6,
               }}
             >
-              {article.category}
+              {t(`education.categories.${EDUCATION_CATEGORY_KEYS[article.category]}`)}
             </span>
           </motion.div>
 

@@ -30,35 +30,31 @@ gsap.registerPlugin(ScrollTrigger);
 const partners = [
   {
     name: 'Methanol Institute',
-    role: 'Industry Standards Body',
     logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
     color: '#0078D4',
     website: 'https://methanol.org',
   },
   {
     name: 'S&P Global Platts',
-    role: 'Pricing & Benchmarks',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
     color: '#E8373E',
     website: 'https://www.spglobal.com/commodityinsights',
   },
   {
     name: 'MPA Singapore',
-    role: 'Regulatory Authority',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
     color: '#1B5E9C',
     website: 'https://www.mpa.gov.sg',
   },
   {
     name: 'Gena Solutions',
-    role: 'Analytics & Technology',
     logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
     color: '#00897B',
     website: 'https://genasolutions.com',
   },
 ];
 
-const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
+const frameworkIndexes = [0, 1, 2, 3, 4, 5];
 
 const Stat: React.FC<{ value: number; suffix: string; label: string }> = ({ value, suffix, label }) => {
   return (
@@ -378,7 +374,7 @@ export const PartnerLandingPage: React.FC = () => {
                         letterSpacing: '0.06em',
                       }}
                     >
-                      {p.role}
+                      {t(`partnerShowcase.partners.${i}.role`)}
                     </div>
                   </div>
                 </motion.a>
@@ -625,7 +621,7 @@ export const PartnerLandingPage: React.FC = () => {
                     marginBottom: 10,
                   }}
                 >
-                  STEP {num}
+                  {t('landing.how.stepLabel')} {num}
                 </div>
                 <h3
                   style={{
@@ -664,7 +660,7 @@ export const PartnerLandingPage: React.FC = () => {
                     <Icon size={20} color="#4CAF50" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>STEP {num}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', letterSpacing: '0.1em' }}>{t('landing.how.stepLabel')} {num}</div>
                     <h3 style={{ fontFamily: '"Montserrat", sans-serif', fontSize: 17, fontWeight: 700, color: '#0F172A' }}>{title}</h3>
                   </div>
                 </div>
@@ -853,9 +849,9 @@ export const PartnerLandingPage: React.FC = () => {
                 gap: 16,
               }}
             >
-              {frameworks.map((name) => (
+              {frameworkIndexes.map((index) => (
                 <motion.div
-                  key={name}
+                  key={index}
                   whileHover={{ y: -2, borderColor: '#CBD5E1' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   style={{
@@ -869,7 +865,7 @@ export const PartnerLandingPage: React.FC = () => {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  {name}
+                  {t(`partnerLanding.frameworks.items.${index}`)}
                 </motion.div>
               ))}
             </div>

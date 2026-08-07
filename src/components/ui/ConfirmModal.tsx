@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface ConfirmModalProps {
     isOpen: boolean;
@@ -23,8 +24,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     onConfirm,
     title,
     message,
-    confirmText = 'Confirm',
-    cancelText = 'Cancel',
+    confirmText,
+    cancelText,
     variant = 'info',
     isLoading = false,
     confirmDisabled = false,
@@ -32,6 +33,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     maxWidth = 'md',
     compact = false,
 }) => {
+    const { t } = useTranslation('common');
+    const resolvedConfirmText = confirmText ?? t('btn.confirm');
+    const resolvedCancelText = cancelText === undefined ? t('btn.cancel') : cancelText;
     const dialogRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(isLoading);
 
@@ -146,13 +150,13 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
                 {/* Actions */}
                 <div className={`${compact ? 'p-5 pt-4 mt-0' : 'p-6 mt-4'} flex gap-3 justify-end`}>
-                    {cancelText && (
+                    {resolvedCancelText && (
                         <button
                             onClick={onClose}
                             disabled={isLoading}
                             className="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
                         >
-                            {cancelText}
+                            {resolvedCancelText}
                         </button>
                     )}
                     <button
@@ -163,10 +167,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                         {isLoading ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Processing...
+                                {t('confirm.processing')}
                             </>
                         ) : (
-                            confirmText
+                            resolvedConfirmText
                         )}
                     </button>
                 </div>

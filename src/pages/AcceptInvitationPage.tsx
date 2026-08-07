@@ -14,6 +14,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import i18n from '../i18n';
 import { API_URL } from '../services/config';
+import { formatLocalizedAuthError, localizedAuthError } from './authApiError';
+import type { TFunction } from 'i18next';
 
 interface InvitationDetails {
   email: string;
@@ -26,6 +28,7 @@ interface InvitationDetails {
 }
 
 const INVITATION_HISTORY_KEY = 'verdaxisInvitationToken';
+class LocalizedResponseError extends Error {}
 
 const invitationToken = (): string | null => {
   const url = new URL(window.location.href);
@@ -62,11 +65,9 @@ const clearInvitationToken = () => {
   window.history.replaceState(historyState, '', `${window.location.pathname}${window.location.search}`);
 };
 
-const errorMessage = async (response: Response, fallback: string): Promise<string> => {
+const errorMessage = async (response: Response, t: TFunction, fallbackKey: string, context: string): Promise<string> => {
   const payload = await response.json().catch(() => null);
-  if (typeof payload?.detail === 'string') return payload.detail;
-  if (typeof payload?.detail?.message === 'string') return payload.detail.message;
-  return fallback;
+  return localizedAuthError(payload, t, fallbackKey, context);
 };
 
 const AcceptInvitationPage: React.FC = () => {
@@ -81,13 +82,18 @@ const AcceptInvitationPage: React.FC = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resolveFailure, setResolveFailure] = useState<{ payload: unknown } | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     if (!token) {
       setLoading(false);
       return;
     }
+    let active = true;
     const controller = new AbortController();
+    setLoading(true);
+    setResolveFailure(null);
     void fetch(`${API_URL}/auth/invitations/resolve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -95,16 +101,27 @@ const AcceptInvitationPage: React.FC = () => {
       signal: controller.signal,
     }).then(async (response) => {
       if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        if (!active) return;
         if (response.status === 400) clearInvitationToken();
-        throw new Error(await errorMessage(response, t('acceptInvite.invalid.message')));
+        console.error('[auth] invitation resolve failed', payload);
+        setResolveFailure({ payload });
+        return;
       }
-      setDetails(await response.json());
+      const payload = await response.json();
+      if (active) setDetails(payload);
     }).catch((reason: unknown) => {
       if (reason instanceof DOMException && reason.name === 'AbortError') return;
-      setError(reason instanceof Error ? reason.message : t('acceptInvite.invalid.message'));
-    }).finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [t, token]);
+      console.error('[auth] invitation resolve request failed', reason);
+      if (active) setResolveFailure({ payload: null });
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [ready, token]);
 
   const passwordRules = useMemo(() => [
     { label: t('register.passwordRule.minLength'), passes: password.length >= 8 },
@@ -126,13 +143,16 @@ const AcceptInvitationPage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, new_password: password, accept_terms: true }),
       });
-      if (!response.ok) throw new Error(await errorMessage(response, t('acceptInvite.error.failed')));
+      if (!response.ok) throw new LocalizedResponseError(await errorMessage(response, t, 'acceptInvite.error.failed', 'invitation acceptance failed'));
       const payload = await response.json();
       clearInvitationToken();
       await login(payload.access_token);
       navigate('/app', { replace: true });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t('acceptInvite.error.failed'));
+      console.error('[auth] invitation acceptance request failed', reason);
+      setError(document.documentElement.lang.startsWith('zh') && !(reason instanceof LocalizedResponseError)
+        ? t('acceptInvite.error.failed')
+        : reason instanceof Error ? reason.message : t('acceptInvite.error.failed'));
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +179,9 @@ const AcceptInvitationPage: React.FC = () => {
               <div>
                 <h1 className="text-2xl font-semibold">{t('acceptInvite.invalid.title')}</h1>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  {error || t('acceptInvite.invalid.message')}
+                  {error || (resolveFailure
+                    ? formatLocalizedAuthError(resolveFailure.payload, t, 'acceptInvite.invalid.message')
+                    : t('acceptInvite.invalid.message'))}
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-3">

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Clock, CheckCircle2 } from 'lucide-react';
 import { Trade, ViewMode, Page } from '../types';
+import { useTranslation } from 'react-i18next';
+import { getMarketplaceProductLabel, getMarketplaceProductValue } from '../utils/marketProducts';
 
 interface NeedsAttentionFeedProps {
     trades: Trade[];
@@ -17,6 +19,7 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
     onConfirmTrade,
     onPostOrder,
 }) => {
+    const { t, i18n } = useTranslation('common');
     // Only show trades the user CAN act on — pending trades where they are the confirming party
     const actionable = trades.filter(t => {
         if (t.status !== 'PENDING_CONFIRMATION') return false;
@@ -32,14 +35,14 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
         return (
             <div className="text-center py-8 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white">All caught up!</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">No items need your attention right now.</p>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">{t('attention.allCaughtUp')}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('attention.none')}</p>
                 {onPostOrder && (
                     <button
                         onClick={onPostOrder}
                         className="mt-3 px-4 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition-colors text-xs font-medium"
                     >
-                        {viewMode === 'BUYER' ? 'Post a Bid' : 'Post Supply'}
+                        {t(viewMode === 'BUYER' ? 'attention.postBid' : 'attention.postSupply')}
                     </button>
                 )}
             </div>
@@ -50,8 +53,18 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
         <div className="space-y-2">
             {items.map(({ trade }) => {
                 const counterparty = viewMode === 'BUYER' ? trade.seller_name : trade.buyer_name;
-                const qty = Number(trade.quantity_mt).toLocaleString();
-                const price = Number(trade.price_per_mt_usd).toLocaleString();
+                const qty = Number(trade.quantity_mt).toLocaleString(i18n.language);
+                const price = Number(trade.price_per_mt_usd).toLocaleString(i18n.language);
+                const marketProduct = getMarketplaceProductValue(
+                    typeof trade.market_product === 'string'
+                        ? trade.market_product
+                        : trade.market_product?.market_product || trade.market_product?.name || trade.product_name
+                ) || getMarketplaceProductValue(trade.product_name);
+                const fuelLabel = marketProduct
+                    ? getMarketplaceProductLabel(marketProduct)
+                    : trade.fuel_type === 'Methanol'
+                        ? t('fuel.methanol')
+                        : trade.fuel_type === 'Ethanol' ? t('fuel.ethanol') : trade.fuel_type;
 
                 return (
                     <div
@@ -65,7 +78,7 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <span className={`text-sm font-bold ${trade.fuel_type === 'Methanol' ? 'text-blue-600' : 'text-green-600'}`}>
-                                    {trade.fuel_type}
+                                    {fuelLabel}
                                 </span>
                                 <span className="text-xs text-slate-400">•</span>
                                 <span className="text-sm text-slate-700 dark:text-slate-300">{qty} MT @ ${price}/MT</span>
@@ -73,7 +86,7 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                                 <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{counterparty}</span>
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                Awaiting your confirmation
+                                {t('attention.awaitingConfirmation')}
                             </div>
                         </div>
 
@@ -81,7 +94,7 @@ export const NeedsAttentionFeed: React.FC<NeedsAttentionFeedProps> = ({
                             onClick={() => onConfirmTrade(trade.id)}
                             className="flex-shrink-0 px-4 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded hover:opacity-90 transition-opacity"
                         >
-                            Confirm
+                            {t('attention.confirm')}
                         </button>}
                     </div>
                 );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Loader2,
@@ -35,6 +35,7 @@ import {
 } from '../utils/fuel';
 import { useNamespace } from '../hooks/useNamespace';
 import {
+    formatAvailabilityWindow,
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
     SPOT_WINDOW,
@@ -49,6 +50,7 @@ import { OrderBook } from './OrderBook';
 import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 import { CompliancePriceHint } from './trading/CompliancePriceHint';
+import i18n from '../i18n';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -115,6 +117,7 @@ interface MarketplaceProps {
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode, initialSlice }) => {
     const { user } = useAuth();
     const { t, ready } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const location = useLocation();
     const navigate = useNavigate();
     const role: ViewMode = user?.role === 'ADMIN'
@@ -144,6 +147,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const latestFetchRequest = useRef(0);
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
@@ -157,7 +161,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         const stored = localStorage.getItem('verdaxis_marketplace_window');
         return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
-    const availabilityOptions = useMemo(() => getAvailabilityWindowOptions(), []);
+    const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({ locale }), [locale]);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
     const [currentSkip, setCurrentSkip] = useState(0);
 
@@ -254,6 +258,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [listings, sortBy]);
 
     useEffect(() => {
+        if (!ready) return;
         let cancelled = false;
         const loadDeliveryPoints = async () => {
             try {
@@ -269,11 +274,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [ready]);
 
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0) => {
+        if (!ready) return;
+        const requestId = ++latestFetchRequest.current;
         if (silent) setRefreshing(true);
         else setLoading(true);
         setError(null);
@@ -287,30 +294,36 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 skip,
                 limit: PAGE_SIZE,
             });
+            if (requestId !== latestFetchRequest.current) return;
             setListings(data.items);
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
         } catch (err: any) {
             console.error('Marketplace fetch error:', err);
-            setError(err.message || 'Failed to load listings. Please try again.');
+            if (requestId !== latestFetchRequest.current) return;
+            setError(err instanceof Error ? err.message : '');
         } finally {
-            setLoading(false);
-            setRefreshing(false);
+            if (requestId === latestFetchRequest.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
+        if (!ready) return;
         fetchData(false, 0);
-    }, [fetchData]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [fetchData, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 60s auto-refresh (silent)
     useEffect(() => {
+        if (!ready) return;
         const interval = setInterval(() => {
             fetchData(true, currentSkip);
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [fetchData, currentSkip]);
+    }, [fetchData, currentSkip, ready]);
 
     // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
     // One batched authenticated fetch per distinct set of visible ASK ids.
@@ -325,6 +338,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // new-object setState below.
     const hasAuthedUser = !!user;
     useEffect(() => {
+        if (!ready) return;
         if (!hasAuthedUser || !askIdSignature) {
             setComplianceOverlays({});
             return;
@@ -342,7 +356,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return () => {
             cancelled = true;
         };
-    }, [hasAuthedUser, askIdSignature]);
+    }, [hasAuthedUser, askIdSignature, ready]);
 
     // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
     // URL → state: re-apply whenever the slice params change. Slice→slice
@@ -393,6 +407,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [marketProduct]);
 
     useEffect(() => {
+        if (!ready) return;
         let cancelled = false;
 
         const fetchMarketProductCounts = async () => {
@@ -425,27 +440,27 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return () => {
             cancelled = true;
         };
-    }, [availability, configBase, resolvedDeliveryPointId, resolvedPort]);
+    }, [availability, configBase, ready, resolvedDeliveryPointId, resolvedPort]);
 
 
     const portOptions = useMemo(() => ([
-        { value: '', label: 'All ports' },
+        { value: '', label: t('marketplace.filter.allPorts') },
         ...PORTS.map((port) => ({
             value: port.name,
             label: port.name,
             description: port.country,
             tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
         })),
-    ]), []);
+    ]), [t]);
 
     const sliceSummary = useMemo(() => {
         const parts = [
-            marketProduct === ALL_MARKET_PRODUCTS ? 'All products' : formatMarketProduct(marketProduct),
-            resolvedPort || 'All ports',
-            availability || 'Any window',
+            marketProduct === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(marketProduct),
+            resolvedPort || t('marketplace.filter.allPorts'),
+            availability ? formatAvailabilityWindow(availability, locale) : t('marketplace.filter.anyWindow'),
         ];
         return parts.join(' · ');
-    }, [availability, marketProduct, resolvedPort]);
+    }, [availability, locale, marketProduct, resolvedPort, t]);
 
     const totalMarketProductCount = useMemo(
         () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
@@ -546,6 +561,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     /* ---- My Orders fetch ---- */
     const fetchMyOrders = useCallback(async () => {
+        if (!ready) return;
         setMyOrdersLoading(true);
         setMyOrdersError(null);
         try {
@@ -553,11 +569,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             setMyOrders(Array.isArray(data) ? data : data.items ?? []);
         } catch (error) {
             setMyOrders([]);
-            setMyOrdersError(error instanceof Error ? error.message : 'Could not load your orders.');
+            setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.myOrders.error') : error instanceof Error ? error.message : t('marketplace.myOrders.error'));
         } finally {
             setMyOrdersLoading(false);
         }
-    }, []);
+    }, [ready, t]);
 
     useEffect(() => {
         if (marketTab === 'my_orders') fetchMyOrders();
@@ -590,14 +606,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const handleCancelOrder = async (order: OrderBookOrder) => {
         setPendingCancellation(order);
-        setCancellationReason(isMarketSupportActive ? 'Customer requested cancellation' : 'User requested cancellation');
+        setCancellationReason(isMarketSupportActive ? t('marketplace.cancel.reason.assisted') : t('marketplace.cancel.reason.user'));
         setMyOrdersError(null);
     };
 
     const confirmCancelOrder = async () => {
         if (!pendingCancellation || !cancellationReason.trim()) return;
         if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
-            setMyOrdersError('This assisted listing is missing its version tag. Refresh the list before cancelling.');
+            setMyOrdersError(t('marketplace.cancel.missingVersion'));
             await fetchMyOrders();
             setPendingCancellation(null);
             return;
@@ -610,10 +626,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         } catch (error) {
             if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
                 await fetchMyOrders();
-                setMyOrdersError('This listing changed before cancellation. The latest listing data has been reloaded.');
+                setMyOrdersError(t('marketplace.cancel.stale'));
                 setPendingCancellation(null);
             } else {
-                setMyOrdersError(error instanceof Error ? error.message : 'Could not cancel this order.');
+                setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.cancel.error') : error instanceof Error ? error.message : t('marketplace.cancel.error'));
             }
         } finally {
             setCancellationLoading(false);
@@ -630,7 +646,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         if (!selectedOrder || tradeState === 'submitting') return null;
         const normalizedTradeQuantity = Number.isFinite(tradeQuantity) ? tradeQuantity : NaN;
         if (!Number.isFinite(normalizedTradeQuantity) || normalizedTradeQuantity <= 0 || normalizedTradeQuantity > selectedOrder.remaining_quantity_mt) {
-            setTradeError('Enter a valid quantity within the remaining amount.');
+            setTradeError(t('marketplace.modal.invalidQuantity'));
             setTradeState('error');
             return null;
         }
@@ -675,7 +691,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 fetchData(true, currentSkip);
             }, 2000);
         } catch (err: any) {
-            setTradeError(err.message || 'Trade initiation failed');
+            setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
             setTradeState('error');
         }
     };
@@ -692,14 +708,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                     <td key={col} className={`px-4 py-2 sticky left-0 z-20 ${stickyBg} whitespace-nowrap min-w-[180px]`}>
                         <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
-                                {getOrderDisplayName(order)}
+                                {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
                             </span>
                             {order.is_verdaxis_verified && (
                                 <Shield size={12} className="text-emerald-500 flex-shrink-0" />
                             )}
                             {order.off_spec && (
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
-                                    Off-spec
+                                    {t('marketplace.grade.offSpec')}
                                 </span>
                             )}
                             {order.is_demo_listing && (
@@ -725,7 +741,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 return (
                     <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
                         <span className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
-                            {order.certification_declared ? 'Declared cert' : 'Cert missing'}
+                            {order.certification_declared ? t('marketplace.cert.declared') : t('marketplace.cert.missing')}
                         </span>
                     </td>
                 );
@@ -753,13 +769,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             case 'window':
                 return (
                     <td key={col} className="hidden whitespace-nowrap px-4 py-2 text-xs text-slate-600 dark:text-slate-300 xl:table-cell">
-                        {formatDeliveryWindow(order)}
+                        {formatDeliveryWindow(order, locale)}
                     </td>
                 );
             case 'expiry':
                 return (
                     <td key={col} className="hidden whitespace-nowrap px-4 py-2 xl:table-cell">
-                        {formatExpiry(order)}
+                        {formatExpiry(order, locale)}
                     </td>
                 );
             case 'cert':
@@ -778,7 +794,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                     </td>
                 );
             case 'status': {
-                const statusCfg = getStatusConfig(order.status);
+                const statusCfg = getStatusConfig(order.status, t);
                 return (
                     <td key={col} className="px-4 py-2 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${statusCfg.bg} ${statusCfg.text}`}>
@@ -918,7 +934,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
                                             const isActive = marketProduct === productCode;
                                             const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
-                                            const label = productCode === ALL_MARKET_PRODUCTS ? ALL_MARKET_PRODUCTS : formatMarketProduct(productCode);
+                                            const label = productCode === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(productCode);
                                             return (
                                                 <button
                                                     type="button"
@@ -974,7 +990,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 value={availability}
                                                 onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
                                                 options={[
-                                                    { value: '', label: 'Any window' },
+                                                    { value: '', label: t('marketplace.filter.anyWindow') },
                                                     ...availabilityOptions.map(option => ({
                                                         value: option.value,
                                                         label: option.label,
@@ -1101,7 +1117,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <AlertCircle size={32} className="text-red-500" />
                             </div>
                             <p className="text-slate-700 dark:text-slate-300 font-medium mb-2">{t('marketplace.error.title')}</p>
-                            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 max-w-md">{error}</p>
+                            <p className="text-slate-500 dark:text-slate-400 text-sm mb-4 max-w-md">
+                                {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
+                            </p>
                             <button
                                 onClick={() => fetchData(false, 0)}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
@@ -1239,15 +1257,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <table className="w-full min-w-[980px] border-collapse text-sm">
                                     <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                         <tr>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Side</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Product</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Delivery</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Price</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Qty (MT)</th>
-                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Remaining</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Window</th>
-                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Status</th>
-                                            <th className="text-center px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Actions</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('myTrades.col.side')}</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.product')}</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.delivery')}</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.modal.price')}</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.quantity')}</th>
+                                            <th className="text-right px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.myOrders.remaining')}</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.window')}</th>
+                                            <th className="text-left px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.status')}</th>
+                                            <th className="text-center px-3 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">{t('marketplace.col.action')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1267,22 +1285,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
-                                                        {getOrderDisplayName(order)}
+                                                        {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
                                                     </td>
                                                     <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                                        ${Number(order.price_per_mt_usd).toLocaleString()}
+                                                        ${Number(order.price_per_mt_usd).toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {Number(order.quantity_mt).toLocaleString()}
+                                                        {Number(order.quantity_mt).toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
-                                                        {Number(order.remaining_quantity_mt).toLocaleString()}
+                                                        {Number(order.remaining_quantity_mt).toLocaleString(locale)}
                                                     </td>
                                                     <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
-                                                        {order.availability_window}
+                                                        {formatDeliveryWindow(order, locale)}
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
@@ -1291,7 +1309,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             order.status === 'FILLED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
                                                             'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500'
                                                         }`}>
-                                                            {getStatusConfig(order.status).label}
+                                                            {getStatusConfig(order.status, t).label}
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-center">
@@ -1300,10 +1318,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                                 type="button"
                                                                 onClick={() => handleCancelOrder(order)}
                                                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                                title="Cancel order"
+                                                                title={t('marketplace.cancel.order')}
                                                             >
                                                                 <Trash2 size={12} />
-                                                                Cancel
+                                                                {t('marketplace.btn.cancel')}
                                                             </button>
                                                         )}
                                                     </td>
@@ -1319,7 +1337,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 onClick={fetchMyOrders}
                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                             >
-                                <RefreshCw size={12} /> Refresh
+                                <RefreshCw size={12} /> {t('marketplace.btn.refresh')}
                             </button>
                         </div>
                     </div>
@@ -1409,26 +1427,26 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Product</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder)}</div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.product')}</span>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))}</div>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Port</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.filter.port')}</span>
                                                 <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.delivery_point_name || selectedOrder.region}</div>
                                             </div>
                                             <div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quantity</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeQuantity.toLocaleString()} MT</div>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeQuantity.toLocaleString(locale)} MT</div>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Price</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
                                                 <div className="font-bold text-emerald-600 dark:text-emerald-400">${selectedOrder.price_per_mt_usd}/MT</div>
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
-                                            <span className="text-xs text-slate-400">Total</span>
+                                            <span className="text-xs text-slate-400">{t('marketplace.modal.total')}</span>
                                             <span className="text-base font-bold text-slate-900 dark:text-white">
-                                                ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                     </div>
@@ -1461,10 +1479,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             {t(configBase.counterAction.labelKey)}
                                         </h3>
                                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                                            {getOrderDisplayName(selectedOrder)} &middot; {selectedOrder.region}
+                                            {getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button type="button" aria-label="Close trade modal" data-tour="trade-modal-close" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button type="button" aria-label={t('marketplace.modal.close')} data-tour="trade-modal-close" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -1490,7 +1508,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 {selectedOrder.is_demo_listing && (
                                                     <AlertCircle size={14} className="text-amber-500" aria-label={t('marketplace.demo.label')} />
                                                 )}
-                                                {getOrderDisplayName(selectedOrder)}
+                                                {getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))}
                                             </span>
                                         </div>
                                         <div className="flex justify-between items-center mb-2">
@@ -1593,17 +1611,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 isOpen={Boolean(pendingCancellation)}
                 onClose={() => setPendingCancellation(null)}
                 onConfirm={() => { void confirmCancelOrder(); }}
-                title="Cancel listing?"
-                message="Cancellation is recorded against this listing. Confirm the reason before continuing."
-                confirmText="Cancel listing"
+                title={t('marketplace.cancel.title')}
+                message={t('marketplace.cancel.message')}
+                confirmText={t('marketplace.cancel.confirm')}
                 variant="danger"
                 isLoading={cancellationLoading}
                 confirmDisabled={cancellationReason.trim().length < 3}
             >
                 <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
-                    Cancellation reason
+                    {t('marketplace.cancel.reasonLabel')}
                     <textarea
-                        aria-label="Cancellation reason"
+                        aria-label={t('marketplace.cancel.reasonLabel')}
                         autoFocus
                         rows={3}
                         maxLength={500}

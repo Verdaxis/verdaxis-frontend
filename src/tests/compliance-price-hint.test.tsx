@@ -41,7 +41,7 @@ describe('CompliancePriceHint', () => {
     expect(block.title).toContain('product default (proxy)');
     expect(block.title).toContain('default 100% VLSFO fleet assumption');
     expect(block.title).toContain('EUR/USD 1.08');
-    expect(block.title).toContain('RFNBO_MULTIPLIER');
+    expect(block.title).toContain('RFNBO multiplier');
   });
 
   it('renders the zero case muted, not hidden', () => {

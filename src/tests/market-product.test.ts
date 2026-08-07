@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getProductDisplayNameFromReference } from '../utils/marketProduct';
+import { getOrderDisplayName, getProductDisplayNameFromReference } from '../utils/marketProduct';
 import type { Product } from '../types';
 
 describe('market product display resolution', () => {
@@ -37,5 +37,9 @@ describe('market product display resolution', () => {
 
   it('normalizes legacy product labels', () => {
     expect(getProductDisplayNameFromReference('green methanol', [])).toBe('Bio Methanol');
+  });
+
+  it('accepts a render-time fallback for an unknown order product', () => {
+    expect(getOrderDisplayName({}, '未知产品')).toBe('未知产品');
   });
 });

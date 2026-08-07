@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Loader2, Mail, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { localizedAuthError } from './authApiError';
 
 const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -29,9 +30,10 @@ const ForgotPasswordPage: React.FC = () => {
         setSubmitted(true);
       } else {
         const errData = await res.json().catch(() => null);
-        setError(errData?.detail || t('forgotPassword.error.generic'));
+        setError(localizedAuthError(errData, t, 'forgotPassword.error.generic', 'forgot password failed'));
       }
-    } catch {
+    } catch (error) {
+      console.error('[auth] forgot password network error', error);
       setError(t('forgotPassword.error.connectionFailed'));
     } finally {
       setIsSubmitting(false);

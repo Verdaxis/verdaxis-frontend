@@ -4,11 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { MarketplaceTab } from '../components/admin/product-analytics/MarketplaceTab';
+import { AggregateJourney } from '../components/admin/product-analytics/AggregateJourney';
 import { OverviewTab } from '../components/admin/product-analytics/OverviewTab';
 import { RetentionTab } from '../components/admin/product-analytics/RetentionTab';
 import { ReliabilityTab } from '../components/admin/product-analytics/ReliabilityTab';
 import { ReliabilityResponse } from '../types/productAnalytics';
 import { paMarketplace, paMeta, paOverview, paRetention } from './product-analytics-fixtures';
+import i18n, { loadNamespace } from '../i18n';
 
 const noop = () => undefined;
 
@@ -89,6 +91,31 @@ describe('marketplace tab', () => {
     expect(within(matrix).getByText('6')).toBeTruthy();
     expect(within(matrix).getAllByText(/< 3/).length).toBeGreaterThan(0);
   });
+
+  it('localizes controlled status and buy/sell labels in Chinese', async () => {
+    await loadNamespace('admin');
+    await i18n.changeLanguage('zh');
+    try {
+      const market = render(<MarketplaceTab data={paMarketplace()} compare onSelectTab={noop} />);
+      expect(screen.getAllByText('挂单中').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('已成交').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('已付款').length).toBeGreaterThan(0);
+      expect(screen.queryByText('OPEN')).toBeNull();
+      market.unmount();
+
+      render(<AggregateJourney stages={[{
+        key: 'registered',
+        source: 'authoritative',
+        total: { key: 'total', count: 3, suppressed: false },
+        buyer: { key: 'buyer', count: 2, suppressed: false },
+        supplier: { key: 'supplier', count: 1, suppressed: false },
+      }]} />);
+      expect(screen.getByText(/买方 2 \/ 卖方 1/)).toBeTruthy();
+      expect(screen.queryByText(/B 2 \/ S 1/)).toBeNull();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
 });
 
 describe('retention tab', () => {
@@ -137,7 +164,7 @@ describe('reliability tab', () => {
       },
     ],
     audit_activity: [
-      { occurred_at: '2026-07-14T10:00:00Z', action: 'admin.user.approved', resource_type: 'user', actor_role: 'ADMIN' },
+      { occurred_at: '2026-07-14T10:00:00Z', action: 'admin.user_approved', resource_type: 'user', actor_role: 'ADMIN' },
     ],
   });
 
@@ -146,7 +173,27 @@ describe('reliability tab', () => {
     expect((screen.getByTestId('reliability-status')).textContent).toContain('partial');
     expect(screen.getByText('All destinations')).toBeTruthy();
     const audit = screen.getByTestId('audit-activity');
-    expect(within(audit).getByText('admin.user.approved')).toBeTruthy();
+    expect(within(audit).getByText('User approved')).toBeTruthy();
     expect(audit.textContent).not.toMatch(/@|\d+\.\d+\.\d+\.\d+/); // no emails or IPs
+  });
+
+  it('localizes controlled reliability classifications in Chinese', async () => {
+    await loadNamespace('admin');
+    await i18n.changeLanguage('zh');
+    try {
+      render(<ReliabilityTab data={data()} compare onSelectTab={noop} />);
+      expect(screen.getByText('凭据无效')).toBeTruthy();
+      expect(screen.getByText('平台')).toBeTruthy();
+      expect(screen.getByText('渲染错误')).toBeTruthy();
+      expect(screen.getByText('< 250 毫秒:')).toBeTruthy();
+      expect(screen.getByText('用户已批准')).toBeTruthy();
+      expect(screen.getByText('用户')).toBeTruthy();
+      expect(screen.getByText('管理员')).toBeTruthy();
+      expect(screen.getByText('(上游服务)')).toBeTruthy();
+      expect(screen.queryByText('invalid_credentials')).toBeNull();
+      expect(screen.queryByText('admin.user_approved')).toBeNull();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

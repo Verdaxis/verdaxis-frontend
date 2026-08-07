@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PaginationProps {
     total: number;
@@ -9,6 +10,7 @@ interface PaginationProps {
 }
 
 export const Pagination: React.FC<PaginationProps> = ({ total, skip, limit, onPageChange }) => {
+    const { t, i18n } = useTranslation('common');
     const currentPage = Math.floor(skip / limit) + 1;
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const from = total === 0 ? 0 : skip + 1;
@@ -34,14 +36,14 @@ export const Pagination: React.FC<PaginationProps> = ({ total, skip, limit, onPa
     return (
         <div className="flex items-center justify-between py-3 px-1 text-xs">
             <span className="text-slate-500 dark:text-slate-400 font-mono tabular-nums">
-                {from}&ndash;{to} of {total.toLocaleString()}
+                {t('pagination.range', { from, to, total: total.toLocaleString(i18n.language) })}
             </span>
             <div className="flex items-center gap-1">
                 <button
                     onClick={() => goTo(currentPage - 1)}
                     disabled={currentPage <= 1}
                     className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Previous page"
+                    aria-label={t('pagination.previous')}
                 >
                     <ChevronLeft size={14} />
                 </button>
@@ -66,7 +68,7 @@ export const Pagination: React.FC<PaginationProps> = ({ total, skip, limit, onPa
                     onClick={() => goTo(currentPage + 1)}
                     disabled={currentPage >= totalPages}
                     className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Next page"
+                    aria-label={t('pagination.next')}
                 >
                     <ChevronRight size={14} />
                 </button>

@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { AnalyticsTab, ReliabilityResponse } from '../../../types/productAnalytics';
 import { EmptyNote, SectionHeading, cellText, metricText } from './AnalyticsStates';
-import { ReliabilityStatusList } from './ReliabilityStatusList';
+import { reliabilityLabel, ReliabilityStatusList } from './ReliabilityStatusList';
 import { TrendChart } from './TrendChart';
 
-const CellList: React.FC<{ cells: { key: string; count: number | null; suppressed: boolean }[] }> = ({ cells }) => {
+const CellList: React.FC<{
+  cells: { key: string; count: number | null; suppressed: boolean }[];
+  labelGroup: 'login' | 'route' | 'error';
+}> = ({ cells, labelGroup }) => {
   const { t } = useTranslation('admin');
   const suppressed = t('pa.state.suppressed');
   if (cells.length === 0) return <EmptyNote label={t('pa.state.sparse')} />;
@@ -15,7 +18,9 @@ const CellList: React.FC<{ cells: { key: string; count: number | null; suppresse
       <tbody>
         {cells.map(cell => (
           <tr key={cell.key}>
-            <td className="py-0.5 text-verdaxis-text-muted">{cell.key}</td>
+            <td className="py-0.5 text-verdaxis-text-muted">
+              {reliabilityLabel(t, labelGroup, cell.key)}
+            </td>
             <td className="py-0.5 text-right">{cellText(cell, suppressed)}</td>
           </tr>
         ))}
@@ -43,7 +48,7 @@ export const ReliabilityTab: React.FC<{
           hint={t('pa.reliability.total', { total: metricText(data.login_failures.total, suppressed) })}
         />
         <div className="grid md:grid-cols-2 gap-6">
-          <CellList cells={data.login_failures.categories} />
+          <CellList cells={data.login_failures.categories} labelGroup="login" />
           <TrendChart
             height={140}
             emptyLabel={t('pa.state.sparse')}
@@ -57,9 +62,9 @@ export const ReliabilityTab: React.FC<{
             title={t('pa.section.frontendErrors')}
             hint={t('pa.reliability.total', { total: metricText(data.frontend_errors.total, suppressed) })}
           />
-          <CellList cells={data.frontend_errors.by_category} />
+          <CellList cells={data.frontend_errors.by_category} labelGroup="error" />
           <div className="mt-2">
-            <CellList cells={data.frontend_errors.by_route_family} />
+            <CellList cells={data.frontend_errors.by_route_family} labelGroup="route" />
           </div>
         </div>
         <div>
@@ -67,7 +72,7 @@ export const ReliabilityTab: React.FC<{
             title={t('pa.section.backendUnavailable')}
             hint={t('pa.reliability.total', { total: metricText(data.backend_unavailable.total, suppressed) })}
           />
-          <CellList cells={data.backend_unavailable.by_route_family} />
+          <CellList cells={data.backend_unavailable.by_route_family} labelGroup="route" />
         </div>
       </div>
       <div>
@@ -78,11 +83,15 @@ export const ReliabilityTab: React.FC<{
           data.navigation_latency.map(row => (
             <div key={row.destination} className="flex items-center gap-3 text-sm tabular-nums py-0.5">
               <span className="w-24 text-verdaxis-text-muted">
-                {row.destination === 'all' ? t('pa.reliability.allDestinations') : row.destination}
+                {row.destination === 'all'
+                  ? t('pa.reliability.allDestinations')
+                  : reliabilityLabel(t, 'destination', row.destination)}
               </span>
               {row.buckets.map(bucket => (
                 <span key={bucket.key} className="text-xs">
-                  <span className="text-verdaxis-text-muted">{bucket.key}:</span>{' '}
+                  <span className="text-verdaxis-text-muted">
+                    {reliabilityLabel(t, 'latency', bucket.key)}:
+                  </span>{' '}
                   {cellText(bucket, suppressed)}
                 </span>
               ))}
@@ -102,9 +111,15 @@ export const ReliabilityTab: React.FC<{
                   <td className="py-1 pr-3 tabular-nums text-verdaxis-text-muted whitespace-nowrap">
                     {row.occurred_at.replace('T', ' ').slice(0, 16)}Z
                   </td>
-                  <td className="py-1 pr-3">{row.action}</td>
-                  <td className="py-1 pr-3 text-verdaxis-text-muted">{row.resource_type ?? '—'}</td>
-                  <td className="py-1 text-verdaxis-text-muted">{row.actor_role ?? '—'}</td>
+                  <td className="py-1 pr-3">{reliabilityLabel(t, 'audit', row.action)}</td>
+                  <td className="py-1 pr-3 text-verdaxis-text-muted">
+                    {row.resource_type ? reliabilityLabel(t, 'resource', row.resource_type) : '—'}
+                  </td>
+                  <td className="py-1 text-verdaxis-text-muted">
+                    {row.actor_role
+                      ? t(`users.role.${row.actor_role}`, { defaultValue: t('users.role.unknown') })
+                      : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>

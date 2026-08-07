@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { BookOpen, Clock, ArrowRight } from 'lucide-react';
-import { getEducationArticles, type EducationArticle } from '../../data/educationArticles';
+import {
+  EDUCATION_CATEGORY_KEYS,
+  getEducationArticles,
+  type EducationArticle,
+} from '../../data/educationArticles';
 import {
   Reveal,
   HoverCard,
@@ -18,7 +22,6 @@ import { useNamespace } from '../../hooks/useNamespace';
 /* ------------------------------------------------------------------ */
 
 const categories = ['All', 'Fundamentals', 'Compliance', 'Market'] as const;
-
 const categoryColors: Record<string, { bg: string; text: string }> = {
   Fundamentals: { bg: 'rgba(93,173,226,0.12)', text: '#5DADE2' },
   Compliance: { bg: 'rgba(76,175,80,0.12)', text: '#4CAF50' },
@@ -37,8 +40,9 @@ const sectionPadding: React.CSSProperties = {
 /*  ArticleCard                                                        */
 /* ------------------------------------------------------------------ */
 
-const ArticleCard: React.FC<{ article: EducationArticle; readArticleLabel: string; minReadLabel: string }> = ({
+const ArticleCard: React.FC<{ article: EducationArticle; categoryLabel: string; readArticleLabel: string; minReadLabel: string }> = ({
   article,
+  categoryLabel,
   readArticleLabel,
   minReadLabel,
 }) => {
@@ -71,7 +75,7 @@ const ArticleCard: React.FC<{ article: EducationArticle; readArticleLabel: strin
             marginBottom: 16,
           }}
         >
-          {article.category}
+          {categoryLabel}
         </span>
 
         {/* Title */}
@@ -147,15 +151,16 @@ const ArticleCard: React.FC<{ article: EducationArticle; readArticleLabel: strin
 /* ================================================================== */
 
 export const EducationPage: React.FC = () => {
-  const { t, ready } = useNamespace('public');
+  const { t, ready: publicReady } = useNamespace('public');
+  const { ready: educationReady } = useNamespace('education');
   const [activeCategory, setActiveCategory] = useState<string>('All');
+
+  if (!publicReady || !educationReady) return null;
 
   const filtered =
     activeCategory === 'All'
       ? getEducationArticles()
       : getEducationArticles().filter((a) => a.category === activeCategory);
-
-  if (!ready) return null;
 
   return (
     <div>
@@ -282,7 +287,7 @@ export const EducationPage: React.FC = () => {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {cat}
+                  {t(`education.categories.${EDUCATION_CATEGORY_KEYS[cat]}`)}
                 </motion.button>
               );
             })}
@@ -301,6 +306,7 @@ export const EducationPage: React.FC = () => {
               <StaggerItem key={article.slug}>
                 <ArticleCard
                   article={article}
+                  categoryLabel={t(`education.categories.${EDUCATION_CATEGORY_KEYS[article.category]}`)}
                   readArticleLabel={t('education.articleCard.readArticle')}
                   minReadLabel={t('education.articleCard.minRead')}
                 />

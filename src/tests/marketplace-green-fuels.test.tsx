@@ -1,9 +1,10 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
+import i18n, { loadNamespace } from '../i18n';
 
 const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
@@ -165,7 +166,9 @@ function setMarketplaceSlice({
 }
 
 describe('Marketplace green fuels surface', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('en');
     vi.clearAllMocks();
     userRole.current = 'BUYER';
     marketSupportActive.current = false;
@@ -215,6 +218,23 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /e-Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
+  });
+
+  it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
+    await i18n.changeLanguage('zh');
+    const backendError = new Error('Sensitive backend diagnostic in English');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    listAsksPaged.mockRejectedValue(backendError);
+
+    try {
+      renderWithProviders(<Marketplace />);
+
+      expect(await screen.findByText('挂牌加载失败，请重试。')).toBeTruthy();
+      expect(screen.queryByText(backendError.message)).toBeNull();
+      expect(consoleError).toHaveBeenCalledWith('Marketplace fetch error:', backendError);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it('shows the benchmark price next to the row delta in listings', async () => {
@@ -739,6 +759,36 @@ describe('Marketplace green fuels surface', () => {
       expect(screen.getByText('Marketplace')).toBeTruthy();
     });
     expect(pricingOverlay).not.toHaveBeenCalled();
+  });
+
+  it('discards a stale response after the user changes market product', async () => {
+    let resolveBio!: (value: typeof listingsResponse) => void;
+    let resolveE!: (value: typeof listingsResponse) => void;
+    const bioRequest = new Promise<typeof listingsResponse>(resolve => { resolveBio = resolve; });
+    const eRequest = new Promise<typeof listingsResponse>(resolve => { resolveE = resolve; });
+    setMarketplaceSlice();
+    listAsksPaged.mockImplementation(({ market_product } = {}) => (
+      market_product === 'E_METHANOL' ? eRequest : bioRequest
+    ));
+
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /e-Methanol/i }));
+
+    await act(async () => {
+      resolveE({
+        ...listingsResponse,
+        items: [{ ...listingsResponse.items[0], id: 'ask-e', market_product: 'E_METHANOL', product_name: 'e-Methanol' }],
+      });
+    });
+    let listingRow = (await screen.findByRole('button', { name: /lift ask/i })).closest('tr') as HTMLElement;
+    expect(within(listingRow).getByText('e-Methanol')).toBeTruthy();
+
+    await act(async () => {
+      resolveBio(listingsResponse);
+    });
+    listingRow = screen.getByRole('button', { name: /lift ask/i }).closest('tr') as HTMLElement;
+    expect(within(listingRow).getByText('e-Methanol')).toBeTruthy();
+    expect(within(listingRow).queryByText('Bio Methanol')).toBeNull();
   });
 
 });

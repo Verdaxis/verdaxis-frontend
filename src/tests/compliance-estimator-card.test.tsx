@@ -1,14 +1,48 @@
 import React from 'react';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 
 import { ComplianceEstimatorCard } from '../components/map/ComplianceEstimatorCard';
 import { PORTS } from '../data';
+import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
 
 describe('ComplianceEstimatorCard', () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
+  it('localizes port availability and estimator validation reasons in Chinese', async () => {
+    await loadNamespace('dashboard');
+    await i18n.changeLanguage('zh');
+    const unknownPort = { ...PORTS[1], methanolSupply: 'Unknown' as const };
+
+    renderWithProviders(
+      <ComplianceEstimatorCard
+        selectedPort={PORTS[0]}
+        portOptions={[PORTS[0], unknownPort]}
+        onOpenMarketplace={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: '市场港口' }));
+    expect(await screen.findByText(/Bio Methanol 补油市场 · 高 参考供应/)).toBeTruthy();
+    expect(screen.getByText(/Bio Methanol 补油市场 · 未知 参考供应/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('每日燃耗（MT）'), { target: { value: '0' } });
+    expect(screen.getByText('传统燃料每日消耗必须大于零')).toBeTruthy();
+    expect(screen.queryByText('Daily conventional fuel consumption must be greater than zero')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('每日燃耗（MT）'), { target: { value: '35' } });
+    fireEvent.change(screen.getByLabelText('目标 CI（gCO2e/MJ）'), { target: { value: '10' } });
+    expect(screen.getByText('所选燃料 CI 高于规划目标')).toBeTruthy();
+    expect(screen.queryByText('Selected fuel CI is above the planning target')).toBeNull();
   });
 
   it('renders expanded planning controls with voyage segments by default', () => {

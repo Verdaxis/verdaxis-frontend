@@ -120,6 +120,7 @@ src/
 
 scripts/
   check-build-artifacts.mjs       # Target-strict production/staging bundle validation
+  check-translations.ts           # Recursive EN/ZH locale leaf-parity gate
   deploy.sh                       # Staging-only static build helper
   release-vercel.sh               # Immutable candidate, promotion, and narrow rollback controller
   smoke_release.py                # Rendered release smoke and bounded failure classification
@@ -132,6 +133,11 @@ database/schema.txt                   # Backend DB schema reference
 .github/workflows/frontend-ci.yml     # CI: tests/typecheck/i18n/target-strict builds
 .github/workflows/release-vercel.yml  # Manual protected Vercel production release
 ```
+
+Lazy i18n namespaces are readiness-gated before locale-dependent effects run. Controlled
+API values are translated at the UI boundary, unknown backend prose falls back to a safe
+localized message outside English, and user-facing third-party control labels follow the
+active locale.
 
 ## Dependency Flow
 

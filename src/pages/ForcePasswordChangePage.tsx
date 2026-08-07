@@ -48,7 +48,14 @@ const ForcePasswordChangePage: React.FC = () => {
 
       if (!res.ok) {
         const error = await res.json().catch(() => null);
-        setMessage({ type: 'error', text: error?.detail || t('security.errorGeneric') });
+        console.error('[auth] forced password change failed', error);
+        const detail = typeof error?.detail === 'string' ? error.detail : error?.detail?.message;
+        setMessage({
+          type: 'error',
+          text: detail === 'Current password is incorrect'
+            ? t('security.errorCurrentPassword')
+            : document.documentElement.lang.startsWith('zh') ? t('security.errorGeneric') : detail || t('security.errorGeneric'),
+        });
         return;
       }
 
@@ -61,7 +68,8 @@ const ForcePasswordChangePage: React.FC = () => {
       if (data.access_token) {
         await login(data.access_token);
       }
-    } catch {
+    } catch (error) {
+      console.error('[auth] forced password change network error', error);
       setMessage({ type: 'error', text: t('security.errorNetwork') });
     } finally {
       setIsSubmitting(false);
@@ -111,7 +119,7 @@ const ForcePasswordChangePage: React.FC = () => {
                   className="w-full rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2.5 pr-10 text-sm text-white outline-none focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10"
                   placeholder={t('security.currentPasswordPlaceholder')}
                 />
-                <button type="button" onClick={() => setShowCurrentPw((value) => !value)} className="absolute right-3 top-2.5 text-slate-400 hover:text-white">
+                <button type="button" aria-label={t(showCurrentPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowCurrentPw((value) => !value)} className="absolute right-3 top-2.5 text-slate-400 hover:text-white">
                   {showCurrentPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -129,7 +137,7 @@ const ForcePasswordChangePage: React.FC = () => {
                   className="w-full rounded-lg border border-slate-700 bg-slate-800/70 px-3 py-2.5 pr-10 text-sm text-white outline-none focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/10"
                   placeholder={t('security.newPasswordPlaceholder')}
                 />
-                <button type="button" onClick={() => setShowNewPw((value) => !value)} className="absolute right-3 top-2.5 text-slate-400 hover:text-white">
+                <button type="button" aria-label={t(showNewPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowNewPw((value) => !value)} className="absolute right-3 top-2.5 text-slate-400 hover:text-white">
                   {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>

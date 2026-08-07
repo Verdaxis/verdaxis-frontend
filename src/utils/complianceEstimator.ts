@@ -24,9 +24,29 @@ export interface ComplianceEstimatorInput {
     shortfallFactorEurPerGco2eGJ: number;
 }
 
+export const COMPLIANCE_ESTIMATOR_MESSAGE_CODES = {
+    VOYAGE_DURATION_NON_POSITIVE: 'voyageDurationNonPositive',
+    DAILY_CONSUMPTION_NON_POSITIVE: 'dailyConsumptionNonPositive',
+    CONVENTIONAL_PRICE_NON_POSITIVE: 'conventionalPriceNonPositive',
+    CONVENTIONAL_ENERGY_DENSITY_NON_POSITIVE: 'conventionalEnergyDensityNonPositive',
+    CONVENTIONAL_CARBON_INTENSITY_NON_POSITIVE: 'conventionalCarbonIntensityNonPositive',
+    CONVENTIONAL_EMISSION_FACTOR_NON_POSITIVE: 'conventionalEmissionFactorNonPositive',
+    GREEN_PRICE_NON_POSITIVE: 'greenPriceNonPositive',
+    PLANNING_TARGET_NON_POSITIVE: 'planningTargetNonPositive',
+    EUA_PRICE_NON_POSITIVE: 'euaPriceNonPositive',
+    USD_TO_EUR_NON_POSITIVE: 'usdToEurNonPositive',
+    SHORTFALL_FACTOR_NON_POSITIVE: 'shortfallFactorNonPositive',
+    GREEN_ENERGY_DENSITY_NON_POSITIVE: 'greenEnergyDensityNonPositive',
+    GREEN_CARBON_INTENSITY_NON_POSITIVE: 'greenCarbonIntensityNonPositive',
+    ETS_COVERAGE_OUT_OF_RANGE: 'etsCoverageOutOfRange',
+    SELECTED_FUEL_CI_ABOVE_TARGET: 'selectedFuelCiAboveTarget',
+} as const;
+
+export type ComplianceEstimatorMessageCode = typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES[keyof typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES];
+
 export interface ComplianceEstimatorResult {
     status: 'READY' | 'INVALID';
-    errors: string[];
+    errors: ComplianceEstimatorMessageCode[];
     totalEnergyGJ: number;
     conventionalFuelMt: number;
     conventionalFuelCostEur: number;
@@ -42,7 +62,7 @@ export interface ComplianceEstimatorResult {
         blendedFuelCostEur: number;
         blendedIndicativeEtsExposureEur: number;
         blendedFuelEuStyleShortfallEur: number;
-        noFeasibleReason?: string;
+        noFeasibleReason?: ComplianceEstimatorMessageCode;
     };
 }
 
@@ -100,33 +120,33 @@ const round = (value: number, decimals = 0) => {
 const isPositive = (value: number) => Number.isFinite(value) && value > 0;
 
 const validateInput = (input: ComplianceEstimatorInput) => {
-    const errors: string[] = [];
-    const positiveFields: Array<[keyof ComplianceEstimatorInput, string]> = [
-        ['voyageDays', 'Voyage duration must be greater than zero'],
-        ['conventionalDailyConsumptionMt', 'Daily conventional fuel consumption must be greater than zero'],
-        ['conventionalPriceUsdPerMt', 'Conventional fuel price must be greater than zero'],
-        ['conventionalEnergyDensityMjPerKg', 'Conventional fuel energy density must be greater than zero'],
-        ['conventionalCarbonIntensityGco2ePerMj', 'Conventional fuel carbon intensity must be greater than zero'],
-        ['conventionalEmissionFactorTco2PerMt', 'Conventional fuel emission factor must be greater than zero'],
-        ['greenPriceUsdPerMt', 'Green fuel price must be greater than zero'],
-        ['planningTargetGco2ePerMj', 'Planning CI target must be greater than zero'],
-        ['euaPriceEurPerTco2', 'EUA price must be greater than zero'],
-        ['usdToEur', 'USD/EUR conversion must be greater than zero'],
-        ['shortfallFactorEurPerGco2eGJ', 'Shortfall factor must be greater than zero'],
+    const errors: ComplianceEstimatorMessageCode[] = [];
+    const positiveFields: Array<[keyof ComplianceEstimatorInput, ComplianceEstimatorMessageCode]> = [
+        ['voyageDays', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.VOYAGE_DURATION_NON_POSITIVE],
+        ['conventionalDailyConsumptionMt', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.DAILY_CONSUMPTION_NON_POSITIVE],
+        ['conventionalPriceUsdPerMt', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.CONVENTIONAL_PRICE_NON_POSITIVE],
+        ['conventionalEnergyDensityMjPerKg', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.CONVENTIONAL_ENERGY_DENSITY_NON_POSITIVE],
+        ['conventionalCarbonIntensityGco2ePerMj', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.CONVENTIONAL_CARBON_INTENSITY_NON_POSITIVE],
+        ['conventionalEmissionFactorTco2PerMt', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.CONVENTIONAL_EMISSION_FACTOR_NON_POSITIVE],
+        ['greenPriceUsdPerMt', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.GREEN_PRICE_NON_POSITIVE],
+        ['planningTargetGco2ePerMj', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.PLANNING_TARGET_NON_POSITIVE],
+        ['euaPriceEurPerTco2', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.EUA_PRICE_NON_POSITIVE],
+        ['usdToEur', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.USD_TO_EUR_NON_POSITIVE],
+        ['shortfallFactorEurPerGco2eGJ', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.SHORTFALL_FACTOR_NON_POSITIVE],
     ];
 
-    positiveFields.forEach(([key, message]) => {
-        if (!isPositive(input[key] as number)) errors.push(message);
+    positiveFields.forEach(([key, code]) => {
+        if (!isPositive(input[key] as number)) errors.push(code);
     });
 
     if (!isPositive(input.greenFuel.energyDensityMjPerKg)) {
-        errors.push('Green fuel energy density must be greater than zero');
+        errors.push(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.GREEN_ENERGY_DENSITY_NON_POSITIVE);
     }
     if (!isPositive(input.greenFuel.carbonIntensityGco2ePerMj)) {
-        errors.push('Green fuel carbon intensity must be greater than zero');
+        errors.push(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.GREEN_CARBON_INTENSITY_NON_POSITIVE);
     }
     if (!Number.isFinite(input.etsCoverage) || input.etsCoverage < 0 || input.etsCoverage > 1) {
-        errors.push('EU ETS exposure coverage must be between 0% and 100%');
+        errors.push(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.ETS_COVERAGE_OUT_OF_RANGE);
     }
 
     return errors;
@@ -191,7 +211,7 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
 
     let ratio: number | null = 0;
     let feasible = true;
-    let noFeasibleReason: string | undefined;
+    let noFeasibleReason: ComplianceEstimatorMessageCode | undefined;
 
     // Energy-weighted blend ratio: CI_blend = fossilCI * (1 - r) + greenCI * r.
     if (input.conventionalCarbonIntensityGco2ePerMj <= input.planningTargetGco2ePerMj) {
@@ -199,7 +219,7 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
     } else if (input.greenFuel.carbonIntensityGco2ePerMj > input.planningTargetGco2ePerMj) {
         ratio = null;
         feasible = false;
-        noFeasibleReason = 'Selected fuel CI is above the planning target';
+        noFeasibleReason = COMPLIANCE_ESTIMATOR_MESSAGE_CODES.SELECTED_FUEL_CI_ABOVE_TARGET;
     } else {
         ratio = (input.conventionalCarbonIntensityGco2ePerMj - input.planningTargetGco2ePerMj)
             / (input.conventionalCarbonIntensityGco2ePerMj - input.greenFuel.carbonIntensityGco2ePerMj);

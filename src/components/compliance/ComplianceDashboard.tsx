@@ -23,6 +23,7 @@ import {
     Cell,
 } from 'recharts';
 import { api } from '../../services/api';
+import { useTranslation } from 'react-i18next';
 
 // --- Types matching backend response ---
 
@@ -105,29 +106,39 @@ const TrafficIcon: React.FC<{ light: string; size?: number }> = ({ light, size =
     return <ShieldX size={size} className="text-red-500" />;
 };
 
-const formatEur = (val: string | number): string => {
+const formatEur = (val: string | number, locale: string): string => {
     const num = typeof val === 'string' ? parseFloat(val) : val;
     if (isNaN(num)) return '\u20AC0';
-    return new Intl.NumberFormat('en-EU', {
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'EUR',
         maximumFractionDigits: 0,
     }).format(num);
 };
 
-const formatNum = (val: string | number, decimals = 1): string => {
+const formatNum = (val: string | number, locale: string, decimals = 1): string => {
     const num = typeof val === 'string' ? parseFloat(val) : val;
     if (isNaN(num)) return '0';
-    return num.toLocaleString('en-US', { maximumFractionDigits: decimals });
+    return num.toLocaleString(locale, { maximumFractionDigits: decimals });
 };
 
 // --- Component ---
 
 export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpenLedger }) => {
+    const { t, i18n } = useTranslation('compliance');
+    const translateRecommendation = (value?: string) => {
+        if (!value) return '-';
+        if (value.startsWith('Consider increasing')) return t('recommendations.fuelMix');
+        if (value.startsWith('High ETS exposure')) return t('recommendations.etsExposure');
+        if (value.startsWith('CII rating declining')) return t('recommendations.cii');
+        const penalty = value.match(/EUR ([\d,.]+)/)?.[1];
+        if (penalty) return t('recommendations.penalty', { amount: penalty });
+        return i18n.resolvedLanguage?.startsWith('zh') ? t('recommendations.generic') : value;
+    };
     const [fleet, setFleet] = useState<FleetCompliance | null>(null);
     const [fuels, setFuels] = useState<FuelReference | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState(false);
 
     // Scenario state
     const [scenarioVesselId, setScenarioVesselId] = useState<string>('');
@@ -141,7 +152,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         let cancelled = false;
         const fetchData = async () => {
             setLoading(true);
-            setError(null);
+            setError(false);
             try {
                 const [fleetData, fuelData] = await Promise.all([
                     api.compliance.fleet(),
@@ -156,8 +167,9 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     }
                 }
             } catch (err: any) {
+                console.error('Failed to load compliance data', err);
                 if (!cancelled) {
-                    setError(err.message || 'Failed to load compliance data');
+                    setError(true);
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -173,12 +185,12 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         // Validate fuel mix sums to ~1.0
         const entries = (Object.entries(scenarioFuelMix) as [string, string][]).filter(([, v]) => parseFloat(v) > 0);
         if (entries.length === 0) {
-            setScenarioError('Add at least one fuel to the mix');
+            setScenarioError(t('scenario.addFuel'));
             return;
         }
         const total = entries.reduce((sum: number, [, v]: [string, string]) => sum + parseFloat(v), 0);
         if (Math.abs(total - 1.0) > 0.05) {
-            setScenarioError(`Fuel fractions must sum to 1.0 (currently ${total.toFixed(2)})`);
+            setScenarioError(t('scenario.invalidTotal', { total: total.toFixed(2) }));
             return;
         }
 
@@ -193,11 +205,12 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
             const result = await api.compliance.scenario(scenarioVesselId, mix);
             setScenarioResult(result);
         } catch (err: any) {
-            setScenarioError(err.message || 'Scenario calculation failed');
+            console.error('Failed to calculate compliance scenario', err);
+            setScenarioError(t('error.scenario'));
         } finally {
             setScenarioLoading(false);
         }
-    }, [scenarioVesselId, scenarioFuelMix]);
+    }, [scenarioVesselId, scenarioFuelMix, t]);
 
     // Update a fuel fraction in the scenario mix
     const updateFuelFraction = (fuel: string, value: string) => {
@@ -218,7 +231,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         return (
             <div className="flex flex-col items-center justify-center py-24 animate-in fade-in duration-300">
                 <Loader2 size={40} className="text-[#5DADE2] animate-spin mb-4" />
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Loading compliance data...</p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">{t('loading')}</p>
             </div>
         );
     }
@@ -228,8 +241,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         return (
             <div className="flex flex-col items-center justify-center py-24 animate-in fade-in duration-300">
                 <AlertTriangle size={40} className="text-amber-500 mb-4" />
-                <p className="text-slate-600 dark:text-slate-300 font-medium mb-2">Could not load compliance data</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{error}</p>
+                <p className="text-slate-600 dark:text-slate-300 font-medium mb-2">{t('error.title')}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{t('error.load')}</p>
             </div>
         );
     }
@@ -239,10 +252,9 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
         return (
             <div className="flex flex-col items-center justify-center py-24 animate-in fade-in duration-300">
                 <Ship size={48} className="text-slate-300 dark:text-slate-600 mb-4" />
-                <p className="text-slate-600 dark:text-slate-300 font-bold text-lg mb-1">No Vessels Found</p>
+                <p className="text-slate-600 dark:text-slate-300 font-bold text-lg mb-1">{t('empty.title')}</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md text-center">
-                    Add vessels to your fleet to see compliance scores, EU ETS exposure, and FuelEU performance data.
-                    Navigate to My Fleet to register your vessels.
+                    {t('empty.body')}
                 </p>
             </div>
         );
@@ -281,16 +293,16 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
             <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 mb-8 transition-colors">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     <div>
-                        <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-1">Fleet Compliance Overview</h2>
+                        <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-1">{t('overview.title')}</h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                            {fleet.total_vessels} vessel{fleet.total_vessels !== 1 ? 's' : ''} &middot; {new Date().getFullYear()} YTD
+                            {t('overview.vessels', { count: fleet.total_vessels, year: new Date().getFullYear() })}
                         </p>
                     </div>
                     <div className="flex items-center gap-6">
                         {/* Average Score */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-[#334155] dark:text-white">{fleet.average_score}</div>
-                            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Avg Score</div>
+                            <div className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('overview.averageScore')}</div>
                         </div>
                         {/* Traffic light counts */}
                         <div className="flex gap-3">
@@ -316,8 +328,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">EU ETS Exposure</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Period: {new Date().getFullYear()} YTD</p>
+                            <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">{t('ets.title')}</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('ets.period', { year: new Date().getFullYear() })}</p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[#5DADE2] dark:text-blue-400">
                             <PieChart size={20} />
@@ -326,16 +338,16 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
                     <div className="space-y-2 mb-6">
                         <div className="flex justify-between text-sm">
-                            <span className="font-medium text-slate-600 dark:text-slate-400">Total Fleet CO2</span>
-                            <span className="font-bold text-[#334155] dark:text-white">{formatNum(totalCO2, 0)} tonnes</span>
+                            <span className="font-medium text-slate-600 dark:text-slate-400">{t('ets.totalCo2')}</span>
+                            <span className="font-bold text-[#334155] dark:text-white">{t('ets.tonnes', { value: formatNum(totalCO2, i18n.language, 0) })}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="font-medium text-slate-600 dark:text-slate-400">EUA Price</span>
-                            <span className="font-bold text-[#334155] dark:text-white">{formatEur(avgEtsPrice)}/t</span>
+                            <span className="font-medium text-slate-600 dark:text-slate-400">{t('ets.euaPrice')}</span>
+                            <span className="font-bold text-[#334155] dark:text-white">{formatEur(avgEtsPrice, i18n.language)}/t</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="font-medium text-slate-600 dark:text-slate-400">Estimated Fleet Cost</span>
-                            <span className="font-bold text-red-500 dark:text-red-400">{formatEur(totalETSCost)}</span>
+                            <span className="font-medium text-slate-600 dark:text-slate-400">{t('ets.estimatedCost')}</span>
+                            <span className="font-bold text-red-500 dark:text-red-400">{formatEur(totalETSCost, i18n.language)}</span>
                         </div>
                     </div>
 
@@ -348,7 +360,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                 <div key={v.vessel_id} className="flex items-center gap-2 text-xs">
                                     <TrafficIcon light={v.traffic_light} size={14} />
                                     <span className="flex-1 font-medium text-slate-600 dark:text-slate-400 truncate">{v.vessel_name}</span>
-                                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatEur(cost)}</span>
+                                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{formatEur(cost, i18n.language)}</span>
                                     <div className="w-16 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                         <div className="h-full bg-[#5DADE2] rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
                                     </div>
@@ -360,15 +372,15 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex space-x-4">
                         <button
                             className="flex-1 bg-[#334155] dark:bg-slate-700 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors"
-                            title="Brokerage Integration under construction"
+                            title={t('ets.brokerageUnavailable')}
                         >
-                            Buy Allowances
+                            {t('ets.buyAllowances')}
                         </button>
                         <button
                             onClick={onOpenLedger}
                             className="flex-1 border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 py-2 rounded-lg font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                         >
-                            View Ledger
+                            {t('ets.viewLedger')}
                         </button>
                     </div>
                 </div>
@@ -377,8 +389,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">FuelEU Fleet Performance</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">GHG Intensity (gCO2eq/MJ) vs Target: {fuelTarget}</p>
+                            <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">{t('fuelEu.title')}</h2>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('fuelEu.intensityVsTarget', { target: fuelTarget })}</p>
                         </div>
                         <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-[#4CAF50] dark:text-green-400">
                             <TrendingUp size={20} />
@@ -432,25 +444,25 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     </div>
                     <div className="flex items-center justify-center gap-2 mt-2">
                         <div className="w-3 h-0.5 bg-red-400 border-t-2 border-dashed border-red-400" />
-                        <span className="text-xs text-red-500 font-medium">Target: {fuelTarget} gCO2eq/MJ</span>
+                        <span className="text-xs text-red-500 font-medium">{t('fuelEu.target', { target: fuelTarget })}</span>
                     </div>
                 </div>
             </div>
 
             {/* Vessel Compliance Table */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8 transition-colors">
-                <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-4">Vessel Scores</h2>
+                <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-4">{t('vessels.title')}</h2>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase text-slate-500 dark:text-slate-400 font-bold tracking-wider">
-                                <th className="px-4 py-3">Vessel</th>
-                                <th className="px-4 py-3 text-center">Score</th>
-                                <th className="px-4 py-3 text-center">Status</th>
-                                <th className="px-4 py-3 text-center">CII</th>
-                                <th className="px-4 py-3 text-right">FuelEU Intensity</th>
-                                <th className="px-4 py-3 text-right">ETS Cost</th>
-                                <th className="px-4 py-3">Recommendation</th>
+                                <th className="px-4 py-3">{t('vessels.vessel')}</th>
+                                <th className="px-4 py-3 text-center">{t('vessels.score')}</th>
+                                <th className="px-4 py-3 text-center">{t('vessels.status')}</th>
+                                <th className="px-4 py-3 text-center">{t('vessels.cii')}</th>
+                                <th className="px-4 py-3 text-right">{t('vessels.fuelEuIntensity')}</th>
+                                <th className="px-4 py-3 text-right">{t('vessels.etsCost')}</th>
+                                <th className="px-4 py-3">{t('vessels.recommendation')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -465,7 +477,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                     <td className="px-4 py-3 text-center">
                                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${trafficBg(v.traffic_light)} ${trafficText(v.traffic_light)}`}>
                                             <TrafficIcon light={v.traffic_light} size={12} />
-                                            {v.status.replace('_', ' ')}
+                                            {t(`status.${v.status}`, { defaultValue: t('status.unknown') })}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-center">
@@ -480,13 +492,13 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
-                                        {formatNum(v.fueleu.ghg_intensity_gco2_mj)}
+                                        {formatNum(v.fueleu.ghg_intensity_gco2_mj, i18n.language)}
                                     </td>
                                     <td className="px-4 py-3 text-right font-mono font-medium text-slate-700 dark:text-slate-300">
-                                        {formatEur(v.eu_ets.estimated_cost_eur)}
+                                        {formatEur(v.eu_ets.estimated_cost_eur, i18n.language)}
                                     </td>
                                     <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                                        {v.recommendations[0] || '-'}
+                                        {translateRecommendation(v.recommendations[0])}
                                     </td>
                                 </tr>
                             ))}
@@ -499,8 +511,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 mb-8 transition-colors">
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">What-If Fuel Scenario</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Model how different fuel mixes affect compliance scores</p>
+                        <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">{t('scenario.title')}</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('scenario.subtitle')}</p>
                     </div>
                     <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded-lg text-purple-500 dark:text-purple-400">
                         <Beaker size={20} />
@@ -512,7 +524,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     <div className="space-y-4">
                         {/* Vessel selector */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Vessel</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">{t('scenario.vessel')}</label>
                             <select
                                 className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-[#334155] dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#5DADE2]"
                                 value={scenarioVesselId}
@@ -529,7 +541,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
                         {/* Fuel mix sliders */}
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Fuel Mix (fractions, sum to 1.0)</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">{t('scenario.fuelMix')}</label>
                             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                                 {fuels && (Object.entries(fuels.fuels) as [string, string][]).map(([fuel, intensity]) => (
                                     <div key={fuel} className="flex items-center gap-2">
@@ -552,7 +564,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                             </div>
                             <div className="mt-2 flex items-center justify-between">
                                 <span className="text-xs text-slate-500 dark:text-slate-400">
-                                    Total: <span className={`font-mono font-bold ${
+                                    {t('scenario.total', { total: '' })}<span className={`font-mono font-bold ${
                                         Math.abs((Object.values(scenarioFuelMix) as string[]).reduce((s: number, v: string) => s + (parseFloat(v) || 0), 0) - 1.0) <= 0.05
                                             ? 'text-green-600'
                                             : 'text-amber-600'
@@ -566,7 +578,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                     className="px-4 py-2 bg-[#334155] dark:bg-slate-700 text-white rounded-lg font-bold text-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors disabled:opacity-50 flex items-center gap-2"
                                 >
                                     {scenarioLoading && <Loader2 size={14} className="animate-spin" />}
-                                    Calculate
+                                    {t('scenario.calculate')}
                                 </button>
                             </div>
                         </div>
@@ -588,7 +600,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                             {scenarioResult.overall_score}
                                         </div>
                                         <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                                            {scenarioResult.status.replace('_', ' ')}
+                                            {t(`status.${scenarioResult.status}`, { defaultValue: t('status.unknown') })}
                                         </div>
                                     </div>
                                 </div>
@@ -597,24 +609,24 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg text-center">
                                         <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">FuelEU</div>
                                         <div className="text-lg font-bold text-[#334155] dark:text-white">{scenarioResult.fueleu.score}</div>
-                                        <div className="text-[10px] text-slate-400">{formatNum(scenarioResult.fueleu.ghg_intensity_gco2_mj)} gCO2/MJ</div>
+                                        <div className="text-[10px] text-slate-400">{formatNum(scenarioResult.fueleu.ghg_intensity_gco2_mj, i18n.language)} gCO2/MJ</div>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg text-center">
                                         <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">EU ETS</div>
                                         <div className="text-lg font-bold text-[#334155] dark:text-white">{scenarioResult.eu_ets.score}</div>
-                                        <div className="text-[10px] text-slate-400">{formatEur(scenarioResult.eu_ets.estimated_cost_eur)}</div>
+                                        <div className="text-[10px] text-slate-400">{formatEur(scenarioResult.eu_ets.estimated_cost_eur, i18n.language)}</div>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg text-center">
                                         <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">CII</div>
                                         <div className="text-lg font-bold text-[#334155] dark:text-white">{scenarioResult.cii.rating}</div>
-                                        <div className="text-[10px] text-slate-400">Score: {scenarioResult.cii.score}</div>
+                                        <div className="text-[10px] text-slate-400">{t('scenario.score', { score: scenarioResult.cii.score })}</div>
                                     </div>
                                 </div>
 
                                 {scenarioResult.fueleu.estimated_penalty_eur && parseFloat(scenarioResult.fueleu.estimated_penalty_eur) > 0 && (
                                     <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                                         <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                                            Projected FuelEU Penalty: {formatEur(scenarioResult.fueleu.estimated_penalty_eur)}
+                                            {t('scenario.penalty', { amount: formatEur(scenarioResult.fueleu.estimated_penalty_eur, i18n.language) })}
                                         </p>
                                     </div>
                                 )}
@@ -624,7 +636,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                         {scenarioResult.recommendations.map((rec, i) => (
                                             <p key={i} className="text-xs text-slate-500 dark:text-slate-400 flex items-start gap-1.5">
                                                 <AlertTriangle size={12} className="text-amber-500 mt-0.5 flex-shrink-0" />
-                                                {rec}
+                                                {translateRecommendation(rec)}
                                             </p>
                                         ))}
                                     </div>
@@ -634,7 +646,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                             <div className="flex flex-col items-center justify-center h-full py-8 text-center">
                                 <Beaker size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Configure a fuel mix and click <strong>Calculate</strong> to see projected compliance scores.
+                                    {t('scenario.help')}
                                 </p>
                             </div>
                         )}
@@ -644,12 +656,12 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
             {/* Regulatory Filings (keep existing mock) */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 transition-colors">
-                <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-4">Regulatory Filings</h2>
+                <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white mb-4">{t('filings.title')}</h2>
                 <div className="space-y-3">
                     {[
-                        { name: 'MRV Report 2025 - Final.pdf', type: 'Submission', date: 'Jan 15, 2026' },
-                        { name: 'ETS Surrender Confirmation Q4.pdf', type: 'Receipt', date: 'Dec 31, 2025' },
-                        { name: 'FuelEU Compliance Balance Statement.pdf', type: 'Report', date: 'Dec 15, 2025' },
+                        { name: t('filings.mrv'), type: t('filings.submission'), date: '2026-01-15' },
+                        { name: t('filings.ets'), type: t('filings.receipt'), date: '2025-12-31' },
+                        { name: t('filings.fuelEu'), type: t('filings.report'), date: '2025-12-15' },
                     ].map((doc, i) => (
                         <div key={i} className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-colors border border-slate-100 dark:border-slate-700">
                             <div className="flex items-center space-x-3">
@@ -658,12 +670,13 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                 </div>
                                 <div>
                                     <div className="text-sm font-bold text-[#334155] dark:text-slate-200">{doc.name}</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">{doc.type} &bull; {doc.date}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">{doc.type} &bull; {new Date(`${doc.date}T00:00:00Z`).toLocaleDateString(i18n.language, { timeZone: 'UTC' })}</div>
                                 </div>
                             </div>
                             <button
                                 className="text-[#5DADE2] hover:text-[#4FA3D9]"
-                                title="Download - Feature under construction"
+                                title={t('filings.downloadUnavailable')}
+                                aria-label={`${t('filings.downloadUnavailable')}: ${doc.name}`}
                             >
                                 <Download size={18} />
                             </button>

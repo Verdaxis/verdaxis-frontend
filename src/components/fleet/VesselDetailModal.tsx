@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Ship, Gauge, Navigation, Calendar, BarChart3, AlertTriangle, CheckCircle2, Calculator, Droplets, Leaf, ArrowRight, Info } from 'lucide-react';
 import { Vessel } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
+import { useTranslation } from 'react-i18next';
 
 interface VesselDetailModalProps {
     vessel: Vessel;
@@ -9,6 +10,7 @@ interface VesselDetailModalProps {
 }
 
 const StatusBadge: React.FC<{ status: Vessel['complianceEUETS'] }> = ({ status }) => {
+    const { t } = useTranslation('fleet');
     const styles = {
         'Compliant': 'bg-green-100 text-green-700 border-green-200',
         'Warning': 'bg-amber-100 text-amber-700 border-amber-200',
@@ -19,7 +21,7 @@ const StatusBadge: React.FC<{ status: Vessel['complianceEUETS'] }> = ({ status }
         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${styles[status]} flex items-center w-fit`}>
             {status === 'Compliant' && <CheckCircle2 size={12} className="mr-1" />}
             {status === 'Warning' && <AlertTriangle size={12} className="mr-1" />}
-            {status}
+            {t(`detail.status.${status}`)}
         </span>
     );
 };
@@ -47,11 +49,22 @@ const EMISSION_FACTORS = {
 };
 
 export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, onClose }) => {
+    const { t, i18n } = useTranslation('fleet');
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'CII_OPTIMIZER'>('OVERVIEW');
     
     // Calculator State
     const [targetRating, setTargetRating] = useState<'A' | 'B' | 'C'>('C');
     const [selectedBlend, setSelectedBlend] = useState<'B24' | 'B30' | 'B100'>('B100');
+    const destination = vessel.nextVoyage.split(/->|→/)[1]?.trim() || vessel.nextVoyage;
+    const localizedDestination = destination
+        .replace(/\(ETA: (\d+) Days?\)/, (_, count) => `(${t('detail.etaDays', { count: Number(count) })})`)
+        .replace('(Dep: Tomorrow)', `(${t('detail.departureTomorrow')})`);
+    const localizedVoyage = vessel.nextVoyage === 'En route'
+        ? t('detail.enRouteUnknown')
+        : t('detail.enRoute', { destination: localizedDestination });
+    const dryDockDate = /^([A-Za-z]{3}) (\d{4})$/.test(vessel.nextDryDock)
+        ? new Date(`${vessel.nextDryDock} 1`).toLocaleDateString(i18n.language, { month: 'short', year: 'numeric' })
+        : vessel.nextDryDock === 'TBD' ? t('detail.tbd') : vessel.nextDryDock;
 
     // Derived Calculator Values
     const calculation = useMemo(() => {
@@ -121,10 +134,10 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                         </div>
                         <div>
                             <h2 className="text-2xl font-['Montserrat'] font-bold text-[#334155]">{vessel.name}</h2>
-                            <p className="text-slate-500 font-mono text-sm">IMO: {vessel.imo} • {vessel.vesselType}</p>
+                            <p className="text-slate-500 font-mono text-sm">{t('detail.imo', { imo: vessel.imo })} • {t(`detail.vesselType.${vessel.vesselType}`, { defaultValue: vessel.vesselType })}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+                    <button onClick={onClose} aria-label={t('detail.close')} className="text-slate-400 hover:text-slate-600">
                         <X size={24} />
                     </button>
                 </div>
@@ -135,14 +148,14 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                         onClick={() => setActiveTab('OVERVIEW')}
                         className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'OVERVIEW' ? 'border-[#334155] text-[#334155]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                     >
-                        Overview & Telemetry
+                        {t('detail.tabs.overview')}
                     </button>
                     <button 
                         onClick={() => setActiveTab('CII_OPTIMIZER')}
                         className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'CII_OPTIMIZER' ? 'border-[#4CAF50] text-[#4CAF50]' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                     >
                         <Leaf size={14} />
-                        CII Biofuel Recommendations
+                        {t('detail.tabs.optimizer')}
                     </button>
                 </div>
 
@@ -153,58 +166,58 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                                     <div className="flex items-center space-x-2 text-slate-500 mb-2 font-bold text-xs uppercase">
                                         <Gauge size={16} />
-                                        <span>Current CII Rating</span>
+                                        <span>{t('detail.currentCii')}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <div className="text-3xl font-bold text-[#334155]">{vessel.ciiGrade}</div>
                                         <div className={`text-xs font-bold px-2 py-1 rounded ${vessel.ciiGrade === 'A' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                            {vessel.ciiGrade === 'A' ? 'Excellent' : 'Review Needed'}
+                                            {t(vessel.ciiGrade === 'A' ? 'detail.excellent' : 'detail.reviewNeeded')}
                                         </div>
                                     </div>
                                 </div>
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                                     <div className="flex items-center space-x-2 text-slate-500 mb-2 font-bold text-xs uppercase">
                                         <Navigation size={16} />
-                                        <span>Current Status</span>
+                                        <span>{t('detail.currentStatus')}</span>
                                     </div>
-                                    <div className="text-lg font-bold text-[#334155]">{vessel.status}</div>
-                                    <div className="text-xs text-slate-500 mt-1">En route to {vessel.nextVoyage.split('->')[1]}</div>
+                                    <div className="text-lg font-bold text-[#334155]">{t(`detail.vesselStatus.${vessel.status}`)}</div>
+                                    <div className="text-xs text-slate-500 mt-1">{localizedVoyage}</div>
                                 </div>
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                                     <div className="flex items-center space-x-2 text-slate-500 mb-2 font-bold text-xs uppercase">
                                         <Calendar size={16} />
-                                        <span>Next Dry Dock</span>
+                                        <span>{t('detail.nextDryDock')}</span>
                                     </div>
-                                    <div className="text-lg font-bold text-[#334155]">{vessel.nextDryDock}</div>
-                                    <div className="text-xs text-slate-500 mt-1">Scheduled Maintenance</div>
+                                    <div className="text-lg font-bold text-[#334155]">{dryDockDate}</div>
+                                    <div className="text-xs text-slate-500 mt-1">{t('detail.scheduledMaintenance')}</div>
                                 </div>
                             </div>
 
                             <div>
                                 <h3 className="font-bold text-[#334155] mb-4 flex items-center space-x-2">
                                     <BarChart3 size={18} />
-                                    <span>Compliance Telemetry</span>
+                                    <span>{t('detail.telemetry')}</span>
                                 </h3>
                                 <div className="space-y-4">
                                     <div className="bg-white border border-slate-200 rounded-lg p-4">
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-medium text-slate-600">EU ETS Allowances (2024)</span>
+                                            <span className="text-sm font-medium text-slate-600">{t('detail.etsAllowances')}</span>
                                             <StatusBadge status={vessel.complianceEUETS} />
                                         </div>
                                         <div className="w-full bg-slate-100 rounded-full h-2.5">
                                             <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '85%' }}></div>
                                         </div>
-                                        <p className="text-xs text-slate-400 mt-2">85% of required allowances surrendered.</p>
+                                        <p className="text-xs text-slate-400 mt-2">{t('detail.allowancesSurrendered')}</p>
                                     </div>
                                     <div className="bg-white border border-slate-200 rounded-lg p-4">
                                         <div className="flex justify-between items-center mb-2">
-                                            <span className="text-sm font-medium text-slate-600">FuelEU Intensity Limit</span>
+                                            <span className="text-sm font-medium text-slate-600">{t('detail.fuelEuLimit')}</span>
                                             <StatusBadge status={vessel.complianceFuelEU} />
                                         </div>
                                         <div className="w-full bg-slate-100 rounded-full h-2.5">
                                             <div className={`h-2.5 rounded-full ${vessel.complianceFuelEU === 'Warning' ? 'bg-amber-400' : 'bg-green-500'}`} style={{ width: vessel.complianceFuelEU === 'Warning' ? '92%' : '60%' }}></div>
                                         </div>
-                                        <p className="text-xs text-slate-400 mt-2">Current intensity: 88.2 gCO2eq/MJ (Limit: 89.3)</p>
+                                        <p className="text-xs text-slate-400 mt-2">{t('detail.currentIntensity')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -218,10 +231,9 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                         <Leaf size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-green-900">Optimize CII Rating</h3>
+                                        <h3 className="text-lg font-bold text-green-900">{t('detail.optimizer.title')}</h3>
                                         <p className="text-green-800 text-sm mt-1 max-w-lg">
-                                            Calculate exactly how much biofuel you need to improve {vessel.name}'s CII rating. 
-                                            Avoid operational speed limits and preserve asset value.
+                                            {t('detail.optimizer.description', { vessel: vessel.name })}
                                         </p>
                                     </div>
                                 </div>
@@ -231,7 +243,7 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                 {/* Inputs */}
                                 <div className="space-y-6">
                                     <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">1. Select Target CII Rating</label>
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">{t('detail.optimizer.targetStep')}</label>
                                         <div className="grid grid-cols-3 gap-3">
                                             {['A', 'B', 'C'].map((rating) => (
                                                 <button
@@ -243,23 +255,23 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                                         : 'border-slate-100 bg-white text-slate-600 hover:border-slate-200'
                                                     }`}
                                                 >
-                                                    Grade {rating}
+                                                    {t('detail.optimizer.grade', { grade: rating })}
                                                 </button>
                                             ))}
                                         </div>
                                         <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
                                             <Info size={12} />
-                                            <span>Current Rating: <strong>{vessel.ciiGrade}</strong> ({calculation.currentScore} gCO2/dwt-nm)</span>
+                                            <span>{t('detail.optimizer.currentRating', { grade: vessel.ciiGrade, score: calculation.currentScore })}</span>
                                         </div>
                                     </div>
 
                                     <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">2. Select Biofuel Blend</label>
+                                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">{t('detail.optimizer.blendStep')}</label>
                                         <div className="space-y-3">
                                             {[
-                                                { id: 'B24', name: 'B24 Biofuel', desc: '24% Bio-component', price: '$780/mt' },
-                                                { id: 'B30', name: 'B30 Biofuel', desc: '30% Bio-component', price: '$810/mt' },
-                                                { id: 'B100', name: 'B100 (Pure)', desc: '100% Bio-component', price: '$1150/mt' }
+                                                { id: 'B24', name: 'B24 Biofuel', percent: 24, price: '$780/MT' },
+                                                { id: 'B30', name: 'B30 Biofuel', percent: 30, price: '$810/MT' },
+                                                { id: 'B100', name: 'B100', percent: 100, price: '$1150/MT' }
                                             ].map((fuel) => (
                                                 <div 
                                                     key={fuel.id}
@@ -274,7 +286,7 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                                         <div className={`w-4 h-4 rounded-full border ${selectedBlend === fuel.id ? 'border-[#5DADE2] bg-[#5DADE2]' : 'border-slate-300'}`}></div>
                                                         <div>
                                                             <div className="text-sm font-bold text-[#334155]">{fuel.name}</div>
-                                                            <div className="text-xs text-slate-500">{fuel.desc}</div>
+                                                            <div className="text-xs text-slate-500">{t('detail.optimizer.bioComponent', { percent: fuel.percent })}</div>
                                                         </div>
                                                     </div>
                                                     <div className="text-xs font-bold text-slate-600">{fuel.price}</div>
@@ -288,7 +300,7 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 flex flex-col h-full">
                                     <h4 className="font-['Montserrat'] font-bold text-[#334155] mb-6 flex items-center gap-2">
                                         <Calculator size={18} />
-                                        <span>Compliance Calculator</span>
+                                        <span>{t('detail.optimizer.calculator')}</span>
                                     </h4>
 
                                     {calculation.requiredVol <= 0 ? (
@@ -296,41 +308,41 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                                                 <CheckCircle2 size={32} className="text-green-600" />
                                             </div>
-                                            <h3 className="font-bold text-green-700">Target Already Achieved</h3>
+                                            <h3 className="font-bold text-green-700">{t('detail.optimizer.achieved')}</h3>
                                             <p className="text-sm text-green-600 mt-2">
-                                                The vessel is already performing at or better than Grade {targetRating}. No biofuel substitution required.
+                                                {t('detail.optimizer.achievedDescription', { grade: targetRating })}
                                             </p>
                                         </div>
                                     ) : (
                                         <div className="space-y-6 flex-1">
                                             <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                                                <div className="text-xs font-bold text-slate-400 uppercase mb-1">Biofuel Required</div>
+                                                <div className="text-xs font-bold text-slate-400 uppercase mb-1">{t('detail.optimizer.required')}</div>
                                                 <div className="flex items-end gap-2">
-                                                    <span className="text-4xl font-bold text-[#334155]">{calculation.requiredVol.toLocaleString()}</span>
+                                                    <span className="text-4xl font-bold text-[#334155]">{calculation.requiredVol.toLocaleString(i18n.language)}</span>
                                                     <span className="text-lg font-medium text-slate-500 mb-1">MT</span>
                                                 </div>
                                                 <div className="text-xs text-[#5DADE2] font-bold mt-2 flex items-center gap-1">
                                                     <Droplets size={12} />
-                                                    <span>of {selectedBlend} blend</span>
+                                                    <span>{t('detail.optimizer.blendAmount', { blend: selectedBlend })}</span>
                                                 </div>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="bg-white p-3 rounded-lg border border-slate-200">
-                                                    <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Est. Cost</div>
-                                                    <div className="text-lg font-bold text-[#334155]">${calculation.cost.toLocaleString()}</div>
+                                                    <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">{t('detail.optimizer.estimatedCost')}</div>
+                                                    <div className="text-lg font-bold text-[#334155]">${calculation.cost.toLocaleString(i18n.language)}</div>
                                                 </div>
                                                 <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-                                                    <div className="text-[10px] font-bold text-green-600 uppercase mb-1">EU ETS Savings</div>
-                                                    <div className="text-lg font-bold text-green-700">-${calculation.etsSavings.toLocaleString()}</div>
+                                                    <div className="text-[10px] font-bold text-green-600 uppercase mb-1">{t('detail.optimizer.etsSavings')}</div>
+                                                    <div className="text-lg font-bold text-green-700">-${calculation.etsSavings.toLocaleString(i18n.language)}</div>
                                                 </div>
                                             </div>
                                             
                                             <div className="mt-auto pt-6">
                                                 <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-                                                    <span>Current: <strong>{calculation.currentScore.toFixed(2)}</strong></span>
+                                                    <span>{t('detail.optimizer.current', { score: calculation.currentScore.toFixed(2) })}</span>
                                                     <ArrowRight size={14} className="text-slate-300" />
-                                                    <span className="text-green-600">Target: <strong>{calculation.targetLimit.toFixed(2)}</strong></span>
+                                                    <span className="text-green-600">{t('detail.optimizer.target', { score: calculation.targetLimit.toFixed(2) })}</span>
                                                 </div>
                                                 <div className="w-full bg-slate-200 rounded-full h-3">
                                                     <div className="bg-slate-400 h-3 rounded-l-full" style={{ width: '40%' }}></div>
@@ -345,7 +357,7 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                             </div>
 
                                             <button className="w-full py-4 bg-[#334155] text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2">
-                                                <span>Create Biofuel Order</span>
+                                                <span>{t('detail.optimizer.createOrder')}</span>
                                                 <ArrowRight size={16} />
                                             </button>
                                         </div>
@@ -362,10 +374,10 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                             onClick={onClose}
                             className="px-6 py-2.5 text-slate-600 font-bold hover:text-slate-800"
                         >
-                            Close
+                            {t('detail.closeButton')}
                         </button>
                         <button className="px-6 py-2.5 bg-[#334155] hover:bg-slate-800 text-white font-bold rounded-lg shadow-sm">
-                            View Full Report
+                            {t('detail.fullReport')}
                         </button>
                     </div>
                 )}

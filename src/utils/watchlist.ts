@@ -1,4 +1,5 @@
 import type { WatchlistEvent, WatchlistSlice, WatchlistTarget } from '../types';
+import type { TFunction } from 'i18next';
 import { formatAvailabilityWindow } from './availabilityWindow';
 import type { MarketActivityInput } from './marketActivity';
 import { formatMarketProduct } from './marketProduct';
@@ -27,51 +28,69 @@ export function formatWatchlistSliceLabel(slice: {
     market_product_code?: string | null;
     delivery_point_name?: string | null;
     availability_window_code?: string | null;
-}): string {
+}, t: TFunction, locale = 'en'): string {
     return [
         formatMarketProduct(slice.market_product_code),
-        slice.delivery_point_name || 'Unknown delivery point',
-        formatAvailabilityWindow(slice.availability_window_code || 'SPOT'),
+        slice.delivery_point_name || t('watchlist.unknownDeliveryPoint'),
+        formatAvailabilityWindow(slice.availability_window_code || 'SPOT', locale),
     ].filter(Boolean).join(' · ');
 }
 
-function currency(value: unknown): string {
+function currency(value: unknown, t: TFunction, locale: string): string {
     const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-    if (!Number.isFinite(numberValue)) return 'n/a';
-    return `$${numberValue.toFixed(2)}`;
+    if (!Number.isFinite(numberValue)) return t('common.notAvailable');
+    return `$${numberValue.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function quantity(value: unknown): string {
+function quantity(value: unknown, t: TFunction, locale: string): string {
     const numberValue = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
-    if (!Number.isFinite(numberValue)) return 'n/a';
-    return `${numberValue.toLocaleString()} MT`;
+    if (!Number.isFinite(numberValue)) return t('common.notAvailable');
+    return `${numberValue.toLocaleString(locale)} MT`;
 }
 
-export function describeWatchlistEvent(event: WatchlistEvent): string {
+export function describeWatchlistEvent(event: WatchlistEvent, t: TFunction, locale = 'en'): string {
     const payload = event.event_payload || {};
     switch (event.event_type) {
-        case 'SLICE_NEW_ORDER':
-            return `New ${String(payload.side || 'order').toLowerCase()} entered the slice at ${currency(payload.price_per_mt_usd)}.`;
+        case 'SLICE_NEW_ORDER': {
+            const side = payload.side === 'BID'
+                ? t('watchlist.event.side.bid')
+                : payload.side === 'ASK'
+                    ? t('watchlist.event.side.ask')
+                    : t('watchlist.event.side.order');
+            return t('watchlist.event.sliceNewOrder', { side, price: currency(payload.price_per_mt_usd, t, locale) });
+        }
         case 'SLICE_BEST_PRICE_MOVED':
-            return `Best live price moved from ${currency(payload.old_price_per_mt_usd)} to ${currency(payload.new_price_per_mt_usd)}.`;
+            return t('watchlist.event.bestPriceMoved', {
+                oldPrice: currency(payload.old_price_per_mt_usd, t, locale),
+                newPrice: currency(payload.new_price_per_mt_usd, t, locale),
+            });
         case 'SLICE_BENCHMARK_MOVED':
-            return `Benchmark moved from ${currency(payload.old_price_per_mt_usd)} to ${currency(payload.new_price_per_mt_usd)}.`;
+            return t('watchlist.event.benchmarkMoved', {
+                oldPrice: currency(payload.old_price_per_mt_usd, t, locale),
+                newPrice: currency(payload.new_price_per_mt_usd, t, locale),
+            });
         case 'SLICE_WENT_QUIET':
-            return 'No live orders remain in this slice.';
+            return t('watchlist.event.sliceWentQuiet');
         case 'PIN_PRICE_CHANGED':
-            return `Pinned order repriced from ${currency(payload.old_price_per_mt_usd)} to ${currency(payload.new_price_per_mt_usd)}.`;
+            return t('watchlist.event.pinPriceChanged', {
+                oldPrice: currency(payload.old_price_per_mt_usd, t, locale),
+                newPrice: currency(payload.new_price_per_mt_usd, t, locale),
+            });
         case 'PIN_QUANTITY_CHANGED':
-            return `Pinned quantity changed from ${quantity(payload.old_remaining_quantity_mt)} to ${quantity(payload.new_remaining_quantity_mt)}.`;
+            return t('watchlist.event.pinQuantityChanged', {
+                oldQuantity: quantity(payload.old_remaining_quantity_mt, t, locale),
+                newQuantity: quantity(payload.new_remaining_quantity_mt, t, locale),
+            });
         case 'PIN_PARTIALLY_FILLED':
-            return `Pinned order partially filled. Remaining quantity is ${quantity(payload.new_remaining_quantity_mt)}.`;
+            return t('watchlist.event.pinPartiallyFilled', { quantity: quantity(payload.new_remaining_quantity_mt, t, locale) });
         case 'PIN_FILLED':
-            return 'Pinned order is fully filled.';
+            return t('watchlist.event.pinFilled');
         case 'PIN_WITHDRAWN':
-            return 'Pinned order was withdrawn.';
+            return t('watchlist.event.pinWithdrawn');
         case 'PIN_EXPIRED':
-            return 'Pinned order expired.';
+            return t('watchlist.event.pinExpired');
         default:
-            return event.event_type.replaceAll('_', ' ');
+            return t('watchlist.event.unknown');
     }
 }
 

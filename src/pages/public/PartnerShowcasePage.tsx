@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useInView } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import { useNamespace } from '../../hooks/useNamespace';
 
 /* ── Partner Data ── */
@@ -7,8 +8,6 @@ import { useNamespace } from '../../hooks/useNamespace';
 interface Partner {
   name: string;
   fullName: string;
-  role: string;
-  description: string;
   color: string;
   logoUrl: string;
 }
@@ -17,36 +16,24 @@ const partners: Partner[] = [
   {
     name: 'Methanol Institute',
     fullName: 'Methanol Institute',
-    role: 'Industry Standards Body',
-    description:
-      'Global trade association for the methanol industry. Members gain direct access to verified pricing, compliance data, and marketplace liquidity through the Verdaxis platform.',
     color: '#0078D4',
     logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
   },
   {
     name: 'S&P Global Platts',
     fullName: 'S&P Global Commodity Insights',
-    role: 'Pricing & Benchmarks',
-    description:
-      'The global benchmark for commodity pricing. Verdaxis integrates Platts assessments to provide transparent, reference-grade pricing across all fuel pathways.',
     color: '#E8373E',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
   },
   {
     name: 'MPA Singapore',
     fullName: 'Maritime and Port Authority of Singapore',
-    role: 'Regulatory Authority',
-    description:
-      'Singapore\'s maritime regulator and the world\'s largest bunkering port authority. Verdaxis aligns with MPA\'s Green Ship Programme and future fuels framework.',
     color: '#1B5E9C',
     logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
   },
   {
     name: 'Gena Solutions',
     fullName: 'GENA Solutions Oy',
-    role: 'Analytics & Technology',
-    description:
-      'Finnish energy technology company providing advanced project analytics, cost curve modelling, and emissions analysis tools for industrial and energy transition projects.',
     color: '#00897B',
     logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
   },
@@ -71,7 +58,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ child
 
 /* ── Partner Card ── */
 
-const PartnerCard: React.FC<{ partner: Partner; index: number; verifiedBadgeLabel: string }> = ({ partner, index, verifiedBadgeLabel }) => {
+const PartnerCard: React.FC<{ partner: Partner & { role: string; description: string }; index: number; verifiedBadgeLabel: string }> = ({ partner, index, verifiedBadgeLabel }) => {
   return (
     <Reveal delay={index * 0.12}>
       <motion.div
@@ -227,7 +214,14 @@ const PartnerCard: React.FC<{ partner: Partner; index: number; verifiedBadgeLabe
 
 export const PartnerShowcasePage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const { t: commonT } = useTranslation();
   if (!ready) return null;
+
+  const localizedPartners = partners.map((partner, index) => ({
+    ...partner,
+    role: t(`partnerShowcase.partners.${index}.role`),
+    description: t(`partnerShowcase.partners.${index}.description`),
+  }));
 
   return (
     <div
@@ -389,7 +383,7 @@ export const PartnerShowcasePage: React.FC = () => {
           }}
           className="partner-grid"
         >
-          {partners.map((p, i) => (
+          {localizedPartners.map((p, i) => (
             <PartnerCard
               key={p.name}
               partner={p}
@@ -604,7 +598,7 @@ export const PartnerShowcasePage: React.FC = () => {
               opacity: 0.5,
             }}
           >
-            {partners.map((p) => (
+            {localizedPartners.map((p) => (
               <img key={p.name} src={p.logoUrl} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
             ))}
           </div>
@@ -624,7 +618,7 @@ export const PartnerShowcasePage: React.FC = () => {
           {t('partnerShowcase.footer.confidentialNote')}
         </p>
         <p style={{ fontSize: 11, color: '#CBD5E1', marginTop: 8 }}>
-          &copy; {new Date().getFullYear()} Verdaxis. All rights reserved.
+          {commonT('footer.copyright', { year: new Date().getFullYear() })}
         </p>
       </footer>
 
