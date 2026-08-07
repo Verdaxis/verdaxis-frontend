@@ -213,13 +213,13 @@ const getEvidenceLayerMeta = (t: TFunction): Record<ForwardCurveEvidenceLayer, {
     },
     ORDERBOOK_BID: {
         label: t('forwardCurve.layer.bid'),
-        shortLabel: 'BID',
+        shortLabel: t('forwardCurve.layer.bid'),
         toneClass: 'text-emerald-300',
         markerClass: 'rounded-sm bg-emerald-300',
     },
     ORDERBOOK_ASK: {
         label: t('forwardCurve.layer.ask'),
-        shortLabel: 'ASK',
+        shortLabel: t('forwardCurve.layer.ask'),
         toneClass: 'text-rose-300',
         markerClass: 'rounded-sm bg-rose-300',
     },
@@ -949,8 +949,8 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                         )}
                                                     </div>
                                                     <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
-                                                        <span className="text-emerald-300">BID {currency(cell?.best_bid)}</span>
-                                                        <span className="text-right text-rose-300">ASK {currency(cell?.best_ask)}</span>
+                                                        <span className="text-emerald-300">{t('forwardCurve.layer.bid')} {currency(cell?.best_bid)}</span>
+                                                        <span className="text-right text-rose-300">{t('forwardCurve.layer.ask')} {currency(cell?.best_ask)}</span>
                                                     </div>
                                                 </button>
                                             );

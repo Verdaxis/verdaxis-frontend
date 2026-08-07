@@ -6,6 +6,7 @@ import {
   MarketActivitySection,
   MarketplaceResponse,
 } from '../../../types/productAnalytics';
+import { formatAvailabilityWindow } from '../../../utils/availabilityWindow';
 import { EmptyNote, SectionHeading, cellText } from './AnalyticsStates';
 import { MarketActivityMatrix } from './MarketActivityMatrix';
 import { MetricStrip } from './MetricStrip';
@@ -85,7 +86,7 @@ const ActivitySection: React.FC<{
                     className="border-t border-verdaxis-border/60"
                   >
                     <td className="py-1 pr-3">
-                      {slice.product_label} · {slice.delivery_point_label} · {slice.availability_window_label}
+                      {slice.product_label} · {slice.delivery_point_label} · {formatAvailabilityWindow(slice.availability_window, i18n.resolvedLanguage)}
                       {slice.crossed && (
                         <span className="ml-1 text-red-400 text-xs">{t('pa.market.crossed')}</span>
                       )}
@@ -141,7 +142,9 @@ const ActivitySection: React.FC<{
           <SectionHeading title={t('pa.section.windows')} />
           {section.window_distribution.map(row => (
             <div key={row.key} className="flex justify-between py-0.5">
-              <span className="text-verdaxis-text-muted">{row.label}</span>
+              <span className="text-verdaxis-text-muted">
+                {formatAvailabilityWindow(row.key, i18n.resolvedLanguage)}
+              </span>
               <span>{row.suppressed ? suppressed : row.count ?? '—'}</span>
             </div>
           ))}
@@ -179,7 +182,7 @@ export const MarketplaceTab: React.FC<{
   compare: boolean;
   onSelectTab: (tab: AnalyticsTab) => void;
 }> = ({ data, compare }) => {
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const sections: { key: string; section: MarketActivitySection | null; live: boolean }[] = [
     { key: 'live', section: data.live, live: true },
     { key: 'demo', section: data.demo, live: false },
@@ -235,7 +238,7 @@ export const MarketplaceTab: React.FC<{
                     className="border-t border-verdaxis-border/60"
                   >
                     <td className="py-1 pr-3">
-                      {row.product_label} · {row.delivery_point_label} · {row.availability_window_label}
+                      {row.product_label} · {row.delivery_point_label} · {formatAvailabilityWindow(row.availability_window, i18n.resolvedLanguage)}
                     </td>
                     <td className="py-1 px-2 text-right">{decimal(row.benchmark_price_usd_per_mt)}</td>
                     <td className="py-1 px-2 text-verdaxis-text-muted">

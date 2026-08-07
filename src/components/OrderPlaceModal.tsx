@@ -511,7 +511,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                             }`}>
-                                {side}
+                                {sideLabel}
                             </span>
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">

@@ -643,7 +643,11 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('现货').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('演示订单簿中间价')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('买单深度')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^买单 \$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^卖单 \$/).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/买单深度$/)).toBeTruthy();
+    expect(screen.queryByText(/^BID \$/)).toBeNull();
+    expect(screen.queryByText(/^ASK \$/)).toBeNull();
     expect(screen.queryByText('Latest Monitored Signals')).toBeNull();
   });
 });

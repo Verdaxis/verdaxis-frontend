@@ -518,6 +518,8 @@ describe('OrderPlaceModal', () => {
     expect(screen.queryByText('Asia')).toBeNull();
     expect(screen.queryByText('Unmapped Region')).toBeNull();
     expect(screen.queryByText('Test product')).toBeNull();
+    expect(screen.queryByText('BID')).toBeNull();
+    expect(screen.getAllByText('买单').length).toBeGreaterThan(0);
     expect(screen.queryByText(/发布BID/i)).toBeNull();
   });
 
