@@ -128,7 +128,7 @@ describe('authenticated Chinese i18n contracts', () => {
     expect(localizedAuthError({ detail: 'unknown backend prose' }, t, 'register.error.failed', 'test'))
       .toBe(t('register.error.failed'));
     const organizationTypes = {
-      SHIPPING_LINE: '航运公司',
+      SHIPPING_LINE: '船东',
       SHIP_MANAGER: '船舶管理公司',
       FUEL_BUYER: '燃料买方',
       FUEL_SUPPLIER: '燃料供应商',

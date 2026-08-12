@@ -101,6 +101,7 @@ describe('admin onboarding review', () => {
       email: 'abdullah@customer.example',
       role: 'SUPPLIER',
       organization_name: 'Goldwind Green Methanol',
+      organization_created: false,
       acceptance_url: 'https://app.verdaxis.exchange/accept-invite#token=claim-secret',
       expires_at: '2026-08-12T12:00:00Z',
       reissued: false,
@@ -145,7 +146,9 @@ describe('admin onboarding review', () => {
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'abdullah@customer.example' } });
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'SUPPLIER' } });
     fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate invitation' }));
+    const generateInvitation = screen.getByRole('button', { name: 'Generate invitation' });
+    await waitFor(() => expect(generateInvitation.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(generateInvitation);
 
     await waitFor(() => {
       expect(mocks.createInvitation).toHaveBeenCalledWith({
@@ -158,6 +161,54 @@ describe('admin onboarding review', () => {
     });
     expect(await screen.findByText('Invitation ready')).toBeTruthy();
     expect(screen.getByDisplayValue('https://app.verdaxis.exchange/accept-invite#token=claim-secret')).toBeTruthy();
+  });
+
+  it('creates a pre-approved organization and invitation in one action', async () => {
+    mocks.createInvitation.mockResolvedValueOnce({
+      user_id: 'invited-user-2',
+      email: 'mei@northstar.example',
+      role: 'BUYER',
+      organization_name: 'Northstar Shipping',
+      organization_created: true,
+      acceptance_url: 'https://app.verdaxis.exchange/accept-invite#token=new-org-secret',
+      expires_at: '2026-08-19T12:00:00Z',
+      reissued: false,
+    });
+    render(
+      <MemoryRouter initialEntries={['/app/admin/users']}>
+        <AdminDashboard />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Invite user' }));
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Mei' } });
+    fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'mei@northstar.example' } });
+    fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'BUYER' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New organization' }));
+    fireEvent.change(screen.getByLabelText('Organization name'), { target: { value: 'Northstar Shipping' } });
+    fireEvent.change(screen.getByLabelText('Organization type'), { target: { value: 'SHIPPING_LINE' } });
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'SG' } });
+    fireEvent.change(screen.getByLabelText('Tax ID (optional)'), { target: { value: 'SG-2026-001' } });
+    const generateInvitation = screen.getByRole('button', { name: 'Generate invitation' });
+    await waitFor(() => expect(generateInvitation.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(generateInvitation);
+
+    await waitFor(() => {
+      expect(mocks.createInvitation).toHaveBeenCalledWith({
+        email: 'mei@northstar.example',
+        first_name: 'Mei',
+        last_name: null,
+        role: 'BUYER',
+        new_organization: {
+          name: 'Northstar Shipping',
+          type: 'SHIPPING_LINE',
+          country_code: 'SG',
+          tax_id: 'SG-2026-001',
+        },
+      });
+    });
+    expect(await screen.findByText('Invitation ready')).toBeTruthy();
+    expect(screen.getByText(/Northstar Shipping/)).toBeTruthy();
   });
 
   it('does not expose unknown organization or outreach enums in Chinese', async () => {

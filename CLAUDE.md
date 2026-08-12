@@ -35,7 +35,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 **Auth guard chain:** `ProtectedRoute` (must be logged in) -> `RequireOrganization` (must have org) -> `RequireProfile` (must have role set, else redirect to `/onboarding`).
 
-**Admin invitation flow:** The Admin Users tab prepares a buyer or supplier in an existing approved real organization and returns a copied, single-use link. `/accept-invite` resolves that link, requires Terms/Privacy acceptance and a new password, then enters through the normal authenticated app without another approval.
+**Admin invitation flow:** The Admin Users tab prepares a buyer or supplier in an existing approved real organization, or atomically creates an onboarding-approved organization while preparing its first user, and returns a copied, single-use link. Newly created organizations still require the separate trusted market-provenance approval before real trading. `/accept-invite` resolves that link, requires Terms/Privacy acceptance and a new password, then enters through the normal authenticated app without another onboarding approval.
 
 ## API Integration
 
