@@ -79,7 +79,7 @@ src/
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
     supplier/{CreateListingModal,CreateQuoteModal}.tsx
     # Feature groups
-    admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved invites, organization entry
+    admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved user/org invites, organization entry
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
     admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
     market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation

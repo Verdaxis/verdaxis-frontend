@@ -16,6 +16,7 @@ import {
 import {
   AdminFeedbackEntry as FeedbackEntry,
   AdminInvitationInput,
+  AdminInvitationOrganizationType,
   AdminInvitationOrganization,
   AdminInvitationResponse,
   ApiError,
@@ -29,6 +30,7 @@ import { useMarketSupport } from '../../context/MarketSupportContext';
 import type { MarketSupportEntry, MarketSupportStartInput, SupportOrganization } from '../../types/marketSupport';
 import { defaultMarketSupportView } from '../../types/marketSupport';
 import { ConfirmModal } from '../ui/ConfirmModal';
+import { getAvailableCountries } from '../../utils/countries';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -129,8 +131,21 @@ const safeAdminError = (error: unknown, t: TFunction, language: string, fallback
   return language.startsWith('zh') ? fallback : error instanceof Error ? error.message : fallback;
 };
 
-type InvitationForm = Omit<AdminInvitationInput, 'role'> & {
-  role: '' | AdminInvitationInput['role'];
+type InvitationOrganizationMode = 'existing' | 'new';
+
+interface InvitationForm {
+  email: string;
+  first_name: string;
+  last_name: string | null;
+  role: '' | 'BUYER' | 'SUPPLIER';
+  organizationMode: InvitationOrganizationMode;
+  organization_id: string;
+  new_organization: {
+    name: string;
+    type: '' | AdminInvitationOrganizationType;
+    country_code: string;
+    tax_id: string;
+  };
 };
 
 const EMPTY_INVITATION: InvitationForm = {
@@ -138,8 +153,30 @@ const EMPTY_INVITATION: InvitationForm = {
   first_name: '',
   last_name: null,
   role: '',
+  organizationMode: 'existing',
   organization_id: '',
+  new_organization: {
+    name: '',
+    type: '',
+    country_code: '',
+    tax_id: '',
+  },
 };
+
+const BUYER_INVITATION_ORG_TYPES: AdminInvitationOrganizationType[] = [
+  'SHIPPING_LINE',
+  'SHIP_MANAGER',
+  'FUEL_BUYER',
+  'CHARTERER',
+];
+
+const invitationOrganizationTypes = (role: InvitationForm['role']) => (
+  role === 'SUPPLIER'
+    ? ['FUEL_SUPPLIER' as const]
+    : role === 'BUYER'
+      ? BUYER_INVITATION_ORG_TYPES
+      : []
+);
 
 const nextReviewAction = (review: AdminReviewCase): ReviewAction => {
   if (!review.email_verified) return { kind: 'resend' };
@@ -367,7 +404,6 @@ const UsersTab: React.FC = () => {
       const data = await api.admin.invitationOrganizations();
       const organizations = data.items ?? [];
       setInviteOrganizations(organizations);
-      setInviteForm(EMPTY_INVITATION);
     } catch (error) {
       setInviteError(safeAdminError(error, t, language, 'users.error.organizations'));
     } finally {
@@ -388,17 +424,37 @@ const UsersTab: React.FC = () => {
       return;
     }
     const role = inviteForm.role;
-    if (!role || !inviteForm.organization_id) return;
+    const usesExistingOrganization = inviteForm.organizationMode === 'existing';
+    if (
+      !role
+      || (usesExistingOrganization && !inviteForm.organization_id)
+      || (!usesExistingOrganization && (
+        !inviteForm.new_organization.name.trim()
+        || !inviteForm.new_organization.type
+        || !inviteForm.new_organization.country_code
+      ))
+    ) return;
     setInviteSubmitting(true);
     setInviteError(null);
     try {
-      const created = await api.admin.createInvitation({
-        ...inviteForm,
+      const identity = {
         role,
         email: inviteForm.email.trim().toLowerCase(),
         first_name: inviteForm.first_name.trim(),
         last_name: inviteForm.last_name?.trim() || null,
-      });
+      };
+      const input: AdminInvitationInput = usesExistingOrganization
+        ? { ...identity, organization_id: inviteForm.organization_id }
+        : {
+            ...identity,
+            new_organization: {
+              name: inviteForm.new_organization.name.trim(),
+              type: inviteForm.new_organization.type as AdminInvitationOrganizationType,
+              country_code: inviteForm.new_organization.country_code,
+              tax_id: inviteForm.new_organization.tax_id.trim() || null,
+            },
+          };
+      const created = await api.admin.createInvitation(input);
       setInvitation(created);
       await load();
     } catch (error) {
@@ -411,6 +467,15 @@ const UsersTab: React.FC = () => {
   const eligibleInviteOrganizations = inviteForm.role
     ? inviteOrganizations.filter(organization => defaultMarketSupportView(organization.type) === inviteForm.role)
     : [];
+  const eligibleNewOrganizationTypes = invitationOrganizationTypes(inviteForm.role);
+  const countries = getAvailableCountries(language);
+  const inviteOrganizationReady = inviteForm.organizationMode === 'existing'
+    ? Boolean(inviteForm.organization_id)
+    : Boolean(
+        inviteForm.new_organization.name.trim()
+        && inviteForm.new_organization.type
+        && inviteForm.new_organization.country_code,
+      );
 
   const copyInvitation = async () => {
     if (!invitation) return;
@@ -742,7 +807,7 @@ const UsersTab: React.FC = () => {
         cancelText={invitation ? '' : t('marketSupport.cancel')}
         variant={invitation ? 'success' : 'info'}
         isLoading={inviteSubmitting}
-        confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.role || !inviteForm.organization_id}
+        confirmDisabled={inviteLoading || !inviteForm.email || !inviteForm.first_name || !inviteForm.role || !inviteOrganizationReady}
         maxWidth="lg"
         compact
       >
@@ -818,6 +883,10 @@ const UsersTab: React.FC = () => {
                   ...inviteForm,
                   role: event.target.value as InvitationForm['role'],
                   organization_id: '',
+                  new_organization: {
+                    ...inviteForm.new_organization,
+                    type: '',
+                  },
                 })}
                 className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
               >
@@ -826,23 +895,111 @@ const UsersTab: React.FC = () => {
                 <option value="SUPPLIER">{t('users.role.SUPPLIER')}</option>
               </select>
             </label>
-            <label className="text-sm text-verdaxis-text-muted">
-              {t('invite.organization')}
-              <select
-                value={inviteForm.organization_id}
-                onChange={(event) => setInviteForm({ ...inviteForm, organization_id: event.target.value })}
-                disabled={inviteLoading || !inviteForm.role || eligibleInviteOrganizations.length === 0}
-                className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
-              >
-                <option value="">{t('invite.selectOrganization')}</option>
-                {eligibleInviteOrganizations.map((organization) => (
-                  <option key={organization.id} value={organization.id}>
-                    {organization.name}{organization.domain ? ` — ${organization.domain}` : ''}
-                  </option>
+            <div className="sm:col-span-2" role="group" aria-label={t('invite.organizationSource')}>
+              <div className="grid grid-cols-2 rounded-lg border border-verdaxis-border bg-verdaxis-bg p-1">
+                {(['existing', 'new'] as InvitationOrganizationMode[]).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setInviteForm({
+                      ...inviteForm,
+                      organizationMode: mode,
+                      organization_id: '',
+                      new_organization: { name: '', type: '', country_code: '', tax_id: '' },
+                    })}
+                    className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                      inviteForm.organizationMode === mode
+                        ? 'bg-verdaxis text-white'
+                        : 'text-verdaxis-text-muted hover:text-verdaxis-text'
+                    }`}
+                    aria-pressed={inviteForm.organizationMode === mode}
+                  >
+                    {t(`invite.organizationMode.${mode}`)}
+                  </button>
                 ))}
-              </select>
-            </label>
-            {!inviteLoading && inviteForm.role && eligibleInviteOrganizations.length === 0 && !inviteError && (
+              </div>
+            </div>
+            {inviteForm.organizationMode === 'existing' ? (
+              <label className="text-sm text-verdaxis-text-muted sm:col-span-2">
+                {t('invite.organization')}
+                <select
+                  value={inviteForm.organization_id}
+                  onChange={(event) => setInviteForm({ ...inviteForm, organization_id: event.target.value })}
+                  disabled={inviteLoading || !inviteForm.role || eligibleInviteOrganizations.length === 0}
+                  className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
+                >
+                  <option value="">{t('invite.selectOrganization')}</option>
+                  {eligibleInviteOrganizations.map((organization) => (
+                    <option key={organization.id} value={organization.id}>
+                      {organization.name}{organization.domain ? ` — ${organization.domain}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <>
+                <label className="text-sm text-verdaxis-text-muted sm:col-span-2">
+                  {t('invite.organizationName')}
+                  <input
+                    required
+                    value={inviteForm.new_organization.name}
+                    onChange={(event) => setInviteForm({
+                      ...inviteForm,
+                      new_organization: { ...inviteForm.new_organization, name: event.target.value },
+                    })}
+                    className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+                  />
+                </label>
+                <label className="text-sm text-verdaxis-text-muted">
+                  {t('invite.organizationType')}
+                  <select
+                    value={inviteForm.new_organization.type}
+                    onChange={(event) => setInviteForm({
+                      ...inviteForm,
+                      new_organization: {
+                        ...inviteForm.new_organization,
+                        type: event.target.value as InvitationForm['new_organization']['type'],
+                      },
+                    })}
+                    disabled={!inviteForm.role}
+                    className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text disabled:opacity-50"
+                  >
+                    <option value="">{t('invite.selectOrganizationType')}</option>
+                    {eligibleNewOrganizationTypes.map(type => (
+                      <option key={type} value={type}>{t(`users.organizationType.${type}`)}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-verdaxis-text-muted">
+                  {t('invite.country')}
+                  <select
+                    value={inviteForm.new_organization.country_code}
+                    onChange={(event) => setInviteForm({
+                      ...inviteForm,
+                      new_organization: { ...inviteForm.new_organization, country_code: event.target.value },
+                    })}
+                    className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+                  >
+                    <option value="">{t('invite.selectCountry')}</option>
+                    {countries.map(country => (
+                      <option key={country.code} value={country.code}>{country.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm text-verdaxis-text-muted sm:col-span-2">
+                  {t('invite.taxId')}
+                  <input
+                    value={inviteForm.new_organization.tax_id}
+                    onChange={(event) => setInviteForm({
+                      ...inviteForm,
+                      new_organization: { ...inviteForm.new_organization, tax_id: event.target.value },
+                    })}
+                    className="mt-1.5 w-full rounded-lg border border-verdaxis-border bg-verdaxis-bg px-3 py-2 text-verdaxis-text"
+                  />
+                </label>
+              </>
+            )}
+            {!inviteLoading && inviteForm.organizationMode === 'existing' && inviteForm.role && eligibleInviteOrganizations.length === 0 && !inviteError && (
               <p className="sm:col-span-2 text-sm text-amber-400">
                 {t('invite.noOrganizations', { role: t(`users.role.${inviteForm.role}`) })}
               </p>

@@ -445,19 +445,38 @@ export interface AdminInvitationOrganization {
     type: string;
 }
 
-export interface AdminInvitationInput {
+interface AdminInvitationBaseInput {
     email: string;
     first_name: string;
     last_name: string | null;
     role: 'BUYER' | 'SUPPLIER';
-    organization_id: string;
 }
+
+export type AdminInvitationOrganizationType =
+    | 'SHIPPING_LINE'
+    | 'SHIP_MANAGER'
+    | 'FUEL_BUYER'
+    | 'CHARTERER'
+    | 'FUEL_SUPPLIER';
+
+export interface AdminInvitationNewOrganization {
+    name: string;
+    type: AdminInvitationOrganizationType;
+    country_code: string;
+    tax_id: string | null;
+}
+
+export type AdminInvitationInput = AdminInvitationBaseInput & (
+    | { organization_id: string; new_organization?: never }
+    | { organization_id?: never; new_organization: AdminInvitationNewOrganization }
+);
 
 export interface AdminInvitationResponse {
     user_id: string;
     email: string;
     role: 'BUYER' | 'SUPPLIER';
     organization_name: string;
+    organization_created: boolean;
     acceptance_url: string;
     expires_at: string;
     reissued: boolean;
