@@ -38,10 +38,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     const resolvedCancelText = cancelText === undefined ? t('btn.cancel') : cancelText;
     const dialogRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(isLoading);
+    const onCloseRef = useRef(onClose);
 
     useEffect(() => {
         loadingRef.current = isLoading;
-    }, [isLoading]);
+        onCloseRef.current = onClose;
+    }, [isLoading, onClose]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -63,7 +65,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && !loadingRef.current) {
                 event.preventDefault();
-                onClose();
+                onCloseRef.current();
                 return;
             }
             if (event.key !== 'Tab') return;
@@ -88,7 +90,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             document.removeEventListener('keydown', handleKeyDown);
             previousFocus?.focus();
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     if (!isOpen) return null;
 

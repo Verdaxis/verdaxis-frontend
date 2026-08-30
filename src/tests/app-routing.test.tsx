@@ -88,6 +88,8 @@ vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
 vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: () => null }));
 vi.mock('../components/public/DataOcean', () => ({ DataOcean: () => null }));
 vi.mock('../components/ui/Pagination', () => ({ Pagination: () => null }));
+vi.mock('../pages/public/LandingPage', () => ({ LandingPage: () => null }));
+vi.mock('../pages/public/PartnerLandingPage', () => ({ PartnerLandingPage: () => null }));
 
 vi.mock('../components/CommandCenter', () => ({
   BuyerDashboard: ({ openOrderId }: { openOrderId?: string }) => (

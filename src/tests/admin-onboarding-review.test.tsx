@@ -142,7 +142,10 @@ describe('admin onboarding review', () => {
     expect(await screen.findByRole('option', { name: 'Select role' })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Abdullah' } });
-    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Rahman' } });
+    const lastName = screen.getByLabelText('Last name');
+    lastName.focus();
+    fireEvent.change(lastName, { target: { value: 'Rahman' } });
+    expect(document.activeElement).toBe(lastName);
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'abdullah@customer.example' } });
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'SUPPLIER' } });
     fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-1' } });

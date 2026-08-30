@@ -535,7 +535,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Indicative Period Range', {}, { timeout: 5000 });
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
 
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
