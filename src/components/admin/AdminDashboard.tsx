@@ -931,7 +931,9 @@ const UsersTab: React.FC = () => {
                   <option value="">{t('invite.selectOrganization')}</option>
                   {eligibleInviteOrganizations.map((organization) => (
                     <option key={organization.id} value={organization.id}>
-                      {organization.name}{organization.domain ? ` — ${organization.domain}` : ''}
+                      {organization.name}
+                      {organization.domain ? ` — ${organization.domain}` : ''}
+                      {` — ${t(`invite.organizationMarketStatus.${organization.provenance.toLowerCase()}`)}`}
                     </option>
                   ))}
                 </select>

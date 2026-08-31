@@ -443,6 +443,7 @@ export interface AdminInvitationOrganization {
     name: string;
     domain: string | null;
     type: string;
+    provenance: 'REAL' | 'UNKNOWN';
 }
 
 interface AdminInvitationBaseInput {
