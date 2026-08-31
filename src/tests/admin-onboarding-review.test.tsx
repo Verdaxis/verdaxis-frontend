@@ -94,6 +94,13 @@ describe('admin onboarding review', () => {
         name: 'Goldwind Green Methanol',
         domain: 'goldwind.example',
         type: 'FUEL_SUPPLIER',
+        provenance: 'REAL',
+      }, {
+        id: 'org-2',
+        name: 'Pending Supplier',
+        domain: 'pending.example',
+        type: 'FUEL_SUPPLIER',
+        provenance: 'UNKNOWN',
       }],
     });
     mocks.createInvitation.mockResolvedValue({
@@ -148,7 +155,9 @@ describe('admin onboarding review', () => {
     expect(document.activeElement).toBe(lastName);
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'abdullah@customer.example' } });
     fireEvent.change(screen.getByLabelText('Role'), { target: { value: 'SUPPLIER' } });
-    fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-1' } });
+    expect(screen.getByRole('option', { name: 'Goldwind Green Methanol — goldwind.example — Verified for live market' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Pending Supplier — pending.example — Market verification pending' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Organization'), { target: { value: 'org-2' } });
     const generateInvitation = screen.getByRole('button', { name: 'Generate invitation' });
     await waitFor(() => expect(generateInvitation.hasAttribute('disabled')).toBe(false));
     fireEvent.click(generateInvitation);
@@ -159,7 +168,7 @@ describe('admin onboarding review', () => {
         first_name: 'Abdullah',
         last_name: 'Rahman',
         role: 'SUPPLIER',
-        organization_id: 'org-1',
+        organization_id: 'org-2',
       });
     });
     expect(await screen.findByText('Invitation ready')).toBeTruthy();
