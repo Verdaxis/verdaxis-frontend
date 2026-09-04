@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
+import publicZh from '../../../locales/zh/public.json';
 
 // Mock GSAP and ScrollTrigger
 vi.mock('gsap', () => ({
@@ -87,6 +88,9 @@ describe('LandingPage', () => {
     expect(screen.getByText(
       'Verdaxis is the neutral exchange where verified low-carbon fuel meets real demand. Trade anonymously until confirmation, with transparent pricing and compliance documentation built into every transaction.'
     )).toBeTruthy();
+    expect(publicZh.hero.subtitle).toBe(
+      'Verdaxis 是一个中立的交易平台，让经过核验的低碳燃料对接真实需求。交易双方在确认前保持匿名，价格透明，并在每笔交易中内置合规文件。'
+    );
   });
 
   it('renders all 4 role cards', () => {
