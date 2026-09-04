@@ -82,6 +82,13 @@ describe('LandingPage', () => {
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('states the neutral exchange mission accurately', () => {
+    renderWithRouter(<LandingPage />);
+    expect(screen.getByText(
+      'Verdaxis is the neutral exchange where verified low-carbon fuel meets real demand. Trade anonymously until confirmation, with transparent pricing and compliance documentation built into every transaction.'
+    )).toBeTruthy();
+  });
+
   it('renders all 4 role cards', () => {
     renderWithRouter(<LandingPage />);
     expect(screen.getByText('Fuel Producers')).toBeTruthy();

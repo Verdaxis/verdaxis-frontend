@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { BuyerMap } from '../components/BuyerMap';
 import i18n, { loadNamespace } from '../i18n';
@@ -101,11 +101,13 @@ describe('BuyerMap failure localization', () => {
     expect(screen.getByText('市场可售量')).toBeTruthy();
     expect(screen.getByText('暂无有效卖单。')).toBeTruthy();
     expect(screen.getByText('暂无有效挂牌指示价。')).toBeTruthy();
-    expect(mapOptionsMock).toHaveBeenCalledWith(expect.objectContaining({
-      locale: expect.objectContaining({
-        'AttributionControl.ToggleAttribution': '切换地图版权信息',
-      }),
-    }));
+    await waitFor(() => {
+      expect(mapOptionsMock).toHaveBeenCalledWith(expect.objectContaining({
+        locale: expect.objectContaining({
+          'AttributionControl.ToggleAttribution': '切换地图版权信息',
+        }),
+      }));
+    });
 
     const legendButton = screen.getByRole('button', { name: '地图情报图例' });
     fireEvent.mouseEnter(legendButton.parentElement!);
