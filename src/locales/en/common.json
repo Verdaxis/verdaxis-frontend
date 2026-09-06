@@ -181,7 +181,7 @@
   "commandCenter.actions.browseDemand": "Browse Demand",
   "commandCenter.actions.browseDemandDescription": "Explore active buyer bids",
   "commandCenter.actions.viewDeals": "View My Deals",
-  "commandCenter.actions.viewDealsDescription": "Trade history & settlements",
+  "commandCenter.actions.viewDealsDescription": "Review trades and confirmations",
   "commandCenter.recommendedMatches": "Recommended Matches",
   "commandCenter.buyer.confirmTrade.errorMessage": "Trade confirmation failed.",
   "commandCenter.supplier.acceptOrder.successTitle": "Order Request Accepted",

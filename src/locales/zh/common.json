@@ -181,7 +181,7 @@
   "commandCenter.actions.browseDemand": "浏览需求",
   "commandCenter.actions.browseDemandDescription": "查看买方的有效买盘",
   "commandCenter.actions.viewDeals": "查看我的交易",
-  "commandCenter.actions.viewDealsDescription": "交易历史与结算",
+  "commandCenter.actions.viewDealsDescription": "查看交易与确认记录",
   "commandCenter.recommendedMatches": "推荐匹配",
   "commandCenter.buyer.confirmTrade.errorMessage": "交易确认失败。",
   "commandCenter.supplier.acceptOrder.successTitle": "订单请求已接受",
