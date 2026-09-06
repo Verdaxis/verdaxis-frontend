@@ -338,11 +338,30 @@ a[href*="github.io/tradingview"] {
 }
 
 .forward-curve-console__chart-scroll {
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .forward-curve-console__chart {
-  min-width: 900px;
+  display: block;
+  min-width: 0;
+}
+
+.forward-curve-console__chart-panel {
+  container-type: inline-size;
+}
+
+@container (max-width: 900px) {
+  .forward-curve-console__chart-label,
+  .forward-curve-console__chart-axis {
+    font-size: 18px;
+  }
+}
+
+@container (max-width: 600px) {
+  .forward-curve-console__chart-label,
+  .forward-curve-console__chart-axis {
+    font-size: 22px;
+  }
 }
 
 .forward-curve-console__selected {
