@@ -74,6 +74,21 @@ describe('market support API transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('blocks the state-changing watchlist and referral reads in support mode', async () => {
+    setMarketSupportContextId('ctx-opaque-123');
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+    await expect(api.watchlists.getRadar()).rejects.toMatchObject({
+      status: 403,
+      code: 'MARKET_SUPPORT_MUTATION_BLOCKED',
+    });
+    await expect(api.referrals.getCode()).rejects.toMatchObject({
+      status: 403,
+      code: 'MARKET_SUPPORT_MUTATION_BLOCKED',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('requires If-Match before cancelling in a support context', async () => {
     setMarketSupportContextId('ctx-opaque-123');
     const fetchMock = vi.spyOn(globalThis, 'fetch');

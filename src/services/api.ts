@@ -1248,7 +1248,7 @@ export const api = {
     watchlists: {
         list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
         getRadar: async (): Promise<import('../types').WatchlistSummary> => {
-            return fetchApi('/watchlists/me', { headers: getHeaders() });
+            return fetchApi('/watchlists/me', { method: 'POST', headers: getHeaders() });
         },
         create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
         createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<import('../types').WatchlistTarget> => {
@@ -1285,6 +1285,12 @@ export const api = {
         },
         delete: async (watchlistId: string) => {
             return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
+        },
+    },
+
+    referrals: {
+        getCode: async (): Promise<{ referral_code: string; referral_link: string }> => {
+            return fetchApi('/referrals/my-code', { method: 'POST', headers: getHeaders() });
         },
     },
 

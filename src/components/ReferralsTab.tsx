@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Copy, Check, Send, Trophy, Users, UserCheck, Zap } from 'lucide-react';
 import { API_URL } from '../services/config';
+import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import type { TFunction } from 'i18next';
@@ -55,8 +56,7 @@ export const ReferralsTab = () => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    fetch(`${API_URL}/referrals/my-code`, { headers })
-      .then(r => r.json())
+    api.referrals.getCode()
       .then(d => { setReferralCode(d.referral_code); setReferralLink(d.referral_link); })
       .catch((error) => { console.error('Failed to load referral code', error); });
 
