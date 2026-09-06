@@ -48,7 +48,7 @@ describe('Availability Windows', () => {
         expect(formatAvailabilityWindow(SPOT_WINDOW, 'zh')).toBe('现货');
         expect(formatAvailabilityWindow('2026-04', 'zh')).toBe('2026年4月');
         expect(formatAvailabilityWindow('2026-Q3', 'zh')).toBe('2026年第3季度');
-        expect(formatAvailabilityWindowPeriod('2026-Q3', 'zh')).toBe('26年第3季度');
+        expect(formatAvailabilityWindowPeriod('2026-Q3', 'zh')).toBe('26年Q3');
         expect(formatAvailabilityWindowPeriod('2027-CAL', 'zh')).toBe('2027年');
 
         const options = getAvailabilityWindowOptions({

@@ -184,8 +184,9 @@ export function formatAvailabilityWindowPeriod(value: string | null | undefined,
         return normalizedLocale(locale) === 'zh-CN' ? `${String(parsed.year).slice(-2)}年${month}` : `${month.toUpperCase()} ${String(parsed.year).slice(-2)}`;
     }
     if (parsed.kind === 'quarter') {
+        // Keep compact labels short enough for chart ticks and price tickers.
         return normalizedLocale(locale) === 'zh-CN'
-            ? `${String(parsed.year).slice(-2)}年第${parsed.quarter}季度`
+            ? `${String(parsed.year).slice(-2)}年Q${parsed.quarter}`
             : `Q${parsed.quarter} ${String(parsed.year).slice(-2)}`;
     }
     return normalizedLocale(locale) === 'zh-CN' ? `${parsed.year}年` : `CAL ${String(parsed.year).slice(-2)}`;
