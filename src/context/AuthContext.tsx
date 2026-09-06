@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
-import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
+import { clearAccessToken, getAccessToken, getAuthGeneration, refreshSession, setAccessToken } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 import { analytics, reliability } from '../services/analytics';
 
@@ -44,6 +44,7 @@ function parseJwtExp(token: string): number | null {
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 min before expiry
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -75,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         window.dispatchEvent(new CustomEvent('verdaxis:auth-logout'));
         setToken(null);
         setUser(null);
+        setIsLoading(false);
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     }, []);
@@ -109,6 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     markBackendUnavailable();
                     return;
                 }
+                if (outcome.status === 'superseded') return;
                 if (outcome.status === 'denied') {
                     logout();
                     return;
@@ -147,31 +150,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = useCallback(async (accessToken: string, refreshToken?: string) => {
         void refreshToken;
         applyAccessToken(accessToken);
+        setUser(null);
+        const requestGeneration = getAuthGeneration();
         scheduleRefresh(accessToken);
         // Fetch user profile so isAuthenticated becomes true immediately
         try {
             const res = await fetch(`${API_URL}/auth/me`, {
                 headers: { 'Authorization': `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
             });
+            if (requestGeneration !== getAuthGeneration()) return;
             if (res.ok) {
                 setIsBackendUnavailable(false);
                 const userData: User = await res.json();
+                if (requestGeneration !== getAuthGeneration()) return;
                 setUser(userData);
                 if (userData.role) analytics.track('login_succeeded', { role: userData.role });
             } else if (isBackendUnavailableStatus(res.status)) {
                 markBackendUnavailable();
             }
         } catch {
-            markBackendUnavailable();
+            if (requestGeneration === getAuthGeneration()) markBackendUnavailable();
         }
         finally {
-            setIsLoading(false);
+            if (requestGeneration === getAuthGeneration()) setIsLoading(false);
         }
     }, [applyAccessToken, scheduleRefresh]);
 
     // --- Check auth on mount / token change ---
     const checkAuth = useCallback(async () => {
         setIsLoading(true);
+        let requestGeneration = getAuthGeneration();
         const currentToken = getAccessToken();
         if (!currentToken) {
             try {
@@ -180,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     markBackendUnavailable();
                     return;
                 }
+                if (outcome.status === 'superseded') return;
                 if (outcome.status === 'denied') {
                     setIsBackendUnavailable(false);
                     clearTokens();
@@ -188,14 +198,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 setIsBackendUnavailable(false);
                 applyAccessToken(outcome.token);
+                requestGeneration = getAuthGeneration();
                 scheduleRefresh(outcome.token);
 
                 const userRes = await fetch(`${API_URL}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${outcome.token}` },
+                    signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
                 });
+                if (requestGeneration !== getAuthGeneration()) return;
                 if (userRes.ok) {
                     setIsBackendUnavailable(false);
-                    setUser(await userRes.json());
+                    const userData = await userRes.json();
+                    if (requestGeneration !== getAuthGeneration()) return;
+                    setUser(userData);
                 } else if (isBackendUnavailableStatus(userRes.status)) {
                     markBackendUnavailable();
                 } else {
@@ -204,9 +219,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             } catch (err) {
                 console.error('Error refreshing auth session:', err);
-                markBackendUnavailable();
+                if (requestGeneration === getAuthGeneration()) markBackendUnavailable();
             } finally {
-                setIsLoading(false);
+                if (requestGeneration === getAuthGeneration()) setIsLoading(false);
             }
             return;
         }
@@ -214,11 +229,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const res = await fetch(`${API_URL}/auth/me`, {
                 headers: { 'Authorization': `Bearer ${currentToken}` },
+                signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
             });
+            if (requestGeneration !== getAuthGeneration()) return;
 
             if (res.ok) {
                 setIsBackendUnavailable(false);
                 const userData = await res.json();
+                if (requestGeneration !== getAuthGeneration()) return;
                 setUser(userData);
                 scheduleRefresh(currentToken);
             } else if (isBackendUnavailableStatus(res.status)) {
@@ -228,15 +246,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const outcome = await refreshSession();
                 if (outcome.status === 'unavailable') {
                     markBackendUnavailable();
+                } else if (outcome.status === 'superseded') {
+                    return;
                 } else if (outcome.status === 'success') {
                     setIsBackendUnavailable(false);
                     applyAccessToken(outcome.token);
+                    requestGeneration = getAuthGeneration();
                     const userRes = await fetch(`${API_URL}/auth/me`, {
                         headers: { 'Authorization': `Bearer ${outcome.token}` },
+                        signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
                     });
+                    if (requestGeneration !== getAuthGeneration()) return;
                     if (userRes.ok) {
                         setIsBackendUnavailable(false);
-                        setUser(await userRes.json());
+                        const userData = await userRes.json();
+                        if (requestGeneration !== getAuthGeneration()) return;
+                        setUser(userData);
                         scheduleRefresh(outcome.token);
                     } else if (isBackendUnavailableStatus(userRes.status)) {
                         markBackendUnavailable();
@@ -253,9 +278,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         } catch (err) {
             console.error('Error fetching user profile:', err);
-            markBackendUnavailable();
+            if (requestGeneration === getAuthGeneration()) markBackendUnavailable();
         } finally {
-            setIsLoading(false);
+            if (requestGeneration === getAuthGeneration()) setIsLoading(false);
         }
     }, [applyAccessToken, scheduleRefresh, clearTokens]);
 

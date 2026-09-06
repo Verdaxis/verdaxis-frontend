@@ -4,10 +4,12 @@ import { isBackendUnavailableStatus } from './backendAvailability';
 export type RefreshOutcome =
   | { status: 'success'; token: string }
   | { status: 'denied' }
-  | { status: 'unavailable' };
+  | { status: 'unavailable' }
+  | { status: 'superseded' };
 
 let accessToken: string | null = null;
 let inFlight: Promise<RefreshOutcome> | null = null;
+let authGeneration = 0;
 
 function purgeLegacyStoredTokens(): void {
   if (typeof window === 'undefined') return;
@@ -31,18 +33,25 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+export function getAuthGeneration(): number {
+  return authGeneration;
+}
+
 export function setAccessToken(token: string | null): void {
   accessToken = token;
+  authGeneration += 1;
 }
 
 export function clearAccessToken(): void {
   accessToken = null;
+  authGeneration += 1;
   purgeLegacyStoredTokens();
 }
 
 export function refreshSession(): Promise<RefreshOutcome> {
   if (inFlight) return inFlight;
 
+  const requestGeneration = authGeneration;
   inFlight = (async (): Promise<RefreshOutcome> => {
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
@@ -50,10 +59,13 @@ export function refreshSession(): Promise<RefreshOutcome> {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({}),
+        signal: AbortSignal.timeout(15000),
       });
+      if (requestGeneration !== authGeneration) return { status: 'superseded' };
 
       if (res.ok) {
         const token = getAccessTokenFromResponse(await res.json());
+        if (requestGeneration !== authGeneration) return { status: 'superseded' };
         // A malformed success body is a server fault, not a revoked
         // session — keep any still-valid in-memory token.
         if (!token) return { status: 'unavailable' };
@@ -67,9 +79,11 @@ export function refreshSession(): Promise<RefreshOutcome> {
       if (isBackendUnavailableStatus(res.status)) return { status: 'unavailable' };
 
       // Definitive rejection — the session is gone.
+      if (requestGeneration !== authGeneration) return { status: 'superseded' };
       clearAccessToken();
       return { status: 'denied' };
     } catch {
+      if (requestGeneration !== authGeneration) return { status: 'superseded' };
       return { status: 'unavailable' };
     }
   })();
