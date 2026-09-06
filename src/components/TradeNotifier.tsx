@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useAuth } from '../context/AuthContext';
+import { useMarketSupport } from '../context/MarketSupportContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Notification } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
@@ -12,7 +13,8 @@ import { useNamespace } from '../hooks/useNamespace';
  */
 export const TradeNotifier: React.FC = () => {
     const { addToast } = useToast();
-    const { isAuthenticated } = useAuth();
+    const { user, isAuthenticated } = useAuth();
+    const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const { addNotification } = useNotifications();
     const { t, ready } = useNamespace('trading');
 
@@ -72,7 +74,8 @@ export const TradeNotifier: React.FC = () => {
         addNotification(notification);
     }, [addToast, addNotification, t]);
 
-    useSSE('trades', handleTradeEvent, isAuthenticated && ready);
+    const streamScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? ''}`;
+    useSSE('trades', handleTradeEvent, isAuthenticated && ready && !isMarketSupportActive, streamScope);
 
     return null; // Invisible — only listens
 };

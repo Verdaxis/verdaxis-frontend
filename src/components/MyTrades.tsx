@@ -14,6 +14,7 @@ import {
 import { api } from '../services/api';
 import { Trade } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useMarketSupport } from '../context/MarketSupportContext';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useNamespace } from '../hooks/useNamespace';
@@ -32,6 +33,7 @@ type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 
 export const MyTrades: React.FC = () => {
     const { user, isAuthenticated } = useAuth();
+    const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const { addToast } = useToast();
     const { t, ready } = useNamespace('trading');
     const userRole = user?.role;
@@ -71,7 +73,8 @@ export const MyTrades: React.FC = () => {
         fetchTrades(true);
     }, [fetchTrades]);
 
-    useSSE('trades', handleTradeEvent, isAuthenticated && ready);
+    const streamScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? ''}`;
+    useSSE('trades', handleTradeEvent, isAuthenticated && ready && !isMarketSupportActive, streamScope);
 
     const getUserSide = (trade: Trade): 'BUYER' | 'SELLER' | null => {
         if (!user) return null;
