@@ -67,6 +67,16 @@ const DELIVERY_POINT_REGION_KEYS: Record<string, string> = {
 
 type ModalState = 'form' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
 
+interface SubmissionRequest {
+    payload: Record<string, any>;
+    draftSignature: string;
+    confirmation?: MarketSupportConfirmation;
+}
+
+const createIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 function createInitialFormData(
     side: 'BID' | 'ASK',
     prefillPrice?: number,
@@ -102,6 +112,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillAvailabilityWindow,
     prefillPrice,
 }) => {
+    const dialogRef = useRef<HTMLDivElement>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
     const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
@@ -116,7 +128,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
-    const idempotencyKeyRef = useRef<string | null>(null);
+    const submissionRef = useRef<SubmissionRequest | null>(null);
+    const submissionInFlightRef = useRef(false);
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
 
@@ -128,7 +141,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        idempotencyKeyRef.current = null;
+        submissionRef.current = null;
+        submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
         setAdvancedOpen(side === 'ASK');
@@ -211,6 +225,48 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (!isOpen) trackedOpen.current = false;
     }, [isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        const getFocusable = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+        getFocusable()[0]?.focus();
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && !submissionInFlightRef.current) {
+                event.preventDefault();
+                handleClose();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+            const focusable = getFocusable();
+            if (!focusable.length) {
+                event.preventDefault();
+                dialogRef.current?.focus();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            previousFocusRef.current?.focus();
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen && ['success', 'auto_matched', 'error'].includes(modalState)) {
+            dialogRef.current?.focus();
+        }
+    }, [isOpen, modalState]);
+
     const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -261,6 +317,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
+        submissionRef.current = null;
         supportRequestRef.current = null;
         setModalState('form');
     }, []);
@@ -282,7 +339,36 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
     const isValidOrder = isValid;
 
+    const buildOrderPayload = (supportConfirmation?: MarketSupportConfirmation): Record<string, any> => {
+        const payload: Record<string, any> = {
+            side,
+            product_id: formData.product_id,
+            delivery_point_id: formData.delivery_point_id,
+            quantity_mt: formData.quantity_mt,
+            price_per_mt_usd: formData.price_per_mt_usd,
+            availability_window: formData.availability_window,
+            is_anonymous: true,
+        };
+        if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
+        if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
+        if (side === 'ASK') {
+            payload.certification_declared = formData.certification_declared;
+            payload.certifications = [formData.certification_scheme.trim()];
+            payload.specification_standard = formData.specification_standard.trim();
+            payload.msds_available = formData.msds_available;
+            payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
+            payload.feedstock = formData.feedstock.trim();
+            payload.origin = formData.origin.trim();
+        }
+        if (formData.expiry_type === 'date' && formData.expiry_date) {
+            payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
+        }
+        if (supportConfirmation) payload.support_confirmation = supportConfirmation;
+        return payload;
+    };
+
     const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
+        if (submissionInFlightRef.current) return;
         if (selectedProduct?.market_product && selectedDeliveryPoint) {
             analytics.track('order_form_submitted', {
                 product: selectedProduct.market_product,
@@ -294,44 +380,28 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
         setModalState('submitting');
         setErrorMessage('');
+        submissionInFlightRef.current = true;
 
         try {
-            let payload = supportConfirmation ? supportRequestRef.current?.payload : undefined;
-            if (!payload) {
-                payload = {
-                    side,
-                    product_id: formData.product_id,
-                    delivery_point_id: formData.delivery_point_id,
-                    quantity_mt: formData.quantity_mt,
-                    price_per_mt_usd: formData.price_per_mt_usd,
-                    availability_window: formData.availability_window,
-                    is_anonymous: true,
+            const currentPayload = supportConfirmation
+                ? { ...(supportRequestRef.current?.payload ?? buildOrderPayload(supportConfirmation)), support_confirmation: supportConfirmation }
+                : buildOrderPayload();
+            delete currentPayload.idempotency_key;
+            const currentSignature = JSON.stringify(currentPayload);
+            let request = submissionRef.current?.draftSignature === currentSignature
+                ? submissionRef.current
+                : null;
+            if (!request) {
+                request = {
+                    payload: { ...currentPayload, idempotency_key: createIdempotencyKey() },
+                    draftSignature: currentSignature,
+                    confirmation: supportConfirmation,
                 };
-                if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
-                if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
-                if (side === 'ASK') {
-                    payload.certification_declared = formData.certification_declared;
-                    payload.certifications = [formData.certification_scheme.trim()];
-                    payload.specification_standard = formData.specification_standard.trim();
-                    payload.msds_available = formData.msds_available;
-                    payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
-                    payload.feedstock = formData.feedstock.trim();
-                    payload.origin = formData.origin.trim();
-                }
-                if (formData.expiry_type === 'date' && formData.expiry_date) payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
-                if (supportConfirmation) {
-                    if (!idempotencyKeyRef.current) {
-                        idempotencyKeyRef.current = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                            ? crypto.randomUUID()
-                            : `ms-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                    }
-                    payload.support_confirmation = supportConfirmation;
-                    payload.idempotency_key = idempotencyKeyRef.current;
-                    supportRequestRef.current = { payload, confirmation: supportConfirmation };
-                }
+                submissionRef.current = request;
+                if (supportConfirmation) supportRequestRef.current = { payload: request.payload, confirmation: supportConfirmation };
             }
 
-            const result = await api.orderbook.create(payload as any);
+            const result = await api.orderbook.create(request.payload as any);
 
             if (result.trades && result.trades.length > 0) {
                 setMatchResult(result);
@@ -342,11 +412,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         } catch (err: any) {
             setErrorMessage(i18n.language.startsWith('zh') ? t('orderPlaceModal.error.fallback') : err.message || t('orderPlaceModal.error.fallback'));
             setModalState('error');
+        } finally {
+            submissionInFlightRef.current = false;
         }
     };
 
-    const retrySupportOrder = () => {
-        const request = supportRequestRef.current;
+    const retrySubmission = () => {
+        const request = submissionRef.current;
         if (request) void submitOrder(request.confirmation);
     };
 
@@ -370,7 +442,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('form');
         setErrorMessage('');
         setMatchResult(null);
-        idempotencyKeyRef.current = null;
+        submissionRef.current = null;
+        submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
         setAdvancedOpen(side === 'ASK');
@@ -385,16 +458,23 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'error') {
         return (
             <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                <div
+                    ref={dialogRef}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="order-place-result-title"
+                    tabIndex={-1}
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+                >
                     <div className="p-8 text-center">
                         {modalState === 'error' ? (
                             <>
                                 <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
                                     <AlertTriangle size={32} className="text-red-500" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
+                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
-                                {supportRequestRef.current && <button type="button" onClick={retrySupportOrder} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
+                                {submissionRef.current && <button type="button" onClick={retrySubmission} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
@@ -405,7 +485,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <Zap size={36} className="text-white drop-shadow-lg" fill="white" />
                                     </div>
                                 </div>
-                                <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">
+                                <h3 id="order-place-result-title" className="text-2xl font-extrabold text-slate-900 dark:text-white mb-1 tracking-tight">
                                     {t('orderPlaceModal.autoMatched.title')}
                                 </h3>
                                 <p className="text-violet-600 dark:text-violet-400 text-sm font-semibold mb-1">
@@ -459,7 +539,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${side === 'BID' ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
                                     <CheckCircle2 size={32} className={side === 'BID' ? 'text-emerald-500' : 'text-blue-500'} />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                                     {t('orderPlaceModal.success.title', { side: sideLabel })}
                                 </h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
@@ -499,11 +579,19 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-            <div data-tour="order-modal" className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[100dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col">
+            <div
+                ref={dialogRef}
+                data-tour="order-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="order-place-modal-title"
+                tabIndex={-1}
+                className="bg-white dark:bg-slate-800 border-0 sm:border border-slate-200 dark:border-slate-700 rounded-none sm:rounded-2xl shadow-2xl max-w-2xl w-full max-h-[100dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col"
+            >
                 <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between flex-shrink-0 bg-slate-50 dark:bg-slate-800">
                     <div>
                         <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
+                            <h2 id="order-place-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
                                 {t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
                             <span className={`px-2 py-0.5 text-xs font-bold rounded ${
@@ -614,7 +702,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.quantity')}</label>
+                                <label htmlFor="order-quantity" className={labelClass}>{t('orderPlaceModal.label.quantity')}</label>
                                 <div className="flex gap-2 flex-wrap mb-1">
                                     {QUANTITY_PRESETS.map(preset => (
                                         <button
@@ -634,6 +722,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     ))}
                                 </div>
                                 <input
+                                    id="order-quantity"
                                     type="number"
                                     value={formData.quantity_mt || ''}
                                     onChange={(e) => handleChange('quantity_mt', parseFloat(e.target.value) || 0)}
@@ -646,8 +735,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span></label>
+                                <label htmlFor="order-price" className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span></label>
                                 <input
+                                    id="order-price"
                                     type="number"
                                     value={formData.price_per_mt_usd || ''}
                                     onChange={(e) => handleChange('price_per_mt_usd', parseFloat(e.target.value) || 0)}
@@ -769,8 +859,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className={labelClass}>{t('orderPlaceModal.label.specificationStandard')}</label>
+                                                    <label htmlFor="order-specification-standard" className={labelClass}>{t('orderPlaceModal.label.specificationStandard')}</label>
                                                     <input
+                                                        id="order-specification-standard"
                                                         type="text"
                                                         value={formData.specification_standard}
                                                         onChange={(e) => handleChange('specification_standard', e.target.value)}
@@ -779,8 +870,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className={labelClass}>{t('orderPlaceModal.label.carbonIntensity')}</label>
+                                                    <label htmlFor="order-carbon-intensity" className={labelClass}>{t('orderPlaceModal.label.carbonIntensity')}</label>
                                                     <input
+                                                        id="order-carbon-intensity"
                                                         type="number"
                                                         value={formData.carbon_intensity_gco2_mj || ''}
                                                         onChange={(e) => handleChange('carbon_intensity_gco2_mj', parseFloat(e.target.value) || 0)}
@@ -794,8 +886,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className={labelClass}>{t('orderPlaceModal.label.feedstock')}</label>
+                                                    <label htmlFor="order-feedstock" className={labelClass}>{t('orderPlaceModal.label.feedstock')}</label>
                                                     <input
+                                                        id="order-feedstock"
                                                         type="text"
                                                         value={formData.feedstock}
                                                         onChange={(e) => handleChange('feedstock', e.target.value)}
@@ -804,8 +897,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className={labelClass}>{t('orderPlaceModal.label.origin')}</label>
+                                                    <label htmlFor="order-origin" className={labelClass}>{t('orderPlaceModal.label.origin')}</label>
                                                     <input
+                                                        id="order-origin"
                                                         type="text"
                                                         value={formData.origin}
                                                         onChange={(e) => handleChange('origin', e.target.value)}
@@ -835,7 +929,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     )}
 
                                     <div>
-                                        <label className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
+                                        <label htmlFor="order-expiry-date" className={labelClass}>{t('orderPlaceModal.label.expiry')}</label>
                                         <div className="flex gap-2 mb-2">
                                             <button
                                                 type="button"
@@ -866,6 +960,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </div>
                                         {formData.expiry_type === 'date' && (
                                             <input
+                                                id="order-expiry-date"
                                                 type="date"
                                                 min={new Date().toISOString().slice(0, 10)}
                                                 value={formData.expiry_date}

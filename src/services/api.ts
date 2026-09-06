@@ -748,13 +748,14 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
+            if (params?.sort_by) searchParams.append('sort_by', params.sort_by);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
@@ -772,13 +773,14 @@ export const api = {
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
             if (params?.fuel_type) searchParams.append('fuel_type', params.fuel_type);
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
+            if (params?.sort_by) searchParams.append('sort_by', params.sort_by);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             return fetchApi(`/orderbook/asks?${searchParams.toString()}`);
@@ -873,11 +875,15 @@ export const api = {
     },
 
     trades: {
-        initiate: async (data: { order_id: string; quantity_mt: number }) => {
+        initiate: async (data: { order_id: string; quantity_mt: number } & { idempotency_key?: string }) => {
+            const { idempotency_key: idempotencyKey, ...requestData } = data;
             return fetchApi('/trades/', {
                 method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify(data),
+                headers: {
+                    ...getHeaders(),
+                    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+                },
+                body: JSON.stringify(requestData),
             });
         },
         // Backward-compatible: returns array

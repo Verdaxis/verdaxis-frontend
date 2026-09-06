@@ -583,11 +583,31 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /confirm trade/i }));
 
     await waitFor(() => {
-      expect(tradesInitiate).toHaveBeenCalledWith({
+      expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
         order_id: 'ask-1',
         quantity_mt: 1000,
-      });
+        idempotency_key: expect.any(String),
+      }));
     });
+  });
+
+  it('retries a timed-out trade with the same payload and idempotency key', async () => {
+    tradesInitiate
+      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+      .mockResolvedValueOnce({});
+    renderWithProviders(<Marketplace />);
+    await waitFor(() => expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /lift ask/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /submit trade/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /confirm trade/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    const firstPayload = tradesInitiate.mock.calls[0]?.[0];
+    expect(firstPayload?.idempotency_key).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+
+    await waitFor(() => expect(tradesInitiate).toHaveBeenCalledTimes(2));
+    expect(tradesInitiate.mock.calls[1]?.[0]).toEqual(firstPayload);
   });
 
   it('marks demo listings and blocks trade submission', async () => {
@@ -608,12 +628,12 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+      expect(screen.getByRole('button', { name: /view demo/i })).toBeTruthy();
     });
 
     expect(screen.getByText('Demo')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /lift ask/i }));
+    fireEvent.click(screen.getByRole('button', { name: /view demo/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText(/demo listing/i).length).toBeGreaterThan(0);
