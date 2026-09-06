@@ -813,7 +813,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     if (!ready) return null;
 
     return (
-        <div className="min-h-full bg-[#05070b] font-mono text-slate-100">
+        <div className="forward-curve-console min-h-full bg-[#05070b] font-mono text-slate-100">
             <div className="border-b border-slate-800 bg-[#080c13] px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -860,7 +860,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     {t('forwardCurve.emptyMarkets')}
                 </div>
             ) : (
-                <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_430px]">
+                <div className="forward-curve-console__layout grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_430px]">
                     <div className="min-w-0 space-y-3">
                     <ForwardCurveChart
                         table={table}
