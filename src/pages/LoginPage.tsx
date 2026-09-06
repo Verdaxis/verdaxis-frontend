@@ -59,6 +59,7 @@ const LoginPage: React.FC = () => {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         credentials: 'include',
+        signal: AbortSignal.timeout(15000),
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -152,10 +153,12 @@ const LoginPage: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('login.emailLabel')}</label>
-              <div className="relative">
-                <input
+                <label htmlFor="login-email" className="block text-sm font-medium text-slate-400 mb-1.5">{t('login.emailLabel')}</label>
+                <div className="relative">
+                  <input
+                  id="login-email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -168,14 +171,16 @@ const LoginPage: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-slate-400">{t('login.passwordLabel')}</label>
+                <label htmlFor="login-password" className="block text-sm font-medium text-slate-400">{t('login.passwordLabel')}</label>
                 <Link to="/forgot-password" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors">
                   {t('login.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -85,4 +85,52 @@ describe('shared auth refresh', () => {
         expect(refreshedToken).toBe('fresh-access-token');
         expect(getAccessToken()).toBe('fresh-access-token');
     });
+
+    it.each(['logout', 'account switch'])('ignores a refresh completed after %s', async (change) => {
+        let complete!: (response: Response) => void;
+        fetchMock.mockReturnValue(new Promise<Response>(resolve => { complete = resolve; }));
+        const { refreshSession, setAccessToken, clearAccessToken, getAccessToken } = await loadAuthTokenModule();
+        setAccessToken('old-account');
+        const pending = refreshSession();
+
+        if (change === 'logout') clearAccessToken();
+        else setAccessToken('new-account');
+        complete(jsonResponse({ access_token: 'late-old-account' }));
+
+        const result = await pending;
+        expect(getAccessToken()).toBe(change === 'logout' ? null : 'new-account');
+        expect(result).toEqual({ status: 'superseded' });
+    });
+
+    it('does not let an old refresh rejection clear a new account', async () => {
+        let complete!: (response: Response) => void;
+        fetchMock.mockReturnValue(new Promise<Response>(resolve => { complete = resolve; }));
+        const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+        setAccessToken('old-account');
+        const pending = refreshSession();
+        setAccessToken('new-account');
+        complete(jsonResponse({ detail: 'revoked' }, 401));
+
+        expect(await pending).toEqual({ status: 'superseded' });
+        expect(getAccessToken()).toBe('new-account');
+    });
+
+    it('bounds a refresh request without discarding a valid token on timeout', async () => {
+        const abort = new AbortController();
+        const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(abort.signal);
+        fetchMock.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+            options.signal?.addEventListener('abort', () => reject(new DOMException('Timed out', 'TimeoutError')));
+        }));
+        try {
+            const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+            setAccessToken('still-valid');
+            const pending = refreshSession();
+            expect(timeout).toHaveBeenCalledWith(15000);
+            abort.abort();
+            expect(await pending).toEqual({ status: 'unavailable' });
+            expect(getAccessToken()).toBe('still-valid');
+        } finally {
+            timeout.mockRestore();
+        }
+    });
 });

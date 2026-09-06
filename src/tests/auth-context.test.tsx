@@ -1,11 +1,11 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
 
 function Probe() {
-  const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth } = useAuth();
+  const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth, login } = useAuth();
 
   return (
     <div>
@@ -14,6 +14,7 @@ function Probe() {
       <div data-testid="email">{user?.email ?? ''}</div>
       <div data-testid="backend-unavailable">{String(isBackendUnavailable)}</div>
       <button type="button" onClick={() => void checkAuth()}>retry</button>
+      <button type="button" onClick={() => void login('new-access-token')}>switch account</button>
     </div>
   );
 }
@@ -61,6 +62,53 @@ describe('AuthProvider token bootstrap', () => {
         headers: { Authorization: 'Bearer test-access-token' },
       }),
     );
+  });
+
+  it('does not let a stale profile response restore the previous account', async () => {
+    let resolveOldProfile!: (response: Response) => void;
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => {
+        resolveOldProfile = resolve;
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          email: 'new@example.com',
+          first_name: 'New',
+          last_name: 'User',
+          role: 'BUYER',
+          id: 'user-2',
+          status: 'APPROVED',
+        }),
+      });
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'switch account' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('email').textContent).toBe('new@example.com');
+    });
+
+    resolveOldProfile({
+      ok: true,
+      json: async () => ({
+        email: 'old@example.com',
+        first_name: 'Old',
+        last_name: 'User',
+        role: 'BUYER',
+        id: 'user-1',
+        status: 'APPROVED',
+      }),
+    } as Response);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByTestId('email').textContent).toBe('new@example.com');
   });
 });
 
