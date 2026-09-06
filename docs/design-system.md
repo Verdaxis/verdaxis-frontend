@@ -56,3 +56,20 @@ Market Radar should feel like an operations console rather than a consumer favor
 - No isolated watchlist page that is disconnected from Marketplace and Command Center.
 - No full-width empty whitespace cards.
 - No native browser select/button styling in new radar controls.
+
+
+## 2026-09-07 Core Workspace Review
+
+Audience: fuel buyers, suppliers, and market operators comparing qualified low-carbon fuel offers and confirming commercial introductions. Tone: precise, restrained, maritime-industrial. The memorable element is clear market data and accountable next actions.
+
+Forward Curve is intentionally dark by the creator's explicit instruction. Preserve that independent dark console while retaining the shared product identity. Marketplace and Command Center continue to honor the normal app theme.
+
+Use existing font assets and existing Tailwind/shared controls. Headings 24–28px, section titles 16–18px, actionable data 13–14px, supporting data 12px where space allows (11px minimum for dense metadata). Use tabular numbers for price/quantity and proportional type for labels; monospace is reserved for numeric data and short console metadata.
+
+Keep an 8px rhythm, compact 8px panel/control radii, thin separators, and restrained shadows. Avoid huge CTA tiles, ornamental icons, decorative gradients, or new component libraries.
+
+Dark console palette: retain blue-black surfaces and cyan/emerald chart accents; raise supporting text to a readable slate-blue. Use a distinct border plus background for selected cells and visible keyboard focus. Never use color as the only provenance or action cue. Preserve chart gaps and demo labels.
+
+Use 150–180ms color/opacity transitions for state changes, disable unnecessary motion under prefers-reduced-motion, and keep data tables stable while refreshing.
+
+Review viewports: 1024x900, 1440x1000, 1920x1080 desktop; 390x844 verifies existing mobile gate. Reference evidence lives in /home/jons-openclaw/artifacts/reports/verdaxis-review-20260907. Compare legibility and operational hierarchy against the existing screenshots; pixel matching is not the objective.
