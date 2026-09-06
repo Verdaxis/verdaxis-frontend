@@ -28,8 +28,9 @@ describe('watchlist market radar API client', () => {
         await api.watchlists.getRadar();
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const [url] = fetchMock.mock.calls[0] ?? [];
+        const [url, options] = fetchMock.mock.calls[0] ?? [];
         expect(String(url)).toContain('/watchlists/me');
+        expect(options?.method).toBe('POST');
     });
 
     it('creates canonical slice targets instead of legacy product entries', async () => {
