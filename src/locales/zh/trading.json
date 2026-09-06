@@ -31,7 +31,7 @@
   "marketplace.metrics.currentSliceCountOther": "个匹配订单",
   "marketplace.metrics.currentSliceHint": "当前市场组合下的真实订单；演示挂牌仅供查看",
   "marketplace.legend.title": "指示性定价",
-  "marketplace.legend.body": "每条挂牌价格下方的正负值，均相对于该产品、港口和可成交期限的同侧基准参考显示。",
+  "marketplace.legend.body": "带正负号的数值表示挂牌价格与同方向、同产品、同港口及同交付窗口的数量加权参考价之差。该订单簿参考价可能包含演示挂牌。",
   "marketplace.btn.watchMarket": "关注市场",
   "marketplace.btn.watchingMarket": "已关注市场",
   "marketplace.btn.pinToWatchlist": "固定到关注列表",
@@ -322,7 +322,7 @@
   "grade.other": "其他等级",
   "benchmark.reference": "基准参考 ${{price}}",
   "benchmark.none": "暂无基准参考",
-  "benchmark.comparison": "相对基准参考 ${{price}}/MT",
+  "benchmark.comparison": "对比订单簿参考价 ${{price}}/MT · 可能包含演示挂牌",
   "marketplace.filter.allPorts": "所有港口",
   "marketplace.filter.allProducts": "所有产品",
   "marketplace.filter.anyWindow": "任意期限",
@@ -702,5 +702,6 @@
   "supplierQuotes.modal.paymentTitle": "确认收款",
   "supplierQuotes.modal.paymentMessage": "确认已收到此订单的付款？",
   "supplierQuotes.modal.errorTitle": "操作失败",
-  "supplierQuotes.modal.errorFallback": "发生意外错误。"
+  "supplierQuotes.modal.errorFallback": "发生意外错误。",
+  "tradeHistory.performance.scope": "业绩数据基于最近最多 20 笔交易。"
 }
