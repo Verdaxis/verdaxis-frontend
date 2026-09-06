@@ -372,6 +372,45 @@ describe('OrderPlaceModal', () => {
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 
+  it('does not bind Escape before the trading namespace is ready', async () => {
+    i18n.removeResourceBundle('en', 'trading');
+    const onClose = vi.fn();
+    renderWithProviders(<OrderPlaceModal isOpen onClose={onClose} side="BID" />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('leaves keyboard focus trapping to assisted confirmation', async () => {
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1',
+        organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42',
+        expiresAt: '2026-07-23T18:00:00.000Z',
+        scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
+      },
+    };
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    const externalReference = await screen.findByLabelText(/external instruction reference/i);
+    const backButton = screen.getByRole('button', { name: /back/i });
+    backButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+
+    expect(document.activeElement).toBe(externalReference);
+  });
+
   it('requires final support confirmation before submitting an assisted ASK', async () => {
     marketSupportControl.current = {
       isActive: true,

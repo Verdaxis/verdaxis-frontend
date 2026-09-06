@@ -114,6 +114,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 }) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const previousFocusRef = useRef<HTMLElement | null>(null);
+    const onCloseRef = useRef(onClose);
     const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
@@ -132,6 +133,23 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const submissionInFlightRef = useRef(false);
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
+
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    const handleClose = useCallback(() => {
+        if (submissionInFlightRef.current) return;
+        setModalState('form');
+        setErrorMessage('');
+        setMatchResult(null);
+        submissionRef.current = null;
+        submissionInFlightRef.current = false;
+        supportRequestRef.current = null;
+        setSupportDraft(null);
+        setAdvancedOpen(side === 'ASK');
+        onCloseRef.current();
+    }, [side]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -225,11 +243,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (!isOpen) trackedOpen.current = false;
     }, [isOpen]);
 
+    const supportConfirmationOpen = modalState === 'support_confirmation';
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !ready || supportConfirmationOpen) return;
         previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-        const getFocusable = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
+        const focusableSelector = 'button:not([disabled]):not([aria-hidden="true"]), input:not([disabled]):not([aria-hidden="true"]), select:not([disabled]):not([aria-hidden="true"]), textarea:not([disabled]):not([aria-hidden="true"]), a[href]:not([aria-hidden="true"]), [tabindex]:not([tabindex="-1"]):not([aria-hidden="true"])';
+        const getFocusable = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])
+            .filter((element) => !element.hidden && !element.closest('[hidden]'));
         getFocusable()[0]?.focus();
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && !submissionInFlightRef.current) {
@@ -259,7 +279,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             document.removeEventListener('keydown', handleKeyDown);
             previousFocusRef.current?.focus();
         };
-    }, [isOpen]);
+    }, [handleClose, isOpen, ready, supportConfirmationOpen]);
 
     useEffect(() => {
         if (isOpen && ['success', 'auto_matched', 'error'].includes(modalState)) {
@@ -436,18 +456,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const handleSupportConfirm = async (confirmation: MarketSupportConfirmation) => {
         await submitOrder(confirmation);
-    };
-
-    const handleClose = () => {
-        setModalState('form');
-        setErrorMessage('');
-        setMatchResult(null);
-        submissionRef.current = null;
-        submissionInFlightRef.current = false;
-        supportRequestRef.current = null;
-        setSupportDraft(null);
-        setAdvancedOpen(side === 'ASK');
-        onClose();
     };
 
     const sideLabel = side === 'BID' ? t('side.bidNoun') : t('side.askNoun');
