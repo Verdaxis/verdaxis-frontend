@@ -10,7 +10,7 @@ import {
     RetentionResponse,
 } from '../types/productAnalytics';
 import { reliability } from './analytics';
-import { getAccessToken, refreshAccessToken } from './authToken';
+import { getAccessToken, getAuthGeneration, refreshAccessToken } from './authToken';
 import { isBackendUnavailableStatus } from './backendAvailability';
 import { API_URL } from './config';
 import {
@@ -233,6 +233,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         ...options,
         headers: initialHeaders,
     };
+    const requestGeneration = getAuthGeneration();
 
     let res: Response;
     try {
@@ -243,6 +244,9 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         // aborts are control flow, not failures.
         if (!isAbortError(error)) reliability.reportFrontendError('network');
         throw error;
+    }
+    if (requestGeneration !== getAuthGeneration()) {
+        throw new DOMException('Authentication session changed', 'AbortError');
     }
     if (isBackendUnavailableStatus(res.status)) {
         reliability.reportBackendUnavailable();
@@ -259,6 +263,9 @@ const fetchApi = async (path: string, options?: RequestInit) => {
 
     if (res.status === 401 && !shouldSkipRefresh(path)) {
         const refreshedToken = await refreshAccessToken();
+        if (requestGeneration !== getAuthGeneration()) {
+            throw new DOMException('Authentication session changed', 'AbortError');
+        }
         if (refreshedToken) {
             if (getMarketSupportContextId() !== contextId) {
                 throw new MarketSupportContextChangedError();
@@ -282,7 +289,11 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         }
     }
 
-    return handleResponse(res, contextId);
+    const responseBody = await handleResponse(res, contextId);
+    if (requestGeneration !== getAuthGeneration()) {
+        throw new DOMException('Authentication session changed', 'AbortError');
+    }
+    return responseBody;
 };
 
 // Paginated response shape from backend
