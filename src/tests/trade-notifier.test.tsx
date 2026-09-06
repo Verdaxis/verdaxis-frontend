@@ -12,6 +12,14 @@ const namespaceControl = vi.hoisted(() => ({
   ready: false,
   t: vi.fn(),
 }));
+const authControl = vi.hoisted(() => ({
+  user: { id: 'user-1', organization_id: 'org-1' },
+  isAuthenticated: true,
+}));
+const supportControl = vi.hoisted(() => ({
+  isActive: false,
+  context: null as { id: string } | null,
+}));
 
 vi.mock('../hooks/useSSE', () => ({
   useSSE: (...args: unknown[]) => useSSEMock(...args),
@@ -22,7 +30,11 @@ vi.mock('../components/Toast', () => ({
 }));
 
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ isAuthenticated: true }),
+  useAuth: () => authControl,
+}));
+
+vi.mock('../context/MarketSupportContext', () => ({
+  useMarketSupport: () => supportControl,
 }));
 
 vi.mock('../context/NotificationContext', () => ({
@@ -39,6 +51,10 @@ describe('TradeNotifier', () => {
     await loadNamespace('trading');
     await i18n.changeLanguage('zh');
     namespaceControl.ready = false;
+    authControl.user = { id: 'user-1', organization_id: 'org-1' };
+    authControl.isAuthenticated = true;
+    supportControl.isActive = false;
+    supportControl.context = null;
     namespaceControl.t.mockImplementation((key: string, options?: Record<string, unknown>) => (
       i18n.t(key, { ns: 'trading', ...options })
     ));
@@ -47,12 +63,22 @@ describe('TradeNotifier', () => {
   it('waits for trading translations and emits Chinese trade-event copy', () => {
     const { rerender } = render(<TradeNotifier />);
 
-    expect(useSSEMock).toHaveBeenLastCalledWith('trades', expect.any(Function), false);
+    expect(useSSEMock).toHaveBeenLastCalledWith(
+      'trades',
+      expect.any(Function),
+      false,
+      'user-1:org-1:',
+    );
 
     namespaceControl.ready = true;
     rerender(<TradeNotifier />);
 
-    expect(useSSEMock).toHaveBeenLastCalledWith('trades', expect.any(Function), true);
+    expect(useSSEMock).toHaveBeenLastCalledWith(
+      'trades',
+      expect.any(Function),
+      true,
+      'user-1:org-1:',
+    );
     const handler = useSSEMock.mock.calls.at(-1)?.[1] as (event: string, data: Record<string, unknown>) => void;
 
     act(() => {
@@ -67,5 +93,31 @@ describe('TradeNotifier', () => {
       title: '交易已确认',
       message: '500 MT 已按 $740/MT 确认',
     }));
+  });
+
+  it('stops the customer stream in support mode and changes scope on account switch', () => {
+    namespaceControl.ready = true;
+    const { rerender } = render(<TradeNotifier />);
+
+    supportControl.isActive = true;
+    supportControl.context = { id: 'support-1' };
+    rerender(<TradeNotifier />);
+    expect(useSSEMock).toHaveBeenLastCalledWith(
+      'trades',
+      expect.any(Function),
+      false,
+      'user-1:org-1:support-1',
+    );
+
+    supportControl.isActive = false;
+    supportControl.context = null;
+    authControl.user = { id: 'user-2', organization_id: 'org-2' };
+    rerender(<TradeNotifier />);
+    expect(useSSEMock).toHaveBeenLastCalledWith(
+      'trades',
+      expect.any(Function),
+      true,
+      'user-2:org-2:',
+    );
   });
 });
