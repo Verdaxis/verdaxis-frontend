@@ -247,7 +247,7 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => {
       expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
     });
-    expect(screen.getByTitle(/vs benchmark reference \$1,092.00\/MT/i)).toBeTruthy();
+    expect(screen.getByTitle(/vs order-book reference \$1,092.00\/MT · may include demo listings/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 

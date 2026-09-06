@@ -13,7 +13,7 @@ describe('BenchmarkPriceBlock', () => {
 
     expect(screen.getByText('$1,080.00')).toBeTruthy();
     expect(screen.getByText('Benchmark ref $1,092.00')).toBeTruthy();
-    expect(screen.getByTitle('vs benchmark reference $1,092.00/MT')).toBeTruthy();
+    expect(screen.getByTitle('vs order-book reference $1,092.00/MT · may include demo listings')).toBeTruthy();
     expect(screen.getByText('-$12.00')).toBeTruthy();
     expect(screen.queryByText(/live benchmark/i)).toBeNull();
   });
