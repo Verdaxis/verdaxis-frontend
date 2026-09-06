@@ -31,7 +31,7 @@
   "marketplace.metrics.currentSliceCountOther": "matching orders",
   "marketplace.metrics.currentSliceHint": "Live orders in the selected slice; demo rows are view-only",
   "marketplace.legend.title": "Indicative pricing",
-  "marketplace.legend.body": "Signed values under each listing price are shown against the same-side benchmark reference for this product, port, and window.",
+  "marketplace.legend.body": "Signed values compare the listing price with the quantity-weighted reference for the same side, product, port, and window. This order-book reference can include demo listings.",
   "marketplace.btn.watchMarket": "Watch Market",
   "marketplace.btn.watchingMarket": "Watching Market",
   "marketplace.btn.pinToWatchlist": "Pin to Watchlist",
@@ -322,7 +322,7 @@
   "grade.other": "Other grade",
   "benchmark.reference": "Benchmark ref ${{price}}",
   "benchmark.none": "No benchmark reference",
-  "benchmark.comparison": "vs benchmark reference ${{price}}/MT",
+  "benchmark.comparison": "vs order-book reference ${{price}}/MT · may include demo listings",
   "marketplace.filter.allPorts": "All ports",
   "marketplace.filter.allProducts": "All products",
   "marketplace.filter.anyWindow": "Any window",
@@ -702,5 +702,6 @@
   "supplierQuotes.modal.paymentTitle": "Confirm Payment",
   "supplierQuotes.modal.paymentMessage": "Confirm that payment has been received for this order?",
   "supplierQuotes.modal.errorTitle": "Action Failed",
-  "supplierQuotes.modal.errorFallback": "An unexpected error occurred."
+  "supplierQuotes.modal.errorFallback": "An unexpected error occurred.",
+  "tradeHistory.performance.scope": "Performance for up to 20 of your most recent trades."
 }

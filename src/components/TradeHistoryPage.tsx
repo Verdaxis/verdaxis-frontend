@@ -131,6 +131,7 @@ const PerformanceTab: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{t('tradeHistory.performance.scope')}</p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                     { label: t('tradeHistory.performance.totalTrades'), value: model.totalTrades.toString(), icon: ArrowLeftRight, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },

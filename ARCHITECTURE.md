@@ -69,7 +69,7 @@ src/
     Settings.tsx                   # User/org settings (shared by both roles)
     # Supplier views
     SupplierDashboard.tsx          # Incoming orders, revenue overview
-    SupplierQuotes.tsx             # Manage quote offers
+    SupplierQuotes.tsx             # Supplier route alias for the shared trade blotter
     SupplierInventory.tsx          # Fuel inventory by port
     SupplierListingConsole.tsx     # Create/manage marketplace listings
     SupplierStats.tsx              # Supplier-specific stats
