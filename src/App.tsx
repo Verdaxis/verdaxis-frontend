@@ -406,6 +406,8 @@ const DashboardIndexRedirect: React.FC = () => {
 
 const HomeRoute: React.FC = () => {
   const { viewMode, onNavigate, onOpenSlice } = useDashboard();
+  const { user } = useAuth();
+  const { context } = useMarketSupport();
   const location = useLocation();
   const [openOrderId, setOpenOrderId] = useState<string | undefined>(undefined);
 
@@ -416,9 +418,11 @@ const HomeRoute: React.FC = () => {
     }
   }, [location]);
 
+  const dashboardScopeKey = `${user?.id ?? 'account'}:${context?.id ?? user?.organization_id ?? 'real-account'}`;
+
   return viewMode === 'SUPPLIER'
-    ? <SupplierDashboard onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />
-    : <BuyerDashboard onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />;
+    ? <SupplierDashboard key={dashboardScopeKey} onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />
+    : <BuyerDashboard key={dashboardScopeKey} onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />;
 };
 
 const MapRoute: React.FC = () => {

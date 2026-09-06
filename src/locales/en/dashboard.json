@@ -1,7 +1,16 @@
 {
   "commandCenter": {
     "title": "Command Center",
-    "subtitle": "What would you like to do?"
+    "subtitle": "Your trade activity and next actions",
+    "metrics": {
+      "awaitingYourConfirmation": "Awaiting your confirmation",
+      "awaitingCounterparty": "Awaiting counterparty",
+      "confirmedTrades": "Confirmed trades",
+      "scope": "Your trades · {{count}} total",
+      "queueScope": "Showing up to {{limit}} actions · Your trades",
+      "viewAll": "View all trades",
+      "loadError": "Trade actions are unavailable right now. Retry to load them."
+    }
   },
   "buyerDashboard": {
     "title": "Procurement Dashboard",

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Trade } from '../types';
-import { buildTradePerformanceModel, tradeSliceKey } from '../utils/tradeAnalytics';
+import {
+  buildTradePerformanceModel,
+  isActiveTradeStatus,
+  isCompletedTradeStatus,
+  isConfirmedLikeTrade,
+  tradeSliceKey,
+} from '../utils/tradeAnalytics';
 
 const baseTrade: Trade = {
   id: 'trade-1',
@@ -24,6 +30,19 @@ const baseTrade: Trade = {
 };
 
 describe('tradeAnalytics', () => {
+  it('keeps pending confirmation active and excludes it from completed performance', () => {
+    expect(isActiveTradeStatus('PENDING_CONFIRMATION')).toBe(true);
+    expect(isCompletedTradeStatus('PENDING_CONFIRMATION')).toBe(false);
+    expect(isConfirmedLikeTrade('PENDING_CONFIRMATION')).toBe(false);
+    expect(buildTradePerformanceModel([{ ...baseTrade, status: 'PENDING_CONFIRMATION' }]).totalTrades).toBe(0);
+  });
+
+  it('treats confirmed trades as completed and confirmed-like', () => {
+    expect(isActiveTradeStatus('CONFIRMED')).toBe(false);
+    expect(isCompletedTradeStatus('CONFIRMED')).toBe(true);
+    expect(isConfirmedLikeTrade('CONFIRMED')).toBe(true);
+  });
+
   it('keys trades by product and delivery point for reference prices', () => {
     expect(tradeSliceKey(baseTrade)).toBe('bio-methanol|sg-sin');
   });
