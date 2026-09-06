@@ -1,7 +1,7 @@
 import type { Trade } from '../types';
 
-const ACTIVE_TRADE_STATUSES = new Set(['PENDING', 'CONFIRMED']);
-const COMPLETED_TRADE_STATUSES = new Set(['DELIVERED', 'PAID', 'SETTLED']);
+const ACTIVE_TRADE_STATUSES = new Set(['PENDING_CONFIRMATION', 'PENDING']);
+const COMPLETED_TRADE_STATUSES = new Set(['CONFIRMED', 'DELIVERED', 'PAID', 'SETTLED']);
 
 export function isActiveTradeStatus(status: string | null | undefined): boolean {
   return ACTIVE_TRADE_STATUSES.has(String(status || '').toUpperCase());
@@ -13,7 +13,7 @@ export function isCompletedTradeStatus(status: string | null | undefined): boole
 
 export function isConfirmedLikeTrade(tradeOrStatus: Trade | string | null | undefined): boolean {
   const status = typeof tradeOrStatus === 'string' ? tradeOrStatus : tradeOrStatus?.status;
-  return isActiveTradeStatus(status) || isCompletedTradeStatus(status);
+  return isCompletedTradeStatus(status);
 }
 
 export function normalizeTradeLifecycleStatus(status: string | null | undefined): string {
@@ -87,7 +87,7 @@ export function buildTradePerformanceModel(
   referenceBySlice: Record<string, number> = {},
   options: { locale?: string; unknownFuelLabel?: string } = {},
 ): TradePerformanceModel {
-  const confirmedTrades = trades.filter((trade) => trade.status !== 'CANCELLED' && trade.status !== 'DECLINED');
+  const confirmedTrades = trades.filter((trade) => isCompletedTradeStatus(trade.status));
   const totalVolumeMt = confirmedTrades.reduce((sum, trade) => sum + tradeQuantity(trade), 0);
   const grossNotionalUsd = confirmedTrades.reduce(
     (sum, trade) => sum + (tradeQuantity(trade) * tradePrice(trade)),

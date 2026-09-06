@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, Gavel, HandCoins, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, FileText, Gavel, HandCoins, Loader2, Search } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
+import type { TradeSummary } from '../services/api';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
-// import { MatchSuggestions } from './MatchSuggestions';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
-// MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
@@ -20,6 +19,14 @@ interface CommandCenterProps {
     onOpenSlice?: (slice: MarketSlice) => void;
     openOrderId?: string;
 }
+
+const ACTIONABLE_LIMIT = 8;
+const EMPTY_SUMMARY: TradeSummary = {
+    total_count: 0,
+    action_required_count: 0,
+    awaiting_counterparty_count: 0,
+    confirmed_count: 0,
+};
 
 const CTA_CONFIG = {
     BUYER: {
@@ -35,12 +42,15 @@ const CTA_CONFIG = {
 export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, onOpenSlice, openOrderId }) => {
     const { t, ready } = useNamespace('dashboard');
     const [trades, setTrades] = useState<Trade[]>([]);
+    const [summary, setSummary] = useState<TradeSummary>(EMPTY_SUMMARY);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [orderModalOpen, setOrderModalOpen] = useState(false);
-    const [matchCount, setMatchCount] = useState(0);
     const { radar, events, loading: radarLoading, error: radarError } = useWatchlist();
-    const { isActive: isMarketSupportActive } = useMarketSupport();
+    const { context, isActive: isMarketSupportActive } = useMarketSupport();
+    const loadGeneration = useRef(0);
+    const scopeKey = context?.id ?? 'real-account';
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
@@ -56,20 +66,44 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         setConfirmState(prev => ({ ...prev, isOpen: false }));
     };
 
-    useEffect(() => {
-        const fetchTrades = async () => {
-            try {
-                setTrades(await api.trades.myTrades());
-            } catch (e) {
-                console.error('Error fetching trades', e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchTrades();
+    const loadDashboardData = useCallback(async () => {
+        const generation = ++loadGeneration.current;
+        setLoading(true);
+        setLoadError(false);
+        try {
+            const summaryRequest = api.trades.summary();
+            const actionableRequest = api.trades.myTradesPaged({
+                skip: 0,
+                limit: ACTIONABLE_LIMIT,
+                action_required: true,
+            });
+            const [nextSummary, actionable] = await Promise.all([summaryRequest, actionableRequest]);
+            if (generation !== loadGeneration.current) return;
+            setSummary({
+                total_count: Number(nextSummary.total_count ?? 0),
+                action_required_count: Number(nextSummary.action_required_count ?? 0),
+                awaiting_counterparty_count: Number(nextSummary.awaiting_counterparty_count ?? 0),
+                confirmed_count: Number(nextSummary.confirmed_count ?? 0),
+            });
+            setTrades((actionable.items ?? []) as Trade[]);
+        } catch (error) {
+            if (generation !== loadGeneration.current) return;
+            console.error('Error loading Command Center trade data', error);
+            setSummary(EMPTY_SUMMARY);
+            setTrades([]);
+            setLoadError(true);
+        } finally {
+            if (generation === loadGeneration.current) setLoading(false);
+        }
     }, []);
 
-    // Scroll to highlighted order
+    useEffect(() => {
+        void loadDashboardData();
+        return () => {
+            loadGeneration.current += 1;
+        };
+    }, [loadDashboardData, scopeKey]);
+
     useEffect(() => {
         if (!loading && openOrderId) {
             const el = document.getElementById(`order-${openOrderId}`);
@@ -99,7 +133,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             const prefix = viewMode === 'BUYER' ? 'buyerDashboard' : 'supplierDashboard';
             try {
                 await api.trades.confirm(confirmState.tradeId);
-                setTrades(await api.trades.myTrades());
+                await loadDashboardData();
                 setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
@@ -111,8 +145,8 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                         : t('common:commandCenter.supplier.acceptOrder.successMessage'),
                     variant: 'success',
                 });
-            } catch (e: any) {
-                console.error('Failed to confirm trade', e);
+            } catch (error) {
+                console.error('Failed to confirm trade', error);
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
@@ -139,95 +173,101 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     }
 
     const cta = CTA_CONFIG[viewMode];
-    const pendingCount = trades.filter(r => r.status === 'PENDING_CONFIRMATION').length;
-    const completedCount = trades.filter(r => r.status === 'DELIVERED' || r.status === 'PAID').length;
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
-            {/* ─── Header + Hero CTAs ─── */}
             <div>
                 <h1 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">{t('commandCenter.title')}</h1>
-                <p className="text-slate-500 dark:text-slate-400 mb-6">{t('commandCenter.subtitle')}</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <p className="text-slate-500 dark:text-slate-400 mb-4">{t('commandCenter.subtitle')}</p>
+                <div className="flex flex-col md:flex-row md:items-stretch gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2">
                     <button
                         data-tour="command-center-primary-action"
                         onClick={() => setOrderModalOpen(true)}
-                        className="group relative overflow-hidden rounded-xl border border-emerald-200 dark:border-emerald-800/50 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-300 dark:hover:border-emerald-700"
+                        className="flex flex-1 items-center gap-3 rounded-md bg-emerald-600 px-4 py-3 text-left text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
-                        <cta.primary.icon className="h-8 w-8 text-emerald-600 dark:text-emerald-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t(cta.primary.labelKey)}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t(cta.primary.descKey)}</p>
-                        <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <cta.primary.icon className="h-5 w-5 shrink-0" />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-semibold">{t(cta.primary.labelKey)}</span>
+                            <span className="block text-xs text-emerald-50">{t(cta.primary.descKey)}</span>
+                        </span>
+                        <ArrowRight className="ml-auto h-4 w-4 shrink-0" />
                     </button>
-
                     <button
                         onClick={() => onNavigate('MARKETPLACE')}
-                        className="group relative overflow-hidden rounded-xl border border-blue-200 dark:border-blue-800/50 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-300 dark:hover:border-blue-700"
+                        className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
                     >
-                        <cta.secondary.icon className="h-8 w-8 text-blue-600 dark:text-blue-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t(cta.secondary.labelKey)}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t(cta.secondary.descKey)}</p>
-                        <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <cta.secondary.icon className="h-5 w-5 shrink-0 text-sky-600 dark:text-sky-400" />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t(cta.secondary.labelKey)}</span>
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">{t(cta.secondary.descKey)}</span>
+                        </span>
+                        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
                     </button>
-
                     {!isMarketSupportActive && <button
                         onClick={() => onNavigate('TRADES')}
-                        className="group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/40 dark:to-slate-800/20 p-6 text-left transition-all hover:shadow-lg hover:shadow-slate-500/10 hover:border-slate-300 dark:hover:border-slate-600"
+                        className="flex flex-1 items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
                     >
-                        <FileText className="h-8 w-8 text-slate-600 dark:text-slate-400 mb-3" />
-                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('common:commandCenter.actions.viewDeals')}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{t('common:commandCenter.actions.viewDealsDescription')}</p>
-                        <ArrowRight className="absolute bottom-4 right-4 h-5 w-5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <FileText className="h-5 w-5 shrink-0 text-slate-500" />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-800 dark:text-white">{t('common:commandCenter.actions.viewDeals')}</span>
+                            <span className="block text-xs text-slate-500 dark:text-slate-400">{t('common:commandCenter.actions.viewDealsDescription')}</span>
+                        </span>
+                        <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-slate-400" />
                     </button>}
                 </div>
             </div>
 
-            {/* ─── Activity Stats ─── */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('supplierDashboard.kpi.pendingActions')}</div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{pendingCount}</div>
-                </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('supplierListingConsole.kpi.orderMatches')}</div>
-                    <div className="flex items-center gap-2">
-                        <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{matchCount}</div>
-                        {matchCount > 0 && <Sparkles size={16} className="text-emerald-500" />}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3" aria-label={t('commandCenter.metrics.scope', { count: summary.total_count })}>
+                {[
+                    ['commandCenter.metrics.awaitingYourConfirmation', summary.action_required_count, 'text-amber-600 dark:text-amber-400'],
+                    ['commandCenter.metrics.awaitingCounterparty', summary.awaiting_counterparty_count, 'text-sky-600 dark:text-sky-400'],
+                    ['commandCenter.metrics.confirmedTrades', summary.confirmed_count, 'text-emerald-600 dark:text-emerald-400'],
+                ].map(([labelKey, value, color]) => (
+                    <div key={labelKey} className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t(String(labelKey))}</div>
+                        <div className={`mt-1 text-2xl font-bold tabular-nums ${color}`}>{value}</div>
+                        <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('commandCenter.metrics.scope', { count: summary.total_count })}</div>
                     </div>
-                </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('stats.kpi.trades')}</div>
-                    <div className="text-2xl font-black text-slate-900 dark:text-white">{completedCount}</div>
-                </div>
+                ))}
             </div>
 
-            {/* ─── Match Suggestions (hidden until matching algorithm is solidified) ─── */}
-            {/* <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('common:commandCenter.recommendedMatches')}</h2>
-                <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
-            </div> */}
-
-            {!isMarketSupportActive && <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />}
-
-            {viewMode === 'SUPPLIER' && (
-                <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
-            )}
-
-            {/* ─── Needs Attention ─── */}
             <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('supplierDashboard.table.actionRequired')}</h2>
+                <div className="mb-3 flex items-end justify-between gap-4">
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-white">{t('supplierDashboard.table.actionRequired')}</h2>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('commandCenter.metrics.queueScope', { limit: ACTIONABLE_LIMIT })}</p>
+                    </div>
+                    <button onClick={() => onNavigate('TRADES')} className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2">
+                        {t('commandCenter.metrics.viewAll')}
+                    </button>
+                </div>
                 <NeedsAttentionFeed
                     trades={trades}
                     viewMode={viewMode}
                     onNavigate={onNavigate}
                     onConfirmTrade={isMarketSupportActive ? undefined : handleConfirmTrade}
                     onPostOrder={() => setOrderModalOpen(true)}
+                    loading={loading}
+                    error={loadError ? t('commandCenter.metrics.loadError') : undefined}
+                    onRetry={() => void loadDashboardData()}
+                    total={summary.action_required_count}
                 />
             </div>
 
-            {/* Market Feed removed — redundant with Marketplace */}
+            {!isMarketSupportActive && (
+                <MarketRadarPanel
+                    radar={radar}
+                    events={events}
+                    loading={radarLoading}
+                    error={radarError}
+                    onOpenRadar={() => onNavigate('WATCHLISTS')}
+                />
+            )}
 
-            {/* ─── Modals ─── */}
+            {viewMode === 'SUPPLIER' && (
+                <SupplierDemandFeed onNavigate={onNavigate} onOpenSlice={onOpenSlice} />
+            )}
+
             <OrderPlaceModal
                 isOpen={orderModalOpen}
                 onClose={() => setOrderModalOpen(false)}
@@ -249,7 +289,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     );
 };
 
-// Re-exports for backward compatibility — App.tsx imports these names
 export const BuyerDashboard: React.FC<Omit<CommandCenterProps, 'viewMode'>> = (props) => (
     <CommandCenter viewMode="BUYER" {...props} />
 );

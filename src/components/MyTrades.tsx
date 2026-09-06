@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     ArrowUpRight,
     ArrowDownRight,
@@ -18,9 +18,8 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useNamespace } from '../hooks/useNamespace';
+import { Pagination } from './ui/Pagination';
 import {
-    isActiveTradeStatus,
-    isCompletedTradeStatus,
     isConfirmedLikeTrade,
     normalizeTradeLifecycleStatus,
     tradeDisplayPricePerMt,
@@ -30,6 +29,9 @@ import {
 import i18n from '../i18n';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
+type StatusGroup = Lowercase<FilterTab>;
+
+const PAGE_SIZE = 20;
 
 export const MyTrades: React.FC = () => {
     const { user, isAuthenticated } = useAuth();
@@ -41,33 +43,62 @@ export const MyTrades: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filterTab, setFilterTab] = useState<FilterTab>('ALL');
+    const [currentSkip, setCurrentSkip] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+    const requestGeneration = useRef(0);
+    const requestScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}`;
 
     const fetchTrades = useCallback(async (silent = false) => {
         if (!ready) return;
+        const generation = ++requestGeneration.current;
         try {
             if (!silent) setIsLoading(true);
             else setIsRefreshing(true);
             setError(null);
-            const data = await api.trades.myTrades();
-            setTrades(data);
+            const statusGroup = filterTab.toLowerCase() as StatusGroup;
+            const data = await api.trades.myTradesPaged({
+                skip: currentSkip,
+                limit: PAGE_SIZE,
+                status_group: statusGroup,
+            });
+            if (generation !== requestGeneration.current) return;
+            setTrades(data.items as Trade[]);
+            setTotalCount(Number(data.total ?? 0));
         } catch (err: any) {
+            if (generation !== requestGeneration.current) return;
             const message = err.message || '';
             if (message.toLowerCase().includes('not found') || message.includes('404')) {
                 setTrades([]);
+                setTotalCount(0);
             } else if (!silent) {
                 setError(i18n.language.startsWith('zh') ? t('myTrades.error.message') : message || t('myTrades.error.message'));
             }
         } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+            if (generation === requestGeneration.current) {
+                setIsLoading(false);
+                setIsRefreshing(false);
+            }
         }
-    }, [ready, t]);
+    }, [currentSkip, filterTab, ready, requestScope, t]);
 
     useEffect(() => {
-        fetchTrades();
+        void fetchTrades();
+        return () => {
+            requestGeneration.current += 1;
+        };
     }, [fetchTrades]);
+
+    useEffect(() => {
+        if (totalCount === 0 && currentSkip !== 0) {
+            setCurrentSkip(0);
+            return;
+        }
+        if (totalCount > 0 && currentSkip >= totalCount) {
+            setCurrentSkip(Math.floor((totalCount - 1) / PAGE_SIZE) * PAGE_SIZE);
+        }
+    }, [currentSkip, totalCount]);
 
     const handleTradeEvent = useCallback(() => {
         fetchTrades(true);
@@ -117,17 +148,9 @@ export const MyTrades: React.FC = () => {
         }
     };
 
-    const filteredTrades = trades.filter((trade) => {
-        if (filterTab === 'ACTIVE') return isActiveTradeStatus(trade.status);
-        if (filterTab === 'COMPLETED') return isCompletedTradeStatus(trade.status);
-        return true;
-    });
-
-    const counts = {
-        ALL: trades.length,
-        ACTIVE: trades.filter((trade) => isActiveTradeStatus(trade.status)).length,
-        COMPLETED: trades.filter((trade) => isCompletedTradeStatus(trade.status)).length,
-    };
+    // The API applies the selected status group before pagination. Keeping the
+    // page intact here prevents a second, page-local filter from hiding rows.
+    const filteredTrades = trades;
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
@@ -174,7 +197,7 @@ export const MyTrades: React.FC = () => {
                     <button
                         onClick={() => handleConfirm(trade.id)}
                         disabled={isLoadingThis}
-                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
                         {t('myTrades.btn.confirm')}
@@ -182,7 +205,7 @@ export const MyTrades: React.FC = () => {
                     <button
                         onClick={() => handleDecline(trade.id)}
                         disabled={isLoadingThis}
-                        className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
                         {t('myTrades.btn.decline')}
@@ -232,7 +255,7 @@ export const MyTrades: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 text-sm">{error}</p>
                     <button
                         onClick={() => fetchTrades()}
-                        className="mt-4 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white font-bold text-sm rounded-lg transition-colors"
+                        className="mt-4 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white font-bold text-sm rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2"
                     >
                         {t('myTrades.btn.tryAgain')}
                     </button>
@@ -251,7 +274,7 @@ export const MyTrades: React.FC = () => {
                 <button
                     onClick={() => fetchTrades(true)}
                     disabled={isRefreshing}
-                    className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#5DADE2] transition-colors"
+                    className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#5DADE2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2"
                 >
                     <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
                     {t('myTrades.btn.refresh')}
@@ -262,15 +285,17 @@ export const MyTrades: React.FC = () => {
                 {(['ALL', 'ACTIVE', 'COMPLETED'] as FilterTab[]).map((tab) => (
                     <button
                         key={tab}
-                        onClick={() => setFilterTab(tab)}
-                        className={`px-4 py-2 text-sm font-bold rounded-md transition-all ${
+                        onClick={() => {
+                            setFilterTab(tab);
+                            setCurrentSkip(0);
+                        }}
+                        className={`px-4 py-2 text-sm font-bold rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2 ${
                             filterTab === tab
                                 ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                         }`}
                     >
                         {tab === 'ALL' ? t('myTrades.tab.all') : tab === 'ACTIVE' ? t('myTrades.tab.active') : t('myTrades.tab.completed')}
-                        <span className="ml-1.5 text-xs opacity-60">({counts[tab]})</span>
                     </button>
                 ))}
             </div>
@@ -385,6 +410,16 @@ export const MyTrades: React.FC = () => {
                             </tbody>
                         </table>
                     </div>
+                </div>
+            )}
+            {!isLoading && totalCount > 0 && (
+                <div className="v-card border-t border-slate-200 dark:border-slate-700 px-4 bg-white dark:bg-slate-900">
+                    <Pagination
+                        total={totalCount}
+                        skip={currentSkip}
+                        limit={PAGE_SIZE}
+                        onPageChange={setCurrentSkip}
+                    />
                 </div>
             )}
         </div>

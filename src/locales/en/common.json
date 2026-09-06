@@ -171,6 +171,7 @@
   "attention.postBid": "Post a Bid",
   "attention.postSupply": "Post Supply",
   "attention.confirm": "Confirm",
+  "attention.viewAll": "View all {{count}} actions",
   "commandCenter.actions.postBid": "Post a Bid",
   "commandCenter.actions.postBidDescription": "Request green fuel at your price",
   "commandCenter.actions.browseSupply": "Browse Supply",

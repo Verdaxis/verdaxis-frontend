@@ -1,12 +1,33 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { renderWithProviders } from './test-utils';
 import { MyTrades } from '../components/MyTrades';
 import i18n from '../i18n';
 
-const myTradesMock = vi.fn();
+const myTradesPagedMock = vi.fn();
+const makeTradePage = (id: string, buyerName: string, status: string) => ({
+  items: [{
+    id,
+    buyer_id: 'buyer-org',
+    seller_id: 'seller-org',
+    buyer_name: buyerName,
+    seller_name: `${buyerName} seller`,
+    initiated_by: 'BUYER',
+    is_anonymous: false,
+    quantity_mt: 100,
+    price_per_mt_usd: 700,
+    status,
+    commission_rate_pct: 0,
+    created_at: '2026-04-12T00:00:00Z',
+    fuel_type: 'Methanol',
+    region: 'Asia',
+  }],
+  total: 1,
+  skip: 0,
+  limit: 20,
+});
 const namespaceControl = vi.hoisted(() => ({
   ready: true,
   t: (key: string) => {
@@ -14,6 +35,9 @@ const namespaceControl = vi.hoisted(() => ({
     if (key === 'myTrades.error.message') return '无法加载交易，请重试。';
     return key;
   },
+}));
+const sseControl = vi.hoisted(() => ({
+  handler: null as (() => void) | null,
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -24,7 +48,9 @@ vi.mock('../context/AuthContext', () => ({
 }));
 
 vi.mock('../hooks/useSSE', () => ({
-  useSSE: () => undefined,
+  useSSE: (_topic: string, handler: () => void) => {
+    sseControl.handler = handler;
+  },
 }));
 
 vi.mock('../components/Toast', () => ({
@@ -38,7 +64,7 @@ vi.mock('../hooks/useNamespace', () => ({
 vi.mock('../services/api', () => ({
   api: {
     trades: {
-      myTrades: (...args: unknown[]) => myTradesMock(...args),
+      myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
       confirm: vi.fn(),
       decline: vi.fn(),
       deliver: vi.fn(),
@@ -50,10 +76,11 @@ vi.mock('../services/api', () => ({
 describe('MyTrades lifecycle', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    sseControl.handler = null;
     namespaceControl.ready = true;
     await i18n.changeLanguage('en');
-    myTradesMock.mockResolvedValue([
-      {
+    myTradesPagedMock.mockResolvedValue({
+      items: [{
         id: 'trade-1',
         bid_order_id: 'bid-1',
         ask_order_id: 'ask-1',
@@ -77,8 +104,11 @@ describe('MyTrades lifecycle', () => {
         availability_window: 'SPOT',
         fuel_type: 'Methanol',
         region: 'Asia',
-      },
-    ]);
+      }],
+      total: 1,
+      skip: 0,
+      limit: 20,
+    });
   });
 
   it('treats post-confirmation trades as off-platform and reveals counterparties', async () => {
@@ -93,22 +123,98 @@ describe('MyTrades lifecycle', () => {
     expect(screen.queryByText(/Revealed after payment/i)).toBeNull();
     expect(screen.queryByRole('button', { name: /Confirm Delivery/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Mark as Paid/i })).toBeNull();
+
+    myTradesPagedMock.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 20 });
+    fireEvent.click(screen.getByRole('button', { name: 'myTrades.tab.active' }));
+    await waitFor(() => {
+      expect(myTradesPagedMock).toHaveBeenLastCalledWith({ skip: 0, limit: 20, status_group: 'active' });
+    });
+  });
+
+  it('uses server totals to paginate beyond the first twenty trades', async () => {
+    myTradesPagedMock.mockResolvedValue({
+      items: [{
+        id: 'trade-page-1',
+        buyer_id: 'buyer-org',
+        seller_id: 'seller-org',
+        buyer_name: 'Buy Corp',
+        seller_name: 'Sell Corp',
+        initiated_by: 'BUYER',
+        is_anonymous: false,
+        quantity_mt: 100,
+        price_per_mt_usd: 700,
+        status: 'PAID',
+        commission_rate_pct: 0,
+        created_at: '2026-04-12T00:00:00Z',
+        fuel_type: 'Methanol',
+        region: 'Asia',
+      }],
+      total: 41,
+      skip: 0,
+      limit: 20,
+    });
+    renderWithProviders(<MyTrades />);
+
+    expect(await screen.findByRole('button', { name: 'Next page' })).toBeTruthy();
+    expect(myTradesPagedMock).toHaveBeenCalledWith({ skip: 0, limit: 20, status_group: 'all' });
+  });
+
+  it('ignores a late response from an earlier refresh request', async () => {
+    renderWithProviders(<MyTrades />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(myTradesPagedMock).toHaveBeenCalledWith({ skip: 0, limit: 20, status_group: 'all' });
+
+    // The initial request is already resolved by the default mock. Wait for
+    // the component to leave its loading state before firing refresh events.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'myTrades.tab.active' })).toBeTruthy());
+
+    let resolveStale!: (value: ReturnType<typeof makeTradePage>) => void;
+    let resolveFresh!: (value: ReturnType<typeof makeTradePage>) => void;
+    const staleRequest = new Promise<ReturnType<typeof makeTradePage>>((resolve) => {
+      resolveStale = resolve;
+    });
+    const freshRequest = new Promise<ReturnType<typeof makeTradePage>>((resolve) => {
+      resolveFresh = resolve;
+    });
+    myTradesPagedMock
+      .mockImplementationOnce(() => staleRequest)
+      .mockImplementationOnce(() => freshRequest);
+
+    act(() => {
+      sseControl.handler?.();
+      sseControl.handler?.();
+    });
+
+    await act(async () => {
+      resolveFresh(makeTradePage('fresh-trade', 'Fresh buyer', 'PENDING_CONFIRMATION'));
+    });
+
+    await act(async () => {
+      resolveStale(makeTradePage('stale-trade', 'Stale buyer', 'PAID'));
+    });
+
+    expect(screen.getByText('Fresh buyer')).toBeTruthy();
+    expect(screen.queryByText('Stale buyer')).toBeNull();
   });
 
   it('waits for Chinese trading translations before loading and suppresses backend errors', async () => {
     await i18n.changeLanguage('zh');
     namespaceControl.ready = false;
-    myTradesMock.mockRejectedValue(new Error('Raw backend failure detail'));
+    myTradesPagedMock.mockRejectedValue(new Error('Raw backend failure detail'));
 
     const { rerender } = renderWithProviders(<MyTrades />);
 
-    expect(myTradesMock).not.toHaveBeenCalled();
+    expect(myTradesPagedMock).not.toHaveBeenCalled();
 
     namespaceControl.ready = true;
     rerender(<MyTrades />);
 
     expect(await screen.findByText('无法加载交易，请重试。')).toBeTruthy();
     expect(screen.queryByText('Raw backend failure detail')).toBeNull();
-    expect(myTradesMock).toHaveBeenCalledTimes(1);
+    expect(myTradesPagedMock).toHaveBeenCalledTimes(1);
+    expect(myTradesPagedMock).toHaveBeenCalledWith({ skip: 0, limit: 20, status_group: 'all' });
   });
 });

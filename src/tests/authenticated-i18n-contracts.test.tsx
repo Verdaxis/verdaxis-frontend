@@ -4,12 +4,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const controls = vi.hoisted(() => ({
   confirmTrade: vi.fn(),
+  summary: vi.fn(),
+  myTradesPaged: vi.fn(),
   myTrades: vi.fn(),
   notifications: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('../services/api', () => ({
-  api: { trades: { confirm: controls.confirmTrade, myTrades: controls.myTrades } },
+  api: {
+    trades: {
+      confirm: controls.confirmTrade,
+      summary: controls.summary,
+      myTradesPaged: controls.myTradesPaged,
+      myTrades: controls.myTrades,
+    },
+  },
 }));
 vi.mock('../hooks/useWatchlist', () => ({
   useWatchlist: () => ({ radar: null, events: [], loading: false, error: null }),
@@ -59,6 +68,13 @@ const changeLanguage = async (language: 'en' | 'zh') => {
 describe('authenticated Chinese i18n contracts', () => {
   beforeEach(() => {
     controls.confirmTrade.mockReset().mockResolvedValue(undefined);
+    controls.summary.mockReset().mockResolvedValue({
+      total_count: 0,
+      action_required_count: 0,
+      awaiting_counterparty_count: 0,
+      confirmed_count: 0,
+    });
+    controls.myTradesPaged.mockReset().mockResolvedValue({ items: [], total: 0, skip: 0, limit: 8 });
     controls.myTrades.mockReset().mockResolvedValue([]);
     controls.notifications = [];
   });

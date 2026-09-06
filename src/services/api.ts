@@ -71,6 +71,7 @@ export const isMarketSupportScopedRequest = (path: string, method = 'GET'): bool
     if (route.endsWith('/cancel') && normalizedMethod === 'POST') return true;
     if (normalizedMethod === 'GET' && (
         route.startsWith('/trades/my')
+        || route === '/trades/summary'
         || route.startsWith('/inventory')
         || route.startsWith('/notifications')
         || route.startsWith('/catalog')
@@ -302,6 +303,13 @@ export interface PaginatedResult<T> {
     total: number;
     skip: number;
     limit: number;
+}
+
+export interface TradeSummary {
+    total_count: number;
+    action_required_count: number;
+    awaiting_counterparty_count: number;
+    confirmed_count: number;
 }
 
 export type ProductUsagePeriod = 7 | 30 | 90;
@@ -902,11 +910,25 @@ export const api = {
             const res = await fetchApi('/trades/my', { headers: getHeaders() });
             return res.items ?? res;
         },
+        summary: async (): Promise<TradeSummary> => {
+            return fetchApi('/trades/summary', { headers: getHeaders() });
+        },
         // Paginated: returns { items, total, skip, limit }
-        myTradesPaged: async (params?: { skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        myTradesPaged: async (params?: {
+            skip?: number;
+            limit?: number;
+            action_required?: boolean;
+            status_group?: 'all' | 'active' | 'completed';
+        }): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
+            if (params?.action_required !== undefined) {
+                searchParams.append('action_required', String(params.action_required));
+            }
+            if (params?.status_group) {
+                searchParams.append('status_group', params.status_group);
+            }
             return fetchApi(`/trades/my?${searchParams.toString()}`, { headers: getHeaders() });
         },
         confirm: async (tradeId: string) => {

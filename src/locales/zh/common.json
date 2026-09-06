@@ -171,6 +171,7 @@
   "attention.postBid": "发布买价",
   "attention.postSupply": "发布供应",
   "attention.confirm": "确认",
+  "attention.viewAll": "查看全部 {{count}} 项操作",
   "commandCenter.actions.postBid": "发布买盘",
   "commandCenter.actions.postBidDescription": "按您的价格采购绿色燃料",
   "commandCenter.actions.browseSupply": "浏览供应",

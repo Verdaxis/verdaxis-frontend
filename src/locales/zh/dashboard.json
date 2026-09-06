@@ -1,7 +1,16 @@
 {
   "commandCenter": {
     "title": "指挥中心",
-    "subtitle": "您想做什么？"
+    "subtitle": "查看您的交易活动和下一步操作",
+    "metrics": {
+      "awaitingYourConfirmation": "等待您确认",
+      "awaitingCounterparty": "等待交易对手方",
+      "confirmedTrades": "已确认交易",
+      "scope": "您的交易 · 共 {{count}} 笔",
+      "queueScope": "显示最多 {{limit}} 项操作 · 您的交易",
+      "viewAll": "查看全部交易",
+      "loadError": "交易操作暂时无法加载，请重试。"
+    }
   },
   "buyerDashboard": {
     "title": "采购控制台",
