@@ -484,6 +484,59 @@ describe('OrderPlaceModal', () => {
     expect(createOrderMock.mock.calls[0]?.[0]?.expires_at).toBeUndefined();
   });
 
+  it('retries a timed-out regular order with the same payload and key', async () => {
+    createOrderMock
+      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+      .mockResolvedValueOnce({ trades: [] });
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    const firstPayload = createOrderMock.mock.calls[0]?.[0];
+    expect(firstPayload?.idempotency_key).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
+    expect(createOrderMock.mock.calls[1]?.[0]).toEqual(firstPayload);
+  });
+
+  it('creates a new key after the failed draft is closed and edited', async () => {
+    createOrderMock
+      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+      .mockResolvedValueOnce({ trades: [] });
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    const firstKey = createOrderMock.mock.calls[0]?.[0]?.idempotency_key;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '541' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
+    expect(createOrderMock.mock.calls[1]?.[0]?.price_per_mt_usd).toBe(541);
+    expect(createOrderMock.mock.calls[1]?.[0]?.idempotency_key).not.toBe(firstKey);
+  });
+
+  it('guards against double submit while the request is pending', async () => {
+    let resolveRequest!: (value: { trades: never[] }) => void;
+    createOrderMock.mockReturnValue(new Promise(resolve => { resolveRequest = resolve; }));
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+    const submit = screen.getByRole('button', { name: 'Place Bid' });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    resolveRequest({ trades: [] });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Close' })).toBeTruthy());
+  });
+
   it('uses natural Chinese order actions without mixing BID into prose', async () => {
     await i18n.changeLanguage('zh');
     deliveryPointsMock.mockResolvedValue([

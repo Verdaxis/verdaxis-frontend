@@ -65,12 +65,14 @@ interface RoleConfigEntry {
         fuel_type?: string;
         market_product?: string;
         availability?: string;
+        sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
         skip?: number;
         limit?: number;
     }) => Promise<PaginatedResult<any>>;
     subtitleKey: string;
     primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
     counterAction: { labelKey: string };
+    defaultSort: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
     columns: ColumnId[];
 }
 
@@ -80,6 +82,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
         subtitleKey: 'marketplace.subtitle.buyer',
         primaryAction: { labelKey: 'marketplace.btn.placeBid', side: 'BID' as const },
         counterAction: { labelKey: 'marketplace.btn.hitAsk' },
+        defaultSort: 'price_asc',
         columns: ['fuel', 'grade', 'volume', 'price', 'window', 'expiry', 'cert', 'action'],
     },
     SUPPLIER: {
@@ -87,6 +90,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
         subtitleKey: 'marketplace.subtitle.supplier',
         primaryAction: { labelKey: 'marketplace.btn.placeAsk', side: 'ASK' as const },
         counterAction: { labelKey: 'marketplace.btn.hitBid' },
+        defaultSort: 'price_desc',
         columns: ['fuel', 'volume', 'price', 'window', 'status', 'action'],
     },
 };
@@ -106,6 +110,10 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
 
 const PAGE_SIZE = 8;
 const REFRESH_INTERVAL_MS = 60_000;
+
+const createTradeIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `trade-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
@@ -219,8 +227,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         ? 'marketScope.ready'
         : 'marketScope.readyRegionTape';
 
-    // ─── Client-side filters ──────────────────────────────────────
-    const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>('price_asc');
+    // ─── Server-side sorting ──────────────────────────────────────
+    const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>(() => configBase.defaultSort);
     const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
 
     // ─── Trade modal state ────────────────────────────────────────
@@ -233,6 +241,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
+    const tradeRequestRef = useRef<{ signature: string; payload: { order_id: string; quantity_mt: number; idempotency_key: string } } | null>(null);
+    const tradeInFlightRef = useRef(false);
     const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
     const [cancellationReason, setCancellationReason] = useState('');
     const [cancellationLoading, setCancellationLoading] = useState(false);
@@ -245,17 +255,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Fuel counts for chips ────────────────────────────────────
     const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
 
-    // ─── Client-side filter + sort ────────────────────────────────
-    const filteredListings = useMemo(() => {
-        const result = [...listings];
-        switch (sortBy) {
-            case 'price_asc': result.sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd); break;
-            case 'price_desc': result.sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd); break;
-            case 'quantity_desc': result.sort((a, b) => b.remaining_quantity_mt - a.remaining_quantity_mt); break;
-            case 'newest': result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break;
-        }
-        return result;
-    }, [listings, sortBy]);
+    const filteredListings = listings;
+
+    useEffect(() => {
+        setSortBy(configBase.defaultSort);
+        setCurrentSkip(0);
+    }, [configBase.defaultSort]);
 
     useEffect(() => {
         if (!ready) return;
@@ -291,6 +296,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 delivery_point_id: resolvedDeliveryPointId || undefined,
                 market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
                 availability: availability || undefined,
+                sort_by: sortBy,
                 skip,
                 limit: PAGE_SIZE,
             });
@@ -308,7 +314,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 setRefreshing(false);
             }
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, sortBy]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
@@ -515,7 +521,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
+        setCurrentSkip(0);
     };
+
+    const handleSortChange = useCallback((value: string) => {
+        setSortBy(value as typeof sortBy);
+        setCurrentSkip(0);
+    }, []);
 
     // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
 
@@ -557,6 +569,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
+        tradeRequestRef.current = null;
     };
 
     /* ---- My Orders fetch ---- */
@@ -640,6 +653,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
+        tradeRequestRef.current = null;
     };
 
     const validateTradeQuantity = () => {
@@ -670,7 +684,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     };
 
     const confirmTrade = async () => {
-        if (!selectedOrder || tradeState === 'submitting') return;
+        if (!selectedOrder || tradeState === 'submitting' || tradeInFlightRef.current) return;
         if (selectedOrder.is_demo_listing) {
             setTradeError(t('marketplace.demo.blocked'));
             setTradeState('error');
@@ -679,11 +693,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         const normalizedTradeQuantity = validateTradeQuantity();
         if (normalizedTradeQuantity == null) return;
         setTradeState('submitting');
+        tradeInFlightRef.current = true;
         try {
-            await api.trades.initiate({
+            const requestPayload = {
                 order_id: selectedOrder.id,
                 quantity_mt: normalizedTradeQuantity,
-            });
+            };
+            const signature = JSON.stringify(requestPayload);
+            if (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature) {
+                tradeRequestRef.current = {
+                    signature,
+                    payload: { ...requestPayload, idempotency_key: createTradeIdempotencyKey() },
+                };
+            }
+            await api.trades.initiate(tradeRequestRef.current.payload);
             setTradeState('success');
             // Auto-close after 2s and refresh
             setTimeout(() => {
@@ -693,6 +716,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         } catch (err: any) {
             setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
             setTradeState('error');
+        } finally {
+            tradeInFlightRef.current = false;
         }
     };
 
@@ -811,14 +836,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
-                            {isExecutable && !isMarketSupportActive ? (
+                            {order.is_demo_listing || (isExecutable && !isMarketSupportActive) ? (
                                 <button
                                     type="button"
                                     data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
-                                    {t(configBase.counterAction.labelKey)}
+                                    {t(order.is_demo_listing ? 'marketplace.demo.view' : configBase.counterAction.labelKey)}
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">
@@ -1006,7 +1031,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.sortBy')}
                                                 value={sortBy}
-                                                onChange={(value) => setSortBy(value as typeof sortBy)}
+                                                onChange={handleSortChange}
                                                 options={[
                                                     { value: 'price_asc', label: t('marketplace.sort.priceAsc') },
                                                     { value: 'price_desc', label: t('marketplace.sort.priceDesc') },
@@ -1462,6 +1487,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
+                                {tradeRequestRef.current && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { void confirmTrade(); }}
+                                        className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300"
+                                    >
+                                        {t('marketplace.btn.retrySafely')}
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={closeTradeModal}
