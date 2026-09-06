@@ -153,9 +153,9 @@ const LoginPage: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-                <label htmlFor="login-email" className="block text-sm font-medium text-slate-400 mb-1.5">{t('login.emailLabel')}</label>
-                <div className="relative">
-                  <input
+              <label htmlFor="login-email" className="block text-sm font-medium text-slate-400 mb-1.5">{t('login.emailLabel')}</label>
+              <div className="relative">
+                <input
                   id="login-email"
                   type="email"
                   autoComplete="email"

@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { clearAccessToken, getAccessToken, setAccessToken } from '../services/authToken';
+import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
 
 function Probe() {
   const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth, login } = useAuth();
@@ -109,6 +109,48 @@ describe('AuthProvider token bootstrap', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByTestId('email').textContent).toBe('new@example.com');
+  });
+
+  it('accepts a profile response while the same account refreshes its token', async () => {
+    window.history.replaceState({}, '', '/app');
+    setAccessToken('same-account');
+    let resolveProfile!: (response: Response) => void;
+    global.fetch = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => {
+        resolveProfile = resolve;
+      }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: 'rotated-same-account' }),
+      });
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+    await expect(refreshSession()).resolves.toEqual({
+      status: 'success',
+      token: 'rotated-same-account',
+    });
+    resolveProfile({
+      ok: true,
+      json: async () => ({
+        email: 'same@example.com',
+        first_name: 'Same',
+        last_name: 'Account',
+        role: 'BUYER',
+        id: 'user-same',
+        status: 'APPROVED',
+      }),
+    } as Response);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false');
+      expect(screen.getByTestId('email').textContent).toBe('same@example.com');
+    });
   });
 });
 
