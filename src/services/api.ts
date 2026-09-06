@@ -957,18 +957,6 @@ export const api = {
         },
     },
 
-    matchmaking: {
-        suggestions: async (): Promise<import('../types').MatchSuggestion[]> => {
-            return fetchApi('/matchmaking/suggestions', { headers: getHeaders() });
-        },
-        dismiss: async (suggestionId: string) => {
-            return fetchApi(`/matchmaking/suggestions/${suggestionId}/dismiss`, {
-                method: 'PATCH',
-                headers: getHeaders(),
-            });
-        },
-    },
-
     admin: {
         overview: async () => {
             return fetchApi('/admin/analytics/overview', { headers: getHeaders() });

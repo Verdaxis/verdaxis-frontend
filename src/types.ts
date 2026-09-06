@@ -355,22 +355,6 @@ export interface OrderBookOrderWithCI extends OrderBookOrder {
     ci_adjusted_price?: CIAdjustedPrice | null;
 }
 
-// ============== Matchmaking Types ==============
-export type MatchStatus = 'SUGGESTED' | 'VIEWED' | 'ACTED' | 'DISMISSED';
-
-export interface MatchSuggestion {
-    id: string;
-    bid_order_id: string;
-    ask_order_id: string;
-    score: number;
-    match_reasons: string[];
-    status: MatchStatus;
-    recipient_org_id: string;
-    created_at: string;
-    bid_order?: OrderBookOrder;
-    ask_order?: OrderBookOrder;
-}
-
 // ============== Producer Project Types ==============
 export type ProjectStatus = 'ANNOUNCED' | 'UNDER_CONSTRUCTION' | 'OPERATIONAL' | 'CANCELLED';
 

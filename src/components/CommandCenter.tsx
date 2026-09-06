@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Loader2, Gavel, HandCoins, Search, FileText, Sparkles, ArrowRight } from 'lucide-react';
+import { Loader2, Gavel, HandCoins, Search, FileText, ArrowRight } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
-// import { MatchSuggestions } from './MatchSuggestions';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 // MarketFeed removed — redundant with Marketplace
 import { useNamespace } from '../hooks/useNamespace';
@@ -38,7 +37,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [orderModalOpen, setOrderModalOpen] = useState(false);
-    const [matchCount, setMatchCount] = useState(0);
     const { radar, events, loading: radarLoading, error: radarError } = useWatchlist();
     const { isActive: isMarketSupportActive } = useMarketSupport();
 
@@ -191,8 +189,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
                     <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t('supplierListingConsole.kpi.orderMatches')}</div>
                     <div className="flex items-center gap-2">
-                        <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{matchCount}</div>
-                        {matchCount > 0 && <Sparkles size={16} className="text-emerald-500" />}
+                        <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">0</div>
                     </div>
                 </div>
                 <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
@@ -200,12 +197,6 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     <div className="text-2xl font-black text-slate-900 dark:text-white">{completedCount}</div>
                 </div>
             </div>
-
-            {/* ─── Match Suggestions (hidden until matching algorithm is solidified) ─── */}
-            {/* <div>
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-3">{t('common:commandCenter.recommendedMatches')}</h2>
-                <MatchSuggestions onViewTrade={() => onNavigate('MARKETPLACE')} onCountChange={setMatchCount} onNavigate={onNavigate} />
-            </div> */}
 
             {!isMarketSupportActive && <MarketRadarPanel radar={radar} events={events} loading={radarLoading} error={radarError} onOpenRadar={() => onNavigate('WATCHLISTS')} />}
 
