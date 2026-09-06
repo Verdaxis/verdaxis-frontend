@@ -307,7 +307,7 @@ const ForwardCurveChart: React.FC<{
         const min = rawMin - padding;
         const max = rawMax + padding;
         const range = Math.max(max - min, 1);
-        const left = 42;
+        const left = 68;
         const right = 18;
         const top = 20;
         const bottom = 34;
@@ -387,14 +387,14 @@ const ForwardCurveChart: React.FC<{
                     {t('forwardCurve.chart.empty')}
                 </div>
             ) : (
-                <div className="px-3 pb-2 pt-2">
-                    <svg className="h-56 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={t('forwardCurve.chart.aria', { market: curveLabel })}>
+                <div className="forward-curve-console__chart-scroll px-3 pb-2 pt-2">
+                    <svg className="forward-curve-console__chart h-56 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={t('forwardCurve.chart.aria', { market: curveLabel })}>
                         {[0.25, 0.5, 0.75].map(fraction => {
                             const y = 20 + fraction * 156;
-                            return <line key={fraction} x1="42" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
+                            return <line key={fraction} x1="68" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
                         })}
-                        <line x1="42" x2="882" y1="176" y2="176" stroke="#334155" />
-                        <line x1="42" x2="42" y1="20" y2="176" stroke="#334155" />
+                        <line x1="68" x2="882" y1="176" y2="176" stroke="#334155" />
+                        <line x1="68" x2="68" y1="20" y2="176" stroke="#334155" />
                         <text className="forward-curve-console__chart-axis" x="0" y="27">{currency(graph.max)}</text>
                         <text className="forward-curve-console__chart-axis" x="0" y="178">{currency(graph.min)}</text>
                         {graph.points.map(point => (
