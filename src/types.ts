@@ -258,8 +258,8 @@ export interface Trade {
     id: string;
     bid_order_id?: string;
     ask_order_id?: string;
-    buyer_id: string;
-    seller_id: string;
+    buyer_id: string | null;
+    seller_id: string | null;
     buyer_name: string;
     seller_name: string;
     initiated_by: Initiator;
