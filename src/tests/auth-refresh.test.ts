@@ -115,6 +115,26 @@ describe('shared auth refresh', () => {
         expect(getAccessToken()).toBe('new-account');
     });
 
+    it('starts a new refresh independently after an account replacement', async () => {
+        let completeOld!: (response: Response) => void;
+        let completeNew!: (response: Response) => void;
+        fetchMock
+            .mockImplementationOnce(() => new Promise<Response>(resolve => { completeOld = resolve; }))
+            .mockImplementationOnce(() => new Promise<Response>(resolve => { completeNew = resolve; }));
+        const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
+        setAccessToken('old-account');
+        const oldRefresh = refreshSession();
+        setAccessToken('new-account');
+        const newRefresh = refreshSession();
+
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        completeNew(jsonResponse({ access_token: 'new-refreshed-account' }));
+        expect(await newRefresh).toEqual({ status: 'success', token: 'new-refreshed-account' });
+        completeOld(jsonResponse({ access_token: 'late-old-account' }));
+        expect(await oldRefresh).toEqual({ status: 'superseded' });
+        expect(getAccessToken()).toBe('new-refreshed-account');
+    });
+
     it('bounds a refresh request without discarding a valid token on timeout', async () => {
         const abort = new AbortController();
         const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(abort.signal);

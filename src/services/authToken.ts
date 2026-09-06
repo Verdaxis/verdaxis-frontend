@@ -38,13 +38,18 @@ export function getAuthGeneration(): number {
 }
 
 export function setAccessToken(token: string | null): void {
+  if (token === accessToken) return;
   accessToken = token;
   authGeneration += 1;
+  // A replacement starts a new session epoch. Let a new caller refresh
+  // immediately while the old request finishes and observes the new epoch.
+  inFlight = null;
 }
 
 export function clearAccessToken(): void {
   accessToken = null;
   authGeneration += 1;
+  inFlight = null;
   purgeLegacyStoredTokens();
 }
 
@@ -52,7 +57,7 @@ export function refreshSession(): Promise<RefreshOutcome> {
   if (inFlight) return inFlight;
 
   const requestGeneration = authGeneration;
-  inFlight = (async (): Promise<RefreshOutcome> => {
+  const request = (async (): Promise<RefreshOutcome> => {
     try {
       const res = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
@@ -69,7 +74,9 @@ export function refreshSession(): Promise<RefreshOutcome> {
         // A malformed success body is a server fault, not a revoked
         // session — keep any still-valid in-memory token.
         if (!token) return { status: 'unavailable' };
-        setAccessToken(token);
+        // Refresh rotation is the same session. Do not advance the session
+        // generation or detach a newer caller's refresh request.
+        accessToken = token;
         return { status: 'success', token };
       }
 
@@ -87,10 +94,12 @@ export function refreshSession(): Promise<RefreshOutcome> {
       return { status: 'unavailable' };
     }
   })();
-
-  return inFlight.finally(() => {
-    inFlight = null;
+  let trackedRequest: Promise<RefreshOutcome>;
+  trackedRequest = request.finally(() => {
+    if (inFlight === trackedRequest) inFlight = null;
   });
+  inFlight = trackedRequest;
+  return trackedRequest;
 }
 
 export async function refreshAccessToken(): Promise<string | null> {
