@@ -73,12 +73,9 @@
 /* ============================================
    Mapbox GL Port Popup styling
    ============================================ */
-/* Keep attribution below the market widgets and clear of the insights panel. */
-.mapboxgl-map .mapboxgl-ctrl-bottom-right {
-  right: var(--verdaxis-map-rail-offset, 0px);
-}
-.mapboxgl-map .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
-  margin: 0;
+/* Custom map branding, with removal permission confirmed by the owner. */
+.verdaxis-buyer-map .mapboxgl-ctrl-logo {
+  display: none;
 }
 
 /* Place native navigation beside the usable map, below the toolbar. */
