@@ -9,7 +9,7 @@ import { checkBuildArtifacts } from './check-build-artifacts.mjs';
 const PROD = 'https://api.verdaxis.exchange/api';
 const STAGING = 'https://api-staging.verdaxis.exchange/api';
 const VENDORS = [
-  'vendor-mapbox',
+  'vendor-maplibre',
   'vendor-leaflet',
   'vendor-lightweight-charts',
   'vendor-recharts',

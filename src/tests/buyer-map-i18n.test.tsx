@@ -6,7 +6,6 @@ import { BuyerMap } from '../components/BuyerMap';
 import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
 
-const themeMock = vi.hoisted(() => ({ theme: 'light' }));
 const portsListMock = vi.fn();
 const mapOptionsMock = vi.fn();
 
@@ -18,12 +17,12 @@ vi.mock('../services/api', () => ({
       listAsks: vi.fn().mockResolvedValue([]),
       aggregated: vi.fn().mockResolvedValue([]),
     },
-    vessels: { list: () => Promise.resolve([]) },
+    vessels: { list: vi.fn().mockResolvedValue([]) },
   },
 }));
 
 vi.mock('../context/ThemeContext', () => ({
-  useTheme: () => themeMock,
+  useTheme: () => ({ theme: 'light' }),
 }));
 
 vi.mock('../map/addEcaLayers', () => ({
@@ -41,7 +40,7 @@ vi.mock('../components/map/IntelligencePanel', () => ({
   ),
 }));
 
-vi.mock('mapbox-gl', () => {
+vi.mock('maplibre-gl', () => {
   class MockMap {
     constructor(options: unknown) { mapOptionsMock(options); }
     addControl() {}
@@ -88,15 +87,12 @@ describe('BuyerMap failure localization', () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
     await act(async () => {
       await i18n.changeLanguage('en');
     });
   });
 
-  it.each(['light', 'dark'])('uses the %s Mapbox style and keeps localized fallback ports', async (theme) => {
-    themeMock.theme = theme;
-    vi.stubEnv('VITE_MAPBOX_PUBLIC_TOKEN', 'pk.test');
+  it('keeps the fallback map workspace and localized legend after a ports failure', async () => {
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
 
     expect(await screen.findByRole('region', { name: '交互式市场情报地图' })).toBeTruthy();
@@ -107,10 +103,6 @@ describe('BuyerMap failure localization', () => {
     expect(screen.getByText('暂无有效挂牌指示价。')).toBeTruthy();
     await waitFor(() => {
       expect(mapOptionsMock).toHaveBeenCalledWith(expect.objectContaining({
-        accessToken: 'pk.test',
-        style: `mapbox://styles/mapbox/${theme}-v11`,
-        language: 'zh-Hans',
-        projection: 'mercator',
         locale: expect.objectContaining({
           'AttributionControl.ToggleAttribution': '切换地图版权信息',
         }),

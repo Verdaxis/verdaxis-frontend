@@ -16,7 +16,7 @@ const TARGETS = {
 };
 
 const EXPECTED_VENDOR_CHUNKS = [
-  'vendor-mapbox',
+  'vendor-maplibre',
   'vendor-leaflet',
   'vendor-lightweight-charts',
   'vendor-recharts',
