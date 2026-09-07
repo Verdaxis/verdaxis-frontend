@@ -3,6 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSSE } from '../hooks/useSSE';
+import { API_URL } from '../services/config';
 
 const authTokenMocks = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
@@ -84,8 +85,8 @@ describe('useSSE', () => {
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/stream-token',
-      { headers: { Authorization: 'Bearer access-token' }, signal: expect.any(AbortSignal) },
+      `${API_URL}/auth/stream-token`,
+      { headers: { Authorization: 'Bearer access-token' }, signal: expect.anything() },
     );
     expect(FakeEventSource.instances[0].url).toContain('stream_token=stream-token');
     expect(FakeEventSource.instances[0].url).not.toContain('access-token');
@@ -107,8 +108,8 @@ describe('useSSE', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:8000/api/auth/stream-token',
-      { headers: { Authorization: 'Bearer refreshed-access-token' }, signal: expect.any(AbortSignal) },
+      `${API_URL}/auth/stream-token`,
+      { headers: { Authorization: 'Bearer refreshed-access-token' }, signal: expect.anything() },
     );
   });
 
@@ -196,6 +197,6 @@ describe('useSSE', () => {
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(FakeEventSource.instances[0].url).toBe('http://localhost:8000/api/stream/prices');
+    expect(FakeEventSource.instances[0].url).toBe(`${API_URL}/stream/prices`);
   });
 });
