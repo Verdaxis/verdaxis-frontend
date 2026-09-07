@@ -370,7 +370,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         });
 
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-        map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
         mapRef.current = map;
 
@@ -759,7 +758,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         <div className="relative w-full h-full flex overflow-hidden" style={mapChromeStyle}>
             {/* The Map */}
             <div className="flex-1 relative z-0">
-                <div ref={mapContainer} role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
+                <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
                 {loadError && (
                     <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
                         {t('buyerMap.error')}
