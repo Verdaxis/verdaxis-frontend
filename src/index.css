@@ -71,8 +71,16 @@
 }
 
 /* ============================================
-   MapLibre GL Port Popup styling
+   Mapbox GL Port Popup styling
    ============================================ */
+/* Keep attribution below the market widgets and clear of the insights panel. */
+.mapboxgl-map .mapboxgl-ctrl-bottom-right {
+  right: var(--verdaxis-map-rail-offset, 0px);
+}
+.mapboxgl-map .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl {
+  margin: 0;
+}
+
 .verdaxis-port-popup .mapboxgl-popup-content {
   background: transparent;
   padding: 0;
