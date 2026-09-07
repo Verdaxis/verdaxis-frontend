@@ -12,6 +12,8 @@ Git deployments so a branch push cannot bypass these gates.
 - Release preflight removes a redundant Vercel Production `VITE_API_URL`
   override, if present, and verifies that it is gone before building.
 - Secrets remain in the protected GitHub `production` environment.
+- `VITE_MAPBOX_PUBLIC_TOKEN` is supplied by that environment for map builds.
+  Staging uses its gitignored `.env.staging.local`. Only a public `pk.` token is accepted.
 - `VERCEL_TOKEN` is loaded through a temporary mode-`0600` CLI auth directory
   and must never appear in arguments, logs, artifacts, or source.
 

@@ -55,7 +55,7 @@ src/
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
-    BuyerMap.tsx                   # MapLibre intelligence map using approved ports and product-specific marketplace SPOT references
+    BuyerMap.tsx                   # Mapbox GL JS intelligence map (Light/Dark v11) using approved ports and product-specific marketplace SPOT references
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
