@@ -8,7 +8,7 @@ const ASSETS_DIR = path.join(DIST_DIR, 'assets');
 const INDEX_HTML = path.join(DIST_DIR, 'index.html');
 
 const EXPECTED_VENDOR_CHUNKS = [
-  'vendor-maplibre',
+  'vendor-mapbox',
   'vendor-leaflet',
   'vendor-lightweight-charts',
   'vendor-recharts',
@@ -20,7 +20,7 @@ const LEGACY_VENDOR_CHUNKS = [
 ];
 
 const HEAVY_VENDOR_CHUNKS = [
-  'vendor-maplibre',
+  'vendor-mapbox',
   'vendor-leaflet',
   'vendor-lightweight-charts',
   'vendor-recharts',

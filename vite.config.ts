@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    if (command === 'build' && ['production', 'staging'].includes(mode)) {
+        const mapToken = process.env.VITE_MAPBOX_PUBLIC_TOKEN ?? env.VITE_MAPBOX_PUBLIC_TOKEN;
+        if (!mapToken?.startsWith('pk.')) throw new Error('A public VITE_MAPBOX_PUBLIC_TOKEN is required');
+    }
     return {
       server: {
         port: 5173,
@@ -29,7 +33,7 @@ export default defineConfig(({ mode }) => {
               'vendor-clsx': ['clsx'],
               'vendor-lightweight-charts': ['lightweight-charts'],
               'vendor-recharts': ['recharts'],
-              'vendor-maplibre': ['maplibre-gl'],
+              'vendor-mapbox': ['mapbox-gl'],
               'vendor-leaflet': ['leaflet', 'react-leaflet'],
             },
           },
