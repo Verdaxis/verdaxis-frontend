@@ -1,4 +1,4 @@
-import type { Map as MapLibreMap } from 'maplibre-gl';
+import type { Map as MapboxMap } from 'mapbox-gl';
 
 import {
     ECA_ZONE_COLLECTION,
@@ -26,10 +26,11 @@ interface AddEcaLayersOptions {
 }
 
 export const addEcaLayers = (
-    map: MapLibreMap,
-    { isDark, visible, beforeLayerId = 'carto-labels' }: AddEcaLayersOptions,
+    map: MapboxMap,
+    { isDark, visible, beforeLayerId }: AddEcaLayersOptions,
 ): void => {
-    const before = map.getLayer(beforeLayerId) ? beforeLayerId : undefined;
+    // Keep the reference overlay below basemap labels, with trading markers above both.
+    const before = beforeLayerId ?? map.getStyle()?.layers.find(layer => layer.type === 'symbol')?.id;
     const visibility = visible ? 'visible' : 'none';
 
     if (!map.getSource(SECA_ZONE_SOURCE_ID)) {
@@ -96,6 +97,7 @@ export const addEcaLayers = (
             layout: {
                 visibility,
                 'text-field': ['get', 'shortLabel'],
+                'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
                 'text-size': ['interpolate', ['linear'], ['zoom'], 2, 9, 5, 11],
                 'text-letter-spacing': 0.03,
                 'text-transform': 'uppercase',
@@ -116,7 +118,7 @@ export const addEcaLayers = (
     }
 };
 
-export const setEcaLayersVisible = (map: MapLibreMap, visible: boolean): void => {
+export const setEcaLayersVisible = (map: MapboxMap, visible: boolean): void => {
     const visibility = visible ? 'visible' : 'none';
     SECA_ZONE_LAYER_IDS.forEach((layerId) => {
         if (map.getLayer(layerId)) {
