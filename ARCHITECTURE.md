@@ -275,6 +275,11 @@ polygon set. These polygons are visual regulatory references only, not a
 navigation product or a legal-compliance determination. The map's Layers menu
 independently controls Market Watch, market activity widgets, and ECA geometry;
 it must not reintroduce a parent overlay switch that can mask a child state.
+The map opens with all approved ports in view and market widgets collapsed under
+Layers. The shared port picker focuses the selected port clear of the insights
+panel; All ports restores the overview. Native Mapbox navigation and a keyboard
+accessible legend provide visible controls. Theme/language changes retain the
+camera position, and port popups read the current product's market reference.
 
 **Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +

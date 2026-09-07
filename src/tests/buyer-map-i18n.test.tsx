@@ -9,6 +9,8 @@ import { renderWithProviders } from './test-utils';
 const themeMock = vi.hoisted(() => ({ theme: 'light' }));
 const portsListMock = vi.fn();
 const mapOptionsMock = vi.fn();
+const fitBoundsMock = vi.fn();
+const flyToMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
@@ -50,7 +52,12 @@ vi.mock('mapbox-gl', () => {
     getCanvas() { return { style: {} }; }
     getLayer() { return undefined; }
     getSource() { return undefined; }
-    getZoom() { return 2.5; }
+    getZoom() { return 4; }
+    getCenter() { return { lng: 104, lat: 1 }; }
+    getBearing() { return 0; }
+    getPitch() { return 0; }
+    fitBounds(...args: unknown[]) { fitBoundsMock(...args); }
+    flyTo(...args: unknown[]) { flyToMock(...args); }
     hasImage() { return true; }
     loaded() { return true; }
     on() {}
@@ -72,6 +79,7 @@ vi.mock('mapbox-gl', () => {
       Map: MockMap,
       Popup: MockPopup,
       AttributionControl: class {},
+      NavigationControl: class {},
     },
   };
 });
@@ -80,6 +88,8 @@ describe('BuyerMap failure localization', () => {
   beforeEach(async () => {
     portsListMock.mockReset();
     mapOptionsMock.mockReset();
+    fitBoundsMock.mockReset();
+    flyToMock.mockReset();
     portsListMock.mockRejectedValue(new Error('ports unavailable'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await loadNamespace('dashboard');
@@ -102,6 +112,9 @@ describe('BuyerMap failure localization', () => {
     expect(await screen.findByRole('region', { name: '交互式市场情报地图' })).toBeTruthy();
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
     expect(screen.getByRole('alert').textContent).toContain('无法加载情报地图');
+    fireEvent.click(screen.getByRole('button', { name: /图层/ }));
+    const switches = screen.getAllByRole('switch');
+    fireEvent.click(switches[1]);
     expect(screen.getByText('市场可售量')).toBeTruthy();
     expect(screen.getByText('暂无有效卖单。')).toBeTruthy();
     expect(screen.getByText('暂无有效挂牌指示价。')).toBeTruthy();
@@ -118,7 +131,29 @@ describe('BuyerMap failure localization', () => {
     });
 
     const legendButton = screen.getByRole('button', { name: '地图情报图例' });
-    fireEvent.mouseEnter(legendButton.parentElement!);
+    fireEvent.click(legendButton);
     expect(screen.getByText('港口 — 订单量与价差')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('港口 — 订单量与价差')).toBeNull();
+    expect(document.activeElement).toBe(legendButton);
   });
+  it('fits all ports, focuses a chosen port and preserves the camera across language changes', async () => {
+    await i18n.changeLanguage('en');
+    renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    await screen.findByRole('region', { name: 'Interactive market intelligence map' });
+    expect(mapOptionsMock.mock.calls[0][0].bounds).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'All ports' }));
+    expect(fitBoundsMock).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ retainPadding: false }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Go to port' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Singapore' }));
+    expect(flyToMock).toHaveBeenCalledWith(expect.objectContaining({
+      center: expect.any(Array), padding: expect.objectContaining({ right: 344 }), retainPadding: false,
+    }));
+    expect(flyToMock.mock.calls[0][0].essential).not.toBe(true);
+    await act(async () => { await i18n.changeLanguage('zh'); });
+    expect(mapOptionsMock.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({
+      center: { lng: 104, lat: 1 }, zoom: 4,
+    }));
+  });
+
 });

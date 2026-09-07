@@ -1,30 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const MapLegend: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
-    const [isHovered, setIsHovered] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const closeOutside = (event: MouseEvent) => {
+            if (!containerRef.current?.contains(event.target as Node)) setIsOpen(false);
+        };
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsOpen(false);
+                buttonRef.current?.focus();
+            }
+        };
+        document.addEventListener('mousedown', closeOutside);
+        document.addEventListener('keydown', closeOnEscape);
+        return () => {
+            document.removeEventListener('mousedown', closeOutside);
+            document.removeEventListener('keydown', closeOnEscape);
+        };
+    }, [isOpen]);
 
     if (!ready) return null;
 
     return (
         <div
-            className="absolute top-4 right-4 z-[20]"
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            ref={containerRef}
+            className="static"
         >
             {/* Trigger icon */}
             <button
-                className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors"
+                ref={buttonRef}
+                type="button"
+                aria-expanded={isOpen}
+                aria-controls="map-legend-content"
+                onClick={() => setIsOpen(current => !current)}
+                className="flex min-h-11 items-center gap-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 p-2 rounded-lg shadow-lg hover:text-emerald-500 transition-colors"
                 aria-label={t('mapLegend.title')}
             >
-                <HelpCircle size={20} />
+                <HelpCircle size={16} />
+                <span className="text-xs font-semibold">{t('mapLegend.button')}</span>
             </button>
 
-            {/* Hover panel — opens downward from the icon */}
-            {isHovered && (
-                <div className="absolute top-full right-0 mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 w-72 text-slate-700 dark:text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            {/* Align the disclosure with the control row so it fits beside the insights panel. */}
+            {isOpen && (
+                <div id="map-legend-content" className="absolute top-full left-0 mt-2 max-h-[50vh] overflow-y-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4 w-72 max-w-full text-slate-700 dark:text-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <h4 className="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">{t('mapLegend.title')}</h4>
 
                     <div className="space-y-4">

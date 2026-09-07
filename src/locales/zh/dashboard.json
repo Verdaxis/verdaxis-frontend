@@ -95,6 +95,10 @@
       "transition": "过渡期",
       "adopted": "已通过",
       "focusEurope": "聚焦欧洲 ECA"
+    },
+    "navigation": {
+      "choosePort": "前往港口",
+      "allPorts": "所有港口"
     }
   },
   "dataAnalytics": {
@@ -603,7 +607,8 @@
     "warningRisk": "警告（CII/ETS 风险）",
     "infrastructure": "基础设施",
     "activeGreenCorridor": "活跃绿色走廊",
-    "recentListings": "近期挂牌 — 最新开放挂牌指示"
+    "recentListings": "近期挂牌 — 最新开放挂牌指示",
+    "button": "图例"
   },
   "marketWatch": {
     "title": "市场监控",
