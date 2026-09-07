@@ -45,6 +45,11 @@ jobs:
           python -m pip install --requirement scripts/requirements-navigation-smoke.txt
           python -m playwright install --with-deps chromium
 
+      - name: Verify Mapbox tile access
+        env:
+          VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
+        run: node scripts/check-mapbox-access.mjs
+
       - name: Validate and release the immutable candidate
         env:
           VERDAXIS_RELEASE_CONTEXT: github-actions
