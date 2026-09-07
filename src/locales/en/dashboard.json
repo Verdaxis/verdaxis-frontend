@@ -104,6 +104,10 @@
       "transition": "Transition",
       "adopted": "Adopted",
       "focusEurope": "Focus European ECAs"
+    },
+    "navigation": {
+      "choosePort": "Go to port",
+      "allPorts": "All ports"
     }
   },
   "dataAnalytics": {
@@ -612,7 +616,8 @@
     "warningRisk": "Warning (CII/ETS Risk)",
     "infrastructure": "Infrastructure",
     "activeGreenCorridor": "Active Green Corridor",
-    "recentListings": "Recent Listings — latest open listing indication"
+    "recentListings": "Recent Listings — latest open listing indication",
+    "button": "Legend"
   },
   "marketWatch": {
     "title": "Market Watch",

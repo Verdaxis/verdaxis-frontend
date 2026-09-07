@@ -81,6 +81,21 @@
   margin: 0;
 }
 
+/* Place native navigation beside the usable map, below the toolbar. */
+.mapboxgl-map .mapboxgl-ctrl-top-right {
+  top: var(--verdaxis-map-controls-top, 220px);
+  right: var(--verdaxis-map-rail-offset, 24px);
+}
+.mapboxgl-map .mapboxgl-ctrl-top-right .mapboxgl-ctrl {
+  margin: 0;
+  max-height: calc(100vh - 104px - var(--verdaxis-map-controls-top, 220px));
+  overflow-y: auto;
+}
+.mapboxgl-map .mapboxgl-ctrl-group button { width: 44px; height: 44px; }
+.dark .mapboxgl-map .mapboxgl-ctrl-group { background: #0f172a; }
+.dark .mapboxgl-map .mapboxgl-ctrl-group button + button { border-color: #334155; }
+.dark .mapboxgl-map .mapboxgl-ctrl-icon { filter: invert(1); }
+
 .verdaxis-port-popup .mapboxgl-popup-content {
   background: transparent;
   padding: 0;

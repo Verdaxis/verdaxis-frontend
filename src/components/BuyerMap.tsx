@@ -8,6 +8,7 @@ import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
 import { api } from '../services/api';
+import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { MapLegend } from './map/MapLegend';
 import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
@@ -51,10 +52,16 @@ const MAP_UI_LOCALES = {
     en: {
         'AttributionControl.ToggleAttribution': 'Toggle attribution',
         'AttributionControl.MapFeedback': 'Map feedback',
+        'NavigationControl.ZoomIn': 'Zoom in',
+        'NavigationControl.ZoomOut': 'Zoom out',
+        'NavigationControl.ResetBearing': 'Reset north',
     },
     zh: {
         'AttributionControl.ToggleAttribution': '切换地图版权信息',
         'AttributionControl.MapFeedback': '地图反馈',
+        'NavigationControl.ZoomIn': '放大',
+        'NavigationControl.ZoomOut': '缩小',
+        'NavigationControl.ResetBearing': '恢复正北方向',
     },
 } as const;
 
@@ -108,7 +115,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
     const [showMarketWatch, setShowMarketWatch] = useState(true);
-    const [showMarketWidgets, setShowMarketWidgets] = useState(true);
+    const [showMarketWidgets, setShowMarketWidgets] = useState(false);
     const [showSecaZones, setShowSecaZones] = useState(true);
     const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
     const [listings, setListings] = useState<OrderBookOrder[]>([]);
@@ -116,6 +123,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
 
     const mapContainer = useRef<HTMLDivElement>(null);
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const cameraRef = useRef<mapboxgl.CameraOptions | null>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
     const layersMenuRef = useRef<HTMLDivElement>(null);
@@ -176,6 +185,41 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         }, [])
     ), [approvedListingLocationMap, listings]);
 
+    const portBounds = useMemo<mapboxgl.LngLatBoundsLike | undefined>(() => {
+        if (!ports.length) return undefined;
+        return [
+            [Math.min(...ports.map(port => port.location.lng)), Math.min(...ports.map(port => port.location.lat))],
+            [Math.max(...ports.map(port => port.location.lng)), Math.max(...ports.map(port => port.location.lat))],
+        ];
+    }, [ports]);
+
+    const mapPadding = useCallback((panelOpen = isPanelOpen) => {
+        const mapRect = mapContainer.current?.getBoundingClientRect();
+        const toolbarRect = toolbarRef.current?.getBoundingClientRect();
+        const width = mapRect?.width || window.innerWidth;
+        const height = mapRect?.height || window.innerHeight;
+        // Reserve the 320px insights panel and toolbar. On short windows, leave
+        // at least 20% of the map height available for camera fitting.
+        return {
+            top: Math.min(Math.max(180, (toolbarRect?.bottom ?? 0) - (mapRect?.top ?? 0) + 24), height * 0.45),
+            bottom: Math.min(showMarketWidgets && window.innerWidth >= 1024 ? 320 : 32, height * 0.35),
+            left: 24,
+            right: Math.min(panelOpen ? 344 : 64, width * 0.75),
+        };
+    }, [isPanelOpen, showMarketWidgets]);
+
+    const focusAllPorts = useCallback(() => {
+        if (!portBounds) return;
+        popupRef.current?.remove();
+        setSelectedPortId(null);
+        mapRef.current?.fitBounds(portBounds, {
+            padding: mapPadding(),
+            retainPadding: false,
+            duration: 700,
+            maxZoom: 3.6,
+        });
+    }, [mapPadding, portBounds]);
+
     const focusMapPort = useCallback((port: Port, options: { flyTo?: boolean } = {}) => {
         setSelectedPortId(port.id);
         setIsPanelOpen(true);
@@ -183,11 +227,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             mapRef.current?.flyTo({
                 center: [port.location.lng, port.location.lat],
                 zoom: Math.max(mapRef.current.getZoom(), 3.6),
+                padding: mapPadding(true),
+                retainPadding: false,
                 duration: 700,
-                essential: true,
             });
         }
-    }, []);
+    }, [mapPadding]);
 
     const handleMarkerClick = useCallback((portId: string) => {
         const port = ports.find(item => item.id === portId);
@@ -209,16 +254,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         setShowSecaZones(true);
         setIsLayersMenuOpen(false);
         map.fitBounds([[-11, 29], [37, 67]], {
-            padding: {
-                top: 130,
-                bottom: 80,
-                left: 80,
-                right: isPanelOpen ? 380 : 80,
-            },
+            padding: mapPadding(),
+            retainPadding: false,
             duration: 850,
-            essential: true,
         });
-    }, [isPanelOpen]);
+    }, [mapPadding]);
 
     useEffect(() => {
         if (!isLayersMenuOpen) return;
@@ -248,6 +288,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         });
         return map;
     }, [ports, aggregatedData, selectedProduct]);
+
+    // Map listeners outlive React renders. Read the current product's market data.
+    const portMarketRef = useRef(portMarketMap);
+    portMarketRef.current = portMarketMap;
+
+    useEffect(() => {
+        popupRef.current?.remove();
+        popupRef.current = null;
+    }, [selectedProduct]);
 
     const selectedPort = useMemo(() => {
         const port = ports.find(item => item.id === selectedPortId);
@@ -312,18 +361,44 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
             projection: 'mercator',
             language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
-            center: [10, 25],
-            zoom: 2.5,
+            ...(cameraRef.current ?? {
+                bounds: portBounds,
+                fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
+            }),
             attributionControl: false,
             locale: mapLocale,
         });
 
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
         map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
 
         mapRef.current = map;
 
-        return () => { map.remove(); mapRef.current = null; };
+        return () => {
+            cameraRef.current = {
+                center: map.getCenter(), zoom: map.getZoom(),
+                bearing: map.getBearing(), pitch: map.getPitch(),
+            };
+            map.remove();
+            mapRef.current = null;
+        };
     }, [ready, loading, mapLocale, theme]);
+
+    // Keep native navigation below the toolbar when filters wrap or the ticker closes.
+    useEffect(() => {
+        const container = mapContainer.current;
+        const toolbar = toolbarRef.current;
+        if (!container || !toolbar) return;
+        const positionControls = () => {
+            const top = toolbar.getBoundingClientRect().bottom - container.getBoundingClientRect().top + 16;
+            container.style.setProperty('--verdaxis-map-controls-top', `${top}px`);
+        };
+        const observer = new ResizeObserver(positionControls);
+        observer.observe(container);
+        observer.observe(toolbar);
+        positionControls();
+        return () => observer.disconnect();
+    }, [ready, loading, showMarketWatch]);
 
     // Port markers layer
     useEffect(() => {
@@ -422,7 +497,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     // Show popup
                     if (popupRef.current) popupRef.current.remove();
 
-                    const mkt = portMarketMap[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
+                    const mkt = portMarketRef.current[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
                     const port = ports.find(p => p.id === portId);
                     if (!port) return;
 
@@ -511,7 +586,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             }
         };
 
-        if (map.loaded()) {
+        if (map.getSource('ports') || map.loaded()) {
             addPortLayers();
         } else {
             map.once('load', addPortLayers);
@@ -767,7 +842,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 )}
 
                 {/* Layer controls + fuel filter (Top-left) */}
-                <div className="absolute top-20 left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex items-center gap-2 transition-all duration-300">
+                <div ref={toolbarRef} className={`absolute ${showMarketWatch ? 'top-20' : 'top-6'} left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex flex-wrap items-center gap-2`}>
                     <div ref={layersMenuRef} className="relative">
                         <button
                             type="button"
@@ -843,9 +918,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
                     {/* Product filter — controls which product's spread colors the port circles */}
                     {availableProducts.length > 0 && (
-                        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex items-center gap-1">
+                        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 p-1.5 flex flex-wrap items-center gap-1">
                             <Fuel size={14} className="text-slate-400 ml-1" />
                             <button
+                                aria-pressed={!selectedProduct}
                                 onClick={() => setSelectedProduct(undefined)}
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
                                     !selectedProduct
@@ -858,6 +934,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             {availableProducts.map(product => (
                                 <button
                                     key={product}
+                                    aria-pressed={selectedProduct === product}
                                     onClick={() => setSelectedProduct(product)}
                                     className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors ${
                                         selectedProduct === product
@@ -870,6 +947,25 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             ))}
                         </div>
                     )}
+                    <div className="relative flex w-full flex-wrap items-center gap-2">
+                        <VerdaxisSelect
+                            value={selectedPortId ?? ''}
+                            ariaLabel={t('buyerMap.navigation.choosePort')}
+                            placeholder={t('buyerMap.navigation.choosePort')}
+                            options={ports.map(port => ({ value: port.id, label: port.name }))}
+                            onChange={portId => {
+                                const port = ports.find(item => item.id === portId);
+                                if (port) handlePanelPortSelect(port);
+                            }}
+                            className="w-48"
+                            triggerClassName="min-h-11 bg-white/95 dark:bg-slate-900/95 shadow-sm"
+                        />
+                        <button type="button" onClick={focusAllPorts} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800">
+                            <LocateFixed size={16} />
+                            {t('buyerMap.navigation.allPorts')}
+                        </button>
+                        <MapLegend />
+                    </div>
                 </div>
             </div>
 
@@ -885,8 +981,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     </Tooltip>
                 </button>
             )}
-
-            <MapLegend />
 
             <IntelligencePanel
                 isOpen={isPanelOpen}
