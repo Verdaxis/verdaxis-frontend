@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
@@ -47,7 +47,7 @@ const escapeHtml = (value: unknown) => String(value).replace(/[&<>"']/g, charact
     '"': '&quot;',
     "'": '&#39;',
 }[character]!));
-const MAP_UI_LOCALES = {
+const MAPLIBRE_UI_LOCALES = {
     en: {
         'AttributionControl.ToggleAttribution': 'Toggle attribution',
         'AttributionControl.MapFeedback': 'Map feedback',
@@ -98,7 +98,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const { t, ready } = useNamespace('dashboard');
     const { i18n } = useTranslation();
     const mapLanguage = (i18n.resolvedLanguage || i18n.language).toLowerCase().split('-')[0] === 'zh' ? 'zh' : 'en';
-    const mapLocale = MAP_UI_LOCALES[mapLanguage];
+    const mapLocale = MAPLIBRE_UI_LOCALES[mapLanguage];
     const translateRef = useRef(t);
     translateRef.current = t;
     const { theme } = useTheme();
@@ -116,10 +116,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
 
     const mapContainer = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<mapboxgl.Map | null>(null);
-    const popupRef = useRef<mapboxgl.Popup | null>(null);
+    const mapRef = useRef<maplibregl.Map | null>(null);
+    const popupRef = useRef<maplibregl.Popup | null>(null);
     const layersMenuRef = useRef<HTMLDivElement>(null);
-    const isDark = theme === 'dark' || (theme === 'system' && document.documentElement.classList.contains('dark'));
+    const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
     // Fetch Ports, Listings, and Aggregated data from Backend
     useEffect(() => {
@@ -304,33 +304,52 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
 
     // Map initialization
     useEffect(() => {
-        if (!ready || loading || !mapContainer.current || mapRef.current) return;
+        if (loading || !mapContainer.current || mapRef.current) return;
 
-        const map = new mapboxgl.Map({
+        const map = new maplibregl.Map({
             container: mapContainer.current,
-            accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
-            style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
-            projection: 'mercator',
-            language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
+            style: {
+                version: 8,
+                sources: {
+                    'carto-base': {
+                        type: 'raster',
+                        tiles: [isDark
+                            ? 'https://a.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png'
+                            : 'https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png'],
+                        tileSize: 256,
+                    },
+                    'carto-labels': {
+                        type: 'raster',
+                        tiles: [isDark
+                            ? 'https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png'
+                            : 'https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png'],
+                        tileSize: 256,
+                    },
+                },
+                layers: [
+                    { id: 'carto-base', type: 'raster', source: 'carto-base' },
+                    { id: 'carto-labels', type: 'raster', source: 'carto-labels' },
+                ],
+            },
             center: [10, 25],
             zoom: 2.5,
             attributionControl: false,
             locale: mapLocale,
         });
 
-        map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+        map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
         mapRef.current = map;
 
         return () => { map.remove(); mapRef.current = null; };
-    }, [ready, loading, mapLocale, theme]);
+    }, [loading, mapLocale, theme]);
 
     // Port markers layer
     useEffect(() => {
         const map = mapRef.current;
         if (!map || ports.length === 0) return;
 
-        const isDark = theme === 'dark' || (theme === 'system' && document.documentElement.classList.contains('dark'));
+        const isDark = theme === 'dark' || document.documentElement.classList.contains('dark');
 
         const addPortLayers = () => {
 
@@ -359,7 +378,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             const geojson = { type: 'FeatureCollection' as const, features: portFeatures };
 
             if (map.getSource('ports')) {
-                (map.getSource('ports') as mapboxgl.GeoJSONSource).setData(geojson);
+                (map.getSource('ports') as maplibregl.GeoJSONSource).setData(geojson);
             } else {
                 map.addSource('ports', { type: 'geojson', data: geojson });
 
@@ -378,7 +397,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 });
 
                 // Hover tooltip popup
-                const hoverPopup = new mapboxgl.Popup({
+                const hoverPopup = new maplibregl.Popup({
                     closeButton: false,
                     closeOnClick: false,
                     offset: 10,
@@ -502,11 +521,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         + '</div>';
 
                     const coords = (f.geometry as any).coordinates.slice();
-                    popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: '280px', className: 'verdaxis-port-popup' })
+                    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '280px', className: 'verdaxis-port-popup' })
                         .setLngLat(coords)
                         .setHTML(html)
                         .addTo(map);
-                    popupRef.current.getElement()?.querySelector('.mapboxgl-popup-close-button')?.setAttribute('aria-label', translate('buyerMap.popup.close'));
+                    popupRef.current.getElement()?.querySelector('.maplibregl-popup-close-button')?.setAttribute('aria-label', translate('buyerMap.popup.close'));
                 });
             }
         };
@@ -516,8 +535,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         } else {
             map.once('load', addPortLayers);
         }
-        return () => { map.off('load', addPortLayers); };
-    }, [ready, loading, theme, mapLocale, ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
+    }, [ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
 
     // Versioned IMO ECA reference overlay generated from the shared geofence bundle.
     useEffect(() => {
@@ -538,7 +556,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return () => {
             map.off('load', install);
         };
-    }, [ready, theme, isDark, loading, mapLocale, showSecaZones]);
+    }, [isDark, loading, showSecaZones]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -551,11 +569,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         const map = mapRef.current;
         if (!map) return;
 
-        let cancelled = false;
         const addVessels = async () => {
             try {
                 const vessels = await api.vessels.list();
-                if (cancelled) return;
 
                 const addVesselLayers = () => {
 
@@ -572,7 +588,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     });
 
                     if (map.getSource('vessels')) {
-                        (map.getSource('vessels') as mapboxgl.GeoJSONSource).setData({ type: 'FeatureCollection', features });
+                        (map.getSource('vessels') as maplibregl.GeoJSONSource).setData({ type: 'FeatureCollection', features });
                     } else {
                         map.addSource('vessels', { type: 'geojson', data: { type: 'FeatureCollection', features } });
 
@@ -615,7 +631,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                             });
 
                             // Vessel hover tooltip
-                            const vesselPopup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'verdaxis-vessel-tooltip' });
+                            const vesselPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'verdaxis-vessel-tooltip' });
                             map.on('mouseenter', 'vessels-layer', (e) => {
                                 map.getCanvas().style.cursor = 'pointer';
                                 if (!e.features?.length) return;
@@ -649,8 +665,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         };
 
         addVessels();
-        return () => { cancelled = true; };
-    }, [ready, loading, theme, mapLocale]);
+    }, [loading]);
 
     // Window trade-at handler for popup button
     useEffect(() => {
