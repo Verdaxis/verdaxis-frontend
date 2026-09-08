@@ -641,12 +641,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
     };
 
-    const closeTradeModal = () => {
+    const closeTradeModal = useCallback(() => {
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
         tradeRequestRef.current = null;
-    };
+    }, []);
+
+    useEffect(() => {
+        if (tradeState !== 'success') return;
+        // Keep the success message visible briefly, then reload current quotes.
+        const timer = setTimeout(() => {
+            closeTradeModal();
+            void fetchData(true, currentSkip, true);
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, [tradeState, closeTradeModal, fetchData, currentSkip]);
 
     const validateTradeQuantity = () => {
         if (!selectedOrder || tradeState === 'submitting') return null;
@@ -700,11 +710,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
             await api.trades.initiate(tradeRequestRef.current.payload);
             setTradeState('success');
-            // Auto-close after 2s and refresh
-            setTimeout(() => {
-                closeTradeModal();
-                fetchData(true, currentSkip, true);
-            }, 2000);
         } catch (err: any) {
             setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
             setTradeState('error');

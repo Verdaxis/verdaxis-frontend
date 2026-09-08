@@ -607,8 +607,8 @@ describe('Marketplace green fuels surface', () => {
     });
   });
 
-  it('requires a final confirmation before submitting a real trade', async () => {
-    renderWithProviders(<Marketplace />);
+  it('requires final confirmation and cancels post-trade refresh on unmount', async () => {
+    const view = renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
@@ -634,6 +634,11 @@ describe('Marketplace green fuels surface', () => {
         idempotency_key: expect.any(String),
       }));
     });
+    await screen.findByText('Trade Request Sent');
+    const readsBeforeUnmount = listAsksPaged.mock.calls.length;
+    view.unmount();
+    await new Promise(resolve => setTimeout(resolve, 2100));
+    expect(listAsksPaged).toHaveBeenCalledTimes(readsBeforeUnmount);
   });
 
   it('retries a timed-out trade with the same payload and idempotency key', async () => {
