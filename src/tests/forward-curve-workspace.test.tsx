@@ -236,23 +236,35 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText(/TradingView/i)).toBeNull();
   });
 
-  it('forces the selected slice when the table is manually refreshed', async () => {
+  it('preserves forced slice refresh when the interval joins the table request', async () => {
+    const intervalSpy = vi.spyOn(window, 'setInterval');
     renderWithProviders(<ForwardCurveWorkspace />);
     await screen.findByText('Indicative Period Range');
     tableMock.mockClear();
     sliceMock.mockClear();
+    let resolveJoinedTable!: (table: ForwardCurveTableResponse) => void;
+    const joinedTable = new Promise<ForwardCurveTableResponse>((resolve) => {
+      resolveJoinedTable = resolve;
+    });
+    tableMock.mockReturnValue(joinedTable);
+    const refreshInterval = intervalSpy.mock.calls.find(([, delay]) => delay === 30_000)?.[0];
+    expect(refreshInterval).toBeTypeOf('function');
 
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    act(() => refreshInterval?.());
+    await act(async () => resolveJoinedTable(makeTable()));
 
-    await waitFor(() => expect(tableMock).toHaveBeenCalledWith(
+    expect(tableMock).toHaveBeenCalledWith(
       { windows: expect.any(Array) },
       { force: true },
-    ));
+    );
+    expect(tableMock).toHaveBeenCalledWith({ windows: expect.any(Array) });
     await waitFor(() => expect(sliceMock).toHaveBeenCalledWith({
       market_product: 'BIO_METHANOL',
       delivery_point_id: 'dp-singapore',
       availability_window: 'SPOT',
     }, { force: true }));
+    intervalSpy.mockRestore();
   });
 
   it('selects a populated product-port-period cell and opens that exact slice in Marketplace', async () => {
