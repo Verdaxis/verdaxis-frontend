@@ -302,6 +302,8 @@ Password login supplies the sanitized profile to avoid an immediate duplicate `/
 Legacy/OAuth responses without a valid profile retain the `/auth/me` fallback.
 `AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
 while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
+If rotation returns a different account, the old tab clears its local identity and cached
+data without revoking the shared cookie. Restoration requires a fresh `/auth/me` check.
 Email links open `/verify-email`, which exchanges the one-time token through a `POST`
 mutation. Admin user review then presents email verification, account admission,
 organization verification, and membership as separate ordered decisions; none is
