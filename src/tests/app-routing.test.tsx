@@ -122,7 +122,12 @@ vi.mock('../components/Settings', () => ({
   Settings: ({ viewMode }: { viewMode: string }) => <div data-testid="page-settings">{viewMode}</div>,
 }));
 vi.mock('../components/TradeHistoryPage', () => ({ TradeHistoryPage: () => <div data-testid="page-trades" /> }));
-vi.mock('../components/ForwardCurveWorkspace', () => ({ ForwardCurveWorkspace: () => <div data-testid="page-curve" /> }));
+vi.mock('../components/ForwardCurveWorkspace', () => ({
+  ForwardCurveWorkspace: () => {
+    const [loadedScope] = React.useState(() => supportControl.current.context?.id ?? 'direct');
+    return <div data-testid="page-curve">{loadedScope}</div>;
+  },
+}));
 vi.mock('../components/WatchlistPage', () => ({ WatchlistPage: () => <div data-testid="page-watchlist" /> }));
 vi.mock('../components/Compliance', () => ({ Compliance: () => <div data-testid="page-compliance" /> }));
 vi.mock('../components/admin/AdminDashboard', () => ({ AdminDashboard: () => <div data-testid="page-admin" /> }));
@@ -500,6 +505,31 @@ describe('app routing', () => {
   });
 
   describe('map → marketplace handoff', () => {
+    it('discards loaded page state on entry to and exit from assisted mode', async () => {
+      setRole('ADMIN');
+      const view = renderApp('/app/curve');
+      expect((await screen.findByTestId('page-curve')).textContent).toBe('direct');
+
+      supportControl.current = {
+        context: {
+          id: 'support-1',
+          organization: { type: 'REAL' },
+          actor: { name: 'Support Admin' },
+          supportReference: 'CASE-1',
+          expiresAt: '2026-09-09T00:00:00Z',
+        },
+        isLoading: false,
+        isActive: true,
+        exit: async () => undefined,
+      };
+      view.rerender(buildApp('/app/curve'));
+      await waitFor(() => expect(screen.getByTestId('page-curve').textContent).toBe('support-1'));
+
+      supportControl.current = { ...supportControl.current, context: null, isActive: false };
+      view.rerender(buildApp('/app/curve'));
+      await waitFor(() => expect(screen.getByTestId('page-curve').textContent).toBe('direct'));
+    });
+
     it('keeps one visited map mounted, hidden and inert across away/back navigation', async () => {
       renderApp('/app/map');
       await screen.findByTestId('page-map');

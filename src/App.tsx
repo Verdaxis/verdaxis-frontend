@@ -296,12 +296,12 @@ const DashboardLayout: React.FC = () => {
   const isBareAppPath = location.pathname === '/app' || location.pathname === '/app/';
   const currentPage = pathToPage(location.pathname);
   const isMapActive = !isBareAppPath && currentPage === 'MAP';
-  const mapScopeKey = `${user?.id ?? 'account'}:${user?.organization_id ?? 'no-organization'}:${context?.id ?? 'direct'}`;
-  const shouldRenderMap = isMapActive || visitedMapScope === mapScopeKey;
+  const dashboardScopeKey = `${user?.id ?? 'account'}:${user?.organization_id ?? 'no-organization'}:${context?.id ?? 'direct'}`;
+  const shouldRenderMap = isMapActive || visitedMapScope === dashboardScopeKey;
 
   useEffect(() => {
-    if (isMapActive) setVisitedMapScope(mapScopeKey);
-  }, [isMapActive, mapScopeKey]);
+    if (isMapActive) setVisitedMapScope(dashboardScopeKey);
+  }, [isMapActive, dashboardScopeKey]);
 
   useEffect(() => () => cancelDashboardNavigation(), []);
 
@@ -374,7 +374,7 @@ const DashboardLayout: React.FC = () => {
           inert={!isMapActive}
           aria-hidden={!isMapActive}
         >
-          <ErrorBoundary key={mapScopeKey}>
+          <ErrorBoundary key={dashboardScopeKey}>
             <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
               <BuyerMap
                 active={isMapActive}
@@ -387,7 +387,7 @@ const DashboardLayout: React.FC = () => {
         </div>
       )}
       {!isMapActive && (
-        <ErrorBoundary>
+        <ErrorBoundary key={dashboardScopeKey}>
           <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
             <Outlet context={outletContext} />
           </Suspense>

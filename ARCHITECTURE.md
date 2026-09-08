@@ -198,6 +198,8 @@ Reference data lasts five minutes, market data 15 seconds, and private activity 
 Private scope includes the auth session, accepted user/organization profile, and assisted
 context. Mutations invalidate before and after execution; SSE invalidates affected resources
 before consumers refresh. Superseded requests cannot populate or return another scope's data.
+The dashboard remounts its page subtree on account, organization, or assisted-context changes
+so previously rendered data and local drafts cannot remain under a different scope.
 Page readiness timing waits for usable data and paint, separately from the route commit.
 
 **Desktop-only platform workspace:** The authenticated `/app` route is wrapped in

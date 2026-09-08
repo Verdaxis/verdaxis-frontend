@@ -34,6 +34,7 @@ import {
     formatDeliveryWindow,
 } from '../utils/fuel';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import {
     formatAvailabilityWindow,
     getAvailabilityWindowOptions,
@@ -155,6 +156,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    useDashboardContentReady('MARKETPLACE', ready && !loading && !error);
     const latestFetchRequest = useRef(0);
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
