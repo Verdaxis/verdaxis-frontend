@@ -6,12 +6,18 @@ const controls = vi.hoisted(() => ({
     summary: vi.fn(),
     myTradesPaged: vi.fn(),
     confirm: vi.fn(),
+    useSSE: vi.fn(),
+    refreshWatchlist: vi.fn(),
     scopeKey: 'real-account',
 }));
 
 vi.mock('../services/api', () => ({ api: { trades: controls } }));
 vi.mock('../hooks/useWatchlist', () => ({
-    useWatchlist: () => ({ radar: null, events: [], loading: false, error: null }),
+    useWatchlist: () => ({ radar: null, events: [], loading: false, error: null, refresh: controls.refreshWatchlist }),
+}));
+vi.mock('../hooks/useSSE', () => ({ useSSE: controls.useSSE }));
+vi.mock('../context/AuthContext', () => ({
+    useAuth: () => ({ user: { id: 'user-1', organization_id: 'buyer-1' }, isAuthenticated: true }),
 }));
 vi.mock('../context/MarketSupportContext', () => ({
     useMarketSupport: () => ({
@@ -57,6 +63,8 @@ describe('Command Center trade summaries and action queue', () => {
         controls.summary.mockReset().mockResolvedValue(summary());
         controls.myTradesPaged.mockReset().mockResolvedValue({ items: [trade()], total: 4, skip: 0, limit: 8 });
         controls.confirm.mockReset().mockResolvedValue(undefined);
+        controls.useSSE.mockReset();
+        controls.refreshWatchlist.mockReset().mockResolvedValue(undefined);
     });
 
     afterEach(() => cleanup());
@@ -78,6 +86,24 @@ describe('Command Center trade summaries and action queue', () => {
         expect(await screen.findByRole('alert')).toBeTruthy();
         expect(screen.queryByText('All caught up!')).toBeNull();
         expect(screen.getByRole('button', { name: 'Try Again' })).toBeTruthy();
+    });
+
+    it('shows incoming trade actions without leaving the dashboard and refreshes related reads', async () => {
+        controls.summary.mockResolvedValueOnce(summary({ action_required_count: 0 }));
+        controls.myTradesPaged.mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 8 });
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        expect(await screen.findByText('All caught up!')).toBeTruthy();
+
+        const [channel, handleEvent, enabled, scope] = controls.useSSE.mock.calls.at(-1)!;
+        expect([channel, enabled, scope]).toEqual(['trades', true, 'user-1:buyer-1:direct']);
+        act(() => handleEvent('trade_created', { id: 'trade-1' }));
+
+        expect(await screen.findByRole('button', { name: 'Confirm' })).toBeTruthy();
+        expect(controls.summary).toHaveBeenLastCalledWith({ force: true });
+        expect(controls.myTradesPaged).toHaveBeenLastCalledWith(
+            { skip: 0, limit: 8, action_required: true }, { force: true },
+        );
+        expect(controls.refreshWatchlist).toHaveBeenCalledOnce();
     });
 
     it('keeps action ownership aligned for buyer and supplier views', async () => {

@@ -13,6 +13,8 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 import { SupplierDemandFeed } from './SupplierDemandFeed';
 import { useMarketSupport } from '../context/MarketSupportContext';
+import { useAuth } from '../context/AuthContext';
+import { useSSE } from '../hooks/useSSE';
 
 interface CommandCenterProps {
     viewMode: ViewMode;
@@ -41,6 +43,7 @@ const CTA_CONFIG = {
 };
 
 export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNavigate, onOpenSlice, openOrderId }) => {
+    const { user, isAuthenticated } = useAuth();
     const { t, ready } = useNamespace('dashboard');
     const [trades, setTrades] = useState<Trade[]>([]);
     const [summary, setSummary] = useState<TradeSummary>(EMPTY_SUMMARY);
@@ -48,10 +51,10 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const [loadError, setLoadError] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [orderModalOpen, setOrderModalOpen] = useState(false);
-    const { radar, events, loading: radarLoading, error: radarError } = useWatchlist();
+    const { radar, events, loading: radarLoading, error: radarError, refresh: refreshWatchlist } = useWatchlist();
     const { context, isActive: isMarketSupportActive } = useMarketSupport();
     const loadGeneration = useRef(0);
-    const scopeKey = context?.id ?? 'real-account';
+    const scopeKey = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${context?.id ?? 'direct'}`;
 
     useDashboardContentReady('DASHBOARD', ready && !loading && !loadError
         && (isMarketSupportActive || (!radarLoading && !radarError)));
@@ -70,17 +73,20 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
         setConfirmState(prev => ({ ...prev, isOpen: false }));
     };
 
-    const loadDashboardData = useCallback(async () => {
+    const loadDashboardData = useCallback(async (force = false) => {
         const generation = ++loadGeneration.current;
-        setLoading(true);
+        if (!force) setLoading(true);
         setLoadError(false);
         try {
-            const summaryRequest = api.trades.summary();
-            const actionableRequest = api.trades.myTradesPaged({
+            const summaryRequest = force ? api.trades.summary({ force: true }) : api.trades.summary();
+            const params = {
                 skip: 0,
                 limit: ACTIONABLE_LIMIT,
                 action_required: true,
-            });
+            };
+            const actionableRequest = force
+                ? api.trades.myTradesPaged(params, { force: true })
+                : api.trades.myTradesPaged(params);
             const [nextSummary, actionable] = await Promise.all([summaryRequest, actionableRequest]);
             if (generation !== loadGeneration.current) return;
             setSummary({
@@ -107,6 +113,12 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             loadGeneration.current += 1;
         };
     }, [loadDashboardData, scopeKey]);
+
+    const refreshTradeData = useCallback(() => {
+        void loadDashboardData(true);
+        void refreshWatchlist();
+    }, [loadDashboardData, refreshWatchlist]);
+    useSSE('trades', refreshTradeData, isAuthenticated && ready && !isMarketSupportActive, scopeKey);
 
     useEffect(() => {
         if (!loading && openOrderId) {
@@ -253,7 +265,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     onPostOrder={() => setOrderModalOpen(true)}
                     loading={loading}
                     error={loadError ? t('commandCenter.metrics.loadError') : undefined}
-                    onRetry={() => void loadDashboardData()}
+                    onRetry={() => void loadDashboardData(true)}
                     total={summary.action_required_count}
                 />
             </div>
