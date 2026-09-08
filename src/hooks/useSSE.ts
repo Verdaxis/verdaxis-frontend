@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_URL } from '../services/config';
 import { getAccessToken, refreshAccessToken } from '../services/authToken';
+import { invalidateReadCache, invalidateReadsForEvent } from '../services/readCache';
 
 type SSEChannel = 'prices' | 'orderbook' | 'trades';
 type SSEHandler = (event: string, data: any) => void;
@@ -8,7 +9,7 @@ type SSEHandler = (event: string, data: any) => void;
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
     prices: ['price_update'],
     orderbook: ['order_created', 'order_cancelled', 'orders_matched'],
-    trades: ['trade_created', 'trade_confirmed', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
+    trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
 };
 
 const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];
@@ -109,7 +110,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             return true;
         };
 
-        const handleControlEvent = (source: EventSource, event: string) => {
+        const handleControlEvent = (source: EventSource, event: string, message: MessageEvent<string>) => {
             if (!closeSource(source)) return;
 
             // Authorization changes can also mean an organization switch. A
@@ -121,8 +122,19 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 // Avoid a tight retry loop while a revoked session is being
                 // cleared; a later attempt can obtain a token after login.
                 backoffRef.current = MAX_RECONNECT_DELAY;
+                invalidateReadCache();
             }
             scheduleReconnect();
+            if (event === 'reset') {
+                let data: unknown = message.data;
+                try {
+                    data = JSON.parse(message.data);
+                } catch {
+                    // Plain-text reset reasons remain valid callback input.
+                }
+                invalidateReadsForEvent(channel);
+                handlerRef.current(event, data);
+            }
         };
 
         async function connect() {
@@ -164,19 +176,21 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             const handleMessage = (type: string, event: MessageEvent<string>) => {
                 if (sourceRef.current !== source || !isActive()) return;
                 if (event.lastEventId) lastEventIdRef.current = event.lastEventId;
+                let data: unknown = event.data;
                 try {
-                    const data = JSON.parse(event.data);
-                    handlerRef.current(type, data);
+                    data = JSON.parse(event.data);
                 } catch {
-                    handlerRef.current(type, event.data);
+                    // Plain-text events remain valid callback input.
                 }
+                invalidateReadsForEvent(channel);
+                handlerRef.current(type, data);
             };
 
             for (const type of EVENT_TYPES[channel]) {
                 source.addEventListener(type, handleMessage.bind(null, type) as EventListener);
             }
             for (const type of CONTROL_EVENTS) {
-                source.addEventListener(type, () => handleControlEvent(source, type));
+                source.addEventListener(type, (event) => handleControlEvent(source, type, event as MessageEvent<string>));
             }
 
             source.onerror = () => {

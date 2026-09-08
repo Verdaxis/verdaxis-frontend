@@ -663,6 +663,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const [error, setError] = useState<string | null>(null);
     const tableRequestIdRef = useRef(0);
     const sliceRequestIdRef = useRef(0);
+    const forceNextSliceRef = useRef(false);
 
     const selectedCell = useMemo(() => findCell(table, selected), [table, selected]);
     const allCells = useMemo(() => flattenCells(table), [table]);
@@ -678,17 +679,19 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     }, [table]);
     const hiddenColumnCount = table ? table.columns.length - visibleColumns.length : 0;
 
-    const fetchTable = useCallback(async () => {
+    const fetchTable = useCallback(async (force = false) => {
         if (!ready) return;
         const requestId = tableRequestIdRef.current + 1;
         tableRequestIdRef.current = requestId;
         setLoadingTable(true);
         setError(null);
         try {
-            const response = filterApprovedForwardCurveTable(await api.curves.table({
-                windows: getForwardCurveTableWindows(),
-            }));
+            const params = { windows: getForwardCurveTableWindows() };
+            const response = filterApprovedForwardCurveTable(force
+                ? await api.curves.table(params, { force: true })
+                : await api.curves.table(params));
             if (requestId !== tableRequestIdRef.current) return;
+            forceNextSliceRef.current = force;
             setTable(response);
             setSelected(current => {
                 const currentCell = findCell(response, current);
@@ -708,14 +711,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     useEffect(() => {
         if (!ready) return;
-        fetchTable();
-        const interval = window.setInterval(fetchTable, REFRESH_INTERVAL_MS);
+        void fetchTable();
+        const interval = window.setInterval(() => void fetchTable(), REFRESH_INTERVAL_MS);
         return () => window.clearInterval(interval);
     }, [fetchTable, ready]);
 
     useEffect(() => {
         if (!ready) return;
         if (!selected || !selectedCell) {
+            forceNextSliceRef.current = false;
             setSlice(null);
             setSliceSelectionKey('');
             setPendingSliceKey('');
@@ -727,16 +731,20 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         const requestId = sliceRequestIdRef.current + 1;
         sliceRequestIdRef.current = requestId;
         const requestKey = sliceKey(selected);
-        setSlice(null);
-        setSliceSelectionKey('');
         setPendingSliceKey(requestKey);
         setFailedSliceKey('');
         setLoadingSlice(true);
-        api.curves.slice({
+        const params = {
             market_product: selected.marketProduct,
             delivery_point_id: selected.deliveryPointId,
             availability_window: selected.availabilityWindow,
-        }).then(response => {
+        };
+        const force = forceNextSliceRef.current;
+        forceNextSliceRef.current = false;
+        const request = force
+            ? api.curves.slice(params, { force: true })
+            : api.curves.slice(params);
+        request.then(response => {
             if (requestId !== sliceRequestIdRef.current) return;
             setSlice(response);
             setSliceSelectionKey(requestKey);
@@ -745,8 +753,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         }).catch(err => {
             if (requestId !== sliceRequestIdRef.current) return;
             console.error('Failed to load forward curve slice', err);
-            setSlice(null);
-            setSliceSelectionKey('');
             setPendingSliceKey('');
             setFailedSliceKey(requestKey);
         }).finally(() => {
@@ -756,8 +762,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const prepareSliceRefresh = (next: SelectedSlice) => {
         sliceRequestIdRef.current += 1;
-        setSlice(null);
-        setSliceSelectionKey('');
         setPendingSliceKey(sliceKey(next));
         setFailedSliceKey('');
         setLoadingSlice(true);
@@ -827,7 +831,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={fetchTable}
+                            onClick={() => void fetchTable(true)}
                             className="inline-flex h-8 items-center gap-1 border border-slate-700 px-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
                             <RefreshCw size={12} className={loadingTable ? 'animate-spin' : ''} aria-hidden="true" />
@@ -847,7 +851,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 </div>
             </div>
 
-            {error ? (
+            {error && table && (
+                <div className="border-b border-rose-900/60 bg-rose-950/30 px-4 py-2 text-sm text-rose-300">{error}</div>
+            )}
+            {error && !table ? (
                 <div className="p-6 text-sm text-rose-300">{error}</div>
             ) : !table ? (
                 <div className="forward-curve-console__muted flex h-96 items-center justify-center">
@@ -1072,6 +1079,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         )}
 
                         <div className="space-y-3 p-3">
+                            {failedSliceKey === selectedKey && (
+                                <div className="border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">{t('forwardCurve.error')}</div>
+                            )}
                             <PriceEvidenceStrip slice={activeSlice} loading={evidenceLoading} hasSelection={Boolean(activeCell)} />
                             <div className="grid grid-cols-2 gap-3">
                                 <DepthList label={t('orderBook.bids')} levels={activeSlice?.depth_bids ?? []} tone="bid" />

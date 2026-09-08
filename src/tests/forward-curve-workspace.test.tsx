@@ -236,6 +236,25 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText(/TradingView/i)).toBeNull();
   });
 
+  it('forces the selected slice when the table is manually refreshed', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    tableMock.mockClear();
+    sliceMock.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+
+    await waitFor(() => expect(tableMock).toHaveBeenCalledWith(
+      { windows: expect.any(Array) },
+      { force: true },
+    ));
+    await waitFor(() => expect(sliceMock).toHaveBeenCalledWith({
+      market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-singapore',
+      availability_window: 'SPOT',
+    }, { force: true }));
+  });
+
   it('selects a populated product-port-period cell and opens that exact slice in Marketplace', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);

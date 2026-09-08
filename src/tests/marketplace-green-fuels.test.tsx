@@ -6,7 +6,7 @@ import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
@@ -15,6 +15,7 @@ const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBi
   listBidsPaged: vi.fn(),
   listAsks: vi.fn(),
   listBids: vi.fn(),
+  productCounts: vi.fn(),
   myOrders: vi.fn(),
   deliveryPoints: vi.fn(),
   toggleSlice: vi.fn(),
@@ -79,6 +80,7 @@ vi.mock('../services/api', () => ({
       listBidsPaged,
       listAsks,
       listBids,
+      productCounts,
       myOrders,
     },
     trades: {
@@ -190,6 +192,15 @@ describe('Marketplace green fuels surface', () => {
     });
     listAsks.mockResolvedValue(listingsResponse.items);
     listBids.mockResolvedValue([]);
+    productCounts.mockResolvedValue({
+      counts: {
+        BIO_METHANOL: 1,
+        E_METHANOL: 0,
+        BIO_ETHANOL: 0,
+        SYNTHETIC_ETHANOL: 0,
+      },
+      total: 1,
+    });
     myOrders.mockResolvedValue([]);
     deliveryPoints.mockResolvedValue([
       { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
@@ -218,6 +229,35 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /e-Ethanol/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
+    expect(productCounts).toHaveBeenCalledTimes(1);
+    expect(productCounts).toHaveBeenCalledWith({
+      side: 'ASK',
+      region: undefined,
+      delivery_point_id: undefined,
+      availability_window: undefined,
+      include_off_spec: false,
+    });
+  });
+
+  it('forces fresh listings and grouped counts when the user refreshes', async () => {
+    productCounts
+      .mockResolvedValueOnce({
+        counts: { BIO_METHANOL: 1, E_METHANOL: 0, BIO_ETHANOL: 0, SYNTHETIC_ETHANOL: 0 },
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        counts: { BIO_METHANOL: 2, E_METHANOL: 0, BIO_ETHANOL: 0, SYNTHETIC_ETHANOL: 0 },
+        total: 2,
+      });
+
+    renderWithProviders(<Marketplace />);
+    await screen.findByRole('button', { name: /Bio Methanol \(1\)/i });
+
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await screen.findByRole('button', { name: /Bio Methanol \(2\)/i });
+    expect(listAsksPaged).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    expect(productCounts).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
   });
 
   it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
@@ -477,6 +517,11 @@ describe('Marketplace green fuels surface', () => {
     });
 
     expect(screen.queryByText('Bio Methanol')).toBeNull();
+
+    const myListingsRefresh = screen.getAllByRole('button', { name: /^refresh$/i }).at(-1);
+    expect(myListingsRefresh).toBeTruthy();
+    fireEvent.click(myListingsRefresh as HTMLButtonElement);
+    await waitFor(() => expect(myOrders).toHaveBeenLastCalledWith({ force: true }));
   });
 
   it('shows a filtered empty state in My Listings when account orders exist outside the active slice', async () => {

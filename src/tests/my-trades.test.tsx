@@ -200,6 +200,18 @@ describe('MyTrades lifecycle', () => {
     expect(screen.queryByText('Stale buyer')).toBeNull();
   });
 
+  it('keeps the last valid trade table visible when a refresh fails', async () => {
+    renderWithProviders(<MyTrades />);
+    expect(await screen.findByText('Buy Corp')).toBeTruthy();
+
+    myTradesPagedMock.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'myTrades.btn.refresh' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Refresh unavailable');
+    expect(screen.getByText('Buy Corp')).toBeTruthy();
+    expect(screen.getByRole('table')).toBeTruthy();
+  });
+
   it('waits for Chinese trading translations before loading and suppresses backend errors', async () => {
     await i18n.changeLanguage('zh');
     namespaceControl.ready = false;

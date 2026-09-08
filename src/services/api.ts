@@ -1,4 +1,5 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -17,6 +18,7 @@ import {
     getMarketSupportContextId,
     MARKET_SUPPORT_CONTEXT_HEADER,
 } from './marketSupportContextStore';
+import { cachedRead, invalidateReadCache, READ_CACHE_TTL_MS } from './readCache';
 import type {
     MarketSupportCapability,
     MarketSupportEntry,
@@ -297,6 +299,38 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     return responseBody;
 };
 
+type ReadCacheOptions = { force?: boolean };
+
+const readApi = <T = any>(
+    resourceKey: string,
+    path: string,
+    freshness: keyof typeof READ_CACHE_TTL_MS,
+    scope: 'public' | 'private' = 'private',
+    options?: RequestInit,
+    cacheOptions?: ReadCacheOptions,
+): Promise<T> => cachedRead(
+    resourceKey,
+    scope,
+    READ_CACHE_TTL_MS[freshness],
+    () => fetchApi(path, options) as Promise<T>,
+    cacheOptions?.force,
+);
+
+const invalidateMarketReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
+const invalidateTradeReads = () => invalidateReadCache('trades:');
+const invalidateTradeTransitionReads = () => invalidateReadCache('trades:', 'watchlists:');
+const invalidateWatchlistReads = () => invalidateReadCache('watchlists:');
+const invalidateTradeExecutionReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:');
+
+const mutateApi = async <T = any>(invalidate: () => void, path: string, options: RequestInit): Promise<T> => {
+    invalidate();
+    try {
+        return await fetchApi(path, options) as T;
+    } finally {
+        invalidate();
+    }
+};
+
 // Paginated response shape from backend
 export interface PaginatedResult<T> {
     items: T[];
@@ -310,6 +344,33 @@ export interface TradeSummary {
     action_required_count: number;
     awaiting_counterparty_count: number;
     confirmed_count: number;
+}
+
+export interface OrderbookProductCounts {
+    counts: Record<MarketProduct, number>;
+    total: number;
+}
+
+export interface MapRecentAsk {
+    product_id: string;
+    product_name: string;
+    market_product: MarketProduct | string;
+    fuel_type: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    price_per_mt_usd: number | string;
+    remaining_quantity_mt: number | string;
+    created_at: string;
+    evidence_class: string;
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
+}
+
+export interface MapOrderbookSummary {
+    groups: AggregatedOrderbook[];
+    recent_asks: MapRecentAsk[];
 }
 
 export type ProductUsagePeriod = 7 | 30 | 90;
@@ -522,9 +583,11 @@ export const api = {
 
     ports: {
         list: async (): Promise<Port[]> => {
-            const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
-            const data = await handleResponse(res);
-            return data.map(mapPortResponse);
+            return cachedRead('ports:list', 'public', READ_CACHE_TTL_MS.reference, async () => {
+                const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
+                const data = await handleResponse(res);
+                return data.map(mapPortResponse);
+            });
         },
         getById: async (id: string): Promise<Port | undefined> => {
             const res = await fetchWithTimeout(`${API_URL}/ports/${id}`, { headers: getHeaders() });
@@ -724,16 +787,16 @@ export const api = {
     },
 
     catalog: {
-        products: async (): Promise<Product[]> => {
-            return fetchApi('/catalog/products', { headers: getHeaders() });
+        products: async (cacheOptions?: ReadCacheOptions): Promise<Product[]> => {
+            return readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
         },
-        deliveryPoints: async (): Promise<DeliveryPoint[]> => {
-            return fetchApi('/catalog/delivery-points', { headers: getHeaders() });
+        deliveryPoints: async (cacheOptions?: ReadCacheOptions): Promise<DeliveryPoint[]> => {
+            return readApi('catalog:delivery-points', '/catalog/delivery-points', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
         },
     },
 
     orderbook: {
-        listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }) => {
+        listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -741,9 +804,10 @@ export const api = {
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.side) searchParams.append('side', params.side);
             const query = searchParams.toString();
-            return fetchApi(`/orderbook/with-ci${query ? `?${query}` : ''}`);
+            const path = `/orderbook/with-ci${query ? `?${query}` : ''}`;
+            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        list: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }) => {
+        list: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -752,10 +816,11 @@ export const api = {
             if (params?.side) searchParams.append('side', params.side);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
-            return fetchApi(`/orderbook${query ? `?${query}` : ''}`);
+            const path = `/orderbook${query ? `?${query}` : ''}`;
+            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
-        listBids: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listBids: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -763,11 +828,12 @@ export const api = {
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
-            const res = await fetchApi(`/orderbook/bids?${searchParams.toString()}`);
+            const path = `/orderbook/bids?${searchParams.toString()}`;
+            const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -777,10 +843,11 @@ export const api = {
             if (params?.sort_by) searchParams.append('sort_by', params.sort_by);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/orderbook/bids?${searchParams.toString()}`);
+            const path = `/orderbook/bids?${searchParams.toString()}`;
+            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
         // Backward-compatible: returns array
-        listAsks: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }) => {
+        listAsks: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -788,11 +855,12 @@ export const api = {
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.availability) searchParams.append('availability_window', params.availability);
             searchParams.append('limit', '100');
-            const res = await fetchApi(`/orderbook/asks?${searchParams.toString()}`);
+            const path = `/orderbook/asks?${searchParams.toString()}`;
+            const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
             return res.items ?? res;
         },
         // Paginated: returns { items, total, skip, limit }
-        listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }): Promise<PaginatedResult<any>> => {
+        listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
             if (params?.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
@@ -802,10 +870,12 @@ export const api = {
             if (params?.sort_by) searchParams.append('sort_by', params.sort_by);
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/orderbook/asks?${searchParams.toString()}`);
+            const path = `/orderbook/asks?${searchParams.toString()}`;
+            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        myOrders: async () => {
-            return fetchApi('/orderbook/my', { headers: getHeaders() });
+        myOrders: async (cacheOptions?: ReadCacheOptions) => {
+            const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
+            return response.items ?? response;
         },
         create: async (data: {
             side: string;
@@ -820,7 +890,7 @@ export const api = {
             expires_at?: string;
         } & { idempotency_key?: string }) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return fetchApi('/orderbook', {
+            return mutateApi(invalidateTradeExecutionReads, '/orderbook', {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
@@ -830,7 +900,7 @@ export const api = {
             });
         },
         update: async (id: string, data: any) => {
-            return fetchApi(`/orderbook/${id}`, {
+            return mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
@@ -844,7 +914,7 @@ export const api = {
                     'MARKET_SUPPORT_ETAG_REQUIRED',
                 );
             }
-            return fetchApi(`/orderbook/${id}/cancel`, {
+            return mutateApi(invalidateMarketReads, `/orderbook/${id}/cancel`, {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
@@ -853,19 +923,38 @@ export const api = {
                 body: JSON.stringify({ reason: options?.reason?.trim() || 'User requested cancellation' }),
             });
         },
-        aggregated: async () => {
-            return fetchApi('/orderbook/aggregated');
+        aggregated: async (cacheOptions?: ReadCacheOptions): Promise<AggregatedOrderbook[]> => {
+            return readApi('orderbook:aggregated', '/orderbook/aggregated', 'market', 'private', undefined, cacheOptions);
         },
         regions: async () => {
-            return fetchApi('/orderbook/regions');
+            return readApi('orderbook:regions', '/orderbook/regions', 'reference');
         },
         fuelTypes: async () => {
-            return fetchApi('/orderbook/fuel-types');
+            return readApi('orderbook:fuel-types', '/orderbook/fuel-types', 'reference');
+        },
+        productCounts: async (params: {
+            side: 'ASK' | 'BID';
+            delivery_point_id?: string;
+            region?: string;
+            availability_window?: string;
+            include_off_spec?: boolean;
+        }, cacheOptions?: ReadCacheOptions): Promise<OrderbookProductCounts> => {
+            const searchParams = new URLSearchParams({ side: params.side });
+            if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
+            if (params.region) searchParams.append('region', params.region);
+            if (params.availability_window) searchParams.append('availability_window', params.availability_window);
+            if (params.include_off_spec !== undefined) searchParams.append('include_off_spec', String(params.include_off_spec));
+            const path = `/orderbook/product-counts?${searchParams.toString()}`;
+            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
+        },
+        mapSummary: async (cacheOptions?: ReadCacheOptions): Promise<MapOrderbookSummary> => {
+            const path = '/orderbook/map-summary';
+            return readApi(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
         },
     },
 
     prices: {
-        getSummaries: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; hours?: number }): Promise<PriceDiscoveryResponse> => {
+        getSummaries: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; hours?: number }, cacheOptions?: ReadCacheOptions): Promise<PriceDiscoveryResponse> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -875,9 +964,10 @@ export const api = {
             if (params?.region) searchParams.append('region', params.region);
             if (params?.hours) searchParams.append('hours', String(params.hours));
             const query = searchParams.toString();
-            return fetchApi(`/prices${query ? `?${query}` : ''}`);
+            const path = `/prices${query ? `?${query}` : ''}`;
+            return readApi(`prices:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, cacheOptions?: ReadCacheOptions): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -889,14 +979,15 @@ export const api = {
             if (params?.date_from) searchParams.append('date_from', params.date_from);
             if (params?.date_to) searchParams.append('date_to', params.date_to);
             const query = searchParams.toString();
-            return fetchApi(`/prices/reference${query ? `?${query}` : ''}`);
+            const path = `/prices/reference${query ? `?${query}` : ''}`;
+            return readApi(`prices:${path}`, path, 'reference', 'private', undefined, cacheOptions);
         },
     },
 
     trades: {
         initiate: async (data: { order_id: string; quantity_mt: number } & { idempotency_key?: string }) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return fetchApi('/trades/', {
+            return mutateApi(invalidateTradeExecutionReads, '/trades/', {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
@@ -906,12 +997,12 @@ export const api = {
             });
         },
         // Backward-compatible: returns array
-        myTrades: async () => {
-            const res = await fetchApi('/trades/my', { headers: getHeaders() });
+        myTrades: async (cacheOptions?: ReadCacheOptions) => {
+            const res: any = await readApi('trades:my', '/trades/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
             return res.items ?? res;
         },
-        summary: async (): Promise<TradeSummary> => {
-            return fetchApi('/trades/summary', { headers: getHeaders() });
+        summary: async (cacheOptions?: ReadCacheOptions): Promise<TradeSummary> => {
+            return readApi('trades:summary', '/trades/summary', 'private', 'private', { headers: getHeaders() }, cacheOptions);
         },
         // Paginated: returns { items, total, skip, limit }
         myTradesPaged: async (params?: {
@@ -919,7 +1010,7 @@ export const api = {
             limit?: number;
             action_required?: boolean;
             status_group?: 'all' | 'active' | 'completed';
-        }): Promise<PaginatedResult<any>> => {
+        }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
             const searchParams = new URLSearchParams();
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
@@ -929,29 +1020,30 @@ export const api = {
             if (params?.status_group) {
                 searchParams.append('status_group', params.status_group);
             }
-            return fetchApi(`/trades/my?${searchParams.toString()}`, { headers: getHeaders() });
+            const path = `/trades/my?${searchParams.toString()}`;
+            return readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions);
         },
         confirm: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/confirm`, {
+            return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
                 method: 'PUT',
                 headers: getHeaders(),
             });
         },
         decline: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/decline`, {
+            return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
                 method: 'PUT',
                 headers: getHeaders(),
             });
         },
         deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }) => {
-            return fetchApi(`/trades/${tradeId}/deliver`, {
+            return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
             });
         },
         pay: async (tradeId: string) => {
-            return fetchApi(`/trades/${tradeId}/pay`, {
+            return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
                 method: 'POST',
                 headers: getHeaders(),
             });
@@ -1108,56 +1200,62 @@ export const api = {
                 organization: raw?.organization,
             };
         },
-        start: (input: MarketSupportStartInput): Promise<MarketSupportSession> =>
-            fetchApi('/admin/market-support/contexts', {
+        start: (input: MarketSupportStartInput): Promise<MarketSupportSession> => {
+            return mutateApi(() => invalidateReadCache(), '/admin/market-support/contexts', {
                 method: 'POST',
                 body: JSON.stringify({
                     organization_id: input.organizationId,
                     support_reference: input.supportReference,
                     confirm_replacement: input.replaceActive ?? false,
                 }),
-            }),
+            });
+        },
         active: (): Promise<MarketSupportSession | null> =>
             fetchApi('/admin/market-support/contexts/active'),
         getContext: (contextId: string): Promise<MarketSupportSession> =>
             fetchApi(`/admin/market-support/contexts/${contextId}`),
-        exit: (contextId: string): Promise<void> =>
-            fetchApi(`/admin/market-support/contexts/${contextId}/exit`, { method: 'POST' }),
+        exit: (contextId: string): Promise<void> => {
+            return mutateApi(() => invalidateReadCache(), `/admin/market-support/contexts/${contextId}/exit`, { method: 'POST' });
+        },
     },
 
     curves: {
-        forward: async (params: { product_id: string; delivery_point_id?: string }): Promise<import('../types').ForwardCurveResponse> => {
+        forward: async (params: { product_id: string; delivery_point_id?: string }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveResponse> => {
             const searchParams = new URLSearchParams();
             searchParams.append('product_id', params.product_id);
             if (params.delivery_point_id) searchParams.append('delivery_point_id', params.delivery_point_id);
-            return fetchApi(`/curves/forward?${searchParams.toString()}`);
+            const path = `/curves/forward?${searchParams.toString()}`;
+            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        board: async (params?: { availability_window?: string; focus_market_product?: string; focus_delivery_point_id?: string }): Promise<import('../types').ForwardCurveBoardResponse> => {
+        board: async (params?: { availability_window?: string; focus_market_product?: string; focus_delivery_point_id?: string }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveBoardResponse> => {
             const searchParams = new URLSearchParams();
             if (params?.availability_window) searchParams.append('availability_window', params.availability_window);
             if (params?.focus_market_product) searchParams.append('focus_market_product', params.focus_market_product);
             if (params?.focus_delivery_point_id) searchParams.append('focus_delivery_point_id', params.focus_delivery_point_id);
             const query = searchParams.toString();
-            return fetchApi(`/curves/forward/board${query ? `?${query}` : ''}`);
+            const path = `/curves/forward/board${query ? `?${query}` : ''}`;
+            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        table: async (params?: { windows?: string[] }): Promise<import('../types').ForwardCurveTableResponse> => {
+        table: async (params?: { windows?: string[] }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveTableResponse> => {
             const searchParams = new URLSearchParams();
             params?.windows?.forEach(window => {
                 if (window) searchParams.append('windows', window);
             });
             const query = searchParams.toString();
-            return fetchApi(`/curves/forward/table${query ? `?${query}` : ''}`);
+            const path = `/curves/forward/table${query ? `?${query}` : ''}`;
+            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
         slice: async (params: {
             market_product: string;
             delivery_point_id: string;
             availability_window: string;
-        }): Promise<import('../types').ForwardCurveSliceResponse> => {
+        }, cacheOptions?: ReadCacheOptions): Promise<import('../types').ForwardCurveSliceResponse> => {
             const searchParams = new URLSearchParams();
             searchParams.append('market_product', params.market_product);
             searchParams.append('delivery_point_id', params.delivery_point_id);
             searchParams.append('availability_window', params.availability_window);
-            return fetchApi(`/curves/forward/slice?${searchParams.toString()}`);
+            const path = `/curves/forward/slice?${searchParams.toString()}`;
+            return readApi(`curves:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
         exportCsvUrl: (product_id: string, delivery_point_id?: string): string => {
             const searchParams = new URLSearchParams();
@@ -1194,14 +1292,14 @@ export const api = {
     },
 
     subscriptions: {
-        me: async (): Promise<import('../types').Subscription> => {
-            return fetchApi('/subscriptions/me', { headers: getHeaders() });
+        me: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').Subscription> => {
+            return readApi('subscriptions:me', '/subscriptions/me', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
         },
     },
 
     fleetIntelligence: {
-        get: async (): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
-            return fetchApi('/fleet-intelligence', { headers: getHeaders() });
+        get: async (cacheOptions?: ReadCacheOptions): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
+            return readApi('fleet-intelligence:get', '/fleet-intelligence', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
         },
     },
 
@@ -1244,7 +1342,7 @@ export const api = {
     },
 
     tradeTape: {
-        list: async (params?: { fuel_type?: string; market_product?: string; delivery_point_id?: string; region?: string; availability_window?: string; limit?: number; skip?: number }) => {
+        list: async (params?: { fuel_type?: string; market_product?: string; delivery_point_id?: string; region?: string; availability_window?: string; limit?: number; skip?: number }, cacheOptions?: ReadCacheOptions) => {
             const sp = new URLSearchParams();
             if (params?.fuel_type) sp.append('fuel_type', params.fuel_type);
             if (params?.market_product) sp.append('market_product', params.market_product);
@@ -1253,50 +1351,54 @@ export const api = {
             if (params?.availability_window) sp.append('availability_window', params.availability_window);
             sp.append('limit', String(params?.limit ?? 20));
             sp.append('skip', String(params?.skip ?? 0));
-            return fetchApi(`/trade-tape?${sp.toString()}`);
+            const path = `/trade-tape?${sp.toString()}`;
+            return readApi(`trades:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
     },
 
     watchlists: {
-        list: async () => fetchApi('/watchlists', { headers: getHeaders() }),
-        getRadar: async (): Promise<import('../types').WatchlistSummary> => {
-            return fetchApi('/watchlists/me', { method: 'POST', headers: getHeaders() });
+        list: async (cacheOptions?: ReadCacheOptions) => readApi('watchlists:list', '/watchlists', 'private', 'private', { headers: getHeaders() }, cacheOptions),
+        getRadar: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').WatchlistSummary> => {
+            return readApi('watchlists:radar', '/watchlists/me', 'private', 'private', { method: 'POST', headers: getHeaders() }, cacheOptions);
         },
-        create: async (name: string) => fetchApi('/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) }),
+        create: async (name: string) => {
+            return mutateApi(invalidateWatchlistReads, '/watchlists', { method: 'POST', headers: getHeaders(), body: JSON.stringify({ name }) });
+        },
         createSliceTarget: async (watchlistId: string, data: { market_product_code: MarketProduct; delivery_point_id: string; availability_window_code: string }): Promise<import('../types').WatchlistTarget> => {
-            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/targets`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({ target_type: 'SLICE', ...data }),
             });
         },
         createPinTarget: async (watchlistId: string, orderId: string): Promise<import('../types').WatchlistTarget> => {
-            return fetchApi(`/watchlists/${watchlistId}/targets`, {
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/targets`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify({ target_type: 'PIN', order_id: orderId }),
             });
         },
         removeTarget: async (watchlistId: string, targetId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/targets/${targetId}`, { method: 'DELETE', headers: getHeaders() });
         },
-        listEvents: async (watchlistId: string, params?: { cursor?: string; limit?: number }): Promise<import('../types').WatchlistEventsPage> => {
+        listEvents: async (watchlistId: string, params?: { cursor?: string; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<import('../types').WatchlistEventsPage> => {
             const sp = new URLSearchParams();
             if (params?.cursor) sp.append('cursor', params.cursor);
             sp.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/watchlists/${watchlistId}/events?${sp.toString()}`, { headers: getHeaders() });
+            const path = `/watchlists/${watchlistId}/events?${sp.toString()}`;
+            return readApi(`watchlists:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions);
         },
         markEventRead: async (watchlistId: string, eventId: string): Promise<import('../types').WatchlistEvent> => {
-            return fetchApi(`/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/events/${eventId}`, { method: 'PATCH', headers: getHeaders() });
         },
         addEntry: async (watchlistId: string, data: { product_id: string; delivery_point_id?: string }) => {
-            return fetchApi(`/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/entries`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
         },
         removeEntry: async (watchlistId: string, entryId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}/entries/${entryId}`, { method: 'DELETE', headers: getHeaders() });
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}/entries/${entryId}`, { method: 'DELETE', headers: getHeaders() });
         },
         delete: async (watchlistId: string) => {
-            return fetchApi(`/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
+            return mutateApi(invalidateWatchlistReads, `/watchlists/${watchlistId}`, { method: 'DELETE', headers: getHeaders() });
         },
     },
 

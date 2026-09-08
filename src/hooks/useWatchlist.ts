@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '../services/api';
 import type { MarketProduct, WatchlistEvent, WatchlistSummary } from '../types';
@@ -15,6 +15,7 @@ interface UseWatchlistResult {
     radar: WatchlistSummary | null;
     events: WatchlistEvent[];
     loading: boolean;
+    refreshing: boolean;
     error: string | null;
     trackedSliceKeys: Set<string>;
     pinnedOrderIds: Set<string>;
@@ -33,35 +34,61 @@ export function useWatchlist(): UseWatchlistResult {
     const [events, setEvents] = useState<WatchlistEvent[]>([]);
     const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const hasLoadedRef = useRef(false);
+    const requestIdRef = useRef(0);
+    const loadMoreRequestIdRef = useRef(0);
+    const radarRef = useRef(radar);
+    const nextCursorRef = useRef(nextCursor);
+    radarRef.current = radar;
+    nextCursorRef.current = nextCursor;
 
-    const refresh = useCallback(async () => {
+    const load = useCallback(async (forceRefresh = false) => {
+        const requestId = ++requestIdRef.current;
+        loadMoreRequestIdRef.current += 1;
         if (isMarketSupportActive) {
             setRadar(null);
             setEvents([]);
             setNextCursor(null);
             setError(null);
             setLoading(false);
+            setRefreshing(false);
+            hasLoadedRef.current = true;
             return;
         }
-        setLoading(true);
+        if (hasLoadedRef.current) setRefreshing(true);
+        else setLoading(true);
         setError(null);
         try {
-            const summary = await api.watchlists.getRadar();
+            const cacheOptions = forceRefresh ? { force: true } : undefined;
+            const summary = await api.watchlists.getRadar(cacheOptions);
+            if (requestId !== requestIdRef.current) return;
             setRadar(summary);
-            const page = await api.watchlists.listEvents(summary.id, { limit: 25 });
+            const page = await api.watchlists.listEvents(summary.id, { limit: 25 }, cacheOptions);
+            if (requestId !== requestIdRef.current) return;
             setEvents(page.items);
             setNextCursor(page.next_cursor ?? null);
+            hasLoadedRef.current = true;
         } catch (err) {
+            if (requestId !== requestIdRef.current) return;
             setError(err instanceof Error ? err.message : 'Failed to load Watchlist');
         } finally {
-            setLoading(false);
+            if (requestId === requestIdRef.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
         }
     }, [isMarketSupportActive]);
 
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        void load();
+        return () => {
+            requestIdRef.current += 1;
+        };
+    }, [load]);
+
+    const refresh = useCallback(() => load(true), [load]);
 
     const trackedSliceKeys = useMemo(() => new Set(
         (radar?.slices ?? []).map((slice) => getWatchlistSliceKey(slice)),
@@ -126,7 +153,17 @@ export function useWatchlist(): UseWatchlistResult {
 
     const loadMoreEvents = useCallback(async () => {
         if (isMarketSupportActive || !radar || !nextCursor) return;
-        const page = await api.watchlists.listEvents(radar.id, { cursor: nextCursor, limit: 25 });
+        const requestId = requestIdRef.current;
+        const loadMoreRequestId = ++loadMoreRequestIdRef.current;
+        const radarId = radar.id;
+        const cursor = nextCursor;
+        const page = await api.watchlists.listEvents(radarId, { cursor, limit: 25 });
+        if (
+            requestId !== requestIdRef.current
+            || loadMoreRequestId !== loadMoreRequestIdRef.current
+            || radarRef.current?.id !== radarId
+            || nextCursorRef.current !== cursor
+        ) return;
         setEvents((current) => [...current, ...page.items]);
         setNextCursor(page.next_cursor ?? null);
     }, [isMarketSupportActive, radar, nextCursor]);
@@ -135,6 +172,7 @@ export function useWatchlist(): UseWatchlistResult {
         radar,
         events,
         loading,
+        refreshing,
         error,
         trackedSliceKeys,
         pinnedOrderIds,
