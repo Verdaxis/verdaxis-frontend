@@ -5,6 +5,7 @@ import { useWatchlist } from '../hooks/useWatchlist';
 import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget, getWatchlistEventActivity } from '../utils/watchlist';
 import { MarketActivityBadge } from './trading/MarketActivityBadge';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import i18n from '../i18n';
 
@@ -22,6 +23,8 @@ export const WatchlistPage: React.FC = () => {
         markEventRead,
         removeTarget,
     } = useWatchlist();
+
+    useDashboardContentReady('WATCHLISTS', ready && !loading && !error);
 
     const targetLabels = useMemo(() => {
         const labels = new Map<string, string>();
