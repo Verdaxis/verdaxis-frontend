@@ -34,11 +34,8 @@ export const SupplierDemandFeed: React.FC<SupplierDemandFeedProps> = ({ onNaviga
 
     const fetchBids = useCallback(async () => {
         try {
-            const data = await api.orderbook.listBids();
-            const openBids = (Array.isArray(data) ? data : []).filter(
-                (b: OrderBookOrder) => b.status === 'OPEN' || b.status === 'PARTIALLY_FILLED'
-            );
-            setBids(openBids.slice(0, 5));
+            const page = await api.orderbook.listBidsPaged({ skip: 0, limit: 5 });
+            setBids(page.items);
         } catch {
             // Silently fail — demand feed is non-critical
         } finally {
