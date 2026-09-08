@@ -260,6 +260,23 @@ describe('Marketplace green fuels surface', () => {
     expect(productCounts).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
   });
 
+  it('keeps valid listings visible after a refresh error and resets them for a new filter', async () => {
+    renderWithProviders(<Marketplace />);
+    expect(await screen.findByRole('button', { name: /lift ask/i })).toBeTruthy();
+
+    listAsksPaged.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Refresh unavailable');
+    expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+
+    listAsksPaged.mockRejectedValueOnce(new Error('Changed filter unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: /^e-Methanol/i }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Changed filter unavailable');
+    expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
+  });
+
   it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
     await i18n.changeLanguage('zh');
     const backendError = new Error('Sensitive backend diagnostic in English');
@@ -522,6 +539,25 @@ describe('Marketplace green fuels surface', () => {
     expect(myListingsRefresh).toBeTruthy();
     fireEvent.click(myListingsRefresh as HTMLButtonElement);
     await waitFor(() => expect(myOrders).toHaveBeenLastCalledWith({ force: true }));
+  });
+
+  it('forces My Listings after the order placement modal closes from that tab', async () => {
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+    await waitFor(() => expect(myOrders).toHaveBeenCalled());
+
+    const placeOrder = document.querySelector('[data-tour="marketplace-primary-action"]');
+    expect(placeOrder).toBeTruthy();
+    fireEvent.click(placeOrder as HTMLButtonElement);
+    await waitFor(() => expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ isOpen: true, onClose: expect.any(Function) }),
+    ));
+    const modalProps = orderPlaceModalSpy.mock.calls.at(-1)?.[0] as { onClose: () => void };
+    myOrders.mockClear();
+
+    act(() => modalProps.onClose());
+
+    await waitFor(() => expect(myOrders).toHaveBeenCalledWith({ force: true }));
   });
 
   it('shows a filtered empty state in My Listings when account orders exist outside the active slice', async () => {
