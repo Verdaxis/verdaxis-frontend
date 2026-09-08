@@ -13,6 +13,8 @@ type Role = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 const {
   authControl,
   notificationsControl,
+  supportControl,
+  mapLifecycle,
   listAsksPaged,
   listBidsPaged,
   listAsks,
@@ -56,6 +58,15 @@ const {
         unreadCount: 0,
       },
     },
+    supportControl: {
+      current: {
+        context: null as any,
+        isLoading: false as boolean,
+        isActive: false as boolean,
+        exit: async () => undefined,
+      },
+    },
+    mapLifecycle: { mounts: 0, unmounts: 0 },
     listAsksPaged: vi.fn(),
     listBidsPaged: vi.fn(),
     listAsks: vi.fn(),
@@ -80,6 +91,11 @@ vi.mock('../context/TutorialContext', () => ({
 vi.mock('../context/NotificationContext', () => ({
   useNotifications: () => notificationsControl.current,
   NotificationProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock('../context/MarketSupportContext', () => ({
+  useMarketSupport: () => supportControl.current,
+  MarketSupportProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
@@ -111,13 +127,22 @@ vi.mock('../components/WatchlistPage', () => ({ WatchlistPage: () => <div data-t
 vi.mock('../components/Compliance', () => ({ Compliance: () => <div data-testid="page-compliance" /> }));
 vi.mock('../components/admin/AdminDashboard', () => ({ AdminDashboard: () => <div data-testid="page-admin" /> }));
 vi.mock('../components/BuyerMap', () => ({
-  BuyerMap: ({ onPortSelect }: { onPortSelect: (port: { id: string; name: string }) => void }) => (
-    <div data-testid="page-map">
-      <button type="button" onClick={() => onPortSelect({ id: 'port-sg', name: 'Singapore' })}>
-        select-singapore
-      </button>
-    </div>
-  ),
+  BuyerMap: ({ active, onPortSelect }: { active: boolean; onPortSelect: (port: { id: string; name: string }) => void }) => {
+    const [filter, setFilter] = React.useState('all-products');
+    React.useEffect(() => {
+      mapLifecycle.mounts += 1;
+      return () => { mapLifecycle.unmounts += 1; };
+    }, []);
+    return (
+      <div data-active={active} data-testid="page-map">
+        <span data-testid="map-filter">{filter}</span>
+        <button type="button" onClick={() => setFilter('bio-methanol')}>select-map-filter</button>
+        <button type="button" onClick={() => onPortSelect({ id: 'port-sg', name: 'Singapore' })}>
+          select-singapore
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock('../hooks/useWatchlist', () => ({
@@ -207,6 +232,14 @@ describe('app routing', () => {
     localStorage.clear();
     sessionStorage.clear();
     window.__VERDAXIS_NAV_METRICS__ = [];
+    mapLifecycle.mounts = 0;
+    mapLifecycle.unmounts = 0;
+    supportControl.current = {
+      context: null,
+      isLoading: false,
+      isActive: false,
+      exit: async () => undefined,
+    };
     setRole('BUYER');
     notificationsControl.current = {
       notifications: [],
@@ -467,6 +500,79 @@ describe('app routing', () => {
   });
 
   describe('map → marketplace handoff', () => {
+    it('keeps one visited map mounted, hidden and inert across away/back navigation', async () => {
+      renderApp('/app/map');
+      await screen.findByTestId('page-map');
+      fireEvent.click(screen.getByText('select-map-filter'));
+      expect(screen.getByTestId('map-filter').textContent).toBe('bio-methanol');
+      expect(mapLifecycle.mounts).toBe(1);
+
+      fireEvent.click(document.querySelector('[data-tour="nav-DASHBOARD"]') as HTMLElement);
+      await screen.findByTestId('page-buyer-dashboard');
+      const retainedMap = screen.getByTestId('persistent-map') as HTMLDivElement;
+      expect(retainedMap.hidden).toBe(true);
+      expect(retainedMap.getAttribute('aria-hidden')).toBe('true');
+      expect(retainedMap.hasAttribute('inert')).toBe(true);
+      expect(screen.getByTestId('page-map').getAttribute('data-active')).toBe('false');
+      expect(mapLifecycle.unmounts).toBe(0);
+
+      fireEvent.click(document.querySelector('[data-tour="nav-MAP"]') as HTMLElement);
+      await waitFor(() => expect(currentPathname()).toBe('/app/map'));
+      expect(retainedMap.hidden).toBe(false);
+      expect(screen.getByTestId('map-filter').textContent).toBe('bio-methanol');
+      expect(screen.getByTestId('page-map').getAttribute('data-active')).toBe('true');
+      expect(mapLifecycle.mounts).toBe(1);
+    });
+
+    it('discards the retained map when account, organization or assisted context changes', async () => {
+      const view = renderApp('/app/map');
+      await screen.findByTestId('page-map');
+      fireEvent.click(screen.getByText('select-map-filter'));
+      fireEvent.click(document.querySelector('[data-tour="nav-DASHBOARD"]') as HTMLElement);
+      await screen.findByTestId('page-buyer-dashboard');
+
+      authControl.current = {
+        ...authControl.current,
+        user: { ...authControl.current.user!, organization_id: 'org-2' },
+      };
+      view.rerender(buildApp('/app/home'));
+      await waitFor(() => expect(mapLifecycle.unmounts).toBe(1));
+
+      fireEvent.click(document.querySelector('[data-tour="nav-MAP"]') as HTMLElement);
+      await screen.findByTestId('page-map');
+      expect(screen.getByTestId('map-filter').textContent).toBe('all-products');
+      expect(mapLifecycle.mounts).toBe(2);
+
+      fireEvent.click(document.querySelector('[data-tour="nav-DASHBOARD"]') as HTMLElement);
+      await screen.findByTestId('page-buyer-dashboard');
+      authControl.current = {
+        ...authControl.current,
+        user: { ...authControl.current.user!, id: 'user-2' },
+      };
+      view.rerender(buildApp('/app/home'));
+      await waitFor(() => expect(mapLifecycle.unmounts).toBe(2));
+
+      fireEvent.click(document.querySelector('[data-tour="nav-MAP"]') as HTMLElement);
+      await screen.findByTestId('page-map');
+      expect(mapLifecycle.mounts).toBe(3);
+      fireEvent.click(document.querySelector('[data-tour="nav-DASHBOARD"]') as HTMLElement);
+      await screen.findByTestId('page-buyer-dashboard');
+      supportControl.current = {
+        context: {
+          id: 'support-1',
+          organization: { type: 'REAL' },
+          actor: { name: 'Support Admin' },
+          supportReference: 'CASE-1',
+          expiresAt: '2026-09-09T00:00:00Z',
+        },
+        isLoading: false,
+        isActive: true,
+        exit: async () => undefined,
+      };
+      view.rerender(buildApp('/app/home'));
+      await waitFor(() => expect(mapLifecycle.unmounts).toBe(3));
+    });
+
     it('carries the selected port through router state', async () => {
       renderApp('/app/map');
       fireEvent.click(await screen.findByText('select-singapore'));
@@ -541,23 +647,27 @@ describe('app routing', () => {
       expect(aside.className).toContain('-translate-x-full');
     });
 
-    it('records nav metrics on sidebar navigation', async () => {
+    it('does not complete nav metrics at route commit alone', async () => {
       renderApp('/app/home');
       await screen.findByTestId('page-buyer-dashboard');
 
       fireEvent.click(document.querySelector('[data-tour="nav-TRADES"]') as HTMLElement);
       await screen.findByTestId('page-trades');
 
-      await waitFor(() => {
-        expect(window.__VERDAXIS_NAV_METRICS__).toEqual(expect.arrayContaining([
-          expect.objectContaining({ fromPage: 'DASHBOARD', toPage: 'TRADES', viewMode: 'BUYER' }),
-        ]));
-      });
+      expect(window.__VERDAXIS_NAV_METRICS__).toEqual([]);
       expect(sessionStorage.getItem('verdaxis_currentPage')).toBe('TRADES');
     });
   });
 
   describe('login redirect', () => {
+    it('does not mount the authenticated map on the login route', async () => {
+      setRole('BUYER', false);
+      renderApp('/login');
+      await waitFor(() => expect(currentPathname()).toBe('/login'));
+      expect(mapLifecycle.mounts).toBe(0);
+      expect(screen.queryByTestId('persistent-map')).toBeNull();
+    });
+
     it('returns to the denied deep link after authentication (auto-redirect site)', async () => {
       setRole('BUYER', false);
       const entry = '/app/m/bio-methanol/singapore/spot';

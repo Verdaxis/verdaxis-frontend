@@ -14,6 +14,7 @@ import { formatMarketProduct } from '../../utils/marketProduct';
 import { filterApprovedTradingPorts } from '../../utils/tradingPorts';
 
 interface MarketWatchTickerProps {
+    active?: boolean;
     isPanelOpen: boolean;
     onOpenPanel: () => void;
     ports?: Port[];
@@ -189,6 +190,7 @@ const buildSummaryRow = (port: Port, product: MarketProduct, summary: PriceSumma
 };
 
 export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
+    active = true,
     isPanelOpen,
     onOpenPanel,
     ports,
@@ -235,6 +237,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
     }, [availablePorts, defaultPreferences, setPreferences]);
 
     useEffect(() => {
+        if (!active || deliveryPoints !== null) return;
         let cancelled = false;
         const loadDeliveryPoints = async () => {
             try {
@@ -252,10 +255,10 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [active, deliveryPoints]);
 
     useEffect(() => {
-        if (!editorOpen) return;
+        if (!active || !editorOpen) return;
 
         const handlePointerDown = (event: PointerEvent) => {
             const target = event.target as Node;
@@ -278,7 +281,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
             window.removeEventListener('pointerdown', handlePointerDown);
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [closeEditor, editorOpen]);
+    }, [active, closeEditor, editorOpen]);
 
     const selectedPorts = useMemo(() => preferences.portIds
         .map(portId => availablePorts.find(port => port.id === portId))
@@ -290,6 +293,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
     const demoQuotes = useMemo(() => buildDemoMarketQuotes(aggregatedData), [aggregatedData]);
 
     useEffect(() => {
+        if (!active) return;
         let cancelled = false;
         const loadRows = async () => {
             const slices = selectedPorts.flatMap(port => selectedProducts.map(product => ({ port, product })));
@@ -328,7 +332,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [deliveryPoints, demoQuotes, language, selectedPorts, selectedProducts]);
+    }, [active, deliveryPoints, demoQuotes, language, selectedPorts, selectedProducts]);
 
     const headerStatus: HeaderStatus = useMemo(() => {
         if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
