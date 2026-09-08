@@ -141,6 +141,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const vesselHandlersInstalledRef = useRef(false);
     const currentStyleRef = useRef<string | null>(null);
     const currentLanguageRef = useRef<string | null>(null);
+    const languageIdleHandlerRef = useRef<(() => void) | null>(null);
     const marketLoadGenerationRef = useRef(0);
     const hasActivatedRef = useRef(false);
     const portsRef = useRef(ports);
@@ -427,6 +428,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     useEffect(() => () => {
         const map = mapRef.current;
         if (!map) return;
+        if (languageIdleHandlerRef.current) {
+            map.off('idle', languageIdleHandlerRef.current);
+            languageIdleHandlerRef.current = null;
+        }
         map.remove();
         mapRef.current = null;
         currentStyleRef.current = null;
@@ -445,11 +450,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
         const resizeFrame = requestAnimationFrame(() => map.resize());
         const style = isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
-        let handleLanguageIdle: (() => void) | null = null;
         if (currentLanguageRef.current !== mapLanguage) {
+            if (languageIdleHandlerRef.current) {
+                map.off('idle', languageIdleHandlerRef.current);
+            }
             setMapStyleLoaded(false);
             currentLanguageRef.current = mapLanguage;
-            handleLanguageIdle = () => setMapStyleLoaded(true);
+            const handleLanguageIdle = () => {
+                languageIdleHandlerRef.current = null;
+                setMapStyleLoaded(true);
+            };
+            // The map outlives route visibility. Keep this readiness listener
+            // until Mapbox becomes idle or the map instance is destroyed.
+            languageIdleHandlerRef.current = handleLanguageIdle;
             map.once('idle', handleLanguageIdle);
             map.setLanguage(mapLanguage === 'zh' ? 'zh-Hans' : 'en');
         }
@@ -473,7 +486,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
         return () => {
             cancelAnimationFrame(resizeFrame);
-            if (handleLanguageIdle) map.off('idle', handleLanguageIdle);
         };
     }, [active, isDark, mapLanguage, mapLocale]);
 

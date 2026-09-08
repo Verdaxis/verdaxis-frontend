@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from '@testing-library/react';
 
 import { BuyerMap } from '../components/BuyerMap';
+import i18n from '../i18n';
 import { renderWithProviders } from './test-utils';
 
 const lifecycle = vi.hoisted(() => ({
@@ -10,13 +11,19 @@ const lifecycle = vi.hoisted(() => ({
   constructors: 0,
   removes: 0,
   container: null as HTMLElement | null,
+  contentReady: false,
+  idleHandlers: new Set<() => void>(),
 }));
 
 vi.mock('../hooks/useNamespace', () => ({
   useNamespace: () => ({ ready: lifecycle.ready, t: (key: string) => key }),
 }));
 
-vi.mock('../hooks/useDashboardContentReady', () => ({ useDashboardContentReady: () => undefined }));
+vi.mock('../hooks/useDashboardContentReady', () => ({
+  useDashboardContentReady: (_page: string, ready: boolean) => {
+    lifecycle.contentReady = ready;
+  },
+}));
 vi.mock('../hooks/useSSE', () => ({ useSSE: () => ({ isConnected: false }) }));
 vi.mock('../context/ThemeContext', () => ({ useTheme: () => ({ theme: 'light' }) }));
 vi.mock('../map/addEcaLayers', () => ({
@@ -51,9 +58,15 @@ vi.mock('mapbox-gl', () => {
     getSource() { return undefined; }
     hasImage() { return true; }
     loaded() { return true; }
-    off() {}
-    on() {}
-    once(_event: string, callback: () => void) { callback(); }
+    off(event: string, callback: () => void) {
+      if (event === 'idle') lifecycle.idleHandlers.delete(callback);
+    }
+    on(event: string, callback: () => void) {
+      if (event === 'style.load') callback();
+    }
+    once(event: string, callback: () => void) {
+      if (event === 'idle') lifecycle.idleHandlers.add(callback);
+    }
     remove() { lifecycle.removes += 1; }
     resize() {}
     setLanguage() {}
@@ -79,11 +92,14 @@ vi.mock('mapbox-gl', () => {
 });
 
 describe('BuyerMap retained lifecycle', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
     lifecycle.ready = false;
     lifecycle.constructors = 0;
     lifecycle.removes = 0;
     lifecycle.container = null;
+    lifecycle.contentReady = false;
+    lifecycle.idleHandlers.clear();
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -117,5 +133,29 @@ describe('BuyerMap retained lifecycle', () => {
     expect(lifecycle.constructors).toBe(1);
     expect(lifecycle.removes).toBe(0);
     expect(document.querySelector('.verdaxis-buyer-map')).toBe(loadingContainer);
+  });
+
+  it('finishes deferred language readiness after hide and return', async () => {
+    lifecycle.ready = true;
+    const props = { onPortSelect: vi.fn(), onNavigate: vi.fn() };
+    const view = renderWithProviders(<BuyerMap active {...props} />);
+    await act(async () => { await Promise.resolve(); });
+    expect(lifecycle.contentReady).toBe(true);
+
+    await act(async () => { await i18n.changeLanguage('zh'); });
+    expect(lifecycle.contentReady).toBe(false);
+    expect(lifecycle.idleHandlers.size).toBe(1);
+
+    view.rerender(<BuyerMap active={false} {...props} />);
+    view.rerender(<BuyerMap active {...props} />);
+    expect(lifecycle.contentReady).toBe(false);
+    expect(lifecycle.idleHandlers.size).toBe(1);
+
+    await act(async () => {
+      const handlers = [...lifecycle.idleHandlers];
+      lifecycle.idleHandlers.clear();
+      handlers.forEach(handler => handler());
+    });
+    expect(lifecycle.contentReady).toBe(true);
   });
 });
