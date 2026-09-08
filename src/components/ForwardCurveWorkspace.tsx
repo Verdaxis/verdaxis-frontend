@@ -22,6 +22,7 @@ import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextC
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
 
@@ -659,6 +660,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const [pendingSliceKey, setPendingSliceKey] = useState('');
     const [failedSliceKey, setFailedSliceKey] = useState('');
     const [loadingTable, setLoadingTable] = useState(true);
+    useDashboardContentReady('FORWARD_CURVE', ready && table !== null);
     const [loadingSlice, setLoadingSlice] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const tableRequestIdRef = useRef(0);

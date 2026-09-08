@@ -18,6 +18,7 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { useSSE } from '../hooks/useSSE';
 import { useToast } from './Toast';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { Pagination } from './ui/Pagination';
 import {
     isConfirmedLikeTrade,
@@ -47,6 +48,7 @@ export const MyTrades: React.FC = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
+    useDashboardContentReady('TRADES', ready && !isLoading && hasLoaded);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const requestGeneration = useRef(0);
     const requestScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}`;
