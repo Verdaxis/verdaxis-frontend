@@ -8,6 +8,7 @@ import { ConfirmModal } from './ui/ConfirmModal';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { NeedsAttentionFeed } from './NeedsAttentionFeed';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { MarketRadarPanel } from './watchlist/MarketRadarPanel';
 import { SupplierDemandFeed } from './SupplierDemandFeed';
@@ -51,6 +52,9 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const { context, isActive: isMarketSupportActive } = useMarketSupport();
     const loadGeneration = useRef(0);
     const scopeKey = context?.id ?? 'real-account';
+
+    useDashboardContentReady('DASHBOARD', ready && !loading && !loadError
+        && (isMarketSupportActive || (!radarLoading && !radarError)));
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
