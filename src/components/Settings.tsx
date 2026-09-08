@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ReferralsTab } from './ReferralsTab';
 import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useServerPreference } from '../hooks/useServerPreference';
 import { useTranslation } from 'react-i18next';
 
@@ -95,6 +96,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
     const { theme, setTheme } = useTheme();
     const { user, token, login } = useAuth();
     const { t, ready } = useNamespace('settings');
+    useDashboardContentReady('SETTINGS', ready);
     const { i18n } = useTranslation();
     const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
     const [currentPassword, setCurrentPassword] = useState('');
