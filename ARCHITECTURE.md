@@ -29,6 +29,7 @@ src/
   services/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     ai.ts                          # Supplier risk AI export
@@ -147,9 +148,10 @@ index.html --> index.tsx --> App.tsx
                                      DashboardLayout (layout route)
                                        /    |    \
                                 Layout viewMode <Outlet/> child routes
-                               / |  \                (home, map, marketplace,
+                               / |  \                (home, marketplace,
                         Sidebar Header               m/:product/:port/:window,
                                                      curve, watchlist, ...)
+                                  └─ retained BuyerMap for /app/map after first visit
                                                 |
                                         Backend REST API
 ```
@@ -168,6 +170,19 @@ deep links via `/app/m/:product/:port/:window` (codec in `utils/sliceUrl.ts`; in
 redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
 `sessionStorage.verdaxis_currentPage`. New authenticated views should add a child route plus a
 `Page` value and `PAGE_SLUGS` entry.
+
+**Retained map:** The authenticated layout mounts `BuyerMap` lazily on its first visit and
+keeps it hidden and inert on other routes. Account, organization, or assisted-context changes
+discard the instance. Return navigation resizes it and refreshes market data; offscreen feeds
+pause. The compact map-summary endpoint supplies market groups and recent ASK indications.
+Login does not prefetch either map implementation.
+
+**Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
+Reference data lasts five minutes, market data 15 seconds, and private activity 10 seconds.
+Private scope includes the auth session, accepted user/organization profile, and assisted
+context. Mutations invalidate before and after execution; SSE invalidates affected resources
+before consumers refresh. Superseded requests cannot populate or return another scope's data.
+Page readiness timing waits for usable data and paint, separately from the route commit.
 
 **Desktop-only platform workspace:** The authenticated `/app` route is wrapped in
 `MobileDesktopGate`, which shows a desktop-required notice below 768px. Public marketing,
@@ -269,7 +284,7 @@ camera position, and port popups read the current product's market reference.
 `Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
 availability_window`), `CommandCenter` shows compact radar cards, and `WatchlistPage` persists pinned live
 orders plus the event feed. The frontend API client uses the target/event endpoints directly
-(`GET /watchlists/me`, `POST /watchlists/{id}/targets`, event listing, event read state) rather than
+(`POST /watchlists/me`, `POST /watchlists/{id}/targets`, event listing, event read state) rather than
 legacy product-entry adapters.
 
 **Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
@@ -281,6 +296,8 @@ but mandatory, with `Spot` as the default. Relative labels like `M+1` are displa
 must resolve to canonical month/quarter codes before requests are sent.
 
 **Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
+Password login supplies the sanitized profile to avoid an immediate duplicate `/auth/me`.
+Legacy/OAuth responses without a valid profile retain the `/auth/me` fallback.
 `AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
 while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
 Email links open `/verify-email`, which exchanges the one-time token through a `POST`
