@@ -27,10 +27,11 @@ const FILTER_CATEGORIES = ['all', 'bunkers', 'shipping', 'regulation', 'carbon',
 type FilterCategory = typeof FILTER_CATEGORIES[number];
 
 interface NewsFeedProps {
+    active?: boolean;
     embedded?: boolean;
 }
 
-export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
+export const NewsFeed: React.FC<NewsFeedProps> = ({ active = true, embedded = false }) => {
     const { t, ready } = useNamespace('dashboard');
     const [items, setItems] = useState<NewsItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,18 +65,20 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ embedded = false }) => {
     }, [category]);
 
     useEffect(() => {
+        if (!active) return;
         setItems([]);
         setLoading(true);
         fetchNews();
-    }, [fetchNews]);
+    }, [active, fetchNews]);
 
     // Auto-refresh every 15 minutes for live breaking news
     useEffect(() => {
+        if (!active) return;
         const interval = setInterval(() => {
             fetchNews();
         }, 15 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [fetchNews]);
+    }, [active, fetchNews]);
 
     if (!ready) return null;
 

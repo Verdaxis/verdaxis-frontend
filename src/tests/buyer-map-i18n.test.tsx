@@ -11,16 +11,29 @@ const portsListMock = vi.fn();
 const mapOptionsMock = vi.fn();
 const fitBoundsMock = vi.fn();
 const flyToMock = vi.fn();
+const resizeMock = vi.fn();
+const stopMock = vi.fn();
+const setLanguageMock = vi.fn();
+const setStyleMock = vi.fn();
+const mapSummaryMock = vi.fn();
+const useSSEMock = vi.fn();
+const removeMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
     ports: { list: (...args: unknown[]) => portsListMock(...args) },
     catalog: { deliveryPoints: vi.fn().mockResolvedValue([]) },
     orderbook: {
-      listAsks: vi.fn().mockResolvedValue([]),
-      aggregated: vi.fn().mockResolvedValue([]),
+      mapSummary: (...args: unknown[]) => mapSummaryMock(...args),
     },
     vessels: { list: () => Promise.resolve([]) },
+  },
+}));
+
+vi.mock('../hooks/useSSE', () => ({
+  useSSE: (...args: unknown[]) => {
+    useSSEMock(...args);
+    return { isConnected: false };
   },
 }));
 
@@ -63,7 +76,11 @@ vi.mock('mapbox-gl', () => {
     on() {}
     off() {}
     once(_event: string, callback: () => void) { callback(); }
-    remove() {}
+    resize() { resizeMock(); }
+    setLanguage(...args: unknown[]) { setLanguageMock(...args); }
+    setStyle(...args: unknown[]) { setStyleMock(...args); }
+    stop() { stopMock(); }
+    remove() { removeMock(); }
   }
 
   class MockPopup {
@@ -90,6 +107,19 @@ describe('BuyerMap failure localization', () => {
     mapOptionsMock.mockReset();
     fitBoundsMock.mockReset();
     flyToMock.mockReset();
+    resizeMock.mockReset();
+    stopMock.mockReset();
+    setLanguageMock.mockReset();
+    setStyleMock.mockReset();
+    mapSummaryMock.mockReset();
+    mapSummaryMock.mockResolvedValue({ groups: [], recent_asks: [] });
+    useSSEMock.mockReset();
+    removeMock.mockReset();
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
     portsListMock.mockRejectedValue(new Error('ports unavailable'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     await loadNamespace('dashboard');
@@ -99,6 +129,7 @@ describe('BuyerMap failure localization', () => {
   afterEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     await act(async () => {
       await i18n.changeLanguage('en');
     });
@@ -137,11 +168,67 @@ describe('BuyerMap failure localization', () => {
     expect(screen.queryByText('港口 — 订单量与价差')).toBeNull();
     expect(document.activeElement).toBe(legendButton);
   });
-  it('fits all ports, focuses a chosen port and preserves the camera across language changes', async () => {
-    await i18n.changeLanguage('en');
+
+  it('renders availability and recent prices from the compact map summary', async () => {
+    portsListMock.mockResolvedValue([]);
+    mapSummaryMock.mockResolvedValueOnce({
+      groups: [{
+        product_id: 'bio-methanol',
+        product_name: 'Bio Methanol',
+        market_product: 'BIO_METHANOL',
+        fuel_type: 'Methanol',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        availability_window: 'SPOT',
+        region: 'Singapore',
+        side: 'ASK',
+        min_price: '999',
+        max_price: '999',
+        total_quantity: '1234',
+        order_count: 1,
+      }],
+      recent_asks: [{
+        product_id: 'bio-methanol',
+        product_name: 'Bio Methanol',
+        market_product: 'BIO_METHANOL',
+        fuel_type: 'Methanol',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        region: 'Singapore',
+        price_per_mt_usd: '999',
+        remaining_quantity_mt: '1234',
+        created_at: '2026-09-08T00:00:00Z',
+      }],
+    });
+
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /图层/ }));
+    fireEvent.click(screen.getAllByRole('switch')[1]);
+
+    expect(await screen.findByText('1,234 MT')).toBeTruthy();
+    expect(screen.getByText('$999')).toBeTruthy();
+    expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
+  });
+
+  it('shows a map warning when the compact market summary is unavailable', async () => {
+    portsListMock.mockResolvedValue([]);
+    mapSummaryMock.mockRejectedValueOnce(new Error('market unavailable'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+  });
+
+  it('reuses the map and preserves camera and filters across visibility, language and theme changes', async () => {
+    await i18n.changeLanguage('en');
+    themeMock.theme = 'light';
+    const onPortSelect = vi.fn();
+    const onNavigate = vi.fn();
+    const view = renderWithProviders(<BuyerMap active onPortSelect={onPortSelect} onNavigate={onNavigate} />);
     await screen.findByRole('region', { name: 'Interactive market intelligence map' });
     expect(mapOptionsMock.mock.calls[0][0].bounds).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
     fireEvent.click(screen.getByRole('button', { name: 'All ports' }));
     expect(fitBoundsMock).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ retainPadding: false }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Go to port' }));
@@ -151,9 +238,21 @@ describe('BuyerMap failure localization', () => {
     }));
     expect(flyToMock.mock.calls[0][0].essential).not.toBe(true);
     await act(async () => { await i18n.changeLanguage('zh'); });
-    expect(mapOptionsMock.mock.calls.at(-1)?.[0]).toEqual(expect.objectContaining({
-      center: { lng: 104, lat: 1 }, zoom: 4,
-    }));
+    expect(setLanguageMock).toHaveBeenLastCalledWith('zh-Hans');
+
+    themeMock.theme = 'dark';
+    view.rerender(<BuyerMap active onPortSelect={onPortSelect} onNavigate={onNavigate} />);
+    expect(setStyleMock).toHaveBeenLastCalledWith('mapbox://styles/mapbox/dark-v11');
+    view.rerender(<BuyerMap active={false} onPortSelect={onPortSelect} onNavigate={onNavigate} />);
+    expect(stopMock).toHaveBeenCalledOnce();
+    expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(false);
+    view.rerender(<BuyerMap active onPortSelect={onPortSelect} onNavigate={onNavigate} />);
+    await waitFor(() => expect(resizeMock.mock.calls.length).toBeGreaterThan(1));
+    expect(mapSummaryMock).toHaveBeenNthCalledWith(1, { force: false });
+    expect(mapSummaryMock).toHaveBeenLastCalledWith({ force: true });
+    expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(true);
+    expect(screen.getByRole('button', { name: 'Bio Methanol' }).getAttribute('aria-pressed')).toBe('true');
+    expect(mapOptionsMock).toHaveBeenCalledOnce();
   });
 
 });

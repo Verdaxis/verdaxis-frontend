@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Port, Page, OrderBookOrder, AggregatedOrderbook } from '../types';
+import { Port, Page, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
@@ -18,8 +18,11 @@ import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
+import { useSSE } from '../hooks/useSSE';
 
 interface BuyerMapProps {
+    active?: boolean;
     onPortSelect: (port: Port) => void;
     onNavigate: (page: Page) => void;
     onOrderClick?: (port: Port) => void;
@@ -101,7 +104,9 @@ const LayerSwitch: React.FC<LayerSwitchProps> = ({ checked, description, label, 
     </button>
 );
 
-export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, onOrderClick }) => {
+type MapRecentAsk = Awaited<ReturnType<typeof api.orderbook.mapSummary>>['recent_asks'][number];
+
+export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect, onNavigate, onOrderClick }) => {
     const { t, ready } = useNamespace('dashboard');
     const { i18n } = useTranslation();
     const mapLanguage = (i18n.resolvedLanguage || i18n.language).toLowerCase().split('-')[0] === 'zh' ? 'zh' : 'en';
@@ -109,8 +114,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const translateRef = useRef(t);
     translateRef.current = t;
     const { theme } = useTheme();
-    const [ports, setPorts] = useState<Port[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [ports, setPorts] = useState<Port[]>(() => resolveApprovedMapPorts(APPROVED_MAP_PORTS, [], []));
     const [loadError, setLoadError] = useState(false);
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
@@ -118,42 +122,84 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
     const [showMarketWidgets, setShowMarketWidgets] = useState(false);
     const [showSecaZones, setShowSecaZones] = useState(true);
     const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
-    const [listings, setListings] = useState<OrderBookOrder[]>([]);
+    const [recentAsks, setRecentAsks] = useState<MapRecentAsk[]>([]);
     const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
+    const [mapStyleLoaded, setMapStyleLoaded] = useState(false);
+    const [mapCreated, setMapCreated] = useState(false);
+    const [marketSummaryReady, setMarketSummaryReady] = useState(false);
+    const [marketDataError, setMarketDataError] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
-    const cameraRef = useRef<mapboxgl.CameraOptions | null>(null);
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const popupRef = useRef<mapboxgl.Popup | null>(null);
     const layersMenuRef = useRef<HTMLDivElement>(null);
     const isDark = theme === 'dark' || (theme === 'system' && document.documentElement.classList.contains('dark'));
 
-    // Fetch Ports, Listings, and Aggregated data from Backend
+    const portHandlersInstalledRef = useRef(false);
+    const vesselHandlersInstalledRef = useRef(false);
+    const currentStyleRef = useRef<string | null>(null);
+    const currentLanguageRef = useRef<string | null>(null);
+    const marketLoadGenerationRef = useRef(0);
+    const hasActivatedRef = useRef(false);
+    const portsRef = useRef(ports);
+    portsRef.current = ports;
+    const isDarkRef = useRef(isDark);
+    isDarkRef.current = isDark;
+
+    useDashboardContentReady('MAP', active && mapStyleLoaded && marketSummaryReady);
+
+    // Approved fallback ports let the map render while live reference data loads.
     useEffect(() => {
-        const fetchData = async () => {
+        let cancelled = false;
+        const fetchPorts = async () => {
             try {
-                const [portsData, deliveryPointsData, listingsData, aggData] = await Promise.all([
+                const [portsData, deliveryPointsData] = await Promise.all([
                     api.ports.list(),
                     api.catalog.deliveryPoints().catch(() => []),
-                    api.orderbook.listAsks().catch(() => [] as OrderBookOrder[]),
-                    api.orderbook.aggregated().catch(() => [] as AggregatedOrderbook[]),
                 ]);
-                const approvedPorts = resolveApprovedMapPorts(APPROVED_MAP_PORTS, portsData, deliveryPointsData);
-                setPorts(approvedPorts);
-                setListings(listingsData);
-                setAggregatedData(aggData);
+                if (!cancelled) setPorts(resolveApprovedMapPorts(APPROVED_MAP_PORTS, portsData, deliveryPointsData));
             } catch (e) {
                 console.error("Failed to load map data", e);
-                setPorts(resolveApprovedMapPorts(APPROVED_MAP_PORTS, [], []));
-                setLoadError(true);
-            } finally {
-                setLoading(false);
+                if (!cancelled) setLoadError(true);
             }
         };
-        fetchData();
+
+        void fetchPorts();
+        return () => { cancelled = true; };
     }, []);
+
+    const refreshMarketSummary = useCallback(async (force = false) => {
+        const generation = ++marketLoadGenerationRef.current;
+        try {
+            const summary = await api.orderbook.mapSummary({ force });
+            if (generation !== marketLoadGenerationRef.current) return;
+            setAggregatedData(summary.groups);
+            setRecentAsks(summary.recent_asks);
+            setMarketSummaryReady(true);
+            setMarketDataError(false);
+        } catch (error) {
+            console.warn('Map market summary unavailable', error);
+            if (generation === marketLoadGenerationRef.current) setMarketDataError(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!active) {
+            marketLoadGenerationRef.current += 1;
+            return;
+        }
+        const force = hasActivatedRef.current;
+        hasActivatedRef.current = true;
+        void refreshMarketSummary(force);
+        return () => { marketLoadGenerationRef.current += 1; };
+    }, [active, refreshMarketSummary]);
+
+    const handleOrderbookEvent = useCallback(() => {
+        void refreshMarketSummary(true);
+    }, [refreshMarketSummary]);
+    useSSE('orderbook', handleOrderbookEvent, active, 'buyer-map');
 
     const approvedListingLocationMap = useMemo(() => {
         const map = new Map<string, string>();
@@ -170,20 +216,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return map;
     }, [ports]);
 
-    const approvedListings = useMemo(() => (
-        listings.reduce<OrderBookOrder[]>((approved, listing) => {
+    const approvedAskGroups = useMemo(() => (
+        aggregatedData.reduce<Array<AggregatedOrderbook & { region: string }>>((approved, group) => {
+            if (group.side !== 'ASK') return approved;
             const approvedPortName = [
-                listing.delivery_point_id,
-                listing.delivery_point_name,
-                listing.port_id,
+                group.delivery_point_id,
+                group.delivery_point_name,
+                group.region,
             ].map((value) => approvedListingLocationMap.get(normalizeMarketLocation(value)))
                 .find((value): value is string => Boolean(value));
 
             if (!approvedPortName) return approved;
-            approved.push({ ...listing, region: approvedPortName });
+            approved.push({ ...group, region: approvedPortName });
             return approved;
         }, [])
-    ), [approvedListingLocationMap, listings]);
+    ), [aggregatedData, approvedListingLocationMap]);
 
     const portBounds = useMemo<mapboxgl.LngLatBoundsLike | undefined>(() => {
         if (!ports.length) return undefined;
@@ -233,12 +280,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             });
         }
     }, [mapPadding]);
-
-    const handleMarkerClick = useCallback((portId: string) => {
-        const port = ports.find(item => item.id === portId);
-        if (!port) return;
-        focusMapPort(port);
-    }, [focusMapPort, ports]);
 
     const handlePanelPortSelect = useCallback((port: Port) => {
         focusMapPort(port, { flyTo: true });
@@ -315,33 +356,34 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
-    // Aggregate approved-location listings by region for Fuel Avails (all low-carbon fuels)
+    // Aggregate all eligible ASK groups by approved delivery point.
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
-        approvedListings.forEach(l => {
-            const region = l.region;
-            regionMap[region] = (regionMap[region] || 0) + Number(l.quantity_mt);
+        approvedAskGroups.forEach(group => {
+            regionMap[group.region] = (regionMap[group.region] || 0) + Number(group.total_quantity);
         });
 
         return Object.entries(regionMap)
             .map(([region, qty]) => ({ region, qty }))
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 6);
-    }, [approvedListings]);
+    }, [approvedAskGroups]);
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
-    // Recent listing indications: derive from open listings, not confirmed trades.
+    // Recent listing indications come from the compact, eligible ASK summary.
     const recentListingsByRegion = useMemo(() => {
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
-        approvedListings.forEach(l => {
-            const region = l.region;
-            if (!regionMap[region] || l.created_at > regionMap[region].date) {
+        recentAsks.forEach(ask => {
+            const region = [ask.delivery_point_id, ask.delivery_point_name, ask.region]
+                .map(value => approvedListingLocationMap.get(normalizeMarketLocation(value)))
+                .find((value): value is string => Boolean(value));
+            if (region && (!regionMap[region] || ask.created_at > regionMap[region].date)) {
                 regionMap[region] = {
-                    price: Number(l.price_per_mt_usd),
-                    qty: Number(l.quantity_mt),
-                    date: l.created_at,
-                    fuel: l.fuel_type,
+                    price: Number(ask.price_per_mt_usd),
+                    qty: Number(ask.remaining_quantity_mt),
+                    date: ask.created_at,
+                    fuel: ask.fuel_type,
                 };
             }
         });
@@ -349,39 +391,91 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return Object.entries(regionMap)
             .map(([region, data]) => ({ region, ...data }))
             .slice(0, 6);
-    }, [approvedListings]);
+    }, [approvedListingLocationMap, recentAsks]);
 
     // Map initialization
     useEffect(() => {
-        if (!ready || loading || !mapContainer.current || mapRef.current) return;
+        if (!active || !ready || !mapContainer.current || mapRef.current) return;
+
+        const style = isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
 
         const map = new mapboxgl.Map({
             container: mapContainer.current,
             accessToken: import.meta.env.VITE_MAPBOX_PUBLIC_TOKEN,
-            style: isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11',
+            style,
             projection: 'mercator',
             language: mapLanguage === 'zh' ? 'zh-Hans' : 'en',
-            ...(cameraRef.current ?? {
-                bounds: portBounds,
-                fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
-            }),
+            bounds: portBounds,
+            fitBoundsOptions: { padding: mapPadding(), maxZoom: 3.6, duration: 0, retainPadding: false },
             attributionControl: false,
             locale: mapLocale,
         });
 
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
+        const handleStyleLoad = () => setMapStyleLoaded(true);
+        map.on('style.load', handleStyleLoad);
         mapRef.current = map;
+        currentStyleRef.current = style;
+        currentLanguageRef.current = mapLanguage;
+        setMapCreated(true);
+
+        // Creation is intentionally separate from unmount cleanup. Namespace
+        // and visibility transitions must never destroy the retained map.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [active, ready]);
+
+    useEffect(() => () => {
+        const map = mapRef.current;
+        if (!map) return;
+        map.remove();
+        mapRef.current = null;
+        currentStyleRef.current = null;
+        currentLanguageRef.current = null;
+        portHandlersInstalledRef.current = false;
+        vesselHandlersInstalledRef.current = false;
+    }, []);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        if (!active) {
+            map.stop();
+            return;
+        }
+
+        const resizeFrame = requestAnimationFrame(() => map.resize());
+        const style = isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/light-v11';
+        let handleLanguageIdle: (() => void) | null = null;
+        if (currentLanguageRef.current !== mapLanguage) {
+            setMapStyleLoaded(false);
+            currentLanguageRef.current = mapLanguage;
+            handleLanguageIdle = () => setMapStyleLoaded(true);
+            map.once('idle', handleLanguageIdle);
+            map.setLanguage(mapLanguage === 'zh' ? 'zh-Hans' : 'en');
+        }
+        if (currentStyleRef.current !== style) {
+            setMapStyleLoaded(false);
+            currentStyleRef.current = style;
+            map.setStyle(style);
+        }
+
+        const labels: Array<[string, string]> = [
+            ['.mapboxgl-ctrl-zoom-in', mapLocale['NavigationControl.ZoomIn']],
+            ['.mapboxgl-ctrl-zoom-out', mapLocale['NavigationControl.ZoomOut']],
+            ['.mapboxgl-ctrl-compass', mapLocale['NavigationControl.ResetBearing']],
+            ['.mapboxgl-ctrl-attrib-button', mapLocale['AttributionControl.ToggleAttribution']],
+        ];
+        labels.forEach(([selector, label]) => {
+            const control = mapContainer.current?.querySelector<HTMLElement>(selector);
+            control?.setAttribute('aria-label', label);
+            control?.setAttribute('title', label);
+        });
 
         return () => {
-            cameraRef.current = {
-                center: map.getCenter(), zoom: map.getZoom(),
-                bearing: map.getBearing(), pitch: map.getPitch(),
-            };
-            map.remove();
-            mapRef.current = null;
+            cancelAnimationFrame(resizeFrame);
+            if (handleLanguageIdle) map.off('idle', handleLanguageIdle);
         };
-    }, [ready, loading, mapLocale, theme]);
+    }, [active, isDark, mapLanguage, mapLocale]);
 
     // Keep native navigation below the toolbar when filters wrap or the ticker closes.
     useEffect(() => {
@@ -397,14 +491,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         observer.observe(toolbar);
         positionControls();
         return () => observer.disconnect();
-    }, [ready, loading, showMarketWatch]);
+    }, [ready, showMarketWatch]);
 
     // Port markers layer
     useEffect(() => {
         const map = mapRef.current;
         if (!map || ports.length === 0) return;
-
-        const isDark = theme === 'dark' || (theme === 'system' && document.documentElement.classList.contains('dark'));
 
         const addPortLayers = () => {
 
@@ -444,12 +536,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     source: 'ports',
                     paint: {
                         'circle-radius': ['get', 'radius'],
-                        'circle-color': isDark ? '#1E293B' : '#FFFFFF',
+                        'circle-color': isDarkRef.current ? '#1E293B' : '#FFFFFF',
                         'circle-opacity': 0.85,
                         'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
                         'circle-stroke-color': ['get', 'color'],
                     },
                 });
+
+                if (portHandlersInstalledRef.current) return;
+                portHandlersInstalledRef.current = true;
 
                 // Hover tooltip popup
                 const hoverPopup = new mapboxgl.Popup({
@@ -491,15 +586,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     const translate = translateRef.current;
                     const f = e.features[0];
                     const portId = f.properties.id;
-                    handleMarkerClick(portId);
+                    const port = portsRef.current.find(item => item.id === portId);
+                    if (!port) return;
+                    setSelectedPortId(port.id);
+                    setIsPanelOpen(true);
 
                     // Show popup
                     if (popupRef.current) popupRef.current.remove();
 
                     const mkt = portMarketRef.current[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
-                    const port = ports.find(p => p.id === portId);
-                    if (!port) return;
-
                     // Build popup HTML
                     const fuelRowsHtml = mkt.fuelRows.length > 0
                         ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">'
@@ -563,7 +658,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                         + '</div>'
                         + '</div>';
 
-                    const html = '<div style="width:260px;background:' + (isDark ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
+                    const html = '<div style="width:260px;background:' + (isDarkRef.current ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
                         + '<h3 style="font-family:\'Montserrat\',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.2)">'
                         + escapeHtml(port.name || translate('buyerMap.popup.unknownPort'))
                         + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + escapeHtml(port.country
@@ -585,34 +680,32 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             }
         };
 
+        map.on('style.load', addPortLayers);
         if (map.getSource('ports') || map.loaded()) {
             addPortLayers();
-        } else {
-            map.once('load', addPortLayers);
         }
-        return () => { map.off('load', addPortLayers); };
-    }, [ready, loading, theme, mapLocale, ports, portMarketMap, maxVolume, selectedPortId, handleMarkerClick, t]);
+        return () => { map.off('style.load', addPortLayers); };
+    }, [mapCreated, ready, ports, portMarketMap, maxVolume, selectedPortId]);
 
     // Versioned IMO ECA reference overlay generated from the shared geofence bundle.
     useEffect(() => {
         const map = mapRef.current;
-        if (!map) return;
+        if (!active || !map) return;
 
         const install = () => addEcaLayers(map, {
             isDark,
             visible: showSecaZones,
         });
 
+        map.on('style.load', install);
         if (map.loaded()) {
             install();
-        } else {
-            map.once('load', install);
         }
 
         return () => {
-            map.off('load', install);
+            map.off('style.load', install);
         };
-    }, [ready, theme, isDark, loading, mapLocale, showSecaZones]);
+    }, [active, mapCreated, ready, isDark, showSecaZones]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -626,12 +719,13 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         if (!map) return;
 
         let cancelled = false;
+        let installVessels: (() => void) | null = null;
         const addVessels = async () => {
             try {
                 const vessels = await api.vessels.list();
                 if (cancelled) return;
 
-                const addVesselLayers = () => {
+                installVessels = () => {
 
                     const features = vessels.filter((v: any) => v.location).map((v: any) => {
                         const heading = calculateHeading(v.previousLocation, v.location);
@@ -688,6 +782,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                                 },
                             });
 
+                            if (vesselHandlersInstalledRef.current) return;
+                            vesselHandlersInstalledRef.current = true;
+
                             // Vessel hover tooltip
                             const vesselPopup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'verdaxis-vessel-tooltip' });
                             map.on('mouseenter', 'vessels-layer', (e) => {
@@ -712,19 +809,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                     }
                 };
 
-                if (map.loaded()) {
-                    addVesselLayers();
-                } else {
-                    map.once('load', addVesselLayers);
-                }
+                map.on('style.load', installVessels);
+                if (map.loaded()) installVessels();
             } catch (e) {
                 console.error('Failed to load vessels', e);
             }
         };
 
         addVessels();
-        return () => { cancelled = true; };
-    }, [ready, loading, theme, mapLocale]);
+        return () => {
+            cancelled = true;
+            if (installVessels) map.off('style.load', installVessels);
+        };
+    }, [mapCreated, ready]);
 
     // Window trade-at handler for popup button
     useEffect(() => {
@@ -738,12 +835,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
         return () => { delete (window as any).__verdaxisTradeAt; };
     }, [ports, onOrderClick, onPortSelect]);
 
-    if (!ready || loading) {
+    if (!ready) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                <div className="flex flex-col items-center">
-                    <Loader2 size={40} className="text-emerald-500 animate-spin mb-4" />
-                    <p className="text-slate-500 font-bold animate-pulse">{t('buyerMap.loading')}</p>
+            <div className="relative flex h-full w-full overflow-hidden">
+                <div className="relative z-0 flex-1">
+                    <div ref={mapContainer} className="verdaxis-buyer-map h-full w-full" />
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+                        <div className="flex flex-col items-center">
+                            <Loader2 size={40} className="mb-4 animate-spin text-emerald-500" />
+                            <p className="animate-pulse font-bold text-slate-500">{t('buyerMap.loading')}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -759,7 +861,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             {/* The Map */}
             <div className="flex-1 relative z-0">
                 <div ref={mapContainer} className="verdaxis-buyer-map" role="region" aria-label={t('buyerMap.mapLabel')} style={{ width: '100%', height: '100%' }} />
-                {loadError && (
+                {(loadError || marketDataError) && (
                     <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
                         {t('buyerMap.error')}
                     </div>
@@ -832,6 +934,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
                 {showMarketWatch && (
                     <div className="pointer-events-auto absolute left-6 right-[var(--verdaxis-map-rail-offset)] top-6 z-[30] transition-all duration-300">
                         <MarketWatchTicker
+                            active={active}
                             isPanelOpen={isPanelOpen}
                             onOpenPanel={() => setIsPanelOpen(true)}
                             ports={ports}
@@ -982,6 +1085,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ onPortSelect, onNavigate, on
             )}
 
             <IntelligencePanel
+                active={active}
                 isOpen={isPanelOpen}
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}

@@ -26,7 +26,11 @@ import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, PAGE_SLUGS, Port } from './types';
 import { MarketSlice, parseSlicePath, sliceToPath } from './utils/sliceUrl';
-import { recordDashboardContentReady, recordDashboardNavigationStart } from './utils/navigationPerformance';
+import {
+  cancelDashboardNavigation,
+  recordDashboardNavigationStart,
+  recordDashboardRouteCommit,
+} from './utils/navigationPerformance';
 import { PublicLayout } from './components/public/PublicLayout';
 import LanguageRedirect from './components/public/LanguageRedirect';
 import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
@@ -101,45 +105,6 @@ const PartnerLandingPage = lazyWithRetry(() => import('./pages/public/PartnerLan
 const PrivacyPage = lazyWithRetry(() => import('./pages/public/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
 const TermsPage = lazyWithRetry(() => import('./pages/public/TermsPage').then((module) => ({ default: module.TermsPage })));
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
-
-type Prefetcher = () => Promise<unknown>;
-
-const shouldSkipIdlePrefetch = () => {
-  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  return Boolean(connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g');
-};
-
-const scheduleIdlePrefetch = (prefetchers: Prefetcher[]) => {
-  if (typeof window === 'undefined' || shouldSkipIdlePrefetch()) return undefined;
-
-  const runPrefetch = () => {
-    void Promise.allSettled(prefetchers.map((prefetch) => prefetch()));
-  };
-  const requestIdle = (window as Window & {
-    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-    cancelIdleCallback?: (handle: number) => void;
-  }).requestIdleCallback;
-  const cancelIdle = (window as Window & {
-    cancelIdleCallback?: (handle: number) => void;
-  }).cancelIdleCallback;
-
-  if (requestIdle) {
-    const handle = requestIdle(runPrefetch, { timeout: 5000 });
-    return () => cancelIdle?.(handle);
-  }
-
-  const handle = window.setTimeout(runPrefetch, 2500);
-  return () => window.clearTimeout(handle);
-};
-
-const IdleRoutePrefetch: React.FC = () => {
-  useEffect(() => scheduleIdlePrefetch([
-    loadBuyerMap,
-    loadProducerMapPage,
-  ]), []);
-
-  return null;
-};
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -301,6 +266,7 @@ const DashboardLayout: React.FC = () => {
     return (saved as ViewMode) || (user?.role === 'SUPPLIER' ? 'SUPPLIER' : 'BUYER');
   });
   const [sidebarModalSide, setSidebarModalSide] = useState<'BID' | 'ASK' | null>(null);
+  const [visitedMapScope, setVisitedMapScope] = useState<string | null>(null);
   const initializedSupportContext = useRef<string | null>(null);
 
   const effectiveViewMode: ViewMode = viewMode;
@@ -329,6 +295,15 @@ const DashboardLayout: React.FC = () => {
   // index redirect is about to restore, and it is not a navigation.
   const isBareAppPath = location.pathname === '/app' || location.pathname === '/app/';
   const currentPage = pathToPage(location.pathname);
+  const isMapActive = !isBareAppPath && currentPage === 'MAP';
+  const mapScopeKey = `${user?.id ?? 'account'}:${user?.organization_id ?? 'no-organization'}:${context?.id ?? 'direct'}`;
+  const shouldRenderMap = isMapActive || visitedMapScope === mapScopeKey;
+
+  useEffect(() => {
+    if (isMapActive) setVisitedMapScope(mapScopeKey);
+  }, [isMapActive, mapScopeKey]);
+
+  useEffect(() => () => cancelDashboardNavigation(), []);
 
   // Session persistence: the sole writer of the legacy Page value.
   useEffect(() => {
@@ -345,7 +320,7 @@ const DashboardLayout: React.FC = () => {
     previousPageRef.current = currentPage;
     if (previousPage === null || previousPage === currentPage) return;
     recordDashboardNavigationStart(previousPage, currentPage, effectiveViewMode);
-    recordDashboardContentReady(currentPage, effectiveViewMode);
+    recordDashboardRouteCommit(currentPage, effectiveViewMode);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveViewMode, location.pathname]);
 
@@ -356,12 +331,20 @@ const DashboardLayout: React.FC = () => {
   };
 
   const handleNavigate = (page: Page) => {
-    analytics.track('platform_navigation', { destination: PAGE_SLUGS[sanitizeDashboardPage(page)], view_mode: effectiveViewMode });
-    navigate(pageToPath(page));
+    const destination = sanitizeDashboardPage(page);
+    analytics.track('platform_navigation', { destination: PAGE_SLUGS[destination], view_mode: effectiveViewMode });
+    recordDashboardNavigationStart(currentPage, destination, effectiveViewMode);
+    navigate(pageToPath(destination));
   };
 
   const handleOpenSlice = (slice: MarketSlice) => {
+    recordDashboardNavigationStart(currentPage, 'MARKETPLACE', effectiveViewMode);
     navigate(sliceToPath(slice));
+  };
+
+  const openMarketplaceAtPort = (port: Port) => {
+    recordDashboardNavigationStart(currentPage, 'MARKETPLACE', effectiveViewMode);
+    navigate('/app/marketplace', { state: { initialPort: port } satisfies MarketplaceLocationState });
   };
 
   const outletContext: DashboardOutletContext = {
@@ -383,11 +366,33 @@ const DashboardLayout: React.FC = () => {
       onPrimaryAction={() => setSidebarModalSide(effectiveViewMode === 'BUYER' ? 'BID' : 'ASK')}
     >
       {!context && <GuidedTutorial viewMode={effectiveViewMode} />}
-      <ErrorBoundary>
-        <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
-          <Outlet context={outletContext} />
-        </Suspense>
-      </ErrorBoundary>
+      {shouldRenderMap && (
+        <div
+          className="h-full"
+          data-testid="persistent-map"
+          hidden={!isMapActive}
+          inert={!isMapActive}
+          aria-hidden={!isMapActive}
+        >
+          <ErrorBoundary key={mapScopeKey}>
+            <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
+              <BuyerMap
+                active={isMapActive}
+                onPortSelect={openMarketplaceAtPort}
+                onNavigate={handleNavigate}
+                onOrderClick={openMarketplaceAtPort}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      )}
+      {!isMapActive && (
+        <ErrorBoundary>
+          <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
+            <Outlet context={outletContext} />
+          </Suspense>
+        </ErrorBoundary>
+      )}
       <OrderPlaceModal
         isOpen={sidebarModalSide !== null}
         onClose={() => setSidebarModalSide(null)}
@@ -423,19 +428,6 @@ const HomeRoute: React.FC = () => {
   return viewMode === 'SUPPLIER'
     ? <SupplierDashboard key={dashboardScopeKey} onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />
     : <BuyerDashboard key={dashboardScopeKey} onNavigate={onNavigate} onOpenSlice={onOpenSlice} openOrderId={openOrderId} />;
-};
-
-const MapRoute: React.FC = () => {
-  const { onNavigate } = useDashboard();
-  const navigate = useNavigate();
-
-  // Port-only handoff (no slice): Marketplace consumes router state
-  // exactly where the initialPort prop feeds it. No partial-slice URLs.
-  const openMarketplaceAtPort = (port: Port) => {
-    navigate('/app/marketplace', { state: { initialPort: port } satisfies MarketplaceLocationState });
-  };
-
-  return <BuyerMap onPortSelect={openMarketplaceAtPort} onNavigate={onNavigate} onOrderClick={openMarketplaceAtPort} />;
 };
 
 const MarketplaceRoute: React.FC = () => {
@@ -597,7 +589,7 @@ export const AppRoutes: React.FC = () => {
                     }>
                         <Route index element={<DashboardIndexRedirect />} />
                         <Route path="home" element={<HomeRoute />} />
-                        <Route path="map" element={<MapRoute />} />
+                        <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
@@ -632,7 +624,6 @@ const App: React.FC = () => {
             <BrowserRouter>
                 <AnalyticsProvider>
                 <ScrollToTop />
-                <IdleRoutePrefetch />
                 <DeploymentUpdateNotice />
                 <AppRoutes />
                 </AnalyticsProvider>

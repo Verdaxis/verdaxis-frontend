@@ -9,6 +9,7 @@ import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
 const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
 interface IntelligencePanelProps {
+    active?: boolean;
     isOpen: boolean;
     onClose: () => void;
     selectedPort: Port | undefined;
@@ -18,6 +19,7 @@ interface IntelligencePanelProps {
 }
 
 export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
+    active = true,
     isOpen,
     onClose,
     selectedPort,
@@ -63,13 +65,14 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         : '--';
 
     useEffect(() => {
+        if (!active) return;
         let cancelled = false;
         (async () => {
             try {
                 const products: Product[] = await api.catalog.products();
-                const active = products.filter(p => p.is_active).slice(0, 3);
+                const activeProducts = products.filter(p => p.is_active).slice(0, 3);
                 const results = await Promise.allSettled(
-                    active.map(p => api.curves.forward({ product_id: p.id }))
+                    activeProducts.map(p => api.curves.forward({ product_id: p.id }))
                 );
                 if (cancelled) return;
                 const items = results
@@ -83,7 +86,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                         const pctChange = mid > 0 ? ((farMid - mid) / mid) * 100 : 0;
                         const isContango = farMid >= mid;
                         return {
-                            label: active[i].name,
+                            label: activeProducts[i].name,
                             price: mid > 0 ? `$${mid.toFixed(0)}` : '--',
                             change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
                             up: isContango,
@@ -98,7 +101,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             }
         })();
         return () => { cancelled = true; };
-    }, []);
+    }, [active]);
 
 
     if (!ready) return null;
@@ -324,7 +327,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             <div className="min-h-0 flex-1 overflow-hidden">
                 {activeTab === 'NEWS' ? (
                     <div className="h-full p-4">
-                        <NewsFeed embedded />
+                        <NewsFeed active={active} embedded />
                     </div>
                 ) : (
                     <div className="h-full space-y-5 overflow-y-auto p-5">
