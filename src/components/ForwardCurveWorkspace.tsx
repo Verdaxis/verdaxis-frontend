@@ -683,6 +683,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const fetchTable = useCallback(async (force = false) => {
         if (!ready) return;
+        if (force) forceNextSliceRef.current = true;
         const requestId = tableRequestIdRef.current + 1;
         tableRequestIdRef.current = requestId;
         setLoadingTable(true);
@@ -693,7 +694,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                 ? await api.curves.table(params, { force: true })
                 : await api.curves.table(params));
             if (requestId !== tableRequestIdRef.current) return;
-            forceNextSliceRef.current = force;
             setTable(response);
             setSelected(current => {
                 const currentCell = findCell(response, current);
