@@ -689,6 +689,22 @@ describe('app routing', () => {
     });
   });
 
+  it('announces one loading state while restoring a session and removes it when ready', async () => {
+    authControl.current.isLoading = true;
+    const { rerender } = renderApp('/app/home');
+
+    const status = await screen.findByRole('status');
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(status.textContent).toBe(i18n.t('loading'));
+    expect(screen.queryByTestId('page-buyer-dashboard')).toBeNull();
+
+    authControl.current.isLoading = false;
+    rerender(buildApp('/app/home'));
+
+    await screen.findByTestId('page-buyer-dashboard');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   describe('login redirect', () => {
     it('does not mount the authenticated map on the login route', async () => {
       setRole('BUYER', false);

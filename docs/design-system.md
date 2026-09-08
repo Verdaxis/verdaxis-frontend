@@ -73,3 +73,10 @@ Dark console palette: retain blue-black surfaces and cyan/emerald chart accents;
 Use 150–180ms color/opacity transitions for state changes, disable unnecessary motion under prefers-reduced-motion, and keep data tables stable while refreshing.
 
 Review viewports: 1024x900, 1440x1000, 1920x1080 desktop; 390x844 verifies existing mobile gate. Reference evidence lives in /home/jons-openclaw/artifacts/reports/verdaxis-review-20260907. Compare legibility and operational hierarchy against the existing screenshots; pixel matching is not the objective.
+
+
+## Shared Loading Screen
+
+Use one centered loading mark from the HTML startup shell through route, session, and full-page data loading. Match the logo: marine blue `#24558A`, leaf green `#78AA36`, and silver `#AEB7C2`. The mark is a fuel droplet with two slow liquid flows and a small silver ripple. Keep the existing font stack, a 96px mark, a 16px gap, and a 14px status label. Use existing light/dark surfaces and readable muted text.
+
+Use one local SVG asset and one shared stylesheet for HTML and React. Animate only transforms and opacity: a 3.2-second continuous flow and a 2.4-second ripple. Reduced motion shows a still droplet. No artificial wait, progress percentage, extra library, remote asset, or full-screen overlay during background refresh. Keep button indicators and table skeletons in their existing contexts. Review desktop, mobile startup, dark/light mode, and reduced motion.

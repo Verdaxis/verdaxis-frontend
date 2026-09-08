@@ -1,5 +1,6 @@
+import { LoadingScreen } from './LoadingScreen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, FileText, Gavel, HandCoins, Loader2, Search } from 'lucide-react';
+import { ArrowRight, FileText, Gavel, HandCoins, Search } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
 import { api } from '../services/api';
 import type { TradeSummary } from '../services/api';
@@ -181,11 +182,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     };
 
     if (!ready || loading) {
-        return (
-            <div className="p-10 flex justify-center">
-                <Loader2 size={40} className="animate-spin text-emerald-500" />
-            </div>
-        );
+        return <LoadingScreen />;
     }
 
     const cta = CTA_CONFIG[viewMode];

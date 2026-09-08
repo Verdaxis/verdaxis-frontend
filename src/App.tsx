@@ -1,3 +1,4 @@
+import { LoadingScreen } from './components/LoadingScreen';
 import { BuyerDashboard } from './components/CommandCenter';
 import { SupplierDashboard } from './components/CommandCenter';
 import { SupplierQuotes } from './components/SupplierQuotes';
@@ -119,14 +120,12 @@ const ScrollToTop: React.FC = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactElement }) => {
     const { user, isAuthenticated, isLoading, isBackendUnavailable, checkAuth } = useAuth();
     const location = useLocation();
-    const { t } = useTranslation('common');
-
     if (isBackendUnavailable) {
         return <MaintenancePage onRetry={checkAuth} isRetrying={isLoading} />;
     }
 
     if (isLoading) {
-        return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-emerald-400">{t('loading')}</div>;
+        return <LoadingScreen fullScreen />;
     }
 
     if (!isAuthenticated) {
@@ -354,7 +353,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   if (isMarketSupportLoading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-900 text-emerald-400">{t('marketSupport.restoring')}</div>;
+    return <LoadingScreen fullScreen label={t('marketSupport.restoring')} />;
   }
 
   return (
@@ -375,7 +374,7 @@ const DashboardLayout: React.FC = () => {
           aria-hidden={!isMapActive}
         >
           <ErrorBoundary key={dashboardScopeKey}>
-            <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
+            <Suspense fallback={<LoadingScreen />}>
               <BuyerMap
                 active={isMapActive}
                 onPortSelect={openMarketplaceAtPort}
@@ -388,7 +387,7 @@ const DashboardLayout: React.FC = () => {
       )}
       {!isMapActive && (
         <ErrorBoundary key={dashboardScopeKey}>
-          <Suspense fallback={<div className="p-10 flex justify-center text-emerald-500">{t('loading')}</div>}>
+          <Suspense fallback={<LoadingScreen />}>
             <Outlet context={outletContext} />
           </Suspense>
         </ErrorBoundary>
@@ -495,9 +494,8 @@ const AdminRoute: React.FC = () => {
 // Exported for route-level tests: everything inside the router, without
 // the BrowserRouter/provider shell.
 export const AppRoutes: React.FC = () => {
-  const { t } = useTranslation('common');
   return (
-                <Suspense fallback={<div className="min-h-screen bg-white p-10 text-center text-emerald-600 dark:bg-slate-950">{t('loading')}</div>}>
+                <Suspense fallback={<LoadingScreen fullScreen />}>
                 <Routes>
                     {/* Auth routes */}
                     <Route path="/login" element={<BackendRequiredRoute><LoginPage /></BackendRequiredRoute>} />

@@ -1,5 +1,6 @@
+import { LoadingScreen } from './LoadingScreen';
 import React, { useMemo, useState } from 'react';
-import { BellDot, Loader2, Pin, Star, Trash2 } from 'lucide-react';
+import { BellDot, Pin, Star, Trash2 } from 'lucide-react';
 
 import { useWatchlist } from '../hooks/useWatchlist';
 import { formatWatchlistSliceLabel, describeWatchlistEvent, getLatestEventForSlice, getLatestEventForTarget, getWatchlistEventActivity } from '../utils/watchlist';
@@ -47,17 +48,7 @@ export const WatchlistPage: React.FC = () => {
         }
     };
 
-    if (!ready) return null;
-    if (loading) {
-        return (
-            <div className="flex h-full items-center justify-center">
-                <div className="flex items-center gap-3 text-slate-400">
-                    <Loader2 size={24} className="animate-spin" />
-                    <span className="font-medium">{t('watchlist.loading')}</span>
-                </div>
-            </div>
-        );
-    }
+    if (!ready || loading) return <LoadingScreen />;
 
     return (
         <div className="h-full overflow-y-auto px-4 pb-8 pt-4 lg:px-10 lg:pt-8">

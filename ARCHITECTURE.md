@@ -40,6 +40,7 @@ src/
   components/
     AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
+    LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
