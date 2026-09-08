@@ -56,3 +56,9 @@ Market Radar should feel like an operations console rather than a consumer favor
 - No isolated watchlist page that is disconnected from Marketplace and Command Center.
 - No full-width empty whitespace cards.
 - No native browser select/button styling in new radar controls.
+
+## Shared Loading Screen
+
+Use one centered loading mark from the HTML startup shell through route, session, and full-page data loading. Match the logo: marine blue `#24558A`, leaf green `#78AA36`, and silver `#AEB7C2`. The mark is a fuel droplet with two slow liquid flows and a small silver ripple. Keep the existing font stack, a 96px mark, a 16px gap, and a 14px status label. Use existing light/dark surfaces and readable muted text.
+
+Use one local SVG asset and one shared stylesheet for HTML and React. Animate only transforms and opacity: a 3.2-second continuous flow and a 2.4-second ripple. Reduced motion shows a still droplet. No artificial wait, progress percentage, extra library, remote asset, or full-screen overlay during background refresh. Keep button indicators and table skeletons in their existing contexts. Review desktop, mobile startup, dark/light mode, and reduced motion.

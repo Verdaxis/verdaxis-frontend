@@ -1,7 +1,8 @@
+import { LoadingScreen } from './LoadingScreen';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { ArrowRight, PanelRightOpen, Loader2, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
+import { ArrowRight, PanelRightOpen, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Port, Page, AggregatedOrderbook } from '../types';
 import { Tooltip } from './ui/Tooltip';
@@ -853,10 +854,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 <div className="relative z-0 flex-1">
                     <div ref={mapContainer} className="verdaxis-buyer-map h-full w-full" />
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-                        <div className="flex flex-col items-center">
-                            <Loader2 size={40} className="mb-4 animate-spin text-emerald-500" />
-                            <p className="animate-pulse font-bold text-slate-500">{t('buyerMap.loading')}</p>
-                        </div>
+                        <LoadingScreen />
                     </div>
                 </div>
             </div>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 112" fill="none">
+  <style>
+    .flow { animation: flow 3.2s linear infinite; }
+    .flow-back { animation-direction: reverse; animation-duration: 4.8s; }
+    .ripple { transform-origin: 48px 99px; animation: ripple 2.4s ease-out infinite; }
+    @keyframes flow { to { transform: translateX(-48px); } }
+    @keyframes ripple { from { transform: scale(.75); opacity: .6; } to { transform: scale(1.25); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .flow, .ripple { animation: none; } }
+  </style>
+  <defs>
+    <clipPath id="drop"><path d="M48 10C42 23 22 41 22 57a26 26 0 0 0 52 0C74 41 54 23 48 10Z"/></clipPath>
+  </defs>
+  <path d="M48 10C42 23 22 41 22 57a26 26 0 0 0 52 0C74 41 54 23 48 10Z" fill="#24558A" fill-opacity=".05"/>
+  <g clip-path="url(#drop)">
+    <path class="flow flow-back" d="M-48 50q12-7 24 0t24 0t24 0t24 0t24 0t24 0t24 0t24 0V88H-48Z" fill="#24558A" fill-opacity=".8"/>
+    <path class="flow" d="M-48 57q12-6 24 0t24 0t24 0t24 0t24 0t24 0t24 0t24 0V88H-48Z" fill="#78AA36"/>
+  </g>
+  <path d="M48 10C42 23 22 41 22 57a26 26 0 0 0 52 0C74 41 54 23 48 10Z" stroke="#24558A" stroke-width="2"/>
+  <path d="M31 59a17 17 0 0 0 9 15" stroke="#F8FAFC" stroke-opacity=".65" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="48" cy="99" rx="15" ry="3" stroke="#AEB7C2" stroke-opacity=".4"/>
+  <ellipse class="ripple" cx="48" cy="99" rx="21" ry="5" stroke="#AEB7C2"/>
+</svg>

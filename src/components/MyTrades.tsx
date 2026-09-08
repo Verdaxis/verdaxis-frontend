@@ -1,3 +1,4 @@
+import { LoadingScreen } from './LoadingScreen';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     ArrowUpRight,
@@ -244,10 +245,7 @@ export const MyTrades: React.FC = () => {
                     <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
                 </div>
-                <div className="flex items-center justify-center py-24">
-                    <Loader2 className="animate-spin text-slate-400" size={32} />
-                    <span className="ml-3 text-slate-500 dark:text-slate-400">{t('myTrades.loading')}</span>
-                </div>
+                <LoadingScreen label={t('myTrades.loading')} />
             </div>
         );
     }
