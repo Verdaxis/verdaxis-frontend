@@ -156,7 +156,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    useDashboardContentReady('MARKETPLACE', ready && !loading && !error);
+    const [hasLoadedListings, setHasLoadedListings] = useState(false);
+    useDashboardContentReady('MARKETPLACE', ready && !loading && hasLoadedListings);
     const latestFetchRequest = useRef(0);
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
@@ -325,6 +326,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
             setMarketProductCounts(counts?.counts ?? {});
+            setHasLoadedListings(true);
         } catch (err: any) {
             console.error('Marketplace fetch error:', err);
             if (requestId !== latestFetchRequest.current) return;
@@ -336,6 +338,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
         }
     }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy]);
+
+    useEffect(() => {
+        setHasLoadedListings(false);
+    }, [availability, marketProduct, resolvedDeliveryPointId, resolvedPort, role, sortBy]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
@@ -474,6 +480,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, []);
 
     const handlePageChange = (newSkip: number) => {
+        setHasLoadedListings(false);
         fetchData(false, newSkip);
     };
 
@@ -920,7 +927,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </button>
                             <button
                                 type="button"
-                                onClick={() => fetchData(false, currentSkip, true)}
+                                onClick={() => fetchData(true, currentSkip, true)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -1131,10 +1138,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             </div>
 
             {/* Error state */}
-            {error && !loading && (
+            {error && !loading && !hasLoadedListings && (
                 <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
-                        <div className="v-card p-8 flex flex-col items-center text-center">
+                        <div role="alert" className="v-card p-8 flex flex-col items-center text-center">
                             <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                 <AlertCircle size={32} className="text-red-500" />
                             </div>
@@ -1153,7 +1160,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {marketTab === 'orderbook' && !error && (
+            {error && hasLoadedListings && (
+                <div role="alert" className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 lg:mx-10">
+                    {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
+                </div>
+            )}
+
+            {marketTab === 'orderbook' && (!error || hasLoadedListings) && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
                         <div
@@ -1367,7 +1380,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* Market tab: listings table */}
-            {marketTab === 'market' && !error && (
+            {marketTab === 'market' && (!error || hasLoadedListings) && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto">
                         <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
@@ -1664,7 +1677,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             </ConfirmModal>
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip, true); }}
+                onClose={() => {
+                    setOrderModalSide(null);
+                    void fetchData(true, currentSkip, true);
+                    if (marketTab === 'my_orders') void fetchMyOrders(true);
+                }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}
