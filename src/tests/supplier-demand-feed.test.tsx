@@ -10,7 +10,7 @@ const listBidsMock = vi.fn();
 vi.mock('../services/api', () => ({
   api: {
     orderbook: {
-      listBids: (...args: unknown[]) => listBidsMock(...args),
+      listBidsPaged: (...args: unknown[]) => listBidsMock(...args),
     },
   },
 }));
@@ -18,7 +18,7 @@ vi.mock('../services/api', () => ({
 describe('SupplierDemandFeed', () => {
   beforeEach(() => {
     listBidsMock.mockReset();
-    listBidsMock.mockResolvedValue([
+    listBidsMock.mockResolvedValue({ items: [
       {
         id: 'bid-1',
         side: 'BID',
@@ -31,7 +31,7 @@ describe('SupplierDemandFeed', () => {
         status: 'OPEN',
         created_at: '2026-04-13T00:00:00Z',
       },
-    ]);
+    ], total: 1, skip: 0, limit: 5 });
   });
 
   it('renders active buyer bids as supplier demand shortcuts', async () => {
@@ -46,13 +46,14 @@ describe('SupplierDemandFeed', () => {
     expect(screen.getByText('$720/MT')).toBeTruthy();
     expect(screen.getByText('Singapore • Spot')).toBeTruthy();
     expect(listBidsMock).toHaveBeenCalledTimes(1);
+    expect(listBidsMock).toHaveBeenCalledWith({ skip: 0, limit: 5 });
 
     fireEvent.click(screen.getByRole('button', { name: /Methanol/i }));
     expect(onNavigate).toHaveBeenCalledWith('MARKETPLACE');
   });
 
   it('shows the empty buyer demand state when no open bids are visible', async () => {
-    listBidsMock.mockResolvedValueOnce([]);
+    listBidsMock.mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 5 });
 
     renderWithProviders(<SupplierDemandFeed onNavigate={() => undefined} />);
 
