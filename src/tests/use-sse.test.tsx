@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useSSE } from '../hooks/useSSE';
 import { API_URL } from '../services/config';
+import { cachedRead, invalidateReadCache } from '../services/readCache';
 
 const authTokenMocks = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
@@ -61,6 +62,7 @@ describe('useSSE', () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
+    invalidateReadCache();
     vi.spyOn(Math, 'random').mockReturnValue(0);
     FakeEventSource.instances = [];
     vi.stubGlobal('EventSource', FakeEventSource);
@@ -75,6 +77,7 @@ describe('useSSE', () => {
   });
 
   afterEach(() => {
+    invalidateReadCache();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -130,6 +133,24 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances[1].url).toContain('stream_token=stream-token');
   });
 
+  it('invalidates trade reads before delivering a declined-trade event', async () => {
+    const load = vi.fn()
+      .mockResolvedValueOnce('before-event')
+      .mockResolvedValueOnce('after-event');
+    await cachedRead('trades:test', 'public', 1_000, load);
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit('trade_declined', { data: '{"trade_id":"trade-1"}' });
+    });
+
+    expect(onEvent).toHaveBeenCalledWith('trade_declined', { trade_id: 'trade-1' });
+    await expect(cachedRead('trades:test', 'public', 1_000, load)).resolves.toBe('after-event');
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
   it('does not open a source when a pending token request finishes after disable', async () => {
     let resolveToken: (value: Response) => void = () => undefined;
     fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => {
@@ -150,15 +171,37 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances).toHaveLength(0);
   });
 
-  it('resets the cursor on a server reset and renews it after token expiry', async () => {
+  it('clears cached reads when the stream reports revoked authorization', async () => {
+    const load = vi.fn()
+      .mockResolvedValueOnce('before-revocation')
+      .mockResolvedValueOnce('after-revocation');
+    await cachedRead('catalog:test', 'public', 1_000, load);
     render(<Harness channel="trades" />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => FakeEventSource.instances[0].emit('auth_revoked', { data: '{}' }));
+
+    await expect(cachedRead('catalog:test', 'public', 1_000, load)).resolves.toBe('after-revocation');
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('resets the cursor on a server reset and renews it after token expiry', async () => {
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
     const first = FakeEventSource.instances[0];
     act(() => {
       first.emit('trade_confirmed', { data: '{}', lastEventId: '42' });
-      first.emit('reset');
     });
+    const load = vi.fn()
+      .mockResolvedValueOnce('before-reset')
+      .mockResolvedValueOnce('after-reset');
+    await cachedRead('trades:test', 'public', 1_000, load);
+    act(() => first.emit('reset', { data: '{"reason":"cursor_expired"}' }));
+    expect(onEvent).toHaveBeenLastCalledWith('reset', { reason: 'cursor_expired' });
+    await expect(cachedRead('trades:test', 'public', 1_000, load)).resolves.toBe('after-reset');
+    expect(load).toHaveBeenCalledTimes(2);
     await new Promise((resolve) => setTimeout(resolve, 1100));
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
     expect(FakeEventSource.instances[1].url).not.toContain('last_event_id');

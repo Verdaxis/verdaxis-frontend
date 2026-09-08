@@ -46,11 +46,12 @@ export const MyTrades: React.FC = () => {
     const [currentSkip, setCurrentSkip] = useState(0);
     const [totalCount, setTotalCount] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const requestGeneration = useRef(0);
     const requestScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}`;
 
-    const fetchTrades = useCallback(async (silent = false) => {
+    const fetchTrades = useCallback(async (silent = false, force = false) => {
         if (!ready) return;
         const generation = ++requestGeneration.current;
         try {
@@ -58,21 +59,26 @@ export const MyTrades: React.FC = () => {
             else setIsRefreshing(true);
             setError(null);
             const statusGroup = filterTab.toLowerCase() as StatusGroup;
-            const data = await api.trades.myTradesPaged({
+            const params = {
                 skip: currentSkip,
                 limit: PAGE_SIZE,
                 status_group: statusGroup,
-            });
+            };
+            const data = force
+                ? await api.trades.myTradesPaged(params, { force: true })
+                : await api.trades.myTradesPaged(params);
             if (generation !== requestGeneration.current) return;
             setTrades(data.items as Trade[]);
             setTotalCount(Number(data.total ?? 0));
+            setHasLoaded(true);
         } catch (err: any) {
             if (generation !== requestGeneration.current) return;
             const message = err.message || '';
             if (message.toLowerCase().includes('not found') || message.includes('404')) {
                 setTrades([]);
                 setTotalCount(0);
-            } else if (!silent) {
+                setHasLoaded(true);
+            } else {
                 setError(i18n.language.startsWith('zh') ? t('myTrades.error.message') : message || t('myTrades.error.message'));
             }
         } finally {
@@ -82,6 +88,10 @@ export const MyTrades: React.FC = () => {
             }
         }
     }, [currentSkip, filterTab, ready, requestScope, t]);
+
+    useEffect(() => {
+        setHasLoaded(false);
+    }, [currentSkip, filterTab, requestScope]);
 
     useEffect(() => {
         void fetchTrades();
@@ -101,7 +111,7 @@ export const MyTrades: React.FC = () => {
     }, [currentSkip, totalCount]);
 
     const handleTradeEvent = useCallback(() => {
-        fetchTrades(true);
+        fetchTrades(true, true);
     }, [fetchTrades]);
 
     const streamScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? ''}`;
@@ -119,7 +129,7 @@ export const MyTrades: React.FC = () => {
         try {
             await api.trades.confirm(tradeId);
             addToast({ type: 'success', title: t('myTrades.toast.confirmed.title'), message: t('myTrades.toast.confirmed.message') });
-            fetchTrades(true);
+            fetchTrades(true, true);
         } catch (err: any) {
             addToast({
                 type: 'warning',
@@ -136,7 +146,7 @@ export const MyTrades: React.FC = () => {
         try {
             await api.trades.decline(tradeId);
             addToast({ type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
-            fetchTrades(true);
+            fetchTrades(true, true);
         } catch (err: any) {
             addToast({
                 type: 'warning',
@@ -240,7 +250,7 @@ export const MyTrades: React.FC = () => {
         );
     }
 
-    if (error) {
+    if (error && !hasLoaded) {
         return (
             <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
                 <div className="mb-6 lg:mb-8">
@@ -254,7 +264,7 @@ export const MyTrades: React.FC = () => {
                     <h2 className="text-lg font-bold text-slate-700 dark:text-white mb-2">{t('myTrades.error.title')}</h2>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">{error}</p>
                     <button
-                        onClick={() => fetchTrades()}
+                        onClick={() => fetchTrades(false, true)}
                         className="mt-4 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD9] text-white font-bold text-sm rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2"
                     >
                         {t('myTrades.btn.tryAgain')}
@@ -272,7 +282,7 @@ export const MyTrades: React.FC = () => {
                     <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle.full')}</p>
                 </div>
                 <button
-                    onClick={() => fetchTrades(true)}
+                    onClick={() => fetchTrades(true, true)}
                     disabled={isRefreshing}
                     className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#5DADE2] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2"
                 >
@@ -299,6 +309,22 @@ export const MyTrades: React.FC = () => {
                     </button>
                 ))}
             </div>
+
+            {error && (
+                <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                    <span className="flex items-center gap-2">
+                        <AlertTriangle size={16} />
+                        {error}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => fetchTrades(true, true)}
+                        className="font-bold underline underline-offset-2"
+                    >
+                        {t('myTrades.btn.tryAgain')}
+                    </button>
+                </div>
+            )}
 
             {filteredTrades.length === 0 ? (
                 <div className="v-card p-12 text-center border-dashed">

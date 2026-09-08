@@ -68,7 +68,7 @@ interface RoleConfigEntry {
         sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest';
         skip?: number;
         limit?: number;
-    }) => Promise<PaginatedResult<any>>;
+    }, cacheOptions?: { force?: boolean }) => Promise<PaginatedResult<any>>;
     subtitleKey: string;
     primaryAction: { labelKey: string; side: 'BID' | 'ASK' };
     counterAction: { labelKey: string };
@@ -237,6 +237,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
+    const latestMyOrdersRequest = useRef(0);
     const { isActive: isMarketSupportActive } = useMarketSupport();
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
@@ -283,7 +284,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
 
     // ─── Data fetching ────────────────────────────────────────────
-    const fetchData = useCallback(async (silent = false, skip = 0) => {
+    const fetchData = useCallback(async (silent = false, skip = 0, force = false) => {
         if (!ready) return;
         const requestId = ++latestFetchRequest.current;
         if (silent) setRefreshing(true);
@@ -291,7 +292,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setError(null);
 
         try {
-            const data = await configBase.fetchOrders({
+            const orderParams = {
                 region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
                 delivery_point_id: resolvedDeliveryPointId || undefined,
                 market_product: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
@@ -299,11 +300,29 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 sort_by: sortBy,
                 skip,
                 limit: PAGE_SIZE,
-            });
+            };
+            const countParams = {
+                side: role === 'BUYER' ? 'ASK' as const : 'BID' as const,
+                region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
+                delivery_point_id: resolvedDeliveryPointId || undefined,
+                availability_window: availability || undefined,
+                include_off_spec: false,
+            };
+            const ordersRequest = force
+                ? configBase.fetchOrders(orderParams, { force: true })
+                : configBase.fetchOrders(orderParams);
+            const countsRequest = force
+                ? api.orderbook.productCounts(countParams, { force: true })
+                : api.orderbook.productCounts(countParams);
+            const [data, counts] = await Promise.all([
+                ordersRequest,
+                countsRequest.catch(() => null),
+            ]);
             if (requestId !== latestFetchRequest.current) return;
             setListings(data.items);
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
+            setMarketProductCounts(counts?.counts ?? {});
         } catch (err: any) {
             console.error('Marketplace fetch error:', err);
             if (requestId !== latestFetchRequest.current) return;
@@ -314,7 +333,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 setRefreshing(false);
             }
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, sortBy]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
@@ -411,43 +430,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
         localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
     }, [marketProduct]);
-
-    useEffect(() => {
-        if (!ready) return;
-        let cancelled = false;
-
-        const fetchMarketProductCounts = async () => {
-            try {
-                const totals = await Promise.all(
-                    MARKET_PRODUCTS.map(async (productCode) => {
-                        const response = await configBase.fetchOrders({
-                            region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
-                            delivery_point_id: resolvedDeliveryPointId || undefined,
-                            market_product: productCode,
-                            availability: availability || undefined,
-                            skip: 0,
-                            limit: 1,
-                        });
-                        return [productCode, response.total ?? response.items?.length ?? 0] as const;
-                    }),
-                );
-
-                if (cancelled) return;
-
-                setMarketProductCounts(Object.fromEntries(totals));
-            } catch {
-                if (!cancelled) {
-                    setMarketProductCounts({});
-                }
-            }
-        };
-
-        fetchMarketProductCounts();
-        return () => {
-            cancelled = true;
-        };
-    }, [availability, configBase, ready, resolvedDeliveryPointId, resolvedPort]);
-
 
     const portOptions = useMemo(() => ([
         { value: '', label: t('marketplace.filter.allPorts') },
@@ -573,23 +555,31 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     };
 
     /* ---- My Orders fetch ---- */
-    const fetchMyOrders = useCallback(async () => {
+    const fetchMyOrders = useCallback(async (force = false) => {
         if (!ready) return;
+        const requestId = ++latestMyOrdersRequest.current;
         setMyOrdersLoading(true);
         setMyOrdersError(null);
         try {
-            const data = await api.orderbook.myOrders();
+            const data = force
+                ? await api.orderbook.myOrders({ force: true })
+                : await api.orderbook.myOrders();
+            if (requestId !== latestMyOrdersRequest.current) return;
             setMyOrders(Array.isArray(data) ? data : data.items ?? []);
         } catch (error) {
-            setMyOrders([]);
+            if (requestId !== latestMyOrdersRequest.current) return;
+            if (!force) setMyOrders([]);
             setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.myOrders.error') : error instanceof Error ? error.message : t('marketplace.myOrders.error'));
         } finally {
-            setMyOrdersLoading(false);
+            if (requestId === latestMyOrdersRequest.current) setMyOrdersLoading(false);
         }
     }, [ready, t]);
 
     useEffect(() => {
         if (marketTab === 'my_orders') fetchMyOrders();
+        return () => {
+            latestMyOrdersRequest.current += 1;
+        };
     }, [marketTab, fetchMyOrders]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
@@ -711,7 +701,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             // Auto-close after 2s and refresh
             setTimeout(() => {
                 closeTradeModal();
-                fetchData(true, currentSkip);
+                fetchData(true, currentSkip, true);
             }, 2000);
         } catch (err: any) {
             setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
@@ -923,7 +913,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </button>
                             <button
                                 type="button"
-                                onClick={() => fetchData(false, currentSkip)}
+                                onClick={() => fetchData(false, currentSkip, true)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -1359,7 +1349,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         )}
                         <div className="flex-none flex justify-end pt-3">
                             <button
-                                onClick={fetchMyOrders}
+                                onClick={() => fetchMyOrders(true)}
                                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                             >
                                 <RefreshCw size={12} /> {t('marketplace.btn.refresh')}
@@ -1667,7 +1657,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             </ConfirmModal>
             <OrderPlaceModal
                 isOpen={orderModalSide !== null}
-                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip); }}
+                onClose={() => { setOrderModalSide(null); fetchData(true, currentSkip, true); }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
                 prefillRegion={portInput || undefined}

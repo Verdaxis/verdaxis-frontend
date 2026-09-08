@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, api } from '../services/api';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 import { setAccessToken } from '../services/authToken';
+import { invalidateReadCache } from '../services/readCache';
 
 describe('market support API transport', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    invalidateReadCache();
     sessionStorage.clear();
     setAccessToken('access-token');
   });
