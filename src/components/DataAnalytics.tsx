@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { Subscription } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
+import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 
 // Fallback demand data (used while API loads)
 const DEMAND_FLEET_FALLBACK = [
@@ -33,17 +34,32 @@ export const DataAnalytics: React.FC = () => {
     const [demandFleet, setDemandFleet] = useState<FleetEntry[]>(DEMAND_FLEET_FALLBACK);
     const [fleetSources, setFleetSources] = useState<string[]>([]);
     const [fleetLastUpdated, setFleetLastUpdated] = useState<string>('');
+    const [fleetLoaded, setFleetLoaded] = useState(false);
+    const [subscriptionLoaded, setSubscriptionLoaded] = useState(false);
+
+    useDashboardContentReady('DATA_ANALYTICS', ready && fleetLoaded && subscriptionLoaded);
 
     useEffect(() => {
+        let cancelled = false;
+        setFleetLoaded(false);
+        setSubscriptionLoaded(user?.role === 'ADMIN');
+        setSubscription(null);
         if (user?.role !== 'ADMIN') {
             api.subscriptions.me()
-                .then(setSubscription)
-                .catch(() => setSubscription({ id: '', org_id: '', tier: 'free', is_active: true }));
+                .then(data => {
+                    if (cancelled) return;
+                    setSubscription(data);
+                    setSubscriptionLoaded(true);
+                })
+                .catch(() => {
+                    if (!cancelled) setSubscription({ id: '', org_id: '', tier: 'free', is_active: true });
+                });
         }
 
         // Fetch live fleet demand data
         api.fleetIntelligence.get()
             .then(data => {
+                if (cancelled) return;
                 setDemandFleet(data.entries.map(e => ({
                     fuel: e.fuel,
                     orderedVessels: e.ordered_vessels,
@@ -53,9 +69,11 @@ export const DataAnalytics: React.FC = () => {
                 })));
                 setFleetSources(data.sources);
                 setFleetLastUpdated(data.last_updated);
+                setFleetLoaded(true);
             })
             .catch(() => { /* keep fallback */ });
-    }, [user?.role]);
+        return () => { cancelled = true; };
+    }, [user?.id, user?.organization_id, user?.role]);
     const hasPremiumAccess = user?.role === 'ADMIN' || !!(subscription && subscription.tier !== 'free');
     const DEMAND_FLEET = demandFleet;
     const supplyByStatus = useMemo(() => {

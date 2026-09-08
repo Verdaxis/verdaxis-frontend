@@ -7,6 +7,11 @@ import i18n, { loadNamespace } from '../i18n';
 const subscriptionsMeMock = vi.fn();
 const fleetIntelligenceGetMock = vi.fn();
 const useAuthMock = vi.fn();
+const contentReadyMock = vi.fn();
+
+vi.mock('../hooks/useDashboardContentReady', () => ({
+  useDashboardContentReady: (...args: unknown[]) => contentReadyMock(...args),
+}));
 
 vi.mock('../services/api', () => ({
   api: {
@@ -34,6 +39,7 @@ describe('DataAnalytics', () => {
     subscriptionsMeMock.mockReset();
     fleetIntelligenceGetMock.mockReset();
     useAuthMock.mockReset();
+    contentReadyMock.mockReset();
 
     subscriptionsMeMock.mockResolvedValue({ id: 'sub-1', org_id: 'org-1', tier: 'free', is_active: true });
     fleetIntelligenceGetMock.mockResolvedValue({
@@ -49,6 +55,20 @@ describe('DataAnalytics', () => {
       sources: ['Fleet intelligence mock'],
       last_updated: '2026-05-14T08:00:00Z',
     });
+  });
+
+  it('records readiness only after live data and subscription succeed', async () => {
+    await loadNamespace('dashboard');
+    useAuthMock.mockReturnValue({ user: { id: 'buyer-1', role: 'BUYER' } });
+    let resolveFleet!: (value: unknown) => void;
+    fleetIntelligenceGetMock.mockReturnValueOnce(new Promise(resolve => { resolveFleet = resolve; }));
+
+    renderWithProviders(<DataAnalytics />);
+    await waitFor(() => expect(subscriptionsMeMock).toHaveBeenCalled());
+    expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', false);
+
+    await act(async () => resolveFleet({ entries: [], sources: [], last_updated: '' }));
+    await waitFor(() => expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', true));
   });
 
   it('renders representative analytics chrome and analytical labels in Chinese', async () => {
