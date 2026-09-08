@@ -3,16 +3,17 @@ import { API_URL } from '../services/config';
 import { clearAccessToken, getAccessToken, getAuthGeneration, refreshSession, setAccessToken } from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 import { analytics, reliability } from '../services/analytics';
+import { setReadCachePrincipal } from '../services/readCache';
 
 type UserRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 
 export interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   role: UserRole | null;
-  organization_id?: string;
+  organization_id?: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   email_verified?: boolean;
   kyc_status?: string;
@@ -23,7 +24,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (accessToken: string, refreshToken?: string) => Promise<void>;
+  login: (accessToken: string, profile?: unknown) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   checkAuth: () => Promise<void>;
@@ -40,6 +41,26 @@ function parseJwtExp(token: string): number | null {
   } catch {
     return null;
   }
+}
+
+function parseUserProfile(value: unknown): User | null {
+  if (!value || typeof value !== 'object') return null;
+  const profile = value as Record<string, unknown>;
+  const role = profile.role;
+  const status = profile.status;
+  if (
+    typeof profile.id !== 'string'
+    || typeof profile.email !== 'string'
+    || (profile.first_name !== null && typeof profile.first_name !== 'string')
+    || (profile.last_name !== null && typeof profile.last_name !== 'string')
+    || (role !== null && role !== 'BUYER' && role !== 'SUPPLIER' && role !== 'ADMIN')
+    || (status !== 'PENDING' && status !== 'APPROVED' && status !== 'REJECTED')
+    || (profile.organization_id !== null && typeof profile.organization_id !== 'string')
+    || (profile.must_change_password !== undefined && typeof profile.must_change_password !== 'boolean')
+  ) {
+    return null;
+  }
+  return profile as unknown as User;
 }
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -71,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const clearTokens = useCallback(() => {
         clearAccessToken();
+        setReadCachePrincipal(null, null);
         sessionStorage.removeItem('verdaxis_currentPage');
         sessionStorage.removeItem('verdaxis_viewMode');
         window.dispatchEvent(new CustomEvent('verdaxis:auth-logout'));
@@ -84,6 +106,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const applyAccessToken = useCallback((nextToken: string) => {
         setAccessToken(nextToken);
         setToken(nextToken);
+    }, []);
+
+    const applyUserProfile = useCallback((nextUser: User) => {
+        setReadCachePrincipal(nextUser.id, nextUser.organization_id ?? null);
+        setUser(nextUser);
     }, []);
 
     const logout = useCallback(() => {
@@ -147,12 +174,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [resetIdleTimer]);
 
     // --- Login ---
-    const login = useCallback(async (accessToken: string, refreshToken?: string) => {
-        void refreshToken;
+    const login = useCallback(async (accessToken: string, initialProfile?: unknown) => {
         applyAccessToken(accessToken);
+        setReadCachePrincipal(null, null);
         setUser(null);
         const requestGeneration = getAuthGeneration();
         scheduleRefresh(accessToken);
+        const profile = parseUserProfile(initialProfile);
+        if (profile) {
+            if (requestGeneration !== getAuthGeneration()) return;
+            setIsBackendUnavailable(false);
+            applyUserProfile(profile);
+            if (profile.role) analytics.track('login_succeeded', { role: profile.role });
+            setIsLoading(false);
+            return;
+        }
         // Fetch user profile so isAuthenticated becomes true immediately
         try {
             const res = await fetch(`${API_URL}/auth/me`, {
@@ -164,7 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsBackendUnavailable(false);
                 const userData: User = await res.json();
                 if (requestGeneration !== getAuthGeneration()) return;
-                setUser(userData);
+                applyUserProfile(userData);
                 if (userData.role) analytics.track('login_succeeded', { role: userData.role });
             } else if (isBackendUnavailableStatus(res.status)) {
                 markBackendUnavailable();
@@ -175,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         finally {
             if (requestGeneration === getAuthGeneration()) setIsLoading(false);
         }
-    }, [applyAccessToken, scheduleRefresh]);
+    }, [applyAccessToken, applyUserProfile, scheduleRefresh]);
 
     // --- Check auth on mount / token change ---
     const checkAuth = useCallback(async () => {
@@ -210,7 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setIsBackendUnavailable(false);
                     const userData = await userRes.json();
                     if (requestGeneration !== getAuthGeneration()) return;
-                    setUser(userData);
+                    applyUserProfile(userData);
                 } else if (isBackendUnavailableStatus(userRes.status)) {
                     markBackendUnavailable();
                 } else {
@@ -237,7 +273,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setIsBackendUnavailable(false);
                 const userData = await res.json();
                 if (requestGeneration !== getAuthGeneration()) return;
-                setUser(userData);
+                applyUserProfile(userData);
                 scheduleRefresh(currentToken);
             } else if (isBackendUnavailableStatus(res.status)) {
                 markBackendUnavailable();
@@ -261,7 +297,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setIsBackendUnavailable(false);
                         const userData = await userRes.json();
                         if (requestGeneration !== getAuthGeneration()) return;
-                        setUser(userData);
+                        applyUserProfile(userData);
                         scheduleRefresh(outcome.token);
                     } else if (isBackendUnavailableStatus(userRes.status)) {
                         markBackendUnavailable();
@@ -282,7 +318,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             if (requestGeneration === getAuthGeneration()) setIsLoading(false);
         }
-    }, [applyAccessToken, scheduleRefresh, clearTokens]);
+    }, [applyAccessToken, applyUserProfile, scheduleRefresh, clearTokens]);
 
     useEffect(() => {
         const handleBackendUnavailable = () => setIsBackendUnavailable(true);
