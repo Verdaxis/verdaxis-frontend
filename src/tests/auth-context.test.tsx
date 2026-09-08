@@ -2,7 +2,16 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { clearAccessToken, getAccessToken, refreshSession, setAccessToken } from '../services/authToken';
+import { clearAccessToken, getAccessToken, refreshAccessToken, refreshSession, setAccessToken } from '../services/authToken';
+import { api } from '../services/api';
+
+function jwt(subject: string, expiresAt?: number): string {
+  const payload = btoa(JSON.stringify({ sub: subject, ...(expiresAt ? { exp: expiresAt } : {}) }))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return `header.${payload}.signature`;
+}
 
 function Probe() {
   const { isLoading, isAuthenticated, user, isBackendUnavailable, checkAuth, login } = useAuth();
@@ -15,6 +24,7 @@ function Probe() {
       <div data-testid="backend-unavailable">{String(isBackendUnavailable)}</div>
       <button type="button" onClick={() => void checkAuth()}>retry</button>
       <button type="button" onClick={() => void login('new-access-token')}>switch account</button>
+      <button type="button" onClick={() => void api.feedback.submit('test').catch(() => undefined)}>API request</button>
       <button type="button" onClick={() => void login('profile-access-token', {
         email: 'profile@example.com',
         first_name: 'Profile',
@@ -159,7 +169,9 @@ describe('AuthProvider token bootstrap', () => {
 
   it('accepts a profile response while the same account refreshes its token', async () => {
     window.history.replaceState({}, '', '/app');
-    setAccessToken('same-account');
+    const initialToken = jwt('user-same');
+    const refreshedToken = jwt('user-same');
+    setAccessToken(initialToken);
     let resolveProfile!: (response: Response) => void;
     global.fetch = vi.fn()
       .mockImplementationOnce(() => new Promise<Response>((resolve) => {
@@ -167,7 +179,7 @@ describe('AuthProvider token bootstrap', () => {
       }))
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ access_token: 'rotated-same-account' }),
+        json: async () => ({ access_token: refreshedToken }),
       });
 
     render(
@@ -179,7 +191,7 @@ describe('AuthProvider token bootstrap', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
     await expect(refreshSession()).resolves.toEqual({
       status: 'success',
-      token: 'rotated-same-account',
+      token: refreshedToken,
     });
     resolveProfile({
       ok: true,
@@ -197,6 +209,58 @@ describe('AuthProvider token bootstrap', () => {
       expect(screen.getByTestId('loading').textContent).toBe('false');
       expect(screen.getByTestId('email').textContent).toBe('same@example.com');
     });
+  });
+
+  it('clears the rendered identity when an API refresh discovers another account cookie', async () => {
+    window.history.replaceState({}, '', '/app');
+    const oldAccountToken = jwt('user-a');
+    const newAccountToken = jwt('user-b');
+    setAccessToken(oldAccountToken);
+    global.fetch = vi.fn().mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/auth/me')) {
+        return new Response(JSON.stringify({
+          email: 'old@example.com',
+          first_name: 'Old',
+          last_name: 'Account',
+          role: 'BUYER',
+          id: 'user-a',
+          status: 'APPROVED',
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('/auth/refresh')) {
+        return new Response(JSON.stringify({ access_token: newAccountToken }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ detail: 'unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('email').textContent).toBe('old@example.com'));
+    fireEvent.click(screen.getByRole('button', { name: 'API request' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('false');
+      expect(screen.getByTestId('email').textContent).toBe('');
+    });
+    expect(getAccessToken()).toBeNull();
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(
+      ([input]) => String(input).includes('/auth/logout'),
+    )).toBe(false);
+
+    await expect(refreshAccessToken()).resolves.toBeNull();
+    expect(global.fetch).toHaveBeenCalledTimes(3);
   });
 });
 

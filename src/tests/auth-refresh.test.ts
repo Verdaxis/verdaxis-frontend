@@ -2,6 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchMock = vi.fn();
 
+function jwt(subject: string): string {
+    const payload = btoa(JSON.stringify({ sub: subject }))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    return `header.${payload}.signature`;
+}
+
 function jsonResponse(body: unknown, status = 200) {
     return new Response(JSON.stringify(body), {
         status,
@@ -86,6 +94,49 @@ describe('shared auth refresh', () => {
         expect(getAccessToken()).toBe('fresh-access-token');
     });
 
+    it('invalidates an existing session when the refresh cookie belongs to another account', async () => {
+        const oldAccountToken = jwt('user-a');
+        const newAccountToken = jwt('user-b');
+        fetchMock.mockImplementation(() => Promise.resolve(
+            jsonResponse({ access_token: newAccountToken }),
+        ));
+        const {
+            AUTH_IDENTITY_CHANGED_EVENT,
+            getAccessToken,
+            getAuthGeneration,
+            refreshAccessToken,
+            refreshSession,
+            setAccessToken,
+        } = await loadAuthTokenModule();
+        setAccessToken(oldAccountToken);
+        const generation = getAuthGeneration();
+        const identityChanged = vi.fn();
+        window.addEventListener(AUTH_IDENTITY_CHANGED_EVENT, identityChanged);
+
+        try {
+            await expect(refreshSession()).resolves.toEqual({ status: 'identity_changed' });
+            expect(getAccessToken()).toBeNull();
+            expect(getAuthGeneration()).toBeGreaterThan(generation);
+            expect(identityChanged).toHaveBeenCalledTimes(1);
+
+            // Generic API/SSE callers cannot immediately adopt the replacement
+            // cookie while the old account UI is being cleared.
+            await expect(refreshAccessToken()).resolves.toBeNull();
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+
+            // AuthProvider may explicitly restore, then verifies /auth/me before
+            // rendering the replacement account.
+            await expect(refreshSession({ allowIdentityRestore: true })).resolves.toEqual({
+                status: 'success',
+                token: newAccountToken,
+            });
+            expect(getAccessToken()).toBe(newAccountToken);
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        } finally {
+            window.removeEventListener(AUTH_IDENTITY_CHANGED_EVENT, identityChanged);
+        }
+    });
+
     it.each(['logout', 'account switch'])('ignores a refresh completed after %s', async (change) => {
         let complete!: (response: Response) => void;
         fetchMock.mockReturnValue(new Promise<Response>(resolve => { complete = resolve; }));
@@ -122,17 +173,18 @@ describe('shared auth refresh', () => {
             .mockImplementationOnce(() => new Promise<Response>(resolve => { completeOld = resolve; }))
             .mockImplementationOnce(() => new Promise<Response>(resolve => { completeNew = resolve; }));
         const { refreshSession, setAccessToken, getAccessToken } = await loadAuthTokenModule();
-        setAccessToken('old-account');
+        setAccessToken(jwt('old-account'));
         const oldRefresh = refreshSession();
-        setAccessToken('new-account');
+        setAccessToken(jwt('new-account'));
         const newRefresh = refreshSession();
 
         expect(fetchMock).toHaveBeenCalledTimes(2);
-        completeNew(jsonResponse({ access_token: 'new-refreshed-account' }));
-        expect(await newRefresh).toEqual({ status: 'success', token: 'new-refreshed-account' });
-        completeOld(jsonResponse({ access_token: 'late-old-account' }));
+        const refreshedNewAccount = jwt('new-account');
+        completeNew(jsonResponse({ access_token: refreshedNewAccount }));
+        expect(await newRefresh).toEqual({ status: 'success', token: refreshedNewAccount });
+        completeOld(jsonResponse({ access_token: jwt('old-account') }));
         expect(await oldRefresh).toEqual({ status: 'superseded' });
-        expect(getAccessToken()).toBe('new-refreshed-account');
+        expect(getAccessToken()).toBe(refreshedNewAccount);
     });
 
     it('bounds a refresh request without discarding a valid token on timeout', async () => {
