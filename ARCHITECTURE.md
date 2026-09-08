@@ -182,6 +182,8 @@ Reference data lasts five minutes, market data 15 seconds, and private activity 
 Private scope includes the auth session, accepted user/organization profile, and assisted
 context. Mutations invalidate before and after execution; SSE invalidates affected resources
 before consumers refresh. Superseded requests cannot populate or return another scope's data.
+Command Center subscribes to private trade events and refreshes its action queue, totals,
+and Watchlist without requiring navigation away from the dashboard.
 The dashboard remounts its page subtree on account, organization, or assisted-context changes
 so previously rendered data and local drafts cannot remain under a different scope.
 Page readiness timing waits for usable data and paint, separately from the route commit.
