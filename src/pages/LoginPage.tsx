@@ -67,8 +67,11 @@ const LoginPage: React.FC = () => {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        await login(data.access_token);
+        const data = await res.json() as { access_token?: unknown; profile?: unknown };
+        if (typeof data.access_token !== 'string') {
+          throw new Error('Login response is missing an access token');
+        }
+        await login(data.access_token, data.profile);
         navigate(redirectTo);
       } else {
         if (res.status === 401) {
