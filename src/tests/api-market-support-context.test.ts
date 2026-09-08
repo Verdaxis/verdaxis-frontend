@@ -4,12 +4,16 @@ import { clearMarketSupportContextId, setMarketSupportContextId } from '../servi
 import { setAccessToken } from '../services/authToken';
 import { invalidateReadCache } from '../services/readCache';
 
+// Rotation changes the token while preserving the authenticated subject.
+const accessToken = `header.${btoa(JSON.stringify({ sub: 'user-1', jti: 'before' }))}.signature`;
+const refreshedToken = `header.${btoa(JSON.stringify({ sub: 'user-1', jti: 'after' }))}.signature`;
+
 describe('market support API transport', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     invalidateReadCache();
     sessionStorage.clear();
-    setAccessToken('access-token');
+    setAccessToken(accessToken);
   });
 
   it('adds the opaque context header to scoped customer requests', async () => {
@@ -38,13 +42,13 @@ describe('market support API transport', () => {
     setMarketSupportContextId('ctx-opaque-123');
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response('', { status: 401 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'refreshed-token' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: refreshedToken }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }));
 
     await api.orderbook.myOrders();
 
     const retry = vi.mocked(fetch).mock.calls[2][1];
-    expect(new Headers(retry?.headers).get('Authorization')).toBe('Bearer refreshed-token');
+    expect(new Headers(retry?.headers).get('Authorization')).toBe(`Bearer ${refreshedToken}`);
     expect(new Headers(retry?.headers).get('X-Verdaxis-Market-Support-Context')).toBe('ctx-opaque-123');
   });
 
@@ -53,7 +57,7 @@ describe('market support API transport', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       if (String(input).includes('/auth/refresh')) {
         clearMarketSupportContextId();
-        return new Response(JSON.stringify({ access_token: 'refreshed-token' }), { status: 200 });
+        return new Response(JSON.stringify({ access_token: refreshedToken }), { status: 200 });
       }
       return new Response('', { status: 401 });
     });
