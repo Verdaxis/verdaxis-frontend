@@ -22,8 +22,8 @@ const PAGE_DESTINATIONS: Partial<Record<Page, NavigationDestination>> = {
   ADMIN: 'admin',
 };
 
-// Passive route commit timing. Dogfood scripts layer page-specific usability
-// waits on top of this so Map/chart/data initialization is not undercounted.
+// Route commit and usable content are different milestones. Only a page that
+// has rendered its required data completes the navigation measurement.
 export interface DashboardNavigationMetric {
   id: number;
   fromPage: Page;
@@ -32,6 +32,7 @@ export interface DashboardNavigationMetric {
   durationMs: number;
   startedAt: number;
   completedAt: number;
+  shellDurationMs?: number;
 }
 
 interface ActiveNavigation {
@@ -40,6 +41,7 @@ interface ActiveNavigation {
   toPage: Page;
   viewMode: ViewMode;
   startedAt: number;
+  shellDurationMs?: number;
 }
 
 declare global {
@@ -84,6 +86,11 @@ export const recordDashboardNavigationStart = (
   viewMode: ViewMode,
 ): number | null => {
   if (fromPage === toPage) return null;
+  // A click handler starts the clock before navigation. The layout's route
+  // observer is a fallback for history/direct navigation, not a second start.
+  if (activeNavigation?.fromPage === fromPage
+      && activeNavigation.toPage === toPage
+      && activeNavigation.viewMode === viewMode) return activeNavigation.id;
 
   const id = ++navigationSequence;
   const startedAt = getNow();
@@ -92,12 +99,22 @@ export const recordDashboardNavigationStart = (
   return id;
 };
 
+export const recordDashboardRouteCommit = (page: Page, viewMode: ViewMode): void => {
+  if (activeNavigation?.toPage !== page || activeNavigation.viewMode !== viewMode) return;
+  activeNavigation.shellDurationMs ??= Math.max(0, getNow() - activeNavigation.startedAt);
+};
+
+export const cancelDashboardNavigation = (): void => {
+  activeNavigation = null;
+};
+
 export const recordDashboardContentReady = (
   readyPage: Page,
-  viewMode: ViewMode,
+  viewMode?: ViewMode,
 ): DashboardNavigationMetric | null => {
   if (!activeNavigation) return null;
-  if (activeNavigation.toPage !== readyPage || activeNavigation.viewMode !== viewMode) return null;
+  if (activeNavigation.toPage !== readyPage) return null;
+  if (viewMode !== undefined && activeNavigation.viewMode !== viewMode) return null;
 
   const completedAt = getNow();
   const metric: DashboardNavigationMetric = {
