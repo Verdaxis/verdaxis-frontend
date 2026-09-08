@@ -15,18 +15,22 @@ vi.mock('../services/analytics', async (importOriginal) => {
 import { reliability } from '../services/analytics';
 import {
   getDashboardNavigationEventName,
+  cancelDashboardNavigation,
   recordDashboardContentReady,
   recordDashboardNavigationStart,
+  recordDashboardRouteCommit,
 } from '../utils/navigationPerformance';
 
 describe('dashboard navigation performance metrics', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    cancelDashboardNavigation();
     window.__VERDAXIS_NAV_METRICS__ = [];
     performance.clearMarks();
     performance.clearMeasures();
   });
 
-  it('records a bounded browser-visible metric when the requested dashboard page commits', () => {
+  it('records a bounded browser-visible metric when requested page content is ready', () => {
     const listener = vi.fn();
     window.addEventListener(getDashboardNavigationEventName(), listener);
 
@@ -47,6 +51,28 @@ describe('dashboard navigation performance metrics', () => {
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0].detail).toMatchObject({ toPage: 'MARKETPLACE' });
     expect(performance.getEntriesByName('verdaxis:dashboard-navigation:MARKETPLACE')).toHaveLength(1);
+  });
+
+  it('includes data loading after route commit and keeps the original click start', () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(100);
+    const id = recordDashboardNavigationStart('MAP', 'MARKETPLACE', 'BUYER');
+    clock.mockReturnValue(125);
+    expect(recordDashboardNavigationStart('MAP', 'MARKETPLACE', 'BUYER')).toBe(id);
+    recordDashboardRouteCommit('MARKETPLACE', 'BUYER');
+    expect(window.__VERDAXIS_NAV_METRICS__).toHaveLength(0);
+    clock.mockReturnValue(700);
+    expect(recordDashboardContentReady('MARKETPLACE')).toMatchObject({
+      id, durationMs: 600, shellDurationMs: 25,
+    });
+  });
+
+  it('does not finish a cancelled session or a superseded destination', () => {
+    recordDashboardNavigationStart('MAP', 'MARKETPLACE', 'BUYER');
+    recordDashboardNavigationStart('MARKETPLACE', 'TRADES', 'BUYER');
+    expect(recordDashboardContentReady('MARKETPLACE')).toBeNull();
+    cancelDashboardNavigation();
+    expect(recordDashboardContentReady('TRADES')).toBeNull();
+    expect(window.__VERDAXIS_NAV_METRICS__).toHaveLength(0);
   });
 
   it('ignores repeated page selections and stale content commits', () => {
