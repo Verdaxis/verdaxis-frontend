@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
-import { clearAccessToken, getAccessToken, getAuthGeneration, refreshSession, setAccessToken } from '../services/authToken';
+import {
+    AUTH_IDENTITY_CHANGED_EVENT,
+    clearAccessToken,
+    getAccessToken,
+    getAuthGeneration,
+    refreshSession,
+    setAccessToken,
+} from '../services/authToken';
 import { BACKEND_UNAVAILABLE_EVENT, isBackendUnavailableStatus } from '../services/backendAvailability';
 import { analytics, reliability } from '../services/analytics';
 import { setReadCachePrincipal } from '../services/readCache';
@@ -139,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     return;
                 }
                 if (outcome.status === 'superseded') return;
+                if (outcome.status === 'identity_changed') return;
                 if (outcome.status === 'denied') {
                     logout();
                     return;
@@ -220,12 +228,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentToken = getAccessToken();
         if (!currentToken) {
             try {
-                const outcome = await refreshSession();
+                const outcome = await refreshSession({ allowIdentityRestore: true });
                 if (outcome.status === 'unavailable') {
                     markBackendUnavailable();
                     return;
                 }
                 if (outcome.status === 'superseded') return;
+                if (outcome.status === 'identity_changed') return;
                 if (outcome.status === 'denied') {
                     setIsBackendUnavailable(false);
                     clearTokens();
@@ -284,6 +293,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     markBackendUnavailable();
                 } else if (outcome.status === 'superseded') {
                     return;
+                } else if (outcome.status === 'identity_changed') {
+                    return;
                 } else if (outcome.status === 'success') {
                     setIsBackendUnavailable(false);
                     applyAccessToken(outcome.token);
@@ -319,6 +330,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (requestGeneration === getAuthGeneration()) setIsLoading(false);
         }
     }, [applyAccessToken, applyUserProfile, scheduleRefresh, clearTokens]);
+
+    useEffect(() => {
+        const handleIdentityChanged = () => clearTokens();
+        window.addEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+        return () => window.removeEventListener(AUTH_IDENTITY_CHANGED_EVENT, handleIdentityChanged);
+    }, [clearTokens]);
 
     useEffect(() => {
         const handleBackendUnavailable = () => setIsBackendUnavailable(true);
