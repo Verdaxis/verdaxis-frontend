@@ -32,6 +32,18 @@ describe('Availability Windows', () => {
         expect(VALID_WINDOWS.map(option => option.value)).toContain('2027-Q1');
     });
 
+    it('offers a rolling five-year horizon across year boundaries', () => {
+        for (const [date, last] of [
+            ['2026-09-11', '2031-Q3'],
+            ['2026-12-31', '2031-Q4'],
+            ['2027-01-01', '2032-Q1'],
+        ]) {
+            const windows = getAvailabilityWindowOptions({ now: new Date(`${date}T12:00:00Z`) });
+            expect(windows.filter(window => window.kind === 'quarter')).toHaveLength(20);
+            expect(windows.at(-1)?.value).toBe(last);
+        }
+    });
+
     it('should normalize legacy labels to canonical codes', () => {
         expect(normalizeAvailabilityWindow('Spot')).toBe(SPOT_WINDOW);
         expect(normalizeAvailabilityWindow('Q3 2026')).toBe('2026-Q3');

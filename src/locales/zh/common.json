@@ -85,6 +85,8 @@
   "footer.tools": "工具",
   "footer.tagline": "合规优先的可持续航运燃料认证交易平台。",
   "footer.copyright": "© {{year}} Verdaxis. 保留所有权利。",
+  "notifications.expiry.title": "订单将在48小时内到期",
+  "notifications.expiry.message": "您的订单将于{{date}}到期。如需继续交易，请在到期前查看订单。",
   "notifications.title": "通知",
   "notifications.empty": "暂无通知",
   "notifications.markAllRead": "全部标为已读",

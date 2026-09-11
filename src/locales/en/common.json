@@ -85,6 +85,8 @@
   "footer.tools": "Tools",
   "footer.tagline": "The compliance-first marketplace for verified sustainable marine fuels.",
   "footer.copyright": "© {{year}} Verdaxis. All rights reserved.",
+  "notifications.expiry.title": "Order expires within 48 hours",
+  "notifications.expiry.message": "Your order expires on {{date}}. Review it before expiry if you want to keep trading.",
   "notifications.title": "Notifications",
   "notifications.empty": "No notifications",
   "notifications.markAllRead": "Mark all read",
