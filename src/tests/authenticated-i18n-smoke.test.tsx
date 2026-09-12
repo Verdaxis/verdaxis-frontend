@@ -23,6 +23,7 @@ describe('authenticated Chinese i18n smoke coverage', () => {
     renderWithProviders(<MobileDesktopGate><div>workspace</div></MobileDesktopGate>);
 
     expect(screen.getByRole('heading', { name: '建议使用桌面设备' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '返回官网' }).getAttribute('href')).toBe('/');
   });
 
   it('translates the compliance upload workflow', async () => {

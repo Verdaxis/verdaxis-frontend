@@ -215,7 +215,7 @@ const RegisterPage: React.FC = () => {
           ) : (
             <>
               {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
+                <div role="alert" className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
                   <AlertCircle size={20} />
                   <span className="text-sm">{error}</span>
                 </div>
@@ -224,11 +224,13 @@ const RegisterPage: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.firstName')}</label>
+                        <label htmlFor="register-first-name" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.firstName')}</label>
                         <div className="relative">
                             <input
                             type="text"
                             name="first_name"
+                            id="register-first-name"
+                            autoComplete="given-name"
                             required
                             value={formData.first_name}
                             onChange={handleChange}
@@ -239,11 +241,13 @@ const RegisterPage: React.FC = () => {
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.lastName')}</label>
+                        <label htmlFor="register-last-name" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.lastName')}</label>
                         <div className="relative">
                             <input
                             type="text"
                             name="last_name"
+                            id="register-last-name"
+                            autoComplete="family-name"
                             required
                             value={formData.last_name}
                             onChange={handleChange}
@@ -256,10 +260,11 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.role')}</label>
+                  <label htmlFor="register-role" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.role')}</label>
                   <div className="relative">
                     <select
                       name="role"
+                      id="register-role"
                       value={formData.role}
                       onChange={handleChange}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all appearance-none"
@@ -272,11 +277,13 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.email')}</label>
+                  <label htmlFor="register-email" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.email')}</label>
                   <div className="relative">
                     <input
                       type="email"
                       name="email"
+                      id="register-email"
+                      autoComplete="email"
                       required
                       value={formData.email}
                       onChange={handleChange}
@@ -288,11 +295,14 @@ const RegisterPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.password')}</label>
+                  <label htmlFor="register-password" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.password')}</label>
                   <div className="relative">
                     <input
                       type="password"
                       name="password"
+                      id="register-password"
+                      autoComplete="new-password"
+                      aria-describedby="register-password-rules"
                       required
                       value={formData.password}
                       onChange={handleChange}
@@ -301,28 +311,31 @@ const RegisterPage: React.FC = () => {
                     />
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
-                  {formData.password && (
-                    <div className="mt-2 space-y-1">
+                    <div id="register-password-rules" aria-live="polite" className="mt-2 space-y-1">
                       {PASSWORD_RULES.map(rule => {
                         const passes = rule.test(formData.password);
                         return (
                           <div key={rule.label} className="flex items-center gap-2 text-xs">
-                            <CheckCircle2 size={14} className={passes ? 'text-emerald-400' : 'text-slate-600'} />
-                            <span className={passes ? 'text-emerald-400' : 'text-slate-500'}>{rule.label}</span>
+                            <CheckCircle2 aria-hidden="true" size={14} className={passes ? 'text-emerald-400' : 'text-slate-600'} />
+                            <span className={passes ? 'text-emerald-400' : 'text-slate-400'}>{rule.label}</span>
+                            <span className="text-slate-400">{t(passes ? 'register.ruleMet' : 'register.ruleUnmet')}</span>
                           </div>
                         );
                       })}
                     </div>
-                  )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.confirmPassword')}</label>
+                  <label htmlFor="register-confirm-password" className="block text-sm font-medium text-slate-400 mb-1.5">{t('register.confirmPassword')}</label>
                   <div className="relative">
                     <input
                       type="password"
                       required
                       value={confirmPassword}
+                      id="register-confirm-password"
+                      autoComplete="new-password"
+                      aria-invalid={Boolean(confirmPassword && confirmPassword !== formData.password)}
+                      aria-describedby={confirmPassword && confirmPassword !== formData.password ? 'register-password-mismatch' : undefined}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
                       placeholder={t('register.confirmPasswordPlaceholder')}
@@ -330,7 +343,7 @@ const RegisterPage: React.FC = () => {
                     <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
                   </div>
                   {confirmPassword && confirmPassword !== formData.password && (
-                    <p className="mt-1.5 text-xs text-red-400">{t('register.passwordMismatch')}</p>
+                    <p id="register-password-mismatch" className="mt-1.5 text-xs text-red-400">{t('register.passwordMismatch')}</p>
                   )}
                 </div>
 

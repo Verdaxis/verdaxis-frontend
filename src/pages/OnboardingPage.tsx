@@ -72,7 +72,7 @@ export const OnboardingPage: React.FC = () => {
                 </div>
 
                 {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-lg mb-6 text-sm">
+                    <div role="alert" className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-lg mb-6 text-sm">
                         {error}
                     </div>
                 )}
@@ -80,8 +80,10 @@ export const OnboardingPage: React.FC = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">{t('onboarding.firstName')}</label>
+                            <label htmlFor="onboarding-first-name" className="text-sm font-medium text-slate-300">{t('onboarding.firstName')}</label>
                             <input
+                                id="onboarding-first-name"
+                                autoComplete="given-name"
                                 type="text"
                                 required
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
@@ -91,8 +93,10 @@ export const OnboardingPage: React.FC = () => {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">{t('onboarding.lastName')}</label>
+                            <label htmlFor="onboarding-last-name" className="text-sm font-medium text-slate-300">{t('onboarding.lastName')}</label>
                             <input
+                                id="onboarding-last-name"
+                                autoComplete="family-name"
                                 type="text"
                                 required
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
@@ -103,12 +107,13 @@ export const OnboardingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        <label className="text-sm font-medium text-slate-300">{t('onboarding.selectRole')}</label>
+                    <fieldset className="space-y-3">
+                        <legend className="text-sm font-medium text-slate-300">{t('onboarding.selectRole')}</legend>
                         <div className="grid grid-cols-2 gap-4">
                             <button
                                 type="button"
                                 onClick={() => setFormData({...formData, role: 'BUYER'})}
+                                aria-pressed={formData.role === 'BUYER'}
                                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 ${
                                     formData.role === 'BUYER'
                                         ? 'border-blue-500 bg-blue-500/10 text-white'
@@ -121,6 +126,7 @@ export const OnboardingPage: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => setFormData({...formData, role: 'SUPPLIER'})}
+                                aria-pressed={formData.role === 'SUPPLIER'}
                                 className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 ${
                                     formData.role === 'SUPPLIER'
                                         ? 'border-emerald-500 bg-emerald-500/10 text-white'
@@ -131,7 +137,7 @@ export const OnboardingPage: React.FC = () => {
                                 <span className="font-medium">{t('onboarding.roleSupplier')}</span>
                             </button>
                         </div>
-                    </div>
+                    </fieldset>
 
                     <button
                         type="submit"

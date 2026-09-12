@@ -239,6 +239,25 @@ describe('Marketplace green fuels surface', () => {
     });
   });
 
+  it('keeps window, expiry and qualification accessible in the compact product cell', async () => {
+    renderWithProviders(<Marketplace />);
+    const action = await screen.findByRole('button', { name: 'Lift Ask' });
+    const row = action.closest('tr')!;
+    const productCell = row.querySelector('td')!;
+    expect(within(productCell).getByText('Spot')).toBeTruthy();
+    expect(productCell.textContent).toContain('Expiry');
+    const disclosure = productCell.querySelector('details')!;
+    expect(disclosure).toBeTruthy();
+    expect(disclosure.textContent).toContain('ISCC');
+    expect(disclosure.querySelector('summary')?.textContent).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
+    });
+    expect(screen.getByRole('button', { name: 'My Listings' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('forces fresh listings and grouped counts when the user refreshes', async () => {
     productCounts
       .mockResolvedValueOnce({

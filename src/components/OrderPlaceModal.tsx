@@ -487,8 +487,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         ) : modalState === 'auto_matched' ? (
                             <>
                                 <div className="relative mx-auto w-20 h-20 mb-5">
-                                    <div className="absolute inset-0 rounded-full bg-violet-500/20 animate-ping" style={{ animationDuration: '1.5s' }} />
-                                    <div className="absolute inset-1 rounded-full bg-violet-500/10 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.3s' }} />
+                                    <div className="absolute inset-0 rounded-full bg-violet-500/20 motion-safe:animate-ping" style={{ animationDuration: '1.5s' }} />
+                                    <div className="absolute inset-1 rounded-full bg-violet-500/10 motion-safe:animate-ping" style={{ animationDuration: '2s', animationDelay: '0.3s' }} />
                                     <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/30">
                                         <Zap size={36} className="text-white drop-shadow-lg" fill="white" />
                                     </div>
@@ -509,21 +509,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                             <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-violet-200/40 dark:from-violet-600/10 to-transparent rounded-bl-full" />
                                             <div className="grid grid-cols-2 gap-3 relative">
                                                 <div>
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.quantity')}</div>
+                                                    <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.quantity')}</div>
                                                     <div className="text-lg font-extrabold text-slate-900 dark:text-white">{trade.quantity_mt?.toLocaleString(locale)} <span className="text-sm font-medium text-slate-400">MT</span></div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.price')}</div>
+                                                    <div className="text-[11px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500 mb-0.5">{t('orderPlaceModal.autoMatched.price')}</div>
                                                     <div className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">${trade.price_per_mt_usd}<span className="text-sm font-medium">/MT</span></div>
                                                 </div>
                                             </div>
                                             <div className="mt-3 pt-3 border-t border-violet-200/60 dark:border-violet-700/30 flex justify-between items-center">
                                                 <div>
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500">{t('orderPlaceModal.autoMatched.total')}</span>
+                                                    <span className="text-[11px] font-bold uppercase tracking-wider text-violet-400 dark:text-violet-500">{t('orderPlaceModal.autoMatched.total')}</span>
                                                     <div className="text-base font-bold text-slate-800 dark:text-slate-200">${totalValue.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 </div>
                                                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700/50">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
                                                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{t('orderPlaceModal.autoMatched.confirmed')}</span>
                                                 </div>
                                             </div>

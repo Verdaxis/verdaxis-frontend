@@ -2,10 +2,6 @@
 import React, { useState } from 'react';
 import {
     Menu,
-    Search,
-    Bell,
-    AlertTriangle,
-    CheckCircle2,
     UserCircle,
     ChevronDown,
     LogOut,
@@ -37,20 +33,13 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
             <div className="flex items-center flex-1">
                 <button
                     data-tour="mobile-menu"
+                    aria-label={t('sidebar.open')}
                     className="md:hidden mr-4 text-slate-500 hover:text-verdaxis-dark"
                     onClick={onOpenMobileSidebar}
                 >
                     <Menu size={24} />
                 </button>
 
-                <div className="relative w-full max-w-xs md:max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder={viewMode === 'BUYER' ? t('header.search') : t('header.searchRequests')}
-                        className="w-full pl-10 pr-4 py-2 rounded-lg border border-[#2A3344] bg-[#2A3344] dark:bg-[#0A1628] focus:outline-none focus:ring-2 focus:ring-verdaxis text-sm text-white placeholder-slate-400"
-                    />
-                </div>
             </div>
 
             <div className="flex items-center space-x-3 md:space-x-6 ml-4">
@@ -61,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 {!isMarketSupportActive && <Tooltip content={t('header.platformTour')} position="bottom">
                     <button
                         onClick={startTutorial}
+                        aria-label={t('header.platformTour')}
                         data-tour="tour-button"
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white border border-[#2A3344] rounded-lg hover:border-verdaxis transition-all duration-200"
                     >
@@ -80,6 +70,8 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                 <div className="relative">
                     <button
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
+                        aria-label={t('header.profile')}
+                        aria-expanded={isProfileOpen}
                         className="flex items-center space-x-3 hover:bg-[#2A3344] p-2 rounded-lg transition-colors"
                     >
                         <div className="text-right hidden md:block">
@@ -110,6 +102,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                         <p className="text-xs font-bold text-slate-400 uppercase">{t('header.roleSwitcher')}</p>
                                     </div>
                                     <button
+                                        aria-pressed={viewMode === 'BUYER'}
                                         onClick={() => {
                                             onSwitchView('BUYER');
                                             setIsProfileOpen(false);
@@ -120,6 +113,7 @@ export const Header: React.FC<HeaderProps> = ({ viewMode, onSwitchView, onOpenMo
                                         {viewMode === 'BUYER' && <div className="w-2 h-2 bg-verdaxis rounded-full"></div>}
                                     </button>
                                     <button
+                                        aria-pressed={viewMode === 'SUPPLIER'}
                                         onClick={() => {
                                             onSwitchView('SUPPLIER');
                                             setIsProfileOpen(false);

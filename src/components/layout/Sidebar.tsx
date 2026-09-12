@@ -82,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                 </div>
                 {!isCollapsed && (
-                    <button onClick={onToggleCollapse} className="hidden md:block text-slate-400 hover:text-white transition-colors">
+                    <button aria-label={t('sidebar.collapse')} aria-expanded={!isCollapsed} onClick={onToggleCollapse} className="hidden md:block text-slate-400 hover:text-white transition-colors">
                         <ChevronsLeft size={20} />
                     </button>
                 )}
@@ -98,6 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="px-3 pt-4 pb-2">
                 <button
                     data-tour="sidebar-primary-action"
+                    aria-label={viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply')}
                     onClick={() => (onPrimaryAction ? onPrimaryAction() : handleNavigate('MARKETPLACE'))}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-colors bg-emerald-600 hover:bg-emerald-500 text-white ${isCollapsed ? 'px-2' : 'px-4'}`}
                 >
@@ -113,6 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             page in a new tab; plain clicks stay SPA navigations. */}
                         <NavLink
                             to={item.path}
+                            aria-label={item.label}
                             data-tour={`nav-${item.key}`}
                             onClick={() => handleNavigate(item.page)}
                             className={`w-full flex items-center px-3 py-3 rounded-lg transition-all duration-200 group ${
@@ -135,6 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Tooltip content={isCollapsed ? t('sidebar.admin') : ''} position="right">
                         <NavLink
                             to="/app/admin"
+                            aria-label={t('sidebar.admin')}
                             onClick={onMobileClose}
                             className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                                 currentPage === 'ADMIN'
@@ -150,6 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {!isMarketSupportActive && <Tooltip content={isCollapsed ? t('sidebar.settings') : ''} position="right">
                     <NavLink
                         to="/app/settings"
+                        aria-label={t('sidebar.settings')}
                         onClick={onMobileClose}
                         className={`flex items-center w-full px-3 py-2 rounded-lg transition-colors group ${
                             currentPage === 'SETTINGS'
@@ -165,6 +169,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {isCollapsed && (
                     <button
                         onClick={onToggleCollapse}
+                        aria-label={t('sidebar.expand')}
+                        aria-expanded={!isCollapsed}
                         className="mt-4 w-full flex justify-center text-slate-400 hover:text-white hidden md:flex transition-colors"
                     >
                         <ChevronsRight size={20} />

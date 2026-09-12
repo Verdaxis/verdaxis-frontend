@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ViewMode } from '../types';
+import React, { useEffect, useState } from 'react';
+import { FeeSchedule, Subscription, ViewMode } from '../types';
 import { User, Bell, Shield, CreditCard, Sun, Moon, Monitor, Lock, Check, AlertCircle, Key, Eye, EyeOff, Share2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useServerPreference } from '../hooks/useServerPreference';
 import { useTranslation } from 'react-i18next';
+import { api } from '../services/api';
 
 interface SettingsProps {
     viewMode: ViewMode;
@@ -46,6 +47,21 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
     inapp_order_matches: true,
 };
 
+type BillingState = 'idle' | 'loading' | 'ready' | 'error';
+
+const formatSellerRate = (rate: string | number | null | undefined): string | null => {
+    if (rate === null || rate === undefined || rate === '') return null;
+    const numericRate = Number(rate);
+    return Number.isFinite(numericRate) && numericRate >= 0 ? `$${numericRate.toFixed(2)}/MT` : null;
+};
+
+const isCurrentSubscription = (subscription: Subscription): boolean => {
+    if (!subscription.is_active) return false;
+    if (!subscription.expires_at) return true;
+    const expiresAt = Date.parse(subscription.expires_at);
+    return Number.isFinite(expiresAt) && expiresAt > Date.now();
+};
+
 const sanitizeNotificationPreferences = (raw: unknown): NotificationPreferences | null => {
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
     const record = raw as Record<string, unknown>;
@@ -60,6 +76,7 @@ const sanitizeNotificationPreferences = (raw: unknown): NotificationPreferences 
 const ThemeOption: React.FC<ThemeOptionProps> = ({ label, icon, active, onClick }) => (
     <button
         onClick={onClick}
+        aria-pressed={active}
         className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
             active
                 ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-slate-700 dark:border-slate-600 dark:text-blue-400'
@@ -112,6 +129,9 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         sanitizeNotificationPreferences,
         DEFAULT_NOTIFICATION_PREFS,
     );
+    const [billingState, setBillingState] = useState<BillingState>('idle');
+    const [feeSchedule, setFeeSchedule] = useState<FeeSchedule | null>(null);
+    const [subscription, setSubscription] = useState<Subscription | null>(null);
 
     const firstName = user?.first_name || '';
     const lastName = user?.last_name || '';
@@ -167,6 +187,37 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
         setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
+    const loadBilling = (force = false) => {
+        setBillingState('loading');
+        Promise.all([
+            api.subscriptions.fees(force ? { force: true } : undefined),
+            api.subscriptions.me(force ? { force: true } : undefined),
+        ]).then(([fees, currentSubscription]) => {
+            setFeeSchedule(fees);
+            setSubscription(currentSubscription);
+            setBillingState('ready');
+        }).catch(() => {
+            setBillingState('error');
+        });
+    };
+
+    useEffect(() => {
+        if (activeTab === 'billing' && billingState === 'idle') loadBilling();
+    }, [activeTab, billingState]);
+
+    const currentTier: Subscription['tier'] = subscription && isCurrentSubscription(subscription) ? subscription.tier : 'free';
+    const tierName = t(`billing.${currentTier === 'free' ? 'pilotName' : currentTier === 'standard' ? 'professional' : 'enterprise'}`);
+    const currentRate = subscription && feeSchedule
+        ? currentTier === 'enterprise'
+            ? formatSellerRate(subscription.seller_fee_per_mt_usd)
+            : formatSellerRate(feeSchedule.seller_fee_per_mt_usd[currentTier])
+        : null;
+    const pilotRate = feeSchedule ? formatSellerRate(feeSchedule.seller_fee_per_mt_usd.free) : null;
+    const professionalRate = feeSchedule ? formatSellerRate(feeSchedule.seller_fee_per_mt_usd.standard) : null;
+    const enterpriseRate = currentTier === 'enterprise' && subscription
+        ? formatSellerRate(subscription.seller_fee_per_mt_usd)
+        : null;
+
     if (!ready) return null;
 
     const tabConfig: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
@@ -209,6 +260,8 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                 <button
                                     key={tab.key}
                                     onClick={() => setActiveTab(tab.key)}
+                                    aria-label={tab.label}
+                                    aria-pressed={activeTab === tab.key}
                                     className={`relative z-10 flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-md transition-colors duration-200 ${
                                         activeTab === tab.key
                                             ? 'text-slate-900 dark:text-white'
@@ -230,20 +283,19 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                 <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-300 text-2xl font-bold flex-shrink-0">{initials}</div>
                                 <div className="flex-1 space-y-4 w-full">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div><label className="v-label">{t('profile.firstName')}</label><input type="text" value={firstName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
-                                        <div><label className="v-label">{t('profile.lastName')}</label><input type="text" value={lastName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                        <div><label htmlFor="settings-first-name" className="v-label">{t('profile.firstName')}</label><input id="settings-first-name" type="text" value={firstName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                        <div><label htmlFor="settings-last-name" className="v-label">{t('profile.lastName')}</label><input id="settings-last-name" type="text" value={lastName} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
                                     </div>
-                                    <div><label className="v-label">{t('profile.email')}</label><input type="email" value={email} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
-                                    {roleLabel && (<div><label className="v-label">{t('profile.role')}</label><div className="inline-flex items-center px-3 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-bold">{roleLabel}</div></div>)}
+                                    <div><label htmlFor="settings-email" className="v-label">{t('profile.email')}</label><input id="settings-email" type="email" value={email} className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-sm font-medium dark:text-white" readOnly /></div>
+                                    {roleLabel && (<div><p className="v-label">{t('profile.role')}</p><div className="inline-flex items-center px-3 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-bold">{roleLabel}</div></div>)}
                                 </div>
                             </div>
                         </div>
                         <div className="v-card p-6">
                             <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('preferences.title')}</h2>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.emailNotifications')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.emailNotificationsDesc')}</div></div><Toggle label={t('preferences.emailNotifications')} enabled={notifPrefs.email_compliance_digest} onToggle={() => toggleNotifPref('email_compliance_digest')} /></div>
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.marketAlerts')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.marketAlertsDesc')}</div></div><Toggle label={t('preferences.marketAlerts')} enabled={notifPrefs.email_market_alerts} onToggle={() => toggleNotifPref('email_market_alerts')} /></div>
-                                <div className="flex items-center justify-between"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.currency')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.currencyDesc')}</div></div><select className="p-1 border border-slate-200 dark:border-slate-700 rounded text-sm font-bold text-[#334155] dark:text-slate-200 bg-transparent"><option>USD ($)</option><option>EUR</option><option>CNY</option></select></div>
+                                <button onClick={() => setActiveTab('notifications')} className="text-sm font-bold text-blue-600 dark:text-blue-400 underline underline-offset-4">{t('notifications.title')}</button>
+                                <div className="flex items-center justify-between gap-4"><div><div className="text-sm font-bold text-[#334155] dark:text-slate-200">{t('preferences.currency')}</div><div className="text-xs text-slate-500 dark:text-slate-400">{t('preferences.currencyDesc')}</div></div><span className="text-sm font-bold text-[#334155] dark:text-slate-200 whitespace-nowrap">USD ($)</span></div>
                                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('preferences.appearance')}</h3>
                                     <div className="grid grid-cols-3 gap-3">
@@ -287,14 +339,14 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                 <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('security.changePassword')}</h2>
                                 <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
                                     {pwMessage && (
-                                        <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${pwMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'}`}>
+                                        <div role={pwMessage.type === 'success' ? 'status' : 'alert'} className={`flex items-center gap-2 p-3 rounded-lg text-sm ${pwMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'}`}>
                                             {pwMessage.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
                                             {pwMessage.text}
                                         </div>
                                     )}
-                                    <div><label className="v-label">{t('security.currentPassword')}</label><div className="relative"><input type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.currentPasswordPlaceholder')} /><button type="button" aria-label={t(showCurrentPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
-                                    <div><label className="v-label">{t('security.newPassword')}</label><div className="relative"><input type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.newPasswordPlaceholder')} /><button type="button" aria-label={t(showNewPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
-                                    <div><label className="v-label">{t('security.confirmPassword')}</label><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.confirmPasswordPlaceholder')} /></div>
+                                    <div><label htmlFor="settings-current-password" className="v-label">{t('security.currentPassword')}</label><div className="relative"><input id="settings-current-password" autoComplete="current-password" type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.currentPasswordPlaceholder')} /><button type="button" aria-label={t(showCurrentPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2 top-2 text-slate-400">{showCurrentPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label htmlFor="settings-new-password" className="v-label">{t('security.newPassword')}</label><div className="relative"><input id="settings-new-password" autoComplete="new-password" type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className="w-full p-2 pr-10 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.newPasswordPlaceholder')} /><button type="button" aria-label={t(showNewPw ? 'security.hidePassword' : 'security.showPassword')} onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2 top-2 text-slate-400">{showNewPw ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></div>
+                                    <div><label htmlFor="settings-confirm-password" className="v-label">{t('security.confirmPassword')}</label><input id="settings-confirm-password" autoComplete="new-password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm dark:text-white" placeholder={t('security.confirmPasswordPlaceholder')} /></div>
                                     <button type="submit" disabled={pwLoading} className="flex items-center gap-2 px-4 py-2 bg-[#5DADE2] hover:bg-[#4A9BD0] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"><Lock size={14} />{pwLoading ? t('security.changingBtn') : t('security.changeBtn')}</button>
                                 </form>
                             </div>
@@ -313,53 +365,70 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                     {activeTab === 'billing' && (
                         <div className="v-card p-6">
                             <h2 className="text-lg v-heading mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">{t('billing.title')}</h2>
-                            <div className="space-y-6">
-                                {/* Current Plan */}
-                                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{t('billing.currentPlan')}</h3>
-                                        <span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{t('billing.pilotBadge')}</span>
-                                    </div>
-                                    <p className="text-sm text-emerald-700 dark:text-emerald-400">{t('billing.pilotDesc')}</p>
-                                    <p className="text-xs text-emerald-600/70 dark:text-emerald-500/60 mt-1">{t('billing.pilotFree')}</p>
+                            {billingState === 'loading' && (
+                                <p role="status" className="text-sm text-slate-500 dark:text-slate-400">{t('billing.loading')}</p>
+                            )}
+                            {billingState === 'error' && (
+                                <div role="alert" className="space-y-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-800 dark:bg-rose-900/10 dark:text-rose-300">
+                                    <p>{t('billing.loadError')}</p>
+                                    <button type="button" onClick={() => loadBilling(true)} className="rounded border border-rose-300 px-3 py-1.5 text-xs font-bold hover:bg-rose-100 dark:border-rose-700 dark:hover:bg-rose-900/30">{t('billing.retry')}</button>
                                 </div>
+                            )}
+                            {billingState === 'ready' && feeSchedule && subscription && (
+                                <div className="space-y-6">
+                                    <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-400">{t('billing.currentPlan')}</h3>
+                                            <span className="text-xs font-bold px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded">{tierName}</span>
+                                        </div>
+                                        <p className="text-sm text-emerald-700 dark:text-emerald-400">{t('billing.currentPlanDesc', { plan: tierName })}</p>
+                                        <p className="text-xs text-emerald-800 dark:text-emerald-300 mt-1">{t('billing.currentSellerRate', { rate: currentRate || t('billing.rateUnavailable') })}</p>
+                                    </div>
+
+                                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/10 dark:text-blue-300">
+                                        <p className="font-bold">{t('billing.buyerAlwaysFree')}</p>
+                                        <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">{t('billing.sellerPays')}</p>
+                                    </div>
 
                                 {/* Subscription Tiers */}
                                 <div>
                                     <h3 className="text-sm font-bold text-[#334155] dark:text-slate-200 mb-3">{t('billing.availablePlans')}</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        {/* Pilot (current) */}
-                                        <div className="p-4 border-2 border-emerald-300 dark:border-emerald-700 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/5 relative">
-                                            <span className="absolute -top-2.5 left-3 px-2 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">{t('billing.currentBadge')}</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                        <div className={`p-4 rounded-lg bg-emerald-50/50 dark:bg-emerald-900/5 relative ${currentTier === 'free' ? 'border-2 border-emerald-300 dark:border-emerald-700' : 'border border-slate-200 dark:border-slate-700'}`}>
+                                            {currentTier === 'free' && <span className="absolute -top-2.5 left-3 px-2 py-0.5 bg-emerald-700 text-white text-[11px] font-bold rounded">{t('billing.currentBadge')}</span>}
                                             <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200 mt-1">{t('billing.pilotName')}</h4>
-                                            <p className="text-xs text-slate-500 mt-1">{t('billing.pilotFeatures')}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('billing.pilotFeatures')}</p>
                                             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-3">{t('billing.free')}</p>
-                                            <p className="text-[10px] text-slate-400">{t('billing.pilotCommission')}</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-300">{t('billing.sellerRate', { rate: pilotRate || t('billing.rateUnavailable') })}</p>
                                         </div>
 
                                         {/* Professional */}
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-[#5DADE2]/30 transition-colors">
+                                        <div className={`p-4 rounded-lg hover:border-[#5DADE2]/30 transition-colors ${currentTier === 'standard' ? 'border-2 border-[#5DADE2]' : 'border border-slate-200 dark:border-slate-700'}`}>
+                                            {currentTier === 'standard' && <span className="inline-block -mt-1 mb-1 px-2 py-0.5 bg-blue-700 text-white text-[11px] font-bold rounded">{t('billing.currentBadge')}</span>}
                                             <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.professional')}</h4>
-                                            <p className="text-xs text-slate-500 mt-1">{t('billing.professionalFeatures')}</p>
-                                            <p className="text-2xl font-bold text-[#5DADE2] mt-3">$500<span className="text-xs font-normal text-slate-500">{t('billing.perSeatMonth')}</span></p>
-                                            <p className="text-[10px] text-slate-400">{t('billing.professionalCommission')}</p>
-                                            <button className="mt-3 w-full py-2 rounded-lg bg-[#5DADE2]/10 text-[#5DADE2] text-xs font-bold hover:bg-[#5DADE2]/20 transition-colors border border-[#5DADE2]/20">
-                                                {t('billing.upgrade')}
-                                            </button>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('billing.professionalFeatures')}</p>
+                                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-3">$500<span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t('billing.perSeatMonth')}</span></p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-300">{t('billing.sellerRate', { rate: professionalRate || t('billing.rateUnavailable') })}</p>
+                                            {currentTier === 'free' && (
+                                                <a href="mailto:sales@verdaxis.exchange" className="block text-center mt-3 w-full py-2 rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-200 dark:border-blue-800">
+                                                    {t('billing.upgrade')}
+                                                </a>
+                                            )}
                                         </div>
 
                                         {/* Enterprise */}
-                                        <div className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-amber-500/30 transition-colors">
+                                        <div className={`p-4 rounded-lg hover:border-amber-500/30 transition-colors ${currentTier === 'enterprise' ? 'border-2 border-amber-500' : 'border border-slate-200 dark:border-slate-700'}`}>
+                                            {currentTier === 'enterprise' && <span className="inline-block -mt-1 mb-1 px-2 py-0.5 bg-amber-700 text-white text-[11px] font-bold rounded">{t('billing.currentBadge')}</span>}
                                             <h4 className="font-bold text-sm text-[#334155] dark:text-slate-200">{t('billing.enterprise')}</h4>
-                                            <p className="text-xs text-slate-500 mt-1">{t('billing.enterpriseFeatures')}</p>
-                                            <p className="text-2xl font-bold text-amber-500 mt-3">{t('billing.custom')}</p>
-                                            <p className="text-[10px] text-slate-400">{t('billing.negotiatedCommission')}</p>
-                                            <button
-                                                onClick={() => window.open('mailto:sales@verdaxis.exchange', '_blank')}
-                                                className="mt-3 w-full py-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors border border-amber-500/20"
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t('billing.enterpriseFeatures')}</p>
+                                            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-3">{t('billing.custom')}</p>
+                                            <p className="text-xs text-slate-600 dark:text-slate-300">{t('billing.sellerRate', { rate: enterpriseRate || t('billing.negotiated') })}</p>
+                                            <a
+                                                href="mailto:sales@verdaxis.exchange"
+                                                className="block text-center mt-3 w-full py-2 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors border border-amber-500/20"
                                             >
                                                 {t('billing.contactSales')}
-                                            </button>
+                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -370,7 +439,7 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-xs">
                                             <thead>
-                                                <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                                                <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                                                     <th className="text-left py-2 pr-4 font-medium">{t('billing.tier')}</th>
                                                     <th className="text-right py-2 px-4 font-medium">{t('billing.rate')}</th>
                                                     <th className="text-right py-2 pl-4 font-medium">{t('billing.minimumMonthly')}</th>
@@ -379,24 +448,25 @@ export const Settings: React.FC<SettingsProps> = ({ viewMode }) => {
                                             <tbody className="text-slate-700 dark:text-slate-300">
                                                 <tr className="border-b border-slate-100 dark:border-slate-700/50">
                                                     <td className="py-2 pr-4">{t('billing.pilotName')}</td>
-                                                    <td className="py-2 px-4 text-right font-mono">$2.00/MT</td>
+                                                    <td className="py-2 px-4 text-right font-mono">{pilotRate || t('billing.rateUnavailable')}</td>
                                                     <td className="py-2 pl-4 text-right font-mono">—</td>
                                                 </tr>
                                                 <tr className="border-b border-slate-100 dark:border-slate-700/50">
                                                     <td className="py-2 pr-4">{t('billing.professional')}</td>
-                                                    <td className="py-2 px-4 text-right font-mono">$1.50/MT</td>
+                                                    <td className="py-2 px-4 text-right font-mono">{professionalRate || t('billing.rateUnavailable')}</td>
                                                     <td className="py-2 pl-4 text-right font-mono">$500</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="py-2 pr-4">{t('billing.enterprise')}</td>
-                                                    <td className="py-2 px-4 text-right font-mono">{t('billing.negotiated')}</td>
+                                                    <td className="py-2 px-4 text-right font-mono">{enterpriseRate || t('billing.negotiated')}</td>
                                                     <td className="py-2 pl-4 text-right font-mono">{t('billing.custom')}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

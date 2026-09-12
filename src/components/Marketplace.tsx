@@ -736,20 +736,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 return (
                     <td key={col} className={`px-4 py-2 sticky left-0 z-20 ${stickyBg} whitespace-nowrap min-w-[180px]`}>
                         <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
+                            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${badgeClasses}`}>
                                 {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
                             </span>
                             {order.is_verdaxis_verified && (
                                 <Shield size={12} className="text-emerald-500 flex-shrink-0" />
                             )}
                             {order.off_spec && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
                                     {t('marketplace.grade.offSpec')}
                                 </span>
                             )}
                             {order.is_demo_listing && (
                                 <span
-                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
                                     title={t('marketplace.demo.tooltip')}
                                 >
                                     <AlertCircle size={11} />
@@ -762,6 +762,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
                                 {order.delivery_point_name || order.region}
                             </span>
+                        </div>
+                        <div className="mt-1 space-y-1 text-xs text-slate-600 dark:text-slate-300 xl:hidden">
+                            <p>{formatDeliveryWindow(order, locale)}</p>
+                            {configBase.columns.includes('expiry') && (
+                                <div>{t('marketplace.col.expiry')}: {formatExpiry(order, locale)}</div>
+                            )}
+                            {configBase.columns.includes('grade') && (
+                                <details className="max-w-[220px] whitespace-normal">
+                                    <summary className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500">
+                                        {t('marketplace.col.grade')}
+                                    </summary>
+                                    <p className="mt-1">{order.certification_declared ? t('marketplace.cert.declared') : t('marketplace.cert.missing')}</p>
+                                    {order.certifications.length > 0 && <p>{order.certifications.join(', ')}</p>}
+                                </details>
+                            )}
                         </div>
                     </td>
                 );
@@ -814,7 +829,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             {order.certifications.map(cert => (
                                 <span
                                     key={cert}
-                                    className="text-[10px] text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1 py-0.5 rounded"
+                                    className="text-[11px] text-slate-500 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-1 py-0.5 rounded"
                                 >
                                     {cert}
                                 </span>
@@ -1090,6 +1105,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         />
                         <button
                             data-tour="marketplace-tab-market"
+                            aria-pressed={marketTab === 'market'}
                             onClick={() => setMarketTab('market')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'market'
@@ -1101,6 +1117,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         </button>
                         <button
                             data-tour="marketplace-tab-orderbook"
+                            aria-pressed={marketTab === 'orderbook'}
                             onClick={() => setMarketTab('orderbook')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'orderbook'
@@ -1112,6 +1129,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         </button>
                         <button
                             data-tour="marketplace-tab-my-orders"
+                            aria-pressed={marketTab === 'my_orders'}
                             onClick={() => setMarketTab('my_orders')}
                             className={`relative z-10 min-w-0 px-4 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 ${
                                 marketTab === 'my_orders'
@@ -1198,7 +1216,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             >
                                                 <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
                                                 <div className="min-w-0">
-                                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
                                                         {requirement.label}
                                                     </div>
                                                     <div className="mt-0.5 truncate text-sm font-bold">
@@ -1338,7 +1356,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                         {formatDeliveryWindow(order, locale)}
                                                     </td>
                                                     <td className="px-3 py-2">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
                                                             order.status === 'OPEN' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' :
                                                             order.status === 'PARTIALLY_FILLED' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
                                                             order.status === 'FILLED' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' :
@@ -1411,7 +1429,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 key={order.id}
                                                 data-order-id={order.id}
                                                 data-tour="marketplace-listing-row"
-                                                className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 cursor-pointer ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
+                                                className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
                                             >
                                                 {configBase.columns.map(col => renderCell(col, order))}
                                             </tr>
@@ -1462,19 +1480,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.product')}</span>
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.product')}</span>
                                                 <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))}</div>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.filter.port')}</span>
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.filter.port')}</span>
                                                 <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.delivery_point_name || selectedOrder.region}</div>
                                             </div>
                                             <div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
                                                 <div className="font-bold text-slate-800 dark:text-slate-200">{tradeQuantity.toLocaleString(locale)} MT</div>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
+                                                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
                                                 <div className="font-bold text-emerald-600 dark:text-emerald-400">${selectedOrder.price_per_mt_usd}/MT</div>
                                             </div>
                                         </div>

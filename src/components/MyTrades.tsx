@@ -29,13 +29,14 @@ import {
     tradeGrossNotionalUsd,
 } from '../utils/tradeAnalytics';
 import i18n from '../i18n';
+import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
 
 const PAGE_SIZE = 20;
 
-export const MyTrades: React.FC = () => {
+export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     const { user, isAuthenticated } = useAuth();
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const { addToast } = useToast();
@@ -167,6 +168,13 @@ export const MyTrades: React.FC = () => {
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    const containerClass = embedded ? 'min-w-0' : 'max-w-7xl mx-auto p-4 lg:p-10 pb-24';
+    const pageHeading = !embedded && (
+        <div className="mb-6 lg:mb-8">
+            <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
+        </div>
+    );
 
     const STATUS_CONFIG = {
         PENDING_CONFIRMATION: {
@@ -240,11 +248,8 @@ export const MyTrades: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
-                <div className="mb-6 lg:mb-8">
-                    <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
-                </div>
+            <div className={containerClass}>
+                {pageHeading}
                 <LoadingScreen label={t('myTrades.loading')} />
             </div>
         );
@@ -252,11 +257,8 @@ export const MyTrades: React.FC = () => {
 
     if (error && !hasLoaded) {
         return (
-            <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
-                <div className="mb-6 lg:mb-8">
-                    <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle')}</p>
-                </div>
+            <div className={containerClass}>
+                {pageHeading}
                 <div className="v-card p-12 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
                         <AlertTriangle size={28} className="text-red-500" />
@@ -275,12 +277,12 @@ export const MyTrades: React.FC = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto p-4 lg:p-10 pb-24">
-            <div className="mb-6 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
+        <div className={containerClass}>
+            <div className={embedded ? 'mb-3 flex justify-end' : 'mb-6 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4'}>
+                {!embedded && <div>
                     <h1 className="text-2xl lg:text-3xl v-heading">{t('myTrades.title')}</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1 lg:mt-2 text-sm lg:text-base">{t('myTrades.subtitle.full')}</p>
-                </div>
+                </div>}
                 <button
                     onClick={() => fetchTrades(true, true)}
                     disabled={isRefreshing}
@@ -295,6 +297,7 @@ export const MyTrades: React.FC = () => {
                 {(['ALL', 'ACTIVE', 'COMPLETED'] as FilterTab[]).map((tab) => (
                     <button
                         key={tab}
+                        aria-pressed={filterTab === tab}
                         onClick={() => {
                             setFilterTab(tab);
                             setCurrentSkip(0);
@@ -387,6 +390,11 @@ export const MyTrades: React.FC = () => {
                                                 <span className="inline-block px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold rounded border border-blue-100 dark:border-blue-800">
                                                     {trade.product_name || trade.fuel_type}
                                                 </span>
+                                                {trade.availability_window && (
+                                                    <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                                        {formatAvailabilityWindow(trade.availability_window, locale)}
+                                                    </p>
+                                                )}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">
                                                 {trade.delivery_point_name || trade.region}

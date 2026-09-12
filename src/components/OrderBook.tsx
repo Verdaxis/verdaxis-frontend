@@ -189,7 +189,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 </h3>
                 <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[10px] text-slate-400 font-medium">{t('orderBook.live')}</span>
+                    <span className="text-[11px] text-slate-400 font-medium">{t('orderBook.live')}</span>
                 </div>
             </div>
 
@@ -198,24 +198,24 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/20">
                     <TrendingUp size={14} className="text-emerald-500" />
                     <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t('orderBook.bids')}</span>
-                    <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.buyPressure')}</span>
+                    <span className="ml-auto text-[11px] text-slate-400 font-medium">{t('orderBook.buyPressure')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 dark:bg-red-950/20">
                     <TrendingDown size={14} className="text-red-500" />
                     <span className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">{t('orderBook.asks')}</span>
-                    <span className="ml-auto text-[10px] text-slate-400 font-medium">{t('orderBook.sellOffers')}</span>
+                    <span className="ml-auto text-[11px] text-slate-400 font-medium">{t('orderBook.sellOffers')}</span>
                 </div>
             </div>
 
             {/* Sub-headers */}
             <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700 border-b border-slate-200 dark:border-slate-700">
                 <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.qtyMt')}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.pricePerMt')}</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">{t('orderBook.qtyMt')}</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase text-right">{t('orderBook.pricePerMt')}</span>
                 </div>
                 <div className="grid grid-cols-2 px-4 py-1 bg-slate-50 dark:bg-slate-800/30">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">{t('orderBook.pricePerMt')}</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase text-right">{t('orderBook.qtyMt')}</span>
                 </div>
             </div>
 
@@ -235,8 +235,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         const bidCrossed = bid ? (bid as any).is_crossed === true : false;
                         const askCrossed = ask ? (ask as any).is_crossed === true : false;
 
-                        const bidInteractive = actionableSide === 'BID';
-                        const askInteractive = actionableSide === 'ASK';
+                        const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
+                        const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
 
                         return (
                             <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
@@ -249,17 +249,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         onClick={() => { if (bidInteractive) onLevelClick?.(bid); }}
                                         data-tour={bidInteractive ? 'orderbook-actionable-level' : undefined}
                                         onKeyDown={(event) => {
+                                            if (event.key === 'Escape') setHoverTooltip(null);
+                                            if (event.target !== event.currentTarget) return;
                                             if (!bidInteractive) return;
                                             if (event.key === 'Enter' || event.key === ' ') {
                                                 event.preventDefault();
                                                 onLevelClick?.(bid);
                                             }
                                         }}
-                                        role={bidInteractive ? 'button' : undefined}
-                                        tabIndex={bidInteractive ? 0 : undefined}
-                                        aria-label={bidInteractive ? t('orderBook.openBid', { price: formatPrice(bid.price_per_mt_usd, locale), quantity: formatQty(bid.remaining_quantity_mt, locale) }) : undefined}
+                                        role={bidInteractive ? 'button' : 'group'}
+                                        tabIndex={0}
+                                        aria-label={t(bidInteractive ? 'orderBook.openBid' : 'orderBook.inspectBid', { price: formatPrice(bid.price_per_mt_usd, locale), quantity: formatQty(bid.remaining_quantity_mt, locale) })}
                                         aria-describedby={hoverTooltip?.order.id === bid.id ? tooltipId : undefined}
-                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors ${bidInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70' : 'cursor-default'} ${
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-emerald-50/60 dark:hover:bg-emerald-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${bidInteractive ? 'cursor-pointer' : 'cursor-default'} ${
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                     >
@@ -280,7 +282,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         {onInstantTrade && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(bid.id, 'ASK', bid.price_per_mt_usd, bid.remaining_quantity_mt); }}
-                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
+                                                className="relative z-10 mr-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/90 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
                                                 {t('orderBook.sell')}
                                             </button>
@@ -292,7 +294,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             bidCrossed ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                                         }`}>
                                             {bidCrossed && (
-                                                <span className="mr-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                                <span className="mr-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
                                                     <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
                                                 </span>
                                             )}
@@ -312,17 +314,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         onClick={() => { if (askInteractive) onLevelClick?.(ask); }}
                                         data-tour={askInteractive ? 'orderbook-actionable-level' : undefined}
                                         onKeyDown={(event) => {
+                                            if (event.key === 'Escape') setHoverTooltip(null);
+                                            if (event.target !== event.currentTarget) return;
                                             if (!askInteractive) return;
                                             if (event.key === 'Enter' || event.key === ' ') {
                                                 event.preventDefault();
                                                 onLevelClick?.(ask);
                                             }
                                         }}
-                                        role={askInteractive ? 'button' : undefined}
-                                        tabIndex={askInteractive ? 0 : undefined}
-                                        aria-label={askInteractive ? t('orderBook.openAsk', { price: formatPrice(ask.price_per_mt_usd, locale), quantity: formatQty(ask.remaining_quantity_mt, locale) }) : undefined}
+                                        role={askInteractive ? 'button' : 'group'}
+                                        tabIndex={0}
+                                        aria-label={t(askInteractive ? 'orderBook.openAsk' : 'orderBook.inspectAsk', { price: formatPrice(ask.price_per_mt_usd, locale), quantity: formatQty(ask.remaining_quantity_mt, locale) })}
                                         aria-describedby={hoverTooltip?.order.id === ask.id ? tooltipId : undefined}
-                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors ${askInteractive ? 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70' : 'cursor-default'} ${
+                                        className={`relative flex items-center justify-between px-4 py-1.5 border-b border-transparent dark:border-transparent group hover:bg-red-50/60 dark:hover:bg-red-950/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/70 ${askInteractive ? 'cursor-pointer' : 'cursor-default'} ${
                                             askCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                     >
@@ -345,12 +349,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         }`}>
                                             {formatPrice(ask.price_per_mt_usd, locale)}
                                             {askCrossed && (
-                                                <span className="ml-1 inline-flex items-center text-[9px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
+                                                <span className="ml-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
                                                     <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
                                                 </span>
                                             )}
                                             {ask.carbon_intensity_gco2_mj != null && (
-                                                <span className={`ml-1.5 inline-flex items-center text-[9px] font-bold px-1 py-0.5 rounded-full ${
+                                                <span className={`ml-1.5 inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full ${
                                                     ask.carbon_intensity_gco2_mj < 30
                                                         ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
                                                         : ask.carbon_intensity_gco2_mj <= 60
@@ -367,7 +371,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         {onInstantTrade && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onInstantTrade(ask.id, 'BID', ask.price_per_mt_usd, ask.remaining_quantity_mt); }}
-                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
+                                                className="relative z-10 ml-1 px-1.5 py-0.5 text-[11px] font-bold uppercase rounded bg-emerald-500/90 hover:bg-emerald-500 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-opacity flex-shrink-0"
                                             >
                                                 {t('orderBook.buy')}
                                             </button>
@@ -392,7 +396,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                             <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                                 {formatMarketProduct(hoverTooltip.order.market_product || marketProduct || 'BIO_METHANOL')}
                             </span>
-                            <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                            <span className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-600 dark:border-slate-700 dark:text-slate-300">
                                 {hoverTooltip.order.side}
                             </span>
                         </div>
@@ -403,19 +407,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         )}
                         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] text-slate-600 dark:text-slate-300">
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('marketplace.modal.certification')}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('marketplace.modal.certification')}</span>
                                 <span>{hoverTooltip.order.certification_scheme || hoverTooltip.order.certifications?.[0] || t('orderPlaceModal.option.anyCertifiedScheme')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.origin')}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.origin')}</span>
                                 <span>{hoverTooltip.order.origin || t('common.notSpecified')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.feedstock')}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('orderPlaceModal.label.feedstock')}</span>
                                 <span>{hoverTooltip.order.feedstock || t('common.notSpecified')}</span>
                             </div>
                             <div>
-                                <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('orderBook.ci')}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('orderBook.ci')}</span>
                                 <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : t('common.notAvailable')}</span>
                             </div>
                         </div>
@@ -435,7 +439,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 const spreadPct = bestBid > 0 ? (spread / bestBid) * 100 : 0;
                 return (
                     <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
-                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
+                        <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
                         <span className={`text-xs font-mono font-bold ${spread <= 0 ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
                             {spread <= 0 ? (
                                 <span className="flex items-center gap-1">

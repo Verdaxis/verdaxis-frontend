@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -52,6 +53,9 @@ export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }
             <span className="mobile-desktop-gate__pill-dot" />
             {t('mobileGate.platform')}
           </div>
+          <Link to="/" className="mt-6 inline-block text-sm font-semibold text-blue-700 hover:text-blue-900 underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+            {t('mobileGate.publicSite')}
+          </Link>
         </div>
       </div>
     </>

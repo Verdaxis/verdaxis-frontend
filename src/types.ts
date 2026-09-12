@@ -270,8 +270,11 @@ export interface Trade {
     final_quantity_mt?: number;
     final_price_per_mt?: number;
     final_total_usd?: number;
-    commission_rate_pct: number;
-    commission_amount_usd?: number;
+    commission_rate_pct: string | number;
+    commission_amount_usd?: string | number | null;
+    commission_fee_per_mt_usd?: string | number | null;
+    commission_plan?: Subscription['tier'] | null;
+    commission_payer?: 'SELLER' | null;
     confirmed_at?: string;
     delivered_at?: string;
     paid_at?: string;
@@ -281,7 +284,7 @@ export interface Trade {
     product_name?: string;
     delivery_point_id?: string;
     delivery_point_name?: string;
-    availability_window?: AvailabilityWindow;
+    availability_window?: string; // Canonical API code; legacy labels are normalized at display boundaries.
     market_product?: string | Product;
     fuel_type: string;
     fuel_grade?: FuelGrade;
@@ -742,6 +745,14 @@ export interface Subscription {
     org_id: string;
     tier: 'free' | 'standard' | 'enterprise';
     is_active: boolean;
+    expires_at?: string | null;
+    seller_fee_per_mt_usd?: string | number | null;
+}
+
+export interface FeeSchedule {
+    currency: 'USD';
+    buyer_fee_per_mt_usd: string | number;
+    seller_fee_per_mt_usd: Record<Subscription['tier'], string | number | null>;
 }
 
 export interface ActivityEvent {
