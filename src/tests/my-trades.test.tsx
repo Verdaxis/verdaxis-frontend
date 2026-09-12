@@ -131,6 +131,15 @@ describe('MyTrades lifecycle', () => {
     });
   });
 
+  it('leaves the page heading to its parent when embedded and keeps the trade window visible', async () => {
+    renderWithProviders(<MyTrades embedded />);
+    await screen.findByText('Buy Corp');
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.getByText('Spot')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'myTrades.btn.refresh' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'myTrades.tab.all' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('uses server totals to paginate beyond the first twenty trades', async () => {
     myTradesPagedMock.mockResolvedValue({
       items: [{

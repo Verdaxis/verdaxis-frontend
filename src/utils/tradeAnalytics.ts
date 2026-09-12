@@ -1,4 +1,5 @@
 import type { Trade } from '../types';
+import { normalizeAvailabilityWindow } from './availabilityWindow';
 
 const ACTIVE_TRADE_STATUSES = new Set(['PENDING_CONFIRMATION', 'PENDING']);
 const COMPLETED_TRADE_STATUSES = new Set(['CONFIRMED', 'DELIVERED', 'PAID', 'SETTLED']);
@@ -74,12 +75,15 @@ function tradeFuelLabel(trade: Trade, unknownFuelLabel: string): string {
   return trade.product_name || trade.fuel_type || unknownFuelLabel;
 }
 
-export function tradeSliceKey(trade: Trade): string {
-  const product = trade.product_id || trade.fuel_type;
-  const deliveryPoint = trade.delivery_point_id || trade.region;
-  if (!product || !deliveryPoint) return '';
+export function tradeSliceKey(trade: {
+  product_id?: string | null;
+  delivery_point_id?: string | null;
+  availability_window?: string | null;
+}): string {
+  const { product_id, delivery_point_id, availability_window } = trade;
+  if (!product_id || !delivery_point_id || !availability_window?.trim()) return '';
 
-  return [product, deliveryPoint].join('|');
+  return [product_id, delivery_point_id, normalizeAvailabilityWindow(availability_window)].join('|');
 }
 
 export function buildTradePerformanceModel(
@@ -121,11 +125,12 @@ export function buildTradePerformanceModel(
 function buildMonthlyTradeCounts(trades: Trade[], locale = 'en'): MonthlyTradeCount[] {
   const now = new Date();
   const buckets: MonthlyTradeCount[] = [];
+  const monthCount = 6;
 
-  for (let i = 5; i >= 0; i -= 1) {
+  for (let i = monthCount - 1; i >= 0; i -= 1) {
     const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     buckets.push({
-      label: month.toLocaleString(locale, { month: 'short' }),
+      label: month.toLocaleString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' }),
       count: 0,
     });
   }
@@ -137,9 +142,10 @@ function buildMonthlyTradeCounts(trades: Trade[], locale = 'en'): MonthlyTradeCo
     const date = new Date(rawDate);
     if (Number.isNaN(date.getTime())) continue;
 
-    const label = date.toLocaleString(locale, { month: 'short' });
-    const bucket = buckets.find((entry) => entry.label === label);
-    if (bucket) bucket.count += 1;
+    const monthsFromNow = (date.getUTCFullYear() - now.getUTCFullYear()) * 12
+      + date.getUTCMonth() - now.getUTCMonth();
+    const bucketIndex = monthsFromNow + monthCount - 1;
+    if (bucketIndex >= 0 && bucketIndex < monthCount) buckets[bucketIndex].count += 1;
   }
 
   return buckets;

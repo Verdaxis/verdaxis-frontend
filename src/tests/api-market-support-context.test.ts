@@ -80,7 +80,7 @@ describe('market support API transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('blocks the state-changing watchlist and referral reads in support mode', async () => {
+  it('blocks the state-changing watchlist, referral, and subscription reads in support mode', async () => {
     setMarketSupportContextId('ctx-opaque-123');
     const fetchMock = vi.spyOn(globalThis, 'fetch');
 
@@ -89,6 +89,10 @@ describe('market support API transport', () => {
       code: 'MARKET_SUPPORT_MUTATION_BLOCKED',
     });
     await expect(api.referrals.getCode()).rejects.toMatchObject({
+      status: 403,
+      code: 'MARKET_SUPPORT_MUTATION_BLOCKED',
+    });
+    await expect(api.subscriptions.me()).rejects.toMatchObject({
       status: 403,
       code: 'MARKET_SUPPORT_MUTATION_BLOCKED',
     });

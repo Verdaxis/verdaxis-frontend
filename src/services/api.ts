@@ -97,6 +97,7 @@ const isStateChangingGet = (path: string, method: string): boolean => {
     const route = path.split('?')[0];
     return route === '/watchlists/me'
         || route === '/referrals/my-code'
+        || route === '/subscriptions/me'
         || route === '/auth/verify-email';
 };
 
@@ -967,7 +968,7 @@ export const api = {
             const path = `/prices${query ? `?${query}` : ''}`;
             return readApi(`prices:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
-        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, cacheOptions?: ReadCacheOptions): Promise<{ prices: Array<{ fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
+        getReference: async (params?: { market_product?: string; product_id?: string; delivery_point_id?: string; availability_window?: string; fuel_type?: string; region?: string; visibility?: 'internal' | 'external'; date_from?: string; date_to?: string }, cacheOptions?: ReadCacheOptions): Promise<{ prices: Array<{ product_id?: string | null; delivery_point_id?: string | null; availability_window: string; fuel_type: string; region: string; vwap_usd: number; total_volume_mt: number; trade_count: number; date: string; visibility: string }>; generated_at: string }> => {
             const searchParams = new URLSearchParams();
             if (params?.market_product) searchParams.append('market_product', params.market_product);
             if (params?.product_id) searchParams.append('product_id', params.product_id);
@@ -1280,6 +1281,9 @@ export const api = {
     },
 
     subscriptions: {
+        fees: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').FeeSchedule> => {
+            return readApi('subscriptions:fees', '/subscriptions/fees', 'reference', 'public', undefined, cacheOptions);
+        },
         me: async (cacheOptions?: ReadCacheOptions): Promise<import('../types').Subscription> => {
             return readApi('subscriptions:me', '/subscriptions/me', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
         },

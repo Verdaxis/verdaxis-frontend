@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,7 +64,12 @@ describe('product analytics workspace shell', () => {
     await waitFor(() => expect(tabMocks.overview).toHaveBeenCalledTimes(1));
     expect(tabMocks.acquisition).not.toHaveBeenCalled();
 
-    resolveOverview(paOverview());
+    // Resolve the controlled request inside React's scheduler. This keeps the
+    // assertion tied to the committed ready state when the full suite is
+    // under concurrent worker load.
+    await act(async () => {
+      resolveOverview(paOverview());
+    });
     await screen.findByTestId('lifecycle-spine', {}, { timeout: 10000 });
 
     // Sequential warm-up: the first behavioral tab is prefetched; the rest

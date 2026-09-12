@@ -380,7 +380,8 @@ describe('OrderPlaceModal', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+    // The focus effect also installs Escape; a rendered dialog alone is not ready.
+    await waitFor(() => expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true));
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });

@@ -574,3 +574,15 @@
 - **Trigger:** A Chinese-language client presentation exposed English application surfaces even though the translation check reported success.
 - **Rule:** Compare locale leaf paths recursively, audit hard-coded rendered copy, and dogfood every reachable product area in the non-default locale before calling i18n complete.
 - **Why:** The checker compared only top-level JSON keys, so nested schema drift and components bypassing i18n remained invisible.
+
+### Show Validation State Without Depending On Color
+- **Date:** 2026-09-12
+- **Trigger:** Review found always-visible password guidance used the same icon and text for met and unmet rules, changing only color.
+- **Rule:** Add localized visible state text and polite announcements, then verify both unmet and met states in a rendered test.
+- **Why:** Color alone does not communicate validation state to color-blind or screen-reader users.
+
+### Wait For UI Readiness, Not Only Rendered Markup
+- **Date:** 2026-09-12
+- **Trigger:** The full suite exposed a dialog rendered before its keyboard effect and a controlled request resolved outside React's scheduler.
+- **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus, before sending input. Keep the original behavior assertions; do not mask the race with longer timeouts.
+- **Why:** DOM presence does not prove that passive effects and committed async state are ready under concurrent worker load.

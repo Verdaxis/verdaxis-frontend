@@ -18,6 +18,7 @@ import { Trade, Product, DeliveryPoint, PriceAlert } from '../types';
 import { useToast } from './Toast';
 import { MyTrades } from './MyTrades';
 import { buildTradePerformanceModel, tradeSliceKey } from '../utils/tradeAnalytics';
+import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { getProductDisplayName, getProductDisplayNameFromReference } from '../utils/marketProduct';
 import { useNamespace } from '../hooks/useNamespace';
 import i18n from '../i18n';
@@ -39,6 +40,7 @@ const PerformanceTab: React.FC = () => {
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [trades, setTrades] = useState<Trade[]>([]);
     const [referenceBySlice, setReferenceBySlice] = useState<Record<string, number>>({});
+    const [referenceDates, setReferenceDates] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -50,7 +52,7 @@ const PerformanceTab: React.FC = () => {
                 if (cancelled) return;
                 setTrades(data);
 
-                const slices = new Map<string, { product_id: string; delivery_point_id: string; availability_window?: string; fuel_type?: string; region?: string }>();
+                const slices = new Map<string, { product_id: string; delivery_point_id: string; availability_window: string }>();
                 for (const trade of data) {
                     const key = tradeSliceKey(trade);
                     if (!key || !trade.product_id || !trade.delivery_point_id) {
@@ -59,9 +61,7 @@ const PerformanceTab: React.FC = () => {
                     slices.set(key, {
                         product_id: trade.product_id,
                         delivery_point_id: trade.delivery_point_id,
-                        availability_window: trade.availability_window,
-                        fuel_type: trade.fuel_type,
-                        region: trade.region,
+                        availability_window: normalizeAvailabilityWindow(trade.availability_window),
                     });
                 }
 
@@ -71,25 +71,29 @@ const PerformanceTab: React.FC = () => {
                             const response = await api.prices.getReference({
                                 product_id: slice.product_id,
                                 delivery_point_id: slice.delivery_point_id,
-                                fuel_type: slice.fuel_type,
-                                region: slice.region,
+                                availability_window: slice.availability_window,
                                 visibility: 'internal',
                             });
-                            const vwap = Number(response.prices?.[0]?.vwap_usd || 0);
-                            return [key, vwap > 0 ? vwap : 0] as const;
+                            // The API sorts daily references newest first. Never borrow another slice's price.
+                            const reference = response.prices.find((price) => tradeSliceKey(price) === key);
+                            const vwap = Number(reference?.vwap_usd ?? 0);
+                            return { key, value: Number.isFinite(vwap) && vwap > 0 ? vwap : 0, date: reference?.date };
                         } catch {
-                            return [key, 0] as const;
+                            return { key, value: 0, date: undefined };
                         }
                     })
                 );
 
                 if (!cancelled) {
-                    setReferenceBySlice(Object.fromEntries(entries.filter(([, value]) => value > 0)));
+                    const references = entries.filter(({ value }) => value > 0);
+                    setReferenceBySlice(Object.fromEntries(references.map(({ key, value }) => [key, value])));
+                    setReferenceDates(references.flatMap(({ date }) => date ? [date] : []).sort());
                 }
             } catch {
                 if (!cancelled) {
                     setTrades([]);
                     setReferenceBySlice({});
+                    setReferenceDates([]);
                 }
             } finally {
                 if (!cancelled) {
@@ -200,6 +204,15 @@ const PerformanceTab: React.FC = () => {
 
             <div className="v-card p-5">
                 <h3 className="text-sm font-bold text-slate-700 dark:text-white mb-4 uppercase tracking-wider">{t('tradeHistory.performance.executionVsReference')}</h3>
+                {referenceDates.length > 0 && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                        {t('tradeHistory.performance.referenceDates', {
+                            dates: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).formatRange(
+                                new Date(referenceDates[0]), new Date(referenceDates[referenceDates.length - 1]),
+                            ),
+                        })}
+                    </p>
+                )}
                 {model.fuelComparisons.length === 0 ? (
                     <p className="text-sm text-slate-400 py-8 text-center">{t('tradeHistory.performance.noReference')}</p>
                 ) : (
@@ -542,6 +555,7 @@ export const TradeHistoryPage: React.FC = () => {
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
+                        aria-pressed={activeTab === tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`relative z-10 px-5 py-1.5 text-xs font-bold rounded-md transition-colors duration-200 w-28 flex items-center justify-center gap-1.5 ${
                             activeTab === tab.id
@@ -556,7 +570,7 @@ export const TradeHistoryPage: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'blotter' && <MyTrades />}
+            {activeTab === 'blotter' && <MyTrades embedded />}
             {activeTab === 'performance' && <PerformanceTab />}
             {activeTab === 'alerts' && <AlertsTab />}
         </div>

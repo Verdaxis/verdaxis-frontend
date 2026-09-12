@@ -922,12 +922,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                                 <div className="space-y-1">
                                     {recentListingsByRegion.length > 0 ? (
                                         recentListingsByRegion.map((item) => (
-                                            <div key={item.region} className="flex justify-between items-center text-[10px] px-1 py-0.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded cursor-pointer transition-colors">
+                                            <div key={item.region} className="flex justify-between items-center text-[11px] px-1 py-0.5">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
                                                     <span className="font-bold text-slate-700 dark:text-slate-300">{item.region}</span>
                                                 </div>
-                                                <span className="font-mono text-emerald-600 text-[9px]">${item.price.toFixed(0)}</span>
+                                                <span className="font-mono text-emerald-600 text-[11px]">${item.price.toFixed(0)}</span>
                                             </div>
                                         ))
                                     ) : (
