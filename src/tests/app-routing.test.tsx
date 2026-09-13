@@ -106,6 +106,7 @@ vi.mock('../components/public/DataOcean', () => ({ DataOcean: () => null }));
 vi.mock('../components/ui/Pagination', () => ({ Pagination: () => null }));
 vi.mock('../pages/public/LandingPage', () => ({ LandingPage: () => null }));
 vi.mock('../pages/public/PartnerLandingPage', () => ({ PartnerLandingPage: () => null }));
+vi.mock('../pages/public/NotFoundPage', () => ({ NotFoundPage: () => <div data-testid="page-not-found">custom-404</div> }));
 
 vi.mock('../components/CommandCenter', () => ({
   BuyerDashboard: ({ openOrderId }: { openOrderId?: string }) => (
@@ -345,10 +346,26 @@ describe('app routing', () => {
   });
 
   describe('redirects', () => {
-    it('sends unknown /app/* paths home (there is no /app/inventory)', async () => {
+    it('renders the custom 404 for unknown /app/* paths', async () => {
       renderApp('/app/inventory');
-      expect(await screen.findByTestId('page-buyer-dashboard')).toBeTruthy();
-      expect(currentPathname()).toBe('/app/home');
+      expect(await screen.findByTestId('page-not-found')).toBeTruthy();
+      expect(currentPathname()).toBe('/app/inventory');
+    });
+
+    it('renders the custom 404 for unknown localized, catalog, language, and unprefixed paths', async () => {
+      const paths = [
+        '/en/not-a-page',
+        '/en/education/not-an-article',
+        '/en/fuels/not-a-sector',
+        '/fr/not-a-page',
+        '/not-a-page',
+      ];
+      for (const path of paths) {
+        const view = renderApp(path);
+        expect(await screen.findByTestId('page-not-found')).toBeTruthy();
+        expect(currentPathname()).toBe(path);
+        view.unmount();
+      }
     });
 
     it('restores the stored page at bare /app', async () => {

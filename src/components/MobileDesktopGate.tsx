@@ -37,8 +37,11 @@ export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }
 
         <div className="mobile-desktop-gate__content">
           <img
-            src="/verdaxis-logo-words-right.png"
+            src="/verdaxis-logo-words-right-384.png"
+            width={384}
+            height={86}
             alt="Verdaxis"
+            decoding="async"
             className="mobile-desktop-gate__logo"
           />
           <div className="mobile-desktop-gate__divider" />

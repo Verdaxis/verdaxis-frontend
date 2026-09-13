@@ -30,25 +30,29 @@ gsap.registerPlugin(ScrollTrigger);
 const partners = [
   {
     name: 'Methanol Institute',
-    logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
+    logoUrl: null as string | null,
+    logoFallback: 'MI',
     color: '#0078D4',
     website: 'https://methanol.org',
   },
   {
     name: 'S&P Global Platts',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
+    logoUrl: '/partner-platts-128.png',
+    logoFallback: 'S&P',
     color: '#E8373E',
     website: 'https://www.spglobal.com/commodityinsights',
   },
   {
     name: 'MPA Singapore',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
+    logoUrl: null as string | null,
+    logoFallback: 'MPA',
     color: '#1B5E9C',
     website: 'https://www.mpa.gov.sg',
   },
   {
     name: 'Gena Solutions',
-    logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
+    logoUrl: '/partner-gena-128.png',
+    logoFallback: 'GENA',
     color: '#00897B',
     website: 'https://genasolutions.com',
   },
@@ -344,15 +348,26 @@ export const PartnerLandingPage: React.FC = () => {
                       boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
                     }}
                   >
-                    <img
-                      src={p.logoUrl}
-                      alt={p.name}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                      }}
-                    />
+                    {p.logoUrl ? (
+                      <img
+                        src={p.logoUrl}
+                        width={64}
+                        height={64}
+                        alt={p.name}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(event) => { event.currentTarget.hidden = true; }}
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                        }}
+                      />
+                    ) : (
+                      <span aria-hidden="true" style={{ color: p.color, fontSize: 18, fontWeight: 800 }}>
+                        {p.logoFallback}
+                      </span>
+                    )}
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div

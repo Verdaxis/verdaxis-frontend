@@ -1,12 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const PrivacyPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
-
-    useEffect(() => {
-        if (ready) document.title = `${t('privacy.title')} — Verdaxis`;
-    }, [ready, t]);
 
     if (!ready) return null;
 

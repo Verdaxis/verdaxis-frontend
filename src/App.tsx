@@ -22,6 +22,7 @@ import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
+import { RouteMetadata } from './components/RouteMetadata';
 import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
@@ -37,6 +38,7 @@ import LanguageRedirect from './components/public/LanguageRedirect';
 import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
 import LegacyRedirect from './components/public/LegacyRedirect';
 import { useTranslation } from 'react-i18next';
+import { EDUCATION_SLUGS } from './routeMetadata';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
 const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
@@ -106,6 +108,7 @@ const PartnerLandingPage = lazyWithRetry(() => import('./pages/public/PartnerLan
 const PrivacyPage = lazyWithRetry(() => import('./pages/public/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
 const TermsPage = lazyWithRetry(() => import('./pages/public/TermsPage').then((module) => ({ default: module.TermsPage })));
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
+const ThankYouPage = lazyWithRetry(() => import('./pages/public/ThankYouPage').then((module) => ({ default: module.ThankYouPage })));
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
@@ -491,6 +494,18 @@ const AdminRoute: React.FC = () => {
   return <AdminDashboard />;
 };
 
+const FuelCoverageRoute: React.FC = () => {
+  const { sector } = useParams<{ sector?: string }>();
+  if (sector && !['maritime', 'aviation', 'land'].includes(sector)) return <NotFoundPage />;
+  return <FuelCoveragePage />;
+};
+
+const EducationArticleRoute: React.FC = () => {
+  const { slug } = useParams<{ slug?: string }>();
+  if (!slug || !EDUCATION_SLUGS.includes(slug as (typeof EDUCATION_SLUGS)[number])) return <NotFoundPage />;
+  return <EducationArticlePage />;
+};
+
 // Exported for route-level tests: everything inside the router, without
 // the BrowserRouter/provider shell.
 export const AppRoutes: React.FC = () => {
@@ -506,17 +521,18 @@ export const AppRoutes: React.FC = () => {
                     <Route path="/forgot-password" element={<BackendRequiredRoute><ForgotPasswordPage /></BackendRequiredRoute>} />
                     <Route path="/reset-password" element={<BackendRequiredRoute><ResetPasswordPage /></BackendRequiredRoute>} />
                     <Route path="/accept-invite" element={<BackendRequiredRoute><AcceptInvitationPage /></BackendRequiredRoute>} />
+                    <Route path="/thank-you" element={<ThankYouPage />} />
 
                     {/* Root → detect language → redirect */}
                     <Route path="/" element={<LanguageRedirect />} />
 
                     {/* Public pages under /:lang */}
-                    <Route path="/:lang" element={<PublicLanguageWrapper />}>
+                    <Route path="/:lang" element={<PublicLanguageWrapper invalidLanguageElement={<NotFoundPage />} />}>
                       <Route element={<PublicLayout />}>
                         <Route index element={<LandingPage />} />
                         <Route path="how-it-works" element={<HowItWorksPage />} />
-                        <Route path="fuels" element={<FuelCoveragePage />} />
-                        <Route path="fuels/:sector" element={<FuelCoveragePage />} />
+                        <Route path="fuels" element={<FuelCoverageRoute />} />
+                        <Route path="fuels/:sector" element={<FuelCoverageRoute />} />
                         <Route path="compliance" element={<ComplianceInfoPage />} />
                         <Route path="for-producers" element={<ProducerUseCasePage />} />
                         <Route path="for-buyers" element={<BuyerUseCasePage />} />
@@ -527,12 +543,13 @@ export const AppRoutes: React.FC = () => {
                         <Route path="partners" element={<PartnersPage />} />
                         <Route path="partners/:slug" element={<PartnerLandingPage />} />
                         <Route path="education" element={<EducationPage />} />
-                        <Route path="education/:slug" element={<EducationArticlePage />} />
+                        <Route path="education/:slug" element={<EducationArticleRoute />} />
                         <Route path="roadmap" element={<RoadmapPage />} />
                         <Route path="tools/energy-calculator" element={<EnergyCalculatorPage />} />
                         <Route path="map/producers" element={<ProducerMapPage />} />
                         <Route path="privacy" element={<PrivacyPage />} />
                         <Route path="terms" element={<TermsPage />} />
+                        <Route path="*" element={<NotFoundPage />} />
                       </Route>
                     </Route>
 
@@ -599,12 +616,14 @@ export const AppRoutes: React.FC = () => {
                         <Route path="training" element={<TrainingRoute />} />
                         <Route path="settings" element={<SettingsRoute />} />
                         <Route path="admin/*" element={<AdminRoute />} />
-                        <Route path="*" element={<Navigate to="/app/home" replace />} />
+                        <Route path="*" element={<NotFoundPage />} />
                     </Route>
                     <Route path="/admin/*" element={<Navigate to="/app/admin" replace />} />
 
                     {/* Fallback */}
-                    <Route path="*" element={<PublicLayout />} />
+                    <Route element={<PublicLayout />}>
+                      <Route path="*" element={<NotFoundPage />} />
+                    </Route>
                 </Routes>
                 </Suspense>
   );
@@ -621,6 +640,7 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <AnalyticsProvider>
+                <RouteMetadata />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes />

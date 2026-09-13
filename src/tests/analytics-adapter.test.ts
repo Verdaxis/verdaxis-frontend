@@ -25,9 +25,70 @@ describe('behavioral analytics adapter', () => {
     expect(document.querySelector('script[data-verdaxis-analytics]')).toBeNull();
   });
 
+  it('does not load, queue, or dispatch optional analytics before consent', () => {
+    const track = vi.fn();
+    (window as Window & { umami?: { track: typeof track } }).umami = { track };
+    const analytics = createAnalytics({
+      host: 'https://analytics.example.com',
+      websiteId: UUID,
+    });
+
+    analytics.initialize();
+    analytics.track('login_submitted');
+    analytics.trackPage('/login');
+
+    expect(document.querySelector('script[data-verdaxis-analytics]')).toBeNull();
+    expect(track).not.toHaveBeenCalled();
+
+    analytics.setConsent(true);
+    analytics.initialize();
+    expect(document.querySelector('script[data-verdaxis-analytics]')).not.toBeNull();
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it('stops future events and clears queued operations after withdrawal', () => {
+    const analytics = createAnalytics({
+      host: 'https://analytics.example.com',
+      websiteId: UUID,
+    });
+    analytics.setConsent(true);
+    analytics.initialize();
+    analytics.track('login_submitted');
+
+    analytics.setConsent(false);
+    const track = vi.fn();
+    (window as Window & { umami?: { track: typeof track } }).umami = { track };
+    document.querySelector('script[data-verdaxis-analytics]')?.dispatchEvent(new Event('load'));
+    analytics.track('login_submitted');
+
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when persisted consent changes before a queued event flushes', () => {
+    let persistedConsent = true;
+    const analytics = createAnalytics({
+      host: 'https://analytics.example.com',
+      websiteId: UUID,
+      consentCheck: () => persistedConsent,
+    });
+    analytics.setConsent(true);
+    analytics.initialize();
+    analytics.track('login_submitted');
+
+    persistedConsent = false;
+    const track = vi.fn();
+    (window as Window & { umami?: { track: typeof track } }).umami = { track };
+    document.querySelector('script[data-verdaxis-analytics]')?.dispatchEvent(new Event('load'));
+
+    expect(track).not.toHaveBeenCalled();
+    expect(analytics.hasConsent()).toBe(false);
+  });
+
   it('normalizes page paths without query strings or hashes', () => {
     expect(normalizeAnalyticsPath('/en/pilot?email=person@example.com#form')).toBe('/en/pilot');
     expect(normalizeAnalyticsPath('https://app.verdaxis.exchange/app/marketplace?search=secret')).toBe('/app/marketplace');
+    expect(normalizeAnalyticsPath('/invite/one-time-secret')).toBe('/invite/[redacted]');
+    expect(normalizeAnalyticsPath('/INVITE/another-private-code')).toBe('/invite/[redacted]');
   });
 
   it('preserves Umami base fields when sending a manual pageview', () => {
@@ -40,12 +101,20 @@ describe('behavioral analytics adapter', () => {
     (window as Window & { umami?: { track: typeof track } }).umami = { track };
     const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID });
 
+    analytics.setConsent(true);
+
     analytics.trackPage('/en/pilot?email=person@example.com#form');
 
     const payloadFactory = track.mock.calls[0][0] as (base: Record<string, string>) => Record<string, string>;
-    expect(payloadFactory({ website: UUID, hostname: 'staging.verdaxis.exchange' })).toEqual({
+    expect(payloadFactory({
       website: UUID,
       hostname: 'staging.verdaxis.exchange',
+      title: 'Private invitation one-time-secret',
+      referrer: `${window.location.origin}/invite/one-time-secret?token=private`,
+    })).toEqual({
+      website: UUID,
+      hostname: 'staging.verdaxis.exchange',
+      referrer: `${window.location.origin}/invite/[redacted]`,
       url: '/en/pilot',
     });
   });
@@ -55,6 +124,8 @@ describe('behavioral analytics adapter', () => {
     (window as Window & { umami?: { track: typeof track } }).umami = { track };
     const analytics = createAnalytics({ host: 'https://analytics.example.com/', websiteId: UUID });
 
+    analytics.setConsent(true);
+
     analytics.track('market_slice_selected', {
       product: 'BIO_METHANOL',
       delivery_point: 'singapore',
@@ -63,10 +134,29 @@ describe('behavioral analytics adapter', () => {
       price: 680,
     } as never);
 
-    expect(track).toHaveBeenCalledWith('market_slice_selected', {
-      product: 'BIO_METHANOL',
-      delivery_point: 'singapore',
-      window: 'SPOT',
+    expect(track).toHaveBeenCalledTimes(1);
+    const payloadFactory = track.mock.calls[0][0] as (base: Record<string, unknown>) => Record<string, unknown>;
+    expect(payloadFactory({
+      website: UUID,
+      hostname: 'app.verdaxis.exchange',
+      language: 'en-US',
+      screen: '1440x1000',
+      url: '/invite/one-time-secret?email=private@example.com',
+      referrer: 'https://external.example/path?token=private',
+      title: 'Invite one-time-secret',
+    })).toEqual({
+      website: UUID,
+      hostname: 'app.verdaxis.exchange',
+      language: 'en-US',
+      screen: '1440x1000',
+      url: '/invite/[redacted]',
+      referrer: 'https://external.example',
+      name: 'market_slice_selected',
+      data: {
+        product: 'BIO_METHANOL',
+        delivery_point: 'singapore',
+        window: 'SPOT',
+      },
     });
   });
 
@@ -75,6 +165,8 @@ describe('behavioral analytics adapter', () => {
       track: () => { throw new Error('collector unavailable'); },
     };
     const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID });
+
+    analytics.setConsent(true);
 
     expect(() => analytics.track('login_submitted')).not.toThrow();
     expect(() => analytics.trackPage('/login?email=person@example.com')).not.toThrow();
@@ -196,16 +288,43 @@ describe('reliability reporter (plan §2.5)', () => {
     expect(outTrack).not.toHaveBeenCalled();
   });
 
+  it('does not sample, deduplicate, or write optional telemetry before consent', () => {
+    const storage = { getItem: vi.fn(), setItem: vi.fn() };
+    const random = vi.fn(() => 0);
+    const track = vi.fn();
+    const reporter = createReliabilityReporter({
+      track,
+      random,
+      storage,
+      hasConsent: () => false,
+      getPath: () => '/app/marketplace',
+    });
+
+    reporter.reportNavigationPerformance('marketplace', 'BUYER', 300);
+    reporter.reportFrontendError('render');
+    reporter.reportBackendUnavailable();
+
+    expect(random).not.toHaveBeenCalled();
+    expect(storage.getItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(track).not.toHaveBeenCalled();
+  });
+
   it('delivers typed reliability events through the adapter and drops invalid values', () => {
     const track = vi.fn();
     (window as Window & { umami?: { track: typeof track } }).umami = { track };
     const analytics = createAnalytics({ host: 'https://analytics.example.com', websiteId: UUID2 });
 
+    analytics.setConsent(true);
+
     analytics.track('frontend_error', { route_family: 'platform', category: 'render' });
-    expect(track).toHaveBeenCalledWith(
-      'frontend_error',
-      expect.objectContaining({ route_family: 'platform', category: 'render' }),
-    );
+    const firstPayload = track.mock.calls[0][0] as (base: Record<string, unknown>) => Record<string, unknown>;
+    expect(firstPayload({ website: UUID2, url: '/app/marketplace?draft=private' })).toEqual({
+      website: UUID2,
+      url: '/app/marketplace',
+      name: 'frontend_error',
+      data: { route_family: 'platform', category: 'render' },
+    });
 
     track.mockClear();
     analytics.track('frontend_error', {
@@ -213,9 +332,8 @@ describe('reliability reporter (plan §2.5)', () => {
       category: 'render',
       stack: 'Error at secretFunction (app.js:1:1)',
     } as never);
-    const delivered = track.mock.calls[0]?.[1] as Record<string, string> | undefined;
-    expect(delivered?.route_family).toBeUndefined();
-    expect(delivered?.stack).toBeUndefined();
-    expect(delivered?.category).toBe('render');
+    const invalidPayload = track.mock.calls[0]?.[0] as (base: Record<string, unknown>) => Record<string, unknown>;
+    const delivered = invalidPayload({ website: UUID2, url: '/app' });
+    expect(delivered.data).toEqual({ category: 'render' });
   });
 });

@@ -4,12 +4,30 @@
 
 React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
 
+## Runtime
+
+The production static frontend is deployed on Vercel for `verdaxis.exchange`,
+`www.verdaxis.exchange`, and `app.verdaxis.exchange`. Staging remains a
+Caddy-served VPS build at `staging.verdaxis.exchange`. Production uses one
+immutable Vercel artifact: build, target-strict artifact validation, stable
+canary alias, rendered browser smoke, then promotion without rebuilding.
+Repeated deterministic frontend failure after promotion can roll back only to
+the captured prior deployment while the production API is independently
+healthy. Vercel's Git integration remains connected for source metadata, but
+automatic Git deployments are disabled in `vercel.json`.
+
+Public route metadata is shared between runtime navigation and Vite's static
+HTML output. Builds emit 52 localized public entry pages with canonical and
+social metadata; the SPA fallback stays generic and noindex. Staging blocks
+indexing in every entry page and robots.txt, and does not publish a sitemap.
+
 ## File Map
 
 ```
 src/
   index.tsx                        # ReactDOM entry, mounts <App /> into #root
   App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
+  routeMetadata.ts                 # EN/ZH public catalog, private metadata, canonical and static-head generation
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
@@ -32,13 +50,16 @@ src/
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
+    cookiePreferences.ts           # Versioned visitor choice, fail-closed storage, same/cross-tab updates
     ai.ts                          # Supplier risk AI export
     ai-engine/
       generators.ts                # AI supplier-risk memo helper, proxied through backend /ai/chat
       cache.ts                     # In-memory 5-min TTL cache for AI responses
 
   components/
-    AnalyticsProvider.tsx          # Normalized SPA pageviews and pseudonymous auth identity
+    AnalyticsProvider.tsx          # Consent-gated, normalized manual SPA pageviews
+    CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
+    RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
     LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
@@ -82,6 +103,7 @@ src/
     watchlist/MarketRadarPanel.tsx # Command-center radar summary for tracked slices
     # Public site
     public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
+    public/MobilePilotCta.tsx      # Localized mobile pilot link, page exclusions and safe-area clearance
     public/{PublicNav,PublicFooter,HeroSection,PriceTicker,PilotApplicationForm}.tsx
     public/{DataOcean,motionUtils}.tsx  # Animated background (GSAP); motion presets
 
@@ -91,7 +113,7 @@ src/
     AcceptInvitationPage.tsx       # One-page pre-approved account claim, agreement, password, and sign-in
     OnboardingPage.tsx             # Post-registration role selection + profile setup
     CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
-    public/                        # 15 marketing pages (landing, education, use cases, etc.)
+    public/                        # Marketing, legal, education, custom 404 and truthful completion pages
 
   data/
     eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
@@ -111,6 +133,7 @@ src/
 scripts/
   deploy.sh                       # Static prod/staging build script with API-target validation
   check-translations.ts           # Recursive EN/ZH locale leaf-parity gate
+  optimize-brand-images.sh        # Deterministic responsive logo, favicon, and social-card variants
   smoke-live.mjs                  # Prod/staging live smoke checks
   start-frontend.sh               # Local development server helper
   seed_listings.sh                 # Seed marketplace data
@@ -212,11 +235,14 @@ frontend caching for repeated memo requests.
 and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
 
 **Behavioral analytics boundary:** `AnalyticsProvider` performs normalized manual SPA
-page tracking and pseudonymous identification through the typed adapter in
-`services/analytics.ts`. Umami loads only when both public analytics environment variables
-are valid; auto-tracking, replay, and heatmaps are disabled. Components emit selective
-allowlisted events, and the adapter drops unknown properties and isolates all collector
-failures. The Admin Product Usage section consumes only the backend's aggregated,
+page tracking through the typed adapter in `services/analytics.ts`, without assigning
+Verdaxis user or organization IDs. Umami loads only when both public analytics environment
+variables are valid and the visitor permits optional analytics. `services/cookiePreferences.ts`
+stores the versioned choice; `CookieConsent` provides the banner and settings controls.
+Withdrawal clears queued operations and stops future tracking; essential sign-in and
+display preferences remain available. Auto-tracking, replay, and heatmaps are disabled.
+Components emit selective allowlisted events, and the adapter drops unknown properties
+and isolates all collector failures. The Admin Product Usage section consumes only the backend's aggregated,
 admin-authorized endpoint and degrades independently from commercial analytics.
 
 **Assisted order-entry context boundary:** Admin Users exposes entry only for approved REAL

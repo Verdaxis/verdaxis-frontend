@@ -1,12 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const TermsPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
-
-    useEffect(() => {
-        if (ready) document.title = `${t('terms.title')} — Verdaxis`;
-    }, [ready, t]);
 
     if (!ready) return null;
 

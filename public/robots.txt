@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /invite
+Disallow: /verify-email
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /accept-invite
+Disallow: /thank-you
+Disallow: /onboarding
+Disallow: /create-organization
+Disallow: /kyc
+Disallow: /partners-preview
+
+Sitemap: https://verdaxis.exchange/sitemap.xml

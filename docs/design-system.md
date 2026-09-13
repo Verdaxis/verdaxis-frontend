@@ -1,5 +1,9 @@
 # Design System — Verdaxis Market Radar
 
+## 2026-09 Site Checklist Repair Contract
+
+Preserve `.impeccable.md` and the current public maritime-market identity. This is a completeness and accessibility pass, not a rebrand. Reuse current slate surfaces, blue/green brand accents, Montserrat/Lato typography, 8px spacing, restrained radii, and existing controls. Public sticky actions use one clear action, at least 44px touch height, safe-area padding, and content clearance. Consent choices have equal visual weight and remain available after dismissal; do not cover the action or form. No new decorative motion. Respect reduced motion and keep feedback near 150–200ms. Verify EN/ZH at 390×844, 768×1024, and 1440×1000. Keep the intentional authenticated mobile gate. Use original local brand assets, useful image alternatives, and neutral completion copy that matches real submission state.
+
 ## Aesthetic Direction
 Market Radar should feel like an operations console rather than a consumer favorites list. The memorable trait is a signal-board presentation: compact slice cards, crisp status chips, and event-led summaries that read like live market surveillance.
 

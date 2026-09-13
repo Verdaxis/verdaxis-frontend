@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { PublicLayout } from '../PublicLayout';
@@ -39,6 +39,15 @@ describe('PublicLayout', () => {
     expect(screen.getByText(new RegExp(`${currentYear}.*Verdaxis`))).toBeTruthy();
   });
 
+  it('renders the confirmed public contact details and privacy controls', async () => {
+    renderWithRouter('/');
+
+    expect((await screen.findByRole('link', { name: 'info@verdaxis.exchange' })).getAttribute('href')).toBe('mailto:info@verdaxis.exchange');
+    expect(screen.getByText('71 Ayer Rajah Crescent,')).toBeTruthy();
+    expect(screen.getByText('#02-15, Singapore 139951')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cookie settings' })).toBeTruthy();
+  });
+
   it('renders "Sign In" link', () => {
     renderWithRouter('/');
     const signIn = screen.getByText('Sign In');
@@ -49,5 +58,40 @@ describe('PublicLayout', () => {
   it('renders outlet content', () => {
     renderWithRouter('/custom');
     expect(screen.getByText('My Custom Page Content')).toBeTruthy();
+  });
+
+  it('cancels its smooth-scroll animation frame on cleanup', () => {
+    const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(42);
+    const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
+
+    const view = renderWithRouter('/');
+    expect(requestFrame).toHaveBeenCalled();
+    view.unmount();
+    expect(cancelFrame).toHaveBeenCalledWith(42);
+
+    requestFrame.mockRestore();
+    cancelFrame.mockRestore();
+  });
+
+  it('does not start smooth scrolling when reduced motion is requested', () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const requestFrame = vi.spyOn(window, 'requestAnimationFrame');
+
+    const view = renderWithRouter('/');
+    expect(requestFrame).not.toHaveBeenCalled();
+    view.unmount();
+    expect(document.body.style.overflow).toBe('');
+
+    matchMedia.mockRestore();
+    requestFrame.mockRestore();
   });
 });

@@ -1,0 +1,156 @@
+import { useEffect, useLayoutEffect } from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { CookieConsentControls } from '../components/CookieConsent';
+import { AnalyticsProvider } from '../components/AnalyticsProvider';
+import { analytics } from '../services/analytics';
+import { COOKIE_PREFERENCES_STORAGE_KEY, writeCookiePreferences } from '../services/cookiePreferences';
+
+describe('cookie consent controls', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    act(() => { writeCookiePreferences(false, { window }); });
+    localStorage.clear();
+  });
+
+  it('offers equally prominent accept and reject choices and can reopen settings', () => {
+    render(<MemoryRouter initialEntries={['/zh/']}><CookieConsentControls /></MemoryRouter>);
+
+    const accept = screen.getByRole('button', { name: 'Allow analytics' });
+    const reject = screen.getByRole('button', { name: 'Essential only' });
+    expect(accept.className).toBe(reject.className);
+    expect(accept.parentElement?.className).toContain('flex-row');
+    expect(accept.parentElement?.className).not.toContain('flex-wrap');
+    expect(accept.className).toContain('min-w-0');
+    expect(screen.getByRole('region', { name: 'Cookie preferences' }).className).toContain('z-[13000]');
+    expect(screen.getByRole('link', { name: 'Read our Privacy Policy.' }).getAttribute('href')).toBe('/zh/privacy');
+
+    fireEvent.click(accept);
+    expect(screen.queryByRole('region', { name: 'Cookie preferences' })).toBeNull();
+    expect(JSON.parse(localStorage.getItem(COOKIE_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
+      version: 1,
+      optionalAnalytics: true,
+    });
+
+    const settings = screen.getByRole('button', { name: 'Cookie settings' });
+    expect(settings.className).toContain('z-[13000]');
+    fireEvent.click(settings);
+    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Essential only' }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cookie settings' }));
+  });
+});
+
+describe('AnalyticsProvider consent synchronization', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('starts after opt-in and stops after a same-tab withdrawal', async () => {
+    act(() => { writeCookiePreferences(true, { window }); });
+    const setConsent = vi.spyOn(analytics, 'setConsent');
+    const initialize = vi.spyOn(analytics, 'initialize');
+    const trackPage = vi.spyOn(analytics, 'trackPage');
+
+    render(
+      <MemoryRouter initialEntries={['/en/']}>
+        <AnalyticsProvider><main>Content</main></AnalyticsProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(setConsent).toHaveBeenCalledWith(true));
+    expect(initialize).toHaveBeenCalled();
+    expect(trackPage).toHaveBeenCalledWith('/en/');
+
+    const dispatch = vi.fn();
+    (window as Window & { umami?: { track: typeof dispatch } }).umami = { track: dispatch };
+    act(() => { writeCookiePreferences(false, { window }); });
+    expect(setConsent).toHaveBeenLastCalledWith(false);
+    analytics.track('login_submitted');
+    expect(dispatch).not.toHaveBeenCalled();
+
+    act(() => { writeCookiePreferences(true, { window }); });
+    await waitFor(() => expect(setConsent).toHaveBeenLastCalledWith(true));
+    dispatch.mockClear();
+    act(() => {
+      localStorage.clear();
+      window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    });
+    expect(setConsent).toHaveBeenLastCalledWith(false);
+    analytics.track('login_submitted');
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+  });
+
+  it('reconciles stale adapter consent before descendant mount events', () => {
+    const dispatch = vi.fn();
+    const consentAtEffect: boolean[] = [];
+    (window as Window & { umami?: { track: typeof dispatch } }).umami = { track: dispatch };
+    analytics.setConsent(true);
+    localStorage.clear();
+
+    const TrackingChild = () => {
+      useLayoutEffect(() => {
+        consentAtEffect.push(analytics.hasConsent());
+        analytics.track('login_submitted');
+      }, []);
+      return null;
+    };
+
+    render(
+      <MemoryRouter>
+        <AnalyticsProvider><TrackingChild /></AnalyticsProvider>
+      </MemoryRouter>,
+    );
+
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(consentAtEffect).toEqual([false]);
+    expect(analytics.hasConsent()).toBe(false);
+  });
+
+  it('allows descendant mount events after a returning opt-in is reconciled', () => {
+    act(() => { writeCookiePreferences(true, { window }); });
+    const consentAtEffect: boolean[] = [];
+
+    const TrackingChild = () => {
+      useEffect(() => {
+        consentAtEffect.push(analytics.hasConsent());
+        analytics.track('login_submitted');
+      }, []);
+      return null;
+    };
+
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <AnalyticsProvider><TrackingChild /></AnalyticsProvider>
+      </MemoryRouter>,
+    );
+
+    expect(consentAtEffect).toEqual([true]);
+  });
+
+  it('immediately disables tracking when a withdrawn choice cannot be saved', async () => {
+    act(() => { writeCookiePreferences(true, { window }); });
+    const setConsent = vi.spyOn(analytics, 'setConsent');
+    render(
+      <MemoryRouter>
+        <AnalyticsProvider><main>Content</main></AnalyticsProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(setConsent).toHaveBeenCalledWith(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Cookie settings' }));
+
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Essential only' }));
+
+    expect(setConsent).toHaveBeenLastCalledWith(false);
+    expect(screen.getByRole('alert').textContent).toContain('Optional analytics stays off');
+    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    setItem.mockRestore();
+  });
+});
