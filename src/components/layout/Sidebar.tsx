@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ViewMode, Page } from '../../types';
 import { Tooltip } from '../ui/Tooltip';
 import { buildPrimarySidebarItems } from './sidebarConfig';
+import { CookieSettingsButton } from '../CookieConsent';
 
 interface SidebarProps {
     viewMode: ViewMode;
@@ -168,6 +169,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {!isCollapsed && <span className="truncate">{t('sidebar.settings')}</span>}
                     </NavLink>
                 </Tooltip>}
+
+                <Tooltip content={isCollapsed ? t('cookiePreferences.settings') : ''} position="right">
+                    <CookieSettingsButton variant="sidebar" collapsed={isCollapsed} />
+                </Tooltip>
 
                 {isCollapsed && (
                     <button

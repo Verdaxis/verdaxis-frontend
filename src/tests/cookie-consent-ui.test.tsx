@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect } from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CookieConsentControls } from '../components/CookieConsent';
+import { Sidebar } from '../components/layout/Sidebar';
 import { AnalyticsProvider } from '../components/AnalyticsProvider';
 import { analytics } from '../services/analytics';
 import { COOKIE_PREFERENCES_STORAGE_KEY, writeCookiePreferences } from '../services/cookiePreferences';
@@ -13,6 +14,27 @@ describe('cookie consent controls', () => {
     vi.restoreAllMocks();
     act(() => { writeCookiePreferences(false, { window }); });
     localStorage.clear();
+  });
+
+  it.each([false, true])('keeps app settings reachable with a sidebar consent control (collapsed=%s)', async (collapsed) => {
+    act(() => { writeCookiePreferences(false, { window }); });
+    const { container } = render(
+      <MemoryRouter initialEntries={['/app/home']}>
+        <Sidebar viewMode="BUYER" currentPage="DASHBOARD" onNavigate={vi.fn()}
+          isCollapsed={collapsed} onToggleCollapse={vi.fn()} isMobileOpen={false} onMobileClose={vi.fn()} />
+        <CookieConsentControls />
+      </MemoryRouter>,
+    );
+    const sidebar = within(container.querySelector('aside')!);
+    expect(sidebar.getByRole('link', { name: 'Settings' }).getAttribute('href')).toBe('/app/settings');
+    const cookieSettings = sidebar.getByRole('button', { name: 'Cookie settings' });
+    expect(cookieSettings.getAttribute('data-cookie-settings')).toBe('sidebar');
+    expect(cookieSettings.className).not.toContain('fixed');
+    expect(cookieSettings.querySelector('span')?.className).toBe(collapsed ? 'sr-only' : '');
+    fireEvent.click(cookieSettings);
+    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Essential only' }));
+    await waitFor(() => expect(document.activeElement).toBe(cookieSettings));
   });
 
   it('offers equally prominent accept and reject choices and can reopen settings', () => {
