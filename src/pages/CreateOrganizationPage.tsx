@@ -3,7 +3,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, Building2, Search, FileText, AlertCircle, Mail, ChevronDown, X, RefreshCw } from 'lucide-react';
 import { API_URL } from '../services/config';
-import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { localizedAuthError } from './authApiError';
 import { analytics } from '../services/analytics';
@@ -16,7 +15,9 @@ interface CountryDropdownProps {
   locale: string;
   placeholder: string;
   searchPlaceholder: string;
+  clearSearchLabel: string;
   noResults: string;
+  labelId: string;
 }
 
 export const CREATE_ORGANIZATION_ORG_TYPES = [
@@ -51,6 +52,7 @@ interface OrganizationTypeDropdownProps {
   buyerLabel: string;
   sellerLabel: string;
   onChange: (value: OrganizationType) => void;
+  labelId: string;
 }
 
 export function formatApiErrorDetail(detail: unknown, fallback: string): string {
@@ -73,7 +75,7 @@ export function formatApiErrorDetail(detail: unknown, fallback: string): string 
   return fallback;
 }
 
-const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, locale, placeholder, searchPlaceholder, noResults }) => {
+const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, locale, placeholder, searchPlaceholder, clearSearchLabel, noResults, labelId }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -102,9 +104,11 @@ const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, loca
       <button
         type="button"
         onClick={() => { setOpen(!open); setSearch(''); }}
+        aria-labelledby={`${labelId} create-org-country-value`}
+        aria-expanded={open}
         className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-2.5 text-left flex items-center justify-between text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
       >
-        <span className={selected ? 'text-slate-200' : 'text-slate-500'}>
+        <span id="create-org-country-value" className={selected ? 'text-slate-200' : 'text-slate-500'}>
           {selected ? `${selected.code} — ${selected.name}` : placeholder}
         </span>
         <ChevronDown size={16} className="text-slate-500 shrink-0" />
@@ -124,7 +128,7 @@ const CountryDropdown: React.FC<CountryDropdownProps> = ({ value, onChange, loca
                 className="w-full bg-slate-700/50 rounded px-8 py-1.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
               />
               {search && (
-                <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-2">
+                <button type="button" aria-label={clearSearchLabel} onClick={() => setSearch('')} className="absolute right-2 top-2">
                   <X size={14} className="text-slate-400" />
                 </button>
               )}
@@ -172,6 +176,7 @@ const OrganizationTypeDropdown: React.FC<OrganizationTypeDropdownProps> = ({
   buyerLabel,
   sellerLabel,
   onChange,
+  labelId,
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -194,9 +199,11 @@ const OrganizationTypeDropdown: React.FC<OrganizationTypeDropdownProps> = ({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-labelledby={`${labelId} create-org-type-value`}
+        aria-expanded={open}
         className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-10 py-2.5 text-left flex items-center justify-between gap-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
       >
-        <span className="truncate">{selected?.label}</span>
+        <span id="create-org-type-value" className="truncate">{selected?.label}</span>
         {selected && (
           <span className={`shrink-0 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-semibold ${sideStyles[selected.side].pill}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${sideStyles[selected.side].dot}`} />
@@ -242,7 +249,6 @@ const OrganizationTypeDropdown: React.FC<OrganizationTypeDropdownProps> = ({
 const CreateOrganizationPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { checkAuth } = useAuth();
   const { t, ready } = useNamespace('auth');
 
   const registrationToken = location.state?.registration_token;
@@ -420,6 +426,13 @@ const CreateOrganizationPage: React.FC = () => {
                   {t('createOrg.backToSignIn')}
                 </Link>
               </div>
+              <Link
+                to="/thank-you"
+                state={{ completion: 'organization' }}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              >
+                {t('createOrg.success.continue')}
+              </Link>
             </div>
           ) : (
             <>
@@ -431,7 +444,7 @@ const CreateOrganizationPage: React.FC = () => {
               </div>
 
               {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
+                <div role="alert" className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3 text-red-400">
                   <AlertCircle size={20} />
                   <span className="text-sm">{error}</span>
                 </div>
@@ -439,11 +452,13 @@ const CreateOrganizationPage: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.orgName')}</label>
+                  <label htmlFor="create-org-name" className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.orgName')}</label>
                   <div className="relative">
                     <input
                       type="text"
                       name="name"
+                      id="create-org-name"
+                      autoComplete="organization"
                       required
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -455,13 +470,14 @@ const CreateOrganizationPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.orgType')}</label>
+                  <span id="create-org-type-label" className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.orgType')}</span>
                   <OrganizationTypeDropdown
                     value={formData.type}
                     options={ORG_TYPES}
                     buyerLabel={t('createOrg.side.buyer')}
                     sellerLabel={t('createOrg.side.seller')}
                     onChange={type => setFormData({ ...formData, type })}
+                    labelId="create-org-type-label"
                   />
                   {selectedOrgType && (
                     <p className="mt-1.5 text-xs text-slate-500">{selectedOrgType.description}</p>
@@ -479,25 +495,28 @@ const CreateOrganizationPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.country')}</label>
+                  <span id="create-org-country-label" className="block text-sm font-medium text-slate-400 mb-1.5">{t('createOrg.country')}</span>
                   <CountryDropdown
                     value={formData.country_code}
                     onChange={code => setFormData({ ...formData, country_code: code })}
                     locale={document.documentElement.lang || 'en'}
                     placeholder={t('createOrg.countryPlaceholder')}
                     searchPlaceholder={t('createOrg.countrySearch')}
+                    clearSearchLabel={t('createOrg.countryClearSearch')}
                     noResults={t('createOrg.countryNoResults')}
+                    labelId="create-org-country-label"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">
+                  <label htmlFor="create-org-tax-id" className="block text-sm font-medium text-slate-400 mb-1.5">
                     {t('createOrg.taxId')} <span className="text-slate-600">{t('createOrg.taxIdOptional')}</span>
                   </label>
                   <div className="relative">
                     <input
                       type="text"
                       name="tax_id"
+                      id="create-org-tax-id"
                       value={formData.tax_id}
                       onChange={e => setFormData({ ...formData, tax_id: e.target.value })}
                       className="w-full bg-slate-800/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all"
@@ -510,9 +529,12 @@ const CreateOrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting || !formData.country_code}
+                  aria-busy={isSubmitting}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('createOrg.submit')}
+                  {isSubmitting ? (
+                    <><Loader2 aria-hidden="true" className="animate-spin" size={20} />{t('createOrg.submitting')}</>
+                  ) : t('createOrg.submit')}
                 </button>
               </form>
             </>

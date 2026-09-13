@@ -118,6 +118,18 @@ self_test() {
   [[ "$(deployment_transition_state candidate prior candidate)" == "success" ]]
   [[ "$(deployment_transition_state candidate prior prior)" == "waiting" ]]
   [[ "$(deployment_transition_state candidate prior other)" == "conflict" ]]
+  should_check_public_metadata canary
+  ! should_check_public_metadata rollback
+  ! should_check_public_metadata production-1
+
+  python3() {
+    MOCK_PYTHON_ARGS="$*"
+  }
+  run_smoke "https://candidate.example" canary
+  [[ " $MOCK_PYTHON_ARGS " == *" --check-public-metadata "* ]]
+  run_smoke "https://prior.example" rollback "prior-asset.js"
+  [[ " $MOCK_PYTHON_ARGS " != *" --check-public-metadata "* ]]
+  unset -f python3
 
   AUTH_DIR="/tmp/vercel-auth-test"
   VERCEL_ORG_ID="team-test"
@@ -198,6 +210,10 @@ run_alias_operation() {
   wait_for_current_deployment "$expected_id" "$prior_id" "$operation"
 }
 
+should_check_public_metadata() {
+  [[ "$1" == "canary" ]]
+}
+
 api_is_ready() {
   curl --fail --silent --show-error --connect-timeout 10 --max-time 20 \
     "https://api.verdaxis.exchange/health/ready" |
@@ -214,12 +230,17 @@ run_smoke() {
   local label="$2"
   local expected_asset="${3:-$CANDIDATE_ASSET}"
   local output="$REPORT_DIR/smoke-${label}.json"
+  local metadata_args=()
+  if should_check_public_metadata "$label"; then
+    metadata_args+=(--check-public-metadata)
+  fi
   python3 "$ROOT/scripts/smoke_release.py" \
     --base-url "$url" \
     --expected-api-url "$PRODUCTION_API" \
     --expected-index-asset "$expected_asset" \
     --output "$output" \
-    --screenshot "$REPORT_DIR/smoke-${label}.png"
+    --screenshot "$REPORT_DIR/smoke-${label}.png" \
+    "${metadata_args[@]}"
 }
 
 verify_public_assets() {

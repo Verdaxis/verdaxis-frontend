@@ -142,8 +142,11 @@ export const PublicNav: React.FC = () => {
         {/* Logo */}
         <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <img
-            src="/verdaxis-logo-words-right.png"
+            src="/verdaxis-logo-words-right-384.png"
             alt="Verdaxis"
+            width={384}
+            height={86}
+            decoding="async"
             style={{
               width: 152,
               height: 42,
@@ -436,13 +439,13 @@ export const PublicNav: React.FC = () => {
 
       {/* Responsive styles injected via style tag */}
       <style>{`
-        @media (min-width: 768px) {
+        @media (min-width: 900px) {
           .public-nav-desktop { display: flex !important; }
           .public-nav-ctas { display: flex !important; }
           .public-nav-hamburger { display: none !important; }
           .public-nav-mobile-menu { display: none !important; }
         }
-        @media (max-width: 767px) {
+        @media (max-width: 899px) {
           .public-nav-desktop { display: none !important; }
           .public-nav-ctas { display: none !important; }
           .public-nav-hamburger { display: flex !important; }

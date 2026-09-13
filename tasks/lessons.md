@@ -33,9 +33,9 @@
 - **Why:** Immutable hashed assets keep an existing JavaScript runtime valid in memory, but that runtime can become contract-incompatible with a separately deployed backend.
 
 ### Run Requested Design Review Before UI Edits
-- **Date:** 2026-06-20
-- **Trigger:** User asked to stop and produce a design plan with a design-forge subagent before editing the Intelligence Map layout, after I had already started a ticker patch.
-- **Rule:** When the user asks for design planning or subagent pushback before implementation, pause all file edits until the plan and review are presented and approved.
+- **Date:** 2026-09-13
+- **Trigger:** User asked for design planning before Intelligence Map edits, and later asked to bounce website checklist ideas and designs off them during implementation.
+- **Rule:** When the user explicitly asks to stop for design planning, pause edits until the plan is approved. When they request design collaboration during authorized implementation, present visible choices and rendered local previews before finalizing them; continue independent technical fixes without treating silence as visual approval.
 - **Why:** Premature UI patches can lock in an unreviewed interaction model and create unnecessary rework.
 
 ### Verify Configurable UI State Actually Controls Rendered Data
@@ -586,3 +586,15 @@
 - **Trigger:** The full suite exposed a dialog rendered before its keyboard effect and a controlled request resolved outside React's scheduler.
 - **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus, before sending input. Keep the original behavior assertions; do not mask the race with longer timeouts.
 - **Why:** DOM presence does not prove that passive effects and committed async state are ready under concurrent worker load.
+
+### Keep Brand Image Alternatives Language-Neutral
+- **Date:** 2026-09-13
+- **Trigger:** An image audit expanded the established `Verdaxis` logo alternative with English-only product wording and added redundant `logo` suffixes to named partner images.
+- **Rule:** Keep shared Verdaxis logo alternatives as `Verdaxis`; use the existing organization name for meaningful partner logos unless the surrounding link needs a different accessible name.
+- **Why:** Extra hard-coded English creates untranslated copy without adding useful identification.
+
+### Freeze Source Before Full-Suite Acceptance
+- **Date:** 2026-09-13
+- **Trigger:** A long-running suite overlapped a new consent regression test and its adapter fix, producing mixed-revision results.
+- **Rule:** Finish parallel code edits before starting acceptance tests. If source changes during the run, exclude that result and rerun from frozen inputs; do not change working code to satisfy a stale process.
+- **Why:** A test runner can retain transformed modules while loading newly edited tests, so that run does not verify one coherent revision.

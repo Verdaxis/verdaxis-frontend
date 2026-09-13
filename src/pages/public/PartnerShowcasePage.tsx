@@ -9,7 +9,8 @@ interface Partner {
   name: string;
   fullName: string;
   color: string;
-  logoUrl: string;
+  logoUrl: string | null;
+  logoFallback: string;
 }
 
 const partners: Partner[] = [
@@ -17,25 +18,29 @@ const partners: Partner[] = [
     name: 'Methanol Institute',
     fullName: 'Methanol Institute',
     color: '#0078D4',
-    logoUrl: 'https://methanol.org/wp-content/themes/methanol/images/logo.png',
+    logoUrl: null,
+    logoFallback: 'MI',
   },
   {
     name: 'S&P Global Platts',
     fullName: 'S&P Global Commodity Insights',
     color: '#E8373E',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/c/c5/S%26P_Global_Platts_Logo.png',
+    logoUrl: '/partner-platts-128.png',
+    logoFallback: 'S&P',
   },
   {
     name: 'MPA Singapore',
     fullName: 'Maritime and Port Authority of Singapore',
     color: '#1B5E9C',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/en/thumb/0/0f/Maritime_and_Port_Authority_of_Singapore_%28logo%29.png/309px-Maritime_and_Port_Authority_of_Singapore_%28logo%29.png',
+    logoUrl: null,
+    logoFallback: 'MPA',
   },
   {
     name: 'Gena Solutions',
     fullName: 'GENA Solutions Oy',
     color: '#00897B',
-    logoUrl: 'https://storage.googleapis.com/b2match-as-1/mCCdjrAQutyQ32CXm4PzfPUF',
+    logoUrl: '/partner-gena-128.png',
+    logoFallback: 'GENA',
   },
 ];
 
@@ -103,7 +108,21 @@ const PartnerCard: React.FC<{ partner: Partner & { role: string; description: st
                 padding: 8,
               }}
             >
-              <img src={partner.logoUrl} alt={partner.name} style={{ width: 48, height: 48, objectFit: 'contain' }} />
+              {partner.logoUrl ? (
+                <img
+                  src={partner.logoUrl}
+                  width={48}
+                  height={48}
+                  alt={partner.fullName}
+                  decoding="async"
+                  onError={(event) => { event.currentTarget.hidden = true; }}
+                  style={{ width: 48, height: 48, objectFit: 'contain' }}
+                />
+              ) : (
+                <span aria-hidden="true" style={{ color: partner.color, fontSize: 16, fontWeight: 800 }}>
+                  {partner.logoFallback}
+                </span>
+              )}
             </div>
             <div>
               <h3
@@ -599,7 +618,24 @@ export const PartnerShowcasePage: React.FC = () => {
             }}
           >
             {localizedPartners.map((p) => (
-              <img key={p.name} src={p.logoUrl} alt={p.name} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+              p.logoUrl ? (
+                <img
+                  key={p.name}
+                  src={p.logoUrl}
+                  width={56}
+                  height={56}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                  onError={(event) => { event.currentTarget.hidden = true; }}
+                  style={{ width: 56, height: 56, objectFit: 'contain' }}
+                />
+              ) : (
+                <span key={p.name} aria-hidden="true" style={{ color: p.color, fontSize: 16, fontWeight: 800 }}>
+                  {p.logoFallback}
+                </span>
+              )
             ))}
           </div>
         </Reveal>

@@ -1,3 +1,5 @@
+import { readCookiePreferences } from './cookiePreferences';
+
 export type AnalyticsRole = 'BUYER' | 'SUPPLIER' | 'ADMIN';
 export type AnalyticsViewMode = 'BUYER' | 'SUPPLIER';
 export type AnalyticsLanguage = 'en' | 'zh';
@@ -49,13 +51,17 @@ export interface AnalyticsEventMap {
   };
 }
 
-interface UmamiClient {
-  track:
-    | ((event: string, data?: Record<string, string>) => void)
-    | ((payload: (properties: Record<string, unknown>) => Record<string, unknown>) => void);
-}
+type UmamiPayloadFactory = (properties: Record<string, unknown>) => Record<string, unknown>;
+interface UmamiClient { track: (payload: UmamiPayloadFactory) => void }
 interface AnalyticsWindow extends Window { umami?: UmamiClient }
-interface AnalyticsOptions { host?: string; websiteId?: string; environment?: string; document?: Document; window?: AnalyticsWindow }
+interface AnalyticsOptions {
+  host?: string;
+  websiteId?: string;
+  environment?: string;
+  document?: Document;
+  window?: AnalyticsWindow;
+  consentCheck?: () => boolean;
+}
 type QueuedOperation = (client: UmamiClient) => void;
 type Validator = (value: unknown) => value is string;
 
@@ -125,9 +131,38 @@ const normalizeHost = (host?: string): string | null => {
 
 export const normalizeAnalyticsPath = (input: string): string => {
   try {
-    const path = new URL(input, 'https://verdaxis.invalid').pathname.replace(/\/{2,}/g, '/');
+    const path = new URL(input, 'https://verdaxis.invalid').pathname
+      .replace(/\/{2,}/g, '/')
+      .replace(/^\/invite\/[^/]+/i, '/invite/[redacted]');
     return path || '/';
   } catch { return '/'; }
+};
+
+const normalizeAnalyticsReferrer = (input: unknown, currentOrigin: string): string | undefined => {
+  if (typeof input !== 'string' || !input) return undefined;
+  try {
+    const referrer = new URL(input, currentOrigin);
+    if (!['https:', 'http:'].includes(referrer.protocol)) return undefined;
+    return referrer.origin === currentOrigin
+      ? `${referrer.origin}${normalizeAnalyticsPath(referrer.href)}`
+      : referrer.origin;
+  } catch {
+    return undefined;
+  }
+};
+
+const sanitizeDefaultProperties = (
+  properties: Record<string, unknown>,
+  path: string,
+  currentOrigin: string,
+): Record<string, unknown> => {
+  const { url: _url, referrer, title: _title, ...safeProperties } = properties;
+  const safeReferrer = normalizeAnalyticsReferrer(referrer, currentOrigin);
+  return {
+    ...safeProperties,
+    ...(safeReferrer ? { referrer: safeReferrer } : {}),
+    url: normalizeAnalyticsPath(path),
+  };
 };
 
 const sanitizeProperties = <K extends keyof AnalyticsEventMap>(event: K, data: AnalyticsEventMap[K] | undefined) => {
@@ -147,7 +182,17 @@ export const createAnalytics = (options: AnalyticsOptions) => {
   const win = options.window ?? (typeof window !== 'undefined' ? window as AnalyticsWindow : undefined);
   const queue: QueuedOperation[] = [];
   let initialized = false;
+  let consentGranted = false;
   const enabled = Boolean(host && websiteId && doc && win);
+  const hasCurrentConsent = () => {
+    if (!consentGranted) return false;
+    try {
+      if (!options.consentCheck || options.consentCheck()) return true;
+    } catch { /* blocked preference storage fails closed */ }
+    consentGranted = false;
+    queue.length = 0;
+    return false;
+  };
   const contextProperties = (): Record<string, string> => {
     if (!options.environment || !pathToken(options.environment) || !win) return {};
     const path = win.location.pathname;
@@ -158,13 +203,17 @@ export const createAnalytics = (options: AnalyticsOptions) => {
   };
 
   const safelyRun = (operation: QueuedOperation) => {
-    if (!enabled || !win) return;
+    if (!enabled || !hasCurrentConsent() || !win) return;
     try {
       if (win.umami) operation(win.umami);
       else if (queue.length < 50) queue.push(operation);
     } catch { /* analytics must not affect product behavior */ }
   };
   const flush = () => {
+    if (!hasCurrentConsent()) {
+      queue.length = 0;
+      return;
+    }
     if (!win?.umami) return;
     while (queue.length) {
       const operation = queue.shift();
@@ -174,8 +223,15 @@ export const createAnalytics = (options: AnalyticsOptions) => {
 
   return {
     enabled,
+    hasConsent() {
+      return hasCurrentConsent();
+    },
+    setConsent(granted: boolean) {
+      consentGranted = granted;
+      if (!granted) queue.length = 0;
+    },
     initialize() {
-      if (!enabled || initialized || !doc || !host || !websiteId) return;
+      if (!enabled || !hasCurrentConsent() || initialized || !doc || !host || !websiteId) return;
       initialized = true;
       if (doc.querySelector('script[data-verdaxis-analytics]')) return;
       const script = doc.createElement('script');
@@ -190,15 +246,23 @@ export const createAnalytics = (options: AnalyticsOptions) => {
     },
     track<K extends keyof AnalyticsEventMap>(event: K, ...args: AnalyticsEventMap[K] extends undefined ? [] : [AnalyticsEventMap[K]]) {
       const data = sanitizeProperties(event, args[0]);
-      const properties = { ...contextProperties(), ...data };
-      safelyRun(client => (client.track as (name: string, properties?: Record<string, string>) => void)(event, Object.keys(properties).length ? properties : undefined));
+      const eventData = { ...contextProperties(), ...data };
+      safelyRun(client => client.track(properties => ({
+        ...sanitizeDefaultProperties(
+          properties,
+          typeof properties.url === 'string' ? properties.url : win?.location.href ?? '/',
+          win?.location.origin ?? 'https://verdaxis.invalid',
+        ),
+        name: event,
+        ...(Object.keys(eventData).length ? { data: eventData } : {}),
+      })));
     },
     trackPage(path: string) {
-      safelyRun(client => (
-        client.track as (
-          payload: (properties: Record<string, unknown>) => Record<string, unknown>
-        ) => void
-      )(properties => ({ ...properties, url: normalizeAnalyticsPath(path) })));
+      safelyRun(client => client.track(properties => sanitizeDefaultProperties(
+        properties,
+        path,
+        win?.location.origin ?? 'https://verdaxis.invalid',
+      )));
     },
   };
 };
@@ -207,6 +271,7 @@ export const analytics = createAnalytics({
   host: import.meta.env.VITE_ANALYTICS_HOST,
   websiteId: import.meta.env.VITE_ANALYTICS_WEBSITE_ID,
   environment: import.meta.env.MODE,
+  consentCheck: () => readCookiePreferences()?.optionalAnalytics === true,
 });
 
 // ---------------------------------------------------------------------------
@@ -217,6 +282,14 @@ const SIGNUP_PATH_PREFIXES = ['/login', '/register', '/onboarding', '/create-org
 const ERROR_DEDUPE_WINDOW_MS = 60_000;
 const NAVIGATION_SAMPLE_RATE = 0.1;
 const NAVIGATION_SAMPLE_STORAGE_KEY = 'verdaxis:nav-perf-sample';
+
+const analyticsSessionStorage = (): Storage | null => {
+  try {
+    return typeof window === 'undefined' ? null : window.sessionStorage;
+  } catch {
+    return null;
+  }
+};
 
 export const routeFamilyFromPath = (path: string): ReliabilityRouteFamily => {
   if (path.startsWith('/app/admin')) return 'admin';
@@ -242,6 +315,7 @@ interface ReliabilityReporterDeps {
   now?: () => number;
   random?: () => number;
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
+  hasConsent?: () => boolean;
 }
 
 export const createReliabilityReporter = (deps: ReliabilityReporterDeps) => {
@@ -280,6 +354,7 @@ export const createReliabilityReporter = (deps: ReliabilityReporterDeps) => {
   return {
     reportFrontendError(category: FrontendErrorCategory, routeFamily?: ReliabilityRouteFamily) {
       try {
+        if (deps.hasConsent && !deps.hasConsent()) return;
         const family = routeFamily ?? routeFamilyFromPath(getPath());
         if (!shouldReport(`error:${category}:${family}`)) return;
         deps.track('frontend_error', { route_family: family, category });
@@ -287,6 +362,7 @@ export const createReliabilityReporter = (deps: ReliabilityReporterDeps) => {
     },
     reportBackendUnavailable(routeFamily?: Exclude<ReliabilityRouteFamily, 'landing'>) {
       try {
+        if (deps.hasConsent && !deps.hasConsent()) return;
         const inferred = routeFamily ?? routeFamilyFromPath(getPath());
         // The landing surface has no backend dependency; classify as signup.
         const family = inferred === 'landing' ? 'signup' : inferred;
@@ -300,6 +376,7 @@ export const createReliabilityReporter = (deps: ReliabilityReporterDeps) => {
       durationMs: number,
     ) {
       try {
+        if (deps.hasConsent && !deps.hasConsent()) return;
         if (!navigationSampleDecision()) return;
         deps.track('navigation_performance', {
           destination,
@@ -317,5 +394,6 @@ export const reliability = createReliabilityReporter({
       event,
       data as unknown as Record<string, string>,
     ),
-  storage: typeof window !== 'undefined' ? window.sessionStorage : null,
+  storage: analyticsSessionStorage(),
+  hasConsent: () => analytics.hasConsent(),
 });

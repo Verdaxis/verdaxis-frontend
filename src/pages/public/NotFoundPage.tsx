@@ -1,13 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useNamespace } from '../../hooks/useNamespace';
 
 export const NotFoundPage: React.FC = () => {
     const { t, ready } = useNamespace('public');
-
-    useEffect(() => {
-        if (ready) document.title = `${t('notFound.title')} — Verdaxis`;
-    }, [ready, t]);
 
     if (!ready) return null;
 

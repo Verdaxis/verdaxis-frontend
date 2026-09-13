@@ -211,6 +211,13 @@ const RegisterPage: React.FC = () => {
                   {t('register.backToSignIn')}
                 </Link>
               </div>
+              <Link
+                to="/thank-you"
+                state={{ completion: 'registration' }}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+              >
+                {t('register.success.continue')}
+              </Link>
             </div>
           ) : (
             <>
@@ -350,9 +357,12 @@ const RegisterPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting || !allRulesPass || formData.password !== confirmPassword}
+                  aria-busy={isSubmitting}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-2"
                 >
-                  {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : t('register.submit')}
+                  {isSubmitting ? (
+                    <><Loader2 aria-hidden="true" className="animate-spin" size={20} />{t('register.submitting')}</>
+                  ) : t('register.submit')}
                 </button>
               </form>
 

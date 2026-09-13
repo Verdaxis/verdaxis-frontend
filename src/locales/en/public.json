@@ -1,4 +1,9 @@
 {
+  "footerContact": {
+    "label": "Verdaxis contact details",
+    "addressLine1": "71 Ayer Rajah Crescent,",
+    "addressLine2": "#02-15, Singapore 139951"
+  },
   "landing": {
     "stats": {
       "fuelProducts": "Fuel Products",
@@ -1133,7 +1138,7 @@
       },
       "2": {
         "title": "3. Product Analytics",
-        "body": "We use self-hosted, cookie-free analytics to understand page visits and selected product interactions. Technical request information, including IP address and browser details, is used to derive short-lived analytics sessions. We do not attach Verdaxis user IDs, names, email addresses, transaction values, order or trade IDs to analytics events, and session replay is disabled."
+        "body": "Essential browser storage supports sign-in, language, and theme preferences. With your choice, optional self-hosted, cookie-free analytics processes normalized page paths, allowlisted product events, and technical request information used to derive short-lived sessions. Analytics excludes names, email addresses, organization names, URL queries and invitation codes, and transaction content. Session replay is disabled."
       },
       "3": {
         "title": "4. Data Protection",

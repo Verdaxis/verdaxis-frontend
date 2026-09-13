@@ -164,7 +164,14 @@ const AcceptInvitationPage: React.FC = () => {
     <main className="min-h-[100dvh] overflow-y-auto bg-slate-950 px-4 py-8 text-white sm:py-12">
       <div className="mx-auto w-full max-w-lg">
         <header className="mb-7 flex justify-center">
-          <img src="/verdaxis-logo-words-right.png" alt="Verdaxis" className="h-12 w-auto object-contain" />
+          <img
+            src="/verdaxis-logo-words-right-384.png"
+            width={384}
+            height={86}
+            alt="Verdaxis"
+            decoding="async"
+            className="h-12 w-auto object-contain"
+          />
         </header>
 
         <section className="rounded-lg border border-slate-800 bg-slate-900 p-5 shadow-xl sm:p-8">

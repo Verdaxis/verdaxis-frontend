@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import { useNamespace } from '../../hooks/useNamespace';
+import { CookieSettingsButton } from '../CookieConsent';
 
 const DARK = '#0F172A';
 const BLUE = '#5DADE2';
@@ -48,6 +50,7 @@ const FooterColumn: React.FC<{ title: string; links: { label: string; to: string
 
 export const PublicFooter: React.FC = () => {
   const { t } = useTranslation();
+  const { t: tPublic, ready: publicReady } = useNamespace('public');
   const lp = useLocalePath();
 
   const PLATFORM_LINKS = [
@@ -93,8 +96,12 @@ export const PublicFooter: React.FC = () => {
         <div>
           <Link to={lp('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 16 }}>
             <img
-              src="/verdaxis-logo-words-right.png"
+              src="/verdaxis-logo-words-right-384.png"
               alt="Verdaxis"
+              width={384}
+              height={86}
+              loading="lazy"
+              decoding="async"
               style={{
                 width: 154,
                 height: 42,
@@ -107,6 +114,18 @@ export const PublicFooter: React.FC = () => {
           <p style={{ fontSize: 14, lineHeight: 1.7, color: '#94A3B8', maxWidth: 280 }}>
             {t('footer.tagline')}
           </p>
+          {publicReady && (
+            <address
+              aria-label={tPublic('footerContact.label')}
+              style={{ marginTop: 20, color: '#94A3B8', fontSize: 14, fontStyle: 'normal', lineHeight: 1.65 }}
+            >
+              <a href="mailto:info@verdaxis.exchange" style={{ color: '#CBD5E1', textDecoration: 'none' }}>
+                info@verdaxis.exchange
+              </a>
+              <span style={{ display: 'block', marginTop: 8 }}>{tPublic('footerContact.addressLine1')}</span>
+              <span style={{ display: 'block' }}>{tPublic('footerContact.addressLine2')}</span>
+            </address>
+          )}
         </div>
 
         <FooterColumn title={t('footer.platform')} links={PLATFORM_LINKS} />
@@ -128,31 +147,32 @@ export const PublicFooter: React.FC = () => {
           gap: 16,
         }}
       >
-        <span style={{ fontSize: 13, color: '#64748B' }}>
+        <span style={{ fontSize: 13, color: '#94A3B8' }}>
           {t('footer.copyright', { year: new Date().getFullYear() })}
         </span>
-        <div style={{ display: 'flex', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px 24px' }}>
+          <CookieSettingsButton variant="footer" />
           <Link
             to={lp('/governance')}
-            style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
+            style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'none', transition: 'color 0.15s' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#CBD5E1'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
           >
             {t('nav.governance')}
           </Link>
           <Link
             to={lp('/privacy')}
-            style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
+            style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'none', transition: 'color 0.15s' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#CBD5E1'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
           >
             {t('nav.privacy')}
           </Link>
           <Link
             to={lp('/terms')}
-            style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', transition: 'color 0.15s' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#64748B'; }}
+            style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'none', transition: 'color 0.15s' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = '#CBD5E1'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = '#94A3B8'; }}
           >
             {t('nav.terms')}
           </Link>

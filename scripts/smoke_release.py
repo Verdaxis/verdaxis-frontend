@@ -8,6 +8,7 @@ import json
 import os
 import socket
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -34,6 +35,33 @@ LOCAL_API_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 MAX_FINDINGS = 10
 
 
+@dataclass(frozen=True)
+class PublicMetadataExpectation:
+    path: str
+    title: str
+    description: str
+    canonical: str
+
+
+PUBLIC_METADATA_EXPECTATIONS = (
+    PublicMetadataExpectation(
+        path="/en/how-it-works",
+        title="How Verdaxis Works | Verdaxis",
+        description=(
+            "See how Verdaxis connects low-carbon fuel market participants through "
+            "structured listings, transparent market information, and controlled execution."
+        ),
+        canonical="https://verdaxis.exchange/en/how-it-works",
+    ),
+    PublicMetadataExpectation(
+        path="/zh/privacy",
+        title="隐私政策 | Verdaxis",
+        description="阅读 Verdaxis 隐私政策，了解账户、平台和技术信息的处理方式。",
+        canonical="https://verdaxis.exchange/zh/privacy",
+    ),
+)
+
+
 class _EntryAssetParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -45,6 +73,43 @@ class _EntryAssetParser(HTMLParser):
         source = dict(attrs).get("src")
         if source and Path(urlsplit(source).path).name.startswith("index-") and source.endswith(".js"):
             self.assets.append(source)
+
+
+class _DocumentMetadataParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self._in_title = False
+        self._title_parts: list[str] = []
+        self.description: str | None = None
+        self.robots: str | None = None
+        self.canonical: str | None = None
+
+    @property
+    def title(self) -> str:
+        return " ".join("".join(self._title_parts).split())
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {name.lower(): value for name, value in attrs}
+        if tag == "title":
+            self._in_title = True
+        elif tag == "meta":
+            name = (attributes.get("name") or "").lower()
+            if name == "description":
+                self.description = attributes.get("content")
+            elif name == "robots":
+                self.robots = attributes.get("content")
+        elif tag == "link":
+            relationships = (attributes.get("rel") or "").lower().split()
+            if "canonical" in relationships:
+                self.canonical = attributes.get("href")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "title":
+            self._in_title = False
+
+    def handle_data(self, data: str) -> None:
+        if self._in_title:
+            self._title_parts.append(data)
 
 
 def normalize_base_url(value: str) -> str:
@@ -62,6 +127,32 @@ def extract_index_asset(html: str) -> str:
     if len(parser.assets) != 1:
         raise ValueError(f"Expected one hashed index asset, found {len(parser.assets)}")
     return parser.assets[0]
+
+
+def public_metadata_failures(
+    html: str,
+    expectation: PublicMetadataExpectation,
+) -> list[str]:
+    parser = _DocumentMetadataParser()
+    parser.feed(html)
+
+    expected_values = {
+        "title": expectation.title,
+        "description": expectation.description,
+        "canonical": expectation.canonical,
+        "robots": "index,follow,max-image-preview:large",
+    }
+    actual_values = {
+        "title": parser.title,
+        "description": parser.description,
+        "canonical": parser.canonical,
+        "robots": parser.robots,
+    }
+    return [
+        f"Public metadata mismatch for {expectation.path}: {field}"
+        for field, expected in expected_values.items()
+        if actual_values[field] != expected
+    ]
 
 
 def classify_failures(
@@ -145,6 +236,39 @@ def check_api_readiness(
     return healthy
 
 
+def check_public_metadata_documents(
+    *,
+    request_context: Any,
+    base_url: str,
+    headers: dict[str, str],
+    frontend: list[str],
+    dependency: list[str],
+    transient: list[str],
+) -> None:
+    for expectation in PUBLIC_METADATA_EXPECTATIONS:
+        url = urljoin(f"{base_url}/", expectation.path.removeprefix("/"))
+        try:
+            response = request_context.get(url, headers=headers, timeout=30_000)
+        except Exception as error:  # noqa: BLE001 - transport errors are not rollback signals
+            _add(
+                transient,
+                f"Public metadata transport failed at {expectation.path}: {type(error).__name__}",
+            )
+            continue
+
+        if not response.ok:
+            target = (
+                dependency
+                if frontend_http_failure_class(response.status) == DEPENDENCY_FAILURE
+                else frontend
+            )
+            _add(target, f"Public metadata returned HTTP {response.status} at {expectation.path}")
+            continue
+
+        for failure in public_metadata_failures(response.text(), expectation):
+            _add(frontend, failure)
+
+
 def run_browser_checks(
     *,
     base_url: str,
@@ -154,6 +278,7 @@ def run_browser_checks(
     frontend: list[str],
     dependency: list[str],
     transient: list[str],
+    check_public_metadata: bool = False,
 ) -> str | None:
     try:
         from playwright.sync_api import Error as PlaywrightError
@@ -232,6 +357,16 @@ def run_browser_checks(
                 for local_host in LOCAL_API_HOSTS:
                     if f"//{local_host}" in bundle:
                         _add(frontend, f"Entry asset contains local API host {local_host}")
+
+            if check_public_metadata:
+                check_public_metadata_documents(
+                    request_context=context.request,
+                    base_url=base_url,
+                    headers=bypass_headers,
+                    frontend=frontend,
+                    dependency=dependency,
+                    transient=transient,
+                )
 
             page = context.new_page()
 
@@ -327,6 +462,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--expected-api-url", required=True)
     parser.add_argument("--expected-index-asset")
+    parser.add_argument("--check-public-metadata", action="store_true")
     parser.add_argument("--output", type=Path, default=Path("release-smoke.json"))
     parser.add_argument("--screenshot", type=Path)
     return parser.parse_args()
@@ -354,6 +490,7 @@ def main() -> int:
         frontend=frontend,
         dependency=dependency,
         transient=transient,
+        check_public_metadata=args.check_public_metadata,
     )
     classification = classify_failures(
         frontend=frontend,
