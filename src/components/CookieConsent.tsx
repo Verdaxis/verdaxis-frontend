@@ -13,29 +13,37 @@ const OPEN_COOKIE_SETTINGS_EVENT = 'verdaxis:open-cookie-settings';
 
 const choiceButtonClass = 'min-h-11 min-w-0 flex-1 basis-0 rounded-md border border-slate-400 bg-white px-3 py-2.5 text-sm font-semibold leading-5 text-slate-800 transition-colors duration-150 hover:border-[#24558A] hover:text-[#24558A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24558A] focus-visible:ring-offset-2 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-sky-400 dark:hover:text-sky-300';
 
+const settingsButtonClasses = {
+  floating: 'verdaxis-cookie-settings verdaxis-cookie-settings--floating fixed bottom-4 left-4 z-[13000] flex min-h-11 items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-md transition-colors duration-150 hover:border-[#24558A] hover:text-[#24558A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24558A] focus-visible:ring-offset-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200',
+  footer: 'verdaxis-cookie-settings--footer inline-flex min-h-11 items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-400 transition-colors duration-150 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400',
+  sidebar: 'flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-slate-300 transition-colors duration-150 hover:bg-[#2A3344] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400',
+};
+
 export const openCookieSettings = (returnFocus?: HTMLElement) => {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent(OPEN_COOKIE_SETTINGS_EVENT, { detail: returnFocus }));
   }
 };
 
-export const CookieSettingsButton: React.FC<{ variant?: 'floating' | 'footer' }> = ({
+export const CookieSettingsButton: React.FC<{
+  variant?: 'floating' | 'footer' | 'sidebar';
+  collapsed?: boolean;
+}> = ({
   variant = 'floating',
+  collapsed = false,
 }) => {
   const { t } = useTranslation();
-  const floating = variant === 'floating';
+  const iconOnly = variant === 'sidebar' && collapsed;
   return (
     <button
       type="button"
       onClick={(event) => openCookieSettings(event.currentTarget)}
       aria-label={t('cookiePreferences.settings')}
       data-cookie-settings={variant}
-      className={floating
-        ? 'verdaxis-cookie-settings verdaxis-cookie-settings--floating fixed bottom-4 left-4 z-[13000] flex min-h-11 items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-md transition-colors duration-150 hover:border-[#24558A] hover:text-[#24558A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#24558A] focus-visible:ring-offset-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200'
-        : 'verdaxis-cookie-settings--footer inline-flex min-h-11 items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-400 transition-colors duration-150 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400'}
+      className={`${settingsButtonClasses[variant]}${iconOnly ? ' justify-center' : ''}`}
     >
-      <Settings2 size={16} aria-hidden="true" />
-      {t('cookiePreferences.settings')}
+      <Settings2 size={variant === 'sidebar' ? 20 : 16} className="shrink-0" aria-hidden="true" />
+      <span className={iconOnly ? 'sr-only' : undefined}>{t('cookiePreferences.settings')}</span>
     </button>
   );
 };
@@ -164,6 +172,11 @@ export const CookieConsentControls: React.FC = () => {
         }
         body:has(footer .verdaxis-cookie-settings--footer) .verdaxis-cookie-settings--floating {
           display: none;
+        }
+        @media (min-width: 768px) {
+          body:has(aside [data-cookie-settings="sidebar"]) .verdaxis-cookie-settings--floating {
+            display: none;
+          }
         }
         @media (max-width: 767px) {
           body:has(.public-mobile-cta) .verdaxis-cookie-banner,
