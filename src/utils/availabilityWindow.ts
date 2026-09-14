@@ -1,4 +1,5 @@
 export const SPOT_WINDOW = 'SPOT';
+const FORWARD_QUARTER_COUNT = 5 * 4; // Rolling five-year delivery horizon.
 
 export const MONTH_WINDOW_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/;
 export const QUARTER_WINDOW_RE = /^(?<year>\d{4})-Q(?<quarter>[1-4])$/;
@@ -200,7 +201,7 @@ export function getAvailabilityWindowOptions(options?: {
 }): AvailabilityWindowOption[] {
     const now = options?.now ?? new Date();
     const timeZone = options?.timeZone ?? 'UTC';
-    const quarterCount = options?.quarterCount ?? 8;
+    const quarterCount = options?.quarterCount ?? FORWARD_QUARTER_COUNT;
     const locale = options?.locale ?? 'en';
     const { year, month } = getZonedYearMonth(now, timeZone);
     const currentQuarter = getQuarter(month);
