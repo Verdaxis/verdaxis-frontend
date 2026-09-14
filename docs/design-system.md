@@ -1,5 +1,17 @@
 # Design System — Verdaxis Market Radar
 
+## 2026-09 Forward Curve Horizon Repair
+
+Keep the established operator-grade market console, palette, monospace market figures, 8px grid, 8px panel radius, and flat elevation. This is a chart-readability repair, not a rebrand. Fuel buyers and suppliers must be able to compare the full delivery curve without reading overlapping dates.
+
+The owner chose chart-only **1Y / 3Y / All** delivery-horizon controls, defaulting to All, with sparse year labels on long curves. These are future delivery periods, not historical price-action ranges. Short ranges use month/quarter ticks with the year beneath. Labels adapt to the actual panel width, not only the viewport, and never grow as the panel narrows. Keep every data point and missing-period slot; omit labels, not data. Keep full period names in point names/tooltips and the selected-period inspector. If the selected period is outside a shorter chart horizon, say so and keep All available. Matrix and exact-slice Marketplace handoff remain unchanged.
+
+Reuse the native SVG and existing button styles; no new component library, chart dependency, drag gesture, or decorative animation. Price lines retain sky blue, selected points retain emerald plus the selection ring, and axis text uses the existing readable muted slate. Range controls have visible pressed/focus states and at least 44px touch height. Use fixed 12px chart text and a fixed-height plot with width-aware geometry; test that labels have clear horizontal separation.
+
+Reference: owner screenshot `/tmp/cmc-6c93671777f8b62c.png`. Review 1920, 1440, 1280, 1024, and 768px widths, expanded/collapsed sidebar, EN/ZH, and light/dark shell. Keep the authenticated mobile gate below 768px. Verify reduced motion, sparse/missing data, single-point/empty curves, and selection outside the visible horizon. Do not add chart transitions during live updates.
+
+Browser iteration: keep the chart header to the market identity and range buttons on one row. Put the missing-evidence explanation beside the legend; the long subtitle otherwise wraps the controls into a wasteful extra row at 1280px.
+
 ## 2026-09 Site Checklist Repair Contract
 
 Preserve `.impeccable.md` and the current public maritime-market identity. This is a completeness and accessibility pass, not a rebrand. Reuse current slate surfaces, blue/green brand accents, Montserrat/Lato typography, 8px spacing, restrained radii, and existing controls. Public sticky actions use one clear action, at least 44px touch height, safe-area padding, and content clearance. Consent choices have equal visual weight and remain available after dismissal; do not cover the action or form. No new decorative motion. Respect reduced motion and keep feedback near 150–200ms. Verify EN/ZH at 390×844, 768×1024, and 1440×1000. Keep the intentional authenticated mobile gate. Use original local brand assets, useful image alternatives, and neutral completion copy that matches real submission state.

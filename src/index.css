@@ -352,7 +352,7 @@ a[href*="github.io/tradingview"] {
 }
 
 .forward-curve-console__chart-axis {
-  fill: #71859d;
+  fill: var(--curve-muted);
   font-family: inherit;
   font-size: 12px;
 }
@@ -366,22 +366,13 @@ a[href*="github.io/tradingview"] {
   min-width: 0;
 }
 
-.forward-curve-console__chart-panel {
-  container-type: inline-size;
+.forward-curve-console__point-ring {
+  opacity: 0;
 }
 
-@container (max-width: 900px) {
-  .forward-curve-console__chart-label,
-  .forward-curve-console__chart-axis {
-    font-size: 18px;
-  }
-}
-
-@container (max-width: 600px) {
-  .forward-curve-console__chart-label,
-  .forward-curve-console__chart-axis {
-    font-size: 22px;
-  }
+.forward-curve-console__chart-point:hover .forward-curve-console__point-ring,
+.forward-curve-console__chart-point:focus-visible .forward-curve-console__point-ring {
+  opacity: 1;
 }
 
 .forward-curve-console__selected {

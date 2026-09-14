@@ -6,6 +6,7 @@ import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
 import i18n, { loadNamespace } from '../i18n';
 import type { ForwardCurveMarketCell, ForwardCurveSliceResponse, ForwardCurveTableResponse, MarketProduct } from '../types';
 import { renderWithProviders } from './test-utils';
+import { getAvailabilityWindowOptions, formatAvailabilityWindow } from '../utils/availabilityWindow';
 
 const tableMock = vi.fn();
 const sliceMock = vi.fn();
@@ -195,6 +196,24 @@ const makeSlice = (cell: ForwardCurveMarketCell = singaporeSpot): ForwardCurveSl
   disclaimer: 'Indicative estimate only.',
 });
 
+const makeLongTable = () => {
+  const table = makeTable();
+  const options = getAvailabilityWindowOptions();
+  table.columns = options.map(option => ({
+    availability_window: option.value,
+    display_label: option.label,
+    group: option.kind === 'quarter' ? 'QUARTERLY' : option.kind === 'month' ? 'MONTHLY' : 'SPOT',
+  }));
+  table.rows = [{
+    ...table.rows[0],
+    cells: Object.fromEntries(options.map((option, index) => [
+      option.value,
+      baseCell('BIO_METHANOL', 'dp-singapore', 'Singapore', option.value, 1000 + index * 5),
+    ])),
+  }];
+  return table;
+};
+
 describe('ForwardCurveWorkspace', () => {
   beforeEach(async () => {
     await loadNamespace('trading');
@@ -234,6 +253,85 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
     expect(screen.queryByText(/Expand period/i)).toBeNull();
     expect(screen.queryByText(/TradingView/i)).toBeNull();
+  });
+
+  it('defaults to all periods and changes only the chart horizon, not the matrix or selected slice', async () => {
+    const table = makeLongTable();
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockImplementation(({ availability_window }) => Promise.resolve(makeSlice(table.rows[0].cells[availability_window])));
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Market Matrix');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const graph = within(chart).getByRole('group', { name: /Singapore forward curve/ });
+    const pointCount = () => within(graph).getAllByRole('button').length;
+    expect(within(chart).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true');
+    expect(pointCount()).toBe(table.columns.length);
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    const matrixCount = within(matrix).getAllByRole('button').length;
+    const selected = localStorage.getItem('verdaxis_forward_curve_window');
+
+    fireEvent.click(within(chart).getByRole('button', { name: '1Y' }));
+    expect(pointCount()).toBe(getAvailabilityWindowOptions({ quarterCount: 4 }).length);
+    fireEvent.click(within(chart).getByRole('button', { name: '3Y' }));
+    expect(pointCount()).toBe(getAvailabilityWindowOptions({ quarterCount: 12 }).length);
+    expect(within(matrix).getAllByRole('button')).toHaveLength(matrixCount);
+    expect(localStorage.getItem('verdaxis_forward_curve_window')).toBe(selected);
+    fireEvent.click(within(chart).getByRole('button', { name: 'All' }));
+    expect(pointCount()).toBe(table.columns.length);
+  });
+
+  it('keeps an unlabelled far-period point accessible and preserves its exact Marketplace handoff', async () => {
+    const table = makeLongTable();
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockImplementation(({ availability_window }) => Promise.resolve(makeSlice(table.rows[0].cells[availability_window])));
+    const onOpenSlice = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onOpenSlice={onOpenSlice} />);
+    await screen.findByText('Market Matrix');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const lastWindow = table.columns.at(-1)!.availability_window;
+    const farPoint = within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) });
+    fireEvent.keyDown(farPoint, { key: 'Enter' });
+    await waitFor(() => expect(farPoint.getAttribute('aria-pressed')).toBe('true'));
+    await waitFor(() => expect(sliceMock).toHaveBeenLastCalledWith({
+      market_product: 'BIO_METHANOL', delivery_point_id: 'dp-singapore', availability_window: lastWindow,
+    }));
+    expect(localStorage.getItem('verdaxis_forward_curve_window')).toBe(lastWindow);
+    fireEvent.click(within(chart).getByRole('button', { name: '1Y' }));
+    expect(within(chart).getByText(/Selected period is outside this horizon/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /open marketplace/i }));
+    expect(onOpenSlice).toHaveBeenCalledWith({ product: 'BIO_METHANOL', port: 'Singapore', window: lastWindow });
+  });
+
+  it('keeps missing periods as gaps in the chart instead of connecting across them', async () => {
+    const table = makeLongTable();
+    const missingWindow = table.columns[2].availability_window;
+    table.rows[0].cells[missingWindow] = baseCell('BIO_METHANOL', 'dp-singapore', 'Singapore', missingWindow, null);
+    tableMock.mockResolvedValue(table);
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Market Matrix');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const graph = within(chart).getByRole('group', { name: /Singapore forward curve/ });
+    expect(within(graph).getAllByRole('button')).toHaveLength(table.columns.length - 1);
+    expect(graph.querySelectorAll('path')).toHaveLength(2);
+  });
+
+  it('keeps range controls usable when a shorter horizon has no priced points', async () => {
+    const table = makeLongTable();
+    const lastWindow = table.columns.at(-1)!.availability_window;
+    for (const column of table.columns.slice(0, -1)) {
+      table.rows[0].cells[column.availability_window] = baseCell(
+        'BIO_METHANOL', 'dp-singapore', 'Singapore', column.availability_window, null,
+      );
+    }
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockResolvedValue(makeSlice(table.rows[0].cells[lastWindow]));
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Market Matrix');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    fireEvent.click(within(chart).getByRole('button', { name: '1Y' }));
+    expect(within(chart).getByText(/No forward curve evidence/)).toBeTruthy();
+    fireEvent.click(within(chart).getByRole('button', { name: 'All' }));
+    expect(within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) })).toBeTruthy();
   });
 
   it('preserves forced slice refresh when the interval joins the table request', async () => {
@@ -668,6 +766,8 @@ describe('ForwardCurveWorkspace', () => {
 
     await screen.findByText('最新监控信号');
     expect(screen.getByText('市场矩阵')).toBeTruthy();
+    expect(screen.getByRole('group', { name: '交付期限范围' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '全部' })).toBeTruthy();
     expect(await screen.findByText('所选期限的指示性价格区间')).toBeTruthy();
     expect(await screen.findByText('买单、卖单、成交、意向报价和公允价值标记')).toBeTruthy();
     expect(screen.getAllByText('所选期限').length).toBeGreaterThan(0);
