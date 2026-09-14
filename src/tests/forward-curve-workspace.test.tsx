@@ -315,6 +315,108 @@ describe('ForwardCurveWorkspace', () => {
     expect(graph.querySelectorAll('path')).toHaveLength(2);
   });
 
+  it('shows exact quarter details on hover without selecting or fetching a slice', async () => {
+    const table = makeLongTable();
+    const lastWindow = table.columns.at(-1)!.availability_window;
+    Object.assign(table.rows[0].cells[lastWindow], {
+      primary_value: '1246.75', best_bid: '1241.25', best_ask: '1252.25', spread: '11.00', volume_mt: '9531.5',
+    });
+    tableMock.mockResolvedValue(table);
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const point = within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) });
+    const selected = localStorage.getItem('verdaxis_forward_curve_window');
+    sliceMock.mockClear();
+    tableMock.mockClear();
+    fireEvent.mouseEnter(point);
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip.parentElement).toBe(document.body);
+    expect(point.getAttribute('aria-describedby')).toBe(tooltip.id);
+    expect(point.querySelector('title')).toBeNull();
+    for (const text of [formatAvailabilityWindow(lastWindow), '$1,246.75', '$1,241.25', '$1,252.25', '$11.00', '9,531.5', 'Demo data', 'Demo orderbook midpoint']) {
+      expect(within(tooltip).getByText(text)).toBeTruthy();
+    }
+    expect(localStorage.getItem('verdaxis_forward_curve_window')).toBe(selected);
+    expect(sliceMock).not.toHaveBeenCalled();
+    expect(tableMock).not.toHaveBeenCalled();
+
+    fireEvent.mouseLeave(point);
+    fireEvent.mouseEnter(tooltip);
+    // The tooltip must remain available while the pointer is over its content.
+    await new Promise(resolve => setTimeout(resolve, 180));
+    expect(screen.getByRole('tooltip')).toBe(tooltip);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(point.hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.mouseEnter(point);
+    fireEvent.mouseLeave(point);
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+  });
+
+  it('supports focus and clears point details when focus, viewport, or horizon changes', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    const point = within(chart).getByRole('button', { name: 'Spot $1015' });
+    act(() => point.focus());
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    fireEvent.mouseLeave(point);
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    act(() => point.blur());
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull());
+    fireEvent.mouseEnter(point);
+    fireEvent.resize(window);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.mouseEnter(point);
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    fireEvent.mouseEnter(point);
+    fireEvent.click(within(chart).getByRole('button', { name: '1Y' }));
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('uses the plotted bid fallback and shows missing values separately from zero', async () => {
+    const table = makeTable();
+    table.rows[0].cells.SPOT = {
+      ...table.rows[0].cells.SPOT,
+      primary_value: null, best_bid: 980.25, best_ask: null, spread: null, volume_mt: 0,
+    };
+    tableMock.mockResolvedValue(table);
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $980' }));
+    const tooltip = screen.getByRole('tooltip');
+    expect(within(tooltip).getAllByText('$980.25')).toHaveLength(2);
+    expect(within(tooltip).getAllByText('Best bid')).toHaveLength(2);
+    expect(within(tooltip).getAllByText('--')).toHaveLength(2);
+    expect(within(tooltip).getByText('0')).toBeTruthy();
+    expect(within(tooltip).queryByText('Demo orderbook midpoint')).toBeNull();
+  });
+
+  it('places details beside the point when a short viewport has no room above or below', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    const height = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
+    const bounds = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return this.tagName.toLowerCase() === 'circle'
+        ? new DOMRect(500, 240, 10, 10)
+        : new DOMRect(0, 0, 288, 255);
+    });
+    try {
+      const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+      fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $1015' }));
+      const tooltip = screen.getByRole('tooltip');
+      expect(tooltip.style.left).toBe('522px');
+      expect(tooltip.style.top).toBe('117.5px');
+    } finally {
+      bounds.mockRestore();
+      Object.defineProperty(window, 'innerHeight', { value: height, configurable: true });
+    }
+  });
+
   it('keeps range controls usable when a shorter horizon has no priced points', async () => {
     const table = makeLongTable();
     const lastWindow = table.columns.at(-1)!.availability_window;
@@ -780,5 +882,12 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText(/^BID \$/)).toBeNull();
     expect(screen.queryByText(/^ASK \$/)).toBeNull();
     expect(screen.queryByText('Latest Monitored Signals')).toBeNull();
+    const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
+    fireEvent.mouseEnter(within(chart).getByRole('button', { name: '现货 $1015' }));
+    const tooltip = screen.getByRole('tooltip');
+    expect(within(tooltip).getByText('最高买价')).toBeTruthy();
+    expect(within(tooltip).getByText('最低卖价')).toBeTruthy();
+    expect(within(tooltip).getByText('订单总量（吨）')).toBeTruthy();
+    expect(within(tooltip).getByText('演示订单簿中间价')).toBeTruthy();
   });
 });

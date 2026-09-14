@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Activity, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Target, TrendingUp } from 'lucide-react';
 
 import { api } from '../services/api';
@@ -275,6 +276,95 @@ const findCurveRow = (
     return table.rows.find(row => table.columns.some(column => cellCurveValue(row.cells[column.availability_window]) != null)) ?? null;
 };
 
+const ForwardCurvePointTooltip: React.FC<{
+    id: string;
+    cell: ForwardCurveMarketCell;
+    value: number;
+    anchor: SVGGElement;
+    onMouseEnter: () => void;
+    onMouseLeave: () => void;
+}> = ({ id, cell, value, anchor, onMouseEnter, onMouseLeave }) => {
+    const { t } = useNamespace('trading');
+    const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const [position, setPosition] = useState({ left: 0, top: 0 });
+    const tone = sourceTone(cell, t);
+    const price = (input: number | string | null | undefined) => {
+        const parsed = numericValue(input);
+        return parsed == null ? '--' : `$${parsed.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+    const priceSource = numericValue(cell.primary_value) != null
+        ? sourceLabel(cell.public_source_label, t)
+        : t(numericValue(cell.best_bid) != null && numericValue(cell.best_ask) != null
+            ? 'forwardCurve.chart.tooltip.midpoint'
+            : numericValue(cell.best_bid) != null
+                ? 'forwardCurve.chart.tooltip.bestBid'
+                : 'forwardCurve.chart.tooltip.bestAsk');
+
+    useLayoutEffect(() => {
+        const tooltip = tooltipRef.current;
+        const point = anchor.querySelector('circle');
+        if (!tooltip || !point) return;
+        const rect = point.getBoundingClientRect();
+        const bounds = tooltip.getBoundingClientRect();
+        const gap = 12;
+        let left = rect.left + rect.width / 2 - bounds.width / 2;
+        let top = rect.top - bounds.height - gap;
+        if (top < gap) {
+            top = rect.bottom + gap;
+            if (top + bounds.height > window.innerHeight - gap) {
+                // On short viewports, use a side so the focused point stays visible.
+                left = rect.right + gap + bounds.width <= window.innerWidth - gap
+                    ? rect.right + gap
+                    : rect.left - bounds.width - gap;
+                top = rect.top + rect.height / 2 - bounds.height / 2;
+            }
+        }
+        setPosition({
+            left: Math.max(gap, Math.min(left, window.innerWidth - bounds.width - gap)),
+            top: Math.max(gap, Math.min(top, window.innerHeight - bounds.height - gap)),
+        });
+    }, [anchor, cell, value, locale]);
+
+    return createPortal(
+        <div
+            ref={tooltipRef}
+            id={id}
+            role="tooltip"
+            className="dark forward-curve-console forward-curve-console__point-tooltip fixed z-[140] w-72 max-w-[calc(100vw-24px)] rounded-lg border border-slate-600 p-3 font-mono text-xs leading-relaxed text-slate-100 shadow-xl"
+            style={position}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="font-bold text-sm">{formatAvailabilityWindow(cell.availability_window, locale)}</div>
+                <span className={`shrink-0 ${marketActivityTextClass(tone.tone)}`}>{tone.label}</span>
+            </div>
+            <div className="forward-curve-console__muted">{formatMarketProduct(cell.market_product)} · {cell.delivery_point_name}</div>
+            <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-xl font-bold tabular-nums">{price(value)}</span>
+                <span className="forward-curve-console__muted">USD/MT</span>
+            </div>
+            <div className="forward-curve-console__muted">{priceSource}</div>
+            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-700 pt-2">
+                {[
+                    [t('forwardCurve.chart.tooltip.bestBid'), price(cell.best_bid)],
+                    [t('forwardCurve.chart.tooltip.bestAsk'), price(cell.best_ask)],
+                    [t('orderBook.spread'), price(cell.spread)],
+                    [t('forwardCurve.chart.tooltip.volume'), numericValue(cell.volume_mt)?.toLocaleString(locale, { maximumFractionDigits: 2 }) ?? '--'],
+                ].map(([label, detail]) => (
+                    <div key={label}>
+                        <dt className="forward-curve-console__muted">{label}</dt>
+                        <dd className="font-semibold tabular-nums">{detail}</dd>
+                    </div>
+                ))}
+            </dl>
+            <div className="forward-curve-console__muted mt-2 border-t border-slate-700 pt-2">{t('forwardCurve.chart.tooltip.observed', { age: ageLabel(cell.observed_at, t) })}</div>
+        </div>,
+        document.body,
+    );
+};
+
 const ForwardCurveChart: React.FC<{
     table: ForwardCurveTableResponse;
     columns: ForwardCurveTableColumn[];
@@ -289,6 +379,25 @@ const ForwardCurveChart: React.FC<{
     const [horizon, setHorizon] = useState<ForwardCurveHorizon>('All');
     const plotRef = useRef<HTMLDivElement>(null);
     const [chartWidth, setChartWidth] = useState(900);
+    const tooltipId = useId();
+    const [tooltip, setTooltip] = useState<{ key: string; anchor: SVGGElement } | null>(null);
+    const tooltipCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const cancelTooltipClose = useCallback(() => clearTimeout(tooltipCloseTimer.current), []);
+    const closeTooltip = useCallback(() => {
+        cancelTooltipClose();
+        setTooltip(null);
+    }, [cancelTooltipClose]);
+    // Leave time to cross the small gap between the point and its tooltip.
+    const scheduleTooltipClose = () => {
+        cancelTooltipClose();
+        tooltipCloseTimer.current = setTimeout(() => {
+            if (document.activeElement !== tooltip?.anchor) closeTooltip();
+        }, 150);
+    };
+    const showTooltip = (key: string, anchor: SVGGElement) => {
+        cancelTooltipClose();
+        setTooltip({ key, anchor });
+    };
     const horizonWindows = useMemo(() => getForwardCurveHorizon(
         columns.map(column => column.availability_window), horizon,
     ), [columns, horizon]);
@@ -314,6 +423,31 @@ const ForwardCurveChart: React.FC<{
         observer.observe(element);
         return () => observer.disconnect();
     }, []);
+
+    useEffect(() => {
+        closeTooltip();
+    }, [horizon, curveRow, chartWidth, closeTooltip]);
+
+    useEffect(() => cancelTooltipClose, [cancelTooltipClose]);
+
+    useEffect(() => {
+        if (!tooltip) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') closeTooltip();
+        };
+        const onScroll = (event: Event) => {
+            const insideTooltip = event.target instanceof Node && document.getElementById(tooltipId)?.contains(event.target);
+            if (!insideTooltip) closeTooltip();
+        };
+        document.addEventListener('keydown', onKeyDown);
+        window.addEventListener('resize', closeTooltip);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('resize', closeTooltip);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [tooltip, tooltipId, closeTooltip]);
 
     const graph = useMemo(() => {
         const cells = chartColumns.map((column, index) => {
@@ -384,6 +518,7 @@ const ForwardCurveChart: React.FC<{
         }
         return segments;
     }, [graph.cells, graph.points]);
+    const tooltipPoint = tooltip ? graph.points.find(point => sliceKey(cellToSlice(point.cell)) === tooltip.key) : null;
 
     if (!ready) return null;
     return (
@@ -472,6 +607,15 @@ const ForwardCurveChart: React.FC<{
                                         tabIndex={0}
                                         aria-pressed={selected}
                                         aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${currency(point.value)}`}
+                                        aria-describedby={tooltip?.key === pointKey ? tooltipId : undefined}
+                                        aria-description={t('forwardCurve.chart.pointHint')}
+                                        data-tooltip-active={tooltip?.key === pointKey || undefined}
+                                        onMouseEnter={event => showTooltip(pointKey, event.currentTarget)}
+                                        onMouseLeave={event => {
+                                            if (document.activeElement !== event.currentTarget) scheduleTooltipClose();
+                                        }}
+                                        onFocus={event => showTooltip(pointKey, event.currentTarget)}
+                                        onBlur={scheduleTooltipClose}
                                         onClick={() => onSelectCell(point.cell)}
                                         onDoubleClick={(event) => {
                                             event.preventDefault();
@@ -485,12 +629,6 @@ const ForwardCurveChart: React.FC<{
                                         }}
                                         className="forward-curve-console__chart-point cursor-pointer"
                                     >
-                                        <title>
-                                            {t('forwardCurve.chart.pointTitle', {
-                                                period: formatAvailabilityWindow(point.cell.availability_window, locale),
-                                                price: currency(point.value),
-                                            })}
-                                        </title>
                                         <rect
                                             x={point.x - pointTargetWidth / 2}
                                             y="12"
@@ -509,6 +647,16 @@ const ForwardCurveChart: React.FC<{
                         </svg>
                     )}
                 </div>
+                {tooltip && tooltipPoint && (
+                    <ForwardCurvePointTooltip
+                        id={tooltipId}
+                        cell={tooltipPoint.cell}
+                        value={tooltipPoint.value}
+                        anchor={tooltip.anchor}
+                        onMouseEnter={cancelTooltipClose}
+                        onMouseLeave={scheduleTooltipClose}
+                    />
+                )}
                 <div className="forward-curve-console__muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 uppercase tracking-wider">
                     <span className="flex items-center gap-1">
                         <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
