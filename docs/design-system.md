@@ -1,5 +1,9 @@
 # Design System — Verdaxis Market Radar
 
+## 2026-09 Forward Curve Point Tooltip
+
+Show an anchored, transient tooltip on point hover and keyboard focus. Keep the full delivery period first, followed by the plotted price in USD/MT, its source/demo status, best bid, best ask, spread, visible order volume, and observation age. Preserve cents and distinguish missing values from zero. Reuse the console palette, tabular figures, 8px radius, and the existing body-portal pattern. Keep the tooltip within the viewport, hoverable, and dismissible with Escape. No animation or new dependency. Hover must not select a period or request slice data; click, keyboard selection, and exact Marketplace handoff remain unchanged. Verify near/far points, short/all horizons, EN/ZH, both shell themes, and narrow desktop widths. Stage this feedback for review before production promotion.
+
 ## 2026-09 Forward Curve Horizon Repair
 
 Keep the established operator-grade market console, palette, monospace market figures, 8px grid, 8px panel radius, and flat elevation. This is a chart-readability repair, not a rebrand. Fuel buyers and suppliers must be able to compare the full delivery curve without reading overlapping dates.

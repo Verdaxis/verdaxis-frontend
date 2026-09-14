@@ -370,7 +370,13 @@ a[href*="github.io/tradingview"] {
   opacity: 0;
 }
 
+.forward-curve-console__point-tooltip {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+}
+
 .forward-curve-console__chart-point:hover .forward-curve-console__point-ring,
+.forward-curve-console__chart-point[data-tooltip-active] .forward-curve-console__point-ring,
 .forward-curve-console__chart-point:focus-visible .forward-curve-console__point-ring {
   opacity: 1;
 }
