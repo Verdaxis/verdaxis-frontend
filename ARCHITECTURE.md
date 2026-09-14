@@ -31,6 +31,7 @@ src/
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
+  utils/forwardCurveAxis.ts        # Chart-only delivery horizons and width-aware sparse/detailed tick layout
   utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
   utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
   utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
@@ -292,7 +293,11 @@ for the product-port-period matrix and `/curves/forward/slice` for the selected-
 The compact table payload carries product and delivery-point identity once per row; the workspace
 rehydrates that row context onto cells before selection, charting, or Marketplace handoff.
 It does not execute trades. Its prominent curve is keyed to the selected product and delivery point,
-with the market matrix below and selected-period range evidence in the right inspector. Price summaries,
+with chart-only 1Y/3Y/All delivery horizons (All by default), sparse long-range year ticks,
+fixed-size text and container-measured SVG geometry. Every period retains its slot, including
+periods with no evidence. Range changes preserve the selected slice and disclose an out-of-range
+selection rather than silently changing the Marketplace handoff.
+The market matrix stays below the chart, with selected-period range evidence in the right inspector. Price summaries,
 forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
 `observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so
 demo-seeded, benchmark-reference, mixed-source, and live activity are labelled consistently without

@@ -16,7 +16,8 @@ import type {
     MarketProduct,
     Page,
 } from '../types';
-import { formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
+import { formatAvailabilityWindow, formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
+import { getForwardCurveHorizon, getForwardCurveTicks, type ForwardCurveHorizon } from '../utils/forwardCurveAxis';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
@@ -285,9 +286,37 @@ const ForwardCurveChart: React.FC<{
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const curveRow = useMemo(() => findCurveRow(table, selectedCell), [table, selectedCell]);
+    const [horizon, setHorizon] = useState<ForwardCurveHorizon>('All');
+    const plotRef = useRef<HTMLDivElement>(null);
+    const [chartWidth, setChartWidth] = useState(900);
+    const horizonWindows = useMemo(() => getForwardCurveHorizon(
+        columns.map(column => column.availability_window), horizon,
+    ), [columns, horizon]);
+    const chartColumns = useMemo(() => columns.filter(
+        column => horizonWindows.includes(column.availability_window),
+    ), [columns, horizonWindows]);
+    const left = 64;
+    const right = 24;
+    const plotWidth = Math.max(chartWidth - left - right, 1);
+    const xForIndex = useCallback((index: number) => left + (
+        chartColumns.length <= 1 ? plotWidth / 2 : index * plotWidth / (chartColumns.length - 1)
+    ), [chartColumns.length, plotWidth]);
+    const pointTargetWidth = Math.min(44, plotWidth / Math.max(chartColumns.length - 1, 1));
+    const ticks = getForwardCurveTicks(horizonWindows, horizon, plotWidth, locale);
+    const selectionOutsideHorizon = selectedCell && !horizonWindows.includes(selectedCell.availability_window);
+
+    useEffect(() => {
+        const element = plotRef.current;
+        if (!element) return;
+        const observer = new ResizeObserver(([entry]) => {
+            if (entry.contentRect.width > 0) setChartWidth(entry.contentRect.width);
+        });
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, []);
 
     const graph = useMemo(() => {
-        const cells = columns.map((column, index) => {
+        const cells = chartColumns.map((column, index) => {
             const cell = curveRow?.cells[column.availability_window] ?? null;
             const value = cellCurveValue(cell);
             return { column, cell, value, index };
@@ -308,18 +337,8 @@ const ForwardCurveChart: React.FC<{
         const min = rawMin - padding;
         const max = rawMax + padding;
         const range = Math.max(max - min, 1);
-        const left = 92;
-        const right = 18;
         const top = 20;
-        const bottom = 34;
-        const width = 900;
-        const height = 210;
-        const plotWidth = width - left - right;
-        const plotHeight = height - top - bottom;
-        const xForIndex = (index: number) => {
-            if (columns.length <= 1) return left + (plotWidth / 2);
-            return left + (index / (columns.length - 1)) * plotWidth;
-        };
+        const plotHeight = 156;
         const yForValue = (value: number | string | null | undefined) => {
             const parsed = numericValue(value);
             if (parsed == null) return top + plotHeight;
@@ -338,7 +357,7 @@ const ForwardCurveChart: React.FC<{
             }));
 
         return { cells, points, min, max, range };
-    }, [columns, curveRow]);
+    }, [chartColumns, curveRow, xForIndex]);
 
     const curveLabel = curveRow
         ? `${formatMarketProduct(curveRow.market_product)} · ${curveRow.delivery_point_name}`
@@ -377,99 +396,135 @@ const ForwardCurveChart: React.FC<{
                     </div>
                     <div className="forward-curve-console__muted mt-0.5 truncate">{t('forwardCurve.chart.scope', { market: curveLabel })}</div>
                 </div>
-                <div className="forward-curve-console__muted shrink-0 text-right font-mono uppercase tracking-wider">
-                    <div>{currency(graph.min)} {t('forwardCurve.low')}</div>
-                    <div>{currency(graph.max)} {t('forwardCurve.high')}</div>
+                <div role="group" aria-label={t('forwardCurve.chart.horizon')} className="flex shrink-0 rounded border border-slate-700 p-0.5">
+                    {(['1Y', '3Y', 'All'] as const).map(value => (
+                        <button
+                            key={value}
+                            type="button"
+                            aria-pressed={horizon === value}
+                            onClick={() => setHorizon(value)}
+                            className={`min-h-11 min-w-11 rounded-sm px-3 text-xs font-bold transition-colors ${
+                                horizon === value
+                                    ? 'bg-slate-700 text-slate-100'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                            }`}
+                        >
+                            {t(`forwardCurve.chart.horizon${value}`)}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {graph.points.length === 0 ? (
-                <div className="forward-curve-console__muted flex h-[220px] items-center justify-center px-4 text-center">
-                    {t('forwardCurve.chart.empty')}
+            <div className="px-3 pb-2 pt-2">
+                <div className="forward-curve-console__muted flex flex-wrap justify-between gap-x-4 gap-y-1">
+                    <span>{t('forwardCurve.chart.periodCount', { count: chartColumns.length })} · USD/MT</span>
+                    {chartColumns.length > 1 && (
+                        <span>{formatAvailabilityWindowPeriod(chartColumns[0].availability_window, locale)} — {formatAvailabilityWindowPeriod(chartColumns[chartColumns.length - 1].availability_window, locale)}</span>
+                    )}
                 </div>
-            ) : (
-                <div className="forward-curve-console__chart-scroll px-3 pb-2 pt-2">
-                    <svg className="forward-curve-console__chart h-56 w-full overflow-visible" viewBox="0 0 900 210" role="img" aria-label={t('forwardCurve.chart.aria', { market: curveLabel })}>
-                        {[0.25, 0.5, 0.75].map(fraction => {
-                            const y = 20 + fraction * 156;
-                            return <line key={fraction} x1="92" x2="882" y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
-                        })}
-                        <line x1="92" x2="882" y1="176" y2="176" stroke="#334155" />
-                        <line x1="92" x2="92" y1="20" y2="176" stroke="#334155" />
-                        <text className="forward-curve-console__chart-axis" x="0" y="27">{currency(graph.max)}</text>
-                        <text className="forward-curve-console__chart-axis" x="0" y="178">{currency(graph.min)}</text>
-                        {graph.points.map(point => (
-                            <text
-                                key={`label-${point.index}`}
-                                x={point.x}
-                                y="196"
-                                className="forward-curve-console__chart-label"
-                                textAnchor="middle"
-                            >
-                                {formatAvailabilityWindowPeriod(point.cell.availability_window, locale)}
-                            </text>
-                        ))}
-                        {pathSegments.map((segment, index) => (
-                            <path key={`segment-${index}`} d={segment} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        ))}
-                        {graph.points.map(point => {
-                            const pointKey = sliceKey(cellToSlice(point.cell));
-                            const selected = pointKey === selectedKey;
-                            const bid = numericValue(point.cell.best_bid);
-                            const ask = numericValue(point.cell.best_ask);
-                            const bandY1 = bid != null && ask != null ? Math.min(point.bidY, point.askY) : null;
-                            const bandY2 = bid != null && ask != null ? Math.max(point.bidY, point.askY) : null;
-                            return (
-                                <g
-                                    key={`${point.cell.delivery_point_id}-${point.cell.availability_window}`}
-                                    role="button"
-                                    tabIndex={0}
-                                    aria-label={`${formatAvailabilityWindowPeriod(point.cell.availability_window, locale)} ${currency(point.value)}`}
-                                    onClick={() => onSelectCell(point.cell)}
-                                    onDoubleClick={(event) => {
-                                        event.preventDefault();
-                                        onOpenCell(point.cell);
-                                    }}
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter' || event.key === ' ') {
-                                            event.preventDefault();
-                                            onSelectCell(point.cell);
-                                        }
-                                    }}
-                                    className="cursor-pointer"
+                {selectionOutsideHorizon && (
+                    <p className="forward-curve-console__muted mt-2" role="status">{t('forwardCurve.chart.outsideHorizon')}</p>
+                )}
+                <div ref={plotRef} className="forward-curve-console__chart-scroll">
+                    {graph.points.length === 0 ? (
+                        <div className="forward-curve-console__muted flex h-[220px] items-center justify-center px-4 text-center">
+                            {t('forwardCurve.chart.empty')}
+                        </div>
+                    ) : (
+                        <svg className="forward-curve-console__chart h-56 w-full" viewBox={`0 0 ${chartWidth} 224`} role="group" aria-label={t('forwardCurve.chart.aria', { market: curveLabel })}>
+                            {[0.25, 0.5, 0.75].map(fraction => {
+                                const y = 20 + fraction * 156;
+                                return <line key={fraction} x1={left} x2={chartWidth - right} y1={y} y2={y} stroke="#1e293b" strokeDasharray="4 6" />;
+                            })}
+                            <line x1={left} x2={chartWidth - right} y1="176" y2="176" stroke="#334155" />
+                            <line x1={left} x2={left} y1="20" y2="176" stroke="#334155" />
+                            <text className="forward-curve-console__chart-axis" x="0" y="27">{currency(graph.max)}</text>
+                            <text className="forward-curve-console__chart-axis" x="0" y="178">{currency(graph.min)}</text>
+                            {graph.cells.map(point => (
+                                <line key={`tick-${point.index}`} x1={xForIndex(point.index)} x2={xForIndex(point.index)} y1="176" y2="181" stroke="#334155" />
+                            ))}
+                            {ticks.map(tick => (
+                                <text
+                                    key={`label-${tick.index}`}
+                                    x={xForIndex(tick.index)}
+                                    y="196"
+                                    className="forward-curve-console__chart-label"
+                                    textAnchor="middle"
                                 >
-                                    <title>
-                                        {t('forwardCurve.chart.pointTitle', {
-                                            period: formatAvailabilityWindowPeriod(point.cell.availability_window, locale),
-                                            price: currency(point.value),
-                                        })}
-                                    </title>
-                                    {bandY1 != null && bandY2 != null && (
-                                        <line x1={point.x} x2={point.x} y1={bandY1} y2={bandY2} stroke="#475569" strokeWidth="5" strokeLinecap="round" />
-                                    )}
-                                    <circle cx={point.x} cy={point.y} r={selected ? 6 : 4.5} fill={selected ? '#34d399' : '#38bdf8'} stroke="#020617" strokeWidth="2" />
-                                    {selected && <circle cx={point.x} cy={point.y} r="10" fill="none" stroke="#34d399" strokeWidth="1.5" />}
-                                </g>
-                            );
-                        })}
-                    </svg>
-
-                    <div className="forward-curve-console__muted mt-1 flex items-center gap-3 uppercase tracking-wider">
-                        <span className="flex items-center gap-1">
-                            <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
-                            {t('forwardCurve.chart.midPrimary')}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <span className="h-3 w-1 rounded-full bg-slate-500" aria-hidden="true" />
-                            {t('forwardCurve.chart.bidAskRange')}
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <span className="h-2.5 w-2.5 rounded-full border border-emerald-400 bg-transparent" aria-hidden="true" />
-                            {t('forwardCurve.selectedPeriod')}
-                        </span>
-                    </div>
+                                    <tspan x={xForIndex(tick.index)}>{tick.label}</tspan>
+                                    {tick.year && <tspan x={xForIndex(tick.index)} dy="17" className="forward-curve-console__chart-axis">{tick.year}</tspan>}
+                                </text>
+                            ))}
+                            {pathSegments.map((segment, index) => (
+                                <path key={`segment-${index}`} d={segment} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            ))}
+                            {graph.points.map(point => {
+                                const pointKey = sliceKey(cellToSlice(point.cell));
+                                const selected = pointKey === selectedKey;
+                                const bid = numericValue(point.cell.best_bid);
+                                const ask = numericValue(point.cell.best_ask);
+                                const bandY1 = bid != null && ask != null ? Math.min(point.bidY, point.askY) : null;
+                                const bandY2 = bid != null && ask != null ? Math.max(point.bidY, point.askY) : null;
+                                return (
+                                    <g
+                                        key={`${point.cell.delivery_point_id}-${point.cell.availability_window}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-pressed={selected}
+                                        aria-label={`${formatAvailabilityWindow(point.cell.availability_window, locale)} ${currency(point.value)}`}
+                                        onClick={() => onSelectCell(point.cell)}
+                                        onDoubleClick={(event) => {
+                                            event.preventDefault();
+                                            onOpenCell(point.cell);
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault();
+                                                onSelectCell(point.cell);
+                                            }
+                                        }}
+                                        className="forward-curve-console__chart-point cursor-pointer"
+                                    >
+                                        <title>
+                                            {t('forwardCurve.chart.pointTitle', {
+                                                period: formatAvailabilityWindow(point.cell.availability_window, locale),
+                                                price: currency(point.value),
+                                            })}
+                                        </title>
+                                        <rect
+                                            x={point.x - pointTargetWidth / 2}
+                                            y="12"
+                                            width={pointTargetWidth}
+                                            height="164"
+                                            fill="transparent"
+                                        />
+                                        {bandY1 != null && bandY2 != null && (
+                                            <line x1={point.x} x2={point.x} y1={bandY1} y2={bandY2} stroke="#475569" strokeWidth="5" strokeLinecap="round" />
+                                        )}
+                                        <circle cx={point.x} cy={point.y} r={selected ? 6 : 4.5} fill={selected ? '#34d399' : '#38bdf8'} stroke="#020617" strokeWidth="2" />
+                                        <circle className={selected ? '' : 'forward-curve-console__point-ring'} cx={point.x} cy={point.y} r="10" fill="none" stroke="#34d399" strokeWidth="1.5" />
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                    )}
                 </div>
-            )}
+                <div className="forward-curve-console__muted mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 uppercase tracking-wider">
+                    <span className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full bg-sky-400" aria-hidden="true" />
+                        {t('forwardCurve.chart.midPrimary')}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="h-3 w-1 rounded-full bg-slate-500" aria-hidden="true" />
+                        {t('forwardCurve.chart.bidAskRange')}
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="h-2.5 w-2.5 rounded-full border border-emerald-400 bg-transparent" aria-hidden="true" />
+                        {t('forwardCurve.selectedPeriod')}
+                    </span>
+                    <span className="normal-case tracking-normal">{t('forwardCurve.chart.gaps')}</span>
+                </div>
+            </div>
         </section>
     );
 };
@@ -872,7 +927,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     <div className="min-w-0 space-y-3">
                     <ForwardCurveChart
                         table={table}
-                        columns={visibleColumns}
+                        columns={table.columns}
                         selectedCell={selectedCell}
                         selectedKey={selectedKey}
                         onSelectCell={selectCell}

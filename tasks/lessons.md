@@ -523,6 +523,12 @@
 - **Rule:** A page called Forward Curve must keep a visible curve across delivery periods; period-level evidence graphs can supplement it but must not replace it.
 - **Why:** The implementation over-focused on selected-period evidence and removed the primary mental model users expect from a forward curve screen.
 
+### Separate Delivery Horizon From Axis Label Density
+- **Date:** 2026-09-14
+- **Trigger:** Extending listings to a rolling five years made Forward Curve labels overlap; the owner preferred sparse year labels plus 1Y / 3Y / All controls.
+- **Rule:** Test every chart consumer when extending delivery windows. Preserve all points and empty-period gaps, choose tick density from actual panel width, and do not enlarge labels on narrower panels. Horizon controls describe future delivery periods, not historical price action.
+- **Why:** A fixed SVG axis that labels every period cannot scale to a longer horizon; reducing data or shrinking text hides the problem rather than fixing the axis.
+
 ### Avoid Shared Grid Row Stretch In Terminal Layouts
 - **Date:** 2026-06-20
 - **Trigger:** User reported a large blank gap under the Forward Curve chart after the right-side latest-signals panel became much taller.
