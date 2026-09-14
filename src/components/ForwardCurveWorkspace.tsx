@@ -308,21 +308,23 @@ const ForwardCurvePointTooltip: React.FC<{
         const rect = point.getBoundingClientRect();
         const bounds = tooltip.getBoundingClientRect();
         const gap = 12;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
         let left = rect.left + rect.width / 2 - bounds.width / 2;
         let top = rect.top - bounds.height - gap;
         if (top < gap) {
             top = rect.bottom + gap;
-            if (top + bounds.height > window.innerHeight - gap) {
+            if (top + bounds.height > viewportHeight - gap) {
                 // On short viewports, use a side so the focused point stays visible.
-                left = rect.right + gap + bounds.width <= window.innerWidth - gap
+                left = rect.right + gap + bounds.width <= viewportWidth - gap
                     ? rect.right + gap
                     : rect.left - bounds.width - gap;
                 top = rect.top + rect.height / 2 - bounds.height / 2;
             }
         }
         setPosition({
-            left: Math.max(gap, Math.min(left, window.innerWidth - bounds.width - gap)),
-            top: Math.max(gap, Math.min(top, window.innerHeight - bounds.height - gap)),
+            left: Math.max(gap, Math.min(left, viewportWidth - bounds.width - gap)),
+            top: Math.max(gap, Math.min(top, viewportHeight - bounds.height - gap)),
         });
     }, [anchor, cell, value, locale]);
 
