@@ -27,25 +27,28 @@ const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
 export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+    // API decimal fields can arrive as strings despite the frontend order type.
+    const hasLivePrice = (order: OrderBookOrder) => !order.is_demo_listing
+        && Number.isFinite(Number(order.price_per_mt_usd)) && Number(order.price_per_mt_usd) > 0;
     const realBids = bids
-        .filter(order => !order.is_demo_listing)
+        .filter(hasLivePrice)
         .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd);
     const realAsks = asks
-        .filter(order => !order.is_demo_listing)
+        .filter(hasLivePrice)
         .sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd);
 
     const bestBid = realBids[0];
     const bestAsk = realAsks[0];
-    const hasCross = Boolean(bestBid && bestAsk && bestBid.price_per_mt_usd >= bestAsk.price_per_mt_usd);
+    const hasCross = Boolean(bestBid && bestAsk && Number(bestBid.price_per_mt_usd) >= Number(bestAsk.price_per_mt_usd));
     const bidIds = new Set<string>();
     const askIds = new Set<string>();
 
     if (hasCross && bestBid && bestAsk) {
         realBids
-            .filter(order => order.price_per_mt_usd >= bestAsk.price_per_mt_usd)
+            .filter(order => Number(order.price_per_mt_usd) >= Number(bestAsk.price_per_mt_usd))
             .forEach(order => bidIds.add(order.id));
         realAsks
-            .filter(order => order.price_per_mt_usd <= bestBid.price_per_mt_usd)
+            .filter(order => Number(order.price_per_mt_usd) <= Number(bestBid.price_per_mt_usd))
             .forEach(order => askIds.add(order.id));
     }
 
@@ -58,11 +61,13 @@ export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookO
 }
 
 function formatPrice(price: number, locale = 'en'): string {
-    return `$${price.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const value = Number(price);
+    return Number.isFinite(value) ? `$${value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}` : '—';
 }
 
 function formatQty(qty: number, locale = 'en'): string {
-    return qty.toLocaleString(locale, { maximumFractionDigits: 0 });
+    const value = Number(qty);
+    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 0 }) : '—';
 }
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
@@ -75,7 +80,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     const tooltipId = useId();
     const latestRequest = useRef(0);
 
-    const fetchData = useCallback(async (silent = false) => {
+    const fetchData = useCallback(async (silent = false, force = false) => {
         const requestId = ++latestRequest.current;
         if (!silent) {
             setLoading(true);
@@ -90,8 +95,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 availability,
             };
             const [rawBids, rawAsks] = await Promise.all([
-                api.orderbook.listBids(params),
-                api.orderbook.listAsks(params),
+                force ? api.orderbook.listBids(params, { force: true }) : api.orderbook.listBids(params),
+                force ? api.orderbook.listAsks(params, { force: true }) : api.orderbook.listAsks(params),
             ]);
 
             if (requestId !== latestRequest.current) return;
@@ -172,7 +177,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         return (
             <div role="alert" className="v-glass p-4 mb-0 text-center text-sm text-red-600 dark:text-red-400">
                 <p>{error}</p>
-                <button type="button" onClick={() => fetchData(false)}
+                <button type="button" onClick={() => fetchData(false, true)}
                     className="mt-3 min-h-11 rounded-lg border border-slate-300 px-4 font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
                     {t('marketplace.btn.tryAgain')}
                 </button>
@@ -189,7 +194,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     {region && <span> · {region}</span>}
                     {availability && <span> · {formatAvailabilityWindow(availability, locale)}</span>}
                 </h2>
-                <button type="button" onClick={() => fetchData(false)} aria-label={t('marketplace.btn.refresh')}
+                <button type="button" onClick={() => fetchData(false, true)} aria-label={t('marketplace.btn.refresh')}
                     className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-medium text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-slate-400 dark:hover:bg-slate-800">
                     <RefreshCw size={14} aria-hidden="true" />{t('orderBook.live')}
                 </button>

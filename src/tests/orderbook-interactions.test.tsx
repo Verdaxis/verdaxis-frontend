@@ -19,6 +19,21 @@ beforeEach(() => {
 });
 
 describe('orderbook inspection', () => {
+  it('formats API decimal strings as readable prices and quantities', async () => {
+    listBids.mockResolvedValue([{ ...bid, price_per_mt_usd: '1260.20', remaining_quantity_mt: '1500' }]);
+    renderWithProviders(<OrderBook />);
+    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500 MT/ })).toBeTruthy();
+  });
+
+  it('forces fresh book data when the user selects Refresh', async () => {
+    renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" deliveryPointId="dp-1" availability="SPOT" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
+    await waitFor(() => {
+      expect(listBids).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: 'SPOT' }), { force: true });
+      expect(listAsks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: 'SPOT' }), { force: true });
+    });
+  });
+
   it('allows keyboard inspection without making the other side executable', async () => {
     const openTrade = vi.fn();
     renderWithProviders(<OrderBook actionableSide="ASK" onLevelClick={openTrade} />);

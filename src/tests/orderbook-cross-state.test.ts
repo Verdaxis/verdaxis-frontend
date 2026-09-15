@@ -22,6 +22,13 @@ const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
 });
 
 describe('getExecutableCrossState', () => {
+  it('compares decimal strings from the API numerically, not alphabetically', () => {
+    const bid = makeOrder({ id: 'bid', price_per_mt_usd: '995.00' as unknown as number });
+    const ask = makeOrder({ id: 'ask', side: 'ASK', price_per_mt_usd: '1050.00' as unknown as number });
+    expect(getExecutableCrossState([bid], [ask]).hasCross).toBe(false);
+    expect(getExecutableCrossState([bid], [ask]).spread).toBe(55);
+  });
+
   it('ignores demo-only crosses so demo prices do not show as executable', () => {
     const state = getExecutableCrossState(
       [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, is_demo_listing: true })],
