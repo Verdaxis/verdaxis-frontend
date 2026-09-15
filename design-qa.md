@@ -1,5 +1,7 @@
 # Focused Orderbook design QA
 
+**Superseded, 15 September 2026:** The owner withdrew this concept. The implementation and preview data were removed from staging. The checks below are historical evidence, not approval of the current product direction. See `docs/plans/2026-09-15-remove-pathway-preview.md`.
+
 Source visual truth: `/home/jons-openclaw/.codex/generated_images/01a093b8-a470-7c93-96e2-d0b677878d28/exec-73bfecfe-ef68-4287-b2bd-1fb985c51a4d.png` (selected concept A).
 
 Implementation evidence directory: `/home/jons-openclaw/artifacts/reports/verdaxis-orderbook-pathways-20260915/screenshots/`.

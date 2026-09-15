@@ -1,5 +1,7 @@
 # Focused Orderbook Implementation Plan
 
+**Superseded — 15 September 2026.** The owner withdrew this concept after product review with Gavin. See `2026-09-15-remove-pathway-preview.md`. RCF/Advanced distinctions remain offer-level CI/origin/certification details; Gasoil is excluded. The five frontend-only preview records were removed, not converted into executable orders.
+
 **Goal:** Implement selected concept A on the existing Orderbook tab, dogfood locally, then release to staging with five non-executable email-derived supply previews.
 
 **Architecture:** Keep exact canonical product/port/window identities and existing execution APIs. Group selection by fuel family, then pathway, and show one book. A lazy, build-gated staging preview contains the supplied offers as a different type from executable orders; it never creates orders, sends enquiries, or contributes to prices, curves, or depth.

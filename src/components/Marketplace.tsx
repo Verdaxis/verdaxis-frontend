@@ -15,6 +15,7 @@ import {
     Star,
     Ship,
     X,
+    XCircle,
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -46,7 +47,8 @@ import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
-import { FocusedOrderbook } from './trading/FocusedOrderbook';
+import { OrderBook } from './OrderBook';
+import { TradeTape } from './TradeTape';
 import { BenchmarkPriceBlock } from './trading/BenchmarkPriceBlock';
 import { CompliancePriceHint } from './trading/CompliancePriceHint';
 import i18n from '../i18n';
@@ -224,6 +226,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         )
         : '';
     const isCurrentSliceTracked = Boolean(currentSliceTarget) && trackedSliceKeys.has(currentSliceKey);
+    const marketScopeReadyCopyKey = resolvedDeliveryPointId
+        ? 'marketScope.ready'
+        : 'marketScope.readyRegionTape';
 
     // ─── Server-side sorting ──────────────────────────────────────
     const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'>(() => configBase.defaultSort);
@@ -240,8 +245,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         next.delete('preview');
         navigate({ pathname: location.pathname, search: next.toString() });
     }, [location.pathname, location.search, navigate]);
-    const isSupplyPreview = (import.meta.env.DEV || import.meta.env.MODE === 'staging')
-        && marketTab === 'orderbook' && new URLSearchParams(location.search).get('preview') === 'supply';
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
@@ -488,6 +491,32 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setHasLoadedListings(false);
         fetchData(false, newSkip);
     };
+
+    const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
+    const hasExactPort = Boolean(resolvedDeliveryPointId);
+    const hasExactAvailability = Boolean(availability);
+    const orderbookRequiresExactSlice = !hasExactProduct || !hasExactPort || !hasExactAvailability;
+    const selectedAvailabilityLabel = availabilityOptions.find(option => option.value === availability)?.label || availability;
+    const orderbookSliceRequirements = [
+        {
+            key: 'product',
+            label: t('orderBook.requirement.product'),
+            value: hasExactProduct ? formatMarketProduct(marketProduct) : t('orderBook.requirement.anyProduct'),
+            complete: hasExactProduct,
+        },
+        {
+            key: 'port',
+            label: t('orderBook.requirement.port'),
+            value: hasExactPort ? resolvedPort : t('orderBook.requirement.anyPort'),
+            complete: hasExactPort,
+        },
+        {
+            key: 'window',
+            label: t('orderBook.requirement.window'),
+            value: hasExactAvailability ? selectedAvailabilityLabel : t('orderBook.requirement.anyWindow'),
+            complete: hasExactAvailability,
+        },
+    ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         setMarketProduct(productCode);
@@ -909,7 +938,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
                         </div>
-                        {!isSupplyPreview && <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
@@ -940,12 +969,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
                                 <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
                             </button>}
-                        </div>}
+                        </div>
                     </div>
 
 
-                    {/* Listings retain their existing filters. The orderbook uses a focused family/pathway selector. */}
-                    {marketTab !== 'orderbook' && <div className="v-glass p-3 mb-3 relative z-[90]">
+                    {/* Unified filter rail */}
+                    <div className="v-glass p-3 mb-3 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
@@ -1067,7 +1096,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 </>
                             )}
                         </div>
-                    </div>}
+                    </div>
 
                     {/* Tab Switcher: Market | Orderbook | My Listings */}
                     <div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
@@ -1123,11 +1152,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         </button>
                     </div>
 
-                    {marketTab !== 'orderbook' && <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+                    <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                         {marketTab === 'market'
                             ? t(role === 'BUYER' ? 'marketplace.viewHint.listings.buyer' : 'marketplace.viewHint.listings.supplier')
-                            : t('marketplace.viewHint.myOrders')}
-                    </p>}
+                            : marketTab === 'orderbook'
+                                ? t('marketplace.viewHint.orderbook')
+                                : t('marketplace.viewHint.myOrders')}
+                    </p>
 
                 </div>
             </div>
@@ -1162,14 +1193,80 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {marketTab === 'orderbook' && (
-                <div className="flex-1 min-h-0 overflow-y-auto px-4 lg:px-10 pb-4">
-                    <div className="max-w-7xl mx-auto">
-                        <FocusedOrderbook product={marketProduct} onProductChange={handleProductChipClick}
-                            location={portInput} locations={portOptions} deliveryPointId={resolvedDeliveryPointId}
-                            onLocationChange={handlePortChange} period={availability}
-                            periods={[{ value: '', label: t('marketplace.filter.anyWindow') }, ...availabilityOptions]}
-                            onPeriodChange={setAvailability} actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
-                            onLevelClick={handleOrderbookLevelClick} />
+                <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
+                    <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
+                        <div
+                            data-tour="marketplace-market-scope"
+                            className="mb-3 flex-none rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/80"
+                            aria-label={t('marketScope.title')}
+                        >
+                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                                <div className="min-w-0">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                        {t('marketScope.title')}
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
+                                        {orderbookRequiresExactSlice ? t('marketScope.body') : t(marketScopeReadyCopyKey)}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[720px]">
+                                    {orderbookSliceRequirements.map((requirement) => {
+                                        const Icon = requirement.complete ? CheckCircle2 : XCircle;
+                                        return (
+                                            <div
+                                                key={requirement.key}
+                                                aria-label={`${requirement.label}: ${requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')} (${requirement.value})`}
+                                                className={`flex min-w-0 items-center gap-3 rounded-lg border px-3 py-2 ${
+                                                    requirement.complete
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+                                                        : 'border-red-200 bg-red-50 text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200'
+                                                }`}
+                                            >
+                                                <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
+                                                <div className="min-w-0">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-70">
+                                                        {requirement.label}
+                                                    </div>
+                                                    <div className="mt-0.5 truncate text-sm font-bold">
+                                                        {requirement.value}
+                                                    </div>
+                                                </div>
+                                                <span className="sr-only">
+                                                    {requirement.complete ? t('orderBook.requirement.selected') : t('orderBook.requirement.missing')}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
+                            {orderbookRequiresExactSlice ? (
+                                <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
+                                    <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
+                                    <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
+                                    <p className="max-w-md text-sm text-slate-500 dark:text-slate-400">{t('orderBook.selectProduct.body')}</p>
+                                </div>
+                            ) : (
+                                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,0.62fr)_minmax(360px,0.38fr)]">
+                                    <OrderBook
+                                        key={`${marketProduct}:${resolvedDeliveryPointId}:${availability}`}
+                                        marketProduct={marketProduct}
+                                        region={resolvedPort || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
+                                        availability={availability || undefined}
+                                        actionableSide={role === 'BUYER' ? 'ASK' : 'BID'}
+                                        onLevelClick={handleOrderbookLevelClick}
+                                    />
+                                    <TradeTape
+                                        marketProduct={marketProduct}
+                                        availability={availability || undefined}
+                                        deliveryPointId={resolvedDeliveryPointId || undefined}
+                                        region={resolvedDeliveryPointId ? undefined : resolvedPort || undefined}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

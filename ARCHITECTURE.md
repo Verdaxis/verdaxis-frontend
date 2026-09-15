@@ -71,9 +71,6 @@ src/
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
-    trading/FocusedOrderbook.tsx   # One exact book; family/pathway filters reuse canonical product IDs
-    trading/OrderbookFilters.tsx   # Shared family/pathway, port and period controls
-    trading/StagingSupplyPreview.tsx # Build-gated email indications; no order API, prices or execution
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
@@ -270,6 +267,10 @@ localStorage is only a per-device cache.
 **Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
 green-fuels products while preserving richer certification and sustainability metadata on
 supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
+RCF and Advanced designations belong to offer-level origin, CI and certification evidence,
+not additional orderbook selectors. Gasoil is excluded. The 2026-09-15 pathway/supply-preview
+experiment was withdrawn; no supplied email indications were persisted as orders. This
+product rule does not label RCF as certified biofuel or add Fuel Oil to the live catalog.
 Demo liquidity is labelled and blocked from execution, row watchlist controls use compact visible
 copy with explicit accessible labels, and crossed-market indicators only consider real resting orders
 so seeded preview prices do not look executable.

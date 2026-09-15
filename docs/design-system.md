@@ -1,8 +1,8 @@
 # Design System — Verdaxis Market Radar
 
-## 2026-09 Focused Orderbook
+## 2026-09 Offer-level sustainability details
 
-Owner selected Image Gen concept A: family and scope controls, a compact pathway switcher, and one exact bid/ask ladder. Keep the existing shell, typography, colours and shared controls; use 44px controls, visible keyboard focus, compact diagnostic missing-filter copy, and one scrolling workspace at narrow desktop widths. Do not pool pathway depth or prices. Keep Recent trades available through disclosure. Preserve Listings and exact-slice links. The staging-only supplied-offer preview uses the same selectors but clearly distinguishes unverified index-linked indications from executable orders; no placeholder dollar prices, emissions claims, certification badges, or sending/execute actions. English and Chinese, light/dark, 1440/1024/768px are required checks. The desktop-only mobile gate stays unchanged.
+The owner withdrew the family/pathway concept and supplied-offer preview on 15 September. Keep the prior Marketplace and Orderbook layout. Do not add RCF or Advanced orderbooks; put origin, carbon intensity and certification evidence on the offer. Gasoil is excluded. Retain existing approved market IDs and honest certification labels; do not relabel RCF as Bio or infer cargo CI from an 85% price-reference basis. Fuel Oil catalog support is a separate future change, not enabled by this rollback.
 
 ## 2026-09 Forward Curve Point Tooltip
 

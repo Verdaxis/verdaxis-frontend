@@ -440,9 +440,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
 
             {/* Only executable orders define the live spread, never demo liquidity. */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-800/30">
-                <span className="text-slate-500 dark:text-slate-400">{t('orderBook.focused.visibleRows', { count: MAX_ROWS })}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('orderBook.visibleRows', { count: MAX_ROWS })}</span>
                 <span className="font-medium text-slate-600 dark:text-slate-300">
-                    {t('orderBook.focused.liveSpread')}{' '}
+                    {t('orderBook.liveSpread')}{' '}
                     <span className="font-mono font-bold tabular-nums">
                         {liveSpread == null ? '—' : liveSpread <= 0 ? t('orderBook.crossed') : `${formatPrice(liveSpread, locale)} / MT`}
                     </span>

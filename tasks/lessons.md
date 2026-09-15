@@ -2,6 +2,12 @@
 <!-- Self-improvement-loop: Add corrections here as Trigger → Rule → Why -->
 <!-- Read at session start. Write after ANY user correction. -->
 
+### Keep RCF distinctions on offers, not new orderbooks
+- **Date:** 2026-09-15
+- **Trigger:** The owner withdrew the family/pathway prototype after Gavin clarified that RCF/Advanced distinctions should be shown through CI and certification on the offer; Gasoil will not be hosted.
+- **Rule:** Keep the approved market surface simple. Show actual origin, CI and certification evidence on offers; do not create RCF/Advanced market slices, add Gasoil, relabel RCF as certified Bio, or infer cargo CI from a benchmark's savings basis. Fuel Oil support requires its own approved catalog change.
+- **Why:** Treating supplier wording as new exchange market dimensions fragmented the UI before confirming the product model.
+
 ### Keep Shared Navigation Destinations Role-Consistent
 - **Date:** 2026-08-05
 - **Trigger:** The shared Analytics link opened supply-and-demand intelligence for Buyer view but an empty revenue-only screen for Supplier view.
