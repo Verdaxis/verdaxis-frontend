@@ -601,7 +601,8 @@ describe('OrderPlaceModal', () => {
     expect(await screen.findByRole('heading', { name: '发布买单' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '发布买单' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /高级选项 可成交期限：现货/ })).toBeTruthy();
-    expect(screen.getByText('该产品适用平台目录中的标准规格；下单前请核对认证、质量和交付要求。')).toBeTruthy();
+    // The heading renders before the asynchronous catalog selects a product.
+    expect(await screen.findByText('该产品适用平台目录中的标准规格；下单前请核对认证、质量和交付要求。')).toBeTruthy();
     expect(screen.getByText('亚洲')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('combobox', { name: '订单交付点' }));
