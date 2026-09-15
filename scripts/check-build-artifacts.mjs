@@ -74,4 +74,15 @@ const files = assetFiles();
 assertChunkSplit(files);
 assertInitialHtmlDoesNotEagerLoadHeavyChunks();
 
+// Staging offer previews must not reach a production bundle, even by a hidden URL.
+const isStaging = /^Disallow: \/$/m.test(readFileSync(path.join(DIST_DIR, 'robots.txt'), 'utf8'));
+const previewChunks = findChunk(files, 'StagingSupplyPreview');
+assert(previewChunks.length === (isStaging ? 1 : 0), 'Supply preview chunk does not match the release environment');
+if (!isStaging) {
+  for (const file of files) {
+    const source = readFileSync(path.join(ASSETS_DIR, file), 'utf8');
+    assert(!source.includes('preview-methanol') && !source.includes('preview-gasoil'), `Supply offer records leaked into ${file}`);
+  }
+}
+
 console.log('Build artifact checks passed.');

@@ -71,6 +71,9 @@ src/
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
+    trading/FocusedOrderbook.tsx   # One exact book; family/pathway filters reuse canonical product IDs
+    trading/OrderbookFilters.tsx   # Shared family/pathway, port and period controls
+    trading/StagingSupplyPreview.tsx # Build-gated email indications; no order API, prices or execution
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
     GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps

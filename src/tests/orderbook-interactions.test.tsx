@@ -1,17 +1,22 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
 
-vi.mock('../services/api', () => ({ api: { orderbook: {
-  listBids: async () => [{
+const { listBids, listAsks } = vi.hoisted(() => ({ listBids: vi.fn(), listAsks: vi.fn() }));
+vi.mock('../services/api', () => ({ api: { orderbook: { listBids, listAsks } } }));
+
+const bid = {
     id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
     remaining_quantity_mt: 100, availability_window: '2028-Q1', region: 'Singapore',
     certifications: ['ISCC'],
-  }],
-  listAsks: async () => [],
-} } }));
+};
+
+beforeEach(() => {
+  listBids.mockReset().mockResolvedValue([bid]);
+  listAsks.mockReset().mockResolvedValue([]);
+});
 
 describe('orderbook inspection', () => {
   it('allows keyboard inspection without making the other side executable', async () => {
@@ -25,6 +30,31 @@ describe('orderbook inspection', () => {
     fireEvent.click(level);
     expect(openTrade).not.toHaveBeenCalled();
     fireEvent.keyDown(level, { key: 'Escape' });
+    expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('does not show a demo-only cross as an executable spread', async () => {
+    listBids.mockResolvedValue([{ ...bid, is_demo_listing: true }]);
+    listAsks.mockResolvedValue([{ ...bid, id: 'ask', side: 'ASK', price_per_mt_usd: 590, is_demo_listing: true }]);
+    renderWithProviders(<OrderBook />);
+    expect(await screen.findByRole('group', { name: /Bid.*600/ })).toBeTruthy();
+    expect(screen.getByText('Live spread').textContent).toContain('—');
+    expect(screen.queryByText('CROSSED')).toBeNull();
+  });
+
+  it('discards a superseded market request and clears its old tooltip', async () => {
+    let resolveOld: (rows: unknown[]) => void = () => {};
+    listBids.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
+    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" />);
+    await waitFor(() => expect(listBids).toHaveBeenCalledTimes(1));
+    listBids.mockResolvedValue([{ ...bid, id: 'new', market_product: 'E_METHANOL', price_per_mt_usd: 1600 }]);
+    view.rerender(<OrderBook marketProduct="E_METHANOL" />);
+    const current = await screen.findByRole('group', { name: /Bid.*1,600/ });
+    await act(async () => resolveOld([bid]));
+    expect(screen.queryByRole('group', { name: /Bid \$600/ })).toBeNull();
+    fireEvent.focus(current);
+    expect(screen.getByRole('tooltip')).toBeTruthy();
+    view.rerender(<OrderBook marketProduct="BIO_ETHANOL" />);
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });

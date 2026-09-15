@@ -1,5 +1,9 @@
 # Design System — Verdaxis Market Radar
 
+## 2026-09 Focused Orderbook
+
+Owner selected Image Gen concept A: family and scope controls, a compact pathway switcher, and one exact bid/ask ladder. Keep the existing shell, typography, colours and shared controls; use 44px controls, visible keyboard focus, compact diagnostic missing-filter copy, and one scrolling workspace at narrow desktop widths. Do not pool pathway depth or prices. Keep Recent trades available through disclosure. Preserve Listings and exact-slice links. The staging-only supplied-offer preview uses the same selectors but clearly distinguishes unverified index-linked indications from executable orders; no placeholder dollar prices, emissions claims, certification badges, or sending/execute actions. English and Chinese, light/dark, 1440/1024/768px are required checks. The desktop-only mobile gate stays unchanged.
+
 ## 2026-09 Forward Curve Point Tooltip
 
 Show an anchored, transient tooltip on point hover and keyboard focus. Keep the full delivery period first, followed by the plotted price in USD/MT, its source/demo status, best bid, best ask, spread, visible order volume, and observation age. Preserve cents and distinguish missing values from zero. Reuse the console palette, tabular figures, 8px radius, and the existing body-portal pattern. Keep the tooltip within the viewport, hoverable, and dismissible with Escape. No animation or new dependency. Hover must not select a period or request slice data; click, keyboard selection, and exact Marketplace handoff remain unchanged. Verify near/far points, short/all horizons, EN/ZH, both shell themes, and narrow desktop widths. Stage this feedback for review before production promotion.

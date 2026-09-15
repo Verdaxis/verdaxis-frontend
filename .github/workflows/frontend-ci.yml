@@ -38,6 +38,9 @@ jobs:
       - name: Build staging bundle
         run: npm run build:staging
 
+      - name: Check staging artifacts
+        run: npm run build:check
+
       - name: Build production bundle
         run: npm run build:prod
 

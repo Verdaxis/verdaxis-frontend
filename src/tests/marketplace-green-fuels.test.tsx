@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
@@ -402,6 +403,13 @@ describe('Marketplace green fuels surface', () => {
         delivery_point_id: 'dp-1',
         availability: 'SPOT',
       });
+    });
+
+    expect(tradeTapeList).not.toHaveBeenCalled();
+    const tradesPanel = screen.getByText('Recent trades in this market').closest('details')!;
+    tradesPanel.open = true;
+    fireEvent(tradesPanel, new Event('toggle'));
+    await waitFor(() => {
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
@@ -412,8 +420,7 @@ describe('Marketplace green fuels surface', () => {
       });
     });
 
-    expect(screen.getByText(/one exact product, port, and availability window/i)).toBeTruthy();
-    expect(screen.getByText(/delivery-point trade tape history/i)).toBeTruthy();
+    expect(screen.getByText(/one pathway, port and period per book/i)).toBeTruthy();
     expect(await screen.findByText('Trade Tape')).toBeTruthy();
   });
 
@@ -432,74 +439,60 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
   });
 
-  it('labels trade tape as region-level when the selected port has no resolved delivery point', async () => {
-    localStorage.setItem('verdaxis_marketplace_port', 'Singapore');
-    localStorage.setItem('verdaxis_marketplace_product', 'BIO_METHANOL');
-    localStorage.setItem('verdaxis_marketplace_window', 'SPOT');
+  it('does not combine a region-wide book when the named port cannot be resolved', async () => {
+    setMarketplaceSlice();
     deliveryPoints.mockResolvedValue([
       { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
     ]);
-
-    renderWithProviders(<Marketplace />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
-
-    await waitFor(() => {
-      expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
-        delivery_point_id: undefined,
-        region: 'Singapore',
-      }));
-    });
-
-    // The labels render only after the tape response is processed, one React
-    // commit after the mock-call assertion above resolves.
-    await waitFor(() => {
-      expect(screen.getByText(/trade tape history is shown at region level/i)).toBeTruthy();
-      expect(screen.getByText('24h market · 7D region history')).toBeTruthy();
-    });
-  });
-
-  it.each([
-    {
-      name: 'missing fuel',
-      slice: { port: 'Singapore', product: null, window: 'SPOT' },
-      labels: ['All products', 'Singapore', 'Spot'],
-      states: [/fuel: missing/i, /port: selected/i, /window: selected/i],
-    },
-    {
-      name: 'missing window',
-      slice: { port: 'Singapore', product: 'BIO_METHANOL', window: null },
-      labels: ['Bio Methanol', 'Singapore', 'Any window'],
-      states: [/fuel: selected/i, /port: selected/i, /window: missing/i],
-    },
-    {
-      name: 'missing port',
-      slice: { port: null, product: 'BIO_METHANOL', window: 'SPOT' },
-      labels: ['Bio Methanol', 'All ports', 'Spot'],
-      states: [/fuel: selected/i, /port: missing/i, /window: selected/i],
-    },
-  ])('does not show orderbook depth for an inexact slice: $name', async ({ slice, labels, states }) => {
-    setMarketplaceSlice(slice);
-    renderWithProviders(<Marketplace />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^orderbook$/i })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
-
-    expect(screen.getByText(/select a fuel, port, and window to show orderbook/i)).toBeTruthy();
-    expect(screen.getByText(/choose a specific fuel, port, and availability window above/i)).toBeTruthy();
-    labels.forEach((label) => expect(screen.getByText(label)).toBeTruthy());
-    states.forEach((state) => expect(screen.getByLabelText(state)).toBeTruthy());
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=orderbook' });
+    expect(await screen.findByText('Select: Port to view the orderbook.')).toBeTruthy();
+    expect(tradeTapeList).not.toHaveBeenCalled();
     expect(listAsks).not.toHaveBeenCalled();
     expect(listBids).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { name: 'missing fuel', slice: { port: 'Singapore', product: null, window: 'SPOT' }, missing: 'Fuel' },
+    { name: 'missing window', slice: { port: 'Singapore', product: 'BIO_METHANOL', window: null }, missing: 'Window' },
+    { name: 'missing port', slice: { port: null, product: 'BIO_METHANOL', window: 'SPOT' }, missing: 'Port' },
+  ])('does not show orderbook depth for an inexact slice: $name', async ({ slice, missing }) => {
+    setMarketplaceSlice(slice);
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /^orderbook$/i }));
+    expect(await screen.findByText(`Select: ${missing} to view the orderbook.`)).toBeTruthy();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(listBids).not.toHaveBeenCalled();
+  });
+
+  it('opens supplied offers by URL without sending preview products to the order API', async () => {
+    setMarketplaceSlice();
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=orderbook&preview=supply' });
+    expect(await screen.findByText('Staging supply preview · 5 offers')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Place Bid' })).toBeNull();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(listBids).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to orderbook' }));
+    await waitFor(() => expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({
+      market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: 'SPOT',
+    })));
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('keeps the orderbook tab in the URL when changing a canonical market pathway', async () => {
+    function CurrentUrl() {
+      const location = useLocation();
+      return <output data-testid="current-url">{location.pathname}{location.search}</output>;
+    }
+    renderWithProviders(<>
+      <Marketplace initialSlice={{ product: 'BIO_METHANOL', port: 'Singapore', window: 'SPOT' }} />
+      <CurrentUrl />
+    </>, { route: '/app/m/bio-methanol/singapore/spot?view=orderbook' });
+    fireEvent.click(await screen.findByRole('button', { name: 'e-Methanol' }));
+    await waitFor(() => expect(screen.getByTestId('current-url').textContent)
+      .toBe('/app/m/e-methanol/singapore/spot?view=orderbook'));
+    expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' })));
+  });
 
   it('collapses advanced filters by default while keeping fuel selection visible', async () => {
     renderWithProviders(<Marketplace />);
