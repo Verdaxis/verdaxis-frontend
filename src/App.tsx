@@ -401,6 +401,9 @@ const DashboardLayout: React.FC = () => {
         isOpen={sidebarModalSide !== null}
         onClose={() => setSidebarModalSide(null)}
         side={sidebarModalSide || 'BID'}
+        prefillMarketProduct={currentPage === 'MARKETPLACE'
+          && new URLSearchParams(location.search).get('product') === 'UCOME_B100'
+          ? 'UCOME_B100' : undefined}
       />
     </Layout>
   );

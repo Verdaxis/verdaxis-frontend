@@ -12,6 +12,9 @@ import i18n from '../../i18n';
 import { LoadingScreen } from '../LoadingScreen';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { FameQuoteForm, FameRequestForm } from './FameRfqForms';
+import type { SupplierOffer } from '../../types/fameSupplierOffer';
+import { FameDeclarationDetails } from './FameDeclarationDetails';
+import { SupplierOfferSnapshotDetails } from '../supplier/SupplierOfferDetails';
 
 const PAGE_SIZE = 20;
 const panel = 'rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900';
@@ -47,6 +50,8 @@ function ContractDetails({ rfq, t, number }: { rfq: FameRfq; t: TFunction; numbe
             <Detail label={t('fields.quantityTolerance')}>{number(terms.quantity_tolerance_pct)}%</Detail>
             <Detail label={t('fields.minFill')}>{number(terms.min_fill_mt)} MT</Detail>
             <Detail label={t('fields.standard')}>{t(`standard.${terms.standard}`)} · {terms.standard_edition}</Detail>
+            {terms.standard === 'ASTM_D6751' && <Detail label={t('declaration.astmGrade')}>{terms.astm_grade || t('notSupplied')}</Detail>}
+            {terms.standard === 'EN_14214' && <Detail label={t('declaration.enClimateClass')}>{terms.en_climate_class || t('notSupplied')}</Detail>}
             <Detail label={t('fields.maxCfpp')}>{terms.max_cfpp_c == null ? t('notSupplied') : `${number(terms.max_cfpp_c)} °C`}</Detail>
             <Detail label={t('fields.maxCi')}>{terms.max_ci_gco2e_mj == null ? t('notSupplied') : `${number(terms.max_ci_gco2e_mj)} gCO₂e/MJ`}</Detail>
             <Detail label={t('fields.scheme')}>{t(`scheme.${terms.sustainability_scheme}`)}</Detail>
@@ -69,29 +74,22 @@ function ContractDetails({ rfq, t, number }: { rfq: FameRfq; t: TFunction; numbe
 function OfferDetails({ quote, t, number }: { quote: FameQuote; t: TFunction; number: (value: number | null | undefined) => string }) {
     const terms = quote.offerTerms;
     if (!terms) return <p className="text-sm">{t('missingOffer')}</p>;
-    return <dl className="grid gap-4 text-left sm:grid-cols-2 xl:grid-cols-3">
-        <Detail label={t('fields.batchReference')}>{terms.batch_reference}</Detail>
-        <Detail label={t('fields.producingSite')}>{terms.producing_site}</Detail>
-        <Detail label={t('fields.productionOrigin')}>{terms.production_origin}</Detail>
-        <Detail label={t('fields.feedstockOrigin')}>{terms.feedstock_origin}</Detail>
-        <Detail label={t('fields.shippingLocation')}>{terms.shipping_location}</Detail>
-        <Detail label={t('fields.ucoMass')}>{number(terms.uco_mass_pct)}%</Detail>
-        <Detail label={t('fields.standard')}>{t(`standard.${terms.standard}`)} · {terms.standard_edition}</Detail>
-        <Detail label={t('fields.cfpp')}>{terms.cfpp_c == null ? t('notSupplied') : `${number(terms.cfpp_c)} °C`}</Detail>
-        <Detail label={t('fields.lhv')}>{terms.lhv_mj_kg == null ? t('notSupplied') : `${number(terms.lhv_mj_kg)} MJ/kg`}</Detail>
-        <Detail label={t('fields.ciMethodology')}>{terms.ci_methodology || t('notSupplied')}</Detail>
-        <Detail label={t('fields.availableQuantity')}>{number(terms.available_quantity_mt)} MT</Detail>
-        <Detail label={t('fields.scheme')}>{t(`scheme.${terms.sustainability_scheme}`)}</Detail>
-        <Detail label={t('fields.certificateReference')}>{terms.certificate_reference}</Detail>
-        <Detail label={t('fields.certificateHolder')}>{terms.certificate_holder}</Detail>
-        <Detail label={t('fields.certificateValidUntil')}>{terms.certificate_valid_until}</Detail>
-        <Detail label={t('fields.documentReferences')}>{terms.document_references.join('\n') || t('notSupplied')}</Detail>
-        <Detail label={t('fields.contractMatch')}>{terms.matches_contract_terms ? t('declaredMatch') : t('notSupplied')}</Detail>
-        {quote.notes && <Detail label={t('fields.notes')}>{quote.notes}</Detail>}
-    </dl>;
+    return <div className="space-y-4 text-left">
+        <FameDeclarationDetails terms={terms} />
+        <dl className="grid gap-4 sm:grid-cols-2">
+            <Detail label={t('fields.contractMatch')}>{terms.matches_contract_terms ? t('declaredMatch') : t('notSupplied')}</Detail>
+            {quote.notes && <Detail label={t('fields.notes')}>{quote.notes}</Detail>}
+        </dl>
+    </div>;
 }
 
-export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
+interface FameRfqWorkspaceProps {
+    embedded?: boolean;
+    sourceOffer?: SupplierOffer;
+    onSourceOfferHandled?: () => void;
+}
+
+export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferHandled }: FameRfqWorkspaceProps) {
     const { t, ready } = useNamespace('rfq');
     const { user } = useAuth();
     const headingId = useId();
@@ -119,6 +117,28 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
     const detailGeneration = useRef(0);
 
     useDashboardContentReady(embedded ? 'MARKETPLACE' : 'RFQS', ready && !loading && !error);
+
+    useEffect(() => {
+        setSelectedId(null);
+        setSelected(null);
+        setPage(0);
+        setCreateOpen(false);
+        setQuoteForm(null);
+        setConfirmation(null);
+        detailGeneration.current++;
+    }, [user?.id, user?.organization_id]);
+
+    useEffect(() => {
+        if (!sourceOffer || user?.role !== 'BUYER') return;
+        setCreateOpen(true);
+        setError(null);
+    }, [sourceOffer, user?.role]);
+
+    const closeRequestForm = () => {
+        setCreateOpen(false);
+        onSourceOfferHandled?.();
+    };
+
 
     useEffect(() => {
         const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -164,10 +184,10 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
             if (generation === detailGeneration.current) setDetailLoading(false);
         });
         return () => { detailGeneration.current++; };
-    }, [selectedId, refresh]);
+    }, [selectedId, refresh, user?.id, user?.organization_id]);
 
     // The lock stops duplicate writes before React commits the disabled controls.
-    const mutate = useCallback(async (action: () => Promise<unknown>) => {
+    const mutate = useCallback(async (action: () => Promise<unknown>, fromSupplierOffer = false) => {
         if (mutationLock.current) return;
         mutationLock.current = true;
         setPending(true);
@@ -179,7 +199,8 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
             setConfirmation(null);
             setRefresh((value) => value + 1);
         } catch (failure) {
-            setError(fameRfqErrorKey(failure));
+            const status = failure instanceof Error && 'status' in failure ? failure.status : null;
+            setError(fromSupplierOffer && (status === 409 || status === 410) ? 'sourceOfferConflict' : fameRfqErrorKey(failure));
         } finally {
             mutationLock.current = false;
             setPending(false);
@@ -189,7 +210,8 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
     const open = selected ? isFameRfqOpen(selected, now) : false;
     const ownQuote = selected?.quotes.find((quote) => quote.sellerOrgId === user?.organization_id);
     const canQuote = user?.role === 'SUPPLIER' && Boolean(user.organization_id) && open
-        && selected?.buyerOrgId !== user.organization_id && Boolean(selected?.contractTerms);
+        && selected?.buyerOrgId !== user.organization_id && Boolean(selected?.contractTerms)
+        && (!selected?.targetSupplierOrgId || selected.targetSupplierOrgId === user.organization_id);
     const canCancel = user?.role === 'BUYER' && selected?.canCancel === true && open;
 
     if (!ready) return <LoadingScreen />;
@@ -198,7 +220,8 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
         const request = await api.rfq.create(input);
         setPage(0);
         setSelectedId(request.id);
-    });
+        onSourceOfferHandled?.();
+    }, Boolean(sourceOffer));
     const submitQuote = async (input: FameQuoteInput) => {
         if (!selected || !canQuote) return;
         await mutate(() => quoteForm && quoteForm !== 'new'
@@ -220,7 +243,7 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
             </div>
             <div className="flex gap-2">
                 <button type="button" className={secondaryButton} disabled={loading || pending} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} />{t('refresh')}</button>
-                {user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || !listReady || loading || pending} onClick={() => { setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
+                {user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || !listReady || loading || pending} onClick={() => { onSourceOfferHandled?.(); setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
             </div>
         </header>
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{t('pilotNotice')}</div>
@@ -229,9 +252,10 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
         {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{t(error)}</div>}
 
         {createOpen && catalog ? <section className={`${panel} p-5`}>
-            <button type="button" className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300" disabled={pending} onClick={() => setCreateOpen(false)}><ArrowLeft size={16} />{t('back')}</button>
+            <button type="button" className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300" disabled={pending} onClick={closeRequestForm}><ArrowLeft size={16} />{t('back')}</button>
             <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">{t('create')}</h2>
-            <FameRequestForm productId={catalog.product.id} deliveryPointId={catalog.deliveryPoint.id} onSubmit={submitRequest} onCancel={() => setCreateOpen(false)} pending={pending} />
+            {sourceOffer && <p className="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">{t('sourceOfferTitle', { id: sourceOffer.id.slice(0, 8), revision: sourceOffer.revision })}<span className="mt-1 block">{t('sourceOfferNotice')}</span></p>}
+            <FameRequestForm key={sourceOffer ? `${sourceOffer.id}:${sourceOffer.revision}` : 'open-request'} productId={catalog.product.id} deliveryPointId={catalog.deliveryPoint.id} sourceOffer={sourceOffer} onSubmit={submitRequest} onCancel={closeRequestForm} pending={pending} />
         </section> : loading ? <LoadingScreen /> : !listReady ? null : !catalog ? <div className={`${panel} p-8 text-sm text-slate-600 dark:text-slate-400`}>{t('catalogUnavailable')}</div>
             : <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
                 <section className={`${panel} overflow-hidden`} aria-labelledby="rfq-list-title">
@@ -256,6 +280,11 @@ export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
                             <div><h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t('requestDetail', { id: selected.id.slice(0, 8) })}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('requestExpiry', { date: formatDate(selected.expiresAt, locale) })}</p></div>
                             {canCancel && <button type="button" className={secondaryButton} disabled={pending} onClick={() => setConfirmation('cancel')}>{t('cancelRequest')}</button>}
                         </div>
+                        {selected.sourceOfferSnapshot && <details className={`${panel} p-5`}>
+                            <summary className="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-100">{t('sourceOfferTitle', { id: selected.sourceOfferSnapshot.offerId.slice(0, 8), revision: selected.sourceOfferSnapshot.revision })}</summary>
+                            <p className="my-3 text-xs text-slate-500 dark:text-slate-400">{t('sourceOfferNotice')}</p>
+                            <SupplierOfferSnapshotDetails snapshot={selected.sourceOfferSnapshot} />
+                        </details>}
                         <ContractDetails rfq={selected} t={t} number={number} />
                         <section className={`${panel} min-w-0 overflow-hidden`} aria-labelledby="rfq-quotes-title">
                             <div className="flex flex-wrap items-start justify-between gap-3 p-5">

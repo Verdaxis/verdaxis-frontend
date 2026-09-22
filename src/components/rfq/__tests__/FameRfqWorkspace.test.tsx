@@ -5,12 +5,13 @@ import { renderWithProviders } from '../../../tests/test-utils';
 import i18n, { loadNamespace } from '../../../i18n';
 import { mapFameRfqResponse } from '../../../services/fameRfq';
 import { FameRfqWorkspace } from '../FameRfqWorkspace';
+import { mapSupplierOfferResponse } from '../../../services/fameSupplierOffer';
 
 const control = vi.hoisted(() => ({
     user: { id: 'buyer-user', role: 'BUYER', organization_id: 'buyer-org' },
     products: vi.fn(), points: vi.fn(), list: vi.fn(), get: vi.fn(),
     create: vi.fn(), quote: vi.fn(), revise: vi.fn(), withdraw: vi.fn(), cancel: vi.fn(),
-    contentReady: vi.fn(),
+    contentReady: vi.fn(), requestForm: vi.fn(),
 }));
 vi.mock('../../../context/AuthContext', () => ({ useAuth: () => ({ user: control.user }) }));
 vi.mock('../../../hooks/useDashboardContentReady', () => ({ useDashboardContentReady: control.contentReady }));
@@ -19,8 +20,13 @@ vi.mock('../../../services/api', () => ({ api: {
     rfq: { list: control.list, get: control.get, create: control.create, quote: control.quote, revise: control.revise, withdraw: control.withdraw, cancel: control.cancel },
 } }));
 vi.mock('../FameRfqForms', () => ({
-    FameRequestForm: () => <div>Request form</div>,
+    FameRequestForm: (props: { onSubmit: (input: unknown) => void }) => { control.requestForm(props); return <button onClick={() => props.onSubmit({ source_offer_id: 'offer-1', expected_source_offer_revision: 7 })}>Request form</button>; },
     FameQuoteForm: ({ onSubmit }: { onSubmit: (input: unknown) => void }) => <button onClick={() => onSubmit({ price_per_mt_usd: 1125 })}>Save revision</button>,
+}));
+
+
+vi.mock('../../supplier/SupplierOfferDetails', () => ({
+    SupplierOfferSnapshotDetails: ({ snapshot }: { snapshot: { pricePerMtUsd: number } }) => <p>Frozen USD/MT {snapshot.pricePerMtUsd}</p>,
 }));
 
 const future = () => new Date(Date.now() + 86_400_000).toISOString();
@@ -60,6 +66,42 @@ async function renderLoaded() {
 }
 
 describe('UCOME RFQ workspace', () => {
+    it('opens a targeted request with the displayed supplier offer and preserves its revision', async () => {
+        const sourceOffer = mapSupplierOfferResponse({ id: 'offer-1', revision: 7, quantity_mt: '1000', min_fill_mt: '500', price_per_mt_usd: '1175', fuel_terms: {} });
+        renderWithProviders(<FameRfqWorkspace embedded sourceOffer={sourceOffer} />);
+        await screen.findByRole('button', { name: 'Request form' });
+        expect(control.requestForm).toHaveBeenLastCalledWith(expect.objectContaining({ sourceOffer }));
+        expect(screen.getByText('From supplier offer offer-1 · revision 7')).toBeTruthy();
+    });
+
+    it('tells the buyer to review the source offer after a revision conflict without retrying', async () => {
+        const sourceOffer = mapSupplierOfferResponse({ id: 'offer-1', revision: 7, quantity_mt: '1000', min_fill_mt: '500', price_per_mt_usd: '1175', fuel_terms: {} });
+        control.create.mockRejectedValue(Object.assign(new Error('Offer revised'), { status: 409 }));
+        renderWithProviders(<FameRfqWorkspace embedded sourceOffer={sourceOffer} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Request form' }));
+        expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'This supplier offer changed or is no longer open. Return to Listings, review the current offer, and start a new quote request.');
+        expect(control.create).toHaveBeenCalledTimes(1);
+        expect(control.create).toHaveBeenCalledWith({ source_offer_id: 'offer-1', expected_source_offer_revision: 7 });
+    });
+
+    it('shows the frozen source listing revision and terms in the resulting RFQ', async () => {
+        control.get.mockResolvedValue({ ...request(), sourceOfferSnapshot: { offerId: 'offer-1', revision: 7, pricePerMtUsd: 1175 } });
+        await renderLoaded();
+        expect(screen.getByText('From supplier offer offer-1 · revision 7')).toBeTruthy();
+        expect(screen.getByText('Frozen USD/MT 1175')).toBeTruthy();
+    });
+
+    it('drops prior private details and reloads the same RFQ when the account changes', async () => {
+        const view = renderWithProviders(<FameRfqWorkspace />);
+        await screen.findByRole('row', { name: /Seller Ltd/ });
+        control.user = { id: 'other-buyer', role: 'BUYER', organization_id: 'other-org' };
+        control.get.mockResolvedValue({ ...request(), quotes: [], canCancel: false });
+        view.rerender(<FameRfqWorkspace />);
+        expect(screen.queryByRole('row', { name: /Seller Ltd/ })).toBeNull();
+        await screen.findByText('No quotes have been submitted.');
+        expect(control.get.mock.calls.length).toBeGreaterThan(1);
+    });
+
     it('embeds as a Marketplace section and reports Marketplace content readiness', async () => {
         renderWithProviders(<FameRfqWorkspace embedded />);
         const section = screen.getByRole('region', { name: 'B100 RFQs' });

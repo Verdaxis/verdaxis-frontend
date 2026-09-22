@@ -111,11 +111,11 @@
     },
     "rfq": {
       "title": "UCOME B100 · Singapore",
-      "description": "Wholesale RFQ lane. Confirm price and supply with the seller.",
+      "description": "Browse supplier offers and request quotes for wholesale delivery.",
       "action": "Open B100 Marketplace",
-      "marker": "UCOME B100 · RFQ only",
+      "marker": "UCOME B100 · Offers & RFQs",
       "allPorts": "Show Singapore lane",
-      "legend": "RFQ lane · no market price or stock shown"
+      "legend": "Wholesale coverage · confirm price and supply by quote"
     }
   },
   "dataAnalytics": {
@@ -604,14 +604,14 @@
       "selectPort": "Select a port to open Marketplace"
     },
     "rfq": {
-      "tab": "UCOME RFQ",
-      "wholesale": "RFQ-only wholesale",
+      "tab": "UCOME B100",
+      "wholesale": "Wholesale offers & RFQs",
       "title": "Singapore UCOME B100",
-      "description": "Request UCOME B100 for wholesale delivery in Singapore. Set your quantity and delivery window in Marketplace.",
-      "quoteTerms": "Supplier quotes confirm price and available volume. This product has no live orderbook or forward price reference.",
-      "evidence": "Confirm origin, certification and declared carbon intensity for each consignment.",
+      "description": "Browse or publish UCOME B100 supplier offers for wholesale delivery in Singapore, then agree terms through a quote request.",
+      "quoteTerms": "Listing prices are indicative. A supplier quote confirms price and available volume for your request.",
+      "evidence": "Review the fuel specification, batch test results and consignment sustainability evidence separately from the supplier certificate.",
       "minimumLot": "Minimum request: {{quantity}} {{unit}}",
-      "openMarketplace": "Request UCOME B100 in Marketplace"
+      "openMarketplace": "View UCOME B100 in Marketplace"
     }
   },
   "mapLegend": {

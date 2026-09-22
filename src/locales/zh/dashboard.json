@@ -111,11 +111,11 @@
     },
     "rfq": {
       "title": "UCOME B100 · 新加坡",
-      "description": "批发询价市场，价格和供货量需与卖方确认。",
+      "description": "浏览供应商货源，并就批发交付发起询价。",
       "action": "打开 B100 交易市场",
-      "marker": "UCOME B100 · 仅限询价",
+      "marker": "UCOME B100 · 货源与询价",
       "allPorts": "显示新加坡交付点",
-      "legend": "询价交付点 · 不展示市场价格或库存"
+      "legend": "批发覆盖范围 · 通过报价确认价格和供货量"
     }
   },
   "dataAnalytics": {
@@ -604,14 +604,14 @@
       "selectPort": "选择港口以打开市场"
     },
     "rfq": {
-      "tab": "UCOME 询价",
-      "wholesale": "仅限批发询价",
+      "tab": "UCOME B100",
+      "wholesale": "批发货源与询价",
       "title": "新加坡 UCOME B100",
-      "description": "询购在新加坡交付的批发 UCOME B100。在市场中填写数量与交付时间。",
-      "quoteTerms": "价格与可供数量以供应商报价为准。该产品无实时订单簿或远期价格参考。",
-      "evidence": "逐批确认原料来源、认证与申报碳强度。",
+      "description": "浏览或发布在新加坡批发交付的 UCOME B100 货源，并通过询价商定条款。",
+      "quoteTerms": "挂单价格仅供参考。供应商报价将确认本次询购的价格与可供数量。",
+      "evidence": "分别审核燃料规格、批次检测结果、货物可持续性证明及供应商证书。",
       "minimumLot": "最低询购量：{{quantity}} {{unit}}",
-      "openMarketplace": "前往市场询购 UCOME B100"
+      "openMarketplace": "前往市场查看 UCOME B100"
     }
   },
   "mapLegend": {

@@ -56,6 +56,8 @@ import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { FameRfqWorkspace } from './rfq/FameRfqWorkspace';
+import { SupplierOffersWorkspace } from './supplier/SupplierOffersWorkspace';
+import type { SupplierOffer } from '../types/fameSupplierOffer';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -243,7 +245,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
     const requestedView = new URLSearchParams(location.search).get('view');
     const marketTab = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
-    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders') => {
+    const fameTab = requestedView === 'requests' ? 'requests' : requestedView === 'my_orders' ? 'my_orders' : 'market';
+    const [sourceOffer, setSourceOffer] = useState<SupplierOffer | null>(null);
+    const [editSupplierOffer, setEditSupplierOffer] = useState<SupplierOffer | null>(null);
+    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'requests') => {
         const next = new URLSearchParams(location.search);
         if (tab === 'market') next.delete('view');
         else next.set('view', tab);
@@ -270,8 +275,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     useEffect(() => {
+        setSourceOffer(null);
+        setEditSupplierOffer(null);
+        setOrderModalSide(null);
+    }, [user?.id, user?.organization_id, isMarketSupportActive]);
+
+
+    useEffect(() => {
         if (!isRfqSelected) return;
         setOrderModalSide(null);
+        setEditSupplierOffer(null);
+        setSourceOffer(null);
         setSelectedOrder(null);
         setTradeState('idle');
         setPendingCancellation(null);
@@ -541,6 +555,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         if (isRfqSelected) {
             const next = new URLSearchParams(location.search);
             next.delete('product');
+            if (next.get('view') === 'requests') next.delete('view');
             navigate({ pathname: '/app/marketplace', search: next.toString() });
         }
     };
@@ -961,6 +976,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
                             <p className="text-slate-500 mt-1 text-sm">{t(isRfqSelected ? 'marketplace.ucomeRfq.subtitle' : configBase.subtitleKey)}</p>
                         </div>
+                        {isRfqSelected && user?.role === 'SUPPLIER' && !isMarketSupportActive && <button
+                            type="button"
+                            data-tour="marketplace-primary-action"
+                            onClick={() => { setEditSupplierOffer(null); setOrderModalSide('ASK'); }}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-400"
+                        ><Plus size={16} />{t('marketplace.supplierOffers.postSupply')}</button>}
                         {!isRfqSelected && <div className="flex items-center gap-3">
                             <button
                                 type="button"
@@ -1119,6 +1140,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         </div>
                     </div>
 
+                    {isRfqSelected && !isMarketSupportActive && <div className="mb-3 flex w-full max-w-[420px] rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30" role="group" aria-label={t('marketplace.supplierOffers.views')}>
+                        {([
+                            { key: 'market', label: 'marketplace.tab.market' },
+                            { key: 'requests', label: 'marketplace.supplierOffers.requestsTab' },
+                            ...(user?.role === 'SUPPLIER' ? [{ key: 'my_orders', label: 'marketplace.tab.myOrders' }] : []),
+                        ] as const).map((tab) => <button
+                            key={tab.key}
+                            type="button"
+                            aria-pressed={fameTab === tab.key}
+                            onClick={() => { setSourceOffer(null); setMarketTab(tab.key as 'market' | 'requests' | 'my_orders'); }}
+                            className={`min-w-0 flex-1 rounded-md px-4 py-1.5 text-xs font-bold transition-colors ${fameTab === tab.key ? 'border border-white/30 bg-white/90 text-slate-900 shadow-md dark:border-slate-600/30 dark:bg-slate-700/90 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        >{t(tab.label)}</button>)}
+                    </div>}
+
                     {/* Tab Switcher: Market | Orderbook | My Listings */}
                     {!isRfqSelected && <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
                         <div
@@ -1185,7 +1220,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             </div>
 
             {isRfqSelected && <div className="px-4 pb-8 lg:px-10"><div className="mx-auto max-w-7xl">
-                {isMarketSupportActive ? <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{t('marketplace.ucomeRfq.supportUnavailable')}</div> : <FameRfqWorkspace embedded />}
+                {isMarketSupportActive ? <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{t('marketplace.ucomeRfq.supportUnavailable')}</div>
+                    : fameTab === 'requests' ? <FameRfqWorkspace key={`${user?.id}:${user?.organization_id}`} embedded sourceOffer={sourceOffer ?? undefined} onSourceOfferHandled={() => setSourceOffer(null)} />
+                        : <SupplierOffersWorkspace
+                            key={`${fameTab}:${user?.id}:${user?.organization_id}`}
+                            mine={fameTab === 'my_orders' && user?.role === 'SUPPLIER'}
+                            onRequestQuote={(offer) => { setSourceOffer(offer); setMarketTab('requests'); }}
+                            onEdit={(offer) => { setEditSupplierOffer(offer); setOrderModalSide('ASK'); }}
+                            onPostSupply={() => { setEditSupplierOffer(null); setOrderModalSide('ASK'); }}
+                        />}
+
             </div></div>}
 
             {/* Error state */}
@@ -1728,18 +1772,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </label>
             </ConfirmModal>
             <OrderPlaceModal
-                isOpen={!isRfqSelected && orderModalSide !== null}
+                isOpen={orderModalSide !== null && (!isRfqSelected || !isMarketSupportActive)}
                 onClose={() => {
                     setOrderModalSide(null);
-                    void fetchData(true, currentSkip, true);
-                    if (marketTab === 'my_orders') void fetchMyOrders(true);
+                    setEditSupplierOffer(null);
+                    if (!isRfqSelected) {
+                        void fetchData(true, currentSkip, true);
+                        if (marketTab === 'my_orders') void fetchMyOrders(true);
+                    }
                 }}
                 side={orderModalSide || configBase.primaryAction.side}
-                prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
-                prefillRegion={portInput || undefined}
-                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
-                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
-                prefillAvailabilityWindow={availability || undefined}
+                prefillFuelType={!isRfqSelected && marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
+                prefillRegion={isRfqSelected ? 'Singapore' : portInput || undefined}
+                prefillMarketProduct={isRfqSelected ? 'UCOME_B100' : marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
+                prefillDeliveryPointId={isRfqSelected ? undefined : currentSliceTarget?.deliveryPointId}
+                prefillAvailabilityWindow={isRfqSelected ? undefined : availability || undefined}
+                editSupplierOffer={editSupplierOffer ?? undefined}
             />
         </div>
     );

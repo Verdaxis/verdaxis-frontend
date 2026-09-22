@@ -44,6 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const location = useLocation();
     const isRfqMarketplace = currentPage === 'MARKETPLACE'
         && new URLSearchParams(location.search).get('product') === 'UCOME_B100';
+    const showPrimaryAction = !isRfqMarketplace
+        || (viewMode === 'SUPPLIER' && !isMarketSupportActive);
 
     const sidebarItems = buildPrimarySidebarItems(t).filter((item) => (
         !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
@@ -102,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            {!isRfqMarketplace && <div className="px-3 pt-4 pb-2">
+            {showPrimaryAction && <div className="px-3 pt-4 pb-2">
                 <button
                     data-tour="sidebar-primary-action"
                     aria-label={viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply')}

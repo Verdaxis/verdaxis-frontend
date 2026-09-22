@@ -5,6 +5,7 @@ import i18n, { loadNamespace } from '../../../i18n';
 import copy from '../../../locales/en/rfq.json';
 import type { FameContractTerms, FameRfq } from '../../../types/fameRfq';
 import { FameQuoteForm, FameRequestForm } from '../FameRfqForms';
+import { mapSupplierOfferResponse } from '../../../services/fameSupplierOffer';
 
 const contract: FameContractTerms = {
     schema_version: 1,
@@ -95,6 +96,49 @@ afterEach(() => {
 });
 
 describe('FameRequestForm', () => {
+    it('uses the selected offer revision, bounds and fixed fuel requirements for a targeted request', async () => {
+        const source = mapSupplierOfferResponse({
+            ...contract,
+            id: 'offer-1', product_id: 'ucome-product', delivery_point_id: 'singapore',
+            quantity_mt: 500, min_fill_mt: 100, price_per_mt_usd: 1020,
+            availability_window: 'SPOT', status: 'OPEN', revision: 6,
+            expires_at: '2026-09-25T04:00:00.000Z',
+            fuel_terms: {
+                schema_version: 1, neat_fame: true, nomination_status: 'PENDING', uco_mass_pct: 100,
+                standard: 'ASTM_D6751', standard_edition: '2024', astm_grade: '1-B S15 LM',
+                cfpp_c: -2, ci_gco2e_mj: 0, sustainability_scheme: 'REDCERT_EU',
+                certificate_valid_until: '2026-10-05', evidence_status: 'PENDING',
+            },
+        });
+        const onSubmit = vi.fn().mockResolvedValue(undefined);
+        render(<FameRequestForm productId="ignored-default" deliveryPointId="ignored-default" sourceOffer={source} onSubmit={onSubmit} onCancel={vi.fn()} pending={false} />);
+        const quantity = screen.getByLabelText(copy.form.quantity) as HTMLInputElement;
+        expect(quantity.min).toBe('100');
+        expect(quantity.max).toBe('500');
+        expect(screen.getByRole('combobox', { name: copy.form.standard })).toHaveProperty('disabled', true);
+        expect(screen.getByLabelText(copy.form.standardEdition)).toHaveProperty('readOnly', true);
+        expect(screen.getByRole('combobox', { name: copy.declaration.astmGrade })).toHaveProperty('disabled', true);
+        fill(copy.form.quantity, '600');
+        fireEvent.submit(screen.getByRole('form', { name: copy.form.requestTitle }));
+        expect(screen.getByRole('alert').textContent).toBe(copy.validation.sourceQuantity);
+        expect(onSubmit).not.toHaveBeenCalled();
+
+        fill(copy.form.quantity, '500');
+        fireEvent.submit(screen.getByRole('form', { name: copy.form.requestTitle }));
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+            source_offer_id: 'offer-1', expected_source_offer_revision: 6,
+            product_id: 'ucome-product', delivery_point_id: 'singapore',
+            quantity_mt: 500, target_price_per_mt: 1020,
+            contract_terms: expect.objectContaining({ standard: 'ASTM_D6751', standard_edition: '2024', astm_grade: '1-B S15 LM', max_ci_gco2e_mj: 0, max_cfpp_c: -2 }),
+        }));
+        vi.setSystemTime(new Date('2026-09-26T04:00:00.000Z'));
+        fireEvent.submit(screen.getByRole('form', { name: copy.form.requestTitle }));
+        expect(screen.getByRole('alert').textContent).toBe(copy.sourceOfferConflict);
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
         { label: copy.form.deliveryStart, value: '2026-09-21', error: copy.validation.deliveryDates },
         { label: copy.form.deliveryEnd, value: '2026-09-30', error: copy.validation.deliveryDates },
@@ -186,7 +230,7 @@ describe('FameQuoteForm', () => {
             price_per_mt_usd: 1050.5,
             expires_at: rfq.expiresAt,
             notes: undefined,
-            offer_terms: {
+            offer_terms: expect.objectContaining({
                 schema_version: 1,
                 matches_contract_terms: true,
                 batch_reference: 'BATCH-2026-01',
@@ -207,9 +251,24 @@ describe('FameQuoteForm', () => {
                 evidence_status: 'DECLARED',
                 document_references: [],
                 available_quantity_mt: 1000,
-                lhv_mj_kg: undefined,
-            },
+                lhv_mj_kg: null,
+            }),
         });
+    });
+
+    it('initializes and locks the requested ASTM grade for a firm quote', async () => {
+        const onSubmit = vi.fn().mockResolvedValue(undefined);
+        const astmRequest = { ...rfq, contractTerms: { ...contract, standard: 'ASTM_D6751' as const, standard_edition: '2024', astm_grade: '2-B S15 LM' as const } };
+        render(<FameQuoteForm rfq={astmRequest} onSubmit={onSubmit} onCancel={vi.fn()} pending={false} />);
+        fillValidQuote();
+        const grade = screen.getByRole('combobox', { name: copy.declaration.astmGrade });
+        expect(grade).toHaveProperty('disabled', true);
+        expect(grade.textContent).toContain('2-B S15 LM');
+        fireEvent.submit(screen.getByRole('form', { name: copy.form.quoteTitle }));
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+        expect(onSubmit.mock.calls[0][0].offer_terms).toMatchObject({ standard: 'ASTM_D6751', standard_edition: '2024', astm_grade: '2-B S15 LM' });
+        expect(onSubmit.mock.calls[0][0].offer_terms).not.toHaveProperty('nomination_status');
+        expect(onSubmit.mock.calls[0][0].offer_terms).not.toHaveProperty('neat_fame');
     });
 
     it('requires references when the supplier declares that documents are available', () => {

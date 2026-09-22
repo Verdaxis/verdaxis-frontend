@@ -67,11 +67,11 @@ describe('IntelligencePanel localization', () => {
       />,
     );
 
-    expect(screen.getByRole('tab', { name: 'UCOME 询价' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'UCOME B100' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('heading', { name: '新加坡 UCOME B100', level: 3 })).toBeTruthy();
     expect(screen.getByText('最低询购量：100 MT')).toBeTruthy();
-    expect(screen.getByText('逐批确认原料来源、认证与申报碳强度。')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' }).getAttribute('href'))
+    expect(screen.getByText('分别审核燃料规格、批次检测结果、货物可持续性证明及供应商证书。')).toBeTruthy();
+    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' }).getAttribute('href'))
       .toBe('/app/marketplace?product=UCOME_B100');
     expect(screen.queryByText('市场价格')).toBeNull();
     expect(screen.queryByText('供应情况')).toBeNull();
@@ -86,8 +86,8 @@ describe('IntelligencePanel localization', () => {
       await i18n.changeLanguage('en');
     });
     expect(screen.getByRole('heading', { name: 'Singapore UCOME B100', level: 3 })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Request UCOME B100 in Marketplace' })).toBeTruthy();
-    expect(screen.getByText('Supplier quotes confirm price and available volume. This product has no live orderbook or forward price reference.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'View UCOME B100 in Marketplace' })).toBeTruthy();
+    expect(screen.getByText('Listing prices are indicative. A supplier quote confirms price and available volume for your request.')).toBeTruthy();
   });
 
   it('selects the RFQ tab when the selected map product changes to B100', () => {
@@ -97,10 +97,10 @@ describe('IntelligencePanel localization', () => {
 
     rerender(<IntelligencePanel {...props} rfqProduct={ucomeProduct} rfqOnly />);
 
-    expect(screen.getByRole('tab', { name: 'UCOME 询价' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: 'UCOME B100' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByTestId('news-feed')).toBeNull();
     expect(screen.queryByTestId('compliance-estimator')).toBeNull();
-    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' })).toBeTruthy();
   });
 
   it('keeps port intelligence and adds UCOME discovery when the all-products view supplies the RFQ lane', async () => {
@@ -118,7 +118,7 @@ describe('IntelligencePanel localization', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
     });
-    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' })).toBeTruthy();
     expect(screen.getByText('市场价格')).toBeTruthy();
     expect(screen.getByTestId('compliance-estimator')).toBeTruthy();
   });

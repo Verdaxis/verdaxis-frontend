@@ -621,3 +621,9 @@
 - **Trigger:** Staging rendered a blank base map because a build-check placeholder passed the public-token prefix check.
 - **Rule:** Use the target environment's configured public Mapbox token for a release build, then verify a map style request and rendered map. Keep test fixture tokens out of published artifacts.
 - **Why:** A valid-looking prefix and a successful static build do not prove that the map service accepts the configuration.
+
+### Reuse Listing Patterns With Fuel-Specific Fields
+- **Date:** 2026-09-22
+- **Trigger:** The user asked for B100 supplier listing to follow the other fuels' style while capturing fields used by that fuel's industry.
+- **Rule:** Reuse the actual Post Supply and Marketplace listing flow. Select specification, grade, units and evidence fields for the fuel; distinguish operator certification, batch quality evidence and consignment sustainability documents. Permit unknown or unallocated batch values and preserve declaration status.
+- **Why:** A separate transaction method does not justify a separate listing experience, and reusing alcohol fields alone misses the quality and traceability distinctions for B100.

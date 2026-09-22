@@ -1,4 +1,5 @@
 import type { FameContractTerms, FameOfferTerms, FameQuote, FameRfq, FameRfqList } from '../types/fameRfq';
+import type { SupplierOfferSnapshot } from '../types/fameSupplierOffer';
 
 // API Decimal values arrive as strings. Missing optional measurements stay
 // unknown: zero is a real CI or cold-flow declaration, never a fallback.
@@ -19,15 +20,59 @@ function mapContractTerms(value: FameContractTerms | null): FameContractTerms | 
     };
 }
 
-function mapOfferTerms(value: FameOfferTerms | null): FameOfferTerms | null {
-    if (!value) return null;
+type DeclaredFuelMeasurements = Pick<FameOfferTerms, 'cfpp_c' | 'cloud_point_c' | 'ci_gco2e_mj' | 'lhv_mj_kg' | 'quality_evidence' | 'sustainability_evidence'>;
+
+/** Normalize measurements without restoring fields redacted by the server. */
+export function mapFameFuelMeasurements<T extends DeclaredFuelMeasurements>(value: T): T {
     return {
         ...value,
         cfpp_c: optionalRfqNumber(value.cfpp_c),
+        cloud_point_c: optionalRfqNumber(value.cloud_point_c),
         ci_gco2e_mj: optionalRfqNumber(value.ci_gco2e_mj),
         lhv_mj_kg: optionalRfqNumber(value.lhv_mj_kg),
+        ...(value.quality_evidence && {
+            quality_evidence: {
+                ...value.quality_evidence,
+                results: value.quality_evidence.results.map(result => ({ ...result, value: Number(result.value) })),
+            },
+        }),
+        ...(value.sustainability_evidence && {
+            sustainability_evidence: {
+                ...value.sustainability_evidence,
+                ...('quantity_mt' in value.sustainability_evidence && {
+                    quantity_mt: optionalRfqNumber(value.sustainability_evidence.quantity_mt),
+                }),
+            },
+        }),
+    };
+}
+
+function mapOfferTerms(value: FameOfferTerms | null): FameOfferTerms | null {
+    if (!value) return null;
+    return {
+        ...mapFameFuelMeasurements(value),
         available_quantity_mt: Number(value.available_quantity_mt),
         document_references: value.document_references ?? [],
+    };
+}
+
+function mapSourceOfferSnapshot(value: Record<string, any>): SupplierOfferSnapshot {
+    return {
+        offerId: value.offer_id,
+        revision: Number(value.revision),
+        ...('supplier_org_id' in value && { supplierOrgId: value.supplier_org_id }),
+        productId: value.product_id,
+        deliveryPointId: value.delivery_point_id,
+        quantityMt: Number(value.quantity_mt),
+        minFillMt: Number(value.min_fill_mt),
+        pricePerMtUsd: Number(value.price_per_mt_usd),
+        availabilityWindow: value.availability_window,
+        expiresAt: value.expires_at,
+        listingTerms: {
+            ...value.listing_terms,
+            quantity_tolerance_pct: Number(value.listing_terms.quantity_tolerance_pct),
+            fuel_terms: mapFameFuelMeasurements(value.listing_terms.fuel_terms),
+        },
     };
 }
 
@@ -68,6 +113,11 @@ export function mapFameRfqResponse(value: Record<string, any>): FameRfq {
         contractTerms: mapContractTerms(value.contract_terms ?? null),
         executionEnabled: value.execution_enabled === true,
         canCancel: value.can_cancel === true,
+        ...('source_offer_id' in value && { sourceOfferId: value.source_offer_id }),
+        ...('target_supplier_org_id' in value && { targetSupplierOrgId: value.target_supplier_org_id }),
+        ...('source_offer_snapshot' in value && {
+            sourceOfferSnapshot: value.source_offer_snapshot ? mapSourceOfferSnapshot(value.source_offer_snapshot) : null,
+        }),
     };
 }
 

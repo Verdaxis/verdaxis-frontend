@@ -99,6 +99,7 @@ vi.mock('../context/MarketSupportContext', () => ({
 }));
 
 vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: () => <div data-testid="page-rfqs">B100 RFQs</div> }));
+vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: ({ mine }: { mine?: boolean }) => <div data-testid="page-b100-offers">{mine ? 'My B100 offers' : 'B100 supplier Listings'}</div> }));
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
@@ -281,7 +282,7 @@ describe('app routing', () => {
         ['/app/watchlist', 'page-watchlist', 'WATCHLISTS'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/trades', 'page-trades', 'TRADES'],
-        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
+        ['/app/rfqs', 'page-b100-offers', 'MARKETPLACE'],
         ['/app/compliance', 'page-compliance', 'COMPLIANCE'],
         ['/app/training', 'page-training', 'TRAINING'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
@@ -301,7 +302,7 @@ describe('app routing', () => {
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
-        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
+        ['/app/rfqs', 'page-b100-offers', 'MARKETPLACE'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
       for (const [path, marker, page] of cases) {
@@ -388,7 +389,7 @@ describe('app routing', () => {
     it('restores legacy RFQ sessions inside Marketplace', async () => {
       sessionStorage.setItem('verdaxis_currentPage', 'RFQS');
       renderApp('/app');
-      expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
+      expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
       expect(currentPathname()).toBe('/app/marketplace');
       expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
@@ -445,10 +446,10 @@ describe('app routing', () => {
   });
 
   describe('marketplace slice URLs', () => {
-    it('opens B100 bookmarks in the Marketplace RFQ product view', async () => {
+    it('opens B100 bookmarks in canonical supplier Listings with access to Requests', async () => {
       for (const path of ['/app/rfqs', '/app/m/ucome-b100/singapore/spot']) {
         const view = renderApp(path);
-        expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
+        expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
         expect(currentPathname()).toBe('/app/marketplace');
         expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
         expect(dashboardPageAttr()).toBe('MARKETPLACE');
@@ -456,6 +457,26 @@ describe('app routing', () => {
         expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
         view.unmount();
       }
+    });
+
+    it('routes the B100 Requests view inside Marketplace and returns to supplier Listings', async () => {
+      renderApp('/app/marketplace?product=UCOME_B100&view=requests');
+      expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
+      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
+      expect(dashboardPageAttr()).toBe('MARKETPLACE');
+      fireEvent.click(screen.getByRole('button', { name: 'Listings' }));
+      expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
+      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+      expect(screen.queryByRole('button', { name: 'Orderbook' })).toBeNull();
+    });
+
+    it('routes B100 My Listings to supplier offers rather than executable orders', async () => {
+      setRole('SUPPLIER');
+      renderApp('/app/marketplace?product=UCOME_B100&view=my_orders');
+      expect(await screen.findByTestId('page-b100-offers')).toHaveProperty('textContent', 'My B100 offers');
+      expect(dashboardPageAttr()).toBe('MARKETPLACE');
+      expect(myOrders).not.toHaveBeenCalled();
+      expect(listBidsPaged).not.toHaveBeenCalled();
     });
 
     it('preselects the slice from a valid deep link', async () => {

@@ -1,5 +1,7 @@
 import type { FameRfqCreateInput, FameQuoteInput, FameRfq, FameQuote, FameRfqList } from '../types/fameRfq';
 import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from './fameRfq';
+import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
+import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
 import {
@@ -1306,6 +1308,37 @@ export const api = {
     fleetIntelligence: {
         get: async (cacheOptions?: ReadCacheOptions): Promise<{ entries: Array<{ fuel: string; ordered_vessels: number; delivered_vessels: number; avg_consumption_mt: number; color: string }>; last_updated: string; sources: string[] }> => {
             return readApi('fleet-intelligence:get', '/fleet-intelligence', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+        },
+    },
+
+    supplierOffers: {
+        list: async (params?: SupplierOfferListParams): Promise<SupplierOfferList> => {
+            return mapSupplierOfferListResponse(await fetchApi(`/supplier-offers?${supplierOfferListQuery(params)}`, { headers: getHeaders() }));
+        },
+        my: async (params?: SupplierOfferMyListParams): Promise<SupplierOfferList> => {
+            return mapSupplierOfferListResponse(await fetchApi(`/supplier-offers/my?${supplierOfferListQuery(params)}`, { headers: getHeaders() }));
+        },
+        get: async (id: string): Promise<SupplierOffer> => {
+            return mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}`, { headers: getHeaders() }));
+        },
+        create: async (data: SupplierOfferCreateInput, idempotencyKey: string): Promise<SupplierOffer> => {
+            const offer = mapSupplierOfferResponse(await fetchApi('/supplier-offers', {
+                method: 'POST',
+                headers: { ...getHeaders(), 'Idempotency-Key': idempotencyKey },
+                body: JSON.stringify(data),
+            }));
+            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
+            return offer;
+        },
+        update: async (id: string, data: SupplierOfferUpdateInput): Promise<SupplierOffer> => {
+            const offer = mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }));
+            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
+            return offer;
+        },
+        withdraw: async (id: string, data: { expected_revision: number }): Promise<SupplierOffer> => {
+            const offer = mapSupplierOfferResponse(await fetchApi(`/supplier-offers/${encodeURIComponent(id)}/withdraw`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
+            window.dispatchEvent(new CustomEvent(SUPPLIER_OFFERS_CHANGED_EVENT));
+            return offer;
         },
     },
 

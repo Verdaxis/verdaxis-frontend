@@ -30,6 +30,7 @@ src/
   routeMetadata.ts                 # EN/ZH public catalog, private metadata, canonical and static-head generation
   types.ts                         # Shared TypeScript interfaces (Port, Vessel, Order, Trade...)
   types/fameRfq.ts                 # Versioned UCOME B100 request/offer declarations and normalized RFQ responses
+  types/fameSupplierOffer.ts       # Indicative supplier listing inputs, public/full declarations and offer revisions
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
   utils/forwardCurveAxis.ts        # Chart-only delivery horizons and width-aware sparse/detailed tick layout
@@ -50,6 +51,7 @@ src/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades, RFQs...)
     fameRfq.ts                     # RFQ response normalization; unknown measurements stay null; declared USD/GJ comparison
+    fameSupplierOffer.ts            # Supplier offer normalization and successful-write refresh event
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
@@ -73,6 +75,7 @@ src/
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
     rfq/{FameRfqWorkspace,FameRfqForms}.tsx # Marketplace UCOME B100 requests, declared quote comparison, revisions and withdrawals; no execution
+    fame/                          # Shared B100 declaration fields, fixed quality-result units and evidence inputs
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
@@ -86,13 +89,13 @@ src/
     SupplierDashboard.tsx          # Incoming orders, revenue overview
     SupplierQuotes.tsx             # Supplier route alias for the shared trade blotter
     SupplierInventory.tsx          # Fuel inventory by port
-    SupplierListingConsole.tsx     # Create/manage marketplace listings
+    supplier/SupplierOffersWorkspace.tsx # Marketplace B100 Listings and My Listings, with revision/withdrawal and targeted quote requests
     SupplierStats.tsx              # Supplier-specific stats
     SupplierDemandFeed.tsx         # Live demand signals from buyers
     WatchlistPage.tsx              # Slice-first Market Radar detail view and event feed
     # Modals
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
-    supplier/{CreateListingModal,CreateQuoteModal}.tsx
+    OrderPlaceModal.tsx            # Shared Post Supply dialog; executable alcohol ASKs or indicative B100 supplier offers
     # Feature groups
     admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved user/org invites, organization entry
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
@@ -294,11 +297,12 @@ Catalog responses can include `execution_mode` and `available_delivery_point_ids
 metadata only for these established codes. An explicit `RFQ_ONLY` mode always blocks
 order creation.
 
-Marketplace includes UCOME in its product selector and embeds the RFQ workspace at
+Marketplace includes UCOME in its product selector with Listings, Quote Requests and My Listings at
 `/app/marketplace?product=UCOME_B100`. The former `/app/rfqs` route and UCOME
-market-slice bookmarks redirect to this product view. Stale UCOME order prefills
-link to the same view. The Intelligence Map includes catalog-approved Singapore
-RFQ coverage and opens this Marketplace view without inventing prices or stock.
+market-slice bookmarks redirect to this product view. Post Supply uses the same
+dialog as alcohol listings, but submits UCOME to the supplier-offer API. The
+Intelligence Map includes catalog-approved Singapore wholesale coverage and opens
+this Marketplace view without inventing prices or stock.
 Orderbook requests, displayed depth and trade actions exclude UCOME. Forward
 Curve, Market Watch and the public demo ticker retain alcohol-only price data;
 adding an RFQ catalog product does not create a price curve or demo quote.
@@ -386,12 +390,20 @@ npm run test         # Vitest single run
 npm run test:watch   # Vitest watch mode
 ```
 
-## UCOME B100 RFQ pilot
+## UCOME B100 supplier offers and RFQs
 
-`/app/rfqs` is a first-class buyer/supplier sidebar route. It loads the RFQ-only
-UCOME product and permitted delivery point from the catalog. Buyers create
-versioned specification/commercial requirements; suppliers submit, revise and
-withdraw their own declared offers. Revisions use optimistic concurrency.
+Suppliers publish independent indicative offers through Post Supply and manage
+them in Marketplace's My Listings tab. Shared B100 fields capture the standard
+and edition, ASTM grade or EN climate designation, feedstock, separate cold-flow
+measurements, operator certificate, optional batch quality results and shipment
+sustainability evidence. Future batch nomination is explicit. These fields also
+serve supplier RFQ responses; measurements retain null and zero distinctly.
+
+Buyers can request a quote from a selected listing or create a general RFQ. A
+targeted request retains an immutable offer revision snapshot and is visible to
+the selected supplier. Suppliers submit, revise and withdraw their own quotes.
+Offer and quote revisions use optimistic concurrency. Successful offer writes
+refresh the current listing view, including posts from the global sidebar.
 Administrators retain the API's organization-scoped request visibility and cannot
 create or quote from this view;
 the route is unavailable in assisted organization contexts. Backend-computed

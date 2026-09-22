@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
 import React from 'react';
 import type { TFunction } from 'i18next';
 
@@ -66,5 +66,33 @@ describe('sidebar config', () => {
     expect(screen.queryByText('Partners')).toBeNull();
     expect(screen.queryByText('Compliance')).toBeNull();
     expect(screen.queryByText('Education')).toBeNull();
+  });
+
+  it.each([
+    { viewMode: 'SUPPLIER' as const, assisted: false, canPost: true },
+    { viewMode: 'SUPPLIER' as const, assisted: true, canPost: false },
+    { viewMode: 'BUYER' as const, assisted: false, canPost: false },
+  ])('keeps B100 supply posting within the supported role ($viewMode, assisted=$assisted)', ({ viewMode, assisted, canPost }) => {
+    const onPrimaryAction = vi.fn();
+    renderWithProviders(React.createElement(Sidebar, {
+      viewMode,
+      currentPage: 'MARKETPLACE',
+      onNavigate: vi.fn(),
+      isCollapsed: false,
+      onToggleCollapse: vi.fn(),
+      isMobileOpen: false,
+      onMobileClose: vi.fn(),
+      onPrimaryAction,
+      isMarketSupportActive: assisted,
+    }), { route: '/app/marketplace?product=UCOME_B100' });
+
+    const primaryAction = document.querySelector('[data-tour="sidebar-primary-action"]');
+    if (canPost) {
+      expect(primaryAction).not.toBeNull();
+      fireEvent.click(primaryAction!);
+      expect(onPrimaryAction).toHaveBeenCalledOnce();
+    } else {
+      expect(primaryAction).toBeNull();
+    }
   });
 });
