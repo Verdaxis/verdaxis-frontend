@@ -1,4 +1,9 @@
 {
+  "marketplace.ucomeRfq.subtitle": "通过新加坡询价及供应商报价采购纯 UCOME B100。",
+  "marketplace.ucomeRfq.badge": "询价",
+  "marketplace.ucomeRfq.products": "产品",
+  "marketplace.ucomeRfq.productsHint": "数量为醇类燃料挂单数，B100 采用询价方式。",
+  "marketplace.ucomeRfq.supportUnavailable": "代组织操作期间无法使用 B100 询价。请退出代操作会话后使用您自己的账户。",
   "marketplace.ucomeRfq.title": "UCOME B100 · 新加坡询价试点",
   "marketplace.ucomeRfq.body": "就 FAME 生物柴油发起询价并比较供应商报价。每笔交易均须审核，不提供自动撮合。",
   "marketplace.ucomeRfq.action": "查看 UCOME 询价",

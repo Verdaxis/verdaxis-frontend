@@ -268,7 +268,7 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByText(/4 fuels/)).toBeTruthy();
+    expect(screen.getByText(/4 priced fuels/)).toBeTruthy();
     expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
@@ -336,7 +336,7 @@ describe('MarketWatchTicker', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/3 fuels/)).toBeTruthy();
+      expect(screen.getByText(/3 priced fuels/)).toBeTruthy();
     });
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');

@@ -88,7 +88,7 @@ describe('OrderPlaceModal', () => {
   it('routes a stale UCOME order prefill to RFQs without changing its product to alcohol', async () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="UCOME_B100" />);
 
-    expect((await screen.findByRole('link', { name: 'Open UCOME RFQs' })).getAttribute('href')).toBe('/app/rfqs');
+    expect((await screen.findByRole('link', { name: 'Open UCOME RFQs' })).getAttribute('href')).toBe('/app/marketplace?product=UCOME_B100');
     expect(screen.queryByRole('combobox', { name: 'Order product' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Place Bid' })).toBeNull();
     expect(createOrderMock).not.toHaveBeenCalled();

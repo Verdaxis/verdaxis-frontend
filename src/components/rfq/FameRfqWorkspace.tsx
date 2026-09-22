@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Plus, RefreshCw } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -91,9 +91,10 @@ function OfferDetails({ quote, t, number }: { quote: FameQuote; t: TFunction; nu
     </dl>;
 }
 
-export function FameRfqWorkspace() {
+export function FameRfqWorkspace({ embedded = false }: { embedded?: boolean }) {
     const { t, ready } = useNamespace('rfq');
     const { user } = useAuth();
+    const headingId = useId();
     const locale = i18n.resolvedLanguage || 'en';
     const number = (value: number | null | undefined) => value == null || !Number.isFinite(value)
         ? t('notSupplied') : value.toLocaleString(locale, { maximumFractionDigits: 2 });
@@ -117,7 +118,7 @@ export function FameRfqWorkspace() {
     const mutationLock = useRef(false);
     const detailGeneration = useRef(0);
 
-    useDashboardContentReady('RFQS', ready && !loading && !error);
+    useDashboardContentReady(embedded ? 'MARKETPLACE' : 'RFQS', ready && !loading && !error);
 
     useEffect(() => {
         const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -204,11 +205,17 @@ export function FameRfqWorkspace() {
             ? api.rfq.revise(selected.id, quoteForm.id, { ...input, expected_revision: quoteForm.revision }) : api.rfq.quote(selected.id, input));
     };
 
-    return <div className="mx-auto max-w-[1600px] space-y-5 p-4 pb-10 lg:p-8">
+    const Container = embedded ? 'section' : 'div';
+    const Heading = embedded ? 'h2' : 'h1';
+
+    return <Container
+        aria-labelledby={embedded ? headingId : undefined}
+        className={embedded ? 'space-y-4' : 'mx-auto max-w-[1600px] space-y-5 p-4 pb-10 lg:p-8'}
+    >
         <header className="flex flex-wrap items-start justify-between gap-4">
             <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">{t('lane')}</p>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('title')}</h1>
+                <Heading id={headingId} className={`${embedded ? 'text-xl' : 'text-2xl'} font-bold text-slate-900 dark:text-white`}>{t('title')}</Heading>
                 <p className="mt-2 max-w-3xl text-sm text-slate-600 dark:text-slate-400">{t('description')}</p>
             </div>
             <div className="flex gap-2">
@@ -283,5 +290,5 @@ export function FameRfqWorkspace() {
             if (!selected || !confirmation) return;
             void mutate(() => confirmation === 'cancel' ? api.rfq.cancel(selected.id) : api.rfq.withdraw(selected.id, confirmation.id));
         }} title={t(confirmation === 'cancel' ? 'cancelRequest' : 'withdraw')} message={t(confirmation === 'cancel' ? 'cancelConfirm' : 'withdrawConfirm')} confirmText={t(confirmation === 'cancel' ? 'cancelRequest' : 'withdraw')} isLoading={pending} />
-    </div>;
+    </Container>;
 }

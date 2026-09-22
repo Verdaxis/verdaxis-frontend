@@ -38,7 +38,7 @@ vi.mock('../components/ui/VerdaxisSelect', () => ({ VerdaxisSelect: () => null }
 vi.mock('../services/api', () => ({
   api: {
     ports: { list: vi.fn().mockResolvedValue([]) },
-    catalog: { deliveryPoints: vi.fn().mockResolvedValue([]) },
+    catalog: { deliveryPoints: vi.fn().mockResolvedValue([]), products: vi.fn().mockResolvedValue([]) },
     orderbook: { mapSummary: vi.fn().mockResolvedValue({ groups: [], recent_asks: [] }) },
     vessels: { list: vi.fn().mockResolvedValue([]) },
   },

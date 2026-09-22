@@ -7,6 +7,9 @@ import {
     SPOT_WINDOW,
 } from './availabilityWindow';
 
+// RFQ products share Marketplace discovery without claiming an orderbook window.
+export const UCOME_MARKETPLACE_PATH = '/app/marketplace?product=UCOME_B100';
+
 // The single home for the /app/m/:product/:port/:window URL grammar.
 // Existing helpers deliberately not reused: getMarketplaceProductValue
 // doesn't match hyphenated slugs, normalizeAvailabilityWindow never

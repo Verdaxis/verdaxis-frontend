@@ -1,4 +1,9 @@
 {
+  "marketplace.ucomeRfq.subtitle": "Source neat UCOME B100 through requests and supplier quotes in Singapore.",
+  "marketplace.ucomeRfq.badge": "RFQ",
+  "marketplace.ucomeRfq.products": "Products",
+  "marketplace.ucomeRfq.productsHint": "Counts show alcohol listings. B100 uses requests for quotes.",
+  "marketplace.ucomeRfq.supportUnavailable": "B100 requests are unavailable while acting for an organization. Exit the assisted session to use your own account.",
   "marketplace.ucomeRfq.title": "UCOME B100 · Singapore RFQ pilot",
   "marketplace.ucomeRfq.body": "Request and compare supplier quotes for FAME biodiesel. Each deal requires review; automated matching is unavailable.",
   "marketplace.ucomeRfq.action": "Open UCOME RFQs",

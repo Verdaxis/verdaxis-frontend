@@ -424,7 +424,8 @@ export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS
 // URL slug under /app for every legacy Page value. Legacy pages that no
 // longer have their own view (INVENTORY, ORDERBOOK, DEMAND_FEED) map to
 // the page that renders today. ANALYTICS remains a legacy session alias for
-// the shared DATA_ANALYTICS route.
+// the shared DATA_ANALYTICS route. RFQS preserves old sessions through a
+// redirect to the B100 product inside Marketplace.
 export const PAGE_SLUGS: Record<Page, string> = {
     MAP: 'map',
     MARKETPLACE: 'marketplace',

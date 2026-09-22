@@ -10,9 +10,10 @@ const control = vi.hoisted(() => ({
     user: { id: 'buyer-user', role: 'BUYER', organization_id: 'buyer-org' },
     products: vi.fn(), points: vi.fn(), list: vi.fn(), get: vi.fn(),
     create: vi.fn(), quote: vi.fn(), revise: vi.fn(), withdraw: vi.fn(), cancel: vi.fn(),
+    contentReady: vi.fn(),
 }));
 vi.mock('../../../context/AuthContext', () => ({ useAuth: () => ({ user: control.user }) }));
-vi.mock('../../../hooks/useDashboardContentReady', () => ({ useDashboardContentReady: () => undefined }));
+vi.mock('../../../hooks/useDashboardContentReady', () => ({ useDashboardContentReady: control.contentReady }));
 vi.mock('../../../services/api', () => ({ api: {
     catalog: { products: control.products, deliveryPoints: control.points },
     rfq: { list: control.list, get: control.get, create: control.create, quote: control.quote, revise: control.revise, withdraw: control.withdraw, cancel: control.cancel },
@@ -59,6 +60,19 @@ async function renderLoaded() {
 }
 
 describe('UCOME RFQ workspace', () => {
+    it('embeds as a Marketplace section and reports Marketplace content readiness', async () => {
+        renderWithProviders(<FameRfqWorkspace embedded />);
+        const section = screen.getByRole('region', { name: 'B100 RFQs' });
+        expect(within(section).getByRole('heading', { level: 2, name: 'B100 RFQs' })).toBeTruthy();
+        expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+        expect(control.contentReady).toHaveBeenCalledWith('MARKETPLACE', false);
+
+        await screen.findByRole('heading', { name: 'Contract requirements' });
+
+        expect(control.contentReady).toHaveBeenCalledWith('MARKETPLACE', true);
+        expect(control.contentReady.mock.calls.every(([page]) => page === 'MARKETPLACE')).toBe(true);
+    });
+
     it('keeps list failures distinct from a missing catalog and allows a real retry', async () => {
         control.list.mockRejectedValueOnce(new Error('Server failure'));
         renderWithProviders(<FameRfqWorkspace />);

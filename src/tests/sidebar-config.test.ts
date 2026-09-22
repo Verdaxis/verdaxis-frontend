@@ -33,7 +33,6 @@ describe('sidebar config', () => {
       DASHBOARD: '/app/home',
       MAP: '/app/map',
       MARKETPLACE: '/app/marketplace',
-      RFQS: '/app/rfqs',
       FORWARD_CURVE: '/app/curve',
       WATCHLISTS: '/app/watchlist',
       ANALYTICS: '/app/analytics',

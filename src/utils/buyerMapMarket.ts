@@ -1,4 +1,4 @@
-import type { AggregatedOrderbook } from '../types';
+import type { AggregatedOrderbook, DeliveryPoint, Port, Product } from '../types';
 import { isOrderbookMarketProduct } from './marketProduct';
 
 export interface PortMarketRow {
@@ -72,11 +72,31 @@ const referenceSource = (rows: AggregatedOrderbook[]): PortMarketReference['sour
     return hasDemo ? 'DEMO' : 'MARKET';
 };
 
+/** Catalog coverage is a request lane, never stock or executable liquidity. */
+export const getUcomeMapLane = (
+    products: Product[],
+    deliveryPoints: DeliveryPoint[],
+    ports: Port[],
+): { product: Product; port: Port } | null => {
+    const product = products.find(candidate => (
+        candidate.is_active
+        && candidate.market_product === 'UCOME_B100'
+        && candidate.execution_mode === 'RFQ_ONLY'
+    ));
+    const singapore = deliveryPoints.find(point => point.is_active && point.name === 'Singapore');
+    if (!product || !singapore || !product.available_delivery_point_ids?.includes(singapore.id)) return null;
+    const port = ports.find(candidate => candidate.name === singapore.name);
+    return port ? { product, port } : null;
+};
+
 export const computePortMarketData = (
     aggregated: AggregatedOrderbook[],
     port: string | PortMarketIdentity,
     selectedProduct?: string
 ): PortMarketData => {
+    if (selectedProduct === 'UCOME_B100' || selectedProduct === 'UCOME B100') {
+        return { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
+    }
     const identity = typeof port === 'string' ? { name: port } : port;
     const approvedNames = new Set([normalizeLocation(identity.name)].filter(Boolean));
     const approvedIds = new Set([

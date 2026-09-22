@@ -12,6 +12,7 @@ import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
+import { UCOME_MARKETPLACE_PATH } from '../utils/sliceUrl';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
@@ -630,7 +631,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
                 {rfqOnlyRequested ? (
                     <div className="p-5">
-                        <Link to="/app/rfqs" onClick={handleClose} className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                        <Link to={UCOME_MARKETPLACE_PATH} onClick={handleClose} className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                             {t('orderPlaceModal.rfqOnly.action')}
                         </Link>
                     </div>

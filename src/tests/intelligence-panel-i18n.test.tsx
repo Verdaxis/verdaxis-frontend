@@ -16,8 +16,14 @@ vi.mock('../services/api', () => ({
   },
 }));
 
-vi.mock('../components/NewsFeed', () => ({ NewsFeed: () => null }));
-vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimatorCard: () => null }));
+vi.mock('../components/NewsFeed', () => ({ NewsFeed: () => <div data-testid="news-feed" /> }));
+vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimatorCard: () => <div data-testid="compliance-estimator" /> }));
+
+const ucomeProduct: Product = {
+  id: 'ucome-b100', name: 'UCOME B100', market_product: 'UCOME_B100',
+  fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 100,
+  is_active: true, execution_mode: 'RFQ_ONLY', available_delivery_point_ids: ['sg-sin'],
+};
 
 describe('IntelligencePanel localization', () => {
   beforeEach(async () => {
@@ -47,6 +53,74 @@ describe('IntelligencePanel localization', () => {
 
     await waitFor(() => expect(api.curves.forward).toHaveBeenCalled());
     expect(api.curves.forward).toHaveBeenCalledExactlyOnceWith({ product_id: alcoholProduct.id });
+  });
+
+  it('opens a localized wholesale RFQ panel without alcohol market signals', async () => {
+    renderWithProviders(
+      <IntelligencePanel
+        isOpen
+        onClose={vi.fn()}
+        selectedPort={PORTS[0]}
+        onPortSelect={vi.fn()}
+        rfqProduct={ucomeProduct}
+        rfqOnly
+      />,
+    );
+
+    expect(screen.getByRole('tab', { name: 'UCOME 询价' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('heading', { name: '新加坡 UCOME B100', level: 3 })).toBeTruthy();
+    expect(screen.getByText('最低询购量：100 MT')).toBeTruthy();
+    expect(screen.getByText('逐批确认原料来源、认证与申报碳强度。')).toBeTruthy();
+    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' }).getAttribute('href'))
+      .toBe('/app/marketplace?product=UCOME_B100');
+    expect(screen.queryByText('市场价格')).toBeNull();
+    expect(screen.queryByText('供应情况')).toBeNull();
+    expect(screen.queryByText('参考性远期价格')).toBeNull();
+    expect(screen.queryByText('所选产品参考（7天）')).toBeNull();
+    expect(screen.queryByText(/\$520|Jurong Green Methanol/)).toBeNull();
+    expect(screen.queryByTestId('compliance-estimator')).toBeNull();
+    expect(api.catalog.products).not.toHaveBeenCalled();
+    expect(api.curves.forward).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    expect(screen.getByRole('heading', { name: 'Singapore UCOME B100', level: 3 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Request UCOME B100 in Marketplace' })).toBeTruthy();
+    expect(screen.getByText('Supplier quotes confirm price and available volume. This product has no live orderbook or forward price reference.')).toBeTruthy();
+  });
+
+  it('selects the RFQ tab when the selected map product changes to B100', () => {
+    const props = { isOpen: true, onClose: vi.fn(), selectedPort: PORTS[0], onPortSelect: vi.fn() };
+    const { rerender } = renderWithProviders(<IntelligencePanel {...props} />);
+    expect(screen.getByRole('tab', { name: '新闻' }).getAttribute('aria-selected')).toBe('true');
+
+    rerender(<IntelligencePanel {...props} rfqProduct={ucomeProduct} rfqOnly />);
+
+    expect(screen.getByRole('tab', { name: 'UCOME 询价' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('news-feed')).toBeNull();
+    expect(screen.queryByTestId('compliance-estimator')).toBeNull();
+    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' })).toBeTruthy();
+  });
+
+  it('keeps port intelligence and adds UCOME discovery when the all-products view supplies the RFQ lane', async () => {
+    renderWithProviders(
+      <IntelligencePanel
+        isOpen
+        onClose={vi.fn()}
+        selectedPort={PORTS[0]}
+        onPortSelect={vi.fn()}
+        rfqProduct={ucomeProduct}
+      />,
+    );
+
+    expect(screen.getByRole('tab', { name: '新闻' }).getAttribute('aria-selected')).toBe('true');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
+    });
+    expect(screen.getByRole('link', { name: '前往市场询购 UCOME B100' })).toBeTruthy();
+    expect(screen.getByText('市场价格')).toBeTruthy();
+    expect(screen.getByTestId('compliance-estimator')).toBeTruthy();
   });
 
   afterEach(async () => {

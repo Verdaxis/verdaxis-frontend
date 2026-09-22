@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     Loader2,
     MapPin,
@@ -43,7 +43,7 @@ import {
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
-import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
+import { sliceToPath, UCOME_MARKETPLACE_PATH, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
@@ -55,6 +55,7 @@ import i18n from '../i18n';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { FameRfqWorkspace } from './rfq/FameRfqWorkspace';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -98,7 +99,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
-const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS];
+const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS, 'UCOME_B100'];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
 const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
 const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
@@ -129,6 +130,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const location = useLocation();
     const navigate = useNavigate();
+    const isRfqSelected = new URLSearchParams(location.search).get('product') === 'UCOME_B100'
+        || initialSlice?.product === 'UCOME_B100';
     const role: ViewMode = user?.role === 'ADMIN'
         ? (viewMode ?? 'BUYER')
         : user?.role === 'SUPPLIER'
@@ -157,20 +160,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasLoadedListings, setHasLoadedListings] = useState(false);
-    useDashboardContentReady('MARKETPLACE', ready && !loading && hasLoadedListings);
+    useDashboardContentReady('MARKETPLACE', !isRfqSelected && ready && !loading && hasLoadedListings);
     const latestFetchRequest = useRef(0);
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
     // ─── Filter state ─────────────────────────────────────────────
-    const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
+    const [portInput, setPortInput] = useState(() => (isOrderbookMarketProduct(initialSlice?.product) ? initialSlice?.port : undefined) || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => (
         isOrderbookMarketProduct(initialSlice?.product) ? initialSlice.product : readStoredMarketProduct()
     ));
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
-        if (initialSlice) return initialSlice.window as AvailabilityWindow;
+        if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window as AvailabilityWindow;
         const stored = localStorage.getItem('verdaxis_marketplace_window');
         return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
@@ -266,6 +269,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
+    useEffect(() => {
+        if (!isRfqSelected) return;
+        setOrderModalSide(null);
+        setSelectedOrder(null);
+        setTradeState('idle');
+        setPendingCancellation(null);
+    }, [isRfqSelected]);
+
     // ─── Fuel counts for chips ────────────────────────────────────
     const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
 
@@ -298,7 +309,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0, force = false) => {
-        if (!ready) return;
+        if (!ready || isRfqSelected) return;
         const requestId = ++latestFetchRequest.current;
         if (silent) setRefreshing(true);
         else setLoading(true);
@@ -347,7 +358,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 setRefreshing(false);
             }
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy, isRfqSelected]);
 
     useEffect(() => {
         setHasLoadedListings(false);
@@ -355,18 +366,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
-        if (!ready) return;
+        if (!ready || isRfqSelected) return;
         fetchData(false, 0);
-    }, [fetchData, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+        return () => { latestFetchRequest.current += 1; };
+    }, [fetchData, ready, isRfqSelected]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 60s auto-refresh (silent)
     useEffect(() => {
-        if (!ready) return;
+        if (!ready || isRfqSelected) return;
         const interval = setInterval(() => {
             fetchData(true, currentSkip);
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [fetchData, currentSkip, ready]);
+    }, [fetchData, currentSkip, ready, isRfqSelected]);
 
     // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
     // One batched authenticated fetch per distinct set of visible ASK ids.
@@ -382,7 +394,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const hasAuthedUser = !!user;
     useEffect(() => {
         if (!ready) return;
-        if (!hasAuthedUser || !askIdSignature) {
+        if (isRfqSelected || !hasAuthedUser || !askIdSignature) {
             setComplianceOverlays({});
             return;
         }
@@ -399,7 +411,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return () => {
             cancelled = true;
         };
-    }, [hasAuthedUser, askIdSignature, ready]);
+    }, [hasAuthedUser, askIdSignature, ready, isRfqSelected]);
 
     // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
     // URL → state: re-apply whenever the slice params change. Slice→slice
@@ -407,7 +419,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     useEffect(() => {
         if (!initialSlice) return;
         if (initialSlice.product === 'UCOME_B100') {
-            navigate('/app/rfqs', { replace: true });
+            navigate(UCOME_MARKETPLACE_PATH, { replace: true });
             return;
         }
         setMarketProduct(initialSlice.product);
@@ -425,7 +437,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // with stale state mid slice→slice navigation and bounce the URL back.
     useEffect(() => {
         if (!location.pathname.startsWith('/app/m/')) return;
-        if (initialSlice?.product === 'UCOME_B100') return;
+        if (isRfqSelected) return;
         const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
         const nextPath = isFullSlice
             ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
@@ -434,7 +446,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             navigate({ pathname: nextPath, search: location.search }, { replace: true });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [availability, marketProduct, resolvedPort]);
+    }, [availability, marketProduct, resolvedPort, isRfqSelected]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -472,12 +484,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         ];
         return parts.join(' · ');
     }, [availability, locale, marketProduct, resolvedPort, t]);
-
-    const totalMarketProductCount = useMemo(
-        () => ORDERBOOK_MARKET_PRODUCTS.reduce((sum, product) => sum + (marketProductCounts[product] || 0), 0),
-        [marketProductCounts],
-    );
-
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
     const clearMarketFilters = useCallback(() => {
@@ -526,8 +532,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
+        if (productCode === 'UCOME_B100') {
+            navigate(UCOME_MARKETPLACE_PATH);
+            return;
+        }
         setMarketProduct(productCode);
         setCurrentSkip(0);
+        if (isRfqSelected) {
+            const next = new URLSearchParams(location.search);
+            next.delete('product');
+            navigate({ pathname: '/app/marketplace', search: next.toString() });
+        }
     };
 
     const handleSortChange = useCallback((value: string) => {
@@ -543,13 +558,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [setMarketTab]);
 
     useEffect(() => {
-        if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        if (isRfqSelected || marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
         analytics.track('market_slice_selected', {
             product: marketProduct,
             delivery_point: resolvedDeliveryPointId,
             window: availability,
         });
-    }, [availability, marketProduct, resolvedDeliveryPointId]);
+    }, [availability, marketProduct, resolvedDeliveryPointId, isRfqSelected]);
 
     useEffect(() => {
         if (marketTab !== 'market' || !highlightedOrderId) return;
@@ -601,11 +616,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [ready, t]);
 
     useEffect(() => {
-        if (marketTab === 'my_orders') fetchMyOrders();
+        if (!isRfqSelected && marketTab === 'my_orders') fetchMyOrders();
         return () => {
             latestMyOrdersRequest.current += 1;
         };
-    }, [marketTab, fetchMyOrders]);
+    }, [marketTab, fetchMyOrders, isRfqSelected]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
@@ -932,21 +947,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Render ───────────────────────────────────────────────────
     return (
         <div
-            className="h-full min-h-0 flex flex-col overflow-hidden"
-            data-tour-market-product={marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
-            data-tour-port={resolvedPort}
-            data-tour-window={availability}
+            className={isRfqSelected ? 'min-h-full flex flex-col' : 'h-full min-h-0 flex flex-col overflow-hidden'}
+            data-tour-market-product={isRfqSelected ? 'UCOME_B100' : marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
+            data-tour-port={isRfqSelected ? 'Singapore' : resolvedPort}
+            data-tour-window={isRfqSelected ? '' : availability}
             data-tour-tab={marketTab}
         >
             {/* Header */}
-            <div className="flex-none max-h-[50%] overflow-y-auto overscroll-contain px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80]">
+            <div className={`flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] ${isRfqSelected ? '' : 'max-h-[50%] overflow-y-auto overscroll-contain'}`}>
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t(configBase.subtitleKey)}</p>
+                            <p className="text-slate-500 mt-1 text-sm">{t(isRfqSelected ? 'marketplace.ucomeRfq.subtitle' : configBase.subtitleKey)}</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        {!isRfqSelected && <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
@@ -977,31 +992,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <Star size={15} fill={isCurrentSliceTracked ? 'currentColor' : 'none'} />
                                 <span>{isCurrentSliceTracked ? t('marketplace.btn.watchingMarket') : t('marketplace.btn.watchMarket')}</span>
                             </button>}
-                        </div>
+                        </div>}
                     </div>
                     {/* Unified filter rail */}
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
-                        <div>
-                            <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">{t('marketplace.ucomeRfq.title')}</p>
-                            <p className="mt-1 text-xs text-emerald-800 dark:text-emerald-300">{t('marketplace.ucomeRfq.body')}</p>
-                        </div>
-                        <Link to="/app/rfqs" className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
-                            {t('marketplace.ucomeRfq.action')}
-                        </Link>
-                    </div>
-
                     <div className="v-glass p-3 mb-3 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.products')}</span>
-                                        <span className="text-xs text-slate-400">{t('marketplace.metrics.productsHint')}</span>
+                                        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.ucomeRfq.products')}</span>
+                                        <span className="text-xs text-slate-400">{t('marketplace.ucomeRfq.productsHint')}</span>
                                     </div>
                                     <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                            const isActive = marketProduct === productCode;
-                                            const count = productCode === ALL_MARKET_PRODUCTS ? totalMarketProductCount : (marketProductCounts[productCode] || 0);
+                                            const isActive = isRfqSelected ? productCode === 'UCOME_B100' : marketProduct === productCode;
+                                            const count = productCode === ALL_MARKET_PRODUCTS ? 0 : (marketProductCounts[productCode] || 0);
                                             const label = productCode === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(productCode);
                                             return (
                                                 <button
@@ -1017,14 +1022,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
                                                     }`}
                                                 >
-                                                    {label}{count > 0 ? ` (${count})` : ''}
+                                                    {label}{productCode === 'UCOME_B100' ? <span className="ml-2 text-[10px] font-bold uppercase">{t('marketplace.ucomeRfq.badge')}</span> : !isRfqSelected && count > 0 ? ` (${count})` : ''}
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
 
-                                <button
+                                {!isRfqSelected && <button
                                     type="button"
                                     data-tour="marketplace-filter-toggle"
                                     aria-expanded={filtersExpanded}
@@ -1034,10 +1039,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 >
                                     <span>{filtersExpanded ? t('marketplace.filter.hide') : t('marketplace.filter.more')}</span>
                                     <ChevronDown size={14} className={`transition-transform ${filtersExpanded ? 'rotate-180' : ''}`} />
-                                </button>
+                                </button>}
                             </div>
 
-                            {filtersExpanded && (
+                            {!isRfqSelected && filtersExpanded && (
                                 <>
                                     <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
@@ -1115,7 +1120,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                     </div>
 
                     {/* Tab Switcher: Market | Orderbook | My Listings */}
-                    <div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
+                    {!isRfqSelected && <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
@@ -1174,13 +1179,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             : marketTab === 'orderbook'
                                 ? t('marketplace.viewHint.orderbook')
                                 : t('marketplace.viewHint.myOrders')}
-                    </p>
+                    </p></>}
 
                 </div>
             </div>
 
+            {isRfqSelected && <div className="px-4 pb-8 lg:px-10"><div className="mx-auto max-w-7xl">
+                {isMarketSupportActive ? <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{t('marketplace.ucomeRfq.supportUnavailable')}</div> : <FameRfqWorkspace embedded />}
+            </div></div>}
+
             {/* Error state */}
-            {marketTab === 'market' && error && !loading && !hasLoadedListings && (
+            {!isRfqSelected && marketTab === 'market' && error && !loading && !hasLoadedListings && (
                 <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div role="alert" className="v-card p-8 flex flex-col items-center text-center">
@@ -1202,13 +1211,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {marketTab === 'market' && error && hasLoadedListings && (
+            {!isRfqSelected && marketTab === 'market' && error && hasLoadedListings && (
                 <div role="alert" className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 lg:mx-10">
                     {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                 </div>
             )}
 
-            {marketTab === 'orderbook' && (
+            {!isRfqSelected && marketTab === 'orderbook' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
                         <div
@@ -1288,7 +1297,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* My Listings tab: user's outstanding orders */}
-            {marketTab === 'my_orders' && (
+            {!isRfqSelected && marketTab === 'my_orders' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
                         {myOrdersError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
@@ -1423,7 +1432,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* Market tab: listings table */}
-            {marketTab === 'market' && (!error || hasLoadedListings) && (
+            {!isRfqSelected && marketTab === 'market' && (!error || hasLoadedListings) && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto">
                         <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
@@ -1492,7 +1501,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
-            {selectedOrder && tradeState !== 'idle' && (
+            {!isRfqSelected && selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" data-tour="trade-modal">
                         {tradeState === 'success' ? (
@@ -1695,7 +1704,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <ConfirmModal
-                isOpen={Boolean(pendingCancellation)}
+                isOpen={!isRfqSelected && Boolean(pendingCancellation)}
                 onClose={() => setPendingCancellation(null)}
                 onConfirm={() => { void confirmCancelOrder(); }}
                 title={t('marketplace.cancel.title')}
@@ -1719,7 +1728,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </label>
             </ConfirmModal>
             <OrderPlaceModal
-                isOpen={orderModalSide !== null}
+                isOpen={!isRfqSelected && orderModalSide !== null}
                 onClose={() => {
                     setOrderModalSide(null);
                     void fetchData(true, currentSkip, true);

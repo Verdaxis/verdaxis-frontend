@@ -1,13 +1,44 @@
 import { describe, expect, it } from 'vitest';
 
 import { mapPortResponse } from '../services/api';
-import { computePortMarketData } from '../utils/buyerMapMarket';
+import { computePortMarketData, getUcomeMapLane } from '../utils/buyerMapMarket';
 import { filterPortsByActiveDeliveryPoints, resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS } from '../data';
-import type { AggregatedOrderbook } from '../types';
+import type { AggregatedOrderbook, Product, DeliveryPoint } from '../types';
 import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 
 describe('BuyerMap market data', () => {
+    it('offers UCOME only from active catalog Singapore coverage without adding liquidity', () => {
+        const singapore: DeliveryPoint = { id: 'singapore-catalog', name: 'Singapore', region: 'Asia', is_active: true };
+        const rotterdam: DeliveryPoint = { id: 'rotterdam-catalog', name: 'Rotterdam', region: 'Europe', is_active: true };
+        const product: Product = {
+            id: 'ucome', name: 'UCOME B100', market_product: 'UCOME_B100',
+            fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 1,
+            is_active: true, execution_mode: 'RFQ_ONLY',
+            available_delivery_point_ids: [singapore.id],
+        };
+        const lane = getUcomeMapLane([product], [singapore, rotterdam], PORTS);
+        expect(lane?.product).toBe(product);
+        expect(lane?.port.name).toBe('Singapore');
+        expect(getUcomeMapLane([{ ...product, is_active: false }], [singapore], PORTS)).toBeNull();
+        expect(getUcomeMapLane([{ ...product, execution_mode: 'ORDERBOOK' }], [singapore], PORTS)).toBeNull();
+        expect(getUcomeMapLane([{ ...product, available_delivery_point_ids: [rotterdam.id] }], [singapore, rotterdam], PORTS)).toBeNull();
+        expect(getUcomeMapLane([product], [{ ...singapore, is_active: false }], PORTS)).toBeNull();
+        expect(getUcomeMapLane([product], [], PORTS)).toBeNull();
+    });
+
+    it('does not borrow alcohol prices or volume when B100 is selected', () => {
+        const rows: AggregatedOrderbook[] = [{
+            market_product: 'BIO_METHANOL', product_name: 'Bio Methanol', fuel_type: 'Methanol',
+            delivery_point_name: 'Singapore', region: 'Asia', availability_window: 'SPOT',
+            side: 'ASK', min_price: 1000, max_price: 1000, total_quantity: 500, order_count: 1,
+        }];
+        expect(computePortMarketData(rows, 'Singapore', 'UCOME_B100')).toEqual({
+            totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null,
+        });
+        expect(computePortMarketData(rows, 'Singapore', 'Bio Methanol').reference?.price).toBe(1000);
+    });
+
     it('does not convert an RFQ product into a price reference through an alcohol display label', () => {
         const aggregated: AggregatedOrderbook[] = [{
             market_product: 'UCOME_B100',

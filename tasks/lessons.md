@@ -609,3 +609,15 @@
 - **Trigger:** A long-running suite overlapped a new consent regression test and its adapter fix, producing mixed-revision results.
 - **Rule:** Finish parallel code edits before starting acceptance tests. If source changes during the run, exclude that result and rerun from frozen inputs; do not change working code to satisfy a stale process.
 - **Why:** A test runner can retain transformed modules while loading newly edited tests, so that run does not verify one coherent revision.
+
+### Keep RFQ Products In Shared Market Discovery
+- **Date:** 2026-09-22
+- **Trigger:** The user asked why B100 was in a separate RFQ tab and missing from Marketplace and Map product filters.
+- **Rule:** Include catalog products in shared Marketplace and Map discovery. Let each product use its supported transaction method inside that flow. Keep RFQ coverage distinct from executable order counts, inventory, and price data.
+- **Why:** An execution boundary does not require a separate navigation destination or hiding a product from discovery.
+
+### Verify Public Map Configuration In Release Builds
+- **Date:** 2026-09-22
+- **Trigger:** Staging rendered a blank base map because a build-check placeholder passed the public-token prefix check.
+- **Rule:** Use the target environment's configured public Mapbox token for a release build, then verify a map style request and rendered map. Keep test fixture tokens out of published artifacts.
+- **Why:** A valid-looking prefix and a successful static build do not prove that the map service accepts the configuration.

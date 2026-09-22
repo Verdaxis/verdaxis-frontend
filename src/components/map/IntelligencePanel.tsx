@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Shield } from 'lucide-react';
 import { Port, Product, ForwardCurvePoint } from '../../types';
 import { api } from '../../services/api';
@@ -6,6 +7,7 @@ import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
 import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
 import { isOrderbookProduct } from '../../utils/marketProduct';
+import { UCOME_MARKETPLACE_PATH } from '../../utils/sliceUrl';
 
 const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
@@ -17,6 +19,8 @@ interface IntelligencePanelProps {
     portOptions?: Port[];
     onMapPortSelect?: (port: Port) => void;
     onPortSelect: (port: Port) => void;
+    rfqProduct?: Product;
+    rfqOnly?: boolean;
 }
 
 export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
@@ -27,9 +31,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     portOptions = [],
     onMapPortSelect,
     onPortSelect,
+    rfqProduct,
+    rfqOnly = false,
 }) => {
     const { t, ready } = useNamespace('dashboard');
-    const [activeTab, setActiveTab] = useState<'PRIMARY' | 'NEWS'>('NEWS');
+    const [activeTab, setActiveTab] = useState<'PRIMARY' | 'NEWS'>(rfqOnly ? 'PRIMARY' : 'NEWS');
 
     // Real forward curve data from API
     const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: 'contango' | 'backwardation'; sourceKey: 'productLevelReference' }[]>([]);
@@ -66,7 +72,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         : '--';
 
     useEffect(() => {
-        if (!active) return;
+        if (rfqOnly) setActiveTab('PRIMARY');
+    }, [rfqOnly]);
+
+    useEffect(() => {
+        if (!active || rfqOnly) return;
         let cancelled = false;
         (async () => {
             try {
@@ -102,12 +112,14 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             }
         })();
         return () => { cancelled = true; };
-    }, [active]);
+    }, [active, rfqOnly]);
 
 
     if (!ready) return null;
 
-    const primaryTabLabel = selectedPort ? t('intelligencePanel.tabs.portIntel') : t('intelligencePanel.tabs.estimator');
+    const primaryTabLabel = rfqOnly
+        ? t('intelligencePanel.rfq.tab')
+        : selectedPort ? t('intelligencePanel.tabs.portIntel') : t('intelligencePanel.tabs.estimator');
     const tabOptions = [
         { key: 'NEWS' as const, label: t('intelligencePanel.tabs.news') },
         { key: 'PRIMARY' as const, label: primaryTabLabel },
@@ -155,8 +167,39 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         </section>
     );
 
-    const primaryContent = selectedPort ? (
+    const rfqContent = (
+        <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div>
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    {t('intelligencePanel.rfq.wholesale')}
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('intelligencePanel.rfq.title')}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.description')}</p>
+            </div>
+            {rfqOnly && (
+                <>
+                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.quoteTerms')}</p>
+                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.evidence')}</p>
+                    {rfqProduct && rfqProduct.min_lot_size > 0 && (
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                            {t('intelligencePanel.rfq.minimumLot', { quantity: rfqProduct.min_lot_size, unit: rfqProduct.unit })}
+                        </p>
+                    )}
+                </>
+            )}
+            <Link
+                to={UCOME_MARKETPLACE_PATH}
+                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            >
+                {t('intelligencePanel.rfq.openMarketplace')}
+                <ArrowRight size={14} />
+            </Link>
+        </section>
+    );
+
+    const primaryContent = rfqOnly ? rfqContent : selectedPort ? (
         <>
+            {rfqProduct && rfqContent}
             {/* Market Price & Trend */}
             <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
@@ -290,11 +333,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <div className="mb-1 flex items-center space-x-2 text-[#5DADE2]">
                         <TrendingUp size={18} />
                         <span className="text-xs font-bold tracking-widest uppercase">
-                            {selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
+                            {rfqOnly ? t('intelligencePanel.rfq.wholesale') : selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
                         </span>
                     </div>
                     <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-slate-100">
-                        {selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
+                        {rfqOnly ? t('intelligencePanel.rfq.title') : selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
                     </h2>
                 </div>
                 <button 

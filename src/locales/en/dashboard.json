@@ -108,6 +108,14 @@
     "navigation": {
       "choosePort": "Go to port",
       "allPorts": "All ports"
+    },
+    "rfq": {
+      "title": "UCOME B100 · Singapore",
+      "description": "Wholesale RFQ lane. Confirm price and supply with the seller.",
+      "action": "Open B100 Marketplace",
+      "marker": "UCOME B100 · RFQ only",
+      "allPorts": "Show Singapore lane",
+      "legend": "RFQ lane · no market price or stock shown"
     }
   },
   "dataAnalytics": {
@@ -594,6 +602,16 @@
       },
       "openMarketplace": "Open {{port}} spot market",
       "selectPort": "Select a port to open Marketplace"
+    },
+    "rfq": {
+      "tab": "UCOME RFQ",
+      "wholesale": "RFQ-only wholesale",
+      "title": "Singapore UCOME B100",
+      "description": "Request UCOME B100 for wholesale delivery in Singapore. Set your quantity and delivery window in Marketplace.",
+      "quoteTerms": "Supplier quotes confirm price and available volume. This product has no live orderbook or forward price reference.",
+      "evidence": "Confirm origin, certification and declared carbon intensity for each consignment.",
+      "minimumLot": "Minimum request: {{quantity}} {{unit}}",
+      "openMarketplace": "Request UCOME B100 in Marketplace"
     }
   },
   "mapLegend": {
@@ -635,15 +653,15 @@
     "configureShort": "Configure",
     "configureHelp": "Choose one or more market products and delivery points. The ticker groups selected fuels under each port. Demo means seeded walkthrough activity; Reference means benchmark or model context, not executable liquidity.",
     "closeConfigure": "Close market watch configuration",
-    "products": "Products",
+    "products": "Priced fuels",
     "deliveryPoints": "Delivery Points",
     "pinnedCount": {
       "one": "{{count}} point",
       "other": "{{count}} points"
     },
     "productsCount": {
-      "one": "{{count}} fuel",
-      "other": "{{count}} fuels"
+      "one": "{{count}} priced fuel",
+      "other": "{{count}} priced fuels"
     },
     "pinHelp": "Select one or more",
     "scrollArea": "Scrollable market watch prices",

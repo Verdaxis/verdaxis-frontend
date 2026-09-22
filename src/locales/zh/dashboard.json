@@ -108,6 +108,14 @@
     "navigation": {
       "choosePort": "前往港口",
       "allPorts": "所有港口"
+    },
+    "rfq": {
+      "title": "UCOME B100 · 新加坡",
+      "description": "批发询价市场，价格和供货量需与卖方确认。",
+      "action": "打开 B100 交易市场",
+      "marker": "UCOME B100 · 仅限询价",
+      "allPorts": "显示新加坡交付点",
+      "legend": "询价交付点 · 不展示市场价格或库存"
     }
   },
   "dataAnalytics": {
@@ -594,6 +602,16 @@
       },
       "openMarketplace": "打开 {{port}} 现货市场",
       "selectPort": "选择港口以打开市场"
+    },
+    "rfq": {
+      "tab": "UCOME 询价",
+      "wholesale": "仅限批发询价",
+      "title": "新加坡 UCOME B100",
+      "description": "询购在新加坡交付的批发 UCOME B100。在市场中填写数量与交付时间。",
+      "quoteTerms": "价格与可供数量以供应商报价为准。该产品无实时订单簿或远期价格参考。",
+      "evidence": "逐批确认原料来源、认证与申报碳强度。",
+      "minimumLot": "最低询购量：{{quantity}} {{unit}}",
+      "openMarketplace": "前往市场询购 UCOME B100"
     }
   },
   "mapLegend": {
@@ -635,15 +653,15 @@
     "configureShort": "配置",
     "configureHelp": "选择一个或多个市场产品和交付点。行情条会按港口分组显示所选燃料。演示数据为预置的产品演示活动；参考数据为基准或模型背景，不代表可成交流动性。",
     "closeConfigure": "关闭市场监控配置",
-    "products": "产品",
+    "products": "报价燃料",
     "deliveryPoints": "交付点",
     "pinnedCount": {
       "one": "{{count}} 个点",
       "other": "{{count}} 个点"
     },
     "productsCount": {
-      "one": "{{count}} 种燃料",
-      "other": "{{count}} 种燃料"
+      "one": "{{count}} 种报价燃料",
+      "other": "{{count}} 种报价燃料"
     },
     "pinHelp": "选择一个或多个",
     "scrollArea": "可滚动的市场监控价格",

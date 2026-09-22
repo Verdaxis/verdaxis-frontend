@@ -181,6 +181,7 @@ vi.mock('../services/api', () => ({
       listAsks,
       listBids,
       myOrders,
+      productCounts: vi.fn().mockResolvedValue({ total: 0, counts: {} }),
     },
     trades: {
       initiate: tradesInitiate,
@@ -195,7 +196,7 @@ const emptyListings = { items: [], total: 0, skip: 0, limit: 8 };
 
 const LocationSpy: React.FC = () => {
   const location = useLocation();
-  return <div data-testid="location-pathname">{location.pathname}</div>;
+  return <><div data-testid="location-pathname">{location.pathname}</div><div data-testid="location-search">{location.search}</div></>;
 };
 
 const NavigateButton: React.FC<{ to: string }> = ({ to }) => {
@@ -280,7 +281,7 @@ describe('app routing', () => {
         ['/app/watchlist', 'page-watchlist', 'WATCHLISTS'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/trades', 'page-trades', 'TRADES'],
-        ['/app/rfqs', 'page-rfqs', 'RFQS'],
+        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/compliance', 'page-compliance', 'COMPLIANCE'],
         ['/app/training', 'page-training', 'TRAINING'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
@@ -300,7 +301,7 @@ describe('app routing', () => {
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
-        ['/app/rfqs', 'page-rfqs', 'RFQS'],
+        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
       for (const [path, marker, page] of cases) {
@@ -384,6 +385,15 @@ describe('app routing', () => {
       await waitFor(() => expect(currentPathname()).toBe('/app/marketplace'));
     });
 
+    it('restores legacy RFQ sessions inside Marketplace', async () => {
+      sessionStorage.setItem('verdaxis_currentPage', 'RFQS');
+      renderApp('/app');
+      expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
+      expect(currentPathname()).toBe('/app/marketplace');
+      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+      expect(dashboardPageAttr()).toBe('MARKETPLACE');
+    });
+
     it('maps INVENTORY, junk, and missing values to home', async () => {
       for (const stored of ['INVENTORY', 'NOT_A_PAGE', null]) {
         if (stored === null) {
@@ -435,6 +445,19 @@ describe('app routing', () => {
   });
 
   describe('marketplace slice URLs', () => {
+    it('opens B100 bookmarks in the Marketplace RFQ product view', async () => {
+      for (const path of ['/app/rfqs', '/app/m/ucome-b100/singapore/spot']) {
+        const view = renderApp(path);
+        expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
+        expect(currentPathname()).toBe('/app/marketplace');
+        expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+        expect(dashboardPageAttr()).toBe('MARKETPLACE');
+        expect(screen.queryByRole('button', { name: 'Post a Bid' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
+        view.unmount();
+      }
+    });
+
     it('preselects the slice from a valid deep link', async () => {
       renderApp('/app/m/bio-methanol/singapore/spot');
       await waitFor(() => {

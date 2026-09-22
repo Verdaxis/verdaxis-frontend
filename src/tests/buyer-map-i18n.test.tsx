@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 
@@ -8,6 +9,11 @@ import { renderWithProviders } from './test-utils';
 
 const themeMock = vi.hoisted(() => ({ theme: 'light' }));
 const portsListMock = vi.fn();
+const productsMock = vi.fn();
+const deliveryPointsMock = vi.fn();
+const addSourceMock = vi.fn();
+const mapOnMock = vi.fn();
+const popupHtmlMock = vi.fn();
 const mapOptionsMock = vi.fn();
 const fitBoundsMock = vi.fn();
 const flyToMock = vi.fn();
@@ -22,7 +28,7 @@ const removeMock = vi.fn();
 vi.mock('../services/api', () => ({
   api: {
     ports: { list: (...args: unknown[]) => portsListMock(...args) },
-    catalog: { deliveryPoints: vi.fn().mockResolvedValue([]) },
+    catalog: { deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args), products: (...args: unknown[]) => productsMock(...args) },
     orderbook: {
       mapSummary: (...args: unknown[]) => mapSummaryMock(...args),
     },
@@ -51,8 +57,8 @@ vi.mock('../components/map/MarketWatchTicker', () => ({
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
-  IntelligencePanel: ({ portOptions = [] }: { portOptions?: unknown[] }) => (
-    <div data-testid="fallback-port-count">{portOptions.length}</div>
+  IntelligencePanel: ({ portOptions = [], rfqOnly = false }: { portOptions?: unknown[]; rfqOnly?: boolean }) => (
+    <div data-testid="fallback-port-count" data-rfq-only={rfqOnly}>{portOptions.length}</div>
   ),
 }));
 
@@ -61,7 +67,7 @@ vi.mock('mapbox-gl', () => {
     constructor(options: unknown) { mapOptionsMock(options); }
     addControl() {}
     addLayer() {}
-    addSource() {}
+    addSource(...args: unknown[]) { addSourceMock(...args); }
     getCanvas() { return { style: {} }; }
     getLayer() { return undefined; }
     getSource() { return undefined; }
@@ -73,7 +79,7 @@ vi.mock('mapbox-gl', () => {
     flyTo(...args: unknown[]) { flyToMock(...args); }
     hasImage() { return true; }
     loaded() { return true; }
-    on() {}
+    on(...args: unknown[]) { mapOnMock(...args); }
     off() {}
     once(_event: string, callback: () => void) { callback(); }
     resize() { resizeMock(); }
@@ -84,10 +90,11 @@ vi.mock('mapbox-gl', () => {
   }
 
   class MockPopup {
+    element = document.createElement('div');
     addTo() { return this; }
-    getElement() { return document.createElement('div'); }
+    getElement() { return this.element; }
     remove() {}
-    setHTML() { return this; }
+    setHTML(html: string) { this.element.innerHTML = html; popupHtmlMock(html, this.element); return this; }
     setLngLat() { return this; }
   }
 
@@ -101,9 +108,19 @@ vi.mock('mapbox-gl', () => {
   };
 });
 
+function RouteProbe() {
+  const location = useLocation();
+  return <div data-testid="map-route">{location.pathname}{location.search}</div>;
+}
+
 describe('BuyerMap failure localization', () => {
   beforeEach(async () => {
     portsListMock.mockReset();
+    productsMock.mockReset().mockResolvedValue([]);
+    deliveryPointsMock.mockReset().mockResolvedValue([]);
+    addSourceMock.mockReset();
+    mapOnMock.mockReset();
+    popupHtmlMock.mockReset();
     mapOptionsMock.mockReset();
     fitBoundsMock.mockReset();
     flyToMock.mockReset();
@@ -227,6 +244,56 @@ describe('BuyerMap failure localization', () => {
     expect(screen.getByText('$999')).toBeTruthy();
     expect(screen.queryByText('$777')).toBeNull();
     expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
+  });
+
+  it.each(['en', 'zh'])('shows catalog UCOME coverage in All and limits its selected map to Singapore (%s)', async language => {
+    await i18n.changeLanguage(language);
+    vi.stubEnv('VITE_MAPBOX_PUBLIC_TOKEN', 'pk.test');
+    portsListMock.mockResolvedValue([]);
+    const singaporeId = '73835e92-820e-584b-8280-bb61c63aa28e';
+    productsMock.mockResolvedValue([{
+      id: 'e561e43f-d9b2-598e-981c-f1d28d515ddc', name: 'UCOME B100',
+      market_product: 'UCOME_B100', execution_mode: 'RFQ_ONLY', is_active: true,
+      available_delivery_point_ids: [singaporeId],
+    }]);
+    deliveryPointsMock.mockResolvedValue([{ id: singaporeId, name: 'Singapore', is_active: true }]);
+    renderWithProviders(<><BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} /><RouteProbe /></>);
+
+    const filter = await screen.findByRole('button', { name: 'UCOME B100' });
+    const action = language === 'zh' ? '打开 B100 交易市场' : 'Open B100 Marketplace';
+    expect(screen.getByRole('link', { name: action }).getAttribute('href')).toBe('/app/marketplace?product=UCOME_B100');
+    expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
+    fireEvent.click(filter);
+    expect(filter.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByTestId('fallback-port-count').textContent).toBe('1');
+    expect(screen.getByTestId('fallback-port-count').getAttribute('data-rfq-only')).toBe('true');
+    expect(flyToMock).toHaveBeenCalled();
+
+    await waitFor(() => {
+      const portSources = addSourceMock.mock.calls.filter(([name]) => name === 'ports');
+      const features = portSources.at(-1)?.[1].data.features;
+      expect(features).toHaveLength(1);
+      expect(features[0].properties).toMatchObject({
+        name: 'Singapore', rfqAvailable: true, referencePrice: 0, totalVolume: 0,
+      });
+    });
+    const latestSource = addSourceMock.mock.calls.filter(([name]) => name === 'ports').at(-1)?.[1];
+    const clickPort = mapOnMock.mock.calls.find(([event, layer]) => event === 'click' && layer === 'port-fills')?.[2];
+    act(() => clickPort({ features: latestSource.data.features }));
+    const popup = popupHtmlMock.mock.calls.at(-1)?.[0] ?? '';
+    expect(popup).toContain('/app/marketplace?product=UCOME_B100');
+    expect(popup).not.toContain('$');
+    expect(popup).not.toContain('Trade at');
+    expect(popup).not.toContain('市场可售量');
+    const popupElement = popupHtmlMock.mock.calls.at(-1)?.[1] as HTMLElement;
+    fireEvent.click(popupElement.querySelector('.verdaxis-ucome-link')!);
+    expect(screen.getByTestId('map-route').textContent).toBe('/app/marketplace?product=UCOME_B100');
+    expect(filter.getAttribute('aria-pressed')).toBe('true');
+    expect(removeMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: language === 'zh' ? '全部' : 'All' }));
+    expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
+    expect(screen.getByRole('link', { name: action })).toBeTruthy();
   });
 
   it('shows a map warning when the compact market summary is unavailable', async () => {

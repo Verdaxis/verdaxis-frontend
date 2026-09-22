@@ -72,7 +72,7 @@ src/
     BuyerMap.tsx                   # Mapbox GL JS intelligence map (Light/Dark v11) using approved ports and product-specific marketplace SPOT references
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
-    rfq/{FameRfqWorkspace,FameRfqForms}.tsx # /app/rfqs Singapore UCOME B100 requests, declared quote comparison, revisions and withdrawals; no execution
+    rfq/{FameRfqWorkspace,FameRfqForms}.tsx # Marketplace UCOME B100 requests, declared quote comparison, revisions and withdrawals; no execution
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
@@ -294,12 +294,15 @@ Catalog responses can include `execution_mode` and `available_delivery_point_ids
 metadata only for these established codes. An explicit `RFQ_ONLY` mode always blocks
 order creation.
 
-Marketplace exposes UCOME through a localized `/app/rfqs` link. UCOME market-slice
-links redirect there, and stale UCOME order prefills show the RFQ entry instead of
-silently selecting an alcohol product. Orderbook requests, displayed depth and trade
-actions exclude UCOME. Forward Curve, Intelligence Map, Market Watch and the public
-demo ticker retain alcohol-only product selection and filter incompatible response
-rows; adding an RFQ catalog product does not create a price curve or demo quote.
+Marketplace includes UCOME in its product selector and embeds the RFQ workspace at
+`/app/marketplace?product=UCOME_B100`. The former `/app/rfqs` route and UCOME
+market-slice bookmarks redirect to this product view. Stale UCOME order prefills
+link to the same view. The Intelligence Map includes catalog-approved Singapore
+RFQ coverage and opens this Marketplace view without inventing prices or stock.
+Orderbook requests, displayed depth and trade actions exclude UCOME. Forward
+Curve, Market Watch and the public demo ticker retain alcohol-only price data;
+adding an RFQ catalog product does not create a price curve or demo quote.
+Assisted organization sessions cannot open the embedded RFQ workflow.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user

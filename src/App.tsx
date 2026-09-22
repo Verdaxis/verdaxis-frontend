@@ -27,7 +27,7 @@ import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, PAGE_SLUGS, Port } from './types';
-import { MarketSlice, parseSlicePath, sliceToPath } from './utils/sliceUrl';
+import { MarketSlice, parseSlicePath, sliceToPath, UCOME_MARKETPLACE_PATH } from './utils/sliceUrl';
 import {
   cancelDashboardNavigation,
   recordDashboardNavigationStart,
@@ -66,7 +66,6 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
   return lazy(() => retryImport(load));
 }
 
-const FameRfqWorkspace = lazyWithRetry(() => import('./components/rfq/FameRfqWorkspace').then((module) => ({ default: module.FameRfqWorkspace })));
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
 const Compliance = lazyWithRetry(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
@@ -247,7 +246,7 @@ const pathToPage = (pathname: string): Page => {
     case 'home': return 'DASHBOARD';
     case 'map': return 'MAP';
     case 'marketplace': return 'MARKETPLACE';
-    case 'rfqs': return 'RFQS';
+    case 'rfqs': return 'MARKETPLACE';
     case 'curve': return 'FORWARD_CURVE';
     case 'watchlist': return 'WATCHLISTS';
     case 'analytics': return 'DATA_ANALYTICS';
@@ -445,6 +444,9 @@ const MarketplaceRoute: React.FC = () => {
   if (isSlicePath && !slice) {
     return <Navigate to="/app/marketplace" replace />;
   }
+  if (slice?.product === 'UCOME_B100') {
+    return <Navigate to={UCOME_MARKETPLACE_PATH} replace />;
+  }
 
   const initialPort = (location.state as MarketplaceLocationState | null)?.initialPort ?? null;
   return <Marketplace initialPort={initialPort} viewMode={viewMode} initialSlice={slice} />;
@@ -609,7 +611,7 @@ export const AppRoutes: React.FC = () => {
                         <Route path="home" element={<HomeRoute />} />
                         <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
-                        <Route path="rfqs" element={<SupportRestrictedRoute><FameRfqWorkspace /></SupportRestrictedRoute>} />
+                        <Route path="rfqs" element={<Navigate to={UCOME_MARKETPLACE_PATH} replace />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
                         <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />
