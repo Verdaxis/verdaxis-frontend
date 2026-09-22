@@ -66,6 +66,7 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
   return lazy(() => retryImport(load));
 }
 
+const FameRfqWorkspace = lazyWithRetry(() => import('./components/rfq/FameRfqWorkspace').then((module) => ({ default: module.FameRfqWorkspace })));
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
 const Compliance = lazyWithRetry(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
@@ -196,6 +197,7 @@ const OnboardingGuard = ({ children }: { children: React.ReactElement }) => {
 const DASHBOARD_PAGES = new Set<Page>([
   'MAP',
   'MARKETPLACE',
+  'RFQS',
   'COMPLIANCE',
   'TRAINING',
   'SETTINGS',
@@ -245,6 +247,7 @@ const pathToPage = (pathname: string): Page => {
     case 'home': return 'DASHBOARD';
     case 'map': return 'MAP';
     case 'marketplace': return 'MARKETPLACE';
+    case 'rfqs': return 'RFQS';
     case 'curve': return 'FORWARD_CURVE';
     case 'watchlist': return 'WATCHLISTS';
     case 'analytics': return 'DATA_ANALYTICS';
@@ -606,6 +609,7 @@ export const AppRoutes: React.FC = () => {
                         <Route path="home" element={<HomeRoute />} />
                         <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
+                        <Route path="rfqs" element={<SupportRestrictedRoute><FameRfqWorkspace /></SupportRestrictedRoute>} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
                         <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />

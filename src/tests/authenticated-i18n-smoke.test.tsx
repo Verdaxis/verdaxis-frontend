@@ -32,7 +32,7 @@ describe('authenticated Chinese i18n smoke coverage', () => {
 
     renderWithProviders(<ComplianceDataInput />);
 
-    expect(screen.getByRole('heading', { name: '上传燃油交付单（BDN）' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '燃料单据流程演示' })).toBeTruthy();
   });
 
   it('uses a translated safe analytics fallback instead of backend prose', async () => {

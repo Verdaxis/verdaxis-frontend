@@ -1,4 +1,5 @@
 import type { AggregatedOrderbook } from '../types';
+import { isOrderbookMarketProduct } from './marketProduct';
 
 export interface PortMarketRow {
     key: string;
@@ -41,8 +42,10 @@ const canonicalProductLabels = new Map([
 ]);
 
 const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
-    if (typeof row.market_product === 'string' && CANONICAL_PRODUCT_LABELS[row.market_product]) {
-        return CANONICAL_PRODUCT_LABELS[row.market_product];
+    if (row.market_product) {
+        return isOrderbookMarketProduct(row.market_product)
+            ? CANONICAL_PRODUCT_LABELS[row.market_product]
+            : null;
     }
 
     const productName = row.product_name?.trim();

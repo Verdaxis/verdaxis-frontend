@@ -4,7 +4,7 @@ export interface FuelAssumption {
     marketProduct: MarketProduct;
     label: string;
     energyDensityMjPerKg: number;
-    carbonIntensityGco2ePerMj: number;
+    carbonIntensityGco2ePerMj: number | null;
     referencePriceUsdPerMt: number;
 }
 
@@ -40,6 +40,7 @@ export const COMPLIANCE_ESTIMATOR_MESSAGE_CODES = {
     GREEN_CARBON_INTENSITY_NON_POSITIVE: 'greenCarbonIntensityNonPositive',
     ETS_COVERAGE_OUT_OF_RANGE: 'etsCoverageOutOfRange',
     SELECTED_FUEL_CI_ABOVE_TARGET: 'selectedFuelCiAboveTarget',
+    SELECTED_FUEL_CI_UNKNOWN: 'selectedFuelCiUnknown',
 } as const;
 
 export type ComplianceEstimatorMessageCode = typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES[keyof typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES];
@@ -60,12 +61,13 @@ export interface ComplianceEstimatorResult {
         displacedConventionalMt: number;
         blendedCarbonIntensityGco2ePerMj: number;
         blendedFuelCostEur: number;
-        blendedIndicativeEtsExposureEur: number;
+        blendedIndicativeEtsExposureEur: number | null;
         blendedFuelEuStyleShortfallEur: number;
         noFeasibleReason?: ComplianceEstimatorMessageCode;
     };
 }
 
+// Illustrative planning scenarios only; never infer a listing or batch CI from these.
 export const GREEN_FUEL_ASSUMPTIONS: FuelAssumption[] = [
     {
         marketProduct: 'BIO_METHANOL',
@@ -105,7 +107,8 @@ export const DEFAULT_COMPLIANCE_ESTIMATOR_INPUT: Omit<ComplianceEstimatorInput, 
     conventionalCarbonIntensityGco2ePerMj: 94,
     conventionalEmissionFactorTco2PerMt: 3.114,
     greenPriceUsdPerMt: 680,
-    planningTargetGco2ePerMj: 89.34,
+    // Regulation (EU) 2023/1805 Article 4: 91.16 * (1 - 2%) for 2025–2029.
+    planningTargetGco2ePerMj: 89.3368,
     euaPriceEurPerTco2: 75,
     etsCoverage: 0.5,
     usdToEur: 0.92,
@@ -142,7 +145,9 @@ const validateInput = (input: ComplianceEstimatorInput) => {
     if (!isPositive(input.greenFuel.energyDensityMjPerKg)) {
         errors.push(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.GREEN_ENERGY_DENSITY_NON_POSITIVE);
     }
-    if (!isPositive(input.greenFuel.carbonIntensityGco2ePerMj)) {
+    if (input.greenFuel.carbonIntensityGco2ePerMj !== null
+        && (!Number.isFinite(input.greenFuel.carbonIntensityGco2ePerMj)
+            || input.greenFuel.carbonIntensityGco2ePerMj < 0)) {
         errors.push(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.GREEN_CARBON_INTENSITY_NON_POSITIVE);
     }
     if (!Number.isFinite(input.etsCoverage) || input.etsCoverage < 0 || input.etsCoverage > 1) {
@@ -216,6 +221,10 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
     // Energy-weighted blend ratio: CI_blend = fossilCI * (1 - r) + greenCI * r.
     if (input.conventionalCarbonIntensityGco2ePerMj <= input.planningTargetGco2ePerMj) {
         ratio = 0;
+    } else if (input.greenFuel.carbonIntensityGco2ePerMj === null) {
+        ratio = null;
+        feasible = false;
+        noFeasibleReason = COMPLIANCE_ESTIMATOR_MESSAGE_CODES.SELECTED_FUEL_CI_UNKNOWN;
     } else if (input.greenFuel.carbonIntensityGco2ePerMj > input.planningTargetGco2ePerMj) {
         ratio = null;
         feasible = false;
@@ -230,17 +239,17 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
     const greenFuelMt = greenEnergyGJ / input.greenFuel.energyDensityMjPerKg;
     const displacedConventionalMt = greenEnergyGJ / input.conventionalEnergyDensityMjPerKg;
     const remainingConventionalMt = Math.max(0, conventionalFuelMt - displacedConventionalMt);
-    const blendedCarbonIntensityGco2ePerMj = feasible && ratio != null
+    const blendedCarbonIntensityGco2ePerMj = feasible && ratio != null && input.greenFuel.carbonIntensityGco2ePerMj !== null
         ? (input.conventionalCarbonIntensityGco2ePerMj * (1 - ratio)) + (input.greenFuel.carbonIntensityGco2ePerMj * ratio)
         : input.conventionalCarbonIntensityGco2ePerMj;
     const blendedFuelCostEur = (remainingConventionalMt * input.conventionalPriceUsdPerMt * input.usdToEur)
         + (greenFuelMt * input.greenPriceUsdPerMt * input.usdToEur);
-    const blendedIndicativeEtsExposureEur = estimateEtsExposure(
-        remainingConventionalMt,
-        input.conventionalEmissionFactorTco2PerMt,
-        input.euaPriceEurPerTco2,
-        input.etsCoverage,
-    );
+    // Lifecycle CI does not prove zero-rated combustion under maritime ETS.
+    // Keep the alternative-fuel case unknown until eligibility and all
+    // in-scope combustion emissions are provided. No savings are deducted.
+    const blendedIndicativeEtsExposureEur = greenFuelMt > 0 || !feasible
+        ? null
+        : indicativeEtsExposureEur;
     const blendedFuelEuStyleShortfallEur = estimateShortfall(
         blendedCarbonIntensityGco2ePerMj,
         input.planningTargetGco2ePerMj,
@@ -256,7 +265,8 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
         conventionalFuelCostEur: round(conventionalFuelCostEur),
         indicativeEtsExposureEur: round(indicativeEtsExposureEur),
         fuelEuStyleShortfallEur: round(fuelEuStyleShortfallEur),
-        totalConventionalEstimateEur: round(conventionalFuelCostEur + indicativeEtsExposureEur + fuelEuStyleShortfallEur),
+        // The FuelEU gap is a separate prototype, not an annual payable balance.
+        totalConventionalEstimateEur: round(conventionalFuelCostEur + indicativeEtsExposureEur),
         blend: {
             feasible,
             ratio: ratio == null ? null : round(ratio, 4),
@@ -264,7 +274,8 @@ export function estimateCompliancePlanning(input: ComplianceEstimatorInput): Com
             displacedConventionalMt: round(displacedConventionalMt, 1),
             blendedCarbonIntensityGco2ePerMj: round(blendedCarbonIntensityGco2ePerMj, 2),
             blendedFuelCostEur: round(blendedFuelCostEur),
-            blendedIndicativeEtsExposureEur: round(blendedIndicativeEtsExposureEur),
+            blendedIndicativeEtsExposureEur: blendedIndicativeEtsExposureEur === null
+                ? null : round(blendedIndicativeEtsExposureEur),
             blendedFuelEuStyleShortfallEur: round(blendedFuelEuStyleShortfallEur),
             noFeasibleReason,
         },

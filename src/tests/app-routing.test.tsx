@@ -98,6 +98,7 @@ vi.mock('../context/MarketSupportContext', () => ({
   MarketSupportProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: () => <div data-testid="page-rfqs">B100 RFQs</div> }));
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
@@ -279,6 +280,7 @@ describe('app routing', () => {
         ['/app/watchlist', 'page-watchlist', 'WATCHLISTS'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/trades', 'page-trades', 'TRADES'],
+        ['/app/rfqs', 'page-rfqs', 'RFQS'],
         ['/app/compliance', 'page-compliance', 'COMPLIANCE'],
         ['/app/training', 'page-training', 'TRAINING'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
@@ -298,6 +300,7 @@ describe('app routing', () => {
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
+        ['/app/rfqs', 'page-rfqs', 'RFQS'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
       for (const [path, marker, page] of cases) {

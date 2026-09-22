@@ -19,6 +19,68 @@ beforeEach(() => {
 });
 
 describe('orderbook inspection', () => {
+  it.each([
+    { marketProduct: 'UCOME_B100' },
+    { marketProduct: 'UNRECOGNIZED_PRODUCT' },
+    { fuelType: 'FAME' },
+  ])('does not request book data for unsupported product filters: %j', async (filters) => {
+    const openTrade = vi.fn();
+    await act(async () => {
+      renderWithProviders(<OrderBook {...filters} actionableSide="BID" onLevelClick={openTrade} onInstantTrade={openTrade} />);
+    });
+    expect(listBids).not.toHaveBeenCalled();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(openTrade).not.toHaveBeenCalled();
+  });
+
+  it('discards a pending alcohol response after switching to an RFQ product', async () => {
+    let resolveOld: (rows: unknown[]) => void = () => {};
+    listBids.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
+    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" actionableSide="BID" onLevelClick={vi.fn()} />);
+    await waitFor(() => expect(listBids).toHaveBeenCalledTimes(1));
+    view.rerender(<OrderBook marketProduct="UCOME_B100" actionableSide="BID" onLevelClick={vi.fn()} />);
+    await act(async () => resolveOld([bid]));
+    expect(listBids).toHaveBeenCalledTimes(1);
+    expect(listAsks).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('$600')).toBeNull();
+  });
+
+  it('stops polling when the selected product changes to RFQ-only', async () => {
+    vi.useFakeTimers();
+    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" />);
+    try {
+      await act(async () => {});
+      expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
+      expect(listBids).toHaveBeenCalledTimes(1);
+      expect(listAsks).toHaveBeenCalledTimes(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+      expect(listBids).toHaveBeenCalledTimes(2);
+      expect(listAsks).toHaveBeenCalledTimes(2);
+      view.rerender(<OrderBook marketProduct="UCOME_B100" />);
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+      expect(listBids).toHaveBeenCalledTimes(2);
+      expect(listAsks).toHaveBeenCalledTimes(2);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not expose RFQ rows returned by an unfiltered book request', async () => {
+    listBids.mockResolvedValue([
+      bid,
+      { ...bid, id: 'rfq', market_product: 'UCOME_B100', price_per_mt_usd: 1200 },
+      { ...bid, id: 'legacy-rfq', market_product: undefined, fuel_type: 'FAME', price_per_mt_usd: 1250 },
+    ]);
+    renderWithProviders(<OrderBook actionableSide="BID" onLevelClick={vi.fn()} onInstantTrade={vi.fn()} />);
+    expect(await screen.findByRole('button', { name: /bid.*600/i })).toBeTruthy();
+    expect(screen.queryByText('$1,200')).toBeNull();
+    expect(screen.queryByText('$1,250')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Sell' })).toHaveLength(1);
+  });
+
   it('formats API decimal strings as readable prices and quantities', async () => {
     listBids.mockResolvedValue([{ ...bid, price_per_mt_usd: '1260.20', remaining_quantity_mt: '1500' }]);
     renderWithProviders(<OrderBook />);
@@ -69,7 +131,7 @@ describe('orderbook inspection', () => {
     expect(screen.queryByRole('group', { name: /Bid \$600/ })).toBeNull();
     fireEvent.focus(current);
     expect(screen.getByRole('tooltip')).toBeTruthy();
-    view.rerender(<OrderBook marketProduct="BIO_ETHANOL" />);
+    await act(async () => view.rerender(<OrderBook marketProduct="BIO_ETHANOL" />));
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 });

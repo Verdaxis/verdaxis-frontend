@@ -137,7 +137,7 @@ prefix. See `docs/behavioral-analytics.md` for the privacy and event contract.
 
 - **API returns numbers as strings.** Always wrap numeric fields (`quantity_mt`, `final_quantity_mt`, `price_per_mt_usd`, `final_price_per_mt`, `final_total_usd`) with `Number()` before arithmetic or `.toFixed()` calls.
 - **Never commit `dist/` to git.** It's in `.gitignore`. If it gets force-added, run `git rm -r --cached dist/` to untrack it.
-- **RFQ UI is archived by default.** The code remains behind `VITE_ENABLE_RFQ=true`; orderbook/listing flows are the default marketplace model.
+- **UCOME B100 uses `/app/rfqs`.** This active wholesale Singapore pilot has versioned contract requirements and supplier-declared quotes, expiry and revisions. It does not execute trades or reserve inventory. Existing alcohol products continue to use orderbook/listing flows.
 - **In-app navigation is URL-routed.** Every authenticated view is a nested route under `/app` (see Routing). New authenticated pages need a child route in `App.tsx` plus a `Page` value and `PAGE_SLUGS` entry in `types.ts` so the sidebar, session restore, and `data-dashboard-page` contract keep working.
 - **AI keys must stay server-side.** `vite.config.ts` intentionally does not inject API keys into the client bundle; all Gemini calls go through backend `/api/ai/chat`.
 - **Authentik is historical only.** Authentik docs/env examples may exist for reference, but runtime auth is Verdaxis JWT. Do not add Authentik/OIDC dependencies back into the app.

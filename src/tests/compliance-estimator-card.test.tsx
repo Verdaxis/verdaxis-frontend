@@ -52,10 +52,10 @@ describe('ComplianceEstimatorCard', () => {
     expect(screen.getByText('Voyage segments')).toBeTruthy();
     expect(screen.getByLabelText('Segment 1')).toBeTruthy();
     expect(screen.getByLabelText('Days')).toBeTruthy();
-    expect(screen.getByLabelText('Green fuel pathway')).toBeTruthy();
+    expect(screen.getByLabelText('Illustrative fuel scenario')).toBeTruthy();
     expect(screen.getByLabelText('Daily burn (MT)')).toBeTruthy();
     expect(screen.getByLabelText('Conventional fuel ($/MT)')).toBeTruthy();
-    expect(screen.getByLabelText('EUA price (€/tCO2)')).toBeTruthy();
+    expect(screen.getByLabelText('Assumed EUA price (€/tCO2)')).toBeTruthy();
     expect(screen.getByText('25 voyage days · weighted ETS coverage 50%')).toBeTruthy();
     expect(screen.getByLabelText('Target CI (gCO2e/MJ)')).toBeTruthy();
   });
@@ -66,7 +66,7 @@ describe('ComplianceEstimatorCard', () => {
     const resultRegion = screen.getByRole('status');
     expect(resultRegion.getAttribute('aria-atomic')).toBe('true');
     expect(within(resultRegion).getByText('€362,250')).toBeTruthy();
-    expect(within(resultRegion).getByText('€518,789')).toBeTruthy();
+    expect(within(resultRegion).getByText('€464,428')).toBeTruthy();
     expect(within(resultRegion).getByText('€102,178')).toBeTruthy();
     expect(resultRegion.textContent).toContain('Estimator results');
 
@@ -81,7 +81,7 @@ describe('ComplianceEstimatorCard', () => {
     const resultRegion = screen.getByRole('status');
 
     fireEvent.change(screen.getByLabelText('Conventional fuel ($/MT)'), { target: { value: '500' } });
-    fireEvent.change(screen.getByLabelText('EUA price (€/tCO2)'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('Assumed EUA price (€/tCO2)'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('Segment 1'), { target: { value: 'INTRA_EU' } });
 
     expect(within(resultRegion).getByText('€402,500')).toBeTruthy();

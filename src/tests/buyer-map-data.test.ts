@@ -4,8 +4,36 @@ import { mapPortResponse } from '../services/api';
 import { computePortMarketData } from '../utils/buyerMapMarket';
 import { filterPortsByActiveDeliveryPoints, resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS } from '../data';
+import type { AggregatedOrderbook } from '../types';
+import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 
 describe('BuyerMap market data', () => {
+    it('does not convert an RFQ product into a price reference through an alcohol display label', () => {
+        const aggregated: AggregatedOrderbook[] = [{
+            market_product: 'UCOME_B100',
+            product_name: 'Bio Methanol',
+            fuel_type: 'Methanol',
+            delivery_point_name: 'Singapore',
+            availability_window: 'SPOT',
+            region: 'Singapore',
+            side: 'ASK',
+            min_price: 999,
+            max_price: 999,
+            total_quantity: 1000,
+            order_count: 1,
+            source_kind: 'DEMO_SEED',
+            demo_status: 'DEMO_ONLY',
+        }];
+
+        expect(computePortMarketData(aggregated, 'Singapore')).toEqual({
+            totalVolume: 0,
+            fuelRows: [],
+            spreadPct: 999,
+            reference: null,
+        });
+        expect(buildDemoMarketQuotes(aggregated)).toEqual([]);
+    });
+
     it('keeps the four seeded products separate instead of collapsing to two fuel buckets', () => {
         const aggregated = [
             {

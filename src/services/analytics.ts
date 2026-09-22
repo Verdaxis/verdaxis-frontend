@@ -7,7 +7,7 @@ export type ReliabilityRouteFamily = 'landing' | 'signup' | 'platform' | 'admin'
 export type FrontendErrorCategory = 'render' | 'chunk' | 'network' | 'unknown';
 export type NavigationDestination =
   | 'home' | 'map' | 'marketplace' | 'curve' | 'watchlist' | 'analytics'
-  | 'trades' | 'quotes' | 'compliance' | 'training' | 'settings' | 'admin';
+  | 'trades' | 'quotes' | 'rfqs' | 'compliance' | 'training' | 'settings' | 'admin';
 export type NavigationLatencyBucket = 'lt250' | '250_500' | '500_1000' | '1000_2500' | 'gte2500';
 type MarketSide = 'BID' | 'ASK';
 type DemoStatus = 'LIVE' | 'DEMO' | 'REFERENCE' | 'MIXED' | 'UNKNOWN';
@@ -113,7 +113,7 @@ const EVENT_SCHEMAS: { [K in keyof AnalyticsEventMap]: Record<string, Validator>
   navigation_performance: {
     destination: oneOf([
       'home', 'map', 'marketplace', 'curve', 'watchlist', 'analytics',
-      'trades', 'quotes', 'compliance', 'training', 'settings', 'admin',
+      'trades', 'quotes', 'rfqs', 'compliance', 'training', 'settings', 'admin',
     ] as const),
     view_mode: tradingRole,
     latency_bucket: oneOf(['lt250', '250_500', '500_1000', '1000_2500', 'gte2500'] as const),

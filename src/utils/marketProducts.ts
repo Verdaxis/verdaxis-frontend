@@ -1,6 +1,7 @@
-import type { MarketProduct } from '../types';
+import type { OrderbookMarketProduct } from '../types';
+import { formatMarketProduct } from './marketProduct';
 
-export type MarketplaceProductFilter = 'All' | MarketProduct;
+export type MarketplaceProductFilter = 'All' | OrderbookMarketProduct;
 
 export interface MarketplaceProductOption {
     value: MarketplaceProductFilter;
@@ -8,6 +9,8 @@ export interface MarketplaceProductOption {
     fuelType?: string;
 }
 
+// These selectors drive orderbook and price-monitoring requests. RFQ products
+// have their own discovery entry and must not be added to this executable list.
 export const MARKETPLACE_PRODUCT_OPTIONS: MarketplaceProductOption[] = [
     { value: 'All', label: 'All' },
     { value: 'BIO_METHANOL', label: 'Bio Methanol', fuelType: 'Methanol' },
@@ -17,7 +20,7 @@ export const MARKETPLACE_PRODUCT_OPTIONS: MarketplaceProductOption[] = [
 ];
 
 export const ACTIVE_MARKETPLACE_PRODUCT_OPTIONS = MARKETPLACE_PRODUCT_OPTIONS.filter(
-    (option): option is MarketplaceProductOption & { value: MarketProduct } => option.value !== 'All'
+    (option): option is MarketplaceProductOption & { value: OrderbookMarketProduct } => option.value !== 'All'
 );
 
 export const isMarketplaceProductFilter = (value: string | null): value is MarketplaceProductFilter =>
@@ -26,7 +29,7 @@ export const isMarketplaceProductFilter = (value: string | null): value is Marke
 export const getMarketplaceProductOption = (value: string | null | undefined): MarketplaceProductOption | undefined =>
     MARKETPLACE_PRODUCT_OPTIONS.find((option) => option.value === value);
 
-export const getMarketplaceProductValue = (value: string | null | undefined): MarketProduct | undefined => {
+export const getMarketplaceProductValue = (value: string | null | undefined): OrderbookMarketProduct | undefined => {
     if (!value || value === 'All') return undefined;
     const normalized = value.trim().toLowerCase();
     return ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.find(
@@ -56,5 +59,6 @@ export const getMarketplaceProductLabel = (
 ): string => {
     const option = getMarketplaceProductOption(marketProduct);
     if (option && option.value !== 'All') return option.label;
+    if (marketProduct === 'UCOME_B100') return formatMarketProduct(marketProduct);
     return fallbackFuelType || 'Unknown';
 };

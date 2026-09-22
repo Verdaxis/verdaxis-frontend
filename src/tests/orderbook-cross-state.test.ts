@@ -22,6 +22,18 @@ const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
 });
 
 describe('getExecutableCrossState', () => {
+  it('excludes RFQ products from executable cross calculations', () => {
+    const state = getExecutableCrossState(
+      [makeOrder({ id: 'rfq-bid', market_product: 'UCOME_B100', price_per_mt_usd: 1200 })],
+      [makeOrder({ id: 'real-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 650 })],
+    );
+
+    expect(state.hasCross).toBe(false);
+    expect(state.bidIds.size).toBe(0);
+    expect(state.askIds.size).toBe(0);
+    expect(state.spread).toBeNull();
+  });
+
   it('compares decimal strings from the API numerically, not alphabetically', () => {
     const bid = makeOrder({ id: 'bid', price_per_mt_usd: '995.00' as unknown as number });
     const ask = makeOrder({ id: 'ask', side: 'ASK', price_per_mt_usd: '1050.00' as unknown as number });

@@ -282,6 +282,7 @@ const privateRoutes: Array<{ pattern: RegExp; copy: LocalizedRouteMetadata }> = 
   { pattern: /^\/app\/watchlist\/?$/, copy: privateCopy('Watchlist', '关注列表', 'Review private tracked market slices and events.', '查看私密关注市场切片和事件。') },
   { pattern: /^\/app\/analytics\/?$/, copy: privateCopy('Market Analytics', '市场分析', 'Review private supply-and-demand analytics.', '查看私密供需分析。') },
   { pattern: /^\/app\/trades\/?$/, copy: privateCopy('Trade History', '交易历史', 'Review private account trade activity.', '查看私密账户交易活动。') },
+  { pattern: /^\/app\/rfqs\/?$/, copy: privateCopy('B100 RFQs', 'B100 询价', 'Review private UCOME B100 requests and supplier quotes.', '查看私密 UCOME B100 询价及供应商报价。') },
   { pattern: /^\/app\/quotes\/?$/, copy: privateCopy('Quotes', '报价', 'Review private supplier quote activity.', '查看私密供应商报价活动。') },
   { pattern: /^\/app\/compliance\/?$/, copy: privateCopy('Compliance', '合规', 'Review private fleet compliance information.', '查看私密船队合规信息。') },
   { pattern: /^\/app\/training\/?$/, copy: privateCopy('Training', '培训', 'Access private alternative-fuel training resources.', '访问私密替代燃料培训资源。') },

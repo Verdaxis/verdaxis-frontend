@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Loader2,
     MapPin,
@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ApiError, api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -41,7 +41,7 @@ import {
     normalizeAvailabilityWindow,
     SPOT_WINDOW,
 } from '../utils/availabilityWindow';
-import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
+import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -98,7 +98,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
-const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
+const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
 const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
 const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
@@ -106,7 +106,7 @@ const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_po
 function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
     const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
         ?? localStorage.getItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
-    return MARKET_PRODUCTS.includes(stored as MarketProduct) ? stored as MarketProduct : ALL_MARKET_PRODUCTS;
+    return isOrderbookMarketProduct(stored) ? stored : ALL_MARKET_PRODUCTS;
 }
 
 const PAGE_SIZE = 8;
@@ -166,7 +166,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
+    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => (
+        isOrderbookMarketProduct(initialSlice?.product) ? initialSlice.product : readStoredMarketProduct()
+    ));
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice) return initialSlice.window as AvailabilityWindow;
         const stored = localStorage.getItem('verdaxis_marketplace_window');
@@ -330,7 +332,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 countsRequest.catch(() => null),
             ]);
             if (requestId !== latestFetchRequest.current) return;
-            setListings(data.items);
+            setListings(data.items.filter((order) => isOrderbookMarketProduct(order.market_product)));
             setTotalCount(data.total);
             setCurrentSkip(data.skip);
             setMarketProductCounts(counts?.counts ?? {});
@@ -404,6 +406,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // navigation must re-sync; the useState initializers only cover mount.
     useEffect(() => {
         if (!initialSlice) return;
+        if (initialSlice.product === 'UCOME_B100') {
+            navigate('/app/rfqs', { replace: true });
+            return;
+        }
         setMarketProduct(initialSlice.product);
         setPortInput(initialSlice.port);
         setStoredDeliveryPointId('');
@@ -419,6 +425,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // with stale state mid slice→slice navigation and bounce the URL back.
     useEffect(() => {
         if (!location.pathname.startsWith('/app/m/')) return;
+        if (initialSlice?.product === 'UCOME_B100') return;
         const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
         const nextPath = isFullSlice
             ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
@@ -467,7 +474,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [availability, locale, marketProduct, resolvedPort, t]);
 
     const totalMarketProductCount = useMemo(
-        () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
+        () => ORDERBOOK_MARKET_PRODUCTS.reduce((sum, product) => sum + (marketProductCounts[product] || 0), 0),
         [marketProductCounts],
     );
 
@@ -555,6 +562,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
+        if (!isOrderbookMarketProduct(order.market_product)) return;
         if (order.market_product && order.delivery_point_id && order.availability_window) {
             analytics.track('listing_opened', {
                 product: order.market_product,
@@ -701,7 +709,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     };
 
     const confirmTrade = async () => {
-        if (!selectedOrder || tradeState === 'submitting' || tradeInFlightRef.current) return;
+        if (!selectedOrder || !isOrderbookMarketProduct(selectedOrder.market_product) || tradeState === 'submitting' || tradeInFlightRef.current) return;
         if (selectedOrder.is_demo_listing) {
             setTradeError(t('marketplace.demo.blocked'));
             setTradeState('error');
@@ -971,9 +979,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </button>}
                         </div>
                     </div>
-
-
                     {/* Unified filter rail */}
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                        <div>
+                            <p className="text-sm font-semibold text-emerald-950 dark:text-emerald-200">{t('marketplace.ucomeRfq.title')}</p>
+                            <p className="mt-1 text-xs text-emerald-800 dark:text-emerald-300">{t('marketplace.ucomeRfq.body')}</p>
+                        </div>
+                        <Link to="/app/rfqs" className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+                            {t('marketplace.ucomeRfq.action')}
+                        </Link>
+                    </div>
+
                     <div className="v-glass p-3 mb-3 relative z-[90]">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-start justify-between gap-3">
@@ -991,7 +1007,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 <button
                                                     type="button"
                                                     key={productCode}
-                                                    data-tour={productCode === MARKET_PRODUCTS[0] ? 'marketplace-product-sample' : undefined}
+                                                    data-tour={productCode === ORDERBOOK_MARKET_PRODUCTS[0] ? 'marketplace-product-sample' : undefined}
                                                     data-market-product={productCode}
                                                     aria-pressed={isActive}
                                                     onClick={() => handleProductChipClick(productCode)}

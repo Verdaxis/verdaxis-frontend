@@ -17,35 +17,36 @@
     "body": "Add vessels to your fleet to see compliance scores, EU ETS exposure, and FuelEU performance data. Navigate to My Fleet to register your vessels."
   },
   "overview": {
-    "title": "Fleet Compliance Overview",
-    "vessels_one": "{{count}} vessel · {{year}} YTD",
-    "vessels_other": "{{count}} vessels · {{year}} YTD",
+    "title": "Fleet Planning Scenarios",
+    "vessels_one": "{{count}} vessel · illustrative annual scenario",
+    "vessels_other": "{{count}} vessels · illustrative annual scenarios",
     "averageScore": "Avg Score"
   },
   "ets": {
-    "title": "EU ETS Exposure",
-    "period": "Period: {{year}} YTD",
-    "totalCo2": "Total Fleet CO2",
+    "unpriced": "Unpriced: in-scope combustion emissions are not provided.",
+    "title": "Illustrative EU ETS Exposure",
+    "period": "Assumed annual emissions and EUA price",
+    "totalCo2": "Assumed Fleet CO₂",
     "tonnes": "{{value}} tonnes",
-    "euaPrice": "EUA Price",
-    "estimatedCost": "Estimated Fleet Cost",
+    "euaPrice": "Assumed EUA Price",
+    "estimatedCost": "Scenario Fleet Cost",
     "buyAllowances": "Buy Allowances",
     "brokerageUnavailable": "Brokerage integration is under construction",
     "viewLedger": "View Ledger"
   },
   "fuelEu": {
-    "title": "FuelEU Fleet Performance",
+    "title": "FuelEU Planning Comparison",
     "intensityVsTarget": "GHG Intensity (gCO2eq/MJ) vs Target: {{target}}",
     "target": "Target: {{target}} gCO2eq/MJ"
   },
   "vessels": {
-    "title": "Vessel Scores",
+    "title": "Vessel Scenario Scores",
     "vessel": "Vessel",
     "score": "Score",
     "status": "Status",
     "cii": "CII",
     "fuelEuIntensity": "FuelEU Intensity",
-    "etsCost": "ETS Cost",
+    "etsCost": "ETS Scenario Cost",
     "recommendation": "Recommendation"
   },
   "status": {
@@ -58,7 +59,7 @@
   },
   "scenario": {
     "title": "What-If Fuel Scenario",
-    "subtitle": "Model how different fuel mixes affect compliance scores",
+    "subtitle": "Compare assumed fuel mixes; this does not verify annual compliance or savings",
     "vessel": "Vessel",
     "fuelMix": "Fuel Mix (fractions, sum to 1.0)",
     "total": "Total: {{total}}",
@@ -66,14 +67,14 @@
     "addFuel": "Add at least one fuel to the mix.",
     "invalidTotal": "Fuel fractions must sum to 1.0 (currently {{total}}).",
     "score": "Score: {{score}}",
-    "penalty": "Projected FuelEU Penalty: {{amount}}",
+    "penalty": "Illustrative FuelEU deficit penalty: {{amount}}",
     "help": "Configure a fuel mix and select Calculate to see projected compliance scores."
   },
   "recommendations": {
     "fuelMix": "Consider increasing the biofuel or methanol blend to meet FuelEU targets.",
     "etsExposure": "High ETS exposure — evaluate alternative fuels to reduce CO2 costs.",
     "cii": "CII rating declining — implement speed reduction or efficiency measures.",
-    "penalty": "Projected FuelEU penalty: EUR {{amount}}. Switch to compliant fuels to avoid it.",
+    "penalty": "Illustrative FuelEU deficit penalty: EUR {{amount}}. Verify annual eligible energy and flexibility measures.",
     "generic": "Review this vessel's compliance inputs and planned fuel mix."
   },
   "filings": {
@@ -87,27 +88,27 @@
     "downloadUnavailable": "Download feature is under construction"
   },
   "upload": {
-    "title": "Upload Bunker Delivery Note (BDN)",
-    "description": "Drag and drop a PDF or image here. AI will automatically extract verification data.",
-    "select": "Select File & Simulate Upload",
-    "processing": "Processing Document...",
-    "processingDescription": "Running OCR extraction and compliance checks.",
-    "review": "Verify Extracted Data",
-    "confidence": "High Confidence Match",
+    "title": "Bunker Document Workflow Demo",
+    "description": "Explore a sample BDN workflow. This demo does not read a file, verify fuel or save a compliance record.",
+    "select": "Run Example",
+    "processing": "Preparing Example...",
+    "processingDescription": "No document is being read or verified.",
+    "review": "Review Sample Data",
+    "confidence": "Example Data",
     "vessel": "Vessel Name",
     "port": "Bunkering Port",
     "fuel": "Fuel Type",
     "quantity": "Quantity (MT)",
     "cancel": "Cancel",
-    "confirm": "Confirm & Submit",
-    "success": "Data Ingested Successfully",
-    "successDescription": "Your compliance ledger has been updated. Verification ID: #BDN-2993"
+    "confirm": "Finish Example",
+    "success": "Example Complete",
+    "successDescription": "No ledger entry or verified evidence was created."
   },
   "tracing": {
-    "title": "End-to-End Traceability",
-    "subtitle": "Chain of Custody for Voyage #SG-RTM-299",
-    "verified": "Verified Green",
-    "nanolumi": "Nanolumi Verified",
+    "title": "Example Fuel Trace",
+    "subtitle": "Illustrative chain of custody; no consignment has been verified.",
+    "verified": "Demo Data",
+    "nanolumi": "Illustrative tracer reference",
     "events": {
       "tr-1": { "stage": "Origin", "description": "UCO Biomass Collection" },
       "tr-2": { "stage": "Production", "description": "Refinement to B100 Biofuel" },

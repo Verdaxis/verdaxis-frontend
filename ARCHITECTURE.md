@@ -28,12 +28,13 @@ src/
   index.tsx                        # ReactDOM entry, mounts <App /> into #root
   App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
   routeMetadata.ts                 # EN/ZH public catalog, private metadata, canonical and static-head generation
-  types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
+  types.ts                         # Shared TypeScript interfaces (Port, Vessel, Order, Trade...)
+  types/fameRfq.ts                 # Versioned UCOME B100 request/offer declarations and normalized RFQ responses
   utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
   utils/forwardCurveAxis.ts        # Chart-only delivery horizons and width-aware sparse/detailed tick layout
   utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
-  utils/marketProduct.ts           # Canonical green-fuels display labels and market-product helpers
+  utils/marketProduct.ts           # Canonical product labels and orderbook execution allowlist helpers
   utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
   data.ts                          # Static/mock seed data (ports, suppliers, courses)
   index.css                        # Tailwind base + global styles
@@ -47,7 +48,8 @@ src/
 
   services/
     config.ts                      # API_URL from VITE_API_URL env var
-    api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
+    api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades, RFQs...)
+    fameRfq.ts                     # RFQ response normalization; unknown measurements stay null; declared USD/GJ comparison
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
@@ -70,6 +72,7 @@ src/
     BuyerMap.tsx                   # Mapbox GL JS intelligence map (Light/Dark v11) using approved ports and product-specific marketplace SPOT references
     BuyerDashboard.tsx             # Order overview, active trades, quick actions
     Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
+    rfq/{FameRfqWorkspace,FameRfqForms}.tsx # /app/rfqs Singapore UCOME B100 requests, declared quote comparison, revisions and withdrawals; no execution
     OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
     ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
     DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
@@ -276,12 +279,27 @@ copy with explicit accessible labels, and crossed-market indicators only conside
 so seeded preview prices do not look executable.
 Canonical product selectors are catalog-driven rather than liquidity-driven, so Bio Methanol,
 e-Methanol, Bio Ethanol, and e-Ethanol remain visible even when a slice has no orders. The public
-price ticker joins active approved delivery points and active catalog products to the Demo
+price ticker joins active approved delivery points and active orderbook catalog products to the Demo
 orderbook, rendering every quoted pair in port-major order. The ticker and map Market Watch derive
 clearly labelled Demo midpoints from the nearest exact
 `market_product + delivery_point + availability_window` orderbook slice. They never present those
 values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
 the public market endpoints are temporarily unavailable.
+
+**UCOME RFQ boundary:** The catalog includes `UCOME_B100` (FAME biodiesel) for the
+Singapore RFQ pilot. `MARKET_PRODUCTS` describes all five catalog products;
+`ORDERBOOK_MARKET_PRODUCTS` contains only the four established alcohol products.
+Catalog responses can include `execution_mode` and `available_delivery_point_ids`.
+`isOrderbookProduct` requires an active alcohol product and accepts missing execution
+metadata only for these established codes. An explicit `RFQ_ONLY` mode always blocks
+order creation.
+
+Marketplace exposes UCOME through a localized `/app/rfqs` link. UCOME market-slice
+links redirect there, and stale UCOME order prefills show the RFQ entry instead of
+silently selecting an alcohol product. Orderbook requests, displayed depth and trade
+actions exclude UCOME. Forward Curve, Intelligence Map, Market Watch and the public
+demo ticker retain alcohol-only product selection and filter incompatible response
+rows; adding an RFQ catalog product does not create a price curve or demo quote.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
@@ -364,3 +382,21 @@ npm run preview      # Preview production build
 npm run test         # Vitest single run
 npm run test:watch   # Vitest watch mode
 ```
+
+## UCOME B100 RFQ pilot
+
+`/app/rfqs` is a first-class buyer/supplier sidebar route. It loads the RFQ-only
+UCOME product and permitted delivery point from the catalog. Buyers create
+versioned specification/commercial requirements; suppliers submit, revise and
+withdraw their own declared offers. Revisions use optimistic concurrency.
+Administrators retain the API's organization-scoped request visibility and cannot
+create or quote from this view;
+the route is unavailable in assisted organization contexts. Backend-computed
+`can_cancel` controls cancellation visibility. Historical supplier quotes remain
+viewable and retractable after request expiry.
+
+No RFQ acceptance or trade action is exposed. Requests and quotes reserve no
+inventory. Evidence states describe declarations and document availability, not
+verification. Optional CI remains null when absent. USD/GJ is shown only with a
+positive supplier-declared LHV and excludes engine efficiency/compliance value.
+The `rfq` locale namespace supplies English and Chinese copy.

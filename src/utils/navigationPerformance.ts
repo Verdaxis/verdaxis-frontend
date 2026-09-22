@@ -10,6 +10,7 @@ const PAGE_DESTINATIONS: Partial<Record<Page, NavigationDestination>> = {
   DASHBOARD: 'home',
   MAP: 'map',
   MARKETPLACE: 'marketplace',
+  RFQS: 'rfqs',
   FORWARD_CURVE: 'curve',
   WATCHLISTS: 'watchlist',
   ANALYTICS: 'analytics',

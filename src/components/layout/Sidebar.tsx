@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const { t } = useTranslation();
 
     const sidebarItems = buildPrimarySidebarItems(t).filter((item) => (
-        !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
+        !isMarketSupportActive || !['WATCHLISTS', 'TRADES', 'RFQS'].includes(item.key)
     ));
 
     const handleNavigate = (page: Page) => {

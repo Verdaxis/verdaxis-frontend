@@ -124,6 +124,8 @@ export interface MarketWatchItem {
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============
+export type ProductExecutionMode = 'ORDERBOOK' | 'RFQ_ONLY';
+
 export interface Product {
     id: string;
     name: string;
@@ -134,6 +136,8 @@ export interface Product {
     min_lot_size: number;
     spec_description?: string;
     is_active: boolean;
+    execution_mode?: ProductExecutionMode;
+    available_delivery_point_ids?: string[];
 }
 
 export interface DeliveryPoint {
@@ -148,13 +152,15 @@ export interface DeliveryPoint {
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
 
-export const MARKET_PRODUCTS = [
+export const ORDERBOOK_MARKET_PRODUCTS = [
     'BIO_METHANOL',
     'E_METHANOL',
     'BIO_ETHANOL',
     'SYNTHETIC_ETHANOL',
 ] as const;
 
+export type OrderbookMarketProduct = typeof ORDERBOOK_MARKET_PRODUCTS[number];
+export const MARKET_PRODUCTS = [...ORDERBOOK_MARKET_PRODUCTS, 'UCOME_B100'] as const;
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
@@ -413,7 +419,7 @@ export interface PortFuelAvailability {
     availability_level: AvailabilityLevel;
     avg_price_per_mt: number | null;
 }
-export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS';
+export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS' | 'RFQS';
 
 // URL slug under /app for every legacy Page value. Legacy pages that no
 // longer have their own view (INVENTORY, ORDERBOOK, DEMAND_FEED) map to
@@ -422,6 +428,7 @@ export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS
 export const PAGE_SLUGS: Record<Page, string> = {
     MAP: 'map',
     MARKETPLACE: 'marketplace',
+    RFQS: 'rfqs',
     COMPLIANCE: 'compliance',
     TRAINING: 'training',
     SETTINGS: 'settings',

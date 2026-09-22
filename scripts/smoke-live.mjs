@@ -23,11 +23,13 @@ const TARGETS = {
     app: 'https://app.verdaxis.exchange',
     api: 'https://api.verdaxis.exchange/api',
     expectedApiInBundle: 'https://api.verdaxis.exchange/api',
+    expectedProducts: EXPECTED_PRODUCTS,
   },
   staging: {
     app: 'https://staging.verdaxis.exchange',
     api: 'https://api-staging.verdaxis.exchange/api',
     expectedApiInBundle: 'https://api-staging.verdaxis.exchange/api',
+    expectedProducts: [...EXPECTED_PRODUCTS, 'UCOME_B100'],
   },
 };
 
@@ -103,7 +105,7 @@ async function smokeTarget(name, target) {
   const products = await fetchJson(`${target.api}/catalog/products`);
   assertExactSet(
     products.map((product) => product.market_product).filter(Boolean),
-    EXPECTED_PRODUCTS,
+    target.expectedProducts,
     `${name}: market products`
   );
 
@@ -118,6 +120,15 @@ async function smokeTarget(name, target) {
   const singapore = deliveryPoints.find((point) => point.name === 'Singapore');
   assert(bioMethanol?.id, `${name}: missing Bio Methanol product id`);
   assert(singapore?.id, `${name}: missing Singapore delivery point id`);
+
+  if (target.expectedProducts.includes('UCOME_B100')) {
+    const ucome = products.find((product) => product.market_product === 'UCOME_B100');
+    assert(ucome?.execution_mode === 'RFQ_ONLY', `${name}: UCOME must remain RFQ-only`);
+    assert(Number(ucome.min_lot_size) === 1, `${name}: UCOME platform input minimum mismatch`);
+    assertExactSet(ucome.available_delivery_point_ids ?? [], [singapore.id], `${name}: UCOME RFQ lane`);
+    const fameOrders = await fetchJson(`${target.api}/orderbook?market_product=UCOME_B100&limit=100`);
+    assert(Array.isArray(fameOrders) && fameOrders.length === 0, `${name}: RFQ-only UCOME leaked into executable orders`);
+  }
 
   const curveUrl = new URL(`${target.api}/curves/forward`);
   curveUrl.searchParams.set('product_id', bioMethanol.id);

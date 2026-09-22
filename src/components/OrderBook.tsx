@@ -4,7 +4,7 @@ import { AlertTriangle, TrendingUp, TrendingDown, Loader2, RefreshCw, Zap } from
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
-import { formatMarketProduct } from '../utils/marketProduct';
+import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import i18n from '../i18n';
 
@@ -26,9 +26,20 @@ interface OrderBookRow extends OrderBookOrder {
 const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
+function isOrderbookFuelType(fuelType: string | undefined): boolean {
+    return fuelType != null && ['methanol', 'ethanol'].includes(fuelType.trim().toLowerCase());
+}
+
+function isOrderbookOrder(order: OrderBookOrder): boolean {
+    // Preserve old alcohol rows without a canonical code, but fail closed for new products.
+    return order.market_product
+        ? isOrderbookMarketProduct(order.market_product)
+        : isOrderbookFuelType(order.fuel_type);
+}
+
 export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
     // API decimal fields can arrive as strings despite the frontend order type.
-    const hasLivePrice = (order: OrderBookOrder) => !order.is_demo_listing
+    const hasLivePrice = (order: OrderBookOrder) => isOrderbookOrder(order) && !order.is_demo_listing
         && Number.isFinite(Number(order.price_per_mt_usd)) && Number(order.price_per_mt_usd) > 0;
     const realBids = bids
         .filter(hasLivePrice)
@@ -79,9 +90,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
     const latestRequest = useRef(0);
+    const orderbookAvailable = (!marketProduct || isOrderbookMarketProduct(marketProduct))
+        && (!fuelType || isOrderbookFuelType(fuelType));
 
     const fetchData = useCallback(async (silent = false, force = false) => {
         const requestId = ++latestRequest.current;
+        if (!orderbookAvailable) {
+            setBids([]);
+            setAsks([]);
+            setHoverTooltip(null);
+            setError(null);
+            setLoading(false);
+            return;
+        }
         if (!silent) {
             setLoading(true);
             setHoverTooltip(null);
@@ -89,7 +110,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         try {
             const params = {
                 fuel_type: fuelType,
-                market_product: marketProduct as any,
+                market_product: isOrderbookMarketProduct(marketProduct) ? marketProduct : undefined,
                 region: deliveryPointId ? undefined : region,
                 delivery_point_id: deliveryPointId,
                 availability,
@@ -104,11 +125,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
 
             // Bids: highest price first (best bid at top)
             const sortedBids: OrderBookRow[] = [...rawBids]
+                .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => b.price_per_mt_usd - a.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
             // Asks: lowest price first (best ask at top)
             const sortedAsks: OrderBookRow[] = [...rawAsks]
+                .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
@@ -122,7 +145,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         } finally {
             if (requestId === latestRequest.current) setLoading(false);
         }
-    }, [fuelType, marketProduct, region, deliveryPointId, availability, t]);
+    }, [fuelType, marketProduct, region, deliveryPointId, availability, orderbookAvailable, t]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {
@@ -133,10 +156,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
 
     // 10-second polling
     useEffect(() => {
-        if (loading) return;
+        if (loading || !orderbookAvailable) return;
         const interval = setInterval(() => fetchData(true), POLL_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [fetchData, loading]);
+    }, [fetchData, loading, orderbookAvailable]);
 
     // Scale depth bars against the largest visible resting order so large positions still render proportionally.
     const maxQty = React.useMemo(() => {
@@ -163,6 +186,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+
+    if (!orderbookAvailable) {
+        return (
+            <div role="status" className="v-glass h-full p-6 flex items-center justify-center text-center text-sm text-slate-500 dark:text-slate-400">
+                {t('orderBook.rfqOnly')}
+            </div>
+        );
+    }
 
     if (loading) {
         return (

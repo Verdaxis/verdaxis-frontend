@@ -37,10 +37,11 @@ interface FuelEUData {
 }
 
 interface EUETSData {
-    total_co2_tonnes: string;
+    total_co2_tonnes: string | null;
     ets_price_per_tonne_eur: string;
     phase_in_pct: string;
-    estimated_cost_eur: string;
+    estimated_cost_eur: string | null;
+    calculation_status?: 'UNPRICED' | 'SCENARIO';
     score: number;
 }
 
@@ -106,7 +107,8 @@ const TrafficIcon: React.FC<{ light: string; size?: number }> = ({ light, size =
     return <ShieldX size={size} className="text-red-500" />;
 };
 
-const formatEur = (val: string | number, locale: string): string => {
+const formatEur = (val: string | number | null, locale: string): string => {
+    if (val === null) return '—';
     const num = typeof val === 'string' ? parseFloat(val) : val;
     if (isNaN(num)) return '\u20AC0';
     return new Intl.NumberFormat(locale, {
@@ -116,7 +118,8 @@ const formatEur = (val: string | number, locale: string): string => {
     }).format(num);
 };
 
-const formatNum = (val: string | number, locale: string, decimals = 1): string => {
+const formatNum = (val: string | number | null, locale: string, decimals = 1): string => {
+    if (val === null) return '—';
     const num = typeof val === 'string' ? parseFloat(val) : val;
     if (isNaN(num)) return '0';
     return num.toLocaleString(locale, { maximumFractionDigits: decimals });
@@ -261,14 +264,16 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
     }
 
     // --- Computed values ---
-    const totalETSCost = fleet.vessels.reduce(
-        (sum, v) => sum + parseFloat(v.eu_ets.estimated_cost_eur || '0'),
-        0,
+    const allEtsInputsKnown = fleet.vessels.every(v =>
+        v.eu_ets.estimated_cost_eur !== null && v.eu_ets.total_co2_tonnes !== null
+        && v.eu_ets.calculation_status !== 'UNPRICED',
     );
-    const totalCO2 = fleet.vessels.reduce(
-        (sum, v) => sum + parseFloat(v.eu_ets.total_co2_tonnes || '0'),
-        0,
-    );
+    const totalETSCost = allEtsInputsKnown ? fleet.vessels.reduce(
+        (sum, v) => sum + Number(v.eu_ets.estimated_cost_eur), 0,
+    ) : null;
+    const totalCO2 = allEtsInputsKnown ? fleet.vessels.reduce(
+        (sum, v) => sum + Number(v.eu_ets.total_co2_tonnes), 0,
+    ) : null;
     const avgEtsPrice = fleet.vessels.length > 0
         ? parseFloat(fleet.vessels[0].eu_ets.ets_price_per_tonne_eur || '68')
         : 68;
@@ -285,7 +290,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
     const fuelTarget = fleet.vessels.length > 0
         ? parseFloat(fleet.vessels[0].fueleu.target_intensity_gco2_mj)
-        : 89.34;
+        : 89.3368;
 
     return (
         <div className="animate-in fade-in duration-300">
@@ -329,7 +334,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     <div className="flex justify-between items-start mb-6">
                         <div>
                             <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-white">{t('ets.title')}</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('ets.period', { year: new Date().getFullYear() })}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{allEtsInputsKnown ? t('ets.period') : t('ets.unpriced')}</p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg text-[#5DADE2] dark:text-blue-400">
                             <PieChart size={20} />
@@ -354,8 +359,8 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                     {/* Per-vessel ETS breakdown */}
                     <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
                         {fleet.vessels.map(v => {
-                            const cost = parseFloat(v.eu_ets.estimated_cost_eur || '0');
-                            const pct = totalETSCost > 0 ? (cost / totalETSCost) * 100 : 0;
+                            const cost = v.eu_ets.estimated_cost_eur === null ? null : Number(v.eu_ets.estimated_cost_eur);
+                            const pct = totalETSCost && cost !== null ? (cost / totalETSCost) * 100 : 0;
                             return (
                                 <div key={v.vessel_id} className="flex items-center gap-2 text-xs">
                                     <TrafficIcon light={v.traffic_light} size={14} />
@@ -613,7 +618,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg text-center">
                                         <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">EU ETS</div>
-                                        <div className="text-lg font-bold text-[#334155] dark:text-white">{scenarioResult.eu_ets.score}</div>
+                                        <div className="text-lg font-bold text-[#334155] dark:text-white">{scenarioResult.eu_ets.calculation_status === 'UNPRICED' ? '—' : scenarioResult.eu_ets.score}</div>
                                         <div className="text-[10px] text-slate-400">{formatEur(scenarioResult.eu_ets.estimated_cost_eur, i18n.language)}</div>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg text-center">

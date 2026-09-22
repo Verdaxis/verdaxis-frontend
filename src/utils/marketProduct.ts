@@ -1,4 +1,4 @@
-import type { Product } from '../types';
+import { ORDERBOOK_MARKET_PRODUCTS, type OrderbookMarketProduct, type Product } from '../types';
 
 export type ProductReference = string | Product | null | undefined;
 
@@ -7,7 +7,20 @@ const MARKET_PRODUCT_LABELS: Record<string, string> = {
   BIO_ETHANOL: 'Bio Ethanol',
   E_METHANOL: 'e-Methanol',
   SYNTHETIC_ETHANOL: 'e-Ethanol',
+  UCOME_B100: 'UCOME B100',
 };
+
+export function isOrderbookMarketProduct(value: string | null | undefined): value is OrderbookMarketProduct {
+  return ORDERBOOK_MARKET_PRODUCTS.some((product) => product === value);
+}
+
+export function isOrderbookProduct(product: Product): boolean {
+  // Old catalog responses omit execution_mode. Only the established alcohol
+  // products may use that fallback; adding a catalog product never enables matching.
+  return product.is_active
+    && isOrderbookMarketProduct(product.market_product)
+    && (product.execution_mode == null || product.execution_mode === 'ORDERBOOK');
+}
 
 export function formatMarketProduct(value: string | null | undefined): string {
   if (!value) return '';

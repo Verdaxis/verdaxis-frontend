@@ -687,11 +687,14 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText('Unverified signal')).toBeNull();
   });
 
-  it('filters unsupported products out of forward rows and latest signals even on approved ports', async () => {
+  it.each(['CONVENTIONAL_METHANOL', 'UCOME_B100'])('filters %s out of forward rows and latest signals even on approved ports', async (unsupportedProduct) => {
+    localStorage.setItem('verdaxis_forward_curve_product', unsupportedProduct);
+    localStorage.setItem('verdaxis_forward_curve_delivery_point', 'dp-houston');
+    localStorage.setItem('verdaxis_forward_curve_window', 'SPOT');
     const unsupportedCell = {
       ...baseCell('BIO_METHANOL', 'dp-houston', 'Houston', 'SPOT', '777'),
-      market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
-      product_name: 'Legacy conventional methanol',
+      market_product: unsupportedProduct as MarketProduct,
+      product_name: unsupportedProduct,
       public_source_label: 'Unsupported product row',
     } as ForwardCurveMarketCell;
 
@@ -699,8 +702,8 @@ describe('ForwardCurveWorkspace', () => {
       ...makeTable(),
       rows: [
         {
-          row_key: 'CONVENTIONAL_METHANOL:dp-houston',
-          market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
+          row_key: `${unsupportedProduct}:dp-houston`,
+          market_product: unsupportedProduct as MarketProduct,
           delivery_point_id: 'dp-houston',
           delivery_point_name: 'Houston',
           region: 'North America',
@@ -717,7 +720,7 @@ describe('ForwardCurveWorkspace', () => {
       ],
       latest_signals: [
         {
-          market_product: 'CONVENTIONAL_METHANOL' as MarketProduct,
+          market_product: unsupportedProduct as MarketProduct,
           delivery_point_id: 'dp-houston',
           delivery_point_name: 'Houston',
           availability_window: 'SPOT',
@@ -738,7 +741,8 @@ describe('ForwardCurveWorkspace', () => {
 
     expect(screen.queryByText('$777')).toBeNull();
     expect(screen.queryByText(/Unsupported product/i)).toBeNull();
-    expect(screen.queryByText(/CONVENTIONAL_METHANOL/i)).toBeNull();
+    expect(screen.queryByText(unsupportedProduct)).toBeNull();
+    expect(screen.queryByText('UCOME B100')).toBeNull();
     await waitFor(() => {
       expect(sliceMock).toHaveBeenCalledWith({
         market_product: 'BIO_METHANOL',
@@ -746,6 +750,7 @@ describe('ForwardCurveWorkspace', () => {
         availability_window: 'SPOT',
       });
     });
+    expect(sliceMock).not.toHaveBeenCalledWith(expect.objectContaining({ market_product: unsupportedProduct }));
   });
 
   it('clears stale selected-period evidence while a newly selected slice is loading', async () => {

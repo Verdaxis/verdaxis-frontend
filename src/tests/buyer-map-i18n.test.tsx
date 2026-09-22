@@ -142,7 +142,7 @@ describe('BuyerMap failure localization', () => {
 
     expect(await screen.findByRole('region', { name: '交互式市场情报地图' })).toBeTruthy();
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
-    expect(screen.getByRole('alert').textContent).toContain('无法加载情报地图');
+    expect((await screen.findByRole('alert')).textContent).toContain('无法加载情报地图');
     fireEvent.click(screen.getByRole('button', { name: /图层/ }));
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[1]);
@@ -169,8 +169,26 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
-  it('renders availability and recent prices from the compact map summary', async () => {
+  it('renders orderbook availability and recent prices without including RFQ-only summary rows', async () => {
     portsListMock.mockResolvedValue([]);
+    const rfqOnlyRow = {
+      product_id: 'ucome-b100',
+      product_name: 'UCOME B100',
+      market_product: 'UCOME_B100',
+      fuel_type: 'FAME',
+      delivery_point_id: 'sg-sin',
+      delivery_point_name: 'Singapore',
+      availability_window: 'SPOT',
+      region: 'Singapore',
+      side: 'ASK',
+      min_price: '777',
+      max_price: '777',
+      total_quantity: '9999',
+      order_count: 1,
+      price_per_mt_usd: '777',
+      remaining_quantity_mt: '9999',
+      created_at: '2026-09-09T00:00:00Z',
+    };
     mapSummaryMock.mockResolvedValueOnce({
       groups: [{
         product_id: 'bio-methanol',
@@ -186,7 +204,7 @@ describe('BuyerMap failure localization', () => {
         max_price: '999',
         total_quantity: '1234',
         order_count: 1,
-      }],
+      }, rfqOnlyRow],
       recent_asks: [{
         product_id: 'bio-methanol',
         product_name: 'Bio Methanol',
@@ -198,7 +216,7 @@ describe('BuyerMap failure localization', () => {
         price_per_mt_usd: '999',
         remaining_quantity_mt: '1234',
         created_at: '2026-09-08T00:00:00Z',
-      }],
+      }, rfqOnlyRow],
     });
 
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
@@ -207,6 +225,7 @@ describe('BuyerMap failure localization', () => {
 
     expect(await screen.findByText('1,234 MT')).toBeTruthy();
     expect(screen.getByText('$999')).toBeTruthy();
+    expect(screen.queryByText('$777')).toBeNull();
     expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
   });
 

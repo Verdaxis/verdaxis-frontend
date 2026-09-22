@@ -8,7 +8,7 @@ import {
     getAvailabilityWindowOptions,
     normalizeAvailabilityWindow,
 } from '../utils/availabilityWindow';
-import { MARKET_PRODUCTS } from '../types';
+import { MARKET_PRODUCTS, ORDERBOOK_MARKET_PRODUCTS } from '../types';
 import { VerdaxisSelect } from '../components/ui/VerdaxisSelect';
 import { renderWithProviders } from './test-utils';
 
@@ -80,7 +80,9 @@ describe('Green Fuels Market Products', () => {
             'E_METHANOL',
             'BIO_ETHANOL',
             'SYNTHETIC_ETHANOL',
+            'UCOME_B100',
         ]);
+        expect(ORDERBOOK_MARKET_PRODUCTS).toEqual(MARKET_PRODUCTS.filter(product => product !== 'UCOME_B100'));
     });
 });
 

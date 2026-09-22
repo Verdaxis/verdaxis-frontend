@@ -272,6 +272,21 @@ describe('MarketWatchTicker', () => {
     expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
+  it('drops RFQ-only products from saved ticker preferences without requesting a price', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      products: ['UCOME_B100', 'BIO_METHANOL'],
+      portIds: ['sg-sin'],
+    }));
+
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    await waitFor(() => expect(priceSummariesMock).toHaveBeenCalled());
+    expect(priceSummariesMock.mock.calls.map(([params]) => params.market_product)).toEqual(['BIO_METHANOL']);
+    expect(screen.queryByText('UCOME B100')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
+    expect(screen.queryByRole('button', { name: /UCOME/ })).toBeNull();
+  });
+
   it('supports multi-fuel and more than three pinned delivery points', async () => {
     setSingleProductPreferences();
     renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);

@@ -1,3 +1,5 @@
+import type { FameRfqCreateInput, FameQuoteInput, FameRfq, FameQuote, FameRfqList } from '../types/fameRfq';
+import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from './fameRfq';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
 import {
@@ -1308,40 +1310,31 @@ export const api = {
     },
 
     rfq: {
-        create: async (data: { product_id: string; delivery_point_id?: string; quantity_mt: number; target_price_per_mt?: number; availability_window?: string; notes?: string; is_anonymous?: boolean; expires_in_hours?: number }) => {
-            return fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        create: async (data: FameRfqCreateInput): Promise<FameRfq> => {
+            return mapFameRfqResponse(await fetchApi('/rfq', { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
         },
-        list: async (params?: { status?: string; skip?: number; limit?: number }) => {
+        list: async (params?: { status?: string; product_id?: string; skip?: number; limit?: number }): Promise<FameRfqList> => {
             const sp = new URLSearchParams();
             if (params?.status) sp.append('status', params.status);
+            if (params?.product_id) sp.append('product_id', params.product_id);
             sp.append('skip', String(params?.skip ?? 0));
             sp.append('limit', String(params?.limit ?? 20));
-            return fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() });
+            return mapFameRfqListResponse(await fetchApi(`/rfq?${sp.toString()}`, { headers: getHeaders() }));
         },
-        get: async (id: string) => fetchApi(`/rfq/${id}`, { headers: getHeaders() }),
-        quote: async (rfqId: string, data: { price_per_mt_usd: number; notes?: string }) => {
-            return fetchApi(`/rfq/${rfqId}/quote`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
+        get: async (id: string): Promise<FameRfq> => {
+            return mapFameRfqResponse(await fetchApi(`/rfq/${encodeURIComponent(id)}`, { headers: getHeaders() }));
         },
-        accept: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/accept/${quoteId}`, { method: 'POST', headers: getHeaders() });
+        quote: async (rfqId: string, data: FameQuoteInput): Promise<FameQuote> => {
+            return mapFameQuoteResponse(await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quote`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }));
         },
-        cancel: async (rfqId: string) => {
-            return fetchApi(`/rfq/${rfqId}/cancel`, { method: 'POST', headers: getHeaders() });
+        cancel: async (rfqId: string): Promise<void> => {
+            await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/cancel`, { method: 'POST', headers: getHeaders() });
         },
-        decline: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/decline`, { method: 'POST', headers: getHeaders() });
+        revise: async (rfqId: string, quoteId: string, data: FameQuoteInput & { expected_revision: number }): Promise<FameQuote> => {
+            return mapFameQuoteResponse(await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quotes/${encodeURIComponent(quoteId)}`, { method: 'PUT', headers: getHeaders(), body: JSON.stringify(data) }));
         },
-        counter: async (rfqId: string, quoteId: string, data: { counter_price_per_mt: number }) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/counter`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        revise: async (rfqId: string, quoteId: string, data: { price_per_mt_usd: number }) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}`, { method: 'PATCH', headers: getHeaders(), body: JSON.stringify(data) });
-        },
-        withdraw: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/withdraw`, { method: 'POST', headers: getHeaders() });
-        },
-        sellerAccept: async (rfqId: string, quoteId: string) => {
-            return fetchApi(`/rfq/${rfqId}/quotes/${quoteId}/seller-accept`, { method: 'POST', headers: getHeaders() });
+        withdraw: async (rfqId: string, quoteId: string): Promise<void> => {
+            await fetchApi(`/rfq/${encodeURIComponent(rfqId)}/quotes/${encodeURIComponent(quoteId)}/withdraw`, { method: 'POST', headers: getHeaders() });
         },
     },
 

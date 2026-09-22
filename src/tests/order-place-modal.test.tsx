@@ -70,6 +70,30 @@ describe('OrderPlaceModal', () => {
     marketSupportControl.current = { context: null, isActive: false, isLoading: false };
   });
 
+  it('excludes UCOME from order creation even when execution metadata is missing', async () => {
+    const legacyProducts = await productsMock();
+    productsMock.mockResolvedValue([
+      { ...legacyProducts[0], id: 'ucome', name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME' },
+      ...legacyProducts,
+    ]);
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+
+    const selector = await screen.findByRole('combobox', { name: 'Order product' });
+    await waitFor(() => expect(selector.textContent).toContain('Bio Methanol'));
+    fireEvent.click(selector);
+    expect(screen.queryByRole('option', { name: /UCOME/i })).toBeNull();
+    expect(screen.getByRole('option', { name: /Bio Methanol/i })).toBeTruthy();
+  });
+
+  it('routes a stale UCOME order prefill to RFQs without changing its product to alcohol', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="UCOME_B100" />);
+
+    expect((await screen.findByRole('link', { name: 'Open UCOME RFQs' })).getAttribute('href')).toBe('/app/rfqs');
+    expect(screen.queryByRole('combobox', { name: 'Order product' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Place Bid' })).toBeNull();
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
   it('resets to the new canonical slice when reopened', async () => {
     const spotWindow: AvailabilityWindow = 'Spot';
     const prefillWindow = getAvailabilityWindowOptions({ timeZone: 'Europe/Amsterdam' })

@@ -25,7 +25,7 @@ describe('estimateCompliancePlanning', () => {
     expect(result.totalEnergyGJ).toBe(35350);
     expect(result.conventionalFuelMt).toBe(875);
     expect(result.blend.ratio).toBeCloseTo(0.0571, 4);
-    expect(result.blend.greenFuelMt).toBeCloseTo(101.4, 1);
+    expect(result.blend.greenFuelMt).toBeCloseTo(101.5, 1);
     expect(result.blend.displacedConventionalMt).toBeCloseTo(50, 0);
     expect(result.blend.blendedCarbonIntensityGco2ePerMj).toBeCloseTo(89.34, 2);
   });
@@ -83,10 +83,10 @@ describe('estimateCompliancePlanning', () => {
 
     expect(result.conventionalFuelCostEur).toBe(362250);
     expect(result.indicativeEtsExposureEur).toBe(102178);
-    expect(result.fuelEuStyleShortfallEur).toBe(54361);
-    expect(result.totalConventionalEstimateEur).toBe(518789);
+    expect(result.fuelEuStyleShortfallEur).toBe(54399);
+    expect(result.totalConventionalEstimateEur).toBe(464428);
     expect(result.blend.blendedFuelEuStyleShortfallEur).toBe(0);
-    expect(result.blend.blendedIndicativeEtsExposureEur).toBeLessThan(result.indicativeEtsExposureEur);
+    expect(result.blend.blendedIndicativeEtsExposureEur).toBeNull();
   });
 
   it('uses the declared conventional emission factor for EU ETS exposure estimates', () => {
@@ -95,6 +95,52 @@ describe('estimateCompliancePlanning', () => {
     }));
 
     expect(result.indicativeEtsExposureEur).toBe(131250);
-    expect(result.blend.blendedIndicativeEtsExposureEur).toBe(123755);
+    expect(result.blend.blendedIndicativeEtsExposureEur).toBeNull();
   });
+});
+
+
+it('keeps unknown CI unknown while preserving the conventional energy comparison', () => {
+  const result = estimateCompliancePlanning(makeInput({
+    greenFuel: { ...bioMethanol, carbonIntensityGco2ePerMj: null },
+  }));
+  expect(result.status).toBe('READY');
+  expect(result.totalEnergyGJ).toBe(35350);
+  expect(result.blend.ratio).toBeNull();
+  expect(result.blend.feasible).toBe(false);
+  expect(result.blend.blendedIndicativeEtsExposureEur).toBeNull();
+  expect(result.blend.noFeasibleReason).toBe(COMPLIANCE_ESTIMATOR_MESSAGE_CODES.SELECTED_FUEL_CI_UNKNOWN);
+});
+
+it('does not treat an explicitly declared zero CI as missing', () => {
+  const result = estimateCompliancePlanning(makeInput({
+    greenFuel: { ...bioMethanol, carbonIntensityGco2ePerMj: 0 },
+  }));
+  expect(result.status).toBe('READY');
+  expect(result.blend.feasible).toBe(true);
+  expect(result.blend.blendedIndicativeEtsExposureEur).toBeNull();
+});
+
+it('excludes the FuelEU proxy from the displayed fuel plus ETS scenario total', () => {
+  const result = estimateCompliancePlanning(makeInput({ shortfallFactorEurPerGco2eGJ: 10 }));
+  expect(result.fuelEuStyleShortfallEur).toBeGreaterThan(1000000);
+  expect(result.totalConventionalEstimateEur).toBe(464428);
+});
+
+
+it('uses equal-energy B100 input without treating it as certified or zero-rated', () => {
+  const result = estimateCompliancePlanning(makeInput({
+    conventionalCarbonIntensityGco2ePerMj: 91.16,
+    conventionalEnergyDensityMjPerKg: 42.7,
+    greenFuel: {
+      marketProduct: 'UCOME_B100', label: 'Declared B100 scenario',
+      carbonIntensityGco2ePerMj: 20, energyDensityMjPerKg: 37,
+      referencePriceUsdPerMt: 1100,
+    },
+    greenPriceUsdPerMt: 1100,
+  }));
+  expect(result.status).toBe('READY');
+  expect(result.blend.ratio).toBeCloseTo(0.0256, 4);
+  expect(result.blend.displacedConventionalMt / result.blend.greenFuelMt).toBeCloseTo(37 / 42.7, 2);
+  expect(result.blend.blendedIndicativeEtsExposureEur).toBeNull();
 });

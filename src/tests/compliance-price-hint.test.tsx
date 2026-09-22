@@ -9,7 +9,7 @@ const overlay: ListingComplianceOverlay = {
   penalty_avoided_usd_per_mt: '830.25',
   tco2e_avoided_per_mt: '1.197',
   ci_gco2_mj: '31',
-  ci_basis: 'PRODUCT_DEFAULT',
+  ci_basis: 'LISTING',
   lcv_mj_kg: '19.9',
   lcv_basis: 'PRODUCT_DEFAULT',
 };
@@ -27,42 +27,43 @@ const assumptions: ComplianceOverlayAssumptions = {
 };
 
 describe('CompliancePriceHint', () => {
-  it('renders USD penalty avoided and tCO2e from string decimals', () => {
+  it('shows the lifecycle comparison and leaves regulatory benefits unpriced', () => {
     renderWithProviders(<CompliancePriceHint overlay={overlay} assumptions={assumptions} />);
-
-    expect(screen.getByText('FuelEU −$830/MT')).toBeTruthy();
-    expect(screen.getByText('1.20 tCO₂e/MT avoided')).toBeTruthy();
+    expect(screen.getByText('Regulatory benefit unpriced')).toBeTruthy();
+    expect(screen.getByText('1.20 tCO₂e/MT lifecycle gap')).toBeTruthy();
+    // A stale server can still send a positive legacy penalty field. Never
+    // present that value as a price discount or earned financial benefit.
+    expect(screen.queryByText(/830/)).toBeNull();
   });
 
-  it('spells out assumptions and exclusions in the tooltip', () => {
+  it('labels declared CI, physical assumptions and missing financial evidence', () => {
     renderWithProviders(<CompliancePriceHint overlay={overlay} assumptions={assumptions} />);
-
-    const block = screen.getByTitle(/Indicative estimate only/);
-    expect(block.title).toContain('product default (proxy)');
-    expect(block.title).toContain('default 100% VLSFO fleet assumption');
-    expect(block.title).toContain('EUR/USD 1.08');
-    expect(block.title).toContain('RFNBO multiplier');
+    const block = screen.getByTitle(/Equal-energy lifecycle comparison/);
+    expect(block.title).toContain('listing-declared (31 gCO2e/MJ)');
+    expect(block.title).toContain('product default (proxy) (19.9 MJ/kg)');
+    expect(block.title).toContain('91.16 gCO2e/MJ');
+    expect(block.title).toContain('No ETS savings');
+    expect(block.title).toContain('contractual ownership');
   });
 
-  it('renders the zero case muted, not hidden', () => {
-    renderWithProviders(
-      <CompliancePriceHint
-        overlay={{ ...overlay, penalty_avoided_eur_per_mt: '0.00', penalty_avoided_usd_per_mt: '0.00', tco2e_avoided_per_mt: '0.000' }}
-        assumptions={assumptions}
-      />,
-    );
-
-    expect(screen.getByText('FuelEU −$0/MT')).toBeTruthy();
-  });
-
-  it('renders nothing when numbers are malformed', () => {
+  it('does not infer consignment CI from a product proxy', () => {
     const { container } = renderWithProviders(
-      <CompliancePriceHint
-        overlay={{ ...overlay, penalty_avoided_usd_per_mt: 'not-a-number' }}
-        assumptions={assumptions}
-      />,
+      <CompliancePriceHint overlay={{ ...overlay, ci_basis: 'PRODUCT_DEFAULT' }} assumptions={assumptions} />,
     );
+    expect(container.textContent).toBe('');
+  });
 
+  it('keeps an actual declared zero separate from unknown CI', () => {
+    renderWithProviders(
+      <CompliancePriceHint overlay={{ ...overlay, ci_gco2_mj: '0' }} assumptions={assumptions} />,
+    );
+    expect(screen.getByText('Regulatory benefit unpriced')).toBeTruthy();
+  });
+
+  it.each(['', 'not-a-number'])('hides unknown or invalid CI %s', ci => {
+    const { container } = renderWithProviders(
+      <CompliancePriceHint overlay={{ ...overlay, ci_gco2_mj: ci }} assumptions={assumptions} />,
+    );
     expect(container.textContent).toBe('');
   });
 });

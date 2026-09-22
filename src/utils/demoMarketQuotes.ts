@@ -1,18 +1,14 @@
-import type { AggregatedOrderbook, MarketProduct } from '../types';
+import type { AggregatedOrderbook, OrderbookMarketProduct } from '../types';
 import { compareAvailabilityWindows } from './availabilityWindow';
-import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from './marketProducts';
+import { isOrderbookMarketProduct } from './marketProduct';
 
 export interface DemoMarketQuote {
-  product: MarketProduct;
+  product: OrderbookMarketProduct;
   port: string;
   availabilityWindow: string;
   price: number;
   observedAt?: string;
 }
-
-const products = new Set<MarketProduct>(
-  ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value),
-);
 
 const isDemo = (row: AggregatedOrderbook) => (
   row.source_kind === 'DEMO_SEED'
@@ -22,7 +18,7 @@ const isDemo = (row: AggregatedOrderbook) => (
 
 export const buildDemoMarketQuotes = (rows: AggregatedOrderbook[]): DemoMarketQuote[] => {
   const slices = new Map<string, {
-    product: MarketProduct;
+    product: OrderbookMarketProduct;
     port: string;
     availabilityWindow: string;
     bestBid: number | null;
@@ -34,12 +30,12 @@ export const buildDemoMarketQuotes = (rows: AggregatedOrderbook[]): DemoMarketQu
     const product = row.market_product;
     const port = row.delivery_point_name?.trim();
     const availabilityWindow = row.availability_window?.trim();
-    if (typeof product !== 'string' || !products.has(product as MarketProduct)) return;
+    if (!isOrderbookMarketProduct(product)) return;
     if (!port || !availabilityWindow || !isDemo(row)) return;
 
     const key = `${product}|${port.toLowerCase()}|${availabilityWindow}`;
     const slice = slices.get(key) ?? {
-      product: product as MarketProduct,
+      product,
       port,
       availabilityWindow,
       bestBid: null,

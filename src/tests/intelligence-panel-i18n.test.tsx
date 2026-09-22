@@ -1,11 +1,13 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 
 import { IntelligencePanel } from '../components/map/IntelligencePanel';
 import { PORTS } from '../data';
 import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
+import { api } from '../services/api';
+import type { Product } from '../types';
 
 vi.mock('../services/api', () => ({
   api: {
@@ -19,8 +21,32 @@ vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimato
 
 describe('IntelligencePanel localization', () => {
   beforeEach(async () => {
+    vi.mocked(api.catalog.products).mockReset().mockResolvedValue([]);
+    vi.mocked(api.curves.forward).mockReset();
     await loadNamespace('dashboard');
     await i18n.changeLanguage('zh');
+  });
+
+  it('does not request a forward curve for an RFQ-only catalog product', async () => {
+    const alcoholProduct: Product = {
+      id: 'bio-methanol', name: 'Bio Methanol', market_product: 'BIO_METHANOL',
+      fuel_type: 'Methanol', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 100,
+      is_active: true,
+    };
+    vi.mocked(api.catalog.products).mockResolvedValue([
+      { ...alcoholProduct, id: 'ucome-b100', name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME', execution_mode: 'RFQ_ONLY' },
+      alcoholProduct,
+    ]);
+    vi.mocked(api.curves.forward).mockResolvedValue({
+      product_id: alcoholProduct.id, product_name: alcoholProduct.name, curve: [], generated_at: new Date().toISOString(),
+    });
+
+    renderWithProviders(
+      <IntelligencePanel isOpen onClose={vi.fn()} selectedPort={undefined} onPortSelect={vi.fn()} />,
+    );
+
+    await waitFor(() => expect(api.curves.forward).toHaveBeenCalled());
+    expect(api.curves.forward).toHaveBeenCalledExactlyOnceWith({ product_id: alcoholProduct.id });
   });
 
   afterEach(async () => {

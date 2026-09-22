@@ -5,6 +5,7 @@ import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
 import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
+import { isOrderbookProduct } from '../../utils/marketProduct';
 
 const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
@@ -70,7 +71,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         (async () => {
             try {
                 const products: Product[] = await api.catalog.products();
-                const activeProducts = products.filter(p => p.is_active).slice(0, 3);
+                const activeProducts = products.filter(isOrderbookProduct).slice(0, 3);
                 const results = await Promise.allSettled(
                     activeProducts.map(p => api.curves.forward({ product_id: p.id }))
                 );

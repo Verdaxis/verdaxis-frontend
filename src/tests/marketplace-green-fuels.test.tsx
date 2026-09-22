@@ -215,6 +215,42 @@ describe('Marketplace green fuels surface', () => {
     pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
+  it('makes UCOME RFQs discoverable without exposing an executable FAME market', async () => {
+    localStorage.setItem('verdaxis_marketplace_product', 'UCOME_B100');
+    listAsksPaged.mockResolvedValue({
+      ...listingsResponse,
+      items: [
+        ...listingsResponse.items,
+        { ...listingsResponse.items[0], id: 'ucome-order', product_name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME' },
+      ],
+      total: 2,
+    });
+    renderWithProviders(<Marketplace />);
+
+    expect((await screen.findByRole('link', { name: 'Open UCOME RFQs' })).getAttribute('href')).toBe('/app/rfqs');
+    await screen.findByRole('button', { name: 'Lift Ask' });
+    expect(screen.queryByRole('button', { name: /UCOME/i })).toBeNull();
+    expect(document.querySelector('[data-order-id="ucome-order"]')).toBeNull();
+    expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: undefined }));
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('redirects UCOME market links to RFQs without restoring an alcohol slice URL', async () => {
+    const CurrentLocation = () => {
+      const location = useLocation();
+      return <output data-testid="current-url">{location.pathname}</output>;
+    };
+    renderWithProviders(
+      <>
+        <CurrentLocation />
+        <Marketplace initialSlice={{ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' }} />
+      </>,
+      { route: '/app/m/UCOME_B100/Singapore/SPOT' },
+    );
+    await waitFor(() => expect(screen.getByTestId('current-url').textContent).toBe('/app/rfqs'));
+    expect(listAsksPaged.mock.calls.every(([params]) => params.market_product !== 'UCOME_B100')).toBe(true);
+  });
+
   it('shows canonical market product chips instead of generic fuel families', async () => {
     renderWithProviders(<Marketplace />);
 
@@ -848,7 +884,7 @@ describe('Marketplace green fuels surface', () => {
           penalty_avoided_usd_per_mt: '830.25',
           tco2e_avoided_per_mt: '1.197',
           ci_gco2_mj: '31',
-          ci_basis: 'PRODUCT_DEFAULT',
+          ci_basis: 'LISTING',
           lcv_mj_kg: '19.9',
           lcv_basis: 'PRODUCT_DEFAULT',
         },
@@ -862,9 +898,9 @@ describe('Marketplace green fuels surface', () => {
       expect(pricingOverlay).toHaveBeenCalledWith(['ask-1']);
     });
     await waitFor(() => {
-      expect(screen.getByText('FuelEU −$830/MT')).toBeTruthy();
+      expect(screen.getByText('Regulatory benefit unpriced')).toBeTruthy();
     });
-    expect(screen.getByText('1.20 tCO₂e/MT avoided')).toBeTruthy();
+    expect(screen.getByText('1.20 tCO₂e/MT lifecycle gap')).toBeTruthy();
   });
 
   it('degrades to no hint when the overlay fetch fails', async () => {
@@ -878,7 +914,7 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
     });
-    expect(screen.queryByText(/FuelEU −\$/)).toBeNull();
+    expect(screen.queryByText(/Regulatory benefit unpriced/)).toBeNull();
   });
 
   it('does not request overlays for bid listings (supplier view)', async () => {

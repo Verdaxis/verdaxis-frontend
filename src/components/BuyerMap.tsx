@@ -19,6 +19,7 @@ import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
+import { isOrderbookMarketProduct } from '../utils/marketProduct';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useSSE } from '../hooks/useSSE';
 
@@ -177,8 +178,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         try {
             const summary = await api.orderbook.mapSummary({ force });
             if (generation !== marketLoadGenerationRef.current) return;
-            setAggregatedData(summary.groups);
-            setRecentAsks(summary.recent_asks);
+            setAggregatedData(summary.groups.filter(group => isOrderbookMarketProduct(group.market_product)));
+            setRecentAsks(summary.recent_asks.filter(ask => isOrderbookMarketProduct(ask.market_product)));
             setMarketSummaryReady(true);
             setMarketDataError(false);
         } catch (error) {

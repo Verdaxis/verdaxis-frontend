@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { Activity, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Target, TrendingUp } from 'lucide-react';
 
 import { api } from '../services/api';
-import { MARKET_PRODUCTS } from '../types';
 import type {
     ForwardCurveBoardDepthLevel,
     ForwardCurveEvidenceLayer,
@@ -19,7 +18,7 @@ import type {
 } from '../types';
 import { formatAvailabilityWindow, formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import { getForwardCurveHorizon, getForwardCurveTicks, type ForwardCurveHorizon } from '../utils/forwardCurveAxis';
-import { formatMarketProduct } from '../utils/marketProduct';
+import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import type { MarketSlice } from '../utils/sliceUrl';
@@ -149,13 +148,9 @@ const pickInitialSelection = (table: ForwardCurveTableResponse): SelectedSlice |
     return preferred ? cellToSlice(preferred) : null;
 };
 
-const isApprovedMarketProduct = (marketProduct: string | null | undefined): marketProduct is MarketProduct => (
-    MARKET_PRODUCTS.includes(marketProduct as MarketProduct)
-);
-
 const filterApprovedForwardCurveTable = (response: ForwardCurveTableResponse): ForwardCurveTableResponse => {
     const rows = response.rows
-        .filter(row => isApprovedMarketProduct(row.market_product) && isApprovedTradingPortName(row.delivery_point_name))
+        .filter(row => isOrderbookMarketProduct(row.market_product) && isApprovedTradingPortName(row.delivery_point_name))
         .map(row => ({
             ...row,
             cells: Object.fromEntries(
@@ -181,7 +176,7 @@ const filterApprovedForwardCurveTable = (response: ForwardCurveTableResponse): F
         ...response,
         rows,
         latest_signals: response.latest_signals.filter(signal => (
-            isApprovedMarketProduct(signal.market_product)
+            isOrderbookMarketProduct(signal.market_product)
             && isApprovedTradingPortName(signal.delivery_point_name)
         )),
     };

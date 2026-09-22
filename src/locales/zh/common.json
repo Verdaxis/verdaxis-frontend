@@ -47,6 +47,7 @@
   "nav.openMenu": "打开菜单",
   "nav.closeMenu": "关闭菜单",
   "sidebar.intelligenceMap": "情报地图",
+  "sidebar.rfqs": "B100 询价",
   "sidebar.marketplace": "市场",
   "sidebar.orderbook": "订单簿",
   "sidebar.forwardCurve": "远期曲线",

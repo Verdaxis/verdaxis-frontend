@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
-import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS } from '../types';
+import { Link } from 'react-router-dom';
+import { Product, DeliveryPoint, AvailabilityWindow, MarketProduct } from '../types';
 import { useNamespace } from '../hooks/useNamespace';
 import {
     SPOT_WINDOW,
@@ -9,7 +10,7 @@ import {
 } from '../utils/availabilityWindow';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { api } from '../services/api';
-import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
+import { formatMarketProduct, getProductDisplayName, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
@@ -118,6 +119,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const trackedOpen = useRef(false);
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    const rfqOnlyRequested = prefillMarketProduct === 'UCOME_B100'
+        || /^(FAME|UCOME(?:[ _-]B100)?)$/i.test(prefillFuelType?.trim() ?? '');
     const { context: marketSupportContext } = useMarketSupport();
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -170,11 +173,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             api.catalog.products().catch(() => [] as Product[]),
             api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
         ]).then(([prods, dps]) => {
-            const activeProds = prods.filter(p => (
-                p.is_active
-                && p.market_product
-                && MARKET_PRODUCTS.includes(p.market_product)
-            ));
+            const activeProds = prods.filter(isOrderbookProduct);
             const activeDps = dps.filter(d => d.is_active && isApprovedTradingPortName(d.name));
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
@@ -185,7 +184,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     product.fuel_type.toLowerCase() === prefillFuelType.toLowerCase()
                     || product.name.toLowerCase().includes(prefillFuelType.toLowerCase())
                 ))
-            )) ?? activeProds[0];
+            )) ?? (rfqOnlyRequested ? undefined : activeProds[0]);
 
             const matchedDeliveryPoint = activeDps.find((point) => (
                 (prefillDeliveryPointId && point.id === prefillDeliveryPointId)
@@ -211,6 +210,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         prefillFuelType,
         prefillDeliveryPointId,
         prefillRegion,
+        rfqOnlyRequested,
         marketSupportContext,
     ]);
 
@@ -351,6 +351,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
     const isValid =
+        !rfqOnlyRequested &&
+        Boolean(selectedProduct && isOrderbookProduct(selectedProduct)) &&
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
         formData.quantity_mt > 0 &&
@@ -389,6 +391,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
         if (submissionInFlightRef.current) return;
+        if (rfqOnlyRequested || !selectedProduct || !isOrderbookProduct(selectedProduct)) return;
         if (selectedProduct?.market_product && selectedDeliveryPoint) {
             analytics.track('order_form_submitted', {
                 product: selectedProduct.market_product,
@@ -600,18 +603,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div>
                         <div className="flex items-center gap-3">
                             <h2 id="order-place-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
-                                {t('orderPlaceModal.title', { side: sideLabel })}
+                                {rfqOnlyRequested ? t('orderPlaceModal.rfqOnly.title') : t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
-                            <span className={`px-2 py-0.5 text-xs font-bold rounded ${
+                            {!rfqOnlyRequested && <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                                 side === 'BID'
                                     ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                             }`}>
                                 {sideLabel}
-                            </span>
+                            </span>}
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                            {side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
+                            {rfqOnlyRequested ? t('orderPlaceModal.rfqOnly.body') : side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
                         </p>
                     </div>
                     <button
@@ -625,7 +628,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
+                {rfqOnlyRequested ? (
+                    <div className="p-5">
+                        <Link to="/app/rfqs" onClick={handleClose} className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
+                            {t('orderPlaceModal.rfqOnly.action')}
+                        </Link>
+                    </div>
+                ) : <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
                             <div>
@@ -1033,7 +1042,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             )}
                         </button>
                     </div>
-                </form>
+                </form>}
             </div>
         </div>
     );

@@ -6,11 +6,11 @@ import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useServerPreference } from '../../hooks/useServerPreference';
 import { api } from '../../services/api';
-import type { AggregatedOrderbook, DeliveryPoint, MarketProduct, Port, PriceSummary } from '../../types';
+import type { AggregatedOrderbook, DeliveryPoint, OrderbookMarketProduct, Port, PriceSummary } from '../../types';
 import { formatAvailabilityWindow } from '../../utils/availabilityWindow';
 import { buildDemoMarketQuotes, type DemoMarketQuote } from '../../utils/demoMarketQuotes';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
-import { formatMarketProduct } from '../../utils/marketProduct';
+import { formatMarketProduct, isOrderbookMarketProduct } from '../../utils/marketProduct';
 import { filterApprovedTradingPorts } from '../../utils/tradingPorts';
 
 interface MarketWatchTickerProps {
@@ -25,14 +25,14 @@ type RowStatus = 'LOADING' | 'LIVE' | 'STALE' | 'DEMO' | 'REFERENCE' | 'MIXED' |
 type HeaderStatus = 'LOADING' | 'LIVE' | 'MIXED' | 'DEMO' | 'REFERENCE' | 'UNAVAILABLE';
 
 interface TickerPreferences {
-    products: MarketProduct[];
+    products: OrderbookMarketProduct[];
     portIds: string[];
 }
 
 interface TickerRow {
     key: string;
     port: Port;
-    product: MarketProduct;
+    product: OrderbookMarketProduct;
     value: string;
     change: string;
     up: boolean;
@@ -45,14 +45,14 @@ const DEFAULT_PINNED_PORT_COUNT = 5;
 const MIN_AUTO_SCROLL_ROWS = 4;
 const EMPTY_AGGREGATED_DATA: AggregatedOrderbook[] = [];
 
-const DEMO_PREVIEW_PRICES: Record<MarketProduct, number> = {
+const DEMO_PREVIEW_PRICES: Record<OrderbookMarketProduct, number> = {
     BIO_METHANOL: 960,
     E_METHANOL: 1150,
     BIO_ETHANOL: 850,
     SYNTHETIC_ETHANOL: 1240,
 };
 
-const productValues = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value);
+const productValues = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value).filter(isOrderbookMarketProduct);
 const DEFAULT_PRODUCTS = productValues;
 
 const normalize = (value: string | null | undefined) => (value ?? '').trim().toLowerCase();
@@ -97,8 +97,8 @@ const sanitizePreferences = (value: unknown, availablePorts: Port[]): TickerPref
             ? [data.product]
             : DEFAULT_PRODUCTS;
     const products = Array.from(new Set(
-        rawProducts.filter((product): product is MarketProduct => (
-            typeof product === 'string' && productValues.includes(product as MarketProduct)
+        rawProducts.filter((product): product is OrderbookMarketProduct => (
+            typeof product === 'string' && isOrderbookMarketProduct(product)
         ))
     ));
     const allowedPortIds = new Set(availablePorts.map(port => port.id));
@@ -113,7 +113,7 @@ const sanitizePreferences = (value: unknown, availablePorts: Port[]): TickerPref
     };
 };
 
-const findMatchingSummary = (summaries: PriceSummary[], product: MarketProduct, deliveryPointId: string) => {
+const findMatchingSummary = (summaries: PriceSummary[], product: OrderbookMarketProduct, deliveryPointId: string) => {
     return summaries.find(summary => (
         summary.market_product === product
         && summary.delivery_point_id === deliveryPointId
@@ -149,7 +149,7 @@ const getSummaryStatus = (summary: PriceSummary): RowStatus => {
     return hoursOld <= 24 ? 'LIVE' : 'STALE';
 };
 
-const buildDemoRow = (port: Port, product: MarketProduct, language: string, quote?: DemoMarketQuote): TickerRow => {
+const buildDemoRow = (port: Port, product: OrderbookMarketProduct, language: string, quote?: DemoMarketQuote): TickerRow => {
     return {
         key: `${product}-${port.id}`,
         port,
@@ -161,7 +161,7 @@ const buildDemoRow = (port: Port, product: MarketProduct, language: string, quot
     };
 };
 
-const buildLoadingRow = (port: Port, product: MarketProduct): TickerRow => ({
+const buildLoadingRow = (port: Port, product: OrderbookMarketProduct): TickerRow => ({
     key: `${product}-${port.id}`,
     port,
     product,
@@ -171,7 +171,7 @@ const buildLoadingRow = (port: Port, product: MarketProduct): TickerRow => ({
     status: 'LOADING',
 });
 
-const buildSummaryRow = (port: Port, product: MarketProduct, summary: PriceSummary): TickerRow | null => {
+const buildSummaryRow = (port: Port, product: OrderbookMarketProduct, summary: PriceSummary): TickerRow | null => {
     const price = getSummaryPrice(summary);
     if (price == null) return null;
 
@@ -299,7 +299,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
             const slices = selectedPorts.flatMap(port => selectedProducts.map(product => ({ port, product })));
             setRows(slices.map(({ port, product }) => buildLoadingRow(port, product)));
             if (deliveryPoints === null) return;
-            const summariesByProduct = new Map<MarketProduct, PriceSummary[]>();
+            const summariesByProduct = new Map<OrderbookMarketProduct, PriceSummary[]>();
             await Promise.all(selectedProducts.map(async product => {
                 try {
                     const response = await api.prices.getSummaries({
@@ -354,7 +354,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         });
     };
 
-    const toggleProduct = (product: MarketProduct) => {
+    const toggleProduct = (product: OrderbookMarketProduct) => {
         setPreferences(current => {
             if (current.products.includes(product)) {
                 const nextProducts = current.products.filter(item => item !== product);
