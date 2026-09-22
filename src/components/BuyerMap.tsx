@@ -615,7 +615,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         'text-anchor': 'top',
                     },
                     paint: {
-                        'text-color': '#6366F1',
+                        'text-color': isDarkRef.current ? '#A5B4FC' : '#4338CA',
                         'text-halo-color': isDarkRef.current ? '#0F172A' : '#FFFFFF',
                         'text-halo-width': 2,
                     },

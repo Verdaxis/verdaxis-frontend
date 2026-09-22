@@ -1022,7 +1022,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
                                                     }`}
                                                 >
-                                                    {label}{productCode === 'UCOME_B100' ? <span className="ml-2 text-[10px] font-bold uppercase">{t('marketplace.ucomeRfq.badge')}</span> : !isRfqSelected && count > 0 ? ` (${count})` : ''}
+                                                    {label}{productCode === 'UCOME_B100' ? <span className="ml-2 text-[10px] font-bold uppercase"> {t('marketplace.ucomeRfq.badge')}</span> : !isRfqSelected && count > 0 ? ` (${count})` : ''}
                                                 </button>
                                             );
                                         })}
