@@ -37,9 +37,9 @@ The chat's outreach list, customer qualification, laboratory agreement, standard
 - [x] RFQ workspace and localization verified.
 - [x] Compliance corrections verified.
 - [x] Frozen-source acceptance and local browser checks completed.
-- [ ] Staging branches consolidated.
+- [x] Staging branches consolidated.
 - [ ] Staging deployment and authenticated live browser checks verified.
 
 Validation: 625 frontend tests, 1,628 backend unit/security/monitor tests (one skipped), 58 Linux deployment-script tests, 17 new PostgreSQL RFQ cases, and 30 existing PostgreSQL checks pass. Typecheck, translation completeness, staging build and artifact checks pass. Local browser review covers buyer creation, quote submission/revision/withdrawal, missing CI, declarations, English/Chinese, 1440/1024 widths, and the existing mobile desktop-access message.
 
-Deployment is currently blocked: the documented SSH account rejects available authentication keys. The final live deployment and authenticated staging review remain pending server access. No production change is authorized or made.
+Deployment is currently blocked: the documented SSH account rejects available authentication keys. Both release commits were pushed to their staging branches. A final SSH check also timed out. The final live deployment and authenticated staging review remain pending server access. No production change is authorized or made.
