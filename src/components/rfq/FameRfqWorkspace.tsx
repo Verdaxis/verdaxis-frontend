@@ -104,6 +104,7 @@ export function FameRfqWorkspace() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selected, setSelected] = useState<FameRfq | null>(null);
     const [loading, setLoading] = useState(true);
+    const [listReady, setListReady] = useState(false);
     const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pending, setPending] = useState(false);
@@ -126,19 +127,22 @@ export function FameRfqWorkspace() {
     useEffect(() => {
         let current = true;
         setLoading(true);
+        setListReady(false);
         setError(null);
         Promise.all([api.catalog.products(), api.catalog.deliveryPoints()]).then(async ([products, points]) => {
             const product = products.find((entry) => entry.market_product === 'UCOME_B100' && entry.is_active);
             const deliveryPoint = points.find((entry) => entry.is_active && product?.available_delivery_point_ids?.includes(entry.id));
             if (!product || !deliveryPoint) {
-                if (current) { setCatalog(null); setItems([]); setTotal(0); setSelectedId(null); }
+                if (current) { setCatalog(null); setItems([]); setTotal(0); setSelectedId(null); setListReady(true); }
                 return;
             }
-            const response = await api.rfq.list({ product_id: product.id, skip: page * PAGE_SIZE, limit: PAGE_SIZE });
             if (!current) return;
             setCatalog({ product, deliveryPoint });
+            const response = await api.rfq.list({ product_id: product.id, skip: page * PAGE_SIZE, limit: PAGE_SIZE });
+            if (!current) return;
             setItems(response.items);
             setTotal(response.total);
+            setListReady(true);
             setSelectedId((id) => response.items.some((item) => item.id === id) ? id : response.items[0]?.id ?? null);
         }).catch(() => { if (current) setError('loadError'); }).finally(() => { if (current) setLoading(false); });
         return () => { current = false; };
@@ -209,7 +213,7 @@ export function FameRfqWorkspace() {
             </div>
             <div className="flex gap-2">
                 <button type="button" className={secondaryButton} disabled={loading || pending} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} />{t('refresh')}</button>
-                {user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || loading || pending} onClick={() => { setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
+                {user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || !listReady || loading || pending} onClick={() => { setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
             </div>
         </header>
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{t('pilotNotice')}</div>
@@ -221,7 +225,7 @@ export function FameRfqWorkspace() {
             <button type="button" className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300" disabled={pending} onClick={() => setCreateOpen(false)}><ArrowLeft size={16} />{t('back')}</button>
             <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">{t('create')}</h2>
             <FameRequestForm productId={catalog.product.id} deliveryPointId={catalog.deliveryPoint.id} onSubmit={submitRequest} onCancel={() => setCreateOpen(false)} pending={pending} />
-        </section> : loading ? <LoadingScreen /> : !catalog ? <div className={`${panel} p-8 text-sm text-slate-600 dark:text-slate-400`}>{t('catalogUnavailable')}</div>
+        </section> : loading ? <LoadingScreen /> : !listReady ? null : !catalog ? <div className={`${panel} p-8 text-sm text-slate-600 dark:text-slate-400`}>{t('catalogUnavailable')}</div>
             : <div className="grid items-start gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
                 <section className={`${panel} overflow-hidden`} aria-labelledby="rfq-list-title">
                     <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-700"><h2 id="rfq-list-title" className="font-semibold text-slate-900 dark:text-white">{t('requests')}</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('requestCount', { count: total })}</p></div>

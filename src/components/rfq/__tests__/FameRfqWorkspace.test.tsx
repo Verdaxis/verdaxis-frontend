@@ -59,6 +59,18 @@ async function renderLoaded() {
 }
 
 describe('UCOME RFQ workspace', () => {
+    it('keeps list failures distinct from a missing catalog and allows a real retry', async () => {
+        control.list.mockRejectedValueOnce(new Error('Server failure'));
+        renderWithProviders(<FameRfqWorkspace />);
+        expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Could not load requests. Select Refresh to try again.');
+        expect(screen.queryByText('The Singapore UCOME B100 pilot is not available in the current catalog.')).toBeNull();
+        expect(screen.queryByText('No B100 requests yet. Published requests will appear here.')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Create request' })).toHaveProperty('disabled', true);
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+        expect(await screen.findByRole('heading', { name: 'Contract requirements' })).toBeTruthy();
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+
     it('localizes anonymous buyer cards in Chinese without changing the owner display', async () => {
         control.user = { id: 'supplier-user', role: 'SUPPLIER', organization_id: 'seller-org' };
         control.list.mockResolvedValue({ items: [{ ...request(), isAnonymous: true, buyerOrgId: null, buyerOrgName: 'Anonymous' }], total: 1 });

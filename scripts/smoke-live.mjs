@@ -126,7 +126,7 @@ async function smokeTarget(name, target) {
     assert(ucome?.execution_mode === 'RFQ_ONLY', `${name}: UCOME must remain RFQ-only`);
     assert(Number(ucome.min_lot_size) === 1, `${name}: UCOME platform input minimum mismatch`);
     assertExactSet(ucome.available_delivery_point_ids ?? [], [singapore.id], `${name}: UCOME RFQ lane`);
-    const fameOrders = await fetchJson(`${target.api}/orderbook?market_product=UCOME_B100&limit=100`);
+    const fameOrders = await fetchJson(`${target.api}/orderbook?product_id=${encodeURIComponent(ucome.id)}&limit=100`);
     assert(Array.isArray(fameOrders) && fameOrders.length === 0, `${name}: RFQ-only UCOME leaked into executable orders`);
   }
 

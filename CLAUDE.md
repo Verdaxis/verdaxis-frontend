@@ -69,11 +69,18 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
 
-**Server:** `verdaxis-prod@144.126.151.136`
+**SSH login:** `jons-openclaw@194.233.68.86` (verified 2026-09-22).
+**Service account:** Run `sudo su - verdaxis-prod` after login; no password is required.
 **Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
 **Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
 **API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
 **Staging API:** `api-staging.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8001`)
+
+Before deployment, confirm current DNS for the target site/API, the live
+systemd unit's `User` and `WorkingDirectory`, and Caddy's staging document
+root. The verified runtime host is `194.233.68.86` (`vmi1840561`); historical
+`144.126.151.136` references are not deployment authority. Keep the SSH login
+and service account distinct.
 
 ### Build commands
 

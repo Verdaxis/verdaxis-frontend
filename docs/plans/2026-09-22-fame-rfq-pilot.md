@@ -38,8 +38,8 @@ The chat's outreach list, customer qualification, laboratory agreement, standard
 - [x] Compliance corrections verified.
 - [x] Frozen-source acceptance and local browser checks completed.
 - [x] Staging branches consolidated.
-- [ ] Staging deployment and authenticated live browser checks verified.
+- [x] Staging deployment and authenticated live browser checks verified.
 
-Validation: 625 frontend tests, 1,628 backend unit/security/monitor tests (one skipped), 58 Linux deployment-script tests, 17 new PostgreSQL RFQ cases, and 30 existing PostgreSQL checks pass. Typecheck, translation completeness, staging build and artifact checks pass. Local browser review covers buyer creation, quote submission/revision/withdrawal, missing CI, declarations, English/Chinese, 1440/1024 widths, and the existing mobile desktop-access message.
+Validation: 626 frontend tests, 1,628 backend unit/security/monitor tests (one skipped), 58 Linux deployment-script tests, 17 new PostgreSQL RFQ cases, and 30 existing PostgreSQL checks pass. Typecheck, translation completeness, staging build and artifact checks pass. Local browser review covers buyer creation, quote submission/revision/withdrawal, missing CI, declarations, English/Chinese, 1440/1024 widths, and the existing mobile desktop-access message.
 
-Deployment is currently blocked: the documented SSH account rejects available authentication keys. Both release commits were pushed to their staging branches. A final SSH check also timed out. The final live deployment and authenticated staging review remain pending server access. No production change is authorized or made.
+Deployment completed on the verified runtime host, 194.233.68.86, using jons-openclaw and passwordless sudo to verdaxis-prod. A fresh backup passed the attested verifier before the guarded fee-to-FAME checkpoint. API readiness reports the exact backend release, public staging smoke passes, and the signed-in RFQ workspace loads. The production API and frontend fingerprints are unchanged. The live check also corrected an unsupported smoke-test query parameter and misleading catalog text after a failed RFQ read; the frontend retry regression and full suite pass.
