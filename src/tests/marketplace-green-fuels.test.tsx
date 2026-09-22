@@ -281,7 +281,7 @@ describe('Marketplace green fuels surface', () => {
     expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }));
     fireEvent.click(screen.getByRole('button', { name: 'All products' }));
     await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: undefined })));
-    expect(document.querySelector('[data-order-id="ucome-order"]')).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('[data-order-id="ucome-order"]')).toBeTruthy());
     expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
