@@ -527,6 +527,9 @@ const ForwardCurveChart: React.FC<{
                         {t('forwardCurve.title')}
                     </div>
                     <div className="forward-curve-console__muted mt-0.5 truncate">{t('forwardCurve.chart.scope', { market: curveLabel })}</div>
+                    {curveRow?.market_product === 'UCOME_B100' && (
+                        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-amber-200/90">{t('forwardCurve.specificationScope')}</p>
+                    )}
                 </div>
                 <div role="group" aria-label={t('forwardCurve.chart.horizon')} className="flex shrink-0 rounded border border-slate-700 p-0.5">
                     {(['1Y', '3Y', 'All'] as const).map(value => (
@@ -1281,6 +1284,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                         )}
 
                         <div className="space-y-3 p-3">
+                            {activeCell?.market_product === 'UCOME_B100' && (
+                                <p className="text-xs leading-relaxed text-amber-200/90">{t('forwardCurve.specificationScope')}</p>
+                            )}
                             {failedSliceKey === selectedKey && (
                                 <div className="border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">{t('forwardCurve.error')}</div>
                             )}

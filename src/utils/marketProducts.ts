@@ -1,5 +1,4 @@
 import type { OrderbookMarketProduct } from '../types';
-import { formatMarketProduct } from './marketProduct';
 
 export type MarketplaceProductFilter = 'All' | OrderbookMarketProduct;
 
@@ -9,14 +8,14 @@ export interface MarketplaceProductOption {
     fuelType?: string;
 }
 
-// These selectors drive orderbook and price-monitoring requests. RFQ products
-// have their own discovery entry and must not be added to this executable list.
+// Product discovery stays visible even when a selected market has no orders.
 export const MARKETPLACE_PRODUCT_OPTIONS: MarketplaceProductOption[] = [
     { value: 'All', label: 'All' },
     { value: 'BIO_METHANOL', label: 'Bio Methanol', fuelType: 'Methanol' },
     { value: 'E_METHANOL', label: 'e-Methanol', fuelType: 'Methanol' },
     { value: 'BIO_ETHANOL', label: 'Bio Ethanol', fuelType: 'Ethanol' },
     { value: 'SYNTHETIC_ETHANOL', label: 'e-Ethanol', fuelType: 'Ethanol' },
+    { value: 'UCOME_B100', label: 'UCOME B100', fuelType: 'FAME' },
 ];
 
 export const ACTIVE_MARKETPLACE_PRODUCT_OPTIONS = MARKETPLACE_PRODUCT_OPTIONS.filter(
@@ -59,6 +58,5 @@ export const getMarketplaceProductLabel = (
 ): string => {
     const option = getMarketplaceProductOption(marketProduct);
     if (option && option.value !== 'All') return option.label;
-    if (marketProduct === 'UCOME_B100') return formatMarketProduct(marketProduct);
     return fallbackFuelType || 'Unknown';
 };

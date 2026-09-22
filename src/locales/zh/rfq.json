@@ -235,7 +235,12 @@
     "offerExpiry": "供应信息有效期须晚于当前时间，且不得晚于交货结束日期的当日结束时间（新加坡时间）。",
     "ciContext": "声明碳强度时，请填写计算方法、系统边界及实际值或默认值依据。",
     "confirmOffer": "请确认此供应信息的成分及准确性。",
-    "sourceQuantity": "询价数量须在供应信息的最低交付量与可供应数量之间。"
+    "sourceQuantity": "询价数量须在供应信息的最低交付量与可供应数量之间。",
+    "orderNeatDeclaration": "请确认纯 UCOME B100 声明。",
+    "orderCertificateCurrent": "证书须在新加坡当前日期仍然有效。",
+    "orderMeasurementRange": "请输入在所示范围内的测量值或限值。",
+    "orderAcknowledgements": "请确认认证声明及安全数据表的可用性。",
+    "orderEvidenceDue": "货物证明的提供阶段须与订单承诺一致。"
   },
   "revisionConflict": "您编辑期间报价已变更。请点击刷新，重新打开报价，并在最新版本上修改。",
   "audience": "买方身份对供应商隐藏。报价详情仅供询价买方、报价供应商及获授权管理员查看。",
@@ -340,5 +345,29 @@
   "sourceOfferTitle": "来自供应信息 {{id}} · 第 {{revision}} 版",
   "sourceOfferNotice": "此询价仅发送给所选供应信息的供应商。供应条款以快照保存；不会生成交易或预留库存。",
   "sourceOfferPrivateSupplier": "指定供应商的供应信息",
-  "sourceOfferConflict": "此供应信息已更改或不再开放。请返回供应列表，查看当前信息后重新发起询价。"
+  "sourceOfferConflict": "此供应信息已更改或不再开放。请返回供应列表，查看当前信息后重新发起询价。",
+  "orderFields": {
+    "requirements": "B100 燃料要求",
+    "requirementsHint": "这些要求用于匹配符合条件的 UCOME B100 供应。如无相关限制，请将可选限值留空。",
+    "maxCloudPoint": "最高浊点（°C）",
+    "evidenceRequirements": "证明文件要求",
+    "requireQualityEvidence": "要求已备妥批次质量证明。",
+    "requireSustainabilityEvidence": "要求已备妥货物可持续性证明。",
+    "supplierDeclaration": "供应商声明",
+    "neatDeclaration": "本人声明，该燃料为纯 UCOME B100，原料投入为 100% 废弃食用油。",
+    "certificationDeclared": "本人声明，所列认证适用于本次供应。",
+    "msdsAvailable": "本次供应已备有安全数据表。",
+    "unavailableTitle": "B100 暂不可下单",
+    "unavailableBody": "当前产品目录尚未启用 B100 订单簿交易。目录更新后，请刷新市场。",
+    "unavailableAction": "返回市场",
+    "certificateValidityHint": "证书须在新加坡当前日期仍然有效。可成交期限不等同于交付日期。"
+  },
+  "orderTerms": {
+    "title": "买方燃料要求",
+    "maxCloudPoint": "最高浊点",
+    "requireQuality": "批次质量证明",
+    "requireSustainability": "货物可持续性证明",
+    "required": "必须提供",
+    "notRequired": "无要求"
+  }
 }

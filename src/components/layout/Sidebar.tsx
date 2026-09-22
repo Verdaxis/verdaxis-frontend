@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
     Settings as SettingsIcon,
     ChevronsLeft,
@@ -41,11 +41,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     const [logoError, setLogoError] = useState(false);
     const { t } = useTranslation();
-    const location = useLocation();
-    const isRfqMarketplace = currentPage === 'MARKETPLACE'
-        && new URLSearchParams(location.search).get('product') === 'UCOME_B100';
-    const showPrimaryAction = !isRfqMarketplace
-        || (viewMode === 'SUPPLIER' && !isMarketSupportActive);
 
     const sidebarItems = buildPrimarySidebarItems(t).filter((item) => (
         !isMarketSupportActive || !['WATCHLISTS', 'TRADES'].includes(item.key)
@@ -104,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            {showPrimaryAction && <div className="px-3 pt-4 pb-2">
+            <div className="px-3 pt-4 pb-2">
                 <button
                     data-tour="sidebar-primary-action"
                     aria-label={viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply')}
@@ -114,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Plus size={18} />
                     {!isCollapsed && (viewMode === 'BUYER' ? t('sidebar.postBid') : t('sidebar.postSupply'))}
                 </button>
-            </div>}
+            </div>
 
             <nav className="flex-1 py-2 space-y-1 px-3">
                 {sidebarItems.map((item) => (

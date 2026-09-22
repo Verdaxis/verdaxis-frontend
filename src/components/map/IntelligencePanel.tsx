@@ -1,15 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Shield } from 'lucide-react';
 import { Port, Product, ForwardCurvePoint } from '../../types';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
 import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
-import { isOrderbookProduct } from '../../utils/marketProduct';
-import { UCOME_MARKETPLACE_PATH } from '../../utils/sliceUrl';
+import { getProductDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../../utils/marketProduct';
+import { normalizeAvailabilityWindow } from '../../utils/availabilityWindow';
 
 const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+interface CurveReference {
+    productId: string;
+    label: string;
+    status: 'ready' | 'empty' | 'unavailable';
+    spotPrice: number | null;
+    change: number | null;
+}
+
+const positivePrice = (value: number | null | undefined): number | null => {
+    if (value == null) return null;
+    const price = Number(value);
+    return Number.isFinite(price) && price > 0 ? price : null;
+};
+
+function supportsDeliveryPoint(product: Product, deliveryPointId: string | undefined): boolean {
+    if (!deliveryPointId) return true;
+    if (product.available_delivery_point_ids) {
+        return product.available_delivery_point_ids.includes(deliveryPointId);
+    }
+    // Only legacy alcohol catalogs can omit delivery coverage. B100 needs
+    // explicit coverage before requesting a price for a selected port.
+    return product.market_product !== 'UCOME_B100';
+}
+
+function buildCurveReference(
+    product: Product,
+    result: PromiseSettledResult<{ curve: ForwardCurvePoint[] }>,
+): CurveReference {
+    const reference: CurveReference = {
+        productId: product.id,
+        label: getProductDisplayName(product),
+        status: result.status === 'rejected' ? 'unavailable' : 'empty',
+        spotPrice: null,
+        change: null,
+    };
+    if (result.status !== 'fulfilled' || !result.value.curve?.length) return reference;
+
+    reference.status = 'ready';
+    const curve = result.value.curve;
+    const spot = curve.find(point => normalizeAvailabilityWindow(point.availability_window) === 'SPOT');
+    reference.spotPrice = positivePrice(spot?.mid_price);
+    // The API sorts points by delivery window. Do not substitute a forward
+    // price for spot, or show a flat curve when only one period has evidence.
+    const forwardPoints = curve.filter(point => (
+        normalizeAvailabilityWindow(point.availability_window) !== 'SPOT'
+        && positivePrice(point.mid_price) !== null
+    ));
+    const farPrice = positivePrice(forwardPoints[forwardPoints.length - 1]?.mid_price);
+    if (reference.spotPrice !== null && farPrice !== null) {
+        reference.change = ((farPrice - reference.spotPrice) / reference.spotPrice) * 100;
+    }
+    return reference;
+}
 
 interface IntelligencePanelProps {
     active?: boolean;
@@ -19,8 +72,7 @@ interface IntelligencePanelProps {
     portOptions?: Port[];
     onMapPortSelect?: (port: Port) => void;
     onPortSelect: (port: Port) => void;
-    rfqProduct?: Product;
-    rfqOnly?: boolean;
+    selectedProduct?: string;
 }
 
 export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
@@ -31,14 +83,15 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
     portOptions = [],
     onMapPortSelect,
     onPortSelect,
-    rfqProduct,
-    rfqOnly = false,
+    selectedProduct,
 }) => {
     const { t, ready } = useNamespace('dashboard');
-    const [activeTab, setActiveTab] = useState<'PRIMARY' | 'NEWS'>(rfqOnly ? 'PRIMARY' : 'NEWS');
+    const [activeTab, setActiveTab] = useState<'PRIMARY' | 'NEWS'>('NEWS');
 
-    // Real forward curve data from API
-    const [curveProducts, setCurveProducts] = useState<{ label: string; price: string; change: string; up: boolean; curve: 'contango' | 'backwardation'; sourceKey: 'productLevelReference' }[]>([]);
+    const [curveProducts, setCurveProducts] = useState<CurveReference[]>([]);
+    const [curveStatus, setCurveStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+    const deliveryPointId = selectedPort?.catalogDeliveryPointId;
+    const curveProduct = isOrderbookMarketProduct(selectedProduct) ? selectedProduct : undefined;
 
     const marketPriceLabel = selectedPort && selectedPort.priceMethanol > 0
         ? `$${selectedPort.priceMethanol}`
@@ -72,58 +125,52 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         : '--';
 
     useEffect(() => {
-        if (rfqOnly) setActiveTab('PRIMARY');
-    }, [rfqOnly]);
-
-    useEffect(() => {
-        if (!active || rfqOnly) return;
+        if (!active) return;
         let cancelled = false;
+        setCurveStatus('loading');
+        setCurveProducts([]);
         (async () => {
             try {
                 const products: Product[] = await api.catalog.products();
-                const activeProducts = products.filter(isOrderbookProduct).slice(0, 3);
-                const results = await Promise.allSettled(
-                    activeProducts.map(p => api.curves.forward({ product_id: p.id }))
-                );
                 if (cancelled) return;
-                const items = results
-                    .map((r, i) => {
-                        if (r.status !== 'fulfilled' || !r.value.curve?.length) return null;
-                        const curve = r.value.curve;
-                        const spot = curve.find((c: ForwardCurvePoint) => c.availability_window === 'Spot') || curve[0];
-                        const far = curve[curve.length - 1];
-                        const mid = spot.mid_price ?? 0;
-                        const farMid = far.mid_price ?? mid;
-                        const pctChange = mid > 0 ? ((farMid - mid) / mid) * 100 : 0;
-                        const isContango = farMid >= mid;
-                        return {
-                            label: activeProducts[i].name,
-                            price: mid > 0 ? `$${mid.toFixed(0)}` : '--',
-                            change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
-                            up: isContango,
-                            curve: isContango ? 'contango' : 'backwardation',
-                            sourceKey: 'productLevelReference',
-                        };
+                const activeProducts = products.filter(product => (
+                    isOrderbookProduct(product)
+                    && (!curveProduct || product.market_product === curveProduct)
+                    && supportsDeliveryPoint(product, deliveryPointId)
+                ));
+                const results = await Promise.allSettled(activeProducts.map(product => (
+                    api.curves.forward({
+                        product_id: product.id,
+                        ...(deliveryPointId ? { delivery_point_id: deliveryPointId } : {}),
                     })
-                    .filter(Boolean) as typeof curveProducts;
-                setCurveProducts(items);
+                )));
+                if (cancelled) return;
+                setCurveProducts(results.map((result, index) => (
+                    buildCurveReference(activeProducts[index], result)
+                )));
+                setCurveStatus('ready');
             } catch {
-                // Graceful degradation — show empty if API unavailable
+                if (!cancelled) setCurveStatus('unavailable');
             }
         })();
         return () => { cancelled = true; };
-    }, [active, rfqOnly]);
+    }, [active, curveProduct, deliveryPointId]);
 
 
     if (!ready) return null;
 
-    const primaryTabLabel = rfqOnly
-        ? t('intelligencePanel.rfq.tab')
-        : selectedPort ? t('intelligencePanel.tabs.portIntel') : t('intelligencePanel.tabs.estimator');
+    const primaryTabLabel = selectedPort ? t('intelligencePanel.tabs.portIntel') : t('intelligencePanel.tabs.estimator');
     const tabOptions = [
         { key: 'NEWS' as const, label: t('intelligencePanel.tabs.news') },
         { key: 'PRIMARY' as const, label: primaryTabLabel },
     ];
+
+    const curvePriceLabel = (item: CurveReference) => {
+        if (item.status === 'unavailable') return t('intelligencePanel.curveUnavailable');
+        if (item.status === 'empty') return t('intelligencePanel.noCurveData');
+        if (item.spotPrice === null) return t('intelligencePanel.noSpotReference');
+        return `${t('intelligencePanel.spotReference')} $${item.spotPrice.toFixed(0)}/MT`;
+    };
 
     const forwardReferences = (
         <section>
@@ -134,72 +181,51 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 <LineChart size={14} className="text-slate-400" />
             </div>
             <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-                {curveProducts.length === 0 && (
-                    <div className="px-3 py-3 text-[11px] italic text-slate-400 dark:text-slate-500">
-                        {t('intelligencePanel.loadingIndicativeCurveReferences')}
+                {curveStatus !== 'ready' ? (
+                    <div role="status" className="px-3 py-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        {t(`intelligencePanel.${curveStatus === 'loading' ? 'loadingIndicativeCurveReferences' : 'curveUnavailable'}`)}
                     </div>
-                )}
-                {curveProducts.map((item, i) => (
+                ) : curveProducts.length === 0 ? (
+                    <div className="px-3 py-3 text-[11px] text-slate-500 dark:text-slate-400">
+                        {t('intelligencePanel.noCurveProducts')}
+                    </div>
+                ) : curveProducts.map(item => (
                     <div
-                        key={i}
+                        key={item.productId}
                         className="grid grid-cols-[1fr_auto] gap-3 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-slate-800"
                     >
                         <div className="min-w-0">
                             <div className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">{item.label}</div>
-                            <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                {t('intelligencePanel.spotReference')} {item.price} · {t(`intelligencePanel.${item.sourceKey}`)}
+                            <div className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                                {curvePriceLabel(item)}
+                            </div>
+                            <div className="mt-0.5 text-[9px] text-slate-400 dark:text-slate-500">
+                                {t(`intelligencePanel.${deliveryPointId ? 'portLevelReference' : 'productLevelReference'}`)}
                             </div>
                         </div>
-                        <div className="text-right">
-                            <div className={`text-xs font-bold tabular-nums ${item.up ? 'text-green-600' : 'text-red-500'}`}>
-                                {item.change}
+                        {item.change !== null && (
+                            <div className="text-right">
+                                <div className={`text-xs font-bold tabular-nums ${item.change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    {item.change >= 0 ? '+' : ''}{item.change.toFixed(1)}%
+                                </div>
+                                <div className="mt-0.5 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                    {t(`intelligencePanel.${item.change >= 0 ? 'contango' : 'backwardation'}`)}
+                                </div>
                             </div>
-                            <div className="mt-0.5 rounded border border-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                                {t(`intelligencePanel.${item.curve}`)}
-                            </div>
-                        </div>
+                        )}
                     </div>
                 ))}
             </div>
             <div className="mt-2 text-[10px] leading-relaxed text-slate-400 dark:text-slate-500">
-                {t('intelligencePanel.noDeliveryPointFilter')}
+                {deliveryPointId
+                    ? t('intelligencePanel.selectedDeliveryPointFilter', { port: selectedPort?.name })
+                    : t('intelligencePanel.noDeliveryPointFilter')}
             </div>
         </section>
     );
 
-    const rfqContent = (
-        <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div>
-                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                    {t('intelligencePanel.rfq.wholesale')}
-                </div>
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{t('intelligencePanel.rfq.title')}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.description')}</p>
-            </div>
-            {rfqOnly && (
-                <>
-                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.quoteTerms')}</p>
-                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">{t('intelligencePanel.rfq.evidence')}</p>
-                    {rfqProduct && rfqProduct.min_lot_size > 0 && (
-                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                            {t('intelligencePanel.rfq.minimumLot', { quantity: rfqProduct.min_lot_size, unit: rfqProduct.unit })}
-                        </p>
-                    )}
-                </>
-            )}
-            <Link
-                to={UCOME_MARKETPLACE_PATH}
-                className="flex items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-            >
-                {t('intelligencePanel.rfq.openMarketplace')}
-                <ArrowRight size={14} />
-            </Link>
-        </section>
-    );
-
-    const primaryContent = rfqOnly ? rfqContent : selectedPort ? (
+    const primaryContent = selectedPort ? (
         <>
-            {rfqProduct && rfqContent}
             {/* Market Price & Trend */}
             <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/50">
@@ -280,7 +306,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                 </div>
             )}
 
-            {/* Mock Price Chart */}
+            {/* Price history is supplied only for the selected market. */}
             <div className="rounded-lg border border-slate-100 p-4 dark:border-slate-700">
                 <h3 className="mb-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">{t('intelligencePanel.methanolPrice7Day')}</h3>
                 {hasPriceHistory ? (
@@ -301,6 +327,8 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <div className="text-[11px] text-slate-500 dark:text-slate-400">{t('intelligencePanel.noPortHistory')}</div>
                 )}
             </div>
+
+            {forwardReferences}
 
             <button
                 onClick={() => onPortSelect(selectedPort)}
@@ -333,11 +361,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     <div className="mb-1 flex items-center space-x-2 text-[#5DADE2]">
                         <TrendingUp size={18} />
                         <span className="text-xs font-bold tracking-widest uppercase">
-                            {rfqOnly ? t('intelligencePanel.rfq.wholesale') : selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
+                            {selectedPort ? t('intelligencePanel.portIntelligence') : t('intelligencePanel.globalInsights')}
                         </span>
                     </div>
                     <h2 className="font-['Montserrat'] font-bold text-lg text-[#334155] dark:text-slate-100">
-                        {rfqOnly ? t('intelligencePanel.rfq.title') : selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
+                        {selectedPort ? selectedPort.name : t('intelligencePanel.globalOverview')}
                     </h2>
                 </div>
                 <button 
@@ -375,6 +403,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     </div>
                 ) : (
                     <div className="h-full space-y-5 overflow-y-auto p-5">
+                        {curveProduct === 'UCOME_B100' && (
+                            <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                                {t('buyerMap.specificationScope')}
+                            </p>
+                        )}
                         {primaryContent}
                     </div>
                 )}

@@ -22,7 +22,7 @@ vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimato
 const ucomeProduct: Product = {
   id: 'ucome-b100', name: 'UCOME B100', market_product: 'UCOME_B100',
   fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 100,
-  is_active: true, execution_mode: 'RFQ_ONLY', available_delivery_point_ids: ['sg-sin'],
+  is_active: true, execution_mode: 'ORDERBOOK', available_delivery_point_ids: ['sg-sin'],
 };
 
 describe('IntelligencePanel localization', () => {
@@ -55,72 +55,34 @@ describe('IntelligencePanel localization', () => {
     expect(api.curves.forward).toHaveBeenCalledExactlyOnceWith({ product_id: alcoholProduct.id });
   });
 
-  it('opens a localized wholesale RFQ panel without alcohol market signals', async () => {
+  it('uses the shared localized port panel for B100 and opens its market', async () => {
+    const onPortSelect = vi.fn();
+    vi.mocked(api.catalog.products).mockResolvedValue([ucomeProduct]);
+    vi.mocked(api.curves.forward).mockResolvedValue({
+      product_id: ucomeProduct.id, product_name: ucomeProduct.name, curve: [], generated_at: new Date().toISOString(),
+    });
     renderWithProviders(
       <IntelligencePanel
         isOpen
         onClose={vi.fn()}
         selectedPort={PORTS[0]}
-        onPortSelect={vi.fn()}
-        rfqProduct={ucomeProduct}
-        rfqOnly
+        selectedProduct="UCOME_B100"
+        onPortSelect={onPortSelect}
       />,
     );
 
-    expect(screen.getByRole('tab', { name: 'UCOME B100' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('heading', { name: '新加坡 UCOME B100', level: 3 })).toBeTruthy();
-    expect(screen.getByText('最低询购量：100 MT')).toBeTruthy();
-    expect(screen.getByText('分别审核燃料规格、批次检测结果、货物可持续性证明及供应商证书。')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' }).getAttribute('href'))
-      .toBe('/app/marketplace?product=UCOME_B100');
-    expect(screen.queryByText('市场价格')).toBeNull();
-    expect(screen.queryByText('供应情况')).toBeNull();
-    expect(screen.queryByText('参考性远期价格')).toBeNull();
-    expect(screen.queryByText('所选产品参考（7天）')).toBeNull();
-    expect(screen.queryByText(/\$520|Jurong Green Methanol/)).toBeNull();
-    expect(screen.queryByTestId('compliance-estimator')).toBeNull();
-    expect(api.catalog.products).not.toHaveBeenCalled();
-    expect(api.curves.forward).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await i18n.changeLanguage('en');
-    });
-    expect(screen.getByRole('heading', { name: 'Singapore UCOME B100', level: 3 })).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'View UCOME B100 in Marketplace' })).toBeTruthy();
-    expect(screen.getByText('Listing prices are indicative. A supplier quote confirms price and available volume for your request.')).toBeTruthy();
-  });
-
-  it('selects the RFQ tab when the selected map product changes to B100', () => {
-    const props = { isOpen: true, onClose: vi.fn(), selectedPort: PORTS[0], onPortSelect: vi.fn() };
-    const { rerender } = renderWithProviders(<IntelligencePanel {...props} />);
-    expect(screen.getByRole('tab', { name: '新闻' }).getAttribute('aria-selected')).toBe('true');
-
-    rerender(<IntelligencePanel {...props} rfqProduct={ucomeProduct} rfqOnly />);
-
-    expect(screen.getByRole('tab', { name: 'UCOME B100' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.queryByTestId('news-feed')).toBeNull();
-    expect(screen.queryByTestId('compliance-estimator')).toBeNull();
-    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' })).toBeTruthy();
-  });
-
-  it('keeps port intelligence and adds UCOME discovery when the all-products view supplies the RFQ lane', async () => {
-    renderWithProviders(
-      <IntelligencePanel
-        isOpen
-        onClose={vi.fn()}
-        selectedPort={PORTS[0]}
-        onPortSelect={vi.fn()}
-        rfqProduct={ucomeProduct}
-      />,
-    );
-
-    expect(screen.getByRole('tab', { name: '新闻' }).getAttribute('aria-selected')).toBe('true');
-    await act(async () => {
-      fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
-    });
-    expect(screen.getByRole('link', { name: '前往市场查看 UCOME B100' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: '港口情报' }));
+    expect(await screen.findByText('UCOME B100')).toBeTruthy();
     expect(screen.getByText('市场价格')).toBeTruthy();
+    expect(screen.getByText('供应情况')).toBeTruthy();
+    expect(screen.getByText('参考性远期价格')).toBeTruthy();
     expect(screen.getByTestId('compliance-estimator')).toBeTruthy();
+    expect(screen.queryByText('批发报价与询价')).toBeNull();
+
+    await act(async () => { await i18n.changeLanguage('en'); });
+    expect(screen.getByText('No data')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'View Market & Procure' }));
+    expect(onPortSelect).toHaveBeenCalledWith(PORTS[0]);
   });
 
   afterEach(async () => {

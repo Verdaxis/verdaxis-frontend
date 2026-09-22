@@ -17,6 +17,11 @@ import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
 import i18n from '../i18n';
+import type { FameOrderTerms } from '../types/fameOrder';
+import {
+    FameOrderFields, readFameOrderTerms, validateFameOrderTerms,
+    readFameOrderAcknowledgements, type FameOrderAcknowledgements,
+} from './fame/FameOrderFields';
 import type { SupplierOffer, SupplierOfferCreateInput } from '../types/fameSupplierOffer';
 import {
     FameSupplierOfferForm,
@@ -89,11 +94,6 @@ interface SubmissionRequest {
     confirmation?: MarketSupportConfirmation;
 }
 
-interface SupplierOfferRequest {
-    draftSignature: string;
-    idempotencyKey: string;
-}
-
 const createIdempotencyKey = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     // Idempotency keys identify a draft; they are not authorization credentials.
@@ -149,7 +149,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const b100Requested = Boolean(editSupplierOffer) || prefillMarketProduct === 'UCOME_B100'
         || /^(FAME|UCOME(?:[ _-]B100)?)$/i.test(prefillFuelType?.trim() ?? '');
-    const rfqOnlyRequested = side === 'BID' && b100Requested;
     const { context: marketSupportContext } = useMarketSupport();
     const [products, setProducts] = useState<Product[]>([]);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
@@ -162,7 +161,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [errorMessage, setErrorMessage] = useState('');
     const [matchResult, setMatchResult] = useState<any>(null);
     const submissionRef = useRef<SubmissionRequest | null>(null);
-    const supplierOfferRequestRef = useRef<SupplierOfferRequest | null>(null);
+    const fameDraftRef = useRef<{ terms: FameOrderTerms; acknowledgements: FameOrderAcknowledgements } | null>(null);
     const submissionInFlightRef = useRef(false);
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
@@ -177,7 +176,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setErrorMessage('');
         setMatchResult(null);
         submissionRef.current = null;
-        supplierOfferRequestRef.current = null;
+        fameDraftRef.current = null;
         submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
@@ -201,7 +200,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setErrorMessage('');
         setMatchResult(null);
         submissionRef.current = null;
-        supplierOfferRequestRef.current = null;
+        fameDraftRef.current = null;
         submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
@@ -215,7 +214,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         ]).then(([prods, dps]) => {
             if (cancelled) return;
             const activeProds = prods.filter(product => isOrderbookProduct(product)
-                || (side === 'ASK' && !marketSupportContext && product.is_active && product.market_product === 'UCOME_B100'));
+                || (Boolean(editSupplierOffer) && product.is_active && product.id === editSupplierOffer?.productId));
             const activeDps = dps.filter(d => d.is_active && isApprovedTradingPortName(d.name));
             setProducts(activeProds);
             setDeliveryPoints(activeDps);
@@ -269,19 +268,19 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
-    const isSupplierOffer = side === 'ASK' && (Boolean(editSupplierOffer)
-        || selectedProduct?.market_product === 'UCOME_B100'
-        || (!selectedProduct && b100Requested));
-    const namespacesReady = ready && (!isSupplierOffer || rfqReady);
-    const availableDeliveryPoints = useMemo(() => isSupplierOffer
+    const isSupplierOffer = side === 'ASK' && Boolean(editSupplierOffer);
+    const isFameOrder = !isSupplierOffer && selectedProduct?.market_product === 'UCOME_B100';
+    const executionUnavailable = !editSupplierOffer && b100Requested && !catalogLoading && !selectedProduct;
+    const namespacesReady = ready && (!(b100Requested || isFameOrder || isSupplierOffer) || rfqReady);
+    const availableDeliveryPoints = useMemo(() => isSupplierOffer || isFameOrder
         ? getSupplierOfferDeliveryPoints(selectedProduct, deliveryPoints)
-        : deliveryPoints, [deliveryPoints, isSupplierOffer, selectedProduct]);
+        : deliveryPoints, [deliveryPoints, isSupplierOffer, isFameOrder, selectedProduct]);
 
     useEffect(() => {
-        if (!isSupplierOffer || editSupplierOffer || catalogLoading) return;
+        if ((!isSupplierOffer && !isFameOrder) || editSupplierOffer || catalogLoading) return;
         if (availableDeliveryPoints.some(point => point.id === formData.delivery_point_id)) return;
         setFormData(previous => ({ ...previous, delivery_point_id: availableDeliveryPoints[0]?.id ?? '' }));
-    }, [availableDeliveryPoints, catalogLoading, editSupplierOffer, formData.delivery_point_id, isSupplierOffer]);
+    }, [availableDeliveryPoints, catalogLoading, editSupplierOffer, formData.delivery_point_id, isSupplierOffer, isFameOrder]);
     const getDeliveryPointRegionLabel = (region: string) => {
         const key = DELIVERY_POINT_REGION_KEYS[region.trim().toLowerCase()];
         if (key) return t(key);
@@ -354,6 +353,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }, [isOpen, modalState]);
 
     const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
+        if (field === 'product_id') fameDraftRef.current = null;
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -385,6 +385,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
         side,
+        fameTerms: isFameOrder ? fameDraftRef.current?.terms : undefined,
         product: selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
         availabilityWindow: formData.availability_window,
@@ -400,7 +401,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         carbonIntensityMethod: t('orderPlaceModal.carbonIntensityMethod.supplierDeclaration'),
         feedstock: formData.feedstock.trim(),
         origin: formData.origin.trim(),
-    }), [availabilitySummary, formData, selectedDeliveryPoint, selectedProduct, side, t]);
+    }), [formData, selectedDeliveryPoint, selectedProduct, side, t, isFameOrder]);
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
@@ -418,18 +419,19 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
     const hasValidCore =
-        !rfqOnlyRequested &&
+        !executionUnavailable &&
         Boolean(selectedProduct && selectedDeliveryPoint) &&
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
         Number.isFinite(formData.quantity_mt) &&
-        formData.quantity_mt > 0 &&
+        formData.quantity_mt >= (selectedProduct?.min_lot_size || 1) &&
         Number.isFinite(formData.price_per_mt_usd) &&
-        formData.price_per_mt_usd > 0;
+        formData.price_per_mt_usd > 0 &&
+        (!isFameOrder || availableDeliveryPoints.some(point => point.id === formData.delivery_point_id));
     const isValidOrder = hasValidCore &&
         Boolean(selectedProduct && isOrderbookProduct(selectedProduct)) &&
-        (side === 'BID' || formData.certification_scheme.trim() !== '') &&
-        (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
+        (isFameOrder || side === 'BID' || formData.certification_scheme.trim() !== '') &&
+        (isFameOrder || side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
     const isValidSupplierOffer = hasValidCore && isSupplierOffer &&
         selectedProduct?.market_product === 'UCOME_B100' &&
         availableDeliveryPoints.some(point => point.id === formData.delivery_point_id) &&
@@ -446,16 +448,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             availability_window: formData.availability_window,
             is_anonymous: true,
         };
-        if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
-        if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
-        if (side === 'ASK') {
-            payload.certification_declared = formData.certification_declared;
-            payload.certifications = [formData.certification_scheme.trim()];
-            payload.specification_standard = formData.specification_standard.trim();
-            payload.msds_available = formData.msds_available;
-            payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
-            payload.feedstock = formData.feedstock.trim();
-            payload.origin = formData.origin.trim();
+        if (isFameOrder && fameDraftRef.current) {
+            payload.fame_terms = fameDraftRef.current.terms;
+            if (side === 'ASK') Object.assign(payload, fameDraftRef.current.acknowledgements);
+        } else {
+            if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
+            if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
+            if (side === 'ASK') {
+                payload.certification_declared = formData.certification_declared;
+                payload.certifications = [formData.certification_scheme.trim()];
+                payload.specification_standard = formData.specification_standard.trim();
+                payload.msds_available = formData.msds_available;
+                payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
+                payload.feedstock = formData.feedstock.trim();
+                payload.origin = formData.origin.trim();
+            }
         }
         if (formData.expiry_type === 'date' && formData.expiry_date) {
             payload.expires_at = new Date(formData.expiry_date + 'T23:59:59Z').toISOString();
@@ -466,7 +473,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
         if (submissionInFlightRef.current) return;
-        if (rfqOnlyRequested || !selectedProduct || !isOrderbookProduct(selectedProduct)) return;
+        if (executionUnavailable || !selectedProduct || !isOrderbookProduct(selectedProduct)) return;
         if (selectedProduct?.market_product && selectedDeliveryPoint) {
             analytics.track('order_form_submitted', {
                 product: selectedProduct.market_product,
@@ -545,19 +552,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setModalState('submitting');
         setErrorMessage('');
         try {
-            if (editSupplierOffer) {
-                await api.supplierOffers.update(editSupplierOffer.id, {
-                    ...input,
-                    expected_revision: editSupplierOffer.revision,
-                });
-            } else {
-                const draftSignature = JSON.stringify(input);
-                if (supplierOfferRequestRef.current?.draftSignature !== draftSignature) {
-                    supplierOfferRequestRef.current = { draftSignature, idempotencyKey: createIdempotencyKey() };
-                }
-                await api.supplierOffers.create(input, supplierOfferRequestRef.current.idempotencyKey);
-            }
-            supplierOfferRequestRef.current = null;
+            if (!editSupplierOffer) return;
+            await api.supplierOffers.update(editSupplierOffer.id, {
+                ...input,
+                expected_revision: editSupplierOffer.revision,
+            });
             setModalState('success');
         } catch (error) {
             const message = error instanceof Error && !locale.startsWith('zh') ? error.message : '';
@@ -578,6 +577,19 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             return;
         }
         if (!isValidOrder) return;
+        if (isFameOrder) {
+            const data = new FormData(e.currentTarget);
+            const terms = readFameOrderTerms(data, side);
+            const acknowledgements = readFameOrderAcknowledgements(data);
+            const validationError = validateFameOrderTerms(terms)
+                ?? (side === 'ASK' && (!acknowledgements.certification_declared || !acknowledgements.msds_available)
+                    ? 'validation.orderAcknowledgements' : null);
+            if (validationError) {
+                setErrorMessage(tRfq(validationError));
+                return;
+            }
+            fameDraftRef.current = { terms, acknowledgements };
+        }
         if (marketSupportContext) {
             setSupportDraft(buildSupportDraft());
             setModalState('support_confirmation');
@@ -735,11 +747,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div>
                         <div className="flex items-center gap-3">
                             <h2 id="order-place-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
-                                {rfqOnlyRequested ? t('orderPlaceModal.rfqOnly.title')
+                                {executionUnavailable ? tRfq('orderFields.unavailableTitle')
                                     : isSupplierOffer ? tRfq(editSupplierOffer ? 'offerModal.editTitle' : 'offerModal.title')
                                     : t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
-                            {!rfqOnlyRequested && <span className={`px-2 py-0.5 text-xs font-bold rounded ${
+                            {!executionUnavailable && <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                                 side === 'BID'
                                     ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                                     : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
@@ -748,7 +760,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </span>}
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                            {rfqOnlyRequested ? t('orderPlaceModal.rfqOnly.body')
+                            {executionUnavailable ? tRfq('orderFields.unavailableBody')
                                 : isSupplierOffer ? tRfq('offerModal.subtitle')
                                 : side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
                         </p>
@@ -765,10 +777,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </button>
                 </div>
 
-                {rfqOnlyRequested ? (
+                {executionUnavailable ? (
                     <div className="p-5">
                         <Link to={UCOME_MARKETPLACE_PATH} onClick={handleClose} className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                            {t('orderPlaceModal.rfqOnly.action')}
+                            {tRfq('orderFields.unavailableAction')}
                         </Link>
                     </div>
                 ) : <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
@@ -968,7 +980,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>
 
-                                    <div>
+                                    {!isFameOrder && <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.certificationScheme')}</label>
                                         {side === 'BID' ? (
                                             <div className="space-y-2">
@@ -1020,9 +1032,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                                             {t('orderPlaceModal.helper.certificationScheme')}
                                         </p>
-                                    </div>
+                                    </div>}
 
-                                    {side === 'ASK' && (
+                                    {!isFameOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
                                                 <input
@@ -1156,6 +1168,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 </div>
                             )}
                         </div>}
+
+                        {isFameOrder && <FameOrderFields
+                            key={`${formData.product_id}:${side}`}
+                            side={side}
+                            initial={fameDraftRef.current?.terms}
+                            acknowledgements={fameDraftRef.current?.acknowledgements}
+                            pending={modalState === 'submitting'}
+                        />}
+                        {isFameOrder && errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>}
 
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (
                             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">

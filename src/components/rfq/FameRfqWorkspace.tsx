@@ -85,11 +85,12 @@ function OfferDetails({ quote, t, number }: { quote: FameQuote; t: TFunction; nu
 
 interface FameRfqWorkspaceProps {
     embedded?: boolean;
+    historyOnly?: boolean;
     sourceOffer?: SupplierOffer;
     onSourceOfferHandled?: () => void;
 }
 
-export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferHandled }: FameRfqWorkspaceProps) {
+export function FameRfqWorkspace({ embedded = false, historyOnly = false, sourceOffer, onSourceOfferHandled }: FameRfqWorkspaceProps) {
     const { t, ready } = useNamespace('rfq');
     const { user } = useAuth();
     const headingId = useId();
@@ -129,7 +130,7 @@ export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferH
     }, [user?.id, user?.organization_id]);
 
     useEffect(() => {
-        if (!sourceOffer || user?.role !== 'BUYER') return;
+        if (historyOnly || !sourceOffer || user?.role !== 'BUYER') return;
         setCreateOpen(true);
         setError(null);
     }, [sourceOffer, user?.role]);
@@ -209,7 +210,7 @@ export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferH
 
     const open = selected ? isFameRfqOpen(selected, now) : false;
     const ownQuote = selected?.quotes.find((quote) => quote.sellerOrgId === user?.organization_id);
-    const canQuote = user?.role === 'SUPPLIER' && Boolean(user.organization_id) && open
+    const canQuote = !historyOnly && user?.role === 'SUPPLIER' && Boolean(user.organization_id) && open
         && selected?.buyerOrgId !== user.organization_id && Boolean(selected?.contractTerms)
         && (!selected?.targetSupplierOrgId || selected.targetSupplierOrgId === user.organization_id);
     const canCancel = user?.role === 'BUYER' && selected?.canCancel === true && open;
@@ -243,7 +244,7 @@ export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferH
             </div>
             <div className="flex gap-2">
                 <button type="button" className={secondaryButton} disabled={loading || pending} onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} />{t('refresh')}</button>
-                {user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || !listReady || loading || pending} onClick={() => { onSourceOfferHandled?.(); setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
+                {!historyOnly && user?.role === 'BUYER' && <button type="button" className={primaryButton} disabled={!catalog || !listReady || loading || pending} onClick={() => { onSourceOfferHandled?.(); setCreateOpen(true); setError(null); }}><Plus size={17} />{t('create')}</button>}
             </div>
         </header>
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{t('pilotNotice')}</div>
@@ -251,7 +252,7 @@ export function FameRfqWorkspace({ embedded = false, sourceOffer, onSourceOfferH
         {user?.role === 'ADMIN' && <p className="text-sm text-slate-600 dark:text-slate-400">{t('adminReadOnly')}</p>}
         {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">{t(error)}</div>}
 
-        {createOpen && catalog ? <section className={`${panel} p-5`}>
+        {!historyOnly && createOpen && catalog ? <section className={`${panel} p-5`}>
             <button type="button" className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300" disabled={pending} onClick={closeRequestForm}><ArrowLeft size={16} />{t('back')}</button>
             <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">{t('create')}</h2>
             {sourceOffer && <p className="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">{t('sourceOfferTitle', { id: sourceOffer.id.slice(0, 8), revision: sourceOffer.revision })}<span className="mt-1 block">{t('sourceOfferNotice')}</span></p>}

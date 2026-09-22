@@ -16,13 +16,14 @@ const buttonClass = 'inline-flex items-center justify-center gap-1.5 rounded-lg 
 
 interface SupplierOffersWorkspaceProps {
     mine?: boolean;
+    historyOnly?: boolean;
     onRequestQuote: (offer: SupplierOffer) => void;
     onEdit: (offer: SupplierOffer) => void;
     onPostSupply: () => void;
 }
 
 /** Indicative supply shares Marketplace presentation, but never enters the orderbook. */
-export function SupplierOffersWorkspace({ mine = false, onRequestQuote, onEdit, onPostSupply }: SupplierOffersWorkspaceProps) {
+export function SupplierOffersWorkspace({ mine = false, historyOnly = false, onRequestQuote, onEdit, onPostSupply }: SupplierOffersWorkspaceProps) {
     const { t, ready } = useNamespace('trading');
     const { user } = useAuth();
     const locale = i18n.resolvedLanguage || 'en';
@@ -127,7 +128,7 @@ export function SupplierOffersWorkspace({ mine = false, onRequestQuote, onEdit, 
                 <ClipboardList size={40} className="mx-auto mb-3 text-slate-300 dark:text-slate-600" />
                 <h2 className="font-semibold text-slate-700 dark:text-slate-200">{copy(mine ? 'myEmptyTitle' : 'emptyTitle')}</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">{copy(mine ? 'myEmptyBody' : 'emptyBody')}</p>
-                {user?.role === 'SUPPLIER' && <button type="button" onClick={onPostSupply} className="mt-5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">{copy('postSupply')}</button>}
+                {!historyOnly && user?.role === 'SUPPLIER' && <button type="button" onClick={onPostSupply} className="mt-5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">{copy('postSupply')}</button>}
             </div> : <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm dark:border-slate-700">
                 <table className="w-full min-w-[850px] border-collapse text-sm">
                     <thead className="bg-slate-100 dark:bg-slate-800"><tr>
@@ -153,8 +154,8 @@ export function SupplierOffersWorkspace({ mine = false, onRequestQuote, onEdit, 
                                 <td className="px-3 py-3"><span className={`rounded px-2 py-1 text-xs font-medium ${active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>{copy(`status.${state}`)}</span><span className="mt-2 block text-xs text-slate-500">{copy('revision', { revision: offer.revision })}</span></td>
                                 <td className="px-3 py-3"><div className="flex flex-wrap justify-end gap-2">
                                     <button type="button" className={buttonClass} aria-expanded={expanded === offer.id} onClick={() => setExpanded((current) => current === offer.id ? null : offer.id)}><ChevronDown size={14} />{copy('details')}</button>
-                                    {!mine && active && offer.canRequestQuote && user?.role === 'BUYER' && <button type="button" className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500" onClick={() => onRequestQuote(offer)}>{copy('requestQuote')}</button>}
-                                    {mine && offer.canEdit && <button type="button" className={buttonClass} disabled={pending} onClick={() => onEdit(offer)}>{copy('revise')}</button>}
+                                    {!historyOnly && !mine && active && offer.canRequestQuote && user?.role === 'BUYER' && <button type="button" className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500" onClick={() => onRequestQuote(offer)}>{copy('requestQuote')}</button>}
+                                    {!historyOnly && mine && offer.canEdit && <button type="button" className={buttonClass} disabled={pending} onClick={() => onEdit(offer)}>{copy('revise')}</button>}
                                     {mine && offer.canWithdraw && <button type="button" className={buttonClass} disabled={pending} onClick={() => setWithdrawal(offer)}>{copy('withdraw')}</button>}
                                 </div></td>
                             </tr>

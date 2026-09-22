@@ -78,6 +78,10 @@ export const MapLegend: React.FC = () => {
                                     <div className="w-3.5 h-3.5 rounded-full border-2 border-red-500 bg-white dark:bg-slate-800"></div>
                                     <span>{t('mapLegend.wideSpread')}</span>
                                 </div>
+                                <div className="flex items-center gap-2.5 text-xs">
+                                    <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-400 bg-white dark:bg-slate-800"></div>
+                                    <span>{t('mapLegend.noSpread')}</span>
+                                </div>
                             </div>
                         </div>
 

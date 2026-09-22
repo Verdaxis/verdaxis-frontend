@@ -687,7 +687,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText('Unverified signal')).toBeNull();
   });
 
-  it.each(['CONVENTIONAL_METHANOL', 'UCOME_B100'])('filters %s out of forward rows and latest signals even on approved ports', async (unsupportedProduct) => {
+  it.each(['CONVENTIONAL_METHANOL'])('filters %s out of forward rows and latest signals even on approved ports', async (unsupportedProduct) => {
     localStorage.setItem('verdaxis_forward_curve_product', unsupportedProduct);
     localStorage.setItem('verdaxis_forward_curve_delivery_point', 'dp-houston');
     localStorage.setItem('verdaxis_forward_curve_window', 'SPOT');
@@ -751,6 +751,35 @@ describe('ForwardCurveWorkspace', () => {
       });
     });
     expect(sliceMock).not.toHaveBeenCalledWith(expect.objectContaining({ market_product: unsupportedProduct }));
+  });
+
+  it.each([null, 1110])('shows B100 in the shared curve with its real price or honest no-data state (%s)', async price => {
+    const cell = {
+      ...baseCell('UCOME_B100', 'dp-singapore', 'Singapore', 'SPOT', price),
+      primary_source_kind: price == null ? 'NO_DATA' : 'LIVE_ORDER',
+      primary_signal_type: price == null ? 'NO_DATA' : 'ORDERBOOK_ASK',
+      demo_status: price == null ? 'UNKNOWN' : 'REAL_ONLY',
+      public_source_label: price == null ? 'No data' : 'User order midpoint',
+    } as ForwardCurveMarketCell;
+    const table = makeTable();
+    table.rows = [{ ...table.rows[0], row_key: 'UCOME_B100:dp-singapore', market_product: 'UCOME_B100', cells: { SPOT: cell } }];
+    table.latest_signals = [];
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockResolvedValue({ ...makeSlice(cell), depth_bids: [], depth_asks: [], evidence_points: [] });
+    const onOpenSlice = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onOpenSlice={onOpenSlice} />);
+    await waitFor(() => expect(sliceMock).toHaveBeenCalledWith({
+      market_product: 'UCOME_B100', delivery_point_id: 'dp-singapore', availability_window: 'SPOT',
+    }));
+    expect(screen.getAllByText(/UCOME B100/).length).toBeGreaterThan(0);
+    if (price == null) {
+      expect(screen.getByText('No forward curve evidence is available for this product and port yet.')).toBeTruthy();
+      expect(screen.queryByText('$1110')).toBeNull();
+    } else {
+      expect(screen.getAllByText('$1110').length).toBeGreaterThan(0);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Open Marketplace' }));
+    expect(onOpenSlice).toHaveBeenCalledWith({ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' });
   });
 
   it('clears stale selected-period evidence while a newly selected slice is loading', async () => {

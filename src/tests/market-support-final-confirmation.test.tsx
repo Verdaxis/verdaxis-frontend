@@ -1,10 +1,34 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MarketSupportFinalConfirmation } from '../components/market-support/MarketSupportFinalConfirmation';
-import i18n from '../i18n';
+import i18n, { loadNamespace } from '../i18n';
+
+beforeAll(async () => { await Promise.all([loadNamespace('rfq'), loadNamespace('trading')]); });
 
 describe('MarketSupportFinalConfirmation', () => {
+  it('shows B100 buyer requirements in the exact draft before assisted submission', async () => {
+    render(<MarketSupportFinalConfirmation organizationName="Northstar Fuels" supportReference="CASE-B100" onBack={vi.fn()} onConfirm={vi.fn()} draft={{
+      side: 'BID', product: 'UCOME B100', deliveryPoint: 'Singapore', availabilityWindow: 'SPOT', quantityMt: 500, pricePerMtUsd: 1100, expiresAt: '', certificationScheme: '', specificationStandard: '', msdsAvailable: false, carbonIntensity: null, feedstock: '', origin: '',
+      fameTerms: { side: 'BID', schema_version: 1, neat_fame: true, standard: 'ASTM_D6751', standard_edition: '24', astm_grade: '1-B S15 LM', max_ci_gco2e_mj: 0, sustainability_scheme: 'ISCC_EU', require_quality_evidence: true, require_sustainability_evidence: false, evidence_due: 'BEFORE_LOADING' },
+    }} />);
+    expect(await screen.findByRole('heading', { name: 'Buyer fuel requirements' })).toBeTruthy();
+    expect(screen.getByText('1-B S15 LM')).toBeTruthy();
+    expect(screen.getByText('0 gCO₂e/MJ')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /confirm and submit/i })).toHaveProperty('disabled', true);
+  });
+
+  it('shows B100 supplier declarations instead of generic fuel fields', async () => {
+    render(<MarketSupportFinalConfirmation organizationName="Northstar Fuels" supportReference="CASE-B100" onBack={vi.fn()} onConfirm={vi.fn()} draft={{
+      side: 'ASK', product: 'UCOME B100', deliveryPoint: 'Singapore', availabilityWindow: 'SPOT', quantityMt: 500, pricePerMtUsd: 1100, expiresAt: '', certificationScheme: 'Stale generic scheme', specificationStandard: 'Stale generic specification', msdsAvailable: false, carbonIntensity: null, feedstock: 'Stale generic feedstock', origin: 'Stale generic origin',
+      fameTerms: { side: 'ASK', schema_version: 1, neat_fame: true, nomination_status: 'PENDING', uco_mass_pct: 100, standard: 'EN_14214', standard_edition: '2019', sustainability_scheme: 'ISCC_EU', certificate_reference: 'DRAFT-CERT', certificate_holder: 'Declared operator', certificate_valid_until: '2027-12-31', evidence_status: 'DECLARED', document_references: [], evidence_due: 'BEFORE_LOADING', ci_gco2e_mj: null },
+    }} />);
+    expect(await screen.findByText('DRAFT-CERT')).toBeTruthy();
+    expect(screen.getByText('Declared carbon intensity').nextElementSibling?.textContent).toBe('Not supplied');
+    expect(screen.queryByText('Stale generic specification')).toBeNull();
+    expect(screen.queryByText('Stale generic feedstock')).toBeNull();
+  });
+
   it('shows a frozen exact draft summary and critical supplier metadata', () => {
     render(
       <MarketSupportFinalConfirmation

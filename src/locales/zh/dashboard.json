@@ -109,14 +109,7 @@
       "choosePort": "前往港口",
       "allPorts": "所有港口"
     },
-    "rfq": {
-      "title": "UCOME B100 · 新加坡",
-      "description": "浏览供应商货源，并就批发交付发起询价。",
-      "action": "打开 B100 交易市场",
-      "marker": "UCOME B100 · 货源与询价",
-      "allPorts": "显示新加坡交付点",
-      "legend": "批发覆盖范围 · 通过报价确认价格和供货量"
-    }
+    "specificationScope": "B100 价格可能涉及不同牌号、低温性能限值和认证。交易前请核对订单规格。"
   },
   "dataAnalytics": {
     "title": "数据与分析",
@@ -516,7 +509,7 @@
     "loadingIndicativeCurveReferences": "正在加载参考性曲线...",
     "productLevelReference": "产品级参考",
     "spotReference": "现货参考",
-    "noDeliveryPointFilter": "未按具体交付点筛选",
+    "noDeliveryPointFilter": "此参考数据汇总多个交付点，不代表所选港口的报价。",
     "contango": "正价差 (Contango)",
     "backwardation": "逆价差 (Backwardation)",
     "noPortHistory": "暂无港口情报历史。",
@@ -603,16 +596,12 @@
       "openMarketplace": "打开 {{port}} 现货市场",
       "selectPort": "选择港口以打开市场"
     },
-    "rfq": {
-      "tab": "UCOME B100",
-      "wholesale": "批发货源与询价",
-      "title": "新加坡 UCOME B100",
-      "description": "浏览或发布在新加坡批发交付的 UCOME B100 货源，并通过询价商定条款。",
-      "quoteTerms": "挂单价格仅供参考。供应商报价将确认本次询购的价格与可供数量。",
-      "evidence": "分别审核燃料规格、批次检测结果、货物可持续性证明及供应商证书。",
-      "minimumLot": "最低询购量：{{quantity}} {{unit}}",
-      "openMarketplace": "前往市场查看 UCOME B100"
-    }
+    "noCurveData": "无数据",
+    "curveUnavailable": "曲线数据不可用",
+    "noSpotReference": "暂无双边即期参考价格",
+    "portLevelReference": "所选港口参考价格",
+    "selectedDeliveryPointFilter": "已筛选至 {{port}}",
+    "noCurveProducts": "暂无可用的订单簿产品。"
   },
   "mapLegend": {
     "title": "地图情报图例",
@@ -636,7 +625,8 @@
     "infrastructure": "基础设施",
     "activeGreenCorridor": "活跃绿色走廊",
     "recentListings": "近期挂牌 — 最新开放挂牌指示",
-    "button": "图例"
+    "button": "图例",
+    "noSpread": "暂无双边报价"
   },
   "marketWatch": {
     "title": "市场监控",
@@ -653,18 +643,19 @@
     "configureShort": "配置",
     "configureHelp": "选择一个或多个市场产品和交付点。行情条会按港口分组显示所选燃料。演示数据为预置的产品演示活动；参考数据为基准或模型背景，不代表可成交流动性。",
     "closeConfigure": "关闭市场监控配置",
-    "products": "报价燃料",
+    "products": "燃料",
     "deliveryPoints": "交付点",
     "pinnedCount": {
       "one": "{{count}} 个点",
       "other": "{{count}} 个点"
     },
     "productsCount": {
-      "one": "{{count}} 种报价燃料",
-      "other": "{{count}} 种报价燃料"
+      "one": "已选 {{count}} 种燃料",
+      "other": "已选 {{count}} 种燃料"
     },
     "pinHelp": "选择一个或多个",
     "scrollArea": "可滚动的市场监控价格",
+    "noSupportedMarkets": "所选组合暂无支持的市场。请选择其他燃料或交付点。",
     "source": {
       "live": "近期",
       "stale": "数据过期",

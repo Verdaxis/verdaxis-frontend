@@ -1,5 +1,5 @@
 import type { AggregatedOrderbook, DeliveryPoint, Port, Product } from '../types';
-import { isOrderbookMarketProduct } from './marketProduct';
+import { isOrderbookMarketProduct, isOrderbookProduct } from './marketProduct';
 
 export interface PortMarketRow {
     key: string;
@@ -34,6 +34,7 @@ const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
     E_METHANOL: 'e-Methanol',
     BIO_ETHANOL: 'Bio Ethanol',
     SYNTHETIC_ETHANOL: 'e-Ethanol',
+    UCOME_B100: 'UCOME B100',
 };
 
 const canonicalProductLabels = new Map([
@@ -72,21 +73,25 @@ const referenceSource = (rows: AggregatedOrderbook[]): PortMarketReference['sour
     return hasDemo ? 'DEMO' : 'MARKET';
 };
 
-/** Catalog coverage is a request lane, never stock or executable liquidity. */
-export const getUcomeMapLane = (
+/** Catalog coverage defines which ports can list a product; it is not liquidity. */
+export const getMarketProductMapPorts = (
+    marketProduct: string | undefined,
     products: Product[],
     deliveryPoints: DeliveryPoint[],
     ports: Port[],
-): { product: Product; port: Port } | null => {
-    const product = products.find(candidate => (
-        candidate.is_active
-        && candidate.market_product === 'UCOME_B100'
-        && candidate.execution_mode === 'RFQ_ONLY'
+): Port[] => {
+    if (!marketProduct) return ports;
+    const productsForMarket = products.filter(candidate => (
+        isOrderbookProduct(candidate) && candidate.market_product === marketProduct
     ));
-    const singapore = deliveryPoints.find(point => point.is_active && point.name === 'Singapore');
-    if (!product || !singapore || !product.available_delivery_point_ids?.includes(singapore.id)) return null;
-    const port = ports.find(candidate => candidate.name === singapore.name);
-    return port ? { product, port } : null;
+    // Legacy alcohol catalogs may omit coverage. B100 requires its approved lane.
+    if (productsForMarket.length === 0) return marketProduct === 'UCOME_B100' ? [] : ports;
+    if (marketProduct !== 'UCOME_B100' && productsForMarket.some(product => !product.available_delivery_point_ids)) return ports;
+    const availablePointIds = new Set(productsForMarket.flatMap(product => product.available_delivery_point_ids ?? []));
+    const availablePointNames = new Set(deliveryPoints
+        .filter(point => point.is_active && availablePointIds.has(point.id))
+        .map(point => normalizeLocation(point.name)));
+    return ports.filter(port => availablePointNames.has(normalizeLocation(port.name)));
 };
 
 export const computePortMarketData = (
@@ -94,9 +99,9 @@ export const computePortMarketData = (
     port: string | PortMarketIdentity,
     selectedProduct?: string
 ): PortMarketData => {
-    if (selectedProduct === 'UCOME_B100' || selectedProduct === 'UCOME B100') {
-        return { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
-    }
+    const selectedLabel = selectedProduct
+        ? CANONICAL_PRODUCT_LABELS[selectedProduct] ?? canonicalProductLabels.get(selectedProduct.toLowerCase())
+        : undefined;
     const identity = typeof port === 'string' ? { name: port } : port;
     const approvedNames = new Set([normalizeLocation(identity.name)].filter(Boolean));
     const approvedIds = new Set([
@@ -113,6 +118,7 @@ export const computePortMarketData = (
     portRows.forEach((row) => {
         const productLabel = resolveCanonicalProductLabel(row);
         if (!productLabel) return;
+        if (selectedLabel && productLabel !== selectedLabel) return;
         if (!byProduct[productLabel]) byProduct[productLabel] = { bids: [], asks: [] };
         if (row.side === 'BID') byProduct[productLabel].bids.push(row);
         else byProduct[productLabel].asks.push(row);
@@ -165,15 +171,10 @@ export const computePortMarketData = (
 
     let spreadPct = 999;
     if (fuelRows.length > 0) {
-        if (selectedProduct) {
-            const match = fuelRows.find(row => row.key === selectedProduct);
-            spreadPct = match ? match.spreadPct : Math.min(...fuelRows.map(row => row.spreadPct));
-        } else {
-            spreadPct = Math.min(...fuelRows.map(row => row.spreadPct));
-        }
+        spreadPct = Math.min(...fuelRows.map(row => row.spreadPct));
     }
 
-    const referenceProduct = selectedProduct || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
+    const referenceProduct = selectedLabel || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
     const reference = references.find(item => item.productLabel === referenceProduct)
         ?? references[0]
         ?? null;

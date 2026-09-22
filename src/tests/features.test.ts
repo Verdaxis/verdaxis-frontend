@@ -82,7 +82,7 @@ describe('Green Fuels Market Products', () => {
             'SYNTHETIC_ETHANOL',
             'UCOME_B100',
         ]);
-        expect(ORDERBOOK_MARKET_PRODUCTS).toEqual(MARKET_PRODUCTS.filter(product => product !== 'UCOME_B100'));
+        expect(ORDERBOOK_MARKET_PRODUCTS).toEqual(MARKET_PRODUCTS);
     });
 });
 

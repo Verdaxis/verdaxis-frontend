@@ -6,7 +6,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MarketWatchTicker } from '../components/map/MarketWatchTicker';
 import { PORTS } from '../data';
 import i18n, { loadNamespace } from '../i18n';
-import type { AggregatedOrderbook } from '../types';
+import type { AggregatedOrderbook, Product } from '../types';
 import { renderWithProviders } from './test-utils';
 
 const priceSummariesMock = vi.fn();
@@ -37,6 +37,13 @@ const DELIVERY_POINTS = [
   { id: 'dp-santos-uuid', name: 'Santos', region: 'South America', is_active: true },
   { id: 'dp-shanghai-uuid', name: 'Shanghai', region: 'Asia', is_active: true },
 ];
+
+const CATALOG_PRODUCTS: Product[] = [{
+  id: 'product-ucome', name: 'UCOME B100', market_product: 'UCOME_B100',
+  fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 1,
+  is_active: true, execution_mode: 'ORDERBOOK',
+  available_delivery_point_ids: ['dp-singapore-uuid'],
+}];
 
 const makeSummary = (overrides: Record<string, unknown> = {}) => ({
   market_product: 'BIO_METHANOL',
@@ -114,7 +121,7 @@ describe('MarketWatchTicker', () => {
     });
 
     renderWithProviders(
-      <MarketWatchTicker
+      <MarketWatchTicker catalogProducts={CATALOG_PRODUCTS}
         isPanelOpen={false}
         onOpenPanel={vi.fn()}
         ports={PORTS}
@@ -142,7 +149,7 @@ describe('MarketWatchTicker', () => {
     }));
 
     renderWithProviders(
-      <MarketWatchTicker
+      <MarketWatchTicker catalogProducts={CATALOG_PRODUCTS}
         isPanelOpen={false}
         onOpenPanel={vi.fn()}
         ports={PORTS}
@@ -207,7 +214,7 @@ describe('MarketWatchTicker', () => {
       generated_at: new Date().toISOString(),
     }));
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => {
       expect(screen.getByText('$777')).toBeTruthy();
@@ -230,7 +237,7 @@ describe('MarketWatchTicker', () => {
     }));
 
     renderWithProviders(
-      <MarketWatchTicker
+      <MarketWatchTicker catalogProducts={CATALOG_PRODUCTS}
         isPanelOpen={false}
         onOpenPanel={vi.fn()}
         ports={PORTS}
@@ -247,7 +254,7 @@ describe('MarketWatchTicker', () => {
   it('recovers from malformed preferences without rewriting defaults on mount', async () => {
     localStorage.setItem(STORAGE_KEY, '{bad-json');
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => {
       expect(priceSummariesMock).toHaveBeenCalled();
@@ -262,34 +269,90 @@ describe('MarketWatchTicker', () => {
       portIds: ['sg-sin', 'nl-rtm', 'br-ssz', 'bad-port', 'us-hou'],
     }));
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByText(/4 priced fuels/)).toBeTruthy();
+    expect(screen.getByText(/5 selected fuels/)).toBeTruthy();
     expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
-  it('drops RFQ-only products from saved ticker preferences without requesting a price', async () => {
+  it('requests B100 market prices and shows no data without inventing a preview price', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       products: ['UCOME_B100', 'BIO_METHANOL'],
       portIds: ['sg-sin'],
     }));
 
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => expect(priceSummariesMock).toHaveBeenCalled());
-    expect(priceSummariesMock.mock.calls.map(([params]) => params.market_product)).toEqual(['BIO_METHANOL']);
-    expect(screen.queryByText('UCOME B100')).toBeNull();
+    expect(priceSummariesMock.mock.calls.map(([params]) => params.market_product)).toEqual(['UCOME_B100', 'BIO_METHANOL']);
+    const b100 = screen.getAllByText('UCOME B100')[0].closest('[data-market-watch-item]');
+    expect(b100?.textContent).toContain('No data');
+    expect(b100?.textContent).not.toContain('$');
+    expect(b100?.textContent).not.toContain('DEMO');
     fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
-    expect(screen.queryByRole('button', { name: /UCOME/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /UCOME/ })).toBeTruthy();
+  });
+
+  it('shows a B100 price only when the API returns the matching product, point and spot window', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['UCOME_B100'], portIds: ['sg-sin'] }));
+    priceSummariesMock.mockResolvedValue({ summaries: [
+      makeSummary({ last_price: 999 }),
+      makeSummary({ market_product: 'UCOME_B100', last_price: 1110, source_kind: 'CONFIRMED_TRADE', observed_at: new Date().toISOString() }),
+    ] });
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    expect(await screen.findByText('$1110')).toBeTruthy();
+    expect(screen.queryByText('$999')).toBeNull();
+  });
+
+  it('omits unsupported B100 ports while retaining alcohol rows at those ports', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      products: ['UCOME_B100', 'BIO_METHANOL'], portIds: ['sg-sin', 'nl-rtm'],
+    }));
+    priceSummariesMock.mockResolvedValue({ summaries: [makeSummary({
+      market_product: 'UCOME_B100', delivery_point_id: 'dp-rotterdam-uuid', last_price: 1234,
+    })] });
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    await waitFor(() => expect(screen.getByText('No data')).toBeTruthy());
+    const b100Rows = screen.getAllByText('UCOME B100');
+    expect(b100Rows).toHaveLength(1);
+    expect(b100Rows[0].closest('[data-market-watch-item]')?.textContent).toContain('Singapore');
+    expect(screen.getByText('Rotterdam').closest('[data-market-watch-item]')?.textContent).toContain('Bio Methanol');
+    expect(screen.queryByText('$1234')).toBeNull();
+    expect(screen.getByText(/2 selected fuels/)).toBeTruthy();
+  });
+
+  it.each([
+    { language: 'en', count: '1 selected fuel', empty: 'No supported markets for these selections. Choose another fuel or delivery point.', loading: 'CONNECTING...' },
+    { language: 'zh', count: '已选 1 种燃料', empty: '所选组合暂无支持的市场。请选择其他燃料或交付点。', loading: '连接中...' },
+  ])('shows a clear empty selection state in $language', async ({ language, count, empty, loading }) => {
+    await loadNamespace('dashboard');
+    await i18n.changeLanguage(language);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['UCOME_B100'], portIds: ['nl-rtm'] }));
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    expect(await screen.findByText(empty)).toBeTruthy();
+    expect(screen.getByText(text => text.includes(count))).toBeTruthy();
+    expect(screen.queryByText(text => text.includes(loading))).toBeNull();
+    expect(priceSummariesMock).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-market-watch-item]')).toBeNull();
+  });
+
+  it('does not infer B100 coverage when the product catalog is unavailable', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['UCOME_B100'], portIds: ['sg-sin'] }));
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    expect(await screen.findByText('No supported markets for these selections. Choose another fuel or delivery point.')).toBeTruthy();
+    expect(priceSummariesMock).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-market-watch-item]')).toBeNull();
   });
 
   it('supports multi-fuel and more than three pinned delivery points', async () => {
     setSingleProductPreferences();
-    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    renderWithProviders(<MarketWatchTicker catalogProducts={CATALOG_PRODUCTS} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
 
     await waitFor(() => {
       expect(priceSummariesMock).toHaveBeenCalled();
@@ -336,7 +399,7 @@ describe('MarketWatchTicker', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/3 priced fuels/)).toBeTruthy();
+      expect(screen.getByText(/3 selected fuels/)).toBeTruthy();
     });
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');

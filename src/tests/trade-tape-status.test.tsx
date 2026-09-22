@@ -67,6 +67,20 @@ describe('TradeTape status copy', () => {
     });
   });
 
+  it('shows confirmed B100 trades with their exact product filter and no generic grade fallback', async () => {
+    tradeTapeList.mockResolvedValue({ items: [{
+      id: 'b100-trade', market_product: 'UCOME_B100', fuel_type: 'FAME', fuel_grade: 'UCOME',
+      region: 'Singapore', quantity_mt: '450', price_per_mt_usd: '1125.50',
+      confirmed_at: new Date().toISOString(), availability_window: 'SPOT', provenance_kind: 'CONFIRMED_TRADE',
+    }], total: 1 });
+    renderWithProviders(<TradeTape fuelType="FAME" marketProduct="UCOME_B100" deliveryPointId="singapore" availability="SPOT" />);
+    expect(await screen.findByText('UCOME B100')).toBeTruthy();
+    expect(screen.getByText('450 MT')).toBeTruthy();
+    expect(screen.getByText('$1,125.5/MT')).toBeTruthy();
+    expect(screen.queryByText('Other grade')).toBeNull();
+    expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({ fuel_type: 'FAME', market_product: 'UCOME_B100', delivery_point_id: 'singapore' }));
+  });
+
   it('keeps demo trade badges visible while ignoring market-hours status', async () => {
     tradeTapeList.mockResolvedValue({
       items: [{

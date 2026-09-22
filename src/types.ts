@@ -1,4 +1,4 @@
-
+import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
 export interface GeoLocation {
     lat: number;
     lng: number;
@@ -157,10 +157,11 @@ export const ORDERBOOK_MARKET_PRODUCTS = [
     'E_METHANOL',
     'BIO_ETHANOL',
     'SYNTHETIC_ETHANOL',
+    'UCOME_B100',
 ] as const;
 
 export type OrderbookMarketProduct = typeof ORDERBOOK_MARKET_PRODUCTS[number];
-export const MARKET_PRODUCTS = [...ORDERBOOK_MARKET_PRODUCTS, 'UCOME_B100'] as const;
+export const MARKET_PRODUCTS = ORDERBOOK_MARKET_PRODUCTS;
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
 export type TierLabel = 'TIER_1_PRODUCER' | 'MAJOR_TRADER' | 'REGIONAL_SUPPLIER' | 'INDEPENDENT';
 
@@ -211,8 +212,45 @@ export type OrderBookStatus = 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLE
 export type TradeStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'DELIVERED' | 'PAID' | 'CANCELLED' | 'DECLINED';
 export type Initiator = 'BUYER' | 'SELLER';
 
+export interface OrderCreateInput {
+    side: OrderSide;
+    product_id: string;
+    delivery_point_id?: string;
+    quantity_mt: number;
+    price_per_mt_usd: number;
+    availability_window: string;
+    is_anonymous?: boolean;
+    delivery_window_start?: string;
+    delivery_window_end?: string;
+    expires_at?: string;
+    certifications?: string[];
+    certification_declared?: boolean;
+    certification_scheme?: string | null;
+    specification_standard?: string | null;
+    msds_available?: boolean;
+    carbon_intensity_gco2_mj?: number | null;
+    carbon_intensity_method?: string | null;
+    feedstock?: string | null;
+    origin?: string | null;
+    off_spec?: boolean;
+    off_spec_notes?: string | null;
+    fame_terms?: FameOrderTerms | null;
+    idempotency_key?: string;
+}
+
+export interface TradeCreateInput {
+    order_id: string;
+    quantity_mt: number;
+    expected_order_version?: number;
+    fame_terms?: FameOrderTerms | null;
+    certification_declared?: boolean;
+    msds_available?: boolean;
+    idempotency_key?: string;
+}
+
 export interface OrderBookOrder {
     id: string;
+    version?: number;
     organization_id?: string; // Only in "my" view
     side: OrderSide;
     // Product/DeliveryPoint FK fields (new model)
@@ -240,6 +278,7 @@ export interface OrderBookOrder {
     certification_declared?: boolean;
     certification_scheme?: string | null;
     specification_standard?: string | null;
+    fame_terms?: FameOrderPublicTerms | null;
     msds_available?: boolean;
     feedstock?: string | null;
     origin?: string | null;
@@ -295,6 +334,7 @@ export interface Trade {
     fuel_type: string;
     fuel_grade?: FuelGrade;
     region: string;
+    fame_terms_snapshot?: FameTermsSnapshot | null;
 }
 
 export interface AggregatedOrderbook {

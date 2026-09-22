@@ -123,11 +123,17 @@ async function smokeTarget(name, target) {
 
   if (target.expectedProducts.includes('UCOME_B100')) {
     const ucome = products.find((product) => product.market_product === 'UCOME_B100');
-    assert(ucome?.execution_mode === 'RFQ_ONLY', `${name}: UCOME must remain RFQ-only`);
+    assert(ucome?.execution_mode === 'ORDERBOOK', `${name}: UCOME must use the shared orderbook`);
     assert(Number(ucome.min_lot_size) === 1, `${name}: UCOME platform input minimum mismatch`);
-    assertExactSet(ucome.available_delivery_point_ids ?? [], [singapore.id], `${name}: UCOME RFQ lane`);
+    assertExactSet(ucome.available_delivery_point_ids ?? [], [singapore.id], `${name}: UCOME delivery lane`);
     const fameOrders = await fetchJson(`${target.api}/orderbook?product_id=${encodeURIComponent(ucome.id)}&limit=100`);
-    assert(Array.isArray(fameOrders) && fameOrders.length === 0, `${name}: RFQ-only UCOME leaked into executable orders`);
+    assert(Array.isArray(fameOrders), `${name}: UCOME orderbook response must be an array`);
+    assert(fameOrders.every((order) => order.product_id === ucome.id && order.fame_terms?.side === order.side),
+      `${name}: UCOME orders must carry side-specific terms`);
+    const fameCurve = await fetchJson(`${target.api}/curves/forward/table?market_products=UCOME_B100&windows=SPOT`);
+    assert(fameCurve.rows?.length === 1, `${name}: UCOME curve must include its Singapore row even without prices`);
+    assert(fameCurve.rows[0].market_product === 'UCOME_B100' && fameCurve.rows[0].delivery_point_id === singapore.id,
+      `${name}: UCOME curve slice mismatch`);
   }
 
   const curveUrl = new URL(`${target.api}/curves/forward`);

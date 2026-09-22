@@ -6,18 +6,20 @@ import { PORTS as FALLBACK_PORTS } from '../../data';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useServerPreference } from '../../hooks/useServerPreference';
 import { api } from '../../services/api';
-import type { AggregatedOrderbook, DeliveryPoint, OrderbookMarketProduct, Port, PriceSummary } from '../../types';
+import type { AggregatedOrderbook, DeliveryPoint, OrderbookMarketProduct, Port, PriceSummary, Product } from '../../types';
 import { formatAvailabilityWindow } from '../../utils/availabilityWindow';
 import { buildDemoMarketQuotes, type DemoMarketQuote } from '../../utils/demoMarketQuotes';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../../utils/marketProduct';
 import { filterApprovedTradingPorts } from '../../utils/tradingPorts';
+import { getMarketProductMapPorts } from '../../utils/buyerMapMarket';
 
 interface MarketWatchTickerProps {
     active?: boolean;
     isPanelOpen: boolean;
     onOpenPanel: () => void;
     ports?: Port[];
+    catalogProducts?: Product[];
     aggregatedData?: AggregatedOrderbook[];
 }
 
@@ -44,8 +46,9 @@ const DEFAULT_PINNED_PORT_NAMES = ['Rotterdam', 'Singapore', 'Santos', 'Houston'
 const DEFAULT_PINNED_PORT_COUNT = 5;
 const MIN_AUTO_SCROLL_ROWS = 4;
 const EMPTY_AGGREGATED_DATA: AggregatedOrderbook[] = [];
+const EMPTY_PRODUCTS: Product[] = [];
 
-const DEMO_PREVIEW_PRICES: Record<OrderbookMarketProduct, number> = {
+const DEMO_PREVIEW_PRICES: Partial<Record<OrderbookMarketProduct, number>> = {
     BIO_METHANOL: 960,
     E_METHANOL: 1150,
     BIO_ETHANOL: 850,
@@ -150,14 +153,15 @@ const getSummaryStatus = (summary: PriceSummary): RowStatus => {
 };
 
 const buildDemoRow = (port: Port, product: OrderbookMarketProduct, language: string, quote?: DemoMarketQuote): TickerRow => {
+    const price = quote?.price ?? DEMO_PREVIEW_PRICES[product];
     return {
         key: `${product}-${port.id}`,
         port,
         product,
-        value: currency(quote?.price ?? DEMO_PREVIEW_PRICES[product]),
-        change: quote ? formatAvailabilityWindow(quote.availabilityWindow, language) : 'Preview',
+        value: currency(price),
+        change: price == null ? '--' : quote ? formatAvailabilityWindow(quote.availabilityWindow, language) : 'Preview',
         up: true,
-        status: 'DEMO',
+        status: price == null ? 'UNAVAILABLE' : 'DEMO',
     };
 };
 
@@ -194,6 +198,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
     isPanelOpen,
     onOpenPanel,
     ports,
+    catalogProducts = EMPTY_PRODUCTS,
     aggregatedData = EMPTY_AGGREGATED_DATA,
 }) => {
     const { t, ready } = useNamespace('dashboard');
@@ -219,6 +224,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         defaultPreferences,
     );
     const [rows, setRows] = useState<TickerRow[]>([]);
+    const [rowsLoading, setRowsLoading] = useState(true);
     const [editorOpen, setEditorOpen] = useState(false);
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[] | null>(null);
     const closeEditor = useCallback((restoreFocus = false) => {
@@ -296,11 +302,17 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         if (!active) return;
         let cancelled = false;
         const loadRows = async () => {
-            const slices = selectedPorts.flatMap(port => selectedProducts.map(product => ({ port, product })));
+            const slices = selectedPorts.flatMap(port => selectedProducts
+                .filter(product => getMarketProductMapPorts(
+                    product, catalogProducts, deliveryPoints ?? [], [port],
+                ).length > 0)
+                .map(product => ({ port, product })));
+            setRowsLoading(true);
             setRows(slices.map(({ port, product }) => buildLoadingRow(port, product)));
             if (deliveryPoints === null) return;
             const summariesByProduct = new Map<OrderbookMarketProduct, PriceSummary[]>();
-            await Promise.all(selectedProducts.map(async product => {
+            const coveredProducts = selectedProducts.filter(product => slices.some(slice => slice.product === product));
+            await Promise.all(coveredProducts.map(async product => {
                 try {
                     const response = await api.prices.getSummaries({
                         market_product: product,
@@ -325,24 +337,28 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                 ));
                 return summaryRow ?? buildDemoRow(port, product, language, demoQuote);
             });
-            if (!cancelled) setRows(nextRows);
+            if (!cancelled) {
+                setRows(nextRows);
+                setRowsLoading(false);
+            }
         };
 
         loadRows();
         return () => {
             cancelled = true;
         };
-    }, [active, deliveryPoints, demoQuotes, language, selectedPorts, selectedProducts]);
+    }, [active, catalogProducts, deliveryPoints, demoQuotes, language, selectedPorts, selectedProducts]);
 
     const headerStatus: HeaderStatus = useMemo(() => {
-        if (rows.length === 0 || rows.some(row => row.status === 'LOADING')) return 'LOADING';
+        if (rowsLoading) return 'LOADING';
+        if (rows.length === 0) return 'UNAVAILABLE';
         if (rows.every(row => row.status === 'LIVE')) return 'LIVE';
         if (rows.some(row => row.status === 'LIVE')) return 'MIXED';
         if (rows.every(row => row.status === 'DEMO')) return 'DEMO';
         if (rows.every(row => row.status === 'REFERENCE')) return 'REFERENCE';
         if (rows.every(row => row.status === 'UNAVAILABLE')) return 'UNAVAILABLE';
         return 'MIXED';
-    }, [rows]);
+    }, [rows, rowsLoading]);
 
     const togglePort = (portId: string) => {
         setPreferences(current => {
@@ -392,6 +408,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
     const rowChip = (row: TickerRow, duplicateIndex: number) => (
         <div
             key={`${row.key}-${duplicateIndex}`}
+            data-market-watch-item={row.key}
             className="verdaxis-market-watch-chip flex min-w-fit items-center gap-2 whitespace-nowrap rounded-md border border-slate-200/70 bg-slate-50/80 px-2.5 py-1 dark:border-slate-700/80 dark:bg-slate-950/40"
         >
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-300">
@@ -456,6 +473,11 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                     </div>
 
                 <div className="verdaxis-market-watch-strip min-w-0 flex-1 overflow-hidden" tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
+                    {!rowsLoading && rows.length === 0 && (
+                        <p role="status" className="px-3 text-xs text-slate-500 dark:text-slate-400">
+                            {t('marketWatch.noSupportedMarkets')}
+                        </p>
+                    )}
                     <div
                         className={`verdaxis-market-watch-track flex w-max items-center gap-2 px-3 ${shouldAutoScroll ? 'verdaxis-market-watch-track--scrolling' : ''}`}
                         style={{ '--verdaxis-market-watch-duration': scrollDuration } as React.CSSProperties}

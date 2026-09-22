@@ -610,11 +610,11 @@
 - **Rule:** Finish parallel code edits before starting acceptance tests. If source changes during the run, exclude that result and rerun from frozen inputs; do not change working code to satisfy a stale process.
 - **Why:** A test runner can retain transformed modules while loading newly edited tests, so that run does not verify one coherent revision.
 
-### Keep RFQ Products In Shared Market Discovery
+### Use The Requested Shared Trading System
 - **Date:** 2026-09-22
 - **Trigger:** The user asked why B100 was in a separate RFQ tab and missing from Marketplace and Map product filters.
-- **Rule:** Include catalog products in shared Marketplace and Map discovery. Let each product use its supported transaction method inside that flow. Keep RFQ coverage distinct from executable order counts, inventory, and price data.
-- **Why:** An execution boundary does not require a separate navigation destination or hiding a product from discovery.
+- **Rule:** B100 must use the same orderbook system as the other fuels and appear in Marketplace, Map, and Forward Curve, with fuel-specific fields. The user explicitly corrected RFQ-only implementation on 2026-09-22. Implement specification compatibility in execution rather than treating the earlier RFQ design as a permanent product requirement. Keep indicative prices, executable orders, and unavailable data distinct.
+- **Why:** Shared styling and discovery alone do not meet a request for the same trading system. Specification differences require matching rules, not blanket exclusion.
 
 ### Verify Public Map Configuration In Release Builds
 - **Date:** 2026-09-22

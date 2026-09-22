@@ -66,6 +66,19 @@ async function renderLoaded() {
 }
 
 describe('UCOME RFQ workspace', () => {
+    it('keeps RFQ history viewable and cancellable without new requests or quote revisions', async () => {
+        const view = renderWithProviders(<FameRfqWorkspace historyOnly />);
+        await screen.findByRole('heading', { name: 'Contract requirements' });
+        expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Cancel request' })).toBeTruthy();
+        view.unmount();
+        control.user = { id: 'supplier-user', role: 'SUPPLIER', organization_id: 'seller-org' };
+        renderWithProviders(<FameRfqWorkspace historyOnly />);
+        await screen.findByRole('heading', { name: 'Contract requirements' });
+        expect(screen.queryByRole('button', { name: 'Revise quote' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Withdraw quote' })).toBeTruthy();
+    });
+
     it('opens a targeted request with the displayed supplier offer and preserves its revision', async () => {
         const sourceOffer = mapSupplierOfferResponse({ id: 'offer-1', revision: 7, quantity_mt: '1000', min_fill_mt: '500', price_per_mt_usd: '1175', fuel_terms: {} });
         renderWithProviders(<FameRfqWorkspace embedded sourceOffer={sourceOffer} />);

@@ -20,6 +20,7 @@ const {
   listAsks,
   listBids,
   myOrders,
+  products,
   deliveryPoints,
   tradeTapeList,
   tradesInitiate,
@@ -72,6 +73,7 @@ const {
     listAsks: vi.fn(),
     listBids: vi.fn(),
     myOrders: vi.fn(),
+    products: vi.fn(),
     deliveryPoints: vi.fn(),
     tradeTapeList: vi.fn(),
     tradesInitiate: vi.fn(),
@@ -98,12 +100,12 @@ vi.mock('../context/MarketSupportContext', () => ({
   MarketSupportProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: () => <div data-testid="page-rfqs">B100 RFQs</div> }));
-vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: ({ mine }: { mine?: boolean }) => <div data-testid="page-b100-offers">{mine ? 'My B100 offers' : 'B100 supplier Listings'}</div> }));
+vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: ({ historyOnly }: { historyOnly?: boolean }) => <div data-testid="page-rfqs" data-history-only={historyOnly}>B100 RFQs</div> }));
+vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: ({ mine, historyOnly }: { mine?: boolean; historyOnly?: boolean }) => <div data-testid="page-b100-offers" data-history-only={historyOnly}>{mine ? 'My B100 offers' : 'B100 supplier Listings'}</div> }));
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
-vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: () => null }));
+vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: ({ isOpen, prefillMarketProduct, side }: { isOpen: boolean; prefillMarketProduct?: string; side: string }) => isOpen ? <div data-testid="order-place-dialog" data-product={prefillMarketProduct} data-side={side} /> : null }));
 vi.mock('../components/public/DataOcean', () => ({ DataOcean: () => null }));
 vi.mock('../components/ui/Pagination', () => ({ Pagination: () => null }));
 vi.mock('../pages/public/LandingPage', () => ({ LandingPage: () => null }));
@@ -174,6 +176,7 @@ vi.mock('../hooks/useWatchlist', () => ({
 vi.mock('../services/api', () => ({
   api: {
     catalog: {
+      products,
       deliveryPoints,
     },
     orderbook: {
@@ -261,6 +264,10 @@ describe('app routing', () => {
     listAsks.mockResolvedValue([]);
     listBids.mockResolvedValue([]);
     myOrders.mockResolvedValue([]);
+    products.mockResolvedValue([
+      { id: 'bio-methanol', market_product: 'BIO_METHANOL', fuel_type: 'Methanol', is_active: true, execution_mode: 'ORDERBOOK' },
+      { id: 'ucome', market_product: 'UCOME_B100', name: 'UCOME B100', fuel_type: 'FAME', is_active: true, execution_mode: 'ORDERBOOK', available_delivery_point_ids: ['dp-1'] },
+    ]);
     deliveryPoints.mockResolvedValue([
       { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
       { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -282,7 +289,7 @@ describe('app routing', () => {
         ['/app/watchlist', 'page-watchlist', 'WATCHLISTS'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/trades', 'page-trades', 'TRADES'],
-        ['/app/rfqs', 'page-b100-offers', 'MARKETPLACE'],
+        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/compliance', 'page-compliance', 'COMPLIANCE'],
         ['/app/training', 'page-training', 'TRAINING'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
@@ -302,7 +309,7 @@ describe('app routing', () => {
         ['/app/home', 'page-supplier-dashboard', 'DASHBOARD'],
         ['/app/analytics', 'page-data-analytics', 'DATA_ANALYTICS'],
         ['/app/quotes', 'page-quotes', 'QUOTES'],
-        ['/app/rfqs', 'page-b100-offers', 'MARKETPLACE'],
+        ['/app/rfqs', 'page-rfqs', 'MARKETPLACE'],
         ['/app/settings', 'page-settings', 'SETTINGS'],
       ];
       for (const [path, marker, page] of cases) {
@@ -386,12 +393,12 @@ describe('app routing', () => {
       await waitFor(() => expect(currentPathname()).toBe('/app/marketplace'));
     });
 
-    it('restores legacy RFQ sessions inside Marketplace', async () => {
+    it('restores legacy RFQ sessions to their history inside Marketplace', async () => {
       sessionStorage.setItem('verdaxis_currentPage', 'RFQS');
       renderApp('/app');
-      expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
+      expect(await screen.findByTestId('page-rfqs')).toHaveProperty('dataset.historyOnly', 'true');
       expect(currentPathname()).toBe('/app/marketplace');
-      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100&view=history_rfqs');
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
     });
 
@@ -446,37 +453,77 @@ describe('app routing', () => {
   });
 
   describe('marketplace slice URLs', () => {
-    it('opens B100 bookmarks in canonical supplier Listings with access to Requests', async () => {
-      for (const path of ['/app/rfqs', '/app/m/ucome-b100/singapore/spot']) {
+    it('opens the canonical B100 query in standard Listings with shared orderbook navigation', async () => {
+      renderApp('/app/marketplace?product=UCOME_B100');
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
+      expect(currentPathname()).toBe('/app/marketplace');
+      expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+      expect(screen.getByRole('button', { name: 'Listings' }).getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Post a Bid' })).toBeTruthy();
+      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
+      expect(screen.queryByTestId('page-rfqs')).toBeNull();
+      expect(dashboardPageAttr()).toBe('MARKETPLACE');
+    });
+
+    it('keeps B100 slice bookmarks and their exact delivery windows', async () => {
+      for (const [windowPath, availability] of [['spot', 'SPOT'], ['2028-q1', '2028-Q1']]) {
+        const path = `/app/m/ucome-b100/singapore/${windowPath}`;
         const view = renderApp(path);
-        expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
-        expect(currentPathname()).toBe('/app/marketplace');
-        expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
+        await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', availability, delivery_point_id: 'dp-1' })));
+        expect(currentPathname()).toBe(path);
+        expect(screen.getByTestId('location-search').textContent).toBe('');
         expect(dashboardPageAttr()).toBe('MARKETPLACE');
-        expect(screen.queryByRole('button', { name: 'Post a Bid' })).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
+        expect(document.querySelector('[data-market-product="UCOME_B100"]')?.getAttribute('aria-pressed')).toBe('true');
+        expect(screen.queryByTestId('page-b100-offers')).toBeNull();
         view.unmount();
       }
     });
 
-    it('routes the B100 Requests view inside Marketplace and returns to supplier Listings', async () => {
-      renderApp('/app/marketplace?product=UCOME_B100&view=requests');
-      expect(await screen.findByTestId('page-rfqs')).toBeTruthy();
-      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
-      expect(dashboardPageAttr()).toBe('MARKETPLACE');
-      fireEvent.click(screen.getByRole('button', { name: 'Listings' }));
-      expect(await screen.findByTestId('page-b100-offers')).toBeTruthy();
+    it.each(['/app/rfqs', '/app/marketplace?product=UCOME_B100&view=history_rfqs', '/app/marketplace?product=UCOME_B100&view=requests'])('opens %s as RFQ history and returns to executable Listings', async (path) => {
+      renderApp(path);
+      expect(await screen.findByTestId('page-rfqs')).toHaveProperty('dataset.historyOnly', 'true');
+      expect(listAsksPaged).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
+      await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
+      expect(screen.queryByTestId('page-rfqs')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
       expect(screen.getByTestId('location-search').textContent).toBe('?product=UCOME_B100');
-      expect(screen.queryByRole('button', { name: 'Orderbook' })).toBeNull();
     });
 
-    it('routes B100 My Listings to supplier offers rather than executable orders', async () => {
+    it('routes B100 My Listings through standard supplier orders', async () => {
       setRole('SUPPLIER');
       renderApp('/app/marketplace?product=UCOME_B100&view=my_orders');
-      expect(await screen.findByTestId('page-b100-offers')).toHaveProperty('textContent', 'My B100 offers');
+      await waitFor(() => expect(myOrders).toHaveBeenCalled());
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
+      expect(screen.queryByTestId('page-b100-offers')).toBeNull();
+      expect(screen.getByRole('button', { name: 'My Listings' }).getAttribute('aria-pressed')).toBe('true');
+      expect(screen.getByRole('button', { name: 'Post Supply' })).toBeTruthy();
+    });
+
+    it('keeps earlier supplier offers explicitly in history', async () => {
+      setRole('SUPPLIER');
+      renderApp('/app/marketplace?product=UCOME_B100&view=history_my_offers');
+      const history = await screen.findByTestId('page-b100-offers');
+      expect(history.textContent).toBe('My B100 offers');
+      expect(history.dataset.historyOnly).toBe('true');
       expect(myOrders).not.toHaveBeenCalled();
       expect(listBidsPaged).not.toHaveBeenCalled();
+    });
+
+    it('loads the B100 orderbook from an exact slice without losing its route', async () => {
+      renderApp('/app/m/ucome-b100/singapore/2028-q1?view=orderbook');
+      await waitFor(() => expect(listBids).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2028-Q1' })));
+      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2028-Q1' }));
+      expect(currentPathname()).toBe('/app/m/ucome-b100/singapore/2028-q1');
+      expect(screen.getByTestId('location-search').textContent).toBe('?view=orderbook');
+    });
+
+    it.each(['/app/marketplace?product=UCOME_B100', '/app/m/ucome-b100/singapore/2028-q1'])('keeps B100 selected in the sidebar order action from %s', async (path) => {
+      renderApp(path);
+      fireEvent.click(await screen.findByRole('button', { name: 'Post a Bid' }));
+      expect(await screen.findByTestId('order-place-dialog')).toHaveProperty('dataset.product', 'UCOME_B100');
+      expect(screen.getByTestId('order-place-dialog')).toHaveProperty('dataset.side', 'BID');
     });
 
     it('preselects the slice from a valid deep link', async () => {

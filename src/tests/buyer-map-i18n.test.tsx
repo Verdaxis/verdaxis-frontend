@@ -57,8 +57,8 @@ vi.mock('../components/map/MarketWatchTicker', () => ({
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
-  IntelligencePanel: ({ portOptions = [], rfqOnly = false }: { portOptions?: unknown[]; rfqOnly?: boolean }) => (
-    <div data-testid="fallback-port-count" data-rfq-only={rfqOnly}>{portOptions.length}</div>
+  IntelligencePanel: ({ portOptions = [], selectedProduct }: { portOptions?: unknown[]; selectedProduct?: string }) => (
+    <div data-testid="fallback-port-count" data-product={selectedProduct}>{portOptions.length}</div>
   ),
 }));
 
@@ -186,9 +186,9 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
-  it('renders orderbook availability and recent prices without including RFQ-only summary rows', async () => {
+  it('renders B100 in shared orderbook availability and recent prices', async () => {
     portsListMock.mockResolvedValue([]);
-    const rfqOnlyRow = {
+    const b100Row = {
       product_id: 'ucome-b100',
       product_name: 'UCOME B100',
       market_product: 'UCOME_B100',
@@ -221,7 +221,7 @@ describe('BuyerMap failure localization', () => {
         max_price: '999',
         total_quantity: '1234',
         order_count: 1,
-      }, rfqOnlyRow],
+      }, b100Row],
       recent_asks: [{
         product_id: 'bio-methanol',
         product_name: 'Bio Methanol',
@@ -233,40 +233,37 @@ describe('BuyerMap failure localization', () => {
         price_per_mt_usd: '999',
         remaining_quantity_mt: '1234',
         created_at: '2026-09-08T00:00:00Z',
-      }, rfqOnlyRow],
+      }, b100Row],
     });
 
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: /图层/ }));
     fireEvent.click(screen.getAllByRole('switch')[1]);
 
-    expect(await screen.findByText('1,234 MT')).toBeTruthy();
-    expect(screen.getByText('$999')).toBeTruthy();
-    expect(screen.queryByText('$777')).toBeNull();
+    expect(await screen.findByText('11,233 MT')).toBeTruthy();
+    expect(screen.getByText('$777')).toBeTruthy();
     expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
   });
 
-  it.each(['en', 'zh'])('shows catalog UCOME coverage in All and limits its selected map to Singapore (%s)', async language => {
+  it.each(['en', 'zh'])('uses shared B100 map data, controls and trading navigation at its catalog port (%s)', async language => {
     await i18n.changeLanguage(language);
     vi.stubEnv('VITE_MAPBOX_PUBLIC_TOKEN', 'pk.test');
     portsListMock.mockResolvedValue([]);
     const singaporeId = '73835e92-820e-584b-8280-bb61c63aa28e';
     productsMock.mockResolvedValue([{
       id: 'e561e43f-d9b2-598e-981c-f1d28d515ddc', name: 'UCOME B100',
-      market_product: 'UCOME_B100', execution_mode: 'RFQ_ONLY', is_active: true,
+      market_product: 'UCOME_B100', execution_mode: 'ORDERBOOK', is_active: true,
       available_delivery_point_ids: [singaporeId],
     }]);
     deliveryPointsMock.mockResolvedValue([{ id: singaporeId, name: 'Singapore', is_active: true }]);
     renderWithProviders(<><BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} /><RouteProbe /></>);
 
     const filter = await screen.findByRole('button', { name: 'UCOME B100' });
-    const action = language === 'zh' ? '打开 B100 交易市场' : 'Open B100 Marketplace';
-    expect(screen.getByRole('link', { name: action }).getAttribute('href')).toBe('/app/marketplace?product=UCOME_B100');
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
     fireEvent.click(filter);
     expect(filter.getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('1');
-    expect(screen.getByTestId('fallback-port-count').getAttribute('data-rfq-only')).toBe('true');
+    expect(screen.getByTestId('fallback-port-count').getAttribute('data-product')).toBe('UCOME_B100');
     expect(flyToMock).toHaveBeenCalled();
 
     await waitFor(() => {
@@ -274,26 +271,23 @@ describe('BuyerMap failure localization', () => {
       const features = portSources.at(-1)?.[1].data.features;
       expect(features).toHaveLength(1);
       expect(features[0].properties).toMatchObject({
-        name: 'Singapore', rfqAvailable: true, referencePrice: 0, totalVolume: 0,
+        name: 'Singapore', referencePrice: 0, totalVolume: 0,
       });
     });
     const latestSource = addSourceMock.mock.calls.filter(([name]) => name === 'ports').at(-1)?.[1];
     const clickPort = mapOnMock.mock.calls.find(([event, layer]) => event === 'click' && layer === 'port-fills')?.[2];
     act(() => clickPort({ features: latestSource.data.features }));
     const popup = popupHtmlMock.mock.calls.at(-1)?.[0] ?? '';
-    expect(popup).toContain('/app/marketplace?product=UCOME_B100');
-    expect(popup).not.toContain('$');
-    expect(popup).not.toContain('Trade at');
-    expect(popup).not.toContain('市场可售量');
-    const popupElement = popupHtmlMock.mock.calls.at(-1)?.[1] as HTMLElement;
-    fireEvent.click(popupElement.querySelector('.verdaxis-ucome-link')!);
-    expect(screen.getByTestId('map-route').textContent).toBe('/app/marketplace?product=UCOME_B100');
+    expect(popup).not.toContain('RFQ');
+    expect(popup).toContain(language === 'zh' ? '在 Singapore 交易' : 'Trade at Singapore');
+    act(() => (window as unknown as { __verdaxisTradeAt: (portId: string) => void }).__verdaxisTradeAt(latestSource.data.features[0].properties.id));
+    expect(screen.getByTestId('map-route').textContent).toBe('/app/m/ucome-b100/singapore/spot');
     expect(filter.getAttribute('aria-pressed')).toBe('true');
     expect(removeMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: language === 'zh' ? '全部' : 'All' }));
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
-    expect(screen.getByRole('link', { name: action })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'UCOME B100' })).toBeTruthy();
   });
 
   it('shows a map warning when the compact market summary is unavailable', async () => {

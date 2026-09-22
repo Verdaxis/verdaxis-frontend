@@ -3,7 +3,8 @@ import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from
 import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
 import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
-import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
+import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind, OrderCreateInput, TradeCreateInput } from '../types';
+import { mapOrderbookFameResponse, mapTradeFameResponse } from './fameOrder';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -810,7 +811,7 @@ export const api = {
             if (params?.side) searchParams.append('side', params.side);
             const query = searchParams.toString();
             const path = `/orderbook/with-ci${query ? `?${query}` : ''}`;
-            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return mapOrderbookFameResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
         },
         list: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
@@ -822,7 +823,7 @@ export const api = {
             if (params?.availability) searchParams.append('availability_window', params.availability);
             const query = searchParams.toString();
             const path = `/orderbook${query ? `?${query}` : ''}`;
-            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return mapOrderbookFameResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
         },
         // Backward-compatible: returns array (extracts .items from paginated response)
         listBids: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
@@ -835,7 +836,7 @@ export const api = {
             searchParams.append('limit', '100');
             const path = `/orderbook/bids?${searchParams.toString()}`;
             const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
-            return res.items ?? res;
+            return mapOrderbookFameResponse(res.items ?? res);
         },
         // Paginated: returns { items, total, skip, limit }
         listBidsPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
@@ -849,7 +850,7 @@ export const api = {
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             const path = `/orderbook/bids?${searchParams.toString()}`;
-            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return mapOrderbookFameResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
         },
         // Backward-compatible: returns array
         listAsks: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string }, cacheOptions?: ReadCacheOptions) => {
@@ -862,7 +863,7 @@ export const api = {
             searchParams.append('limit', '100');
             const path = `/orderbook/asks?${searchParams.toString()}`;
             const res: any = await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
-            return res.items ?? res;
+            return mapOrderbookFameResponse(res.items ?? res);
         },
         // Paginated: returns { items, total, skip, limit }
         listAsksPaged: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; availability?: string; sort_by?: 'price_asc' | 'price_desc' | 'quantity_desc' | 'newest'; skip?: number; limit?: number }, cacheOptions?: ReadCacheOptions): Promise<PaginatedResult<any>> => {
@@ -876,40 +877,29 @@ export const api = {
             searchParams.append('skip', String(params?.skip ?? 0));
             searchParams.append('limit', String(params?.limit ?? 20));
             const path = `/orderbook/asks?${searchParams.toString()}`;
-            return readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return mapOrderbookFameResponse(await readApi(`orderbook:${path}`, path, 'market', 'private', undefined, cacheOptions));
         },
         myOrders: async (cacheOptions?: ReadCacheOptions) => {
             const response: any = await readApi('orderbook:my', '/orderbook/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
-            return response.items ?? response;
+            return mapOrderbookFameResponse(response.items ?? response);
         },
-        create: async (data: {
-            side: string;
-            product_id: string;
-            delivery_point_id?: string;
-            quantity_mt: number;
-            price_per_mt_usd: number;
-            availability_window: string;
-            is_anonymous?: boolean;
-            delivery_window_start?: string;
-            delivery_window_end?: string;
-            expires_at?: string;
-        } & { idempotency_key?: string }) => {
+        create: async (data: OrderCreateInput) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return mutateApi(invalidateTradeExecutionReads, '/orderbook', {
+            return mapOrderbookFameResponse(await mutateApi(invalidateTradeExecutionReads, '/orderbook', {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
                     ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
                 },
                 body: JSON.stringify(requestData),
-            });
+            }));
         },
         update: async (id: string, data: any) => {
-            return mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
+            return mapOrderbookFameResponse(await mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
-            });
+            }));
         },
         cancel: async (id: string, options?: { reason?: string; etag?: string }) => {
             if (getMarketSupportContextId() && !options?.etag) {
@@ -990,21 +980,21 @@ export const api = {
     },
 
     trades: {
-        initiate: async (data: { order_id: string; quantity_mt: number } & { idempotency_key?: string }) => {
+        initiate: async (data: TradeCreateInput) => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
-            return mutateApi(invalidateTradeExecutionReads, '/trades/', {
+            return mapTradeFameResponse(await mutateApi(invalidateTradeExecutionReads, '/trades/', {
                 method: 'POST',
                 headers: {
                     ...getHeaders(),
                     ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
                 },
                 body: JSON.stringify(requestData),
-            });
+            }));
         },
         // Backward-compatible: returns array
         myTrades: async (cacheOptions?: ReadCacheOptions) => {
             const res: any = await readApi('trades:my', '/trades/my', 'private', 'private', { headers: getHeaders() }, cacheOptions);
-            return res.items ?? res;
+            return mapTradeFameResponse(res.items ?? res);
         },
         summary: async (cacheOptions?: ReadCacheOptions): Promise<TradeSummary> => {
             return readApi('trades:summary', '/trades/summary', 'private', 'private', { headers: getHeaders() }, cacheOptions);
@@ -1026,32 +1016,32 @@ export const api = {
                 searchParams.append('status_group', params.status_group);
             }
             const path = `/trades/my?${searchParams.toString()}`;
-            return readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions);
+            return mapTradeFameResponse(await readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions));
         },
         confirm: async (tradeId: string) => {
-            return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
+            return mapTradeFameResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
                 method: 'PUT',
                 headers: getHeaders(),
-            });
+            }));
         },
         decline: async (tradeId: string) => {
-            return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
+            return mapTradeFameResponse(await mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
                 method: 'PUT',
                 headers: getHeaders(),
-            });
+            }));
         },
         deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }) => {
-            return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
+            return mapTradeFameResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
                 method: 'PUT',
                 headers: getHeaders(),
                 body: JSON.stringify(data),
-            });
+            }));
         },
         pay: async (tradeId: string) => {
-            return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
+            return mapTradeFameResponse(await mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
                 method: 'POST',
                 headers: getHeaders(),
-            });
+            }));
         },
     },
 

@@ -1,30 +1,27 @@
 import { describe, expect, it } from 'vitest';
 
 import { mapPortResponse } from '../services/api';
-import { computePortMarketData, getUcomeMapLane } from '../utils/buyerMapMarket';
+import { computePortMarketData, getMarketProductMapPorts } from '../utils/buyerMapMarket';
 import { filterPortsByActiveDeliveryPoints, resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS } from '../data';
 import type { AggregatedOrderbook, Product, DeliveryPoint } from '../types';
 import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 
 describe('BuyerMap market data', () => {
-    it('offers UCOME only from active catalog Singapore coverage without adding liquidity', () => {
+    it('uses the active orderbook catalog coverage for B100 without adding liquidity', () => {
         const singapore: DeliveryPoint = { id: 'singapore-catalog', name: 'Singapore', region: 'Asia', is_active: true };
         const rotterdam: DeliveryPoint = { id: 'rotterdam-catalog', name: 'Rotterdam', region: 'Europe', is_active: true };
         const product: Product = {
             id: 'ucome', name: 'UCOME B100', market_product: 'UCOME_B100',
             fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 1,
-            is_active: true, execution_mode: 'RFQ_ONLY',
+            is_active: true, execution_mode: 'ORDERBOOK',
             available_delivery_point_ids: [singapore.id],
         };
-        const lane = getUcomeMapLane([product], [singapore, rotterdam], PORTS);
-        expect(lane?.product).toBe(product);
-        expect(lane?.port.name).toBe('Singapore');
-        expect(getUcomeMapLane([{ ...product, is_active: false }], [singapore], PORTS)).toBeNull();
-        expect(getUcomeMapLane([{ ...product, execution_mode: 'ORDERBOOK' }], [singapore], PORTS)).toBeNull();
-        expect(getUcomeMapLane([{ ...product, available_delivery_point_ids: [rotterdam.id] }], [singapore, rotterdam], PORTS)).toBeNull();
-        expect(getUcomeMapLane([product], [{ ...singapore, is_active: false }], PORTS)).toBeNull();
-        expect(getUcomeMapLane([product], [], PORTS)).toBeNull();
+        expect(getMarketProductMapPorts('UCOME_B100', [product], [singapore, rotterdam], PORTS).map(port => port.name)).toEqual(['Singapore']);
+        expect(getMarketProductMapPorts('UCOME_B100', [{ ...product, is_active: false }], [singapore], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('UCOME_B100', [{ ...product, execution_mode: 'RFQ_ONLY' }], [singapore], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('UCOME_B100', [product], [{ ...singapore, is_active: false }], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('UCOME_B100', [product], [], PORTS)).toEqual([]);
     });
 
     it('does not borrow alcohol prices or volume when B100 is selected', () => {
@@ -39,7 +36,7 @@ describe('BuyerMap market data', () => {
         expect(computePortMarketData(rows, 'Singapore', 'Bio Methanol').reference?.price).toBe(1000);
     });
 
-    it('does not convert an RFQ product into a price reference through an alcohol display label', () => {
+    it('uses B100 canonical identity instead of a misleading alcohol display label', () => {
         const aggregated: AggregatedOrderbook[] = [{
             market_product: 'UCOME_B100',
             product_name: 'Bio Methanol',
@@ -56,13 +53,24 @@ describe('BuyerMap market data', () => {
             demo_status: 'DEMO_ONLY',
         }];
 
-        expect(computePortMarketData(aggregated, 'Singapore')).toEqual({
-            totalVolume: 0,
-            fuelRows: [],
-            spreadPct: 999,
-            reference: null,
-        });
-        expect(buildDemoMarketQuotes(aggregated)).toEqual([]);
+        const result = computePortMarketData(aggregated, 'Singapore', 'UCOME_B100');
+        expect(result.totalVolume).toBe(1000);
+        expect(result.fuelRows).toEqual([expect.objectContaining({ label: 'UCOME B100', bestAsk: 999 })]);
+        expect(result.reference).toEqual({ productLabel: 'UCOME B100', price: 999, source: 'DEMO' });
+        expect(buildDemoMarketQuotes(aggregated)).toEqual([expect.objectContaining({ product: 'UCOME_B100', price: 999 })]);
+    });
+
+    it('shows only the selected B100 book when alcohol orders are also present', () => {
+        const rows = ['BIO_METHANOL', 'UCOME_B100'].map((marketProduct, index) => ({
+            market_product: marketProduct, product_name: marketProduct, fuel_type: index ? 'FAME' : 'Methanol',
+            delivery_point_name: 'Singapore', region: 'Asia', availability_window: 'SPOT',
+            side: 'ASK', min_price: 1000 + index * 100, max_price: 1000 + index * 100,
+            total_quantity: 500, order_count: 1,
+        })) as AggregatedOrderbook[];
+        const result = computePortMarketData(rows, 'Singapore', 'UCOME_B100');
+        expect(result.totalVolume).toBe(500);
+        expect(result.fuelRows).toHaveLength(1);
+        expect(result.reference).toEqual({ productLabel: 'UCOME B100', price: 1100, source: 'MARKET' });
     });
 
     it('keeps the four seeded products separate instead of collapsing to two fuel buckets', () => {

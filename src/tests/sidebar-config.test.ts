@@ -70,8 +70,8 @@ describe('sidebar config', () => {
 
   it.each([
     { viewMode: 'SUPPLIER' as const, assisted: false, canPost: true },
-    { viewMode: 'SUPPLIER' as const, assisted: true, canPost: false },
-    { viewMode: 'BUYER' as const, assisted: false, canPost: false },
+    { viewMode: 'SUPPLIER' as const, assisted: true, canPost: true },
+    { viewMode: 'BUYER' as const, assisted: false, canPost: true },
   ])('keeps B100 supply posting within the supported role ($viewMode, assisted=$assisted)', ({ viewMode, assisted, canPost }) => {
     const onPrimaryAction = vi.fn();
     renderWithProviders(React.createElement(Sidebar, {

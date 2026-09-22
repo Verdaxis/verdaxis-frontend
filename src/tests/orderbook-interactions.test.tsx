@@ -21,8 +21,9 @@ beforeEach(() => {
 describe('orderbook inspection', () => {
   it.each([
     { marketProduct: 'UCOME_B100' },
+    { marketProduct: 'UCOME_B100', executionMode: 'RFQ_ONLY' as const },
     { marketProduct: 'UNRECOGNIZED_PRODUCT' },
-    { fuelType: 'FAME' },
+    { fuelType: 'Unrecognized fuel' },
   ])('does not request book data for unsupported product filters: %j', async (filters) => {
     const openTrade = vi.fn();
     await act(async () => {
@@ -39,7 +40,7 @@ describe('orderbook inspection', () => {
     listBids.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
     const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" actionableSide="BID" onLevelClick={vi.fn()} />);
     await waitFor(() => expect(listBids).toHaveBeenCalledTimes(1));
-    view.rerender(<OrderBook marketProduct="UCOME_B100" actionableSide="BID" onLevelClick={vi.fn()} />);
+    view.rerender(<OrderBook marketProduct="UCOME_B100" executionMode="RFQ_ONLY" actionableSide="BID" onLevelClick={vi.fn()} />);
     await act(async () => resolveOld([bid]));
     expect(listBids).toHaveBeenCalledTimes(1);
     expect(listAsks).toHaveBeenCalledTimes(1);
@@ -58,7 +59,7 @@ describe('orderbook inspection', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
       expect(listBids).toHaveBeenCalledTimes(2);
       expect(listAsks).toHaveBeenCalledTimes(2);
-      view.rerender(<OrderBook marketProduct="UCOME_B100" />);
+      view.rerender(<OrderBook marketProduct="UCOME_B100" executionMode="RFQ_ONLY" />);
       await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
       expect(listBids).toHaveBeenCalledTimes(2);
       expect(listAsks).toHaveBeenCalledTimes(2);
@@ -68,17 +69,42 @@ describe('orderbook inspection', () => {
     }
   });
 
-  it('does not expose RFQ rows returned by an unfiltered book request', async () => {
+  it('shows canonical B100 orders while excluding unknown products returned by an unfiltered request', async () => {
     listBids.mockResolvedValue([
       bid,
-      { ...bid, id: 'rfq', market_product: 'UCOME_B100', price_per_mt_usd: 1200 },
-      { ...bid, id: 'legacy-rfq', market_product: undefined, fuel_type: 'FAME', price_per_mt_usd: 1250 },
+      { ...bid, id: 'b100', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 },
+      { ...bid, id: 'unknown', market_product: 'UNKNOWN_FUEL', price_per_mt_usd: 1250 },
+      { ...bid, id: 'unclassified-fame', market_product: undefined, fuel_type: 'FAME', price_per_mt_usd: 1275 },
     ]);
     renderWithProviders(<OrderBook actionableSide="BID" onLevelClick={vi.fn()} onInstantTrade={vi.fn()} />);
     expect(await screen.findByRole('button', { name: /bid.*600/i })).toBeTruthy();
-    expect(screen.queryByText('$1,200')).toBeNull();
+    expect(screen.getByText('$1,200')).toBeTruthy();
     expect(screen.queryByText('$1,250')).toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Sell' })).toHaveLength(1);
+    expect(screen.queryByText('$1,275')).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Sell' })).toHaveLength(2);
+  });
+
+  it('loads executable B100 orders and opens the same trade review interaction', async () => {
+    const b100Ask = { ...bid, id: 'b100-ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 };
+    listBids.mockResolvedValue([]);
+    listAsks.mockResolvedValue([b100Ask]);
+    const openTrade = vi.fn();
+    renderWithProviders(<OrderBook fuelType="FAME" marketProduct="UCOME_B100" executionMode="ORDERBOOK" deliveryPointId="singapore" availability="SPOT" actionableSide="ASK" onLevelClick={openTrade} />);
+    const level = await screen.findByRole('button', { name: /ask.*1,100/i });
+    expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ fuel_type: 'FAME', market_product: 'UCOME_B100', delivery_point_id: 'singapore', availability: 'SPOT' }));
+    fireEvent.keyDown(level, { key: 'Enter' });
+    expect(openTrade).toHaveBeenCalledWith(expect.objectContaining(b100Ask));
+    expect(screen.queryByText('Orderbook trading is unavailable for this product.')).toBeNull();
+  });
+
+  it('describes crossed B100 prices as overlap without claiming compatible fuel terms', async () => {
+    listBids.mockResolvedValue([{ ...bid, market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 }]);
+    listAsks.mockResolvedValue([{ ...bid, id: 'ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 }]);
+    renderWithProviders(<OrderBook marketProduct="UCOME_B100" executionMode="ORDERBOOK" />);
+    expect(await screen.findByRole('group', { name: /Bid.*1,200/ })).toBeTruthy();
+    expect(screen.getAllByText('PRICE OVERLAP').length).toBeGreaterThan(0);
+    expect(screen.getByText('Price overlap does not confirm matching fuel terms. Review the order requirements before trading.')).toBeTruthy();
+    expect(screen.queryByText('CROSSED')).toBeNull();
   });
 
   it('formats API decimal strings as readable prices and quantities', async () => {

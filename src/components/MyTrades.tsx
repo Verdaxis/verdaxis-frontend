@@ -30,6 +30,7 @@ import {
 } from '../utils/tradeAnalytics';
 import i18n from '../i18n';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
@@ -41,6 +42,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const { addToast } = useToast();
     const { t, ready } = useNamespace('trading');
+    const { ready: fuelTermsReady } = useNamespace('rfq');
     const userRole = user?.role;
     const [trades, setTrades] = useState<Trade[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -217,7 +219,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => handleConfirm(trade.id)}
-                        disabled={isLoadingThis}
+                        disabled={isLoadingThis || Boolean(trade.fame_terms_snapshot && !fuelTermsReady)}
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
@@ -382,7 +384,8 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                         : (trade.buyer_name || t('myTrades.counterparty.buyer'));
 
                                     return (
-                                        <tr key={trade.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                        <React.Fragment key={trade.id}>
+                                        <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                                 {new Date(trade.created_at).toLocaleDateString(locale)}
                                             </td>
@@ -439,6 +442,22 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                                 {renderActions(trade)}
                                             </td>
                                         </tr>
+                                        {trade.fame_terms_snapshot && <tr className="bg-slate-50/70 dark:bg-slate-900/40">
+                                            <td colSpan={userRole === 'BUYER' ? 8 : 10} className="px-4 py-3 lg:px-6">
+                                                <details open={trade.status === 'PENDING_CONFIRMATION'}>
+                                                    <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">{t('myTrades.fameTerms.title')}</summary>
+                                                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('myTrades.fameTerms.notice')}</p>
+                                                    <div className="mt-4 space-y-5">
+                                                        <FameOrderTermsDetails terms={trade.fame_terms_snapshot.bid} />
+                                                        <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+                                                            <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">{t('myTrades.fameTerms.supplier')}</h3>
+                                                            <FameOrderTermsDetails terms={trade.fame_terms_snapshot.ask} />
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </td>
+                                        </tr>}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>

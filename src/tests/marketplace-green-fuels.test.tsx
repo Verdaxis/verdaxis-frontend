@@ -211,7 +211,7 @@ describe('Marketplace green fuels surface', () => {
       total: 1,
     });
     myOrders.mockResolvedValue([]);
-    products.mockResolvedValue([{ id: 'ucome-product', market_product: 'UCOME_B100', is_active: true, available_delivery_point_ids: ['dp-1'] }]);
+    products.mockResolvedValue([{ id: 'ucome-product', market_product: 'UCOME_B100', execution_mode: 'ORDERBOOK', is_active: true, available_delivery_point_ids: ['dp-1'] }]);
     rfqList.mockResolvedValue({ items: [], total: 0 });
     supplierOffersList.mockResolvedValue({ items: [], total: 0 });
     supplierOffersMy.mockResolvedValue({ items: [], total: 0 });
@@ -227,45 +227,91 @@ describe('Marketplace green fuels surface', () => {
     pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
-  it('makes UCOME RFQs discoverable without exposing an executable FAME market', async () => {
-    localStorage.setItem('verdaxis_marketplace_product', 'UCOME_B100');
-    listAsksPaged.mockResolvedValue({
-      ...listingsResponse,
-      items: [
-        ...listingsResponse.items,
-        { ...listingsResponse.items[0], id: 'ucome-order', product_name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME' },
-      ],
-      total: 2,
-    });
-    renderWithProviders(<Marketplace />);
+  it('collects and reviews buyer fuel terms before taking a B100 ask through the standard trade API', async () => {
+    const b100 = { ...listingsResponse.items[0], id: 'b100-ask', version: 3, market_product: 'UCOME_B100', product_name: 'UCOME B100', fuel_type: 'FAME',
+      fame_terms: { side: 'ASK', schema_version: 1, neat_fame: true, standard: 'EN_14214', standard_edition: '2012+A2:2019', sustainability_scheme: 'ISCC_EU', nomination_status: 'PENDING', uco_mass_pct: 100, evidence_status: 'PENDING', certificate_valid_until: '2027-12-31', evidence_due: 'BEFORE_LOADING', cfpp_c: null, ci_gco2e_mj: null } };
+    listAsksPaged.mockResolvedValue({ items: [b100], total: 1, skip: 0, limit: 20 });
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Lift Ask' }));
+    const edition = await screen.findByRole('textbox', { name: 'Standard edition' });
+    expect(edition).toHaveProperty('value', '2012+A2:2019');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Trade' }));
+    expect(tradesInitiate).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Review both sides/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Trade' }));
+    await waitFor(() => expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
+      order_id: 'b100-ask', expected_order_version: 3, fame_terms: expect.objectContaining({ side: 'BID', standard: 'EN_14214', standard_edition: '2012+A2:2019', max_ci_gco2e_mj: null }),
+    })));
+    expect(supplierOffersList).not.toHaveBeenCalled();
+    expect(rfqList).not.toHaveBeenCalled();
+  });
 
-    const rfqChip = await screen.findByRole('button', { name: 'UCOME B100 RFQ' });
-    expect(rfqChip.getAttribute('aria-pressed')).toBe('false');
-    expect(rfqChip.textContent).not.toMatch(/\(\d+\)/);
-    await screen.findByRole('button', { name: 'Lift Ask' });
-    expect(screen.getByRole('button', { name: 'All products' })).toBeTruthy();
-    expect(document.querySelector('[data-order-id="ucome-order"]')).toBeNull();
-    expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: undefined }));
+  it('uses the same executable Listings and My Listings for B100 as other fuels', async () => {
+    const b100 = { ...listingsResponse.items[0], id: 'b100-ask', version: 3, market_product: 'UCOME_B100', product_name: 'UCOME B100', fuel_type: 'FAME' };
+    listAsksPaged.mockResolvedValue({ items: [b100], total: 1, skip: 0, limit: 20 });
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
+    expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
+    expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }));
+    expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'UCOME B100 RFQ' })).toBeNull();
+    expect(supplierOffersList).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
+    await waitFor(() => expect(myOrders).toHaveBeenCalled());
+  });
+
+  it('recovers B100 execution capability on Refresh after a catalog load failure', async () => {
+    const b100 = { ...listingsResponse.items[0], market_product: 'UCOME_B100', product_name: 'UCOME B100', fuel_type: 'FAME' };
+    listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [b100] });
+    products.mockRejectedValueOnce(new Error('Temporary catalog failure'));
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
+    expect(await screen.findByText('Could not check trading availability. Select Refresh to try again.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Lift Ask' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
+    expect(products).toHaveBeenLastCalledWith({ force: true });
+  });
+
+  it('includes B100 in All products and restores a stored B100 selection', async () => {
+    localStorage.setItem('verdaxis_marketplace_product', 'UCOME_B100');
+    const b100 = { ...listingsResponse.items[0], id: 'ucome-order', product_name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME' };
+    listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [b100], total: 1 });
+    renderWithProviders(<Marketplace />);
+    expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'UCOME B100' }).getAttribute('aria-pressed')).toBe('true');
+    expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }));
+    fireEvent.click(screen.getByRole('button', { name: 'All products' }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: undefined })));
+    expect(document.querySelector('[data-order-id="ucome-order"]')).toBeTruthy();
     expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
-  it('canonicalizes legacy UCOME slices to the integrated Marketplace without an alcohol request', async () => {
+  it('uses the exact slice product when a conflicting product query is present', async () => {
+    const CurrentLocation = () => {
+      const location = useLocation();
+      return <output data-testid="conflicting-url">{location.pathname}{location.search}</output>;
+    };
+    renderWithProviders(<><CurrentLocation /><Marketplace initialSlice={{ product: 'BIO_METHANOL', port: 'Singapore', window: '2028-Q1' }} /></>,
+      { route: '/app/m/bio-methanol/singapore/2028-q1?product=UCOME_B100&view=orderbook' });
+    await waitFor(() => expect(screen.getByTestId('conflicting-url').textContent).toBe('/app/m/bio-methanol/singapore/2028-q1?view=orderbook'));
+    expect(listAsksPaged.mock.calls.every(([params]) => params.market_product === 'BIO_METHANOL')).toBe(true);
+    expect(screen.getByRole('button', { name: /Bio Methanol/ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps B100 slice URLs and their delivery window on the standard market', async () => {
     const CurrentLocation = () => {
       const location = useLocation();
       return <output data-testid="current-url">{location.pathname}{location.search}</output>;
     };
-    renderWithProviders(
-      <>
-        <CurrentLocation />
-        <Marketplace initialSlice={{ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' }} />
-      </>,
-      { route: '/app/m/UCOME_B100/Singapore/SPOT' },
-    );
-    await waitFor(() => expect(screen.getByTestId('current-url').textContent).toBe('/app/marketplace?product=UCOME_B100'));
-    expect(listAsksPaged.mock.calls.every(([params]) => params.market_product !== 'UCOME_B100')).toBe(true);
+    renderWithProviders(<><CurrentLocation /><Marketplace initialSlice={{ product: 'UCOME_B100', port: 'Singapore', window: '2026-Q4' }} /></>,
+      { route: '/app/m/UCOME_B100/Singapore/2026-Q4' });
+    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2026-Q4' })));
+    expect(screen.getByTestId('current-url').textContent).toBe('/app/m/ucome-b100/singapore/2026-q4');
+    expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
+    expect(supplierOffersList).not.toHaveBeenCalled();
   });
 
-  it('opens supplier Listings from the B100 product chip and follows browser history', async () => {
+  it('opens standard Listings from the B100 chip and follows browser history', async () => {
     function HistoryControls() {
       const navigate = useNavigate();
       const location = useLocation();
@@ -273,79 +319,81 @@ describe('Marketplace green fuels surface', () => {
     }
     renderWithProviders(<><HistoryControls /><Marketplace /></>, { route: '/app/marketplace' });
     await screen.findByRole('button', { name: 'Lift Ask' });
-    fireEvent.click(screen.getByRole('button', { name: 'UCOME B100 RFQ' }));
-    expect(await screen.findByRole('heading', { name: 'No B100 supplier offers yet' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'UCOME B100' }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
     expect(screen.getByTestId('current-url').textContent).toBe('/app/marketplace?product=UCOME_B100');
-    expect(screen.getByRole('button', { name: 'UCOME B100 RFQ' }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.queryByRole('button', { name: 'Lift Ask' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Orderbook' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Filters' })).toBeNull();
-    await waitFor(() => expect(supplierOffersList).toHaveBeenCalledWith({ product_id: 'ucome-product', skip: 0, limit: 20, sort_by: 'newest' }));
+    expect(screen.getByRole('button', { name: 'UCOME B100' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Orderbook' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'More Filters' })).toBeTruthy();
+    expect(supplierOffersList).not.toHaveBeenCalled();
     expect(rfqList).not.toHaveBeenCalled();
-
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
     expect(await screen.findByRole('button', { name: 'Lift Ask' })).toBeTruthy();
-    expect(screen.queryByRole('heading', { name: 'B100 RFQs' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Go forward' }));
-    expect(await screen.findByRole('heading', { name: 'No B100 supplier offers yet' })).toBeTruthy();
+    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' })));
   });
 
-  it('keeps B100 scope independent of stored alcohol filters and ignores orderbook view parameters', async () => {
-    setMarketplaceSlice({ product: 'BIO_ETHANOL', port: 'Rotterdam', window: 'Q4 2026' });
+  it('uses the same delivery filters and Orderbook view for B100', async () => {
+    setMarketplaceSlice({ product: 'BIO_ETHANOL', port: 'Singapore', window: 'Q4 2026' });
     renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=orderbook' });
-    expect(await screen.findByRole('heading', { name: 'No B100 supplier offers yet' })).toBeTruthy();
-    expect(screen.getByText('Indicative UCOME B100 supplier offers and requests for quotes · Singapore wholesale.')).toBeTruthy();
-    expect(rfqList).not.toHaveBeenCalled();
-    expect(listAsksPaged).not.toHaveBeenCalled();
-    expect(productCounts).not.toHaveBeenCalled();
-    expect(myOrders).not.toHaveBeenCalled();
-    expect(tradeTapeList).not.toHaveBeenCalled();
-    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe('BIO_ETHANOL');
-    expect(localStorage.getItem('verdaxis_marketplace_port')).toBe('Rotterdam');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
-    await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
-      market_product: 'BIO_METHANOL', delivery_point_id: 'dp-2', availability: '2026-Q4',
-    })));
-    expect(screen.queryByRole('heading', { name: 'B100 RFQs' })).toBeNull();
+    await waitFor(() => expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2026-Q4' })));
+    expect(screen.getByRole('button', { name: 'Orderbook' }).getAttribute('aria-pressed')).toBe('true');
+    expect(supplierOffersList).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Bio Methanol/ }));
+    await waitFor(() => expect(listAsks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: '2026-Q4' })));
   });
 
-  it('keeps RFQ requests in a local Marketplace tab without an executable orderbook', async () => {
+  it('keeps earlier offers and RFQs in history without new creation controls', async () => {
     renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
-    await screen.findByText('No B100 supplier offers yet');
-    fireEvent.click(screen.getByRole('button', { name: 'Requests' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'History' }));
+    await screen.findByRole('heading', { name: 'No B100 supplier offers yet' });
+    expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Earlier RFQs' }));
     expect(await screen.findByRole('heading', { name: 'B100 RFQs' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
     await waitFor(() => expect(rfqList).toHaveBeenCalledWith({ product_id: 'ucome-product', skip: 0, limit: 20 }));
-    expect(screen.queryByRole('button', { name: 'Orderbook' })).toBeNull();
-    expect(listAsksPaged).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Listings' }));
-    expect(await screen.findByText('No B100 supplier offers yet')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
+    expect(await screen.findByRole('button', { name: 'Orderbook' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'B100 RFQs' })).toBeNull();
   });
 
-  it('opens the shared Post Supply modal for B100 and loads supplier My Listings', async () => {
+  it('opens history from an exact B100 slice without losing the standard market entry', async () => {
+    renderWithProviders(<Marketplace initialSlice={{ product: 'UCOME_B100', port: 'Singapore', window: 'SPOT' }} />,
+      { route: '/app/m/ucome-b100/singapore/spot' });
+    fireEvent.click(await screen.findByRole('button', { name: 'History' }));
+    expect(await screen.findByRole('button', { name: 'Back to market' })).toBeTruthy();
+    await screen.findByRole('heading', { name: 'No B100 supplier offers yet' });
+    expect(supplierOffersList).toHaveBeenCalled();
+  });
+
+  it('opens the shared ASK modal for B100 and uses standard supplier My Listings', async () => {
     userRole.current = 'SUPPLIER';
     renderWithProviders(<Marketplace viewMode="SUPPLIER" />, { route: '/app/marketplace?product=UCOME_B100' });
-    await screen.findByText('No B100 supplier offers yet');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Post Supply' })[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Place Ask' }));
     expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: true, side: 'ASK', prefillMarketProduct: 'UCOME_B100' }));
     fireEvent.click(screen.getByRole('button', { name: 'My Listings' }));
-    await screen.findByText('No B100 listings yet');
-    expect(supplierOffersMy).toHaveBeenCalledWith({ product_id: 'ucome-product', skip: 0, limit: 20, sort_by: 'newest' });
-    expect(myOrders).not.toHaveBeenCalled();
-    expect(listBidsPaged).not.toHaveBeenCalled();
+    await waitFor(() => expect(myOrders).toHaveBeenCalled());
+    expect(supplierOffersMy).not.toHaveBeenCalled();
+    expect(listBidsPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100' }));
   });
 
-  it('preserves the RFQ restriction during assisted organization sessions', async () => {
+  it('preserves the historical RFQ restriction during assisted organization sessions', async () => {
     marketSupportActive.current = true;
-    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100' });
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=history_rfqs' });
     expect(await screen.findByRole('status')).toHaveProperty('textContent', 'B100 offers and requests are unavailable while acting for an organization. Exit the assisted session to use your own account.');
     expect(rfqList).not.toHaveBeenCalled();
     expect(supplierOffersList).not.toHaveBeenCalled();
     expect(supplierOffersMy).not.toHaveBeenCalled();
-    expect(products).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
     expect(listAsksPaged).not.toHaveBeenCalled();
+  });
+
+  it('clears a canonical B100 query when clearing all market filters', async () => {
+    myOrders.mockResolvedValue(listingsResponse.items);
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=my_orders' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: undefined })));
+    expect(screen.getByRole('button', { name: 'All products' }).getAttribute('aria-pressed')).toBe('true');
   });
 
   it('shows canonical market product chips instead of generic fuel families', async () => {

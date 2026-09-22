@@ -112,12 +112,13 @@ interface FameDeclarationFieldsProps {
     initial?: Partial<SupplierOfferFuelTerms> | FameOfferTerms | null;
     contract?: FameContractTerms;
     deliveryEnd?: string;
+    certificateValidityHint?: string;
     evidenceDue?: FameContractTerms['evidence_due'];
     listing?: boolean;
     pending?: boolean;
 }
 
-export function FameDeclarationFields({ initial, contract, deliveryEnd = '', evidenceDue, listing = false, pending = false }: FameDeclarationFieldsProps) {
+export function FameDeclarationFields({ initial, contract, deliveryEnd = '', certificateValidityHint, evidenceDue, listing = false, pending = false }: FameDeclarationFieldsProps) {
     const { t } = useNamespace('rfq');
     const [standard, setStandard] = useState(contract?.standard ?? initial?.standard ?? 'EN_14214');
     const [scheme, setScheme] = useState(contract?.sustainability_scheme ?? initial?.sustainability_scheme ?? 'ISCC_EU');
@@ -169,7 +170,7 @@ export function FameDeclarationFields({ initial, contract, deliveryEnd = '', evi
                 <TextField name="certificate_reference" label={t('form.certificateReference')} defaultValue={initial?.certificate_reference ?? ''} maxLength={200} required />
                 <TextField name="certificate_holder" label={t('form.certificateHolder')} defaultValue={initial?.certificate_holder ?? ''} maxLength={200} required />
                 <TextField name="certificate_scope" label={t('declaration.certificateScope')} defaultValue={initial?.certificate_scope ?? ''} maxLength={200} />
-                <TextField name="certificate_valid_until" label={t('form.certificateValidUntil')} type="date" min={deliveryEnd || undefined} defaultValue={initial?.certificate_valid_until ?? ''} required hint={t('form.certificateValidityHint')} />
+                <TextField name="certificate_valid_until" label={t('form.certificateValidUntil')} type="date" min={deliveryEnd || undefined} defaultValue={initial?.certificate_valid_until ?? ''} required hint={certificateValidityHint ?? t('form.certificateValidityHint')} />
                 <ChoiceField name="evidence_status" label={t('form.evidenceStatus')} value={evidenceStatus} onChange={value => setEvidenceStatus(value as typeof evidenceStatus)} disabled={pending} options={['DECLARED', 'PENDING', 'AVAILABLE'].map(value => ({ value, label: t(`form.evidenceStatusOptions.${value}`) }))} />
             </div>
             <TextAreaField name="documents" label={t('form.documentReferences')} defaultValue={initial?.document_references?.join('\n') ?? ''} maxLength={4019} required={evidenceStatus === 'AVAILABLE'} hint={t('form.documentReferencesHint')} />

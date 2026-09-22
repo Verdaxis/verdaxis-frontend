@@ -43,6 +43,15 @@ beforeEach(() => {
 });
 
 describe('B100 supplier offers in Marketplace', () => {
+    it('retains withdrawal in offer history without new supply, quote requests or revisions', async () => {
+        control.user.role = 'SUPPLIER';
+        renderWithProviders(<SupplierOffersWorkspace mine historyOnly onRequestQuote={control.request} onEdit={control.edit} onPostSupply={control.post} />);
+        await screen.findByRole('button', { name: 'Withdraw offer' });
+        expect(screen.queryByRole('button', { name: 'Revise' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Request quote' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Post Supply' })).toBeNull();
+    });
+
     it('shows indicative supply and requests a quote from the displayed offer revision', async () => {
         renderWithProviders(workspace());
         const request = await screen.findByRole('button', { name: 'Request quote' });

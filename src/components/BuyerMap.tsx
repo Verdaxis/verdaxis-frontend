@@ -1,9 +1,9 @@
 import { LoadingScreen } from './LoadingScreen';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { ArrowRight, PanelRightOpen, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
+import { PanelRightOpen, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Port, Page, AggregatedOrderbook, Product, DeliveryPoint } from '../types';
 import { Tooltip } from './ui/Tooltip';
@@ -15,12 +15,12 @@ import { MapLegend } from './map/MapLegend';
 import { useNamespace } from '../hooks/useNamespace';
 import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
-import { computePortMarketData, getUcomeMapLane, PortMarketData } from '../utils/buyerMapMarket';
+import { computePortMarketData, getMarketProductMapPorts, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
-import { UCOME_MARKETPLACE_PATH } from '../utils/sliceUrl';
+import { sliceToPath } from '../utils/sliceUrl';
 import { isOrderbookMarketProduct } from '../utils/marketProduct';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useSSE } from '../hooks/useSSE';
@@ -41,6 +41,7 @@ const getPortRadius = (volume: number, maxVolume: number): number => {
 
 // Border color by spread tightness
 const getSpreadColor = (spreadPct: number): string => {
+    if (!Number.isFinite(spreadPct) || spreadPct === 999) return '#94A3B8';
     if (spreadPct < 5) return '#10B981';  // green
     if (spreadPct < 15) return '#F59E0B'; // amber
     return '#EF4444';                      // red
@@ -112,8 +113,6 @@ type MapRecentAsk = Awaited<ReturnType<typeof api.orderbook.mapSummary>>['recent
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect, onNavigate, onOrderClick }) => {
     const navigate = useNavigate();
-    const navigateRef = useRef(navigate);
-    navigateRef.current = navigate;
     const { t, ready } = useNamespace('dashboard');
     const { i18n } = useTranslation();
     const mapLanguage = (i18n.resolvedLanguage || i18n.language).toLowerCase().split('-')[0] === 'zh' ? 'zh' : 'en';
@@ -134,22 +133,12 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
     const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
     const [catalogPoints, setCatalogPoints] = useState<DeliveryPoint[]>([]);
-    const ucomeLane = useMemo(
-        () => getUcomeMapLane(catalogProducts, catalogPoints, ports),
-        [catalogProducts, catalogPoints, ports],
-    );
-    const rfqOnly = selectedProduct === 'UCOME_B100';
     const visiblePorts = useMemo(
-        () => rfqOnly ? (ucomeLane ? [ucomeLane.port] : []) : ports,
-        [rfqOnly, ucomeLane, ports],
+        () => getMarketProductMapPorts(selectedProduct, catalogProducts, catalogPoints, ports),
+        [selectedProduct, catalogProducts, catalogPoints, ports],
     );
-    const showUcomeLane = Boolean(ucomeLane && (!selectedProduct || rfqOnly));
-    const rfqOnlyRef = useRef(rfqOnly);
-    rfqOnlyRef.current = rfqOnly;
-    const showUcomeLaneRef = useRef(showUcomeLane);
-    showUcomeLaneRef.current = showUcomeLane;
-    const ucomeLaneRef = useRef(ucomeLane);
-    ucomeLaneRef.current = ucomeLane;
+    const selectedProductRef = useRef(selectedProduct);
+    selectedProductRef.current = selectedProduct;
 
     const [mapStyleLoaded, setMapStyleLoaded] = useState(false);
     const [mapCreated, setMapCreated] = useState(false);
@@ -254,7 +243,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
     const approvedAskGroups = useMemo(() => (
         aggregatedData.reduce<Array<AggregatedOrderbook & { region: string }>>((approved, group) => {
-            if (group.side !== 'ASK') return approved;
+            if (group.side !== 'ASK' || (selectedProduct && group.market_product !== selectedProduct)) return approved;
             const approvedPortName = [
                 group.delivery_point_id,
                 group.delivery_point_name,
@@ -266,7 +255,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             approved.push({ ...group, region: approvedPortName });
             return approved;
         }, [])
-    ), [aggregatedData, approvedListingLocationMap]);
+    ), [aggregatedData, approvedListingLocationMap, selectedProduct]);
 
     const portBounds = useMemo<mapboxgl.LngLatBoundsLike | undefined>(() => {
         if (!visiblePorts.length) return undefined;
@@ -382,18 +371,26 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             ...port,
             priceMethanol: portMarketMap[port.id]?.reference?.price ?? 0,
             priceTrend: undefined,
+            // Legacy port intelligence is methanol-specific, not a B100 price history.
+            methanolSupply: selectedProduct ? 'Unknown' as const : port.methanolSupply,
+            details: selectedProduct && port.details ? {
+                ...port.details,
+                priceHistory: [],
+                plattsPrice: undefined,
+                swapPrice: undefined,
+            } : port.details,
         };
-    }, [portMarketMap, ports, selectedPortId]);
+    }, [portMarketMap, ports, selectedPortId, selectedProduct]);
 
-    const availableProducts = [
-        ...ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => ({ value: option.label, label: option.label })),
-        ...(ucomeLane ? [{ value: 'UCOME_B100', label: ucomeLane.product.name }] : []),
-    ];
+    const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS;
 
     const selectProduct = (product: string | undefined) => {
         setSelectedProduct(product);
-        if (product === 'UCOME_B100' && ucomeLane) {
-            focusMapPort(ucomeLane.port, { flyTo: true });
+        const productPorts = getMarketProductMapPorts(product, catalogProducts, catalogPoints, ports);
+        if (productPorts.length === 1) {
+            focusMapPort(productPorts[0], { flyTo: true });
+        } else if (selectedPortId && !productPorts.some(port => port.id === selectedPortId)) {
+            setSelectedPortId(null);
         }
     };
 
@@ -421,6 +418,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const recentListingsByRegion = useMemo(() => {
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
         recentAsks.forEach(ask => {
+            if (selectedProduct && ask.market_product !== selectedProduct) return;
             const region = [ask.delivery_point_id, ask.delivery_point_name, ask.region]
                 .map(value => approvedListingLocationMap.get(normalizeMarketLocation(value)))
                 .find((value): value is string => Boolean(value));
@@ -437,7 +435,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return Object.entries(regionMap)
             .map(([region, data]) => ({ region, ...data }))
             .slice(0, 6);
-    }, [approvedListingLocationMap, recentAsks]);
+    }, [approvedListingLocationMap, recentAsks, selectedProduct]);
 
     // Map initialization
     useEffect(() => {
@@ -561,8 +559,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             const portFeatures = visiblePorts.map(port => {
                 const mkt = portMarketMap[port.id] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
                 const radius = getPortRadius(mkt.totalVolume, maxVolume);
-                const rfqAvailable = showUcomeLane && port.id === ucomeLane?.port.id;
-                const spreadColor = rfqOnly ? '#6366F1' : getSpreadColor(mkt.spreadPct);
+                const spreadColor = getSpreadColor(mkt.spreadPct);
                 return {
                     type: 'Feature' as const,
                     geometry: { type: 'Point' as const, coordinates: [port.location.lng, port.location.lat] },
@@ -576,8 +573,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         referenceProduct: mkt.reference?.productLabel ?? '',
                         totalVolume: mkt.totalVolume,
                         selected: port.id === selectedPortId,
-                        rfqAvailable,
-                        rfqLabel: translateRef.current('buyerMap.rfq.marker'),
                     },
                 };
             });
@@ -600,24 +595,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         'circle-opacity': 0.85,
                         'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
                         'circle-stroke-color': ['get', 'color'],
-                    },
-                });
-
-                map.addLayer({
-                    id: 'port-rfq-labels',
-                    type: 'symbol',
-                    source: 'ports',
-                    filter: ['==', ['get', 'rfqAvailable'], true],
-                    layout: {
-                        'text-field': ['get', 'rfqLabel'],
-                        'text-size': 12,
-                        'text-offset': [0, 1.5],
-                        'text-anchor': 'top',
-                    },
-                    paint: {
-                        'text-color': isDarkRef.current ? '#A5B4FC' : '#4338CA',
-                        'text-halo-color': isDarkRef.current ? '#0F172A' : '#FFFFFF',
-                        'text-halo-width': 2,
                     },
                 });
 
@@ -649,7 +626,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         + '<span style="font-weight:700">' + escapeHtml(props.name) + '</span>'
                         + pricePart
                         + volumePart
-                        + (props.rfqAvailable ? '<div style="font-size:11px;color:#A5B4FC;margin-top:4px">' + escapeHtml(translate('buyerMap.rfq.marker')) + '</div>' : '')
                         + '</div>';
                     hoverPopup.setLngLat(coords).setHTML(tooltipHtml).addTo(map);
                 });
@@ -675,9 +651,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
 
                     const mkt = portMarketRef.current[portId] || { totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null };
                     // Build popup HTML
-                    const isRfqOnly = rfqOnlyRef.current;
-                    const hasUcomeLane = showUcomeLaneRef.current && ucomeLaneRef.current?.port.id === portId;
-                    const fuelRowsHtml = isRfqOnly ? '' : mkt.fuelRows.length > 0
+                    const fuelRowsHtml = mkt.fuelRows.length > 0
                         ? '<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px">'
                             + '<thead><tr style="border-bottom:1px solid rgba(148,163,184,0.3)">'
                             + '<th style="text-align:left;padding:3px 0;color:#94A3B8;font-weight:600;font-size:10px;text-transform:uppercase">' + escapeHtml(translate('buyerMap.popup.fuel')) + '</th>'
@@ -706,8 +680,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             : mkt.reference.source === 'MIXED'
                                 ? translate('buyerMap.mixedMarketplace')
                                 : translate('buyerMap.marketplace');
-                    const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
-                    const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
+                    const plattsPrice = !selectedProductRef.current && port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
+                    const swapPrice = !selectedProductRef.current && port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congestionLabel = congestion === '--'
                         ? congestion
@@ -725,7 +699,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             + '</div>'
                             + '</div>'
                         : '';
-                    const marketIntelHtml = isRfqOnly ? '' : '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
+                    const marketIntelHtml = '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(148,163,184,0.15)">'
                         // Product-specific SPOT indication
                         + '<div style="margin-bottom:6px">'
                         + '<div style="font-size:10px;color:#94A3B8;text-transform:uppercase;font-weight:600;margin-bottom:2px">' + escapeHtml(referenceLabel) + '</div>'
@@ -748,11 +722,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         + '</h3>'
                         + fuelRowsHtml
                         + marketIntelHtml
-                        + (hasUcomeLane ? '<div style="border-top:1px solid #475569;padding:10px 0">'
-                            + '<div style="font-size:12px;font-weight:700;color:#A5B4FC">' + escapeHtml(translate('buyerMap.rfq.marker')) + '</div>'
-                            + '<p style="font-size:11px;line-height:1.5;margin:5px 0 8px">' + escapeHtml(translate('buyerMap.rfq.description')) + '</p>'
-                            + '<a class="verdaxis-ucome-link" href="' + UCOME_MARKETPLACE_PATH + '" style="display:block;padding:8px;border-radius:6px;background:#4F46E5;color:white;text-align:center;font-size:12px;font-weight:700">' + escapeHtml(translate('buyerMap.rfq.action')) + ' →</a></div>' : '')
-                        + (isRfqOnly ? '' : '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(' + escapeHtml(JSON.stringify(port.id)) + ')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' + escapeHtml(translate('buyerMap.popup.tradeAt', { port: port.name })) + ' \u2192</button>')
+                        + (mkt.fuelRows.some(row => row.label === 'UCOME B100') || selectedProductRef.current === 'UCOME_B100'
+                            ? '<p style="font-size:11px;line-height:1.5;color:#FDE68A;margin-bottom:10px">' + escapeHtml(translate('buyerMap.specificationScope')) + '</p>'
+                            : '')
+                        + '<button onclick="window.__verdaxisTradeAt && window.__verdaxisTradeAt(' + escapeHtml(JSON.stringify(port.id)) + ')" style="width:100%;background:#10B981;color:#FFF;font-size:12px;font-weight:700;padding:8px 0;border-radius:6px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' + escapeHtml(translate('buyerMap.popup.tradeAt', { port: port.name })) + ' \u2192</button>'
                         + '</div>';
 
                     const coords = (f.geometry as any).coordinates.slice();
@@ -761,12 +734,6 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         .setHTML(html)
                         .addTo(map);
                     popupRef.current.getElement()?.querySelector('.mapboxgl-popup-close-button')?.setAttribute('aria-label', translate('buyerMap.popup.close'));
-                    popupRef.current.getElement()?.querySelector<HTMLAnchorElement>('.verdaxis-ucome-link')?.addEventListener('click', event => {
-                        // Keep native modified/new-tab clicks while preserving the mounted map for normal navigation.
-                        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-                        event.preventDefault();
-                        navigateRef.current(UCOME_MARKETPLACE_PATH);
-                    });
                 });
             }
         };
@@ -776,7 +743,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
             addPortLayers();
         }
         return () => { map.off('style.load', addPortLayers); };
-    }, [mapCreated, ready, visiblePorts, portMarketMap, maxVolume, selectedPortId, showUcomeLane, ucomeLane, rfqOnly, mapLanguage]);
+    }, [mapCreated, ready, visiblePorts, portMarketMap, maxVolume, selectedPortId, mapLanguage]);
 
     // Versioned IMO ECA reference overlay generated from the shared geofence bundle.
     useEffect(() => {
@@ -914,17 +881,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         };
     }, [mapCreated, ready]);
 
+    const openMarketplaceAtPort = useCallback((port: Port) => {
+        if (selectedProduct && isOrderbookMarketProduct(selectedProduct)) {
+            navigate(sliceToPath({ product: selectedProduct, port: port.name, window: 'SPOT' }));
+        } else if (onOrderClick) onOrderClick(port);
+        else onPortSelect(port);
+    }, [navigate, selectedProduct, onOrderClick, onPortSelect]);
+
     // Window trade-at handler for popup button
     useEffect(() => {
         (window as any).__verdaxisTradeAt = (portId: string) => {
             const port = ports.find(p => p.id === portId);
-            if (port) {
-                if (onOrderClick) onOrderClick(port);
-                else onPortSelect(port);
-            }
+            if (port) openMarketplaceAtPort(port);
         };
         return () => { delete (window as any).__verdaxisTradeAt; };
-    }, [ports, onOrderClick, onPortSelect]);
+    }, [ports, openMarketplaceAtPort]);
 
     if (!ready) {
         return (
@@ -956,7 +927,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 )}
 
                 {/* --- OVERLAY CONTROLS CONTAINER --- */}
-                {showMarketWidgets && !rfqOnly && (
+                {showMarketWidgets && (
                     <div className={`absolute bottom-6 left-6 z-[8] flex flex-col gap-3 transition-all duration-300 pointer-events-none ${isPanelOpen ? 'right-80 mr-6' : 'right-6'}`}>
 
                         {/* Top Row: Widgets */}
@@ -1019,20 +990,21 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     </div>
                 )}
 
-                {showMarketWatch && !rfqOnly && (
+                {showMarketWatch && (
                     <div className="pointer-events-auto absolute left-6 right-[var(--verdaxis-map-rail-offset)] top-6 z-[30] transition-all duration-300">
                         <MarketWatchTicker
                             active={active}
                             isPanelOpen={isPanelOpen}
                             onOpenPanel={() => setIsPanelOpen(true)}
                             ports={ports}
+                            catalogProducts={catalogProducts}
                             aggregatedData={aggregatedData}
                         />
                     </div>
                 )}
 
                 {/* Layer controls + fuel filter (Top-left) */}
-                <div ref={toolbarRef} className={`absolute ${showMarketWatch && !rfqOnly ? 'top-20' : 'top-6'} left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex flex-wrap items-center gap-2`}>
+                <div ref={toolbarRef} className={`absolute ${showMarketWatch ? 'top-20' : 'top-6'} left-6 right-[var(--verdaxis-map-rail-offset)] z-[20] flex flex-wrap items-center gap-2`}>
                     <div ref={layersMenuRef} className="relative">
                         <button
                             type="button"
@@ -1152,21 +1124,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         />
                         <button type="button" onClick={focusAllPorts} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white/95 px-3 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800">
                             <LocateFixed size={16} />
-                            {t(rfqOnly ? 'buyerMap.rfq.allPorts' : 'buyerMap.navigation.allPorts')}
+                            {t('buyerMap.navigation.allPorts')}
                         </button>
-                        {rfqOnly ? <span className="text-xs font-medium text-indigo-700 dark:text-indigo-300">{t('buyerMap.rfq.legend')}</span> : <MapLegend />}
+                        <MapLegend />
                     </div>
-                    {showUcomeLane && (
-                        <section aria-label={t('buyerMap.rfq.title')} className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-200 bg-white/95 px-3 py-2 shadow-sm dark:border-indigo-800 dark:bg-slate-900/95">
-                            <div>
-                                <h2 className="text-xs font-bold text-slate-800 dark:text-slate-100">{t('buyerMap.rfq.title')}</h2>
-                                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{t('buyerMap.rfq.description')}</p>
-                            </div>
-                            <Link to={UCOME_MARKETPLACE_PATH} className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
-                                {t('buyerMap.rfq.action')} <ArrowRight size={14} />
-                            </Link>
-                        </section>
-                    )}
                 </div>
             </div>
 
@@ -1189,10 +1150,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 onClose={() => setIsPanelOpen(false)}
                 selectedPort={selectedPort}
                 portOptions={visiblePorts}
-                rfqOnly={rfqOnly}
-                rfqProduct={selectedPortId === ucomeLane?.port.id && showUcomeLane ? ucomeLane?.product : undefined}
+                selectedProduct={selectedProduct}
                 onMapPortSelect={handlePanelPortSelect}
-                onPortSelect={onPortSelect}
+                onPortSelect={openMarketplaceAtPort}
             />
         </div>
     );

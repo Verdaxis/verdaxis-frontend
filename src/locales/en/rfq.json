@@ -235,7 +235,12 @@
     "offerExpiry": "Offer expiry must be in the future and no later than the delivery end date in Singapore time.",
     "ciContext": "For declared CI, state the calculation methodology, system boundary and actual or default basis.",
     "confirmOffer": "Confirm the composition and accuracy of this supplier offer.",
-    "sourceQuantity": "The requested quantity must be within the supplier offer’s minimum fill and available quantity."
+    "sourceQuantity": "The requested quantity must be within the supplier offer’s minimum fill and available quantity.",
+    "orderNeatDeclaration": "Confirm the neat UCOME B100 declaration.",
+    "orderCertificateCurrent": "The certificate must be valid today in Singapore.",
+    "orderMeasurementRange": "Enter a measurement or limit within the stated range.",
+    "orderAcknowledgements": "Confirm the certification declaration and safety data sheet availability.",
+    "orderEvidenceDue": "The consignment evidence due date must match the order commitment."
   },
   "revisionConflict": "This quote changed while you were editing. Select Refresh, reopen the quote, and apply your changes to the latest revision.",
   "audience": "Buyer identity is hidden from suppliers. Quote details are visible to the requesting buyer, the quoting supplier and authorized administrators.",
@@ -340,5 +345,29 @@
   "sourceOfferTitle": "From supplier offer {{id}} · revision {{revision}}",
   "sourceOfferNotice": "This request goes only to the supplier of the selected offer. Offer terms are a saved snapshot; no trade or inventory reservation is created.",
   "sourceOfferPrivateSupplier": "Targeted supplier offer",
-  "sourceOfferConflict": "This supplier offer changed or is no longer open. Return to Listings, review the current offer, and start a new quote request."
+  "sourceOfferConflict": "This supplier offer changed or is no longer open. Return to Listings, review the current offer, and start a new quote request.",
+  "orderFields": {
+    "requirements": "B100 fuel requirements",
+    "requirementsHint": "These requirements are used to match compatible UCOME B100 supply. Leave optional limits blank when you have no limit.",
+    "maxCloudPoint": "Maximum cloud point (°C)",
+    "evidenceRequirements": "Evidence requirements",
+    "requireQualityEvidence": "Require available batch quality evidence.",
+    "requireSustainabilityEvidence": "Require available consignment sustainability evidence.",
+    "supplierDeclaration": "Supplier declarations",
+    "neatDeclaration": "I declare that this is neat UCOME B100 made from 100% used cooking oil feedstock inputs.",
+    "certificationDeclared": "I declare that the stated certification applies to this supply.",
+    "msdsAvailable": "A safety data sheet is available for this supply.",
+    "unavailableTitle": "B100 orders are not available",
+    "unavailableBody": "This catalog does not yet enable B100 orderbook trading. Refresh the marketplace after the catalog is updated.",
+    "unavailableAction": "Return to Marketplace",
+    "certificateValidityHint": "The certificate must be valid today in Singapore. The availability window is not a delivery schedule."
+  },
+  "orderTerms": {
+    "title": "Buyer fuel requirements",
+    "maxCloudPoint": "Maximum cloud point",
+    "requireQuality": "Batch quality evidence",
+    "requireSustainability": "Consignment sustainability evidence",
+    "required": "Required",
+    "notRequired": "Not required"
+  }
 }

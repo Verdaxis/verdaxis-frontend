@@ -7,7 +7,7 @@ import {
     SPOT_WINDOW,
 } from './availabilityWindow';
 
-// RFQ products share Marketplace discovery without claiming an orderbook window.
+// Product discovery opens the standard Marketplace; exact market slices include a delivery window.
 export const UCOME_MARKETPLACE_PATH = '/app/marketplace?product=UCOME_B100';
 
 // The single home for the /app/m/:product/:port/:window URL grammar.

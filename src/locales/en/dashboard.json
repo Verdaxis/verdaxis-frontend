@@ -109,14 +109,7 @@
       "choosePort": "Go to port",
       "allPorts": "All ports"
     },
-    "rfq": {
-      "title": "UCOME B100 · Singapore",
-      "description": "Browse supplier offers and request quotes for wholesale delivery.",
-      "action": "Open B100 Marketplace",
-      "marker": "UCOME B100 · Offers & RFQs",
-      "allPorts": "Show Singapore lane",
-      "legend": "Wholesale coverage · confirm price and supply by quote"
-    }
+    "specificationScope": "B100 prices may cover different grades, cold-flow limits and certification. Check the order specification before trading."
   },
   "dataAnalytics": {
     "title": "Data & Analytics",
@@ -516,7 +509,7 @@
     "loadingIndicativeCurveReferences": "Loading indicative curve references...",
     "productLevelReference": "Product-level reference",
     "spotReference": "Spot ref",
-    "noDeliveryPointFilter": "no selected delivery point filter",
+    "noDeliveryPointFilter": "Product-level references across delivery points; not a quote for the selected port.",
     "contango": "Contango",
     "backwardation": "Backwardation",
     "noPortHistory": "No port intelligence history yet.",
@@ -603,16 +596,12 @@
       "openMarketplace": "Open {{port}} spot market",
       "selectPort": "Select a port to open Marketplace"
     },
-    "rfq": {
-      "tab": "UCOME B100",
-      "wholesale": "Wholesale offers & RFQs",
-      "title": "Singapore UCOME B100",
-      "description": "Browse or publish UCOME B100 supplier offers for wholesale delivery in Singapore, then agree terms through a quote request.",
-      "quoteTerms": "Listing prices are indicative. A supplier quote confirms price and available volume for your request.",
-      "evidence": "Review the fuel specification, batch test results and consignment sustainability evidence separately from the supplier certificate.",
-      "minimumLot": "Minimum request: {{quantity}} {{unit}}",
-      "openMarketplace": "View UCOME B100 in Marketplace"
-    }
+    "noCurveData": "No data",
+    "curveUnavailable": "Curve data unavailable",
+    "noSpotReference": "No two-sided spot reference",
+    "portLevelReference": "Selected port reference",
+    "selectedDeliveryPointFilter": "Filtered to {{port}}",
+    "noCurveProducts": "No active orderbook products available."
   },
   "mapLegend": {
     "title": "Map Intelligence Legend",
@@ -636,7 +625,8 @@
     "infrastructure": "Infrastructure",
     "activeGreenCorridor": "Active Green Corridor",
     "recentListings": "Recent Listings — latest open listing indication",
-    "button": "Legend"
+    "button": "Legend",
+    "noSpread": "No two-sided quote"
   },
   "marketWatch": {
     "title": "Market Watch",
@@ -653,18 +643,19 @@
     "configureShort": "Configure",
     "configureHelp": "Choose one or more market products and delivery points. The ticker groups selected fuels under each port. Demo means seeded walkthrough activity; Reference means benchmark or model context, not executable liquidity.",
     "closeConfigure": "Close market watch configuration",
-    "products": "Priced fuels",
+    "products": "Fuels",
     "deliveryPoints": "Delivery Points",
     "pinnedCount": {
       "one": "{{count}} point",
       "other": "{{count}} points"
     },
     "productsCount": {
-      "one": "{{count}} priced fuel",
-      "other": "{{count}} priced fuels"
+      "one": "{{count}} selected fuel",
+      "other": "{{count}} selected fuels"
     },
     "pinHelp": "Select one or more",
     "scrollArea": "Scrollable market watch prices",
+    "noSupportedMarkets": "No supported markets for these selections. Choose another fuel or delivery point.",
     "source": {
       "live": "Recent",
       "stale": "Stale",

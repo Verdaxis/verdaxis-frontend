@@ -26,7 +26,7 @@ import { RouteMetadata } from './components/RouteMetadata';
 import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
-import { ViewMode, Page, PAGE_SLUGS, Port } from './types';
+import { ViewMode, Page, PAGE_SLUGS, Port, AvailabilityWindow } from './types';
 import { MarketSlice, parseSlicePath, sliceToPath, UCOME_MARKETPLACE_PATH } from './utils/sliceUrl';
 import {
   cancelDashboardNavigation,
@@ -299,6 +299,8 @@ const DashboardLayout: React.FC = () => {
   // index redirect is about to restore, and it is not a navigation.
   const isBareAppPath = location.pathname === '/app' || location.pathname === '/app/';
   const currentPage = pathToPage(location.pathname);
+  const sliceSegments = location.pathname.startsWith('/app/m/') ? location.pathname.split('/').slice(3) : [];
+  const sidebarMarketSlice = parseSlicePath(sliceSegments[0], sliceSegments[1], sliceSegments[2]);
   const isMapActive = !isBareAppPath && currentPage === 'MAP';
   const dashboardScopeKey = `${user?.id ?? 'account'}:${user?.organization_id ?? 'no-organization'}:${context?.id ?? 'direct'}`;
   const shouldRenderMap = isMapActive || visitedMapScope === dashboardScopeKey;
@@ -401,9 +403,11 @@ const DashboardLayout: React.FC = () => {
         isOpen={sidebarModalSide !== null}
         onClose={() => setSidebarModalSide(null)}
         side={sidebarModalSide || 'BID'}
-        prefillMarketProduct={currentPage === 'MARKETPLACE'
+        prefillMarketProduct={sidebarMarketSlice?.product ?? (currentPage === 'MARKETPLACE'
           && new URLSearchParams(location.search).get('product') === 'UCOME_B100'
-          ? 'UCOME_B100' : undefined}
+          ? 'UCOME_B100' : undefined)}
+        prefillRegion={sidebarMarketSlice?.port}
+        prefillAvailabilityWindow={sidebarMarketSlice?.window as AvailabilityWindow | undefined}
       />
     </Layout>
   );
@@ -446,9 +450,6 @@ const MarketplaceRoute: React.FC = () => {
   const slice = isSlicePath ? parseSlicePath(params.product, params.port, params.window) : null;
   if (isSlicePath && !slice) {
     return <Navigate to="/app/marketplace" replace />;
-  }
-  if (slice?.product === 'UCOME_B100') {
-    return <Navigate to={UCOME_MARKETPLACE_PATH} replace />;
   }
 
   const initialPort = (location.state as MarketplaceLocationState | null)?.initialPort ?? null;
@@ -614,7 +615,7 @@ export const AppRoutes: React.FC = () => {
                         <Route path="home" element={<HomeRoute />} />
                         <Route path="map" element={<></>} />
                         <Route path="marketplace" element={<MarketplaceRoute />} />
-                        <Route path="rfqs" element={<Navigate to={UCOME_MARKETPLACE_PATH} replace />} />
+                        <Route path="rfqs" element={<Navigate to={`${UCOME_MARKETPLACE_PATH}&view=history_rfqs`} replace />} />
                         <Route path="m/:product/:port/:window" element={<MarketplaceRoute />} />
                         <Route path="curve" element={<CurveRoute />} />
                         <Route path="watchlist" element={<SupportRestrictedRoute><WatchlistPage /></SupportRestrictedRoute>} />

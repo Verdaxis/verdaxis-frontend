@@ -30,6 +30,7 @@ const makeTradePage = (id: string, buyerName: string, status: string) => ({
 });
 const namespaceControl = vi.hoisted(() => ({
   ready: true,
+  fuelTermsReady: true,
   t: (key: string) => {
     if (key === 'myTrades.note.offPlatform') return 'Off-platform after confirmation';
     if (key === 'myTrades.error.message') return '无法加载交易，请重试。';
@@ -58,7 +59,8 @@ vi.mock('../components/Toast', () => ({
 }));
 
 vi.mock('../hooks/useNamespace', () => ({
-  useNamespace: () => namespaceControl,
+  useNamespace: (namespace: string) => namespace === 'rfq'
+    ? { ...namespaceControl, ready: namespaceControl.fuelTermsReady } : namespaceControl,
 }));
 
 vi.mock('../services/api', () => ({
@@ -78,6 +80,7 @@ describe('MyTrades lifecycle', () => {
     vi.clearAllMocks();
     sseControl.handler = null;
     namespaceControl.ready = true;
+    namespaceControl.fuelTermsReady = true;
     await i18n.changeLanguage('en');
     myTradesPagedMock.mockResolvedValue({
       items: [{
@@ -109,6 +112,35 @@ describe('MyTrades lifecycle', () => {
       skip: 0,
       limit: 20,
     });
+  });
+
+  it.each(['PENDING_CONFIRMATION', 'CONFIRMED'])('shows frozen B100 requirements and declarations for %s trades', async (status) => {
+    const page = makeTradePage('b100-trade', 'Frozen buyer', status);
+    myTradesPagedMock.mockResolvedValue({ ...page, items: [{
+      ...page.items[0], market_product: 'UCOME_B100', product_name: 'UCOME B100', fuel_type: 'FAME',
+      fame_terms_snapshot: {
+        schema_version: 1,
+        bid: { side: 'BID', schema_version: 1, neat_fame: true, standard: 'EN_14214', standard_edition: 'Frozen buyer edition', max_ci_gco2e_mj: 0, sustainability_scheme: 'ISCC_EU', require_quality_evidence: true, require_sustainability_evidence: false, evidence_due: 'BEFORE_LOADING' },
+        ask: { side: 'ASK', schema_version: 1, neat_fame: true, nomination_status: 'PENDING', uco_mass_pct: 100, standard: 'EN_14214', standard_edition: 'Frozen supplier edition', sustainability_scheme: 'ISCC_EU', certificate_valid_until: '2027-12-31', evidence_status: 'DECLARED', evidence_due: 'BEFORE_LOADING', ci_gco2e_mj: 0 },
+      },
+    }] });
+    const view = renderWithProviders(<MyTrades />);
+    const summary = await screen.findByText('myTrades.fameTerms.title');
+    const details = summary.closest('details')!;
+    expect(details.open).toBe(status === 'PENDING_CONFIRMATION');
+    if (status === 'CONFIRMED') fireEvent.click(summary);
+    expect(screen.getByText(/Frozen buyer edition/)).toBeTruthy();
+    expect(screen.getByText(/Frozen supplier edition/)).toBeTruthy();
+    expect(screen.getAllByText('0 gCO₂e/MJ')).toHaveLength(2);
+    expect(screen.getByText('myTrades.fameTerms.notice')).toBeTruthy();
+    if (status === 'PENDING_CONFIRMATION') {
+      namespaceControl.fuelTermsReady = false;
+      view.rerender(<MyTrades />);
+      expect(screen.getByRole('button', { name: 'myTrades.btn.confirm' })).toHaveProperty('disabled', true);
+      namespaceControl.fuelTermsReady = true;
+      view.rerender(<MyTrades />);
+      expect(screen.getByRole('button', { name: 'myTrades.btn.confirm' })).toHaveProperty('disabled', false);
+    }
   });
 
   it('treats post-confirmation trades as off-platform and reveals counterparties', async () => {

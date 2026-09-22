@@ -15,11 +15,11 @@ export function isOrderbookMarketProduct(value: string | null | undefined): valu
 }
 
 export function isOrderbookProduct(product: Product): boolean {
-  // Old catalog responses omit execution_mode. Only the established alcohol
-  // products may use that fallback; adding a catalog product never enables matching.
-  return product.is_active
-    && isOrderbookMarketProduct(product.market_product)
-    && (product.execution_mode == null || product.execution_mode === 'ORDERBOOK');
+  if (!product.is_active || !isOrderbookMarketProduct(product.market_product)) return false;
+  if (product.execution_mode === 'ORDERBOOK') return true;
+  // Alcohol catalogs historically omitted this flag. B100 requires the
+  // explicit capability so a stale RFQ-only catalog cannot enable execution.
+  return product.execution_mode == null && product.market_product !== 'UCOME_B100';
 }
 
 export function formatMarketProduct(value: string | null | undefined): string {

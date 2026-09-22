@@ -89,13 +89,13 @@ src/
     SupplierDashboard.tsx          # Incoming orders, revenue overview
     SupplierQuotes.tsx             # Supplier route alias for the shared trade blotter
     SupplierInventory.tsx          # Fuel inventory by port
-    supplier/SupplierOffersWorkspace.tsx # Marketplace B100 Listings and My Listings, with revision/withdrawal and targeted quote requests
+    supplier/SupplierOffersWorkspace.tsx # Historical indicative B100 offers, preserved readback and withdrawal
     SupplierStats.tsx              # Supplier-specific stats
     SupplierDemandFeed.tsx         # Live demand signals from buyers
     WatchlistPage.tsx              # Slice-first Market Radar detail view and event feed
     # Modals
     buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
-    OrderPlaceModal.tsx            # Shared Post Supply dialog; executable alcohol ASKs or indicative B100 supplier offers
+    OrderPlaceModal.tsx            # Shared BID/ASK order dialog with fuel-specific B100 requirements/declarations
     # Feature groups
     admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved user/org invites, organization entry
     admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
@@ -289,24 +289,9 @@ clearly labelled Demo midpoints from the nearest exact
 values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
 the public market endpoints are temporarily unavailable.
 
-**UCOME RFQ boundary:** The catalog includes `UCOME_B100` (FAME biodiesel) for the
-Singapore RFQ pilot. `MARKET_PRODUCTS` describes all five catalog products;
-`ORDERBOOK_MARKET_PRODUCTS` contains only the four established alcohol products.
-Catalog responses can include `execution_mode` and `available_delivery_point_ids`.
-`isOrderbookProduct` requires an active alcohol product and accepts missing execution
-metadata only for these established codes. An explicit `RFQ_ONLY` mode always blocks
-order creation.
+**B100 shared orderbook:** All five catalog products use the shared orderbook allowlist. Explicit catalog execution mode and delivery-point coverage still control eligibility. B100 is active at Singapore. Standard Marketplace Listings/Orderbook/My Listings, BID/ASK dialogs, trade actions, Map, Market Watch and Forward Curve use that same identity. Market-slice links preserve the selected availability window. New entry submits `fame_terms` with buyer requirements or supplier declarations; compatibility is enforced by the backend.
 
-Marketplace includes UCOME in its product selector with Listings, Quote Requests and My Listings at
-`/app/marketplace?product=UCOME_B100`. The former `/app/rfqs` route and UCOME
-market-slice bookmarks redirect to this product view. Post Supply uses the same
-dialog as alcohol listings, but submits UCOME to the supplier-offer API. The
-Intelligence Map includes catalog-approved Singapore wholesale coverage and opens
-this Marketplace view without inventing prices or stock.
-Orderbook requests, displayed depth and trade actions exclude UCOME. Forward
-Curve, Market Watch and the public demo ticker retain alcohol-only price data;
-adding an RFQ catalog product does not create a price curve or demo quote.
-Assisted organization sessions cannot open the embedded RFQ workflow.
+Earlier indicative offers and RFQs remain available through history, including cancellation/withdrawal. They are not counted as orderbook liquidity or silently converted. B100 prices are not fabricated when data is absent, and product-level curve aggregates explain that individual specifications can differ.
 
 **Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
 Joyride's footer controls, while workflow steps hide the footer and advance only after the user
@@ -390,28 +375,10 @@ npm run test         # Vitest single run
 npm run test:watch   # Vitest watch mode
 ```
 
-## UCOME B100 supplier offers and RFQs
+## UCOME B100 contracts and historical offers
 
-Suppliers publish independent indicative offers through Post Supply and manage
-them in Marketplace's My Listings tab. Shared B100 fields capture the standard
-and edition, ASTM grade or EN climate designation, feedstock, separate cold-flow
-measurements, operator certificate, optional batch quality results and shipment
-sustainability evidence. Future batch nomination is explicit. These fields also
-serve supplier RFQ responses; measurements retain null and zero distinctly.
+New supply and demand use the existing order API with fuel-specific fields for standard/edition, ASTM grade or EN climate designation, separate cold-flow measurements, comparable CI, operator certification, batch quality and consignment sustainability evidence. Future batch nomination remains explicit. Optional values retain null and zero distinctly.
 
-Buyers can request a quote from a selected listing or create a general RFQ. A
-targeted request retains an immutable offer revision snapshot and is visible to
-the selected supplier. Suppliers submit, revise and withdraw their own quotes.
-Offer and quote revisions use optimistic concurrency. Successful offer writes
-refresh the current listing view, including posts from the global sidebar.
-Administrators retain the API's organization-scoped request visibility and cannot
-create or quote from this view;
-the route is unavailable in assisted organization contexts. Backend-computed
-`can_cancel` controls cancellation visibility. Historical supplier quotes remain
-viewable and retractable after request expiry.
+B100 terms appear on order and trade readback. Public projections omit private batch/site/certificate/document references; authorized participants receive the applicable saved trade snapshot. A current operator certificate is not a guarantee of validity at a future loading date. Evidence commitments are recorded with a loading/delivery milestone.
 
-No RFQ acceptance or trade action is exposed. Requests and quotes reserve no
-inventory. Evidence states describe declarations and document availability, not
-verification. Optional CI remains null when absent. USD/GJ is shown only with a
-positive supplier-declared LHV and excludes engine efficiency/compliance value.
-The `rfq` locale namespace supplies English and Chinese copy.
+The earlier independent supplier offers and requests retain their original terms and revision snapshots in history. They do not execute, reserve stock or become standing orders. The `rfq` locale namespace remains for historical views and shared fuel declarations. USD/GJ comparisons require a positive declared LHV and do not imply engine efficiency or compliance savings.

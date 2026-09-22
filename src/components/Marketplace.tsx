@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ApiError, api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, TradeCreateInput } from '../types';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -41,9 +41,9 @@ import {
     normalizeAvailabilityWindow,
     SPOT_WINDOW,
 } from '../utils/availabilityWindow';
-import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct } from '../utils/marketProduct';
+import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
-import { sliceToPath, UCOME_MARKETPLACE_PATH, type MarketSlice } from '../utils/sliceUrl';
+import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
@@ -57,7 +57,9 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
 import { FameRfqWorkspace } from './rfq/FameRfqWorkspace';
 import { SupplierOffersWorkspace } from './supplier/SupplierOffersWorkspace';
-import type { SupplierOffer } from '../types/fameSupplierOffer';
+import type { FameOrderBidTerms } from '../types/fameOrder';
+import { FameOrderFields, readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from './fame/FameOrderFields';
+import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -101,7 +103,7 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
-const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS, 'UCOME_B100'];
+const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
 const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
 const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
@@ -129,11 +131,22 @@ interface MarketplaceProps {
 export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode, initialSlice }) => {
     const { user } = useAuth();
     const { t, ready } = useNamespace('trading');
+    const { t: tRfq } = useNamespace('rfq');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const location = useLocation();
     const navigate = useNavigate();
-    const isRfqSelected = new URLSearchParams(location.search).get('product') === 'UCOME_B100'
-        || initialSlice?.product === 'UCOME_B100';
+    const isExactSliceRoute = Boolean(initialSlice && location.pathname.startsWith('/app/m/'));
+    const requestedProduct = isExactSliceRoute ? null : new URLSearchParams(location.search).get('product');
+    useEffect(() => {
+        if (!isExactSliceRoute) return;
+        const search = new URLSearchParams(location.search);
+        if (!search.has('product')) return;
+        search.delete('product');
+        navigate({ pathname: location.pathname, search: search.toString() }, { replace: true });
+    }, [isExactSliceRoute, location.pathname, location.search, navigate]);
+    const historyView = new URLSearchParams(location.search).get('view');
+    const isHistorySelected = requestedProduct === 'UCOME_B100'
+        && ['history_offers', 'history_my_offers', 'history_rfqs', 'requests'].includes(historyView ?? '');
     const role: ViewMode = user?.role === 'ADMIN'
         ? (viewMode ?? 'BUYER')
         : user?.role === 'SUPPLIER'
@@ -162,7 +175,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasLoadedListings, setHasLoadedListings] = useState(false);
-    useDashboardContentReady('MARKETPLACE', !isRfqSelected && ready && !loading && hasLoadedListings);
+    useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && !loading && hasLoadedListings);
     const latestFetchRequest = useRef(0);
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
@@ -171,9 +184,28 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [portInput, setPortInput] = useState(() => (isOrderbookMarketProduct(initialSlice?.product) ? initialSlice?.port : undefined) || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
-    const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => (
+    const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+    const [catalogError, setCatalogError] = useState(false);
+    const latestCatalogRequest = useRef(0);
+    const loadCatalogProducts = useCallback(async (force = false) => {
+        const requestId = ++latestCatalogRequest.current;
+        try {
+            const products = await api.catalog.products(force ? { force: true } : undefined);
+            if (requestId !== latestCatalogRequest.current) return;
+            setCatalogProducts(products);
+            setCatalogError(false);
+        } catch {
+            if (requestId !== latestCatalogRequest.current) return;
+            setCatalogProducts([]);
+            setCatalogError(true);
+        }
+    }, []);
+    const b100Product = catalogProducts.find(product => product.market_product === 'UCOME_B100');
+    const b100TradingEnabled = Boolean(b100Product && isOrderbookProduct(b100Product));
+    const [selectedMarketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => (
         isOrderbookMarketProduct(initialSlice?.product) ? initialSlice.product : readStoredMarketProduct()
     ));
+    const marketProduct = isOrderbookMarketProduct(requestedProduct) ? requestedProduct : selectedMarketProduct;
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window as AvailabilityWindow;
         const stored = localStorage.getItem('verdaxis_marketplace_window');
@@ -245,14 +277,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
     const requestedView = new URLSearchParams(location.search).get('view');
     const marketTab = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
-    const fameTab = requestedView === 'requests' ? 'requests' : requestedView === 'my_orders' ? 'my_orders' : 'market';
-    const [sourceOffer, setSourceOffer] = useState<SupplierOffer | null>(null);
-    const [editSupplierOffer, setEditSupplierOffer] = useState<SupplierOffer | null>(null);
-    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'requests') => {
+    const fameTab = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
+    const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'history_offers' | 'history_my_offers' | 'history_rfqs') => {
         const next = new URLSearchParams(location.search);
         if (tab === 'market') next.delete('view');
         else next.set('view', tab);
         next.delete('preview');
+        if (tab.startsWith('history_')) {
+            next.set('product', 'UCOME_B100');
+            navigate({ pathname: '/app/marketplace', search: next.toString() });
+            return;
+        }
         navigate({ pathname: location.pathname, search: next.toString() });
     }, [location.pathname, location.search, navigate]);
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
@@ -263,7 +298,23 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
-    const tradeRequestRef = useRef<{ signature: string; payload: { order_id: string; quantity_mt: number; idempotency_key: string } } | null>(null);
+    const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
+    const tradeRequestRef = useRef<{ signature: string; payload: TradeCreateInput } | null>(null);
+    const tradeTermsForm = useRef<HTMLFormElement>(null);
+    const [tradeFameInput, setTradeFameInput] = useState<Pick<TradeCreateInput, 'fame_terms' | 'certification_declared' | 'msds_available'> | null>(null);
+    const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
+        const terms = selectedOrder?.fame_terms;
+        if (terms?.side !== 'ASK') return undefined;
+        return {
+            side: 'BID', schema_version: 1, neat_fame: true,
+            standard: terms.standard, standard_edition: terms.standard_edition,
+            astm_grade: terms.astm_grade, en_climate_class: terms.en_climate_class,
+            max_cfpp_c: null, max_cloud_point_c: null, max_ci_gco2e_mj: null,
+            sustainability_scheme: terms.sustainability_scheme,
+            require_quality_evidence: false, require_sustainability_evidence: false,
+            evidence_due: terms.evidence_due,
+        };
+    }, [selectedOrder]);
     const tradeInFlightRef = useRef(false);
     const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
     const [cancellationReason, setCancellationReason] = useState('');
@@ -275,21 +326,24 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     useEffect(() => {
-        setSourceOffer(null);
-        setEditSupplierOffer(null);
         setOrderModalSide(null);
+        setSelectedOrder(null);
+        setTradeState('idle');
+        setTradeFameInput(null);
+        setTradeNeedsRefresh(false);
+        tradeRequestRef.current = null;
+        setMyOrders([]);
+        latestMyOrdersRequest.current += 1;
     }, [user?.id, user?.organization_id, isMarketSupportActive]);
 
 
     useEffect(() => {
-        if (!isRfqSelected) return;
+        if (!isHistorySelected) return;
         setOrderModalSide(null);
-        setEditSupplierOffer(null);
-        setSourceOffer(null);
         setSelectedOrder(null);
         setTradeState('idle');
         setPendingCancellation(null);
-    }, [isRfqSelected]);
+    }, [isHistorySelected]);
 
     // ─── Fuel counts for chips ────────────────────────────────────
     const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
@@ -314,16 +368,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
         };
 
+        void loadCatalogProducts();
         loadDeliveryPoints();
         return () => {
             cancelled = true;
+            latestCatalogRequest.current += 1;
         };
-    }, [ready]);
+    }, [ready, loadCatalogProducts]);
 
 
     // ─── Data fetching ────────────────────────────────────────────
     const fetchData = useCallback(async (silent = false, skip = 0, force = false) => {
-        if (!ready || isRfqSelected) return;
+        if (!ready || isHistorySelected) return;
         const requestId = ++latestFetchRequest.current;
         if (silent) setRefreshing(true);
         else setLoading(true);
@@ -372,7 +428,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 setRefreshing(false);
             }
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy, isRfqSelected]);
+    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy, isHistorySelected]);
 
     useEffect(() => {
         setHasLoadedListings(false);
@@ -380,19 +436,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
-        if (!ready || isRfqSelected) return;
+        if (!ready || isHistorySelected) return;
         fetchData(false, 0);
         return () => { latestFetchRequest.current += 1; };
-    }, [fetchData, ready, isRfqSelected]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [fetchData, ready, isHistorySelected]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 60s auto-refresh (silent)
     useEffect(() => {
-        if (!ready || isRfqSelected) return;
+        if (!ready || isHistorySelected) return;
         const interval = setInterval(() => {
             fetchData(true, currentSkip);
         }, REFRESH_INTERVAL_MS);
         return () => clearInterval(interval);
-    }, [fetchData, currentSkip, ready, isRfqSelected]);
+    }, [fetchData, currentSkip, ready, isHistorySelected]);
 
     // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
     // One batched authenticated fetch per distinct set of visible ASK ids.
@@ -408,7 +464,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const hasAuthedUser = !!user;
     useEffect(() => {
         if (!ready) return;
-        if (isRfqSelected || !hasAuthedUser || !askIdSignature) {
+        if (isHistorySelected || !hasAuthedUser || !askIdSignature) {
             setComplianceOverlays({});
             return;
         }
@@ -425,17 +481,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         return () => {
             cancelled = true;
         };
-    }, [hasAuthedUser, askIdSignature, ready, isRfqSelected]);
+    }, [hasAuthedUser, askIdSignature, ready, isHistorySelected]);
 
     // ─── Slice URL sync (/app/m/:product/:port/:window) ──────────
     // URL → state: re-apply whenever the slice params change. Slice→slice
     // navigation must re-sync; the useState initializers only cover mount.
     useEffect(() => {
         if (!initialSlice) return;
-        if (initialSlice.product === 'UCOME_B100') {
-            navigate(UCOME_MARKETPLACE_PATH, { replace: true });
-            return;
-        }
         setMarketProduct(initialSlice.product);
         setPortInput(initialSlice.port);
         setStoredDeliveryPointId('');
@@ -451,7 +503,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // with stale state mid slice→slice navigation and bounce the URL back.
     useEffect(() => {
         if (!location.pathname.startsWith('/app/m/')) return;
-        if (isRfqSelected) return;
+        if (isHistorySelected) return;
         const isFullSlice = marketProduct !== ALL_MARKET_PRODUCTS && Boolean(resolvedPort) && Boolean(availability) && isApprovedTradingPortName(resolvedPort);
         const nextPath = isFullSlice
             ? sliceToPath({ product: marketProduct as MarketProduct, port: resolvedPort, window: availability })
@@ -460,7 +512,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             navigate({ pathname: nextPath, search: location.search }, { replace: true });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [availability, marketProduct, resolvedPort, isRfqSelected]);
+    }, [availability, marketProduct, resolvedPort, isHistorySelected]);
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
@@ -506,7 +558,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setStoredDeliveryPointId('');
         setAvailability('');
         setCurrentSkip(0);
-    }, []);
+        if (requestedProduct) {
+            const next = new URLSearchParams(location.search);
+            next.delete('product');
+            navigate({ pathname: '/app/marketplace', search: next.toString() });
+        }
+    }, [location.search, navigate, requestedProduct]);
 
     const handlePortChange = useCallback((value: string) => {
         setPortInput(value);
@@ -547,15 +604,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
         if (productCode === 'UCOME_B100') {
-            navigate(UCOME_MARKETPLACE_PATH);
+            const search = new URLSearchParams({ product: 'UCOME_B100' });
+            if (marketTab !== 'market') search.set('view', marketTab);
+            navigate({ pathname: '/app/marketplace', search: search.toString() });
+            setCurrentSkip(0);
             return;
         }
         setMarketProduct(productCode);
         setCurrentSkip(0);
-        if (isRfqSelected) {
+        if (requestedProduct) {
             const next = new URLSearchParams(location.search);
             next.delete('product');
-            if (next.get('view') === 'requests') next.delete('view');
+            if (isHistorySelected) next.delete('view');
             navigate({ pathname: '/app/marketplace', search: next.toString() });
         }
     };
@@ -573,13 +633,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [setMarketTab]);
 
     useEffect(() => {
-        if (isRfqSelected || marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        if (isHistorySelected || marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
         analytics.track('market_slice_selected', {
             product: marketProduct,
             delivery_point: resolvedDeliveryPointId,
             window: availability,
         });
-    }, [availability, marketProduct, resolvedDeliveryPointId, isRfqSelected]);
+    }, [availability, marketProduct, resolvedDeliveryPointId, isHistorySelected]);
 
     useEffect(() => {
         if (marketTab !== 'market' || !highlightedOrderId) return;
@@ -592,7 +652,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
-        if (!isOrderbookMarketProduct(order.market_product)) return;
+        if (!isOrderbookMarketProduct(order.market_product) || (isMarketSupportActive && !order.is_demo_listing)) return;
+        if (order.market_product === 'UCOME_B100' && !b100TradingEnabled) return;
         if (order.market_product && order.delivery_point_id && order.availability_window) {
             analytics.track('listing_opened', {
                 product: order.market_product,
@@ -602,6 +663,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
             });
         }
+        setTradeFameInput(null);
+        setTradeNeedsRefresh(false);
         setSelectedOrder(order);
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
@@ -628,14 +691,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         } finally {
             if (requestId === latestMyOrdersRequest.current) setMyOrdersLoading(false);
         }
-    }, [ready, t]);
+    }, [ready, t, user?.id, user?.organization_id, isMarketSupportActive]);
 
     useEffect(() => {
-        if (!isRfqSelected && marketTab === 'my_orders') fetchMyOrders();
+        if (!isHistorySelected && marketTab === 'my_orders') fetchMyOrders();
         return () => {
             latestMyOrdersRequest.current += 1;
         };
-    }, [marketTab, fetchMyOrders, isRfqSelected]);
+    }, [marketTab, fetchMyOrders, isHistorySelected]);
 
     const outstandingMyOrders = useMemo(() => myOrders.filter((order) => (
         order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED'
@@ -698,6 +761,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
+        setTradeFameInput(null);
+        setTradeNeedsRefresh(false);
         tradeRequestRef.current = null;
     }, []);
 
@@ -730,6 +795,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             return;
         }
         if (validateTradeQuantity() == null) return;
+        if (selectedOrder.market_product === 'UCOME_B100') {
+            if (!b100TradingEnabled || !selectedOrder.fame_terms || !tradeTermsForm.current
+                || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1) {
+                setTradeError(t('marketplace.b100.missingTerms'));
+                return;
+            }
+            if (!tradeTermsForm.current.reportValidity()) return;
+            const side = selectedOrder.side === 'ASK' ? 'BID' : 'ASK';
+            const data = new FormData(tradeTermsForm.current);
+            const terms = readFameOrderTerms(data, side);
+            const validationError = validateFameOrderTerms(terms);
+            if (validationError) { setTradeError(tRfq(validationError)); return; }
+            const declarations = side === 'ASK' ? readFameOrderAcknowledgements(data) : undefined;
+            if (declarations && (!declarations.certification_declared || !declarations.msds_available)) {
+                setTradeError(tRfq('validation.orderAcknowledgements'));
+                return;
+            }
+            setTradeFameInput({ fame_terms: terms, ...declarations });
+        }
         analytics.track('trade_confirmation_opened', {
             side: selectedOrder.side,
             demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
@@ -747,12 +831,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
         const normalizedTradeQuantity = validateTradeQuantity();
         if (normalizedTradeQuantity == null) return;
+        if (selectedOrder.market_product === 'UCOME_B100' && (!b100TradingEnabled || !tradeFameInput?.fame_terms
+            || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1)) return;
         setTradeState('submitting');
         tradeInFlightRef.current = true;
         try {
             const requestPayload = {
                 order_id: selectedOrder.id,
                 quantity_mt: normalizedTradeQuantity,
+                ...(selectedOrder.market_product === 'UCOME_B100'
+                    ? { ...tradeFameInput, expected_order_version: selectedOrder.version } : {}),
             };
             const signature = JSON.stringify(requestPayload);
             if (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature) {
@@ -764,7 +852,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             await api.trades.initiate(tradeRequestRef.current.payload);
             setTradeState('success');
         } catch (err: any) {
-            setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
+            if (selectedOrder.market_product === 'UCOME_B100' && err instanceof ApiError && err.status === 409) {
+                // A new review needs the new order version and a new idempotency key.
+                tradeRequestRef.current = null;
+                setTradeNeedsRefresh(true);
+                setTradeError(t('marketplace.b100.staleOrder'));
+            } else {
+                setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
+            }
             setTradeState('error');
         } finally {
             tradeInFlightRef.current = false;
@@ -895,7 +990,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 );
             }
             case 'action': {
-                const isExecutable = order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED';
+                const catalogAllowsExecution = order.market_product !== 'UCOME_B100' || b100TradingEnabled;
+                const isExecutable = catalogAllowsExecution && (order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED');
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
@@ -912,7 +1008,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">
-                                    {order.status === 'FILLED'
+                                    {!catalogAllowsExecution ? t(catalogError ? 'marketplace.b100.catalogError' : 'marketplace.b100.catalogUnavailable') : order.status === 'FILLED'
                                         ? t('marketplace.status.filled')
                                         : order.status === 'PARTIALLY_FILLED'
                                             ? t('marketplace.status.partial')
@@ -962,27 +1058,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── Render ───────────────────────────────────────────────────
     return (
         <div
-            className={isRfqSelected ? 'min-h-full flex flex-col' : 'h-full min-h-0 flex flex-col overflow-hidden'}
-            data-tour-market-product={isRfqSelected ? 'UCOME_B100' : marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
-            data-tour-port={isRfqSelected ? 'Singapore' : resolvedPort}
-            data-tour-window={isRfqSelected ? '' : availability}
+            className={isHistorySelected ? 'min-h-full flex flex-col' : 'h-full min-h-0 flex flex-col overflow-hidden'}
+            data-tour-market-product={isHistorySelected ? 'UCOME_B100' : marketProduct === ALL_MARKET_PRODUCTS ? '' : marketProduct}
+            data-tour-port={isHistorySelected ? 'Singapore' : resolvedPort}
+            data-tour-window={isHistorySelected ? '' : availability}
             data-tour-tab={marketTab}
         >
             {/* Header */}
-            <div className={`flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] ${isRfqSelected ? '' : 'max-h-[50%] overflow-y-auto overscroll-contain'}`}>
+            <div className={`flex-none px-4 lg:px-10 pt-3 lg:pt-4 pb-0 relative z-[80] ${isHistorySelected ? '' : 'max-h-[50%] overflow-y-auto overscroll-contain'}`}>
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div>
                             <h1 className="text-2xl lg:text-3xl v-heading">{t('marketplace.title')}</h1>
-                            <p className="text-slate-500 mt-1 text-sm">{t(isRfqSelected ? 'marketplace.ucomeRfq.subtitle' : configBase.subtitleKey)}</p>
+                            <p className="text-slate-500 mt-1 text-sm">{t(isHistorySelected ? 'marketplace.b100.historyDescription' : configBase.subtitleKey)}</p>
                         </div>
-                        {isRfqSelected && user?.role === 'SUPPLIER' && !isMarketSupportActive && <button
-                            type="button"
-                            data-tour="marketplace-primary-action"
-                            onClick={() => { setEditSupplierOffer(null); setOrderModalSide('ASK'); }}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-400"
-                        ><Plus size={16} />{t('marketplace.supplierOffers.postSupply')}</button>}
-                        {!isRfqSelected && <div className="flex items-center gap-3">
+                        {!isHistorySelected && <div className="flex items-center gap-3">
                             <button
                                 type="button"
                                 data-tour="marketplace-primary-action"
@@ -992,9 +1082,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <Plus size={16} />
                                 <span>{t(configBase.primaryAction.labelKey)}</span>
                             </button>
+                            {marketProduct === 'UCOME_B100' && <button type="button" onClick={() => setMarketTab('history_offers')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 dark:border-slate-600 dark:text-slate-300">{t('marketplace.b100.history')}</button>}
                             {marketTab !== 'orderbook' && <button
                                 type="button"
-                                onClick={() => fetchData(true, currentSkip, true)}
+                                onClick={() => { void loadCatalogProducts(true); void fetchData(true, currentSkip, true); }}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -1022,11 +1113,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <div className="min-w-0 flex-1">
                                     <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                         <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.ucomeRfq.products')}</span>
-                                        <span className="text-xs text-slate-400">{t('marketplace.ucomeRfq.productsHint')}</span>
+                                        <span className="text-xs text-slate-400">{t('marketplace.b100.productsHint')}</span>
                                     </div>
                                     <div className="flex flex-1 flex-wrap gap-2" data-tour="marketplace-product-filters">
                                         {MARKET_PRODUCT_FILTERS.map((productCode) => {
-                                            const isActive = isRfqSelected ? productCode === 'UCOME_B100' : marketProduct === productCode;
+                                            const isActive = isHistorySelected ? productCode === 'UCOME_B100' : marketProduct === productCode;
                                             const count = productCode === ALL_MARKET_PRODUCTS ? 0 : (marketProductCounts[productCode] || 0);
                                             const label = productCode === ALL_MARKET_PRODUCTS ? t('marketplace.filter.allProducts') : formatMarketProduct(productCode);
                                             return (
@@ -1043,14 +1134,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                             : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800'
                                                     }`}
                                                 >
-                                                    {label}{productCode === 'UCOME_B100' ? <span className="ml-2 text-[10px] font-bold uppercase"> {t('marketplace.ucomeRfq.badge')}</span> : !isRfqSelected && count > 0 ? ` (${count})` : ''}
+                                                    {label}{!isHistorySelected && count > 0 ? ` (${count})` : ''}
                                                 </button>
                                             );
                                         })}
                                     </div>
                                 </div>
 
-                                {!isRfqSelected && <button
+                                {!isHistorySelected && <button
                                     type="button"
                                     data-tour="marketplace-filter-toggle"
                                     aria-expanded={filtersExpanded}
@@ -1063,7 +1154,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 </button>}
                             </div>
 
-                            {!isRfqSelected && filtersExpanded && (
+                            {!isHistorySelected && filtersExpanded && (
                                 <>
                                     <div id="marketplace-advanced-filters" data-tour="marketplace-advanced-filters" className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(220px,1.2fr)_minmax(180px,0.9fr)_minmax(200px,0.9fr)_minmax(170px,0.8fr)]">
                                         <div>
@@ -1140,22 +1231,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         </div>
                     </div>
 
-                    {isRfqSelected && !isMarketSupportActive && <div className="mb-3 flex w-full max-w-[420px] rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30" role="group" aria-label={t('marketplace.supplierOffers.views')}>
-                        {([
-                            { key: 'market', label: 'marketplace.tab.market' },
-                            { key: 'requests', label: 'marketplace.supplierOffers.requestsTab' },
-                            ...(user?.role === 'SUPPLIER' ? [{ key: 'my_orders', label: 'marketplace.tab.myOrders' }] : []),
-                        ] as const).map((tab) => <button
-                            key={tab.key}
-                            type="button"
-                            aria-pressed={fameTab === tab.key}
-                            onClick={() => { setSourceOffer(null); setMarketTab(tab.key as 'market' | 'requests' | 'my_orders'); }}
-                            className={`min-w-0 flex-1 rounded-md px-4 py-1.5 text-xs font-bold transition-colors ${fameTab === tab.key ? 'border border-white/30 bg-white/90 text-slate-900 shadow-md dark:border-slate-600/30 dark:bg-slate-700/90 dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        >{t(tab.label)}</button>)}
+                    {isHistorySelected && !isMarketSupportActive && <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label={t('marketplace.b100.history')}>
+                        <button type="button" onClick={() => setMarketTab('market')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold dark:border-slate-600">{t('marketplace.b100.backToMarket')}</button>
+                        {[
+                            { key: 'history_offers' as const, label: 'marketplace.b100.legacyOffers' },
+                            { key: 'history_rfqs' as const, label: 'marketplace.b100.legacyRequests' },
+                            ...(user?.role === 'SUPPLIER' ? [{ key: 'history_my_offers' as const, label: 'marketplace.b100.myLegacyOffers' }] : []),
+                        ].map((tab) => <button key={tab.key} type="button" aria-pressed={fameTab === tab.key} onClick={() => setMarketTab(tab.key)} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${fameTab === tab.key ? 'border-slate-300 bg-white text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-white' : 'border-transparent text-slate-500'}`}>{t(tab.label)}</button>)}
                     </div>}
 
                     {/* Tab Switcher: Market | Orderbook | My Listings */}
-                    {!isRfqSelected && <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
+                    {!isHistorySelected && <><div className="relative mb-3 grid w-full max-w-[420px] grid-cols-3 rounded-lg border border-white/20 bg-white/30 p-0.5 backdrop-blur-sm dark:border-slate-700/40 dark:bg-slate-800/30">
                         <div
                             className="absolute top-0.5 bottom-0.5 rounded-md bg-white/90 dark:bg-slate-700/90 shadow-md backdrop-blur-sm border border-white/30 dark:border-slate-600/30 transition-all duration-300 ease-in-out"
                             style={{
@@ -1219,21 +1305,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             </div>
 
-            {isRfqSelected && <div className="px-4 pb-8 lg:px-10"><div className="mx-auto max-w-7xl">
+            {isHistorySelected && <div className="px-4 pb-8 lg:px-10"><div className="mx-auto max-w-7xl">
                 {isMarketSupportActive ? <div role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{t('marketplace.ucomeRfq.supportUnavailable')}</div>
-                    : fameTab === 'requests' ? <FameRfqWorkspace key={`${user?.id}:${user?.organization_id}`} embedded sourceOffer={sourceOffer ?? undefined} onSourceOfferHandled={() => setSourceOffer(null)} />
+                    : fameTab === 'history_rfqs' ? <FameRfqWorkspace key={`${user?.id}:${user?.organization_id}`} embedded historyOnly />
                         : <SupplierOffersWorkspace
                             key={`${fameTab}:${user?.id}:${user?.organization_id}`}
-                            mine={fameTab === 'my_orders' && user?.role === 'SUPPLIER'}
-                            onRequestQuote={(offer) => { setSourceOffer(offer); setMarketTab('requests'); }}
-                            onEdit={(offer) => { setEditSupplierOffer(offer); setOrderModalSide('ASK'); }}
-                            onPostSupply={() => { setEditSupplierOffer(null); setOrderModalSide('ASK'); }}
+                            mine={fameTab === 'history_my_offers' && user?.role === 'SUPPLIER'}
+                            historyOnly
+                            onRequestQuote={() => undefined}
+                            onEdit={() => undefined}
+                            onPostSupply={() => undefined}
                         />}
 
             </div></div>}
 
             {/* Error state */}
-            {!isRfqSelected && marketTab === 'market' && error && !loading && !hasLoadedListings && (
+            {!isHistorySelected && marketTab === 'market' && error && !loading && !hasLoadedListings && (
                 <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div role="alert" className="v-card p-8 flex flex-col items-center text-center">
@@ -1255,13 +1342,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {!isRfqSelected && marketTab === 'market' && error && hasLoadedListings && (
+            {!isHistorySelected && marketTab === 'market' && error && hasLoadedListings && (
                 <div role="alert" className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 lg:mx-10">
                     {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                 </div>
             )}
 
-            {!isRfqSelected && marketTab === 'orderbook' && (
+            {!isHistorySelected && marketTab === 'orderbook' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
                         <div
@@ -1321,6 +1408,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <OrderBook
                                         key={`${marketProduct}:${resolvedDeliveryPointId}:${availability}`}
                                         marketProduct={marketProduct}
+                                        executionMode={marketProduct === 'UCOME_B100' ? b100Product?.execution_mode : undefined}
                                         region={resolvedPort || undefined}
                                         deliveryPointId={resolvedDeliveryPointId || undefined}
                                         availability={availability || undefined}
@@ -1341,7 +1429,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* My Listings tab: user's outstanding orders */}
-            {!isRfqSelected && marketTab === 'my_orders' && (
+            {!isHistorySelected && marketTab === 'my_orders' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto flex flex-col">
                         {myOrdersError && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
@@ -1417,6 +1505,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                     </td>
                                                     <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">
                                                         {getOrderDisplayName(order, t('marketplace.unknownProduct'))}
+                                                        {order.fame_terms && <details className="mt-2 max-w-xl whitespace-normal text-xs">
+                                                            <summary className="cursor-pointer text-slate-500">{t('marketplace.b100.orderTerms')}</summary>
+                                                            <div className="mt-3"><FameOrderTermsDetails terms={order.fame_terms} /></div>
+                                                        </details>}
                                                     </td>
                                                     <td className="px-3 py-2 text-slate-600 dark:text-slate-400 text-xs">
                                                         {order.delivery_point_name || order.region}
@@ -1476,7 +1568,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* Market tab: listings table */}
-            {!isRfqSelected && marketTab === 'market' && (!error || hasLoadedListings) && (
+            {!isHistorySelected && marketTab === 'market' && (!error || hasLoadedListings) && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-7xl mx-auto">
                         <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" data-tour="marketplace-listings-table">
@@ -1545,9 +1637,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             )}
 
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
-            {!isRfqSelected && selectedOrder && tradeState !== 'idle' && (
+            {!isHistorySelected && selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" data-tour="trade-modal">
+                    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -1593,6 +1685,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
+                                {tradeNeedsRefresh && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { closeTradeModal(); void fetchData(false, currentSkip, true); }}
+                                        className="mb-3 w-full rounded-lg border border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"
+                                    >
+                                        {t('marketplace.b100.refreshReview')}
+                                    </button>
+                                )}
                                 {tradeRequestRef.current && (
                                     <button
                                         type="button"
@@ -1674,7 +1775,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                                 value={Number.isFinite(tradeQuantity) ? tradeQuantity : ''}
                                                 onChange={(e) => setTradeQuantity(Number(e.target.value))}
                                                 max={selectedOrder.remaining_quantity_mt}
-                                                min={1}
+                                                min={0.01}
+                                                step={0.01}
+                                                aria-label={t('marketplace.modal.quantity')}
                                                 disabled={tradeState === 'reviewing' || tradeState === 'submitting' || selectedOrder.is_demo_listing}
                                                 className="w-full p-3 pl-4 pr-12 border border-slate-200 dark:border-slate-600 rounded-lg text-lg font-bold text-slate-800 dark:text-white bg-transparent focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-400"
                                             />
@@ -1689,6 +1792,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             )}
                                         </p>
                                     </div>
+                                    {selectedOrder.market_product === 'UCOME_B100' && <div className="space-y-4">
+                                        {selectedOrder.fame_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
+                                            <summary className="cursor-pointer text-sm font-bold">{t('marketplace.b100.orderTerms')}</summary>
+                                            <div className="mt-4"><FameOrderTermsDetails terms={selectedOrder.fame_terms} /></div>
+                                        </details>}
+                                        <form ref={tradeTermsForm} aria-label={t('marketplace.b100.takerTerms')} hidden={tradeState !== 'confirming'} onSubmit={event => { event.preventDefault(); reviewTrade(); }}>
+                                            <FameOrderFields side={selectedOrder.side === 'ASK' ? 'BID' : 'ASK'} initial={initialBuyerTerms} pending={tradeState !== 'confirming'} />
+                                        </form>
+                                        {tradeState === 'reviewing' && tradeFameInput?.fame_terms && <section className="rounded-lg border border-emerald-200 p-4 dark:border-emerald-900">
+                                            <h4 className="mb-3 text-sm font-bold">{t('marketplace.b100.takerTerms')}</h4>
+                                            <FameOrderTermsDetails terms={tradeFameInput.fame_terms} />
+                                            <p className="mt-3 text-xs text-slate-500">{t('marketplace.b100.reviewTerms')}</p>
+                                        </section>}
+                                        {tradeError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{tradeError}</p>}
+                                    </div>}
                                     {tradeState === 'reviewing' && (
                                         <div data-tour="trade-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
                                             <div className="flex items-start gap-2">
@@ -1748,7 +1866,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <ConfirmModal
-                isOpen={!isRfqSelected && Boolean(pendingCancellation)}
+                isOpen={!isHistorySelected && Boolean(pendingCancellation)}
                 onClose={() => setPendingCancellation(null)}
                 onConfirm={() => { void confirmCancelOrder(); }}
                 title={t('marketplace.cancel.title')}
@@ -1772,22 +1890,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </label>
             </ConfirmModal>
             <OrderPlaceModal
-                isOpen={orderModalSide !== null && (!isRfqSelected || !isMarketSupportActive)}
+                isOpen={orderModalSide !== null && !isHistorySelected}
                 onClose={() => {
                     setOrderModalSide(null);
-                    setEditSupplierOffer(null);
-                    if (!isRfqSelected) {
+                                if (!isHistorySelected) {
                         void fetchData(true, currentSkip, true);
                         if (marketTab === 'my_orders') void fetchMyOrders(true);
                     }
                 }}
                 side={orderModalSide || configBase.primaryAction.side}
-                prefillFuelType={!isRfqSelected && marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
-                prefillRegion={isRfqSelected ? 'Singapore' : portInput || undefined}
-                prefillMarketProduct={isRfqSelected ? 'UCOME_B100' : marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
-                prefillDeliveryPointId={isRfqSelected ? undefined : currentSliceTarget?.deliveryPointId}
-                prefillAvailabilityWindow={isRfqSelected ? undefined : availability || undefined}
-                editSupplierOffer={editSupplierOffer ?? undefined}
+                prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
+                prefillRegion={portInput || undefined}
+                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
+                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
+                prefillAvailabilityWindow={availability || undefined}
             />
         </div>
     );

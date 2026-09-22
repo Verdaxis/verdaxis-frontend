@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { formatAvailabilityWindow } from '../../utils/availabilityWindow';
+import { useNamespace } from '../../hooks/useNamespace';
+import type { FameOrderTerms } from '../../types/fameOrder';
+import { FameOrderTermsDetails } from '../fame/FameOrderTermsDetails';
 
 export interface MarketSupportConfirmation {
   external_instruction_reference: string;
@@ -21,10 +24,11 @@ export interface MarketSupportDraftSummary {
   certificationScheme: string;
   specificationStandard: string;
   msdsAvailable: boolean;
-  carbonIntensity: number;
+  carbonIntensity: number | null;
   carbonIntensityMethod?: string | null;
   feedstock: string;
   origin: string;
+  fameTerms?: FameOrderTerms;
 }
 
 interface MarketSupportFinalConfirmationProps {
@@ -55,6 +59,8 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
   onConfirm,
 }) => {
   const { t, i18n } = useTranslation('common');
+  const { t: rfq, ready: rfqReady } = useNamespace('rfq');
+  const { ready: tradingReady } = useNamespace('trading');
   const [externalReference, setExternalReference] = useState(supportReference);
   const [instructionTime, setInstructionTime] = useState(() => {
     const date = new Date();
@@ -62,7 +68,8 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
   });
   const [exactTerms, setExactTerms] = useState(false);
   const [standingOrder, setStandingOrder] = useState(false);
-  const valid = Boolean(externalReference.trim() && instructionTime && exactTerms && standingOrder);
+  const termsReady = !draft.fameTerms || (rfqReady && tradingReady);
+  const valid = Boolean(termsReady && externalReference.trim() && instructionTime && exactTerms && standingOrder);
   const sideLabel = t(`marketSupport.confirm.side.${draft.side.toLowerCase()}`);
 
   const submit = () => {
@@ -83,11 +90,11 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
     [t('marketSupport.confirm.quantity'), `${draft.quantityMt.toLocaleString(i18n.language)} MT`],
     [t('marketSupport.confirm.price'), `$${draft.pricePerMtUsd.toFixed(2)}/MT`],
     [t('marketSupport.confirm.expiry'), formatExpiry(draft.expiresAt, i18n.language, t('marketSupport.confirm.goodTillCancelled'))],
-    ...(draft.side === 'ASK' ? [
+    ...(draft.side === 'ASK' && !draft.fameTerms ? [
       [t('marketSupport.confirm.certification'), draft.certificationScheme],
       [t('marketSupport.confirm.specification'), draft.specificationStandard],
       [t('marketSupport.confirm.msds'), t(draft.msdsAvailable ? 'status.available' : 'status.notAvailable')],
-      [t('marketSupport.confirm.carbonIntensity'), `${draft.carbonIntensity} gCO₂e/MJ${draft.carbonIntensityMethod ? ` · ${draft.carbonIntensityMethod}` : ''}`],
+      [t('marketSupport.confirm.carbonIntensity'), draft.carbonIntensity == null ? rfq('notSupplied') : `${draft.carbonIntensity} gCO₂e/MJ${draft.carbonIntensityMethod ? ` · ${draft.carbonIntensityMethod}` : ''}`],
       [t('marketSupport.confirm.feedstock'), draft.feedstock],
       [t('marketSupport.confirm.origin'), draft.origin],
     ] : []),
@@ -117,6 +124,7 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
             </div>
           ))}
         </dl>
+        {draft.fameTerms && <div className="mt-4 border-t border-amber-200 pt-4 dark:border-amber-700/50"><FameOrderTermsDetails terms={draft.fameTerms} /></div>}
       </div>
       <div className="space-y-3.5">
         <label className="block text-xs font-bold uppercase text-slate-500">

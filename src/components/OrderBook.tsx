@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, TrendingUp, TrendingDown, Loader2, RefreshCw, Zap } from 'lucide-react';
-import { OrderBookOrder } from '../types';
+import { OrderBookOrder, ProductExecutionMode } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
@@ -11,6 +11,7 @@ import i18n from '../i18n';
 interface OrderBookProps {
     fuelType?: string;
     marketProduct?: string;
+    executionMode?: ProductExecutionMode;
     region?: string;
     deliveryPointId?: string;
     availability?: string;
@@ -27,14 +28,14 @@ const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
 function isOrderbookFuelType(fuelType: string | undefined): boolean {
-    return fuelType != null && ['methanol', 'ethanol'].includes(fuelType.trim().toLowerCase());
+    return fuelType != null && ['methanol', 'ethanol', 'fame'].includes(fuelType.trim().toLowerCase());
 }
 
 function isOrderbookOrder(order: OrderBookOrder): boolean {
-    // Preserve old alcohol rows without a canonical code, but fail closed for new products.
+    // B100 rows need a canonical code. Only legacy alcohol rows use fuel labels.
     return order.market_product
         ? isOrderbookMarketProduct(order.market_product)
-        : isOrderbookFuelType(order.fuel_type);
+        : ['methanol', 'ethanol'].includes(order.fuel_type?.trim().toLowerCase());
 }
 
 export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
@@ -47,6 +48,12 @@ export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookO
     const realAsks = asks
         .filter(hasLivePrice)
         .sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd);
+
+    const products = new Set([...realBids, ...realAsks].map(order => order.market_product || order.fuel_type.trim().toLowerCase()));
+    // A combined product view has no meaningful common price spread.
+    if (products.size > 1) {
+        return { hasCross: false, bidIds: new Set<string>(), askIds: new Set<string>(), spread: null };
+    }
 
     const bestBid = realBids[0];
     const bestAsk = realAsks[0];
@@ -81,7 +88,7 @@ function formatQty(qty: number, locale = 'en'): string {
     return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 0 }) : '—';
 }
 
-export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
+export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, executionMode, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
@@ -90,7 +97,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
     const latestRequest = useRef(0);
-    const orderbookAvailable = (!marketProduct || isOrderbookMarketProduct(marketProduct))
+    const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
+    const orderbookAvailable = executionMode !== 'RFQ_ONLY'
+        && (!b100Selected || executionMode === 'ORDERBOOK')
+        && (!marketProduct || isOrderbookMarketProduct(marketProduct))
         && (!fuelType || isOrderbookFuelType(fuelType));
 
     const fetchData = useCallback(async (silent = false, force = false) => {
@@ -169,6 +179,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
 
     const maxRows = Math.max(bids.length, asks.length);
     const liveSpread = getExecutableCrossState(bids, asks).spread;
+    const b100Visible = b100Selected || [...bids, ...asks].some(order => order.market_product === 'UCOME_B100');
 
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();
@@ -333,7 +344,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                         }`}>
                                             {bidCrossed && (
                                                 <span className="mr-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
+                                                    <Zap size={8} className="mr-0.5" />{t(bid.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
                                                 </span>
                                             )}
                                             {formatPrice(bid.price_per_mt_usd, locale)}
@@ -388,7 +399,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             {formatPrice(ask.price_per_mt_usd, locale)}
                                             {askCrossed && (
                                                 <span className="ml-1 inline-flex items-center text-[11px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 px-1 py-0.5 rounded">
-                                                    <Zap size={8} className="mr-0.5" />{t('orderBook.cross')}
+                                                    <Zap size={8} className="mr-0.5" />{t(ask.market_product === 'UCOME_B100' ? 'orderBook.priceOverlap' : 'orderBook.cross')}
                                                 </span>
                                             )}
                                             {ask.carbon_intensity_gco2_mj != null && (
@@ -475,9 +486,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 <span className="font-medium text-slate-600 dark:text-slate-300">
                     {t('orderBook.liveSpread')}{' '}
                     <span className="font-mono font-bold tabular-nums">
-                        {liveSpread == null ? '—' : liveSpread <= 0 ? t('orderBook.crossed') : `${formatPrice(liveSpread, locale)} / MT`}
+                        {liveSpread == null ? '—' : liveSpread <= 0 ? t(b100Visible ? 'orderBook.priceOverlap' : 'orderBook.crossed') : `${formatPrice(liveSpread, locale)} / MT`}
                     </span>
                 </span>
+                {b100Visible && <p className="w-full text-slate-500 dark:text-slate-400">{t('orderBook.b100Compatibility')}</p>}
             </div>
         </div>
     );

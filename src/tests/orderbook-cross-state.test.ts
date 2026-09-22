@@ -22,16 +22,31 @@ const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
 });
 
 describe('getExecutableCrossState', () => {
-  it('excludes RFQ products from executable cross calculations', () => {
+  it('does not compare a B100 bid with an alcohol ask in an aggregate book', () => {
     const state = getExecutableCrossState(
-      [makeOrder({ id: 'rfq-bid', market_product: 'UCOME_B100', price_per_mt_usd: 1200 })],
-      [makeOrder({ id: 'real-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 650 })],
+      [makeOrder({ id: 'b100-bid', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 })],
+      [makeOrder({ id: 'alcohol-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 650 })],
     );
-
     expect(state.hasCross).toBe(false);
+    expect(state.spread).toBeNull();
     expect(state.bidIds.size).toBe(0);
     expect(state.askIds.size).toBe(0);
-    expect(state.spread).toBeNull();
+  });
+
+  it('includes B100 in price overlap calculations and still excludes its demo liquidity', () => {
+    const state = getExecutableCrossState(
+      [makeOrder({ id: 'b100-bid', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 })],
+      [
+        makeOrder({ id: 'b100-ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 }),
+        makeOrder({ id: 'b100-demo', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1000, is_demo_listing: true }),
+      ],
+    );
+
+    expect(state.hasCross).toBe(true);
+    expect(state.bidIds.has('b100-bid')).toBe(true);
+    expect(state.askIds.has('b100-ask')).toBe(true);
+    expect(state.askIds.has('b100-demo')).toBe(false);
+    expect(state.spread).toBe(-100);
   });
 
   it('compares decimal strings from the API numerically, not alphabetically', () => {
