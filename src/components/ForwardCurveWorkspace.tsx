@@ -27,6 +27,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
+import { activity } from '../services/activityTracking';
 
 interface ForwardCurveWorkspaceProps {
     onNavigate?: (page: Page) => void;
@@ -976,6 +977,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const selectCell = (cell: ForwardCurveMarketCell) => {
         const next = cellToSlice(cell);
+        activity.trackMarketFilter({
+            page: 'curve',
+            marketProduct: next.marketProduct,
+            deliveryPointId: next.deliveryPointId,
+            availabilityWindow: next.availabilityWindow,
+        });
         persistSelection(next);
         prepareSliceRefresh(next);
         setSelected(next);
@@ -1001,6 +1008,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const selectWindow = (availabilityWindow: string | null | undefined) => {
         if (!availabilityWindow || !selected) return;
         const next = { ...selected, availabilityWindow };
+        activity.trackMarketFilter({
+            page: 'curve',
+            marketProduct: next.marketProduct,
+            deliveryPointId: next.deliveryPointId,
+            availabilityWindow: next.availabilityWindow,
+        });
         persistSelection(next);
         prepareSliceRefresh(next);
         setSelected(next);
@@ -1019,6 +1032,16 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const activeCell = activeSlice?.cell ?? selectedCell;
     const evidenceLoading = loadingSlice || waitingForActiveSlice || Boolean(activeCell && !activeSlice && failedSliceKey !== selectedKey);
     const activeTone = activeCell ? sourceTone(activeCell, t) : null;
+
+    useEffect(() => {
+        if (!activeCell) return;
+        activity.trackMarketView({
+            page: 'curve',
+            marketProduct: activeCell.market_product,
+            deliveryPointId: activeCell.delivery_point_id,
+            availabilityWindow: activeCell.availability_window,
+        });
+    }, [activeCell]);
 
     if (!ready) return null;
 

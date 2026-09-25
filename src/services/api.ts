@@ -25,6 +25,7 @@ import type {
     MarketSupportSession,
     MarketSupportStartInput,
 } from '../types/marketSupport';
+import type { ActivityRecordInput, UserActivityQuery, UserActivityResponse } from '../types/activity';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -565,6 +566,26 @@ export interface AdminInvitationResponse {
 }
 
 export const api = {
+    activity: {
+        // Account-linked activity is best-effort telemetry. It must never
+        // refresh or invalidate the user's session, surface global notices,
+        // or interfere with the action that produced the event.
+        record: (input: ActivityRecordInput): void => {
+            const token = getAccessToken();
+            if (!token) return;
+            void Promise.resolve()
+                .then(() => fetch(`${API_URL}/activity/events`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(input),
+                    keepalive: true,
+                }))
+                .catch(() => undefined);
+        },
+    },
     preferences: {
         getAll: async (): Promise<Record<string, unknown>> => {
             const data: unknown = await fetchApi('/users/me/preferences', { headers: getHeaders() });
@@ -1095,6 +1116,22 @@ export const api = {
         },
         users: async (query?: string) => {
             return fetchApi(`/admin/analytics/users${query ? `?${query}` : ''}`, { headers: getHeaders() });
+        },
+        userActivity: async (
+            userId: string,
+            query: UserActivityQuery,
+            signal?: AbortSignal,
+        ): Promise<UserActivityResponse> => {
+            const searchParams = new URLSearchParams({
+                days: String(query.days),
+                kind: query.kind,
+                limit: String(query.limit),
+                offset: String(query.offset),
+            });
+            return fetchApi(`/admin/users/${encodeURIComponent(userId)}/activity?${searchParams}`, {
+                headers: getHeaders(),
+                signal,
+            });
         },
         invitationOrganizations: async (): Promise<{ items: AdminInvitationOrganization[] }> => {
             return fetchApi('/auth/admin/invitations/organizations', { headers: getHeaders() });

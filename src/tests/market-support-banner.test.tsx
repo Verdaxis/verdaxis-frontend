@@ -11,7 +11,7 @@ describe('ActingOrganizationBanner', () => {
         context={{
           id: 'ctx-1',
           status: 'ACTIVE',
-          version: 1,
+          version: 2,
           startedAt: '2026-07-23T08:00:00.000Z',
           organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
           actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },

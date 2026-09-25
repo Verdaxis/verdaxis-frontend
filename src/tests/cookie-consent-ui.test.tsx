@@ -32,7 +32,7 @@ describe('cookie consent controls', () => {
     expect(cookieSettings.className).not.toContain('fixed');
     expect(cookieSettings.querySelector('span')?.className).toBe(collapsed ? 'sr-only' : '');
     fireEvent.click(cookieSettings);
-    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Privacy and analytics choices' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Essential only' }));
     await waitFor(() => expect(document.activeElement).toBe(cookieSettings));
   });
@@ -40,28 +40,40 @@ describe('cookie consent controls', () => {
   it('offers equally prominent accept and reject choices and can reopen settings', () => {
     render(<MemoryRouter initialEntries={['/zh/']}><CookieConsentControls /></MemoryRouter>);
 
-    const accept = screen.getByRole('button', { name: 'Allow analytics' });
+    const accept = screen.getByRole('button', { name: 'Allow optional analytics' });
     const reject = screen.getByRole('button', { name: 'Essential only' });
     expect(accept.className).toBe(reject.className);
     expect(accept.parentElement?.className).toContain('flex-row');
     expect(accept.parentElement?.className).not.toContain('flex-wrap');
     expect(accept.className).toContain('min-w-0');
-    expect(screen.getByRole('region', { name: 'Cookie preferences' }).className).toContain('z-[13000]');
+    expect(screen.getByRole('region', { name: 'Privacy and analytics choices' }).className).toContain('z-[13000]');
     expect(screen.getByRole('link', { name: 'Read our Privacy Policy.' }).getAttribute('href')).toBe('/zh/privacy');
 
     fireEvent.click(accept);
-    expect(screen.queryByRole('region', { name: 'Cookie preferences' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Privacy and analytics choices' })).toBeNull();
     expect(JSON.parse(localStorage.getItem(COOKIE_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
-      version: 1,
+      version: 2,
       optionalAnalytics: true,
     });
 
     const settings = screen.getByRole('button', { name: 'Cookie settings' });
     expect(settings.className).toContain('z-[13000]');
     fireEvent.click(settings);
-    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Privacy and analytics choices' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Essential only' }));
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Cookie settings' }));
+  });
+
+  it('explains why a prior anonymous-analytics choice needs fresh consent', () => {
+    localStorage.setItem(COOKIE_PREFERENCES_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      optionalAnalytics: true,
+    }));
+
+    render(<MemoryRouter><CookieConsentControls /></MemoryRouter>);
+
+    expect(screen.getByText(/earlier choice covered anonymous analytics only/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Allow optional analytics' })).toBeTruthy();
   });
 });
 
@@ -104,7 +116,7 @@ describe('AnalyticsProvider consent synchronization', () => {
     expect(setConsent).toHaveBeenLastCalledWith(false);
     analytics.track('login_submitted');
     expect(dispatch).not.toHaveBeenCalled();
-    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Privacy and analytics choices' })).toBeTruthy();
   });
 
   it('reconciles stale adapter consent before descendant mount events', () => {
@@ -172,7 +184,7 @@ describe('AnalyticsProvider consent synchronization', () => {
 
     expect(setConsent).toHaveBeenLastCalledWith(false);
     expect(screen.getByRole('alert').textContent).toContain('Optional analytics stays off');
-    expect(screen.getByRole('region', { name: 'Cookie preferences' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Privacy and analytics choices' })).toBeTruthy();
     setItem.mockRestore();
   });
 });

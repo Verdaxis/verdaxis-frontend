@@ -1126,7 +1126,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: July 2026",
+    "lastUpdated": "Last updated: September 2026",
     "sections": {
       "0": {
         "title": "1. Information We Collect",
@@ -1137,8 +1137,8 @@
         "body": "We use your information to operate the exchange platform, process transactions, ensure regulatory compliance (EU ETS, FuelEU), and communicate important updates about your account."
       },
       "2": {
-        "title": "3. Product Analytics",
-        "body": "Essential browser storage supports sign-in, language, and theme preferences. With your choice, optional self-hosted, cookie-free analytics processes normalized page paths, allowlisted product events, and technical request information used to derive short-lived sessions. Analytics excludes names, email addresses, organization names, URL queries and invitation codes, and transaction content. Session replay is disabled."
+        "title": "3. Optional Analytics and Account Activity",
+        "body": "Essential browser storage supports sign-in, language, and theme preferences. With your choice, optional self-hosted, cookie-free analytics processes normalized page paths and allowlisted product events without a Verdaxis user identifier. While you are signed in, Verdaxis also records an account-linked timeline of pages viewed and canonical market product, delivery point, and availability-period selections. Platform administrators can view this timeline for support and product improvement. Account-linked browsing is available for 90 days, then removed during scheduled cleanup. It excludes search terms, URL queries, request content, names, email addresses, organization names, transaction content, and time-spent estimates. Withdrawing your choice stops new collection and discards queued events; previously received account activity expires under the retention period. Session replay is disabled."
       },
       "3": {
         "title": "4. Data Protection",

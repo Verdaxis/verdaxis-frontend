@@ -5,6 +5,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
+import { activity } from '../services/activityTracking';
 
 const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
@@ -236,6 +237,23 @@ describe('Marketplace green fuels surface', () => {
       delivery_point_id: undefined,
       availability_window: undefined,
       include_off_spec: false,
+    });
+  });
+
+  it('reports a canonical market product filter change through the identified activity adapter', async () => {
+    const trackMarketFilter = vi.spyOn(activity, 'trackMarketFilter');
+    renderWithProviders(<Marketplace />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /e-Methanol/i }));
+
+    expect(trackMarketFilter).toHaveBeenCalledWith(expect.objectContaining({
+      page: 'marketplace',
+      marketProduct: 'E_METHANOL',
+    }));
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        market_product: 'E_METHANOL',
+      }));
     });
   });
 

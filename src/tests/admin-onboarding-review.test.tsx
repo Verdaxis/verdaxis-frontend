@@ -128,6 +128,7 @@ describe('admin onboarding review', () => {
     );
 
     await screen.findByText('Hapag-Lloyd AG');
+    expect(screen.getByRole('button', { name: 'View activity for Hesham Nasr' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Review' }));
 
     await screen.findByText('Awaiting verification');
