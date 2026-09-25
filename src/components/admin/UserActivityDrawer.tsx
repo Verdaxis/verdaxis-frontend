@@ -235,7 +235,7 @@ export const UserActivityDrawer: React.FC<UserActivityDrawerProps> = ({ user, on
             </h2>
             <p className="mt-1 truncate text-sm text-verdaxis-text-muted">{user.email}</p>
             <p className="mt-2 text-sm text-verdaxis-text-muted">
-              {t('activity.subtitle', { defaultValue: 'Recorded user actions and consented browsing.' })}
+              {t('activity.subtitle', { defaultValue: 'Recorded user actions and browsing.' })}
             </p>
           </div>
           <button
@@ -359,7 +359,7 @@ export const UserActivityDrawer: React.FC<UserActivityDrawerProps> = ({ user, on
             </button>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-verdaxis-text-muted">
-            {t('activity.privacy', { defaultValue: 'Browsing activity appears only after the member accepts account-linked activity collection. Earlier anonymous analytics are not linked or reconstructed.' })}
+            {t('activity.privacy', { defaultValue: 'Browsing activity is available for 90 days. Earlier anonymous analytics are not linked or reconstructed.' })}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-verdaxis-text-muted">
             {t('activity.sourceNote', { defaultValue: 'Login entries are daily aggregates. Browsing is client-reported and does not prove a completed transaction.' })}

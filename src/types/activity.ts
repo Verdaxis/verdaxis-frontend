@@ -37,6 +37,5 @@ export interface ActivityRecordEvent {
 }
 
 export interface ActivityRecordInput {
-  consent_version: 2;
   events: ActivityRecordEvent[];
 }

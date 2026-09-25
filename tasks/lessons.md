@@ -604,3 +604,9 @@
 - **Trigger:** A long-running suite overlapped a new consent regression test and its adapter fix, producing mixed-revision results.
 - **Rule:** Finish parallel code edits before starting acceptance tests. If source changes during the run, exclude that result and rerun from frozen inputs; do not change working code to satisfy a stale process.
 - **Why:** A test runner can retain transformed modules while loading newly edited tests, so that run does not verify one coherent revision.
+
+### Keep Product Activity Separate From Optional Analytics Consent
+- **Date:** 2026-09-26
+- **Trigger:** The user corrected the added activity consent gate and repeat prompt; the activity privacy policy is managed separately, outside this machine.
+- **Rule:** Record authenticated product activity without a separate in-app consent flow. Preserve the existing anonymous analytics choices and do not add policy acceptance, repeat prompts, or consent outreach for this feature.
+- **Why:** I added a product requirement that the user did not request and made the approved activity feature depend on it.

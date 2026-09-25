@@ -3,8 +3,6 @@ import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { api } from './api';
 import { getAuthGeneration } from './authToken';
 
-export const ACTIVITY_CONSENT_VERSION = 2 as const;
-
 export type ActivityAction = 'page_view' | 'market_view' | 'market_filter';
 
 export interface ActivityEvent {
@@ -17,7 +15,6 @@ export interface ActivityEvent {
 }
 
 export interface ActivityBatch {
-  consent_version: typeof ACTIVITY_CONSENT_VERSION;
   events: ActivityEvent[];
 }
 
@@ -114,7 +111,6 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
   const queue: ActivityEvent[] = [];
   const lastSignature = new Map<ActivityAction, string>();
   let identity: string | null = null;
-  let consentGranted = false;
   let sessionEpoch: unknown = null;
   let timer: number | null = null;
 
@@ -128,7 +124,7 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
   const flush = () => {
     if (timer !== null) clearTimer(timer);
     timer = null;
-    if (!identity || !consentGranted || queue.length === 0) return;
+    if (!identity || queue.length === 0) return;
     if (getSessionEpoch() !== sessionEpoch) {
       clear();
       return;
@@ -136,7 +132,6 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     const events = queue.splice(0, MAX_BATCH_SIZE);
     try {
       void Promise.resolve(options.send({
-        consent_version: ACTIVITY_CONSENT_VERSION,
         events,
       })).catch(() => undefined);
     } catch {
@@ -146,7 +141,7 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
   };
 
   const enqueue = (action: ActivityAction, details: ActivityDetails) => {
-    if (!identity || !consentGranted) return;
+    if (!identity) return;
     if (getSessionEpoch() !== sessionEpoch) {
       clear();
       return;
@@ -162,16 +157,14 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
   };
 
   return {
-    setSession(nextIdentity: string | null, nextConsent: boolean) {
-      const nextSessionEpoch = nextIdentity && nextConsent ? getSessionEpoch() : null;
+    setSession(nextIdentity: string | null) {
+      const nextSessionEpoch = nextIdentity ? getSessionEpoch() : null;
       if (
         identity !== nextIdentity
-        || consentGranted !== nextConsent
         || sessionEpoch !== nextSessionEpoch
       ) clear();
       identity = nextIdentity;
-      consentGranted = Boolean(nextIdentity && nextConsent);
-      sessionEpoch = consentGranted ? nextSessionEpoch : null;
+      sessionEpoch = nextIdentity ? nextSessionEpoch : null;
     },
     clear,
     flush,
