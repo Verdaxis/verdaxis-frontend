@@ -5,6 +5,7 @@ import { Settings2 } from 'lucide-react';
 
 import {
   readCookiePreferences,
+  hasOutdatedCookiePreferences,
   subscribeCookiePreferences,
   writeCookiePreferences,
 } from '../services/cookiePreferences';
@@ -50,12 +51,14 @@ export const CookieSettingsButton: React.FC<{
 
 interface CookieConsentBannerProps {
   error: boolean;
+  updatedNotice: boolean;
   onChoice: (optionalAnalytics: boolean) => void;
   focusOnOpen?: boolean;
 }
 
 export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
   error,
+  updatedNotice,
   onChoice,
   focusOnOpen = false,
 }) => {
@@ -90,6 +93,11 @@ export const CookieConsentBanner: React.FC<CookieConsentBannerProps> = ({
               {t('cookiePreferences.privacyLink')}
             </Link>
           </p>
+          {updatedNotice && (
+            <p className="max-w-[68ch] rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm leading-5 text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200">
+              {t('cookiePreferences.updatedNotice')}
+            </p>
+          )}
         </div>
         {error && (
           <p role="alert" className="text-sm font-semibold text-amber-800 dark:text-amber-300">
@@ -113,6 +121,7 @@ export const CookieConsentControls: React.FC = () => {
   const [open, setOpen] = useState(() => readCookiePreferences() === null);
   const [focusOnOpen, setFocusOnOpen] = useState(false);
   const [storageError, setStorageError] = useState(false);
+  const [updatedNotice, setUpdatedNotice] = useState(() => hasOutdatedCookiePreferences());
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -123,6 +132,7 @@ export const CookieConsentControls: React.FC = () => {
         setStorageError(false);
       } else {
         setOpen(true);
+        setUpdatedNotice(hasOutdatedCookiePreferences());
       }
     };
     const unsubscribe = subscribeCookiePreferences(synchronizeControls);
@@ -158,12 +168,13 @@ export const CookieConsentControls: React.FC = () => {
       return;
     }
     setOpen(false);
+    setUpdatedNotice(false);
   };
 
   return (
     <>
       {open
-        ? <CookieConsentBanner error={storageError} onChoice={saveChoice} focusOnOpen={focusOnOpen} />
+        ? <CookieConsentBanner error={storageError} updatedNotice={updatedNotice} onChoice={saveChoice} focusOnOpen={focusOnOpen} />
         : <CookieSettingsButton />}
       <style>{`
         .verdaxis-cookie-banner,

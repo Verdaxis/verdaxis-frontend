@@ -55,6 +55,7 @@ import i18n from '../i18n';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { ConfirmModal } from './ui/ConfirmModal';
+import { activity } from '../services/activityTracking';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -466,6 +467,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
     const clearMarketFilters = useCallback(() => {
+        activity.trackMarketFilter({ page: 'marketplace' });
         setMarketProduct(ALL_MARKET_PRODUCTS);
         setPortInput('');
         setStoredDeliveryPointId('');
@@ -474,10 +476,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, []);
 
     const handlePortChange = useCallback((value: string) => {
+        const deliveryPointId = deliveryPoints.find(
+            point => point.name.trim().toLowerCase() === value.trim().toLowerCase(),
+        )?.id;
+        activity.trackMarketFilter({
+            page: 'marketplace',
+            marketProduct: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
+            deliveryPointId,
+            availabilityWindow: availability || undefined,
+        });
         setPortInput(value);
         setStoredDeliveryPointId('');
         setCurrentSkip(0);
-    }, []);
+    }, [availability, deliveryPoints, marketProduct]);
 
     const handlePageChange = (newSkip: number) => {
         setHasLoadedListings(false);
@@ -511,6 +522,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     ];
 
     const handleProductChipClick = (productCode: typeof ALL_MARKET_PRODUCTS | MarketProduct) => {
+        activity.trackMarketFilter({
+            page: 'marketplace',
+            marketProduct: productCode === ALL_MARKET_PRODUCTS ? undefined : productCode,
+            deliveryPointId: resolvedDeliveryPointId,
+            availabilityWindow: availability || undefined,
+        });
         setMarketProduct(productCode);
         setCurrentSkip(0);
     };
@@ -529,6 +546,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     useEffect(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedDeliveryPointId || !availability) return;
+        activity.trackMarketView({
+            page: 'marketplace',
+            marketProduct,
+            deliveryPointId: resolvedDeliveryPointId,
+            availabilityWindow: availability,
+        });
         analytics.track('market_slice_selected', {
             product: marketProduct,
             delivery_point: resolvedDeliveryPointId,
@@ -1032,7 +1055,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.window')}
                                                 value={availability}
-                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                                onChange={(value) => {
+                                                    activity.trackMarketFilter({
+                                                        page: 'marketplace',
+                                                        marketProduct: marketProduct === ALL_MARKET_PRODUCTS ? undefined : marketProduct,
+                                                        deliveryPointId: resolvedDeliveryPointId,
+                                                        availabilityWindow: value || undefined,
+                                                    });
+                                                    setAvailability(value as AvailabilityWindow | '');
+                                                }}
                                                 options={[
                                                     { value: '', label: t('marketplace.filter.anyWindow') },
                                                     ...availabilityOptions.map(option => ({

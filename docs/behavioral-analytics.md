@@ -36,16 +36,42 @@ collector available; it does not override the user's preference gate.
 Deployment configuration presence and a tracker being installed on a currently
 deployed page are separate checks from consent behavior.
 
+## Identified Product Activity
+
+Authenticated product activity is separate from Umami. `ActivityTrackingProvider`
+observes fixed `/app` page slugs, and Marketplace, Forward Curve, and the buyer map
+report meaningful canonical market views and filter changes through
+`src/services/activityTracking.ts`. The adapter accepts only the fixed page registry,
+the four canonical market products, catalog delivery-point UUIDs, and canonical
+availability windows (`SPOT`, month, quarter, or calendar). It never accepts URLs,
+query values, search terms, request bodies, free text, user IDs, or transaction values.
+
+The adapter batches at most 50 events to authenticated `POST /api/activity/events` with
+`consent_version: 2`. Each event has a browser UUID, but the server derives the user and
+receipt time. The queue exists only in memory. Events attempted before consent or auth are
+dropped and are never replayed. Withdrawal, logout, and account change clear queued work.
+Repeated equivalent events are deduplicated. Delivery is fire-and-forget through a quiet
+API path: failures do not refresh auth, log out the user, show notifications, retry, or
+interrupt an interaction.
+
+Platform administrators can view the resulting user activity timeline. Account-linked
+browsing is available for 90 days, then removed by the next scheduled cleanup. Business actions are recorded by the backend at
+their source and are not duplicated by this browser adapter. No heartbeat or time-spent
+estimate is collected.
+
 ## Cookie Preferences
 
 The preference banner distinguishes essential browser storage used for sign-in,
-theme, and language from optional cookieless Umami analytics. Umami can still
-process short-lived session technical data, so the interface does not describe
-it as necessary storage or as collecting no data.
+theme, and language from optional anonymous Umami analytics and authenticated,
+account-linked browsing activity. It discloses the admin timeline and 90-day retention.
+Umami can still process short-lived session technical data, so the interface does not
+describe it as necessary storage or as collecting no data.
 
 The per-device preference uses one small localStorage record at
-`verdaxis:cookie-preferences`: `{ "version": 1, "optionalAnalytics": boolean }`.
-Malformed or unknown versions are treated as no choice. Same-tab preference
+`verdaxis:cookie-preferences`: `{ "version": 2, "optionalAnalytics": boolean }`.
+Version-1 choices covered anonymous analytics only and are treated as no choice; the
+banner explains the changed use and asks again. Malformed or unknown versions are also
+treated as no choice. Same-tab preference
 events and cross-tab `storage` events update the provider; clearing storage
 reopens the banner and disables optional analytics. If storage cannot be read or
 written, analytics stays off and the banner reports that the choice was not
@@ -93,9 +119,9 @@ registration line.
 
 Tests cover disabled configuration, path normalization, property allowlisting,
 failure isolation, API mapping, period switching, and degraded Admin rendering.
-Tests also cover consent gating, no replay before consent, withdrawal queue
-clearing, storage failure, same-tab and cross-tab updates, and reopening the
-preference controls.
+Tests also cover consent gating, no replay before consent, withdrawal and account-change
+queue clearing, canonical field enforcement, 50-event batching, version-1 migration,
+storage failure, same-tab and cross-tab updates, and reopening the preference controls.
 
 ## Reliability Telemetry (Product Analytics plan §2.5)
 

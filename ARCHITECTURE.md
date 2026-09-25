@@ -51,6 +51,7 @@ src/
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
+    activityTracking.ts            # Consent-v2, authenticated page/market activity batching and boundary clears
     cookiePreferences.ts           # Versioned visitor choice, fail-closed storage, same/cross-tab updates
     ai.ts                          # Supplier risk AI export
     ai-engine/
@@ -59,6 +60,7 @@ src/
 
   components/
     AnalyticsProvider.tsx          # Consent-gated, normalized manual SPA pageviews
+    ActivityTrackingProvider.tsx   # Auth/consent session boundary and bounded authenticated page observer
     CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
     RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
@@ -242,8 +244,15 @@ and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
 **Behavioral analytics boundary:** `AnalyticsProvider` performs normalized manual SPA
 page tracking through the typed adapter in `services/analytics.ts`, without assigning
 Verdaxis user or organization IDs. Umami loads only when both public analytics environment
-variables are valid and the visitor permits optional analytics. `services/cookiePreferences.ts`
-stores the versioned choice; `CookieConsent` provides the banner and settings controls.
+variables are valid and the visitor permits optional analytics. Separately,
+`ActivityTrackingProvider` and `services/activityTracking.ts` send consented authenticated
+page and canonical market-slice activity to `/api/activity/events`; the server derives identity
+and receipt time. Its memory-only queue is cleared on withdrawal, logout, and account change.
+Only fixed app page slugs, canonical market products, delivery-point UUIDs, and canonical
+availability windows can leave the adapter. It never sends URL values, search terms, request
+content, user identifiers, or time-spent estimates. `services/cookiePreferences.ts` stores
+the version-2 choice; version-1 anonymous-only choices require a fresh decision.
+`CookieConsent` provides the banner and settings controls.
 Withdrawal clears queued operations and stops future tracking; essential sign-in and
 display preferences remain available. Auto-tracking, replay, and heatmaps are disabled.
 Components emit selective allowlisted events, and the adapter drops unknown properties

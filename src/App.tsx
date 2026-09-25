@@ -21,6 +21,7 @@ import { MobileDesktopGate } from './components/MobileDesktopGate';
 import { ToastProvider } from './components/Toast';
 import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
+import { ActivityTrackingProvider } from './components/ActivityTrackingProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
 import { analytics } from './services/analytics';
@@ -640,10 +641,12 @@ const App: React.FC = () => {
             <TutorialProvider>
             <BrowserRouter>
                 <AnalyticsProvider>
+                <ActivityTrackingProvider>
                 <RouteMetadata />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes />
+                </ActivityTrackingProvider>
                 </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>
