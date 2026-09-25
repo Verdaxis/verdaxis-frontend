@@ -42,7 +42,6 @@ describe('activity API client', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     expect(() => api.activity.record({
-      consent_version: 2,
       events: [{
         id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f',
         action: 'market_view',
@@ -57,7 +56,16 @@ describe('activity API client', () => {
     const [, options] = fetchMock.mock.calls[0];
     expect(options).toMatchObject({ method: 'POST', keepalive: true });
     expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer activity-token');
-    expect(JSON.parse(String(options?.body))).toMatchObject({ consent_version: 2 });
+    expect(JSON.parse(String(options?.body))).toEqual({
+      events: [{
+        id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f',
+        action: 'market_view',
+        page: 'marketplace',
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'a9f46f75-51f7-4d31-9f36-32b525ab2f1f',
+        availability_window: 'SPOT',
+      }],
+    });
   });
 
   it('does not send account activity without an access token', () => {
@@ -65,7 +73,6 @@ describe('activity API client', () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     api.activity.record({
-      consent_version: 2,
       events: [{ id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f', action: 'page_view', page: 'home' }],
     });
 

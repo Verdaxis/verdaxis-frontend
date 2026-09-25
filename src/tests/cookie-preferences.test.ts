@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   COOKIE_PREFERENCES_STORAGE_KEY,
-  hasOutdatedCookiePreferences,
   readCookiePreferences,
   subscribeCookiePreferences,
   writeCookiePreferences,
@@ -17,16 +16,16 @@ describe('cookie preferences storage', () => {
     };
 
     expect(writeCookiePreferences(true, { storage, window })).toBe(true);
-    expect(readCookiePreferences(storage)).toEqual({ version: 2, optionalAnalytics: true });
+    expect(readCookiePreferences(storage)).toEqual({ version: 1, optionalAnalytics: true });
     expect(JSON.parse(stored.get(COOKIE_PREFERENCES_STORAGE_KEY) ?? '{}')).toEqual({
-      version: 2,
+      version: 1,
       optionalAnalytics: true,
     });
   });
 
   it('treats malformed, unknown, and unavailable storage as no consent', () => {
     expect(readCookiePreferences({ getItem: () => '{bad json' })).toBeNull();
-    expect(readCookiePreferences({ getItem: () => JSON.stringify({ version: 1, optionalAnalytics: true }) })).toBeNull();
+    expect(readCookiePreferences({ getItem: () => JSON.stringify({ version: 3, optionalAnalytics: true }) })).toBeNull();
     expect(readCookiePreferences({ getItem: () => { throw new Error('blocked'); } })).toBeNull();
     expect(writeCookiePreferences(true, {
       storage: { setItem: () => { throw new Error('blocked'); } },
@@ -34,13 +33,11 @@ describe('cookie preferences storage', () => {
     })).toBe(false);
   });
 
-  it('requires a fresh choice when the stored preference predates identified activity', () => {
-    const storage = {
-      getItem: () => JSON.stringify({ version: 1, optionalAnalytics: true }),
-    };
-
-    expect(readCookiePreferences(storage)).toBeNull();
-    expect(hasOutdatedCookiePreferences(storage)).toBe(true);
+  it.each([1, 2])('preserves accepted and rejected version-%s choices', (version) => {
+    for (const optionalAnalytics of [true, false]) {
+      const storage = { getItem: () => JSON.stringify({ version, optionalAnalytics }) };
+      expect(readCookiePreferences(storage)).toEqual({ version: 1, optionalAnalytics });
+    }
   });
 
   it('notifies subscribers after same-tab and cross-tab changes', () => {

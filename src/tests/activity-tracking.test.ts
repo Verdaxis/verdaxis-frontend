@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  ACTIVITY_CONSENT_VERSION,
   ACTIVITY_PAGES,
   activityPageFromPath,
   createActivityTracker,
@@ -24,29 +23,28 @@ describe('identified activity tracking', () => {
 
   const createId = () => `00000000-0000-4000-8000-${String(++id).padStart(12, '0')}`;
 
-  it('drops pre-consent work and clears queued events on withdrawal and account changes', () => {
+  it('tracks authenticated users without an anonymous analytics preference', () => {
     const send = vi.fn();
     const tracker = createActivityTracker({ send, createId });
 
     tracker.trackPage('home');
-    tracker.setSession('user-1', true);
+    tracker.setSession('user-1');
     tracker.trackPage('home');
-    tracker.setSession('user-1', false);
+    tracker.setSession(null);
     vi.runAllTimers();
     expect(send).not.toHaveBeenCalled();
 
-    tracker.setSession('user-1', true);
+    tracker.setSession('user-1');
     vi.runAllTimers();
     expect(send).not.toHaveBeenCalled();
 
     tracker.trackPage('marketplace');
-    tracker.setSession('user-2', true);
+    tracker.setSession('user-2');
     tracker.trackPage('curve');
     vi.runAllTimers();
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith({
-      consent_version: ACTIVITY_CONSENT_VERSION,
       events: [{ id: expect.any(String), action: 'page_view', page: 'curve' }],
     });
     expect(JSON.stringify(send.mock.calls)).not.toContain('user-1');
@@ -62,17 +60,16 @@ describe('identified activity tracking', () => {
       getSessionEpoch: () => sessionEpoch,
     });
 
-    tracker.setSession('user-1', true);
+    tracker.setSession('user-1');
     tracker.trackPage('marketplace');
     sessionEpoch = 2;
     vi.runAllTimers();
     expect(send).not.toHaveBeenCalled();
 
-    tracker.setSession('user-2', true);
+    tracker.setSession('user-2');
     tracker.trackPage('curve');
     vi.runAllTimers();
     expect(send).toHaveBeenCalledWith({
-      consent_version: 2,
       events: [{ id: expect.any(String), action: 'page_view', page: 'curve' }],
     });
   });
@@ -80,7 +77,7 @@ describe('identified activity tracking', () => {
   it('allows only bounded canonical fields, normalizes windows, and deduplicates repeats', () => {
     const send = vi.fn();
     const tracker = createActivityTracker({ send, createId });
-    tracker.setSession('user-1', true);
+    tracker.setSession('user-1');
 
     tracker.trackPage('/app/home?email=private@example.com');
     tracker.trackMarketView({ page: 'marketplace', marketProduct: 'not-a-product' });
@@ -101,7 +98,6 @@ describe('identified activity tracking', () => {
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0]).toEqual({
-      consent_version: 2,
       events: [
         {
           id: expect.any(String),
@@ -122,7 +118,7 @@ describe('identified activity tracking', () => {
   it('sends at most 50 events per batch without blocking the caller', () => {
     const send = vi.fn();
     const tracker = createActivityTracker({ send, createId });
-    tracker.setSession('user-1', true);
+    tracker.setSession('user-1');
 
     let count = 0;
     for (const page of ACTIVITY_PAGES) {
