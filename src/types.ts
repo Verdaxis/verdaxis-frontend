@@ -250,6 +250,9 @@ export interface OrderBookOrder {
     expires_at?: string;
     created_at: string;
     is_demo_listing?: boolean;
+    source_kind?: MarketSourceKind;
+    scope?: MarketScope;
+    demo_status?: MarketDemoStatus;
     updated_at?: string;
     trade_count?: number; // Only in "my" view
     creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;

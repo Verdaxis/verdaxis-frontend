@@ -5,6 +5,8 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { BuyerMap } from '../components/BuyerMap';
 import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
+import { PORTS } from '../data';
+import type { Port } from '../types';
 
 const themeMock = vi.hoisted(() => ({ theme: 'light' }));
 const portsListMock = vi.fn();
@@ -18,6 +20,7 @@ const setStyleMock = vi.fn();
 const mapSummaryMock = vi.fn();
 const useSSEMock = vi.fn();
 const removeMock = vi.fn();
+const panelPropsMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
@@ -51,9 +54,10 @@ vi.mock('../components/map/MarketWatchTicker', () => ({
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
-  IntelligencePanel: ({ portOptions = [] }: { portOptions?: unknown[] }) => (
-    <div data-testid="fallback-port-count">{portOptions.length}</div>
-  ),
+  IntelligencePanel: (props: { portOptions?: Port[]; selectedPort?: Port }) => {
+    panelPropsMock(props);
+    return <div data-testid="fallback-port-count">{props.portOptions?.length ?? 0}</div>;
+  },
 }));
 
 vi.mock('mapbox-gl', () => {
@@ -115,6 +119,7 @@ describe('BuyerMap failure localization', () => {
     mapSummaryMock.mockResolvedValue({ groups: [], recent_asks: [] });
     useSSEMock.mockReset();
     removeMock.mockReset();
+    panelPropsMock.mockReset();
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -208,6 +213,29 @@ describe('BuyerMap failure localization', () => {
     expect(await screen.findByText('1,234 MT')).toBeTruthy();
     expect(screen.getByText('$999')).toBeTruthy();
     expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
+  });
+
+  it('does not present methanol history or supply as B30 or B100 port data', async () => {
+    await i18n.changeLanguage('en');
+    const port = PORTS.find(item => item.name === 'Singapore')!;
+    const priceHistory = [1001, 1002, 1003];
+    portsListMock.mockResolvedValue([{ ...port, methanolSupply: 'High', details: {
+      ...port.details, priceHistory, forecastSupply: 'Surplus',
+    } }]);
+    renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('combobox', { name: 'Go to port' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Singapore' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
+    expect(panelPropsMock.mock.calls.at(-1)?.[0].selectedPort).toMatchObject({
+      methanolSupply: 'High', details: { priceHistory, forecastSupply: 'Surplus' },
+    });
+
+    for (const product of ['B30', 'B100']) {
+      fireEvent.click(screen.getByRole('button', { name: product }));
+      expect(panelPropsMock.mock.calls.at(-1)?.[0].selectedPort).toMatchObject({
+        methanolSupply: 'Unknown', details: { priceHistory: [], forecastSupply: 'Unknown' },
+      });
+    }
   });
 
   it('shows a map warning when the compact market summary is unavailable', async () => {

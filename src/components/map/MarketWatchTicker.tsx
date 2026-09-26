@@ -461,7 +461,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                         </div>
                     </div>
 
-                <div className="verdaxis-market-watch-strip min-w-0 flex-1 overflow-hidden" tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
+                <div className={`verdaxis-market-watch-strip min-w-0 flex-1 ${shouldAutoScroll ? 'overflow-hidden' : 'overflow-x-auto'}`} tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
                     <div
                         className={`verdaxis-market-watch-track flex w-max items-center gap-2 px-3 ${shouldAutoScroll ? 'verdaxis-market-watch-track--scrolling' : ''}`}
                         style={{ '--verdaxis-market-watch-duration': scrollDuration } as React.CSSProperties}

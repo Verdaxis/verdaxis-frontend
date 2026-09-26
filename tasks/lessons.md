@@ -11,7 +11,7 @@
 ### Do Not Mix Legacy Fuel References With Canonical Markets
 - **Date:** 2026-08-05
 - **Trigger:** The Intelligence Map compared a hardcoded conventional-methanol reference with current bio/e-methanol and ethanol demo listings.
-- **Rule:** Price references must use the same canonical product, delivery point, and availability window as the market data they accompany, with provenance shown.
+- **Rule:** Price references, history charts, and availability labels must use the same canonical product, delivery point, and availability window as the market data they accompany, with provenance shown. Clear unrelated legacy values when matching product data is absent.
 - **Why:** A legacy port-level mock survived beside pathway-specific marketplace data, producing a plausible-looking but invalid comparison.
 
 ### Confirm Abrupt Cross-Project Requests

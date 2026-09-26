@@ -93,6 +93,8 @@
 .dark .mapboxgl-map .mapboxgl-ctrl-group button + button { border-color: #334155; }
 .dark .mapboxgl-map .mapboxgl-ctrl-icon { filter: invert(1); }
 
+/* Keep port popups dismissible above the map toolbar (20) and ticker (30). */
+.verdaxis-port-popup { z-index: 31; }
 .verdaxis-port-popup .mapboxgl-popup-content {
   background: transparent;
   padding: 0;
