@@ -1,4 +1,5 @@
-import type { AggregatedOrderbook } from '../types';
+import type { AggregatedOrderbook, MarketProduct } from '../types';
+import { MARKET_PRODUCT_LABELS } from './marketProduct';
 
 export interface PortMarketRow {
     key: string;
@@ -28,21 +29,14 @@ interface PortMarketIdentity {
     name: string;
 }
 
-const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
-    BIO_METHANOL: 'Bio Methanol',
-    E_METHANOL: 'e-Methanol',
-    BIO_ETHANOL: 'Bio Ethanol',
-    SYNTHETIC_ETHANOL: 'e-Ethanol',
-};
-
 const canonicalProductLabels = new Map([
-    ...Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label] as const),
-    ['synthetic ethanol', CANONICAL_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
+    ...Object.values(MARKET_PRODUCT_LABELS).map(label => [label.toLowerCase(), label] as const),
+    ['synthetic ethanol', MARKET_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
 ]);
 
 const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
-    if (typeof row.market_product === 'string' && CANONICAL_PRODUCT_LABELS[row.market_product]) {
-        return CANONICAL_PRODUCT_LABELS[row.market_product];
+    if (typeof row.market_product === 'string' && Object.hasOwn(MARKET_PRODUCT_LABELS, row.market_product)) {
+        return MARKET_PRODUCT_LABELS[row.market_product as MarketProduct];
     }
 
     const productName = row.product_name?.trim();
@@ -144,15 +138,15 @@ export const computePortMarketData = (
     if (fuelRows.length > 0) {
         if (selectedProduct) {
             const match = fuelRows.find(row => row.key === selectedProduct);
-            spreadPct = match ? match.spreadPct : Math.min(...fuelRows.map(row => row.spreadPct));
+            spreadPct = match?.spreadPct ?? 999;
         } else {
             spreadPct = Math.min(...fuelRows.map(row => row.spreadPct));
         }
     }
 
-    const referenceProduct = selectedProduct || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
+    const referenceProduct = selectedProduct || MARKET_PRODUCT_LABELS.BIO_METHANOL;
     const reference = references.find(item => item.productLabel === referenceProduct)
-        ?? references[0]
+        ?? (selectedProduct ? null : references[0])
         ?? null;
 
     return { totalVolume, fuelRows, spreadPct, reference };

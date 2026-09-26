@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, PanelRightClose, Anchor, Ship, LineChart, ArrowRight, Shield } from 'lucide-react';
-import { Port, Product, ForwardCurvePoint } from '../../types';
+import { Port, Product, ForwardCurvePoint, MARKET_PRODUCTS } from '../../types';
+import { getProductDisplayName } from '../../utils/marketProduct';
 import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
@@ -70,7 +71,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         (async () => {
             try {
                 const products: Product[] = await api.catalog.products();
-                const activeProducts = products.filter(p => p.is_active).slice(0, 3);
+                const activeProducts = products.filter(product => (
+                    product.is_active && product.market_product && MARKET_PRODUCTS.includes(product.market_product)
+                ));
                 const results = await Promise.allSettled(
                     activeProducts.map(p => api.curves.forward({ product_id: p.id }))
                 );
@@ -79,14 +82,14 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     .map((r, i) => {
                         if (r.status !== 'fulfilled' || !r.value.curve?.length) return null;
                         const curve = r.value.curve;
-                        const spot = curve.find((c: ForwardCurvePoint) => c.availability_window === 'Spot') || curve[0];
+                        const spot = curve.find((c: ForwardCurvePoint) => c.availability_window.toUpperCase() === 'SPOT') || curve[0];
                         const far = curve[curve.length - 1];
-                        const mid = spot.mid_price ?? 0;
-                        const farMid = far.mid_price ?? mid;
+                        const mid = Number(spot.mid_price ?? 0);
+                        const farMid = Number(far.mid_price ?? mid);
                         const pctChange = mid > 0 ? ((farMid - mid) / mid) * 100 : 0;
                         const isContango = farMid >= mid;
                         return {
-                            label: activeProducts[i].name,
+                            label: getProductDisplayName(activeProducts[i]),
                             price: mid > 0 ? `$${mid.toFixed(0)}` : '--',
                             change: pctChange >= 0 ? `+${pctChange.toFixed(1)}%` : `${pctChange.toFixed(1)}%`,
                             up: isContango,

@@ -228,6 +228,8 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /e-Methanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Bio Ethanol/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /e-Ethanol/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /B30/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /B100/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Methanol( \(|$)/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Ethanol$/i })).toBeNull();
     expect(productCounts).toHaveBeenCalledTimes(1);
@@ -238,6 +240,54 @@ describe('Marketplace green fuels surface', () => {
       availability_window: undefined,
       include_off_spec: false,
     });
+  });
+
+  it.each(['B30', 'B100'])('filters %s and keeps its fixed specification visible when inspecting a listing', async (product) => {
+    const biofuel = {
+      ...listingsResponse.items[0], market_product: product, product_name: product, fuel_type: 'Biofuel',
+      carbon_intensity_gco2_mj: 75, carbon_intensity_method: 'Certified batch whole-blend assessment',
+    };
+    listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [biofuel] });
+    listAsks.mockResolvedValue([biofuel]);
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(product) }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: product })));
+    fireEvent.click(await screen.findByRole('button', { name: /lift ask/i }));
+    expect(screen.getByText(product === 'B30' ? /30%.*FAME.*70%.*VLSFO/ : /Neat FAME biodiesel.*B100/)).toBeTruthy();
+    expect(screen.getByText(/Certified batch whole-blend assessment/)).toBeTruthy();
+  });
+
+  it.each(['B30', 'B100'])('collects supplier metadata through a normal ASK when responding to a live %s bid', async (product) => {
+    userRole.current = 'SUPPLIER';
+    const bid = {
+      ...listingsResponse.items[0], id: 'biofuel-bid', side: 'BID', market_product: product,
+      product_name: product, fuel_type: 'Biofuel', price_per_mt_usd: 1105, remaining_quantity_mt: 750,
+    };
+    listBidsPaged.mockResolvedValue({ ...listingsResponse, items: [bid] });
+    renderWithProviders(<Marketplace />);
+    const row = await screen.findByRole('row', { name: new RegExp(product) });
+    fireEvent.click(within(row).getByRole('button', { name: 'Place Ask' }));
+    await waitFor(() => expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      isOpen: true, side: 'ASK', prefillMarketProduct: product,
+      prefillDeliveryPointId: 'dp-1', prefillAvailabilityWindow: 'SPOT', prefillPrice: 1105, prefillQuantity: 750,
+    })));
+    expect(tradesInitiate).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /submit trade/i })).toBeNull();
+  });
+
+  it('keeps a provenance-marked biofuel demo BID in the preview flow', async () => {
+    userRole.current = 'SUPPLIER';
+    const bid = {
+      ...listingsResponse.items[0], id: 'demo-bid', side: 'BID', market_product: 'B30',
+      product_name: 'B30', fuel_type: 'Biofuel', source_kind: 'DEMO_SEED',
+    };
+    listBidsPaged.mockResolvedValue({ ...listingsResponse, items: [bid] });
+    renderWithProviders(<Marketplace />);
+    const row = await screen.findByRole('row', { name: /B30/ });
+    fireEvent.click(within(row).getByRole('button', { name: /view demo/i }));
+    expect(screen.getByRole('button', { name: /demo listing - trading disabled/i })).toBeTruthy();
+    expect(orderPlaceModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ isOpen: false }));
+    expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
   it('reports a canonical market product filter change through the identified activity adapter', async () => {

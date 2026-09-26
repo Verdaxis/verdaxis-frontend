@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useId } from 'react';
+import React, { useState, useEffect, useCallback, useId, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, TrendingUp, TrendingDown, Loader2, Zap } from 'lucide-react';
 import { OrderBookOrder } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import i18n from '../i18n';
 
@@ -73,6 +74,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     const [error, setError] = useState<string | null>(null);
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
+    const tooltipRef = useRef<HTMLDivElement>(null);
 
     const fetchData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -144,6 +146,18 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
         const y = Math.max(padding, Math.min(rect.top + rect.height / 2 - tooltipHeight / 2, window.innerHeight - tooltipHeight - padding));
         setHoverTooltip({ order, x, y });
     }, []);
+
+    // Supplier specifications vary by fuel and language; clamp the rendered tooltip.
+    useLayoutEffect(() => {
+        if (!hoverTooltip || !tooltipRef.current) return;
+        const { width, height } = tooltipRef.current.getBoundingClientRect();
+        const padding = 16;
+        const x = Math.max(padding, Math.min(hoverTooltip.x, window.innerWidth - width - padding));
+        const y = Math.max(padding, Math.min(hoverTooltip.y, window.innerHeight - height - padding));
+        if (x !== hoverTooltip.x || y !== hoverTooltip.y) {
+            setHoverTooltip(current => current ? { ...current, x, y } : null);
+        }
+    }, [hoverTooltip, t]);
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
@@ -388,9 +402,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 {hoverTooltip && createPortal(
                     <div
                         id={tooltipId}
+                        ref={tooltipRef}
                         role="tooltip"
                         className="pointer-events-none fixed z-[140] w-[320px] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/18 dark:border-slate-700 dark:bg-slate-950"
-                        style={{ left: hoverTooltip.x, top: hoverTooltip.y }}
+                        style={{ left: hoverTooltip.x, top: hoverTooltip.y, maxWidth: 'calc(100vw - 32px)' }}
                     >
                         <div className="flex items-center justify-between gap-3">
                             <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
@@ -400,6 +415,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                 {hoverTooltip.order.side}
                             </span>
                         </div>
+                        {getBiofuelSpecification(hoverTooltip.order.market_product || marketProduct) && (
+                            <p className="mt-2 text-[11px] leading-4 text-slate-600 dark:text-slate-300">{t(`${(hoverTooltip.order.market_product || marketProduct)?.toLowerCase()}.contract`)}</p>
+                        )}
                         {hoverTooltip.order.is_demo_listing && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
                                 {t('marketplace.demo.tooltip')}
@@ -419,7 +437,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                 <span>{hoverTooltip.order.feedstock || t('common.notSpecified')}</span>
                             </div>
                             <div>
-                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t('orderBook.ci')}</span>
+                                <span className="block text-[11px] font-bold uppercase tracking-wide text-slate-400">{t(getBiofuelSpecification(hoverTooltip.order.market_product || marketProduct) ? `${(hoverTooltip.order.market_product || marketProduct)?.toLowerCase()}.wholeBlendCiLabel` : 'orderBook.ci')}</span>
                                 <span>{hoverTooltip.order.carbon_intensity_gco2_mj != null ? Math.round(hoverTooltip.order.carbon_intensity_gco2_mj).toString() : t('common.notAvailable')}</span>
                             </div>
                         </div>

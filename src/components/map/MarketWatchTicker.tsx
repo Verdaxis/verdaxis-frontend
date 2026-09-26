@@ -50,6 +50,9 @@ const DEMO_PREVIEW_PRICES: Record<MarketProduct, number> = {
     E_METHANOL: 1150,
     BIO_ETHANOL: 850,
     SYNTHETIC_ETHANOL: 1240,
+    // ENGINE 2026-09-25 reference anchors; these remain disclosed demo previews.
+    B30: 1105,
+    B100: 1362,
 };
 
 const productValues = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value);
@@ -154,7 +157,10 @@ const buildDemoRow = (port: Port, product: MarketProduct, language: string, quot
         key: `${product}-${port.id}`,
         port,
         product,
-        value: currency(quote?.price ?? DEMO_PREVIEW_PRICES[product]),
+        // Rotterdam B30 has a separate credit-adjusted reference; do not apply it to other ports.
+        value: currency(quote?.price ?? (product === 'B30' && normalize(port.name) === 'rotterdam'
+            ? 869
+            : DEMO_PREVIEW_PRICES[product])),
         change: quote ? formatAvailabilityWindow(quote.availabilityWindow, language) : 'Preview',
         up: true,
         status: 'DEMO',
@@ -455,7 +461,7 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
                         </div>
                     </div>
 
-                <div className="verdaxis-market-watch-strip min-w-0 flex-1 overflow-hidden" tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
+                <div className={`verdaxis-market-watch-strip min-w-0 flex-1 ${shouldAutoScroll ? 'overflow-hidden' : 'overflow-x-auto'}`} tabIndex={0} aria-label={t('marketWatch.scrollArea')}>
                     <div
                         className={`verdaxis-market-watch-track flex w-max items-center gap-2 px-3 ${shouldAutoScroll ? 'verdaxis-market-watch-track--scrolling' : ''}`}
                         style={{ '--verdaxis-market-watch-duration': scrollDuration } as React.CSSProperties}

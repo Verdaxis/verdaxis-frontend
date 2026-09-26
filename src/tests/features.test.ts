@@ -80,6 +80,8 @@ describe('Green Fuels Market Products', () => {
             'E_METHANOL',
             'BIO_ETHANOL',
             'SYNTHETIC_ETHANOL',
+            'B30',
+            'B100',
         ]);
     });
 });

@@ -42,6 +42,8 @@ import {
     SPOT_WINDOW,
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { isDemoMarketActivity } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { useWatchlist } from '../hooks/useWatchlist';
@@ -98,6 +100,13 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 };
 
 // ─── Product chip options ─────────────────────────────────────────
+const requiresBiofuelAsk = (order: OrderBookOrder): boolean => (
+    order.side === 'BID'
+    && Boolean(getBiofuelSpecification(order.market_product))
+    && !order.is_demo_listing
+    && !isDemoMarketActivity(order)
+);
+
 const ALL_MARKET_PRODUCTS = 'All';
 const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...MARKET_PRODUCTS];
 const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
@@ -256,6 +265,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Order placement modal ────────────────────────────────────
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
+    const [orderModalPrefill, setOrderModalPrefill] = useState<OrderBookOrder | null>(null);
 
     // ─── Fuel counts for chips ────────────────────────────────────
     const [marketProductCounts, setMarketProductCounts] = useState<Record<string, number>>({});
@@ -570,16 +580,24 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal handlers ─────────────────────────────────────
     const openTradeModal = (order: OrderBookOrder) => {
+        const isDemo = order.is_demo_listing || isDemoMarketActivity(order);
         if (order.market_product && order.delivery_point_id && order.availability_window) {
             analytics.track('listing_opened', {
                 product: order.market_product,
                 delivery_point: order.delivery_point_id,
                 window: order.availability_window,
                 side: order.side,
-                demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
+                demo_status: isDemo ? 'DEMO' : 'LIVE',
             });
         }
-        setSelectedOrder(order);
+        if (requiresBiofuelAsk(order)) {
+            // The supplier must declare the fuel metadata through the normal ASK flow.
+            // Normal orderbook priority applies; this is not a targeted trade.
+            setOrderModalPrefill(order);
+            setOrderModalSide('ASK');
+            return;
+        }
+        setSelectedOrder(isDemo ? { ...order, is_demo_listing: true } : order);
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
@@ -873,19 +891,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
             case 'action': {
                 const isExecutable = order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED';
+                const isDemo = order.is_demo_listing || isDemoMarketActivity(order);
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
                 return (
                     <td key={col} className="sticky right-0 z-20 min-w-[108px] whitespace-nowrap bg-white/95 px-3 py-2 shadow-[-12px_0_18px_-18px_rgba(15,23,42,0.55)] backdrop-blur-sm dark:bg-slate-900/95">
                         <div className="flex flex-col items-end gap-2">
-                            {order.is_demo_listing || (isExecutable && !isMarketSupportActive) ? (
+                            {isDemo || (isExecutable && !isMarketSupportActive) ? (
                                 <button
                                     type="button"
                                     data-tour="marketplace-listing-action"
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
-                                    {t(order.is_demo_listing ? 'marketplace.demo.view' : configBase.counterAction.labelKey)}
+                                    {t(isDemo ? 'marketplace.demo.view' : requiresBiofuelAsk(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">
@@ -1618,6 +1637,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         </div>
                                     </div>
 
+                                    {getBiofuelSpecification(selectedOrder.market_product) && (
+                                        <div className="space-y-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                                            <p>{t(`${selectedOrder.market_product?.toLowerCase()}.contract`)}</p>
+                                            <p>{t(`${selectedOrder.market_product?.toLowerCase()}.wholeBlendCiLabel`)}: {selectedOrder.carbon_intensity_gco2_mj ?? t('common.notAvailable')}</p>
+                                            {selectedOrder.carbon_intensity_method && (
+                                                <p>{t(`${selectedOrder.market_product?.toLowerCase()}.carbonIntensityMethodLabel`)}: {selectedOrder.carbon_intensity_method}</p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {/* Quantity input */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{t('marketplace.modal.quantity')}</label>
@@ -1728,15 +1757,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 isOpen={orderModalSide !== null}
                 onClose={() => {
                     setOrderModalSide(null);
+                    setOrderModalPrefill(null);
                     void fetchData(true, currentSkip, true);
                     if (marketTab === 'my_orders') void fetchMyOrders(true);
                 }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
-                prefillRegion={portInput || undefined}
-                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
-                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
-                prefillAvailabilityWindow={availability || undefined}
+                prefillRegion={orderModalPrefill?.delivery_point_name || orderModalPrefill?.region || portInput || undefined}
+                prefillMarketProduct={orderModalPrefill?.market_product ?? (marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined)}
+                prefillDeliveryPointId={orderModalPrefill?.delivery_point_id ?? currentSliceTarget?.deliveryPointId}
+                prefillAvailabilityWindow={orderModalPrefill?.availability_window || availability || undefined}
+                prefillPrice={orderModalPrefill ? Number(orderModalPrefill.price_per_mt_usd) : undefined}
+                prefillQuantity={orderModalPrefill ? Number(orderModalPrefill.remaining_quantity_mt) : undefined}
             />
         </div>
     );

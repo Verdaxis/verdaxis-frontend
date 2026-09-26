@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { getOrderDisplayName, getProductDisplayNameFromReference } from '../utils/marketProduct';
+import { getMarketplaceFuelType, getMarketplaceProductValue } from '../utils/marketProducts';
 import type { Product } from '../types';
 
 describe('market product display resolution', () => {
@@ -33,6 +34,13 @@ describe('market product display resolution', () => {
 
   it('resolves a market product code without catalog lookup', () => {
     expect(getProductDisplayNameFromReference('BIO_METHANOL', [])).toBe('Bio Methanol');
+  });
+
+  it.each(['B30', 'B100'])('resolves %s as a distinct market with the Biofuel family', (product) => {
+    expect(getProductDisplayNameFromReference(product, [])).toBe(product);
+    expect(getMarketplaceProductValue(product.toLowerCase())).toBe(product);
+    expect(getMarketplaceFuelType(product)).toBe('Biofuel');
+    expect(getMarketplaceProductValue('Biofuel')).toBeUndefined();
   });
 
   it('normalizes legacy product labels', () => {

@@ -1,4 +1,4 @@
-import type { AggregatedOrderbook, DeliveryPoint, MarketProduct, Product } from '../types';
+import { MARKET_PRODUCTS, type AggregatedOrderbook, type DeliveryPoint, type Product } from '../types';
 import { API_URL } from '../services/config';
 import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 import { formatMarketProduct } from '../utils/marketProduct';
@@ -16,23 +16,23 @@ export interface FuelPrice {
   availabilityWindow: string;
 }
 
-const DEMO_PRODUCTS: MarketProduct[] = [
-  'BIO_METHANOL',
-  'E_METHANOL',
-  'BIO_ETHANOL',
-  'SYNTHETIC_ETHANOL',
-];
+const DEMO_PRODUCTS = MARKET_PRODUCTS;
 const DEMO_PORTS = ['Singapore', 'Shanghai'];
 
+// Biofuel previews use ENGINE 2026-09-25 anchors; Shanghai remains a demo proxy.
 const previewPrices: Record<string, number> = {
   'Singapore|BIO_METHANOL': 985,
   'Singapore|E_METHANOL': 1188,
   'Singapore|BIO_ETHANOL': 863,
   'Singapore|SYNTHETIC_ETHANOL': 1278,
+  'Singapore|B30': 1105,
+  'Singapore|B100': 1362,
   'Shanghai|BIO_METHANOL': 935,
   'Shanghai|E_METHANOL': 1095,
   'Shanghai|BIO_ETHANOL': 843,
   'Shanghai|SYNTHETIC_ETHANOL': 1208,
+  'Shanghai|B30': 1105,
+  'Shanghai|B100': 1362,
 };
 
 export const DEMO_FUEL_PRICES: FuelPrice[] = DEMO_PORTS.flatMap(region => (

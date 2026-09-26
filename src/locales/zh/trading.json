@@ -719,5 +719,21 @@
   "supplierQuotes.modal.paymentMessage": "确认已收到此订单的付款？",
   "supplierQuotes.modal.errorTitle": "操作失败",
   "supplierQuotes.modal.errorFallback": "发生意外错误。",
-  "tradeHistory.performance.scope": "业绩数据基于最近最多 20 笔交易。"
+  "tradeHistory.performance.scope": "业绩数据基于最近最多 20 笔交易。",
+  "b30.contract": "按体积计，30% 脂肪酸甲酯（FAME）+ 70% 超低硫燃料油（VLSFO）。成品燃料：ISO 8217:2024 RF 380；硫含量按质量计 ≤0.50%。",
+  "b30.wholeBlendCiLabel": "整批混合燃料碳强度（gCO2e/MJ）",
+  "b30.carbonIntensityMethodLabel": "碳强度计算方法 / 依据",
+  "b30.carbonIntensityMethodPlaceholder": "计算方法及生命周期边界",
+  "b30.carbonIntensityPlaceholder": "申报的整批混合燃料碳强度",
+  "b30.wholeBlendCiHelper": "请输入成品 B30 混合燃料的生命周期碳强度，包括 FAME 和化石燃料部分。请注明计算方法及生命周期边界，不可仅填写 FAME 组分的数值。",
+  "b30.documentsHelper": "确认 FAME 部分符合所选可持续性认证体系，并将在交付前提供成品燃料的质量 / 分析证书（CoQ / CoA）及批次可持续性证明（PoS）。",
+  "b30.msdsHelper": "确认可提供成品 B30 混合燃料的安全数据表（SDS / MSDS）。",
+  "b100.contract": "纯 FAME 生物柴油（B100），不含 HVO 或化石燃料混合组分。成品燃料：ISO 8217:2024 DFA；硫含量按质量计 ≤0.10%。",
+  "b100.wholeBlendCiLabel": "燃料碳强度（gCO2e/MJ）",
+  "b100.carbonIntensityMethodLabel": "碳强度计算方法 / 依据",
+  "b100.carbonIntensityMethodPlaceholder": "计算方法及生命周期边界",
+  "b100.carbonIntensityPlaceholder": "申报的 B100 碳强度",
+  "b100.wholeBlendCiHelper": "请输入成品 B100 FAME 燃料的生命周期碳强度，并注明计算方法及生命周期边界；不可假定为零排放。",
+  "b100.documentsHelper": "确认 B100 FAME 燃料符合所选可持续性认证体系，并将在交付前提供成品燃料的质量 / 分析证书（CoQ / CoA）及批次可持续性证明（PoS）。",
+  "b100.msdsHelper": "确认可提供成品 B100 FAME 燃料的安全数据表（SDS / MSDS）。"
 }

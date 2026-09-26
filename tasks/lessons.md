@@ -11,7 +11,7 @@
 ### Do Not Mix Legacy Fuel References With Canonical Markets
 - **Date:** 2026-08-05
 - **Trigger:** The Intelligence Map compared a hardcoded conventional-methanol reference with current bio/e-methanol and ethanol demo listings.
-- **Rule:** Price references must use the same canonical product, delivery point, and availability window as the market data they accompany, with provenance shown.
+- **Rule:** Price references, history charts, and availability labels must use the same canonical product, delivery point, and availability window as the market data they accompany, with provenance shown. Clear unrelated legacy values when matching product data is absent.
 - **Why:** A legacy port-level mock survived beside pathway-specific marketplace data, producing a plausible-looking but invalid comparison.
 
 ### Confirm Abrupt Cross-Project Requests
@@ -590,7 +590,7 @@
 ### Wait For UI Readiness, Not Only Rendered Markup
 - **Date:** 2026-09-12
 - **Trigger:** The full suite exposed a dialog rendered before its keyboard effect and a controlled request resolved outside React's scheduler.
-- **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus, before sending input. Keep the original behavior assertions; do not mask the race with longer timeouts.
+- **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus or loaded API data replacing fallback content, before sending input. Restore mocked API implementations between tests, or use plain async stubs when call tracking is unnecessary. Keep the original behavior assertions; do not mask the race with longer timeouts.
 - **Why:** DOM presence does not prove that passive effects and committed async state are ready under concurrent worker load.
 
 ### Keep Brand Image Alternatives Language-Neutral

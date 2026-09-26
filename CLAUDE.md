@@ -112,7 +112,7 @@ npm run smoke:live -- staging
 ```bash
 npm run smoke:live
 ```
-This checks prod and staging HTML, hashed bundle API targets, backend health, the four market products, the eight delivery points, and the forward-curve endpoint with required params.
+This checks prod and staging HTML, hashed bundle API targets, backend health, the six market products (including B30 and B100), the eight delivery points, and the forward-curve endpoint with required params.
 
 For dashboard navigation dogfood, install the browser harness once with `npm run smoke:navigation:setup`, then run `npm run smoke:navigation -- --target local|staging|prod` with `VERDAXIS_SMOKE_EMAIL` and `VERDAXIS_SMOKE_PASSWORD`. `VERDAXIS_SMOKE_TOKEN` is supported for local/generated-token runs, but live prod/staging smoke should prefer UI login credentials so access tokens are not placed in app URLs.
 

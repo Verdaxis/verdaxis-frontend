@@ -49,7 +49,7 @@ describe('slice URL codec', () => {
       .toEqual({ product: 'BIO_ETHANOL', port: 'Santos', window: '2027-CAL' });
   });
 
-  it('rejects products outside the canonical four', () => {
+  it('rejects products outside the canonical markets', () => {
     expect(parseSlicePath('methanol', 'singapore', 'spot')).toBeNull();
     expect(parseSlicePath('bio-diesel', 'singapore', 'spot')).toBeNull();
     expect(parseSlicePath('bio-methanol-x', 'singapore', 'spot')).toBeNull();

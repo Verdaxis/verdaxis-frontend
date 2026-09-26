@@ -1,19 +1,23 @@
-import type { Product } from '../types';
+import type { MarketProduct, Product } from '../types';
 
 export type ProductReference = string | Product | null | undefined;
 
-const MARKET_PRODUCT_LABELS: Record<string, string> = {
+export const MARKET_PRODUCT_LABELS: Record<MarketProduct, string> = {
   BIO_METHANOL: 'Bio Methanol',
   BIO_ETHANOL: 'Bio Ethanol',
   E_METHANOL: 'e-Methanol',
   SYNTHETIC_ETHANOL: 'e-Ethanol',
+  B30: 'B30',
+  B100: 'B100',
 };
 
 export function formatMarketProduct(value: string | null | undefined): string {
   if (!value) return '';
 
   const normalized = value.trim().toUpperCase().replace(/[\s-]+/g, '_');
-  if (MARKET_PRODUCT_LABELS[normalized]) return MARKET_PRODUCT_LABELS[normalized];
+  if (Object.hasOwn(MARKET_PRODUCT_LABELS, normalized)) {
+    return MARKET_PRODUCT_LABELS[normalized as MarketProduct];
+  }
   if (normalized === 'GREEN_METHANOL' || normalized === 'BIOMETHANOL') {
     return MARKET_PRODUCT_LABELS.BIO_METHANOL;
   }

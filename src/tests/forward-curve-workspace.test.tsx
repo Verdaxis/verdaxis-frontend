@@ -491,6 +491,23 @@ describe('ForwardCurveWorkspace', () => {
     expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('2026-Q3');
   });
 
+  it.each(['B30', 'B100'] as const)('retains %s cells and opens their exact marketplace slice', async (product) => {
+    const cell = baseCell(product, 'dp-singapore', 'Singapore', 'SPOT', 790);
+    const table = makeTable();
+    table.rows.push({
+      ...table.rows[0], row_key: `${product}:dp-singapore`, market_product: product,
+      product_name: product, representative_product_id: `product-${product}`, cells: { SPOT: cell },
+    });
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockResolvedValue(makeSlice(cell));
+    const onOpenSlice = vi.fn();
+    renderWithProviders(<ForwardCurveWorkspace onOpenSlice={onOpenSlice} />);
+    await screen.findByText(product);
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    fireEvent.doubleClick(within(matrix).getByText('$790').closest('button')!);
+    expect(onOpenSlice).toHaveBeenCalledWith({ product, port: 'Singapore', window: 'SPOT' });
+  });
+
   it('opens the exact market slice from a matrix cell double-click', async () => {
     const onNavigate = vi.fn();
     renderWithProviders(<ForwardCurveWorkspace onNavigate={onNavigate} />);

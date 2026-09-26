@@ -14,6 +14,8 @@ const FUEL_DOT_COLORS: Record<string, string> = {
     E_METHANOL: 'bg-cyan-500',
     BIO_ETHANOL: 'bg-orange-500',
     SYNTHETIC_ETHANOL: 'bg-amber-500',
+    B30: 'bg-emerald-500',
+    B100: 'bg-lime-500',
     methanol: 'bg-violet-500',
     ethanol: 'bg-orange-500',
 };
@@ -147,7 +149,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${getDotColor(t2)}`} />
                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
                                     {t2.market_product ? formatMarketProduct(t2.market_product) : shortFuel(t2.fuel_type)}
-                                    {t2.fuel_grade && (
+                                    {t2.fuel_grade && t2.fuel_grade !== t2.market_product && (
                                         <span className="ml-1 text-slate-400 text-[10px]">{gradeTag(t2.fuel_grade, t)}</span>
                                     )}
                                     {shouldShowActivityBadge(t2, t) && <MarketActivityBadge activity={t2} className="ml-1" />}

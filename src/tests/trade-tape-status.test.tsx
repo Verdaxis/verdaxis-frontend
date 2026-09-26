@@ -98,6 +98,17 @@ describe('TradeTape status copy', () => {
     expect(screen.queryByText('Unavailable')).toBeNull();
   });
 
+  it.each(['B30', 'B100'])('shows %s without a redundant Other grade badge', async (product) => {
+    tradeTapeList.mockResolvedValue({ items: [{
+      id: 'biofuel-trade', market_product: product, fuel_type: 'Biofuel', fuel_grade: product,
+      region: 'Singapore', quantity_mt: '1000', price_per_mt_usd: '1105',
+      confirmed_at: new Date().toISOString(), availability_window: 'SPOT', provenance_kind: 'DEMO_SEED',
+    }], total: 1, market_hours: false });
+    renderWithProviders(<TradeTape marketProduct={product} region="Singapore" availability="SPOT" />);
+    expect(await screen.findByText(product)).toBeTruthy();
+    expect(screen.queryByText('Other grade')).toBeNull();
+  });
+
   it('renders minute, hour, and day relative times naturally in Chinese', async () => {
     await i18n.changeLanguage('zh');
     const now = Date.now();

@@ -24,6 +24,7 @@ import { useSSE } from '../hooks/useSSE';
 import { activity } from '../services/activityTracking';
 import { getMarketplaceProductValue } from '../utils/marketProducts';
 import { SPOT_WINDOW } from '../utils/availabilityWindow';
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 
 interface BuyerMapProps {
     active?: boolean;
@@ -152,6 +153,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     portsRef.current = ports;
     const isDarkRef = useRef(isDark);
     isDarkRef.current = isDark;
+    const selectedProductRef = useRef(selectedProduct);
+    selectedProductRef.current = selectedProduct;
 
     useDashboardContentReady('MAP', active && mapStyleLoaded && marketSummaryReady);
 
@@ -358,12 +361,19 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const selectedPort = useMemo(() => {
         const port = ports.find(item => item.id === selectedPortId);
         if (!port) return undefined;
+        const reference = portMarketMap[port.id]?.reference;
+        const isBiofuel = Boolean(getBiofuelSpecification(selectedProduct ?? reference?.productLabel));
         return {
             ...port,
-            priceMethanol: portMarketMap[port.id]?.reference?.price ?? 0,
+            priceMethanol: reference?.price ?? 0,
             priceTrend: undefined,
+            // Legacy port history and supply levels describe methanol, not this biofuel book.
+            methanolSupply: isBiofuel ? 'Unknown' as const : port.methanolSupply,
+            details: isBiofuel && port.details
+                ? { ...port.details, priceHistory: [], forecastSupply: 'Unknown' as const }
+                : port.details,
         };
-    }, [portMarketMap, ports, selectedPortId]);
+    }, [portMarketMap, ports, selectedPortId, selectedProduct]);
 
     const availableProducts = ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.label);
     const selectedMarketProduct = getMarketplaceProductValue(selectedProduct);
@@ -664,8 +674,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             : mkt.reference.source === 'MIXED'
                                 ? translate('buyerMap.mixedMarketplace')
                                 : translate('buyerMap.marketplace');
-                    const plattsPrice = port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
-                    const swapPrice = port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
+                    const isBiofuel = Boolean(getBiofuelSpecification(selectedProductRef.current ?? mkt.reference?.productLabel));
+                    const plattsPrice = !isBiofuel && port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
+                    const swapPrice = !isBiofuel && port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congestionLabel = congestion === '--'
                         ? congestion
@@ -697,7 +708,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                         + '</div>'
                         + '</div>';
 
-                    const html = '<div style="width:260px;background:' + (isDarkRef.current ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
+                    const html = '<div class="verdaxis-port-popup-body" style="width:260px;background:' + (isDarkRef.current ? '#0F172A' : '#1E293B') + ';color:#F8FAFC;border-radius:8px;padding:12px;font-family:\'DM Sans\',\'Inter\',sans-serif">'
                         + '<h3 style="font-family:\'Montserrat\',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,0.2)">'
                         + escapeHtml(port.name || translate('buyerMap.popup.unknownPort'))
                         + '<span style="display:block;font-size:10px;font-weight:500;color:#94A3B8;margin-top:2px">' + escapeHtml(port.country

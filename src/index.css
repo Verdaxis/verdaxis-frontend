@@ -93,12 +93,20 @@
 .dark .mapboxgl-map .mapboxgl-ctrl-group button + button { border-color: #334155; }
 .dark .mapboxgl-map .mapboxgl-ctrl-icon { filter: invert(1); }
 
+/* Keep port popups dismissible above the map toolbar (20) and ticker (30). */
+.verdaxis-port-popup { z-index: 31; }
 .verdaxis-port-popup .mapboxgl-popup-content {
   background: transparent;
   padding: 0;
   box-shadow: none;
   border-radius: 8px;
   overflow: hidden;
+}
+/* Leave room for native anchoring above or below a port, even with extra references. */
+.verdaxis-port-popup-body {
+  max-height: min(420px, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .verdaxis-port-popup .mapboxgl-popup-tip {
   border-top-color: #1E293B;

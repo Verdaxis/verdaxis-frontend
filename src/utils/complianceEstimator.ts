@@ -40,6 +40,7 @@ export const COMPLIANCE_ESTIMATOR_MESSAGE_CODES = {
     GREEN_CARBON_INTENSITY_NON_POSITIVE: 'greenCarbonIntensityNonPositive',
     ETS_COVERAGE_OUT_OF_RANGE: 'etsCoverageOutOfRange',
     SELECTED_FUEL_CI_ABOVE_TARGET: 'selectedFuelCiAboveTarget',
+    BIODIESEL_BATCH_DATA_REQUIRED: 'biodieselBatchDataRequired',
 } as const;
 
 export type ComplianceEstimatorMessageCode = typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES[keyof typeof COMPLIANCE_ESTIMATOR_MESSAGE_CODES];
@@ -120,6 +121,12 @@ const round = (value: number, decimals = 0) => {
 const isPositive = (value: number) => Number.isFinite(value) && value > 0;
 
 const validateInput = (input: ComplianceEstimatorInput) => {
+    // The current blend model excludes fossil emissions from the selected green fuel.
+    // Biodiesel needs batch evidence; B30 also needs its fossil component retained.
+    if (input.greenFuel.marketProduct === 'B30' || input.greenFuel.marketProduct === 'B100') {
+        return [COMPLIANCE_ESTIMATOR_MESSAGE_CODES.BIODIESEL_BATCH_DATA_REQUIRED];
+    }
+
     const errors: ComplianceEstimatorMessageCode[] = [];
     const positiveFields: Array<[keyof ComplianceEstimatorInput, ComplianceEstimatorMessageCode]> = [
         ['voyageDays', COMPLIANCE_ESTIMATOR_MESSAGE_CODES.VOYAGE_DURATION_NON_POSITIVE],
