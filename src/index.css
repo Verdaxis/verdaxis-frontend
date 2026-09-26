@@ -102,6 +102,12 @@
   border-radius: 8px;
   overflow: hidden;
 }
+/* Leave room for native anchoring above or below a port, even with extra references. */
+.verdaxis-port-popup-body {
+  max-height: min(420px, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .verdaxis-port-popup .mapboxgl-popup-tip {
   border-top-color: #1E293B;
 }

@@ -25,7 +25,7 @@ const panelPropsMock = vi.fn();
 vi.mock('../services/api', () => ({
   api: {
     ports: { list: (...args: unknown[]) => portsListMock(...args) },
-    catalog: { deliveryPoints: vi.fn().mockResolvedValue([]) },
+    catalog: { deliveryPoints: () => Promise.resolve([]) },
     orderbook: {
       mapSummary: (...args: unknown[]) => mapSummaryMock(...args),
     },
@@ -147,7 +147,7 @@ describe('BuyerMap failure localization', () => {
 
     expect(await screen.findByRole('region', { name: '交互式市场情报地图' })).toBeTruthy();
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
-    expect(screen.getByRole('alert').textContent).toContain('无法加载情报地图');
+    expect((await screen.findByRole('alert')).textContent).toContain('无法加载情报地图');
     fireEvent.click(screen.getByRole('button', { name: /图层/ }));
     const switches = screen.getAllByRole('switch');
     fireEvent.click(switches[1]);
@@ -226,8 +226,11 @@ describe('BuyerMap failure localization', () => {
     fireEvent.click(await screen.findByRole('combobox', { name: 'Go to port' }));
     fireEvent.click(screen.getByRole('option', { name: 'Singapore' }));
     fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
-    expect(panelPropsMock.mock.calls.at(-1)?.[0].selectedPort).toMatchObject({
-      methanolSupply: 'High', details: { priceHistory, forecastSupply: 'Surplus' },
+    // The port selector renders fallback ports before the API fixture is loaded.
+    await waitFor(() => {
+      expect(panelPropsMock.mock.calls.at(-1)?.[0].selectedPort).toMatchObject({
+        methanolSupply: 'High', details: { priceHistory, forecastSupply: 'Surplus' },
+      });
     });
 
     for (const product of ['B30', 'B100']) {
