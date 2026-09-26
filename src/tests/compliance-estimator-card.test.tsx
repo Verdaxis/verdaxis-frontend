@@ -45,6 +45,43 @@ describe('ComplianceEstimatorCard', () => {
     expect(screen.queryByText('Selected fuel CI is above the planning target')).toBeNull();
   });
 
+  it.each([
+    { language: 'en', pathway: 'Green fuel pathway', port: 'Marketplace port', unavailable: 'B30 estimate unavailable.', availability: 'B30 bunker market · Unknown reference availability' },
+    { language: 'zh', pathway: '绿色燃料路径', port: '市场港口', unavailable: '暂无法提供 B30 估算。', availability: 'B30 补油市场 · 未知 参考供应' },
+  ].flatMap(locale => ['B30', 'B100'].map(product => ({
+    ...locale,
+    product,
+    unavailable: locale.unavailable.replaceAll('B30', product),
+    availability: locale.availability.replaceAll('B30', product),
+  }))))('shows $product without invented estimates or availability and preserves its market handoff in $language', async ({ language, pathway, port, product, unavailable, availability }) => {
+    await loadNamespace('dashboard');
+    await i18n.changeLanguage(language);
+    const onOpenMarketplace = vi.fn();
+    renderWithProviders(
+      <ComplianceEstimatorCard selectedPort={PORTS[0]} portOptions={[PORTS[0]]} onOpenMarketplace={onOpenMarketplace} />,
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: pathway }));
+    fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${product} `) }));
+
+    const resultRegion = screen.getByRole('status');
+    expect(resultRegion.textContent).toContain(unavailable);
+    expect(resultRegion.textContent).not.toMatch(/€|MT|gCO2e/);
+    expect(screen.queryByText('€518,789')).toBeNull();
+    expect(screen.queryByText(/CI 12.4 gCO2e/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('combobox', { name: port }));
+    expect(screen.getByText(availability)).toBeTruthy();
+    fireEvent.click(screen.getByRole('option', { name: new RegExp(PORTS[0].name) }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(PORTS[0].name) }));
+    expect(localStorage.getItem('verdaxis_marketplace_product')).toBe(product);
+    expect(onOpenMarketplace).toHaveBeenCalledWith(PORTS[0]);
+
+    fireEvent.click(screen.getByRole('combobox', { name: pathway }));
+    fireEvent.click(screen.getByRole('option', { name: /^Bio Methanol/ }));
+    expect(screen.getByText('€518,789')).toBeTruthy();
+  });
+
   it('renders expanded planning controls with voyage segments by default', () => {
     renderWithProviders(<ComplianceEstimatorCard selectedPort={PORTS[0]} onOpenMarketplace={vi.fn()} />);
 

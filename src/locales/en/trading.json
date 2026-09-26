@@ -719,5 +719,21 @@
   "supplierQuotes.modal.paymentMessage": "Confirm that payment has been received for this order?",
   "supplierQuotes.modal.errorTitle": "Action Failed",
   "supplierQuotes.modal.errorFallback": "An unexpected error occurred.",
-  "tradeHistory.performance.scope": "Performance for up to 20 of your most recent trades."
+  "tradeHistory.performance.scope": "Performance for up to 20 of your most recent trades.",
+  "b30.contract": "30% FAME + 70% VLSFO by volume. Finished fuel: ISO 8217:2024 RF 380; sulfur ≤0.50% by mass.",
+  "b30.wholeBlendCiLabel": "Whole-blend carbon intensity (gCO2e/MJ)",
+  "b30.carbonIntensityMethodLabel": "Carbon intensity method / basis",
+  "b30.carbonIntensityMethodPlaceholder": "Calculation method and lifecycle boundary",
+  "b30.carbonIntensityPlaceholder": "Declared whole-blend CI",
+  "b30.wholeBlendCiHelper": "Enter the lifecycle carbon intensity of the finished B30 blend, including the FAME and fossil portions. State the calculation method and lifecycle boundary. Do not enter the FAME component value alone.",
+  "b30.documentsHelper": "Confirm the FAME portion is backed by the selected sustainability scheme, and that the finished-fuel Certificate of Quality / Analysis (CoQ / CoA) and batch Proof of Sustainability (PoS) will be available before delivery.",
+  "b30.msdsHelper": "Confirm that a safety data sheet (SDS / MSDS) for the finished B30 blend is available.",
+  "b100.contract": "Neat FAME biodiesel (B100), with no HVO or fossil blend. Finished fuel: ISO 8217:2024 DFA; sulfur ≤0.10% by mass.",
+  "b100.wholeBlendCiLabel": "Fuel carbon intensity (gCO2e/MJ)",
+  "b100.carbonIntensityMethodLabel": "Carbon intensity method / basis",
+  "b100.carbonIntensityMethodPlaceholder": "Calculation method and lifecycle boundary",
+  "b100.carbonIntensityPlaceholder": "Declared B100 CI",
+  "b100.wholeBlendCiHelper": "Enter the lifecycle carbon intensity of the finished B100 FAME fuel. State the calculation method and lifecycle boundary; do not assume zero emissions.",
+  "b100.documentsHelper": "Confirm the B100 FAME fuel is backed by the selected sustainability scheme, and that the finished-fuel Certificate of Quality / Analysis (CoQ / CoA) and batch Proof of Sustainability (PoS) will be available before delivery.",
+  "b100.msdsHelper": "Confirm that a safety data sheet (SDS / MSDS) for the finished B100 FAME fuel is available."
 }

@@ -17,6 +17,18 @@ const makeInput = (overrides = {}) => ({
 });
 
 describe('estimateCompliancePlanning', () => {
+  it.each(['B30', 'B100'])('rejects %s instead of applying unsupported green-fuel assumptions', (marketProduct) => {
+    const result = estimateCompliancePlanning(makeInput({
+      greenFuel: { ...bioMethanol, marketProduct },
+    }));
+
+    expect(GREEN_FUEL_ASSUMPTIONS.some(fuel => fuel.marketProduct === marketProduct)).toBe(false);
+    expect(result.status).toBe('INVALID');
+    expect(result.errors).toEqual([COMPLIANCE_ESTIMATOR_MESSAGE_CODES.BIODIESEL_BATCH_DATA_REQUIRED]);
+    expect(result.blend.feasible).toBe(false);
+    expect(result.blend.ratio).toBeNull();
+  });
+
   it('solves the green-fuel energy blend needed to move weighted CI toward the planning target', () => {
     const result = estimateCompliancePlanning(makeInput());
 

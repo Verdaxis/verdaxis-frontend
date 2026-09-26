@@ -166,6 +166,25 @@ describe('BuyerMap market data', () => {
         expect(syntheticEthanol).toMatchObject({ bestBid: 760.5, bestAsk: 785 });
     });
 
+    it.each(['B30', 'B100'])('keeps %s market rows and SPOT references separate from other fuels', (product) => {
+        const common = {
+            delivery_point_name: 'Singapore', availability_window: 'SPOT', region: 'Asia',
+            total_quantity: 500, order_count: 1, source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+        };
+        const rows = [
+            { ...common, market_product: product, fuel_type: 'Biofuel', side: 'BID', min_price: 780, max_price: 780 },
+            { ...common, market_product: product, fuel_type: 'Biofuel', side: 'ASK', min_price: 800, max_price: 800 },
+            { ...common, market_product: 'BIO_METHANOL', fuel_type: 'Methanol', side: 'ASK', min_price: 1100, max_price: 1100 },
+        ];
+        const result = computePortMarketData(rows as any, 'Singapore', product);
+        expect(result.fuelRows.find(row => row.label === product)).toMatchObject({ bestBid: 780, bestAsk: 800, orderCount: 2 });
+        expect(result.reference).toEqual({ productLabel: product, price: 790, source: 'DEMO' });
+
+        const missingProduct = computePortMarketData(rows.slice(2) as any, 'Singapore', product);
+        expect(missingProduct.reference).toBeNull();
+        expect(missingProduct.spreadPct).toBe(999);
+    });
+
     it('derives the reference from the selected product exact SPOT book', () => {
         const aggregated = [
             {

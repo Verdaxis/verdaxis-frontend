@@ -232,7 +232,12 @@ transforms to camelCase frontend interfaces and wraps numeric fields with `Numbe
 Orderbook timing is normalized through `utils/availabilityWindow.ts` so the UI can show
 relative labels while the API persists canonical codes. Green-fuels naming is normalized
 through `utils/marketProduct.ts`, and benchmark-relative pricing is carried in the shared
-order interfaces.
+order interfaces. B30 and B100 use the same market slices and orderbook as the four methanol/ethanol
+products. B30's single contract is 30% FAME by volume plus 70% VLSFO, finished to
+ISO 8217:2024 RF 380 with sulfur at or below 0.50% by mass. B100 is a separate
+100% FAME contract to ISO 8217:2024 DFA with sulfur at or below 0.10% by mass.
+The map estimator requires batch-specific fuel CI and measured
+lower calorific value for both products and does not apply assumed savings.
 
 **AI assistance:** The floating Copilot chat has been removed. Supplier quote risk memos still
 call the backend `/ai/chat` proxy through `services/ai-engine/generators.ts`, with short-lived

@@ -2,6 +2,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 
+import { api } from '../services/api';
 import { IntelligencePanel } from '../components/map/IntelligencePanel';
 import { PORTS } from '../data';
 import i18n, { loadNamespace } from '../i18n';
@@ -19,6 +20,8 @@ vi.mock('../components/map/ComplianceEstimatorCard', () => ({ ComplianceEstimato
 
 describe('IntelligencePanel localization', () => {
   beforeEach(async () => {
+    vi.mocked(api.catalog.products).mockResolvedValue([]);
+    vi.mocked(api.curves.forward).mockReset();
     await loadNamespace('dashboard');
     await i18n.changeLanguage('zh');
   });
@@ -27,6 +30,22 @@ describe('IntelligencePanel localization', () => {
     await act(async () => {
       await i18n.changeLanguage('en');
     });
+  });
+
+  it('includes B30 and B100 after the existing catalog products in forward references', async () => {
+    vi.mocked(api.catalog.products).mockResolvedValue([
+      'BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL', 'B30', 'B100',
+    ].map(market_product => ({ id: market_product, name: market_product, market_product, is_active: true })) as any);
+    vi.mocked(api.curves.forward).mockResolvedValue({ curve: [
+      { availability_window: 'SPOT', mid_price: '790' },
+    ] } as any);
+    renderWithProviders(<IntelligencePanel isOpen selectedPort={undefined} onClose={vi.fn()} onPortSelect={vi.fn()} />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: '估算器' }));
+    });
+    expect(await screen.findByText('B30')).toBeTruthy();
+    expect(await screen.findByText('B100')).toBeTruthy();
+    expect(api.curves.forward).toHaveBeenCalledWith({ product_id: 'B30' });
   });
 
   it('uses localized fallbacks for unknown market enums', async () => {

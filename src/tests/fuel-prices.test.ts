@@ -22,6 +22,8 @@ describe('fetchFuelPrices', () => {
       'E_METHANOL',
       'BIO_ETHANOL',
       'SYNTHETIC_ETHANOL',
+      'B30',
+      'B100',
     ];
     const rows = ports.flatMap((port, portIndex) => products.flatMap((product, productIndex) => {
       const bid = 800 + (portIndex * 10) + (productIndex * 100);
@@ -79,19 +81,23 @@ describe('fetchFuelPrices', () => {
       price.fuel === 'e-Methanol' && price.region === 'Singapore'
     ));
 
-    expect(prices).toHaveLength(32);
-    expect(prices.slice(0, 4).map(price => price.region)).toEqual(Array(4).fill('Dalian'));
-    expect(prices.slice(0, 4).map(price => price.fuel)).toEqual([
+    expect(prices).toHaveLength(48);
+    expect(prices.slice(0, 6).map(price => price.region)).toEqual(Array(6).fill('Dalian'));
+    expect(prices.slice(0, 6).map(price => price.fuel)).toEqual([
       'Bio Methanol',
       'e-Methanol',
       'Bio Ethanol',
       'e-Ethanol',
+      'B30',
+      'B100',
     ]);
     expect(new Set(prices.map(price => price.fuel))).toEqual(new Set([
       'Bio Methanol',
       'e-Methanol',
       'Bio Ethanol',
       'e-Ethanol',
+      'B30',
+      'B100',
     ]));
     expect(singaporeEMethanol).toEqual(expect.objectContaining({
       price: 940,

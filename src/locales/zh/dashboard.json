@@ -555,6 +555,7 @@
       "intraEu": "欧盟内 · 100%",
       "euEntryExit": "进出欧盟 · 50%",
       "fuelPathway": "绿色燃料路径",
+      "batchDataRequired": "需要批次数据",
       "marketplacePort": "市场港口",
       "selectMarketplacePort": "选择支持该补油类型的港口",
       "portBunkerDescription": "{{product}} 补油市场 · {{availability}} 参考供应",
@@ -589,7 +590,8 @@
         "greenEnergyDensityNonPositive": "绿色燃料能量密度必须大于零",
         "greenCarbonIntensityNonPositive": "绿色燃料碳强度必须大于零",
         "etsCoverageOutOfRange": "EU ETS 敞口覆盖比例必须介于 0% 至 100% 之间",
-        "selectedFuelCiAboveTarget": "所选燃料 CI 高于规划目标"
+        "selectedFuelCiAboveTarget": "所选燃料 CI 高于规划目标",
+        "biodieselBatchDataRequired": "暂无法提供 {{product}} 估算。需要该批次所供燃料的碳强度、实测低位热值，以及包含任何化石燃料组分的经核实排放数据。B30 的碳强度必须覆盖整个混合燃料。您仍可打开 {{product}} 市场。"
       },
       "openMarketplace": "打开 {{port}} 现货市场",
       "selectPort": "选择港口以打开市场"

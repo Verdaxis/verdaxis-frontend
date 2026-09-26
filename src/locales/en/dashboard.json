@@ -555,6 +555,7 @@
       "intraEu": "Intra-EU · 100%",
       "euEntryExit": "EU entry/exit · 50%",
       "fuelPathway": "Green fuel pathway",
+      "batchDataRequired": "Batch data required",
       "marketplacePort": "Marketplace port",
       "selectMarketplacePort": "Select a port with this bunker type",
       "portBunkerDescription": "{{product}} bunker market · {{availability}} reference availability",
@@ -589,7 +590,8 @@
         "greenEnergyDensityNonPositive": "Green fuel energy density must be greater than zero",
         "greenCarbonIntensityNonPositive": "Green fuel carbon intensity must be greater than zero",
         "etsCoverageOutOfRange": "EU ETS exposure coverage must be between 0% and 100%",
-        "selectedFuelCiAboveTarget": "Selected fuel CI is above the planning target"
+        "selectedFuelCiAboveTarget": "Selected fuel CI is above the planning target",
+        "biodieselBatchDataRequired": "{{product}} estimate unavailable. It needs batch-specific carbon intensity for the supplied fuel, measured lower calorific value, and verified emissions data that includes any fossil component. For B30, the carbon intensity must cover the whole blend. You can still open the {{product}} market."
       },
       "openMarketplace": "Open {{port}} spot market",
       "selectPort": "Select a port to open Marketplace"

@@ -256,6 +256,15 @@ describe('MarketWatchTicker', () => {
     expect(localStorage.getItem(STORAGE_KEY)).toBe('{bad-json');
   });
 
+  it('uses distinct disclosed B30 demo references for Rotterdam and Singapore', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['B30'], portIds: ['nl-rtm', 'sg-sin'] }));
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    expect(await screen.findByText('$869')).toBeTruthy();
+    expect(await screen.findByText('$1105')).toBeTruthy();
+    expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
+    expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'B30', availability_window: 'SPOT' }));
+  });
+
   it('validates stored legacy product and renders selected approved ports', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       product: 'Methanol',
@@ -268,7 +277,7 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByText(/4 fuels/)).toBeTruthy();
+    expect(screen.getByText(/6 fuels/)).toBeTruthy();
     expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 
@@ -318,14 +327,18 @@ describe('MarketWatchTicker', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'e-Methanol' }));
       fireEvent.click(screen.getByRole('button', { name: 'Bio Ethanol' }));
+      fireEvent.click(screen.getByRole('button', { name: 'B30' }));
+      fireEvent.click(screen.getByRole('button', { name: 'B100' }));
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/3 fuels/)).toBeTruthy();
+      expect(screen.getByText(/5 fuels/)).toBeTruthy();
     });
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL']);
+    expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'B30', 'B100']);
+    expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'B30' }));
+    expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'B100' }));
     expect(stored.portIds).toEqual(['nl-rtm', 'sg-sin', 'br-ssz', 'cn-sha']);
   });
 });

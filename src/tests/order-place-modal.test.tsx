@@ -56,6 +56,26 @@ describe('OrderPlaceModal', () => {
         is_active: true,
         spec_description: 'Test product',
       },
+      {
+        id: 'prod-b30',
+        name: 'B30',
+        market_product: 'B30',
+        fuel_type: 'Biodiesel',
+        fuel_grade: 'B30',
+        unit: 'MT',
+        min_lot_size: 200,
+        is_active: true,
+      },
+      {
+        id: 'prod-b100',
+        name: 'B100',
+        market_product: 'B100',
+        fuel_type: 'Biodiesel',
+        fuel_grade: 'B100',
+        unit: 'MT',
+        min_lot_size: 200,
+        is_active: true,
+      },
     ]);
     deliveryPointsMock.mockResolvedValue([
       {
@@ -346,6 +366,118 @@ describe('OrderPlaceModal', () => {
         })
       );
     });
+  });
+
+  it.each([
+    { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: false },
+    { product: 'B100', standard: 'ISO 8217:2024 DFA', ci: 22.5, assisted: false },
+    { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: true },
+  ] as const)('requires a CI basis for the fixed $product ASK (assisted: $assisted)', async ({ product, standard, ci, assisted }) => {
+    if (assisted) {
+      marketSupportControl.current = {
+        isActive: true,
+        isLoading: false,
+        context: { organization: { name: 'Northstar Fuels' }, supportReference: 'CASE-42' },
+      };
+    }
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct={product} prefillQuantity={375} prefillPrice={700} />);
+    const specification = await screen.findByDisplayValue(standard);
+    expect((specification as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByText(i18n.t(`${product.toLowerCase()}.contract`, { ns: 'trading' }))).toBeTruthy();
+    expect(screen.getByText(/Certificate of Quality.*batch Proof of Sustainability.*before delivery/)).toBeTruthy();
+    expect(screen.getByText(/safety data sheet.*finished B(30|100)/)).toBeTruthy();
+
+    expect((screen.getByLabelText(/price.*MT/i) as HTMLInputElement).value).toBe('700');
+    expect((document.getElementById('order-quantity') as HTMLInputElement).value).toBe('375');
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
+    fireEvent.change(screen.getByLabelText(/carbon intensity.*gCO2e/i), { target: { value: String(ci) } });
+    fireEvent.change(screen.getByLabelText('Feedstock'), { target: { value: 'Used cooking oil' } });
+    fireEvent.change(screen.getByLabelText('Origin'), { target: { value: 'Singapore' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
+    const submit = screen.getByRole('button', { name: 'Place Ask' }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: '  ' } });
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: '  RED lifecycle calculation, well-to-wake, whole blend  ' } });
+    fireEvent.click(submit);
+    if (assisted) {
+      expect(createOrderMock).not.toHaveBeenCalled();
+      expect(screen.getByText(/74.2 gCO₂e\/MJ · RED lifecycle calculation, well-to-wake, whole blend/)).toBeTruthy();
+      expect(screen.getByText(/B30 · 30% FAME.*70% VLSFO/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm and submit ask/i }));
+    }
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
+      side: 'ASK',
+      product_id: `prod-${product.toLowerCase()}`,
+      quantity_mt: 375,
+      price_per_mt_usd: 700,
+      specification_standard: standard,
+      carbon_intensity_gco2_mj: ci,
+      carbon_intensity_method: 'RED lifecycle calculation, well-to-wake, whole blend',
+      certification_declared: true,
+      certifications: ['ISCC EU'],
+      msds_available: true,
+      feedstock: 'Used cooking oil',
+      origin: 'Singapore',
+    })));
+  });
+
+  it('clears incompatible supplier metadata when changing between alcohol, B30, and B100', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
+    await screen.findByRole('combobox', { name: 'Order product' });
+    fireEvent.change(screen.getByLabelText('Specification Standard'), { target: { value: 'IMPCA' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 40'), { target: { value: '42' } });
+    fireEvent.change(screen.getByLabelText('Feedstock'), { target: { value: 'Biogenic CO2' } });
+    fireEvent.change(screen.getByLabelText('Origin'), { target: { value: 'Netherlands' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^B30/ }));
+
+    expect((screen.getByLabelText('Specification Standard') as HTMLInputElement).value).toBe('ISO 8217:2024 RF 380');
+    expect((screen.getByLabelText(/whole-blend carbon intensity/i) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Feedstock') as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Origin') as HTMLInputElement).value).toBe('');
+    expect((screen.getByRole('checkbox', { name: /certification declaration/i }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('checkbox', { name: /MSDS available/i }) as HTMLInputElement).checked).toBe(false);
+    fireEvent.change(screen.getByLabelText(/whole-blend carbon intensity/i), { target: { value: '75' } });
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: 'Whole-blend method' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^B100/ }));
+    expect((screen.getByLabelText('Specification Standard') as HTMLInputElement).value).toBe('ISO 8217:2024 DFA');
+    expect((screen.getByLabelText(/fuel carbon intensity/i) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText('Carbon intensity method / basis') as HTMLInputElement).value).toBe('');
+    fireEvent.change(screen.getByLabelText(/fuel carbon intensity/i), { target: { value: '22' } });
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: 'FAME lifecycle method' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^Bio Methanol/ }));
+
+    const alcoholSpecification = screen.getByLabelText('Specification Standard') as HTMLInputElement;
+    expect(alcoholSpecification.value).toBe('');
+    expect(alcoholSpecification.readOnly).toBe(false);
+    expect((screen.getByPlaceholderText('e.g. 40') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByLabelText('Carbon intensity method / basis')).toBeNull();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^B30/ }));
+    expect((screen.getByLabelText('Carbon intensity method / basis') as HTMLInputElement).value).toBe('');
+  });
+
+  it.each([['B30', 'en'], ['B30', 'zh'], ['B100', 'en'], ['B100', 'zh']] as const)('shows the fixed %s contract on a basic %s BID without supplier fields', async (product, language) => {
+    await i18n.changeLanguage(language);
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct={product} />);
+    const contract = i18n.t(`${product.toLowerCase()}.contract`, { ns: 'trading' });
+    expect(await screen.findByText(contract)).toBeTruthy();
+    expect(screen.queryByLabelText('Carbon intensity method / basis')).toBeNull();
+    fireEvent.change(document.getElementById('order-price')!, { target: { value: '700' } });
+    fireEvent.click(screen.getByRole('button', { name: language === 'zh' ? '发布买单' : 'Place Bid' }));
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({ side: 'BID', product_id: `prod-${product.toLowerCase()}` })));
+    const payload = createOrderMock.mock.calls[0][0];
+    expect(payload.specification_standard).toBeUndefined();
+    expect(payload.carbon_intensity_gco2_mj).toBeUndefined();
+    expect(payload.carbon_intensity_method).toBeUndefined();
   });
 
   it('closes on cancel without submitting the form', async () => {
