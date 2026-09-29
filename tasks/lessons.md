@@ -401,7 +401,7 @@
 - **Date:** 2026-06-02
 - **Trigger:** User reported that Marketplace content was cut off at the bottom for some users and that switching to Listings pushed the top controls offscreen with no way to scroll back up.
 - **Rule:** Authenticated app pages should let the shell `<main>` own vertical scrolling; page components must not add desktop `overflow-hidden` roots plus nested vertical `overflow-auto` tab bodies unless they are full-screen canvas tools.
-- **Why:** Competing scroll containers trap wheel/trackpad input and can make headers or lower content unreachable on smaller viewports.
+- **Why:** Competing scroll containers and shrinking flex panels can make content unreachable on smaller viewports. Verify normal wheel or keyboard access; programmatic scrollIntoView can scroll overflow-hidden elements and does not prove user reachability.
 
 ### Keep Tutorial Escape Controls Visible
 - **Date:** 2026-05-27
