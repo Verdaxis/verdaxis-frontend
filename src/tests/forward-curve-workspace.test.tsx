@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
@@ -10,6 +10,19 @@ import { getAvailabilityWindowOptions, formatAvailabilityWindow } from '../utils
 
 const tableMock = vi.fn();
 const sliceMock = vi.fn();
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
+};
+
+const storeSelection = (cell: ForwardCurveMarketCell) => {
+  localStorage.setItem('verdaxis_forward_curve_product', cell.market_product);
+  localStorage.setItem('verdaxis_forward_curve_delivery_point', cell.delivery_point_id);
+  localStorage.setItem('verdaxis_forward_curve_window', cell.availability_window);
+};
 
 vi.mock('../services/api', () => ({
   api: {
@@ -215,6 +228,11 @@ const makeLongTable = () => {
 };
 
 describe('ForwardCurveWorkspace', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   beforeEach(async () => {
     await loadNamespace('trading');
     await i18n.changeLanguage('en');
@@ -436,7 +454,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) })).toBeTruthy();
   });
 
-  it('preserves forced slice refresh when the interval joins the table request', async () => {
+  it('refreshes the selected slice before the forced table read finishes', async () => {
     const intervalSpy = vi.spyOn(window, 'setInterval');
     renderWithProviders(<ForwardCurveWorkspace />);
     await screen.findByText('Indicative Period Range');
@@ -447,10 +465,15 @@ describe('ForwardCurveWorkspace', () => {
       resolveJoinedTable = resolve;
     });
     tableMock.mockReturnValue(joinedTable);
-    const refreshInterval = intervalSpy.mock.calls.find(([, delay]) => delay === 30_000)?.[0];
+    const refreshInterval = intervalSpy.mock.calls.filter(([, delay]) => delay === 30_000).at(-1)?.[0];
     expect(refreshInterval).toBeTypeOf('function');
 
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    expect(sliceMock).toHaveBeenCalledWith({
+      market_product: 'BIO_METHANOL',
+      delivery_point_id: 'dp-singapore',
+      availability_window: 'SPOT',
+    }, { force: true });
     act(() => refreshInterval?.());
     await act(async () => resolveJoinedTable(makeTable()));
 
@@ -465,6 +488,139 @@ describe('ForwardCurveWorkspace', () => {
       availability_window: 'SPOT',
     }, { force: true }));
     intervalSpy.mockRestore();
+  });
+
+  it('loads a canonical saved slice alongside the table without repeating it on table arrival', async () => {
+    const cell = { ...singaporeSpot, delivery_point_id: '00000000-0000-0000-0000-000000000001' };
+    const table = makeTable();
+    table.rows[0] = { ...table.rows[0], delivery_point_id: cell.delivery_point_id, cells: { SPOT: cell } };
+    storeSelection(cell);
+    const pendingTable = deferred<ForwardCurveTableResponse>();
+    tableMock.mockReturnValue(pendingTable.promise);
+    sliceMock.mockResolvedValue(makeSlice(cell));
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await waitFor(() => expect(sliceMock).toHaveBeenCalledTimes(1));
+    expect(tableMock).toHaveBeenCalledTimes(1);
+    expect(sliceMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Market Matrix')).toBeNull();
+    await act(async () => pendingTable.resolve(table));
+    await screen.findByText('Market Matrix');
+    await screen.findByText('Indicative Period Range');
+    expect(sliceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the polling deadline while selection changes and refreshes the current slice', async () => {
+    vi.useFakeTimers();
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    await act(async () => { fireEvent.click(within(matrix).getByText('$1250').closest('button')!); });
+    tableMock.mockClear();
+    sliceMock.mockClear();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(tableMock).toHaveBeenCalledTimes(1);
+    expect(sliceMock).toHaveBeenCalledExactlyOnceWith({
+      market_product: 'E_METHANOL', delivery_point_id: 'dp-rotterdam', availability_window: '2026-Q3',
+    });
+  });
+
+  it('recovers an absent saved market and ignores its late slice response', async () => {
+    const absentCell = { ...rotterdamQuarter, delivery_point_id: '00000000-0000-0000-0000-000000000002', availability_window: 'SPOT' };
+    storeSelection(absentCell);
+    const staleSlice = deferred<ForwardCurveSliceResponse>();
+    sliceMock.mockImplementation(({ delivery_point_id }) => delivery_point_id === absentCell.delivery_point_id
+      ? staleSlice.promise : Promise.resolve(makeSlice(singaporeSpot)));
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    expect(sliceMock).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem('verdaxis_forward_curve_delivery_point')).toBe('dp-singapore');
+    await act(async () => staleSlice.resolve(makeSlice(absentCell)));
+    expect(screen.queryByText('$1215')).toBeNull();
+    expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
+  });
+
+  it('skips initial and periodic reads while hidden, resumes on visibility, and removes its listener', async () => {
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    const intervalSpy = vi.spyOn(window, 'setInterval');
+    const { unmount } = renderWithProviders(<ForwardCurveWorkspace />);
+    expect(tableMock).not.toHaveBeenCalled();
+    expect(sliceMock).not.toHaveBeenCalled();
+    act(() => intervalSpy.mock.calls.filter(([, delay]) => delay === 30_000).at(-1)?.[0]?.());
+    expect(tableMock).not.toHaveBeenCalled();
+
+    hidden.mockReturnValue(false);
+    fireEvent(document, new Event('visibilitychange'));
+    await screen.findByText('Indicative Period Range');
+    tableMock.mockClear();
+    sliceMock.mockClear();
+    hidden.mockReturnValue(true);
+    fireEvent(document, new Event('visibilitychange'));
+    act(() => intervalSpy.mock.calls.filter(([, delay]) => delay === 30_000).at(-1)?.[0]?.());
+    expect(tableMock).not.toHaveBeenCalled();
+    expect(sliceMock).not.toHaveBeenCalled();
+
+    hidden.mockReturnValue(false);
+    await act(async () => fireEvent(document, new Event('visibilitychange')));
+    expect(tableMock).toHaveBeenCalledTimes(1);
+    expect(sliceMock).toHaveBeenCalledTimes(1);
+    unmount();
+    fireEvent(document, new Event('visibilitychange'));
+    expect(tableMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries table and slice failures through manual refresh even while hidden', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const cell = { ...singaporeSpot, delivery_point_id: '00000000-0000-0000-0000-000000000001' };
+    storeSelection(cell);
+    tableMock.mockRejectedValueOnce(new Error('offline'));
+    sliceMock.mockRejectedValueOnce(new Error('offline'));
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await waitFor(() => expect(console.error).toHaveBeenCalledTimes(2));
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    sliceMock.mockResolvedValue(makeSlice(cell));
+    const table = makeTable();
+    table.rows[0] = { ...table.rows[0], delivery_point_id: cell.delivery_point_id, cells: { SPOT: cell } };
+    tableMock.mockResolvedValue(table);
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    await screen.findByText('Indicative Period Range');
+    expect(tableMock).toHaveBeenLastCalledWith({ windows: expect.any(Array) }, { force: true });
+    expect(sliceMock).toHaveBeenLastCalledWith({
+      market_product: cell.market_product,
+      delivery_point_id: cell.delivery_point_id,
+      availability_window: 'SPOT',
+    }, { force: true });
+    expect(sliceMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the last rapid selection when older slice responses finish later', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    const pendingRotterdam = deferred<ForwardCurveSliceResponse>();
+    const pendingSingapore = deferred<ForwardCurveSliceResponse>();
+    sliceMock.mockImplementation(({ market_product }) => market_product === 'E_METHANOL'
+      ? pendingRotterdam.promise : pendingSingapore.promise);
+    const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
+    fireEvent.click(within(matrix).getByText('$1250').closest('button')!);
+    fireEvent.click(within(matrix).getByText('$1015').closest('button')!);
+    await act(async () => pendingSingapore.resolve(makeSlice(singaporeSpot)));
+    await act(async () => pendingRotterdam.resolve(makeSlice(rotterdamQuarter)));
+    expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
+    expect(screen.queryByText('$1215')).toBeNull();
+  });
+
+  it('keeps slice navigation within the loaded market table', async () => {
+    renderWithProviders(<ForwardCurveWorkspace />);
+    await screen.findByText('Indicative Period Range');
+    sliceMock.mockClear();
+    // This response points to a quarter missing from the selected market row.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Next period' })); });
+    expect(sliceMock).not.toHaveBeenCalled();
+    expect(screen.getByText('No period selected')).toBeTruthy();
   });
 
   it('selects a populated product-port-period cell and opens that exact slice in Marketplace', async () => {

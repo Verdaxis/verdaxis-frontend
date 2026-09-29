@@ -7,6 +7,12 @@ import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
 
 const newsListMock = vi.fn();
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
+};
 const NEWS_ITEM = {
   id: 'news-1',
   title: 'Green methanol market expands',
@@ -29,6 +35,7 @@ vi.mock('../services/api', () => ({
 describe('NewsFeed Chinese localization', () => {
   afterEach(async () => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     await act(async () => {
       await i18n.changeLanguage('en');
     });
@@ -80,5 +87,48 @@ describe('NewsFeed Chinese localization', () => {
 
     expect(screen.getByText(NEWS_ITEM.title)).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it.each(['success', 'failure'] as const)('ignores an old %s after closing and reopening the feed', async (outcome) => {
+    const oldRead = deferred<typeof NEWS_ITEM[]>();
+    const newRead = deferred<typeof NEWS_ITEM[]>();
+    newsListMock.mockReturnValueOnce(oldRead.promise).mockReturnValueOnce(newRead.promise);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { rerender } = renderWithProviders(<NewsFeed active />);
+    rerender(<NewsFeed active={false} />);
+    rerender(<NewsFeed active />);
+    expect(newsListMock).toHaveBeenCalledTimes(2);
+
+    // An empty current response also exposes an incorrect late error banner.
+    await act(async () => newRead.resolve([]));
+    await act(async () => {
+      if (outcome === 'success') oldRead.resolve([NEWS_ITEM]);
+      else oldRead.reject(new Error('obsolete request failed'));
+    });
+    expect(screen.queryByText(NEWS_ITEM.title)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('keeps the new category loading when an older request finishes and ignores unmounted requests', async () => {
+    const oldRead = deferred<typeof NEWS_ITEM[]>();
+    const newRead = deferred<typeof NEWS_ITEM[]>();
+    const unmountedRead = deferred<typeof NEWS_ITEM[]>();
+    newsListMock.mockReturnValueOnce(oldRead.promise)
+      .mockReturnValueOnce(newRead.promise).mockReturnValueOnce(unmountedRead.promise);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { unmount } = renderWithProviders(<NewsFeed />);
+    fireEvent.click(screen.getByRole('button', { name: '航运' }));
+    await act(async () => oldRead.resolve([NEWS_ITEM]));
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByText(NEWS_ITEM.title)).toBeNull();
+    await act(async () => newRead.resolve([{ ...NEWS_ITEM, title: 'Shipping update' }]));
+    expect(screen.getByText('Shipping update')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '市场' }));
+    unmount();
+    await act(async () => unmountedRead.reject(new Error('obsolete request failed')));
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
