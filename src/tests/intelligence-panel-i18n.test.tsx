@@ -214,9 +214,9 @@ describe('IntelligencePanel localization', () => {
   });
 
   it('includes UCOME B100 after the existing catalog products in forward references', async () => {
-    const alcoholProducts: Product[] = [
+    const alcoholProducts: Product[] = ([
       'BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'SYNTHETIC_ETHANOL',
-    ].map(market_product => ({
+    ] as const).map(market_product => ({
       id: market_product, name: market_product, market_product,
       fuel_type: 'Methanol', fuel_grade: market_product, unit: 'MT', min_lot_size: 1, is_active: true,
     }));
