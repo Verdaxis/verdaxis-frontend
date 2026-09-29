@@ -304,26 +304,23 @@ export const MarketWatchTicker: React.FC<MarketWatchTickerProps> = ({
         const loadRows = async () => {
             const slices = selectedPorts.flatMap(port => selectedProducts.map(product => ({ port, product })));
             setRows(slices.map(({ port, product }) => buildLoadingRow(port, product)));
-            if (deliveryPoints === null) return;
-            const summariesByProduct = new Map<MarketProduct, PriceSummary[]>();
-            await Promise.all(selectedProducts.map(async product => {
-                try {
-                    const response = await api.prices.getSummaries({
-                        market_product: product,
-                        availability_window: 'SPOT',
-                        hours: 168,
-                    });
-                    summariesByProduct.set(product, response.summaries ?? []);
-                } catch (error) {
-                    console.warn('Market watch price summary unavailable', error);
-                    summariesByProduct.set(product, []);
-                }
-            }));
+            if (deliveryPoints === null || slices.length === 0) return;
+            let summaries: PriceSummary[] = [];
+            try {
+                const response = await api.prices.getSummaries({
+                    ...(selectedProducts.length === 1 ? { market_product: selectedProducts[0] } : {}),
+                    availability_window: 'SPOT',
+                    hours: 168,
+                });
+                summaries = response.summaries ?? [];
+            } catch (error) {
+                console.warn('Market watch price summary unavailable', error);
+            }
 
             const nextRows = slices.map(({ port, product }) => {
                 const deliveryPointId = getCatalogDeliveryPointId(port, deliveryPoints);
                 const summary = deliveryPointId
-                    ? findMatchingSummary(summariesByProduct.get(product) ?? [], product, deliveryPointId)
+                    ? findMatchingSummary(summaries, product, deliveryPointId)
                     : undefined;
                 const summaryRow = summary ? buildSummaryRow(port, product, summary) : null;
                 const demoQuote = demoQuotes.find(quote => (

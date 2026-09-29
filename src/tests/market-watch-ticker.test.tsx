@@ -6,7 +6,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MarketWatchTicker } from '../components/map/MarketWatchTicker';
 import { PORTS } from '../data';
 import i18n, { loadNamespace } from '../i18n';
-import type { AggregatedOrderbook } from '../types';
+import type { AggregatedOrderbook, PriceDiscoveryResponse } from '../types';
 import { renderWithProviders } from './test-utils';
 
 const priceSummariesMock = vi.fn();
@@ -100,6 +100,111 @@ describe('MarketWatchTicker', () => {
       portIds: ['nl-rtm', 'sg-sin', 'br-ssz'],
     }));
   };
+
+  it('loads all six default fuels with one SPOT summary request', async () => {
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    await waitFor(() => expect(screen.getAllByText('Demo').length).toBeGreaterThan(0));
+
+    expect(screen.getByText(/6 fuels/)).toBeTruthy();
+    expect(priceSummariesMock).toHaveBeenCalledExactlyOnceWith({ availability_window: 'SPOT', hours: 168 });
+    for (const label of ['Bio Methanol', 'e-Methanol', 'Bio Ethanol', 'e-Ethanol', 'B30', 'B100']) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('matches batched summaries to only selected fuel, catalog port and SPOT, with REAL before DEMO', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['B30', 'B100'], portIds: ['sg-sin'] }));
+    priceSummariesMock.mockResolvedValue({
+      summaries: [
+        makeSummary({ market_product: 'B30', delivery_point_id: 'dp-rotterdam-uuid', last_price: 801 }),
+        makeSummary({ market_product: 'B30', availability_window: '2026-Q4', last_price: 802 }),
+        makeSummary({ market_product: 'B30', delivery_point_id: 'sg-sin', last_price: 803 }),
+        makeSummary({ market_product: 'BIO_METHANOL', last_price: 804 }),
+        makeSummary({ market_product: 'B30', source_kind: 'CONFIRMED_TRADE', demo_status: 'REAL_ONLY', last_price: 1123 }),
+        makeSummary({ market_product: 'B100', source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY', last_price: 1345 }),
+        makeSummary({ market_product: 'B30', source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY', last_price: 805 }),
+      ],
+      generated_at: new Date().toISOString(),
+    });
+
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+
+    expect(await screen.findByText('$1123')).toBeTruthy();
+    expect(screen.getByText('$1345')).toBeTruthy();
+    expect(screen.getByText('Recent')).toBeTruthy();
+    expect(screen.getByText('Demo')).toBeTruthy();
+    expect(screen.getAllByText('Singapore')).toHaveLength(2);
+    expect(screen.queryByText('Rotterdam')).toBeNull();
+    expect(screen.queryByText('Bio Methanol')).toBeNull();
+    for (const price of [801, 802, 803, 804, 805]) expect(screen.queryByText(`$${price}`)).toBeNull();
+    expect(priceSummariesMock).toHaveBeenCalledExactlyOnceWith({ availability_window: 'SPOT', hours: 168 });
+  });
+
+  it('uses disclosed demo rows when the batch fails', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['B30', 'B100'], portIds: ['sg-sin'] }));
+    priceSummariesMock.mockRejectedValue(new Error('summary unavailable'));
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+      expect(await screen.findByText('$1105')).toBeTruthy();
+      expect(screen.getByText('$1362')).toBeTruthy();
+      expect(screen.getAllByText('Demo')).toHaveLength(2);
+      expect(priceSummariesMock).toHaveBeenCalledTimes(1);
+      expect(warning).toHaveBeenCalledWith('Market watch price summary unavailable', expect.any(Error));
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
+  it('does not request summaries when no approved ports can form a selected slice', async () => {
+    renderWithProviders(<MarketWatchTicker
+      isPanelOpen={false}
+      onOpenPanel={vi.fn()}
+      ports={[{ ...PORTS[0], name: 'Unapproved port' }]}
+    />);
+
+    await act(async () => {});
+    expect(deliveryPointsMock).toHaveBeenCalledTimes(1);
+    expect(priceSummariesMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/0 points/)).toBeTruthy();
+  });
+
+  it('does not load delivery points or summaries while inactive', async () => {
+    renderWithProviders(<MarketWatchTicker active={false} isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    await act(async () => {});
+    expect(deliveryPointsMock).not.toHaveBeenCalled();
+    expect(priceSummariesMock).not.toHaveBeenCalled();
+  });
+
+  it('does not replace a new selection with an older summary response', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ products: ['B30'], portIds: ['sg-sin'] }));
+    let resolveOldRequest!: (response: PriceDiscoveryResponse) => void;
+    priceSummariesMock.mockReturnValueOnce(new Promise<PriceDiscoveryResponse>(resolve => { resolveOldRequest = resolve; }));
+    priceSummariesMock.mockResolvedValue({
+      summaries: [
+        makeSummary({ market_product: 'B30', last_price: 1111 }),
+        makeSummary({ market_product: 'B100', last_price: 1333 }),
+      ],
+      generated_at: new Date().toISOString(),
+    });
+
+    renderWithProviders(<MarketWatchTicker isPanelOpen={false} onOpenPanel={vi.fn()} ports={PORTS} />);
+    await waitFor(() => expect(priceSummariesMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Configure market watch' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B100' }));
+    expect(await screen.findByText('$1333')).toBeTruthy();
+    expect(priceSummariesMock).toHaveBeenNthCalledWith(1, { market_product: 'B30', availability_window: 'SPOT', hours: 168 });
+    expect(priceSummariesMock).toHaveBeenNthCalledWith(2, { availability_window: 'SPOT', hours: 168 });
+
+    await act(async () => resolveOldRequest({
+      summaries: [makeSummary({ market_product: 'B30', last_price: 999 })],
+      generated_at: new Date().toISOString(),
+    }));
+    expect(screen.getByText('$1111')).toBeTruthy();
+    expect(screen.getByText('$1333')).toBeTruthy();
+    expect(screen.queryByText('$999')).toBeNull();
+  });
 
   it('formats availability windows and market status copy in Chinese', async () => {
     await loadNamespace('dashboard');
@@ -337,8 +442,9 @@ describe('MarketWatchTicker', () => {
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     expect(stored.products).toEqual(['BIO_METHANOL', 'E_METHANOL', 'BIO_ETHANOL', 'B30', 'B100']);
-    expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'B30' }));
-    expect(priceSummariesMock).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'B100' }));
+    expect(priceSummariesMock).toHaveBeenLastCalledWith({ availability_window: 'SPOT', hours: 168 });
+    expect(screen.getAllByText('B30').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('B100').length).toBeGreaterThan(1);
     expect(stored.portIds).toEqual(['nl-rtm', 'sg-sin', 'br-ssz', 'cn-sha']);
   });
 });

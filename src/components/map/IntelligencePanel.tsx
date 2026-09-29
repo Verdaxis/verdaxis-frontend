@@ -66,11 +66,12 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         : '--';
 
     useEffect(() => {
-        if (!active) return;
+        if (!active || !isOpen || !ready || activeTab !== 'PRIMARY' || selectedPort) return;
         let cancelled = false;
         (async () => {
             try {
                 const products: Product[] = await api.catalog.products();
+                if (cancelled) return;
                 const activeProducts = products.filter(product => (
                     product.is_active && product.market_product && MARKET_PRODUCTS.includes(product.market_product)
                 ));
@@ -104,7 +105,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             }
         })();
         return () => { cancelled = true; };
-    }, [active]);
+    }, [active, isOpen, ready, activeTab, selectedPort]);
 
 
     if (!ready) return null;
@@ -330,7 +331,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             <div className="min-h-0 flex-1 overflow-hidden">
                 {activeTab === 'NEWS' ? (
                     <div className="h-full p-4">
-                        <NewsFeed active={active} embedded />
+                        <NewsFeed active={active && isOpen} embedded />
                     </div>
                 ) : (
                     <div className="h-full space-y-5 overflow-y-auto p-5">

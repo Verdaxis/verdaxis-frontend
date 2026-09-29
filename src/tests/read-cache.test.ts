@@ -97,6 +97,40 @@ describe('bounded API read cache', () => {
         expect(unexpectedLoad).not.toHaveBeenCalled();
     });
 
+    it('shares forced reads until invalidation, without reusing an older ordinary read', async () => {
+        const oldRequest = deferred<string>();
+        const freshRequest = deferred<string>();
+        const old = cachedRead('orderbook:list', 'public', 1_000, () => oldRequest.promise);
+        const freshLoad = vi.fn(() => freshRequest.promise);
+        const firstRefresh = cachedRead('orderbook:list', 'public', 1_000, freshLoad, true);
+        const secondRefresh = cachedRead('orderbook:list', 'public', 1_000, freshLoad, true);
+        expect(secondRefresh).toBe(firstRefresh);
+        expect(freshLoad).toHaveBeenCalledTimes(1);
+
+        // A mutation or stream event must make the pending refresh obsolete.
+        invalidateReadCache('orderbook:');
+        await expect(cachedRead('orderbook:list', 'public', 1_000, async () => 'after-event', true))
+            .resolves.toBe('after-event');
+        freshRequest.resolve('before-event');
+        oldRequest.resolve('old');
+        await expect(Promise.all([old, firstRefresh, secondRefresh]))
+            .resolves.toEqual(['old', 'before-event', 'before-event']);
+        const unexpectedLoad = vi.fn(async () => 'unexpected');
+        await expect(cachedRead('orderbook:list', 'public', 1_000, unexpectedLoad)).resolves.toBe('after-event');
+        expect(unexpectedLoad).not.toHaveBeenCalled();
+    });
+
+    it('allows a fresh forced read after a shared refresh fails', async () => {
+        const request = deferred<string>();
+        const first = cachedRead('curves:table', 'public', 1_000, () => request.promise, true);
+        const second = cachedRead('curves:table', 'public', 1_000, () => request.promise, true);
+        const failure = Promise.allSettled([first, second]);
+        request.reject(new Error('offline'));
+        expect((await failure).every(result => result.status === 'rejected')).toBe(true);
+        await expect(cachedRead('curves:table', 'public', 1_000, async () => 'recovered', true))
+            .resolves.toBe('recovered');
+    });
+
     it('rejects private results completed after account or assisted-context switches', async () => {
         setAccessToken('account-a');
         const accountRequest = deferred<string>();
