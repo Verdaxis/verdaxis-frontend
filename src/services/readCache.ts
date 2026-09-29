@@ -18,6 +18,7 @@ interface CachedValue {
 interface PendingValue {
     promise: Promise<unknown>;
     resourceKey: string;
+    refresh: boolean;
 }
 
 const values = new Map<string, CachedValue>();
@@ -87,10 +88,14 @@ export const cachedRead = <T>(
     load: () => Promise<T>,
     refresh = false,
 ): Promise<T> => {
-    if (refresh) invalidateReadCache(resourceKey);
-
     const requestScope = scope === 'private' ? privateScope() : 'shared';
     const key = scopedKey(resourceKey, scope);
+    // Repeated refresh clicks can share a fresh read. Mutations/events still
+    // remove pending entries, so their next read cannot reuse older work.
+    const refreshing = pending.get(key);
+    if (refresh && refreshing?.refresh) return refreshing.promise as Promise<T>;
+    if (refresh) invalidateReadCache(resourceKey);
+
     const cached = values.get(key);
     if (cached && cached.expiresAt > Date.now()) {
         values.delete(key);
@@ -119,7 +124,7 @@ export const cachedRead = <T>(
     }).finally(() => {
         if (pending.get(key)?.promise === request) pending.delete(key);
     });
-    pending.set(key, { promise: request, resourceKey });
+    pending.set(key, { promise: request, resourceKey, refresh });
     return request;
 };
 

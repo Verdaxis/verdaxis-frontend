@@ -125,7 +125,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
         : '--';
 
     useEffect(() => {
-        if (!active) return;
+        if (!active || !isOpen || !ready || activeTab !== 'PRIMARY') return;
         let cancelled = false;
         setCurveStatus('loading');
         setCurveProducts([]);
@@ -154,7 +154,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             }
         })();
         return () => { cancelled = true; };
-    }, [active, curveProduct, deliveryPointId]);
+    }, [active, curveProduct, deliveryPointId, isOpen, ready, activeTab]);
 
 
     if (!ready) return null;
@@ -399,7 +399,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
             <div className="min-h-0 flex-1 overflow-hidden">
                 {activeTab === 'NEWS' ? (
                     <div className="h-full p-4">
-                        <NewsFeed active={active} embedded />
+                        <NewsFeed active={active && isOpen} embedded />
                     </div>
                 ) : (
                     <div className="h-full space-y-5 overflow-y-auto p-5">
