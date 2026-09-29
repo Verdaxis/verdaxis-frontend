@@ -1199,7 +1199,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     </div>
 
                     <div className="flex min-w-0 flex-col gap-3 xl:max-h-[calc(100vh-230px)] xl:overflow-y-auto xl:sticky xl:top-3 xl:self-start">
-                        <section data-tour="forward-latest-signals" className="forward-curve-console__panel order-2 min-w-0 overflow-hidden border bg-[#080c13]">
+                        <section data-tour="forward-latest-signals" className="forward-curve-console__panel shrink-0 order-2 min-w-0 overflow-hidden border bg-[#080c13]">
                             <div className="flex items-center justify-between border-b border-slate-800 px-3 py-1.5">
                                 <div className="flex items-center gap-2">
                                     <TrendingUp size={13} className="text-blue-300" aria-hidden="true" />
@@ -1250,7 +1250,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             </div>
                         </section>
 
-                    <aside data-tour="forward-focus-panel" className="forward-curve-console__panel order-1 min-w-0 border bg-[#080c13]">
+                    <aside data-tour="forward-focus-panel" className="forward-curve-console__panel shrink-0 order-1 min-w-0 border bg-[#080c13]">
                         <div className="flex items-start justify-between gap-3 border-b border-slate-800 bg-[#080c13] px-3 py-2 xl:sticky xl:top-0 xl:z-10">
                             <div className="min-w-0">
                                 <div className="forward-curve-console__label flex items-center gap-2 font-bold uppercase tracking-[0.18em]">
