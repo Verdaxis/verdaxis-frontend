@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Activity, ArrowRight, ChevronLeft, ChevronRight, RefreshCw, Target, TrendingUp } from 'lucide-react';
 
 import { api } from '../services/api';
+import { MARKET_PRODUCTS } from '../types';
 import type {
     ForwardCurveBoardDepthLevel,
     ForwardCurveEvidenceLayer,
@@ -110,6 +111,10 @@ const getStoredSelection = (): SelectedSlice | null => {
     const deliveryPointId = localStorage.getItem(DELIVERY_POINT_STORAGE_KEY);
     const availabilityWindow = localStorage.getItem(WINDOW_STORAGE_KEY);
     if (!marketProduct || !deliveryPointId || !availabilityWindow) return null;
+    // Only canonical saved keys can start a slice read before the table validates it.
+    if (!MARKET_PRODUCTS.includes(marketProduct)
+        || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(deliveryPointId)
+        || !getForwardCurveTableWindows().includes(availabilityWindow)) return null;
     return { marketProduct, deliveryPointId, availabilityWindow };
 };
 
@@ -868,9 +873,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const [error, setError] = useState<string | null>(null);
     const tableRequestIdRef = useRef(0);
     const sliceRequestIdRef = useRef(0);
-    const forceNextSliceRef = useRef(false);
 
     const selectedCell = useMemo(() => findCell(table, selected), [table, selected]);
+    // A saved key can load early; once the table arrives, retain its market boundary.
+    const selectedForRead = table && !selectedCell ? null : selected;
     const allCells = useMemo(() => flattenCells(table), [table]);
     // Hide periods with no signal in ANY row: they carry zero monitoring
     // information and push populated quarters behind the horizontal scroll.
@@ -886,7 +892,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const fetchTable = useCallback(async (force = false) => {
         if (!ready) return;
-        if (force) forceNextSliceRef.current = true;
         const requestId = tableRequestIdRef.current + 1;
         tableRequestIdRef.current = requestId;
         setLoadingTable(true);
@@ -914,17 +919,10 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         }
     }, [ready, t]);
 
-    useEffect(() => {
+    const fetchSlice = useCallback((selection: SelectedSlice | null, force = false) => {
         if (!ready) return;
-        void fetchTable();
-        const interval = window.setInterval(() => void fetchTable(), REFRESH_INTERVAL_MS);
-        return () => window.clearInterval(interval);
-    }, [fetchTable, ready]);
-
-    useEffect(() => {
-        if (!ready) return;
-        if (!selected || !selectedCell) {
-            forceNextSliceRef.current = false;
+        const requestId = ++sliceRequestIdRef.current;
+        if (!selection) {
             setSlice(null);
             setSliceSelectionKey('');
             setPendingSliceKey('');
@@ -933,19 +931,15 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             return;
         }
 
-        const requestId = sliceRequestIdRef.current + 1;
-        sliceRequestIdRef.current = requestId;
-        const requestKey = sliceKey(selected);
+        const requestKey = sliceKey(selection);
         setPendingSliceKey(requestKey);
         setFailedSliceKey('');
         setLoadingSlice(true);
         const params = {
-            market_product: selected.marketProduct,
-            delivery_point_id: selected.deliveryPointId,
-            availability_window: selected.availabilityWindow,
+            market_product: selection.marketProduct,
+            delivery_point_id: selection.deliveryPointId,
+            availability_window: selection.availabilityWindow,
         };
-        const force = forceNextSliceRef.current;
-        forceNextSliceRef.current = false;
         const request = force
             ? api.curves.slice(params, { force: true })
             : api.curves.slice(params);
@@ -963,7 +957,37 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         }).finally(() => {
             if (requestId === sliceRequestIdRef.current) setLoadingSlice(false);
         });
-    }, [ready, selected, selectedCell]);
+    }, [ready]);
+
+    useEffect(() => {
+        if (!document.hidden) void fetchTable();
+        return () => { tableRequestIdRef.current += 1; };
+    }, [fetchTable]);
+
+    useEffect(() => {
+        if (!document.hidden) fetchSlice(selectedForRead);
+        return () => { sliceRequestIdRef.current += 1; };
+    }, [fetchSlice, selectedForRead]);
+
+    const refresh = useCallback((force = false) => {
+        void fetchTable(force);
+        fetchSlice(selectedForRead, force);
+    }, [fetchTable, fetchSlice, selectedForRead]);
+    const refreshRef = useRef(refresh);
+    useLayoutEffect(() => { refreshRef.current = refresh; }, [refresh]);
+
+    useEffect(() => {
+        if (!ready) return;
+        const refreshWhenVisible = () => {
+            if (!document.hidden) refreshRef.current();
+        };
+        const interval = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [ready]);
 
     const prepareSliceRefresh = (next: SelectedSlice) => {
         sliceRequestIdRef.current += 1;
@@ -1036,7 +1060,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => void fetchTable(true)}
+                            onClick={() => refresh(true)}
                             className="inline-flex h-8 items-center gap-1 border border-slate-700 px-2 text-xs font-bold uppercase tracking-wider text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40"
                         >
                             <RefreshCw size={12} className={loadingTable ? 'animate-spin' : ''} aria-hidden="true" />

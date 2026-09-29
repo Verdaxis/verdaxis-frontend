@@ -627,3 +627,9 @@
 - **Trigger:** The user asked for B100 supplier listing to follow the other fuels' style while capturing fields used by that fuel's industry.
 - **Rule:** Reuse the actual Post Supply and Marketplace listing flow. Select specification, grade, units and evidence fields for the fuel; distinguish operator certification, batch quality evidence and consignment sustainability documents. Permit unknown or unallocated batch values and preserve declaration status.
 - **Why:** A separate transaction method does not justify a separate listing experience, and reusing alcohol fields alone misses the quality and traceability distinctions for B100.
+
+### Preserve Target Branch Render Conditions When Porting Request Gates
+- **Date:** 2026-09-29
+- **Trigger:** A request guard copied from production skipped selected-port curve references that staging still renders.
+- **Rule:** Trace where each branch renders the dependent data and test global, selected-port, open, and closed modes before porting request gates.
+- **Why:** Shared component names do not imply identical data needs.

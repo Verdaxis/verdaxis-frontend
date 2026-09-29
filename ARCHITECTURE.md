@@ -207,12 +207,24 @@ keeps it hidden and inert on other routes. Account, organization, or assisted-co
 discard the instance. Return navigation resizes it and refreshes market data; offscreen feeds
 pause. The compact map-summary endpoint supplies market groups and recent ASK indications.
 Login does not prefetch either map implementation.
+Closed insights stop news refreshes; forward references load only for the visible Primary
+tab, using the selected fuel and port when present. The ticker batches covered fuels into
+one SPOT price read and still matches each displayed row by canonical fuel, catalog port,
+and window.
+
+**Forward monitoring reads:** A canonical saved selection starts its detail request alongside
+the table. The table validates that selection and chooses a fallback if it is no longer present.
+Visible table and detail refreshes run together every 30 seconds; changing the selection does
+not reset that deadline. Hidden tabs pause automatic reads and refresh when visible again.
+Request generation guards prevent obsolete responses from replacing the current selection.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, market data 15 seconds, and private activity 10 seconds.
 Private scope includes the auth session, accepted user/organization profile, and assisted
 context. Mutations invalidate before and after execution; SSE invalidates affected resources
 before consumers refresh. Superseded requests cannot populate or return another scope's data.
+Repeated forced reads share an already-forced pending request. Explicit invalidation still
+removes pending work, so a mutation or event cannot reuse a request from before invalidation.
 Command Center subscribes to private trade events and refreshes its action queue, totals,
 and Watchlist without requiring navigation away from the dashboard.
 The dashboard remounts its page subtree on account, organization, or assisted-context changes

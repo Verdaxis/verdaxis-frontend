@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Newspaper, ExternalLink, Clock } from 'lucide-react';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
@@ -49,36 +49,38 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({ active = true, embedded = fa
         return t('newsFeed.time.daysAgo', { count: Math.floor(hours / 24) });
     };
 
-    const fetchNews = useCallback(async () => {
-        try {
-            setError(false);
-            const params: { limit: number; category?: string } = { limit: 10 };
-            if (category !== 'all') params.category = category;
-            const data = await api.news.list(params);
-            setItems(data);
-        } catch (e) {
-            console.error('Failed to fetch news', e);
-            setError(true);
-        } finally {
-            setLoading(false);
-        }
-    }, [category]);
-
     useEffect(() => {
         if (!active) return;
+        let requestId = 0;
+        let cancelled = false;
+        const fetchNews = async () => {
+            const currentRequestId = ++requestId;
+            setError(false);
+            try {
+                const params: { limit: number; category?: string } = { limit: 10 };
+                if (category !== 'all') params.category = category;
+                const data = await api.news.list(params);
+                if (!cancelled && currentRequestId === requestId) setItems(data);
+            } catch (e) {
+                if (cancelled || currentRequestId !== requestId) return;
+                console.error('Failed to fetch news', e);
+                setError(true);
+            } finally {
+                if (!cancelled && currentRequestId === requestId) setLoading(false);
+            }
+        };
         setItems([]);
         setLoading(true);
-        fetchNews();
-    }, [active, fetchNews]);
-
-    // Auto-refresh every 15 minutes for live breaking news
-    useEffect(() => {
-        if (!active) return;
+        void fetchNews();
+        // Auto-refresh every 15 minutes while the feed is visible.
         const interval = setInterval(() => {
-            fetchNews();
+            void fetchNews();
         }, 15 * 60 * 1000);
-        return () => clearInterval(interval);
-    }, [active, fetchNews]);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [active, category]);
 
     if (!ready) return null;
 
