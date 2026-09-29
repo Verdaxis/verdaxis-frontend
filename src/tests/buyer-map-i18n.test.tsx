@@ -259,6 +259,7 @@ describe('BuyerMap failure localization', () => {
     renderWithProviders(<><BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} /><RouteProbe /></>);
 
     const filter = await screen.findByRole('button', { name: 'UCOME B100' });
+    await waitFor(() => expect(mapOptionsMock).toHaveBeenCalled());
     expect(screen.getByTestId('fallback-port-count').textContent).toBe('8');
     fireEvent.click(filter);
     expect(filter.getAttribute('aria-pressed')).toBe('true');
