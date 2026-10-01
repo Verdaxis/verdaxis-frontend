@@ -8,6 +8,11 @@ on:
         required: true
         default: true
         type: boolean
+      notify_release:
+        description: Send Telegram release notifications
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -58,8 +63,8 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ inputs.notify_release && secrets.TELEGRAM_BOT_TOKEN || '' }}
+          TELEGRAM_CHAT_ID: ${{ inputs.notify_release && secrets.TELEGRAM_CHAT_ID || '' }}
         run: |
           if [[ "${{ inputs.candidate_only }}" == "true" ]]; then
             bash scripts/release-vercel.sh --candidate-only
