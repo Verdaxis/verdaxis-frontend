@@ -250,7 +250,7 @@ describe('ForwardCurveWorkspace', () => {
     });
   });
 
-  it('renders the forward curve above the matrix with selected-period range evidence', async () => {
+  it('renders the forward curve above the matrix with a selected-period quote summary', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
     await screen.findByText('Latest Monitored Signals');
@@ -264,13 +264,97 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText('Bio Methanol · Singapore').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
 
-    await waitFor(() => {
-      expect(screen.getByText('Indicative Period Range')).toBeTruthy();
-    });
+    await screen.findByText('Spread');
+    expect(screen.getByText('$70')).toBeTruthy();
 
     expect(screen.queryByText('Indicative Forward Curve')).toBeNull();
     expect(screen.queryByText(/Expand period/i)).toBeNull();
     expect(screen.queryByText(/TradingView/i)).toBeNull();
+  });
+
+  it('reduces dense depth to best quotes and keeps live, demo, and midpoint semantics clear', async () => {
+    const liveMidpointCell = {
+      ...singaporeSpot,
+      primary_value: 1275,
+      primary_signal_type: 'ORDERBOOK_BID',
+      primary_source_kind: 'LIVE_ORDER',
+      public_source_label: 'Executable orderbook midpoint',
+      demo_status: 'REAL_ONLY',
+      real_order_count: 10,
+      demo_order_count: 10,
+    } as ForwardCurveMarketCell;
+    const table = makeTable();
+    table.rows = [{ ...table.rows[0], cells: { SPOT: liveMidpointCell } }];
+    table.columns = [table.columns[0]];
+    tableMock.mockResolvedValue(table);
+    sliceMock.mockResolvedValue({
+      ...makeSlice(liveMidpointCell),
+      depth_bids: Array.from({ length: 10 }, (_, index) => ({
+        price_per_mt_usd: 1274 - index,
+        quantity_mt: 3100 + index * 100,
+        order_count: 1,
+        source_kind: 'LIVE_ORDER' as const,
+        demo_status: 'REAL_ONLY' as const,
+      })),
+      depth_asks: Array.from({ length: 10 }, (_, index) => ({
+        price_per_mt_usd: 1276 + index,
+        quantity_mt: 2800 + index * 100,
+        order_count: 1,
+        source_kind: 'DEMO_SEED' as const,
+        demo_status: 'DEMO_ONLY' as const,
+      })),
+      trades: [{
+        price_per_mt_usd: 1000.75,
+        quantity_mt: 75,
+        confirmed_at: '2026-06-17T10:00:00Z',
+        source_kind: 'CONFIRMED_TRADE',
+        demo_status: 'REAL_ONLY',
+      }],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('3.1k MT available');
+    const summary = document.querySelector('[data-tour="forward-period-detail"]') as HTMLElement;
+    const focusPanel = document.querySelector('[data-tour="forward-focus-panel"]') as HTMLElement;
+    const curveMark = summary.querySelector('[data-curve-mark]') as HTMLElement;
+    expect(within(summary).getByText('$1,275')).toBeTruthy();
+    expect(within(summary).getByText('USD/MT')).toBeTruthy();
+    expect(within(summary).getByText('Orderbook midpoint')).toBeTruthy();
+    expect(within(summary).getByText('3.1k MT available')).toBeTruthy();
+    expect(within(summary).getByText('2.8k MT available')).toBeTruthy();
+    expect(within(summary).getAllByText('Live').length).toBeGreaterThan(0);
+    expect(within(summary).getByText('Demo')).toBeTruthy();
+    expect(within(curveMark).getByText('Live')).toBeTruthy();
+    expect(within(focusPanel).getByText('Trade')).toBeTruthy();
+    expect(within(summary).getByText('Monitoring mark only. It is not an executable offer.')).toBeTruthy();
+    expect(within(summary).getByText(/different or mixed sources/)).toBeTruthy();
+    expect(within(summary).queryByText('Executable orderbook midpoint')).toBeNull();
+    expect(within(summary).queryByText('$1,273')).toBeNull();
+    expect(within(summary).queryByText('Spread')).toBeNull();
+    expect(screen.getByText('$1,000.75')).toBeTruthy();
+    expect(screen.getAllByText('USD/MT').length).toBeGreaterThan(1);
+  });
+
+  it('does not promote a quote with missing provenance to live', async () => {
+    sliceMock.mockResolvedValue({
+      ...makeSlice(singaporeSpot),
+      depth_bids: [{
+        price_per_mt_usd: 990,
+        quantity_mt: 1000,
+        order_count: 1,
+        demo_status: 'REAL_ONLY',
+        real_order_count: 1,
+      }],
+      depth_asks: [],
+    });
+
+    renderWithProviders(<ForwardCurveWorkspace />);
+
+    await screen.findByText('1.0k MT available');
+    const summary = document.querySelector('[data-tour="forward-period-detail"]') as HTMLElement;
+    expect(within(summary).getByText('Unknown')).toBeTruthy();
+    expect(within(summary).queryByText('Live')).toBeNull();
   });
 
   it('defaults to all periods and changes only the chart horizon, not the matrix or selected slice', async () => {
@@ -316,7 +400,8 @@ describe('ForwardCurveWorkspace', () => {
     expect(localStorage.getItem('verdaxis_forward_curve_window')).toBe(lastWindow);
     fireEvent.click(within(chart).getByRole('button', { name: '1Y' }));
     expect(within(chart).getByText(/Selected period is outside this horizon/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /open marketplace/i }));
+    const focusPanel = document.querySelector('[data-tour="forward-focus-panel"]') as HTMLElement;
+    fireEvent.click(within(focusPanel).getByRole('button', { name: 'View order book' }));
     expect(onOpenSlice).toHaveBeenCalledWith({ product: 'BIO_METHANOL', port: 'Singapore', window: lastWindow });
   });
 
@@ -341,7 +426,7 @@ describe('ForwardCurveWorkspace', () => {
     });
     tableMock.mockResolvedValue(table);
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('5.0k MT available');
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     const point = within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) });
     const selected = localStorage.getItem('verdaxis_forward_curve_window');
@@ -374,7 +459,7 @@ describe('ForwardCurveWorkspace', () => {
 
   it('supports focus and clears point details when focus, viewport, or horizon changes', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     const point = within(chart).getByRole('button', { name: 'Spot $1015' });
     act(() => point.focus());
@@ -402,7 +487,7 @@ describe('ForwardCurveWorkspace', () => {
     };
     tableMock.mockResolvedValue(table);
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $980' }));
     const tooltip = screen.getByRole('tooltip');
@@ -415,7 +500,7 @@ describe('ForwardCurveWorkspace', () => {
 
   it('places details beside the point when a short viewport has no room above or below', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     const height = window.innerHeight;
     Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
     const bounds = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
@@ -457,7 +542,7 @@ describe('ForwardCurveWorkspace', () => {
   it('refreshes the selected slice before the forced table read finishes', async () => {
     const intervalSpy = vi.spyOn(window, 'setInterval');
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     tableMock.mockClear();
     sliceMock.mockClear();
     let resolveJoinedTable!: (table: ForwardCurveTableResponse) => void;
@@ -506,7 +591,7 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.queryByText('Market Matrix')).toBeNull();
     await act(async () => pendingTable.resolve(table));
     await screen.findByText('Market Matrix');
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     expect(sliceMock).toHaveBeenCalledTimes(1);
   });
 
@@ -514,7 +599,7 @@ describe('ForwardCurveWorkspace', () => {
     vi.useFakeTimers();
     renderWithProviders(<ForwardCurveWorkspace />);
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    expect(screen.getByText('Indicative Period Range')).toBeTruthy();
+    expect(screen.getByText('Curve mark')).toBeTruthy();
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
     await act(async () => { fireEvent.click(within(matrix).getByText('$1250').closest('button')!); });
@@ -536,11 +621,11 @@ describe('ForwardCurveWorkspace', () => {
       ? staleSlice.promise : Promise.resolve(makeSlice(singaporeSpot)));
 
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     expect(sliceMock).toHaveBeenCalledTimes(2);
     expect(localStorage.getItem('verdaxis_forward_curve_delivery_point')).toBe('dp-singapore');
     await act(async () => staleSlice.resolve(makeSlice(absentCell)));
-    expect(screen.queryByText('$1215')).toBeNull();
+    expect(screen.queryByText('$1,215')).toBeNull();
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
   });
 
@@ -555,7 +640,7 @@ describe('ForwardCurveWorkspace', () => {
 
     hidden.mockReturnValue(false);
     fireEvent(document, new Event('visibilitychange'));
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     tableMock.mockClear();
     sliceMock.mockClear();
     hidden.mockReturnValue(true);
@@ -587,7 +672,7 @@ describe('ForwardCurveWorkspace', () => {
     table.rows[0] = { ...table.rows[0], delivery_point_id: cell.delivery_point_id, cells: { SPOT: cell } };
     tableMock.mockResolvedValue(table);
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     expect(tableMock).toHaveBeenLastCalledWith({ windows: expect.any(Array) }, { force: true });
     expect(sliceMock).toHaveBeenLastCalledWith({
       market_product: cell.market_product,
@@ -599,7 +684,7 @@ describe('ForwardCurveWorkspace', () => {
 
   it('keeps the last rapid selection when older slice responses finish later', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('Curve mark');
     const pendingRotterdam = deferred<ForwardCurveSliceResponse>();
     const pendingSingapore = deferred<ForwardCurveSliceResponse>();
     sliceMock.mockImplementation(({ market_product }) => market_product === 'E_METHANOL'
@@ -610,12 +695,12 @@ describe('ForwardCurveWorkspace', () => {
     await act(async () => pendingSingapore.resolve(makeSlice(singaporeSpot)));
     await act(async () => pendingRotterdam.resolve(makeSlice(rotterdamQuarter)));
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
-    expect(screen.queryByText('$1215')).toBeNull();
+    expect(screen.queryByText('$1,215')).toBeNull();
   });
 
   it('keeps slice navigation within the loaded market table', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('5.0k MT available');
     sliceMock.mockClear();
     // This response points to a quarter missing from the selected market row.
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Next period' })); });
@@ -772,7 +857,7 @@ describe('ForwardCurveWorkspace', () => {
 
     expect(screen.getAllByText('Indication').length).toBeGreaterThan(0);
     await waitFor(() => {
-      expect(screen.getAllByText('Market indication').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Sanitized market indication').length).toBeGreaterThan(0);
     });
     expect(screen.queryByText('Live')).toBeNull();
   });
@@ -939,7 +1024,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Indicative Period Range', {}, { timeout: 5000 });
+    await screen.findByText('5.0k MT available', {}, { timeout: 5000 });
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
 
     const matrix = document.querySelector('[data-tour="forward-market-matrix"]') as HTMLElement;
@@ -950,19 +1035,35 @@ describe('ForwardCurveWorkspace', () => {
     await waitFor(() => {
       expect(screen.queryByText('$980')).toBeNull();
     });
+    expect(screen.getByText('Refreshing latest print...')).toBeTruthy();
+    expect(screen.queryByText('No confirmed prints in this selected period.')).toBeNull();
 
     await act(async () => {
       resolveRotterdam?.(makeSlice(rotterdamQuarter));
     });
 
     await waitFor(() => {
-      expect(screen.getAllByText('$1215').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('$1,215').length).toBeGreaterThan(0);
     });
   });
 
-  it('shows distinct empty states when a selected period has no evidence, depth, or prints', async () => {
+  it('keeps a reference mark useful when the selected period has no quotes or prints', async () => {
+    const table = makeTable();
+    table.rows = [{
+      row_key: 'BIO_ETHANOL:dp-dalian',
+      market_product: 'BIO_ETHANOL',
+      product_name: 'BIO_ETHANOL',
+      representative_product_id: 'product-BIO_ETHANOL',
+      product_count: 1,
+      delivery_point_id: 'dp-dalian',
+      delivery_point_name: 'Dalian',
+      region: 'Asia',
+      cells: { SPOT: dalianReference },
+    }];
+    table.columns = [table.columns[0]];
+    tableMock.mockResolvedValue(table);
     sliceMock.mockResolvedValue({
-      ...makeSlice(singaporeSpot),
+      ...makeSlice(dalianReference),
       depth_bids: [],
       depth_asks: [],
       trades: [],
@@ -971,10 +1072,12 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('No price evidence for this exact period yet.');
-    expect(screen.getByText('No visible bid levels in this selected period.')).toBeTruthy();
-    expect(screen.getByText('No visible ask levels in this selected period.')).toBeTruthy();
+    await screen.findByText('No bid is available for this period.');
+    expect(screen.getAllByText('Benchmark reference').length).toBeGreaterThan(0);
+    expect(screen.getByText('No bid is available for this period.')).toBeTruthy();
+    expect(screen.getByText('No ask is available for this period.')).toBeTruthy();
     expect(screen.getByText('No confirmed prints in this selected period.')).toBeTruthy();
+    expect(screen.queryByText('Spread')).toBeNull();
   });
 
   it('shows a specific empty state when no approved forward curve rows are available', async () => {
@@ -999,7 +1102,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('5.0k MT available');
     expect(sliceMock).toHaveBeenCalledWith({
       market_product,
       delivery_point_id,
@@ -1008,13 +1111,13 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getAllByText(delivery_point_name).length).toBeGreaterThan(0);
   });
 
-  it('scales selected-period evidence when backend decimals arrive as strings', async () => {
+  it('formats selected-period quote values when backend decimals arrive as strings', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
 
-    await screen.findByText('Indicative Period Range');
+    await screen.findByText('5.0k MT available');
 
     expect(screen.getAllByText('$980').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('$1050').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$1,050').length).toBeGreaterThan(0);
     expect(screen.queryByText('$0')).toBeNull();
   });
 
@@ -1043,17 +1146,15 @@ describe('ForwardCurveWorkspace', () => {
     expect(screen.getByText('市场矩阵')).toBeTruthy();
     expect(screen.getByRole('group', { name: '交付期限范围' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '全部' })).toBeTruthy();
-    expect(await screen.findByText('所选期限的指示性价格区间')).toBeTruthy();
-    expect(await screen.findByText('买单、卖单、成交、意向报价和公允价值标记')).toBeTruthy();
+    expect(await screen.findByText('可用数量 5.0k MT')).toBeTruthy();
+    expect(screen.getByText('曲线标记')).toBeTruthy();
+    expect(await screen.findByText('可用报价')).toBeTruthy();
     expect(screen.getAllByText('所选期限').length).toBeGreaterThan(0);
     expect(screen.getAllByText('现货').length).toBeGreaterThan(0);
     expect((await screen.findAllByText('演示订单簿中间价')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('买单深度')).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^买单 \$/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/^卖单 \$/).length).toBeGreaterThan(0);
-    expect(screen.getByLabelText(/买单深度$/)).toBeTruthy();
-    expect(screen.queryByText(/^BID \$/)).toBeNull();
-    expect(screen.queryByText(/^ASK \$/)).toBeNull();
+    expect(screen.getByText('可用数量 5.0k MT')).toBeTruthy();
+    expect(screen.getByText('可用数量 4.5k MT')).toBeTruthy();
+    expect(screen.getByText('仅用于监控，不是可执行报价。')).toBeTruthy();
     expect(screen.queryByText('Latest Monitored Signals')).toBeNull();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     fireEvent.mouseEnter(within(chart).getByRole('button', { name: '现货 $1015' }));

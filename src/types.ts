@@ -455,7 +455,7 @@ export interface ForwardCurveBoardDepthLevel {
     price_per_mt_usd: number;
     quantity_mt: number;
     order_count: number;
-    source_kind?: ForwardCurveSignalSourceKind;
+    source_kind?: MarketSourceKind;
     demo_status?: MarketDemoStatus;
     real_order_count?: number;
     demo_order_count?: number;
