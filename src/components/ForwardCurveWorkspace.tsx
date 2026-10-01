@@ -6,10 +6,8 @@ import { api } from '../services/api';
 import { MARKET_PRODUCTS } from '../types';
 import type {
     ForwardCurveBoardDepthLevel,
-    ForwardCurveEvidenceLayer,
     ForwardCurveMarketCell,
     ForwardCurveSourceKind,
-    ForwardCurveSliceEvidencePoint,
     ForwardCurveSliceResponse,
     ForwardCurveTableColumn,
     ForwardCurveTableRow,
@@ -51,6 +49,12 @@ const currency = (value: number | string | null | undefined) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return '--';
     return `$${parsed.toFixed(0)}`;
+};
+
+const preciseCurrency = (value: number | string | null | undefined, locale = 'en') => {
+    const parsed = numericValue(value);
+    if (parsed == null) return '--';
+    return `$${parsed.toLocaleString(locale, { maximumFractionDigits: 2 })}`;
 };
 
 const numericValue = (value: number | string | null | undefined) => {
@@ -196,61 +200,29 @@ const signalTone = (
     demo_status: demoStatus,
 }, t);
 
-const sourceTone = (cell: ForwardCurveMarketCell, t: TFunction) => signalTone(
-    cell.primary_source_kind,
-    t,
-    cell.demo_status,
+type ForwardCurveMarkSource = Pick<
+    ForwardCurveMarketCell,
+    'primary_source_kind' | 'demo_status'
+>;
+
+const normalizedSourceLabel = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+const markSourceLabel = (value: string, t: TFunction) => (
+    normalizedSourceLabel(value) === 'executableorderbookmidpoint'
+        ? t('forwardCurve.summary.orderbookMidpoint')
+        : sourceLabel(value, t)
 );
 
-const getEvidenceLayerMeta = (t: TFunction): Record<ForwardCurveEvidenceLayer, {
-    label: string;
-    shortLabel: string;
-    toneClass: string;
-    markerClass: string;
-}> => ({
-    HISTORICAL_TRADE: {
-        label: t('forwardCurve.layer.lastPrint'),
-        shortLabel: t('forwardCurve.layer.lastShort'),
-        toneClass: 'text-cyan-300',
-        markerClass: 'rounded-full bg-cyan-300',
-    },
-    ORDERBOOK_BID: {
-        label: t('forwardCurve.layer.bid'),
-        shortLabel: t('forwardCurve.layer.bid'),
-        toneClass: 'text-emerald-300',
-        markerClass: 'rounded-sm bg-emerald-300',
-    },
-    ORDERBOOK_ASK: {
-        label: t('forwardCurve.layer.ask'),
-        shortLabel: t('forwardCurve.layer.ask'),
-        toneClass: 'text-rose-300',
-        markerClass: 'rounded-sm bg-rose-300',
-    },
-    MARKET_INDICATION: {
-        label: t('forwardCurve.layer.indication'),
-        shortLabel: t('forwardCurve.layer.indicationShort'),
-        toneClass: 'text-amber-300',
-        markerClass: 'rotate-45 rounded-[2px] bg-amber-300',
-    },
-    FAIR_PRICE_BAND: {
-        label: t('forwardCurve.layer.fairValue'),
-        shortLabel: t('forwardCurve.layer.fairShort'),
-        toneClass: 'text-fuchsia-300',
-        markerClass: 'rounded-sm bg-fuchsia-300',
-    },
-    BENCHMARK_MID: {
-        label: t('forwardCurve.layer.reference'),
-        shortLabel: t('forwardCurve.layer.referenceShort'),
-        toneClass: 'text-blue-300',
-        markerClass: 'w-0.5 rounded-none bg-blue-300',
-    },
-    PHYSICAL_STEM: {
-        label: t('forwardCurve.layer.physicalStem'),
-        shortLabel: t('forwardCurve.layer.stemShort'),
-        toneClass: 'text-slate-300',
-        markerClass: 'rounded-full bg-slate-300',
-    },
-});
+const sourceTone = (mark: ForwardCurveMarkSource, t: TFunction) => (
+    signalTone(mark.primary_source_kind, t, mark.demo_status)
+);
+
+const quoteScope = (level: ForwardCurveBoardDepthLevel | null): 'live' | 'demo' | null => {
+    if (!level) return null;
+    if (level.demo_status === 'REAL_ONLY' && level.source_kind === 'LIVE_ORDER') return 'live';
+    if (level.demo_status === 'DEMO_ONLY' && level.source_kind === 'DEMO_SEED') return 'demo';
+    return null;
+};
 
 const cellCurveValue = (cell: ForwardCurveMarketCell | null | undefined) => {
     if (!cell) return null;
@@ -294,7 +266,7 @@ const ForwardCurvePointTooltip: React.FC<{
         return parsed == null ? '--' : `$${parsed.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
     const priceSource = numericValue(cell.primary_value) != null
-        ? sourceLabel(cell.public_source_label, t)
+        ? markSourceLabel(cell.public_source_label, t)
         : t(numericValue(cell.best_bid) != null && numericValue(cell.best_ask) != null
             ? 'forwardCurve.chart.tooltip.midpoint'
             : numericValue(cell.best_bid) != null
@@ -682,180 +654,130 @@ const ForwardCurveChart: React.FC<{
     );
 };
 
-const PriceEvidenceStrip: React.FC<{ slice: ForwardCurveSliceResponse | null; loading: boolean; hasSelection: boolean }> = ({ slice, loading, hasSelection }) => {
-    const { t, ready } = useNamespace('trading');
-    const evidenceLayerMeta = getEvidenceLayerMeta(t);
-    const axis = useMemo(() => {
-        const evidence = slice?.evidence_points ?? [];
-        const priceValues = evidence.flatMap(point => [
-            point.price_per_mt_usd,
-            point.low_price_per_mt_usd,
-            point.high_price_per_mt_usd,
-        ]).map(numericValue).filter((value): value is number => value != null);
-
-        if (!priceValues.length) {
-            return { evidence, min: 0, max: 0, range: 1 };
-        }
-
-        const rawMin = Math.min(...priceValues);
-        const rawMax = Math.max(...priceValues);
-        const padding = Math.max((rawMax - rawMin) * 0.18, 8);
-        const min = rawMin - padding;
-        const max = rawMax + padding;
-        return { evidence, min, max, range: Math.max(max - min, 1) };
-    }, [slice]);
-
-    if (!ready) return null;
-
-    if (loading) {
-        return (
-            <div className="forward-curve-console__panel forward-curve-console__muted flex min-h-[230px] items-center justify-center border bg-[#05080d]">
-                <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
-                {t('forwardCurve.evidence.refreshing')}
-            </div>
-        );
-    }
-
-    if (!hasSelection) {
-        return (
-            <div data-tour="forward-period-detail" className="forward-curve-console__panel forward-curve-console__muted flex min-h-[230px] items-center justify-center border bg-[#05080d] px-4 text-center">
-                {t('forwardCurve.evidence.select')}
-            </div>
-        );
-    }
-
-    if (!slice || axis.evidence.length === 0 || axis.evidence.every(point => (
-        numericValue(point.price_per_mt_usd) == null
-        && numericValue(point.low_price_per_mt_usd) == null
-        && numericValue(point.high_price_per_mt_usd) == null
-    ))) {
-        return (
-            <div data-tour="forward-period-detail" className="forward-curve-console__panel forward-curve-console__muted flex min-h-[230px] items-center justify-center border bg-[#05080d] px-4 text-center">
-                {t('forwardCurve.evidence.empty')}
-            </div>
-        );
-    }
-
-    const pricedEvidence = axis.evidence.filter(point => (
-        numericValue(point.price_per_mt_usd) != null
-        || numericValue(point.low_price_per_mt_usd) != null
-        || numericValue(point.high_price_per_mt_usd) != null
-    ));
-    const bandEvidence = pricedEvidence.filter(point => (
-        numericValue(point.low_price_per_mt_usd) != null
-        && numericValue(point.high_price_per_mt_usd) != null
-    ));
-    const pointEvidence = pricedEvidence.filter(point => numericValue(point.price_per_mt_usd) != null);
-
-    const position = (value: number | string | null | undefined) => {
-        const parsed = numericValue(value);
-        if (parsed == null) return '0%';
-        return `${Math.min(100, Math.max(0, ((parsed - axis.min) / axis.range) * 100))}%`;
-    };
-
-    const evidencePriceLabel = (point: ForwardCurveSliceEvidencePoint) => {
-        if (point.low_price_per_mt_usd != null && point.high_price_per_mt_usd != null) {
-            return `${currency(point.low_price_per_mt_usd)}-${currency(point.high_price_per_mt_usd)}`;
-        }
-        return currency(point.price_per_mt_usd);
-    };
-
-    return (
-        <div data-tour="forward-period-detail" className="forward-curve-console__panel border bg-[#05080d] p-3">
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <div className="forward-curve-console__label font-bold uppercase tracking-[0.18em]">{t('forwardCurve.evidence.title')}</div>
-                    <div className="forward-curve-console__dim mt-0.5">{t('forwardCurve.evidence.subtitle')}</div>
-                </div>
-                <div className="forward-curve-console__muted shrink-0 text-right font-mono uppercase tracking-wider">
-                    <div>{currency(axis.min)}</div>
-                    <div>{currency(axis.max)}</div>
-                </div>
-            </div>
-            <div className="relative mt-3 h-28">
-                <div className="absolute left-0 right-0 top-1/2 h-px bg-slate-700" aria-hidden="true" />
-                <div className="forward-curve-console__dim absolute left-0 top-[calc(50%+12px)] font-mono uppercase">{currency(axis.min)}</div>
-                <div className="forward-curve-console__dim absolute right-0 top-[calc(50%+12px)] font-mono uppercase">{currency(axis.max)}</div>
-                {bandEvidence.map((point, index) => {
-                    const lowPrice = numericValue(point.low_price_per_mt_usd);
-                    const highPrice = numericValue(point.high_price_per_mt_usd);
-                    if (lowPrice == null || highPrice == null) return null;
-                    const low = Math.min(lowPrice, highPrice);
-                    const high = Math.max(lowPrice, highPrice);
-                    return (
-                        <div
-                            key={`${point.layer}-band-${index}`}
-                            className="absolute top-1/2 h-6 -translate-y-1/2 border border-fuchsia-300/60 bg-fuchsia-300/15"
-                            style={{ left: position(low), width: `${Math.max(1, ((high - low) / axis.range) * 100)}%` }}
-                            aria-label={t('forwardCurve.evidence.fairBand', { low: currency(low), high: currency(high) })}
-                        />
-                    );
-                })}
-                {pointEvidence.map((point, index) => {
-                    const pointPrice = numericValue(point.price_per_mt_usd);
-                    if (pointPrice == null) return null;
-                    const meta = evidenceLayerMeta[point.layer];
-                    const verticalOffset = index % 2 === 0 ? '-top-6' : 'top-6';
-                    return (
-                        <div
-                            key={`${point.layer}-marker-${index}`}
-                            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
-                            style={{ left: position(pointPrice) }}
-                            aria-label={`${meta.label} ${currency(pointPrice)} ${sourceLabel(point.public_source_label, t)}`}
-                        >
-                            <div className="absolute left-1/2 top-1/2 h-12 w-px -translate-x-1/2 -translate-y-1/2 bg-slate-700" aria-hidden="true" />
-                            <div className={`relative z-10 h-3 w-3 ${meta.markerClass}`} />
-                            <div className={`absolute left-1/2 ${verticalOffset} -translate-x-1/2 whitespace-nowrap text-center`}>
-                                <div className={`forward-curve-console__badge font-bold uppercase tracking-wider ${meta.toneClass}`}>{meta.shortLabel}</div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="mt-3 grid gap-px bg-slate-900 sm:grid-cols-2">
-                {pricedEvidence.slice(0, 6).map((point, index) => {
-                    const meta = evidenceLayerMeta[point.layer];
-                    return (
-                        <div key={`${point.layer}-legend-${index}`} className="grid min-w-0 grid-cols-[auto_1fr_auto] items-center gap-2 bg-[#080c13] px-2 py-1.5">
-                            <div className={`forward-curve-console__badge font-bold uppercase tracking-wider ${meta.toneClass}`}>
-                                {meta.shortLabel}
-                            </div>
-                            <div className="min-w-0">
-                                <div className="forward-curve-console__dim truncate font-bold uppercase tracking-wider">{meta.label}</div>
-                                <div className="forward-curve-console__dim truncate">{sourceLabel(point.public_source_label, t)}</div>
-                            </div>
-                            <div className="font-mono text-xs font-bold text-slate-200">
-                                {evidencePriceLabel(point)}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
-};
-
-const DepthList: React.FC<{ label: string; levels: ForwardCurveBoardDepthLevel[]; tone: 'bid' | 'ask' }> = ({ label, levels, tone }) => {
+const SelectedPeriodSummary: React.FC<{
+    cell: ForwardCurveMarketCell | null;
+    slice: ForwardCurveSliceResponse | null;
+    loading: boolean;
+    failed: boolean;
+}> = ({ cell, slice, loading, failed }) => {
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     if (!ready) return null;
-    return <div className="forward-curve-console__panel border bg-[#080c13]">
-        <div className={`border-b border-slate-800 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] ${tone === 'bid' ? 'text-emerald-300' : 'text-rose-300'}`}>
-            {label}
-        </div>
-        <div className="max-h-[180px] divide-y divide-slate-900 overflow-y-auto">
-            {levels.length === 0 ? (
-                <div className="forward-curve-console__muted px-3 py-6 text-center">
-                    {tone === 'bid' ? t('forwardCurve.depth.noBids') : t('forwardCurve.depth.noAsks')}
+
+    if (!cell) {
+        return (
+            <div data-tour="forward-period-detail" className="forward-curve-console__panel forward-curve-console__muted flex min-h-48 items-center justify-center border bg-[#05080d] px-4 text-center">
+                {t('forwardCurve.summary.select')}
+            </div>
+        );
+    }
+
+    const formatPrice = (value: number | string | null | undefined) => preciseCurrency(value, locale);
+    const publicSource = markSourceLabel(cell.public_source_label, t);
+    const cellTone = sourceTone(cell, t);
+    const bestBid = slice?.depth_bids[0] ?? null;
+    const bestAsk = slice?.depth_asks[0] ?? null;
+    const bidScope = quoteScope(bestBid);
+    const askScope = quoteScope(bestAsk);
+    const comparableQuotes = Boolean(bestBid && bestAsk && bidScope && bidScope === askScope);
+    const spread = comparableQuotes && bestBid && bestAsk
+        ? Number(bestAsk.price_per_mt_usd) - Number(bestBid.price_per_mt_usd)
+        : null;
+
+    const quoteCard = (
+        label: string,
+        level: ForwardCurveBoardDepthLevel | null,
+        toneClass: string,
+        emptyText: string,
+    ) => {
+        const scope = quoteScope(level);
+        const tone = level
+            ? signalTone(scope === 'live' ? 'LIVE_ORDER' : level.source_kind, t, level.demo_status)
+            : null;
+        return (
+            <div className="min-w-0 bg-[#080c13] p-3">
+                <div className={`forward-curve-console__label font-bold uppercase tracking-[0.18em] ${toneClass}`}>{label}</div>
+                {level ? (
+                    <>
+                        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+                            <span className="font-mono text-lg font-bold tabular-nums text-slate-100">{formatPrice(level.price_per_mt_usd)}</span>
+                            <span className={`forward-curve-console__badge font-bold uppercase ${tone ? marketActivityTextClass(tone.tone) : 'text-slate-400'}`}>
+                                {tone?.shortLabel ?? t('marketActivity.unknown.short')}
+                            </span>
+                        </div>
+                        <div className="forward-curve-console__muted mt-1">
+                            {t('forwardCurve.summary.availableQuantity', { quantity: quantity(level.quantity_mt, locale) })}
+                        </div>
+                    </>
+                ) : (
+                    <div className="forward-curve-console__muted mt-3 min-h-10">{emptyText}</div>
+                )}
+            </div>
+        );
+    };
+
+    return (
+        <div data-tour="forward-period-detail" className="forward-curve-console__panel border bg-[#05080d]">
+            <div data-curve-mark className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <div className="forward-curve-console__label font-bold uppercase tracking-[0.18em]">{t('forwardCurve.summary.mark')}</div>
+                        <div className="mt-1 flex items-baseline gap-2">
+                            <span className="font-mono text-2xl font-bold tabular-nums text-slate-100">{formatPrice(cell.primary_value)}</span>
+                            <span className="forward-curve-console__muted uppercase">{t('forwardCurve.summary.priceUnit')}</span>
+                        </div>
+                    </div>
+                    <span className={`forward-curve-console__badge shrink-0 font-bold uppercase ${marketActivityTextClass(cellTone.tone)}`}>
+                        {cellTone.shortLabel}
+                    </span>
                 </div>
-            ) : levels.map((level, index) => (
-                <div key={`${label}-${index}`} className="forward-curve-console__body grid grid-cols-[1fr_auto] gap-2 px-3 py-2">
-                    <span className="font-mono font-bold text-slate-200">{currency(level.price_per_mt_usd)}</span>
-                    <span className="font-mono text-slate-400">{quantity(level.quantity_mt, locale)}</span>
+                <dl className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+                    <div>
+                        <dt className="forward-curve-console__dim uppercase tracking-widest">{t('forwardCurve.source')}</dt>
+                        <dd className="forward-curve-console__body mt-0.5 break-words text-slate-300">{publicSource}</dd>
+                    </div>
+                    <div>
+                        <dt className="forward-curve-console__dim uppercase tracking-widest">{t('forwardCurve.summary.sourceUpdated')}</dt>
+                        <dd className="forward-curve-console__body mt-0.5 font-mono text-slate-300">{ageLabel(cell.observed_at, t)}</dd>
+                    </div>
+                </dl>
+                <div className="forward-curve-console__muted mt-3 border-l-2 border-blue-400/50 pl-2">
+                    {t('forwardCurve.summary.notOffer')}
                 </div>
-            ))}
+            </div>
+
+            <div className="border-t border-slate-800">
+                <div className="forward-curve-console__label px-3 py-2 font-bold uppercase tracking-[0.18em]">{t('forwardCurve.summary.quotes')}</div>
+                {loading ? (
+                    <div className="forward-curve-console__muted flex min-h-28 items-center justify-center border-t border-slate-800">
+                        <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
+                        {t('forwardCurve.summary.refreshing')}
+                    </div>
+                ) : failed ? (
+                    <div role="alert" className="border-t border-rose-900/60 bg-rose-950/30 px-3 py-4 text-xs text-rose-300">
+                        {t('forwardCurve.summary.quoteError')}
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-2 gap-px border-t border-slate-800 bg-slate-900">
+                            {quoteCard(t('forwardCurve.summary.bestBid'), bestBid, 'text-emerald-300', t('forwardCurve.summary.noBid'))}
+                            {quoteCard(t('forwardCurve.summary.bestAsk'), bestAsk, 'text-rose-300', t('forwardCurve.summary.noAsk'))}
+                        </div>
+                        {spread != null ? (
+                            <div className="forward-curve-console__body flex items-center justify-between border-t border-slate-800 px-3 py-2 text-slate-300">
+                                <span>{t(spread < 0 ? 'forwardCurve.summary.crossedBy' : 'forwardCurve.summary.spread')}</span>
+                                <span className="font-mono font-bold tabular-nums">{formatPrice(Math.abs(spread))}</span>
+                            </div>
+                        ) : bestBid && bestAsk ? (
+                            <div className="forward-curve-console__dim border-t border-slate-800 px-3 py-2">
+                                {t('forwardCurve.summary.mixedSpread')}
+                            </div>
+                        ) : null}
+                    </>
+                )}
+            </div>
         </div>
-    </div>;
+    );
 };
 
 export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ onNavigate, onOpenSlice }) => {
@@ -1040,7 +962,6 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const latestSignals = table?.latest_signals ?? [];
     const activeCell = activeSlice?.cell ?? selectedCell;
     const evidenceLoading = loadingSlice || waitingForActiveSlice || Boolean(activeCell && !activeSlice && failedSliceKey !== selectedKey);
-    const activeTone = activeCell ? sourceTone(activeCell, t) : null;
 
     if (!ready) return null;
 
@@ -1175,7 +1096,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                                     </div>
                                                     <div className="forward-curve-console__dim mt-1 flex items-center justify-between gap-2 tracking-wider">
                                                         <span className="min-w-0 truncate">
-                                                            {cell ? sourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}
+                                                            {cell ? markSourceLabel(cell.public_source_label, t) : t('marketActivity.empty.label')}
                                                         </span>
                                                         {!empty && cell?.observed_at && (
                                                             <span className={`shrink-0 font-mono uppercase ${stale ? 'font-bold text-amber-400' : ''}`}>
@@ -1215,7 +1136,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                         {t('forwardCurve.signals.empty')}
                                     </div>
                                 ) : latestSignals.slice(0, 8).map(signal => {
-                                    const tone = signalTone(signal.primary_source_kind, t, signal.demo_status);
+                                    const tone = sourceTone(signal, t);
                                     const matchingCell = allCells.find(cell => (
                                         cell.market_product === signal.market_product
                                         && cell.delivery_point_id === signal.delivery_point_id
@@ -1285,61 +1206,58 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                             </div>
                         </div>
 
-                        {activeCell && (
-                            <div className="grid grid-cols-3 gap-px bg-slate-900">
-                                <div className="bg-[#080c13] p-3">
-                                    <div className="forward-curve-console__dim uppercase tracking-widest">{t('forwardCurve.primary')}</div>
-                                    <div className="mt-1 font-mono text-xl font-bold text-slate-100">{currency(activeCell.primary_value)}</div>
-                                </div>
-                                <div className="bg-[#080c13] p-3">
-                                    <div className="forward-curve-console__dim uppercase tracking-widest">{t('forwardCurve.source')}</div>
-                                    <div className={`forward-curve-console__badge mt-1 font-bold uppercase ${activeTone ? marketActivityTextClass(activeTone.tone) : 'text-slate-400'}`}>
-                                        {activeTone?.label ?? t('marketActivity.unknown.label')}
-                                    </div>
-                                    <div className="forward-curve-console__dim mt-0.5 truncate tracking-wider">
-                                        {sourceLabel(activeCell.public_source_label, t)}
-                                    </div>
-                                </div>
-                                <div className="bg-[#080c13] p-3">
-                                    <div className="forward-curve-console__dim uppercase tracking-widest">{t('forwardCurve.age')}</div>
-                                    <div className="mt-1 font-mono text-sm font-bold text-slate-300">{ageLabel(activeCell.observed_at, t)}</div>
-                                </div>
-                            </div>
-                        )}
-
                         <div className="space-y-3 p-3">
                             {activeCell?.market_product === 'UCOME_B100' && (
                                 <p className="text-xs leading-relaxed text-amber-200/90">{t('forwardCurve.specificationScope')}</p>
                             )}
-                            {failedSliceKey === selectedKey && (
-                                <div className="border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-xs text-rose-300">{t('forwardCurve.error')}</div>
-                            )}
-                            <PriceEvidenceStrip slice={activeSlice} loading={evidenceLoading} hasSelection={Boolean(activeCell)} />
-                            <div className="grid grid-cols-2 gap-3">
-                                <DepthList label={t('orderBook.bids')} levels={activeSlice?.depth_bids ?? []} tone="bid" />
-                                <DepthList label={t('orderBook.asks')} levels={activeSlice?.depth_asks ?? []} tone="ask" />
-                            </div>
+                            <SelectedPeriodSummary
+                                cell={activeCell}
+                                slice={activeSlice}
+                                loading={evidenceLoading}
+                                failed={failedSliceKey === selectedKey}
+                            />
                             <div className="forward-curve-console__panel border bg-[#080c13]">
                                 <div className="forward-curve-console__label border-b border-slate-800 px-3 py-2 font-bold uppercase tracking-[0.18em]">
-                                    {t('forwardCurve.historicalPrints')}
+                                    {t('forwardCurve.summary.latestPrint')}
                                 </div>
-                                <div className="max-h-[200px] divide-y divide-slate-900 overflow-y-auto">
-                                    {!activeSlice || activeSlice.trades.length === 0 ? (
+                                <div>
+                                    {evidenceLoading ? (
+                                        <div className="forward-curve-console__muted flex min-h-16 items-center justify-center px-3 py-4">
+                                            <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
+                                            {t('forwardCurve.summary.refreshingPrint')}
+                                        </div>
+                                    ) : failedSliceKey === selectedKey ? (
+                                        <div role="alert" className="bg-rose-950/30 px-3 py-4 text-xs text-rose-300">
+                                            {t('forwardCurve.summary.printError')}
+                                        </div>
+                                    ) : !activeSlice || activeSlice.trades.length === 0 ? (
                                         <div className="forward-curve-console__muted px-3 py-6 text-center">{t('forwardCurve.noPrints')}</div>
-                                    ) : activeSlice.trades.map((trade, index) => {
+                                    ) : activeSlice.trades.slice(0, 1).map((trade, index) => {
                                         const tone = describeMarketActivity({ source_kind: trade.source_kind, demo_status: trade.demo_status }, t);
                                         return (
-                                            <div key={`${trade.confirmed_at}-${index}`} className="forward-curve-console__body grid grid-cols-[1fr_auto] gap-2 px-3 py-2">
-                                                <span className="min-w-0 truncate text-slate-300">
-                                                    {quantity(trade.quantity_mt, locale)}
+                                            <div key={`${trade.confirmed_at}-${index}`} className="forward-curve-console__body grid grid-cols-[1fr_auto] items-center gap-2 px-3 py-2">
+                                                <span className="min-w-0 text-slate-300">
+                                                    <span>{quantity(trade.quantity_mt, locale)} · {ageLabel(trade.confirmed_at, t)}</span>
                                                     <span className={`forward-curve-console__badge ml-2 font-bold uppercase ${marketActivityTextClass(tone.tone)}`}>{tone.shortLabel}</span>
                                                 </span>
-                                                <span className="font-mono font-bold text-cyan-300">{currency(trade.price_per_mt_usd)}</span>
+                                                <span className="text-right">
+                                                    <span className="font-mono font-bold tabular-nums text-cyan-300">{preciseCurrency(trade.price_per_mt_usd, locale)}</span>
+                                                    <span className="forward-curve-console__dim ml-1 uppercase">{t('forwardCurve.summary.priceUnit')}</span>
+                                                </span>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={openMarketplace}
+                                disabled={!activeCell}
+                                className="inline-flex h-9 w-full items-center justify-center gap-1 border border-emerald-500/50 bg-emerald-500/10 px-3 text-xs font-bold uppercase tracking-wider text-emerald-300 hover:border-emerald-400 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-transparent disabled:text-slate-500"
+                            >
+                                {t('forwardCurve.viewOrderBook')}
+                                <ArrowRight size={13} aria-hidden="true" />
+                            </button>
                         </div>
                         </aside>
                     </div>
