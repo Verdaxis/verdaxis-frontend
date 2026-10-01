@@ -459,9 +459,9 @@ describe('ForwardCurveWorkspace', () => {
 
   it('supports focus and clears point details when focus, viewport, or horizon changes', async () => {
     renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Curve mark');
+    await screen.findByText('5.0k MT available');
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    const point = within(chart).getByRole('button', { name: 'Spot $1015' });
+    const point = await within(chart).findByRole('button', { name: 'Spot $1015' });
     act(() => point.focus());
     expect(screen.getByRole('tooltip')).toBeTruthy();
     fireEvent.mouseLeave(point);

@@ -596,7 +596,7 @@
 ### Wait For UI Readiness, Not Only Rendered Markup
 - **Date:** 2026-09-12
 - **Trigger:** The full suite exposed a dialog rendered before its keyboard effect and a controlled request resolved outside React's scheduler.
-- **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus, before sending input. Keep the original behavior assertions; do not mask the race with longer timeouts.
+- **Rule:** Resolve controlled promises inside `act`, and wait for the actual interaction milestone, such as dialog focus or loaded API data replacing fallback content, before sending input. An always-present heading is not a readiness signal for an async workspace. Keep the original behavior assertions; do not mask the race with longer timeouts.
 - **Why:** DOM presence does not prove that passive effects and committed async state are ready under concurrent worker load.
 
 ### Keep Brand Image Alternatives Language-Neutral
