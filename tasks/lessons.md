@@ -533,6 +533,7 @@
 - **Date:** 2026-09-14
 - **Trigger:** Extending listings to a rolling five years made Forward Curve labels overlap; the owner preferred sparse year labels plus 1Y / 3Y / All controls.
 - **Rule:** Test every chart consumer when extending delivery windows. Preserve all points and empty-period gaps, choose tick density from actual panel width, and do not enlarge labels on narrower panels. Horizon controls describe future delivery periods, not historical price action.
+- **Period-detail correction (2026-10-02):** Ten bids and ten asks also collide when every depth level receives a label on a compact price rail. Use a selected-period summary with best quotes and a link to the full order book. Keep the main curve across delivery periods. Validate the densest supported book, rather than only a sparse example.
 - **Why:** A fixed SVG axis that labels every period cannot scale to a longer horizon; reducing data or shrinking text hides the problem rather than fixing the axis.
 
 ### Avoid Shared Grid Row Stretch In Terminal Layouts
