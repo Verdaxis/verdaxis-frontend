@@ -7,6 +7,17 @@
   "buildCommand": "npm run build:prod && npm run build:check:prod",
   "outputDirectory": "dist",
   "installCommand": "npm ci --legacy-peer-deps",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
