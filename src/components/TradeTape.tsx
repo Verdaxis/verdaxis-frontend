@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Activity, Clock3, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import type { TradeTapeEntry } from '../types';
@@ -71,8 +71,20 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
     const [trades, setTrades] = useState<TradeTapeEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const requestGeneration = useRef(0);
+    const latestRequest = useRef(0);
+    const requestsInFlight = useRef(new Map<string, symbol>());
+    const needsInitialLoad = useRef(true);
+    const requestScope = JSON.stringify([fuelType, marketProduct, availability, region, deliveryPointId]);
+    const currentRequestScope = useRef(requestScope);
+    currentRequestScope.current = requestScope;
 
     const fetchData = useCallback(async (silent = false) => {
+        if (requestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        requestsInFlight.current.set(requestScope, requestToken);
+        const generation = requestGeneration.current;
+        const requestId = ++latestRequest.current;
         if (!silent) setLoading(true);
         try {
             const data = await api.tradeTape.list({
@@ -83,24 +95,48 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
                 availability_window: availability || undefined,
                 limit: 20,
             });
+            if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];
             setTrades(Array.isArray(items) ? items : []);
             setTotal(data.total ?? items.length ?? 0);
         } catch {
             // Silently fail — tape is informational
-            if (!silent) setTrades([]);
+            if (!silent && generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
+                setTrades([]);
+                setTotal(0);
+            }
         } finally {
-            if (!silent) setLoading(false);
+            if (requestsInFlight.current.get(requestScope) === requestToken) requestsInFlight.current.delete(requestScope);
+            if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
+                needsInitialLoad.current = false;
+                if (!silent) setLoading(false);
+            }
         }
-    }, [availability, deliveryPointId, fuelType, marketProduct, region]);
+    }, [availability, deliveryPointId, fuelType, marketProduct, region, requestScope]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
-
-    // 30s auto-refresh
     useEffect(() => {
-        const iv = setInterval(() => fetchData(true), 30_000);
-        return () => clearInterval(iv);
+        requestGeneration.current += 1;
+        needsInitialLoad.current = true;
+        setLoading(true);
+        if (!document.hidden) void fetchData(false);
+        return () => {
+            requestGeneration.current += 1;
+            requestsInFlight.current.delete(requestScope);
+        };
+    }, [fetchData, requestScope]);
+
+    // Refresh only while visible, including an immediate refresh when the page resumes.
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (!document.hidden) void fetchData(!needsInitialLoad.current);
+        };
+        const interval = window.setInterval(refreshWhenVisible, 30_000);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
     }, [fetchData]);
 
     if (!ready) return null;

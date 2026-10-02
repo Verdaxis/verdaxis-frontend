@@ -242,6 +242,79 @@ describe('Marketplace green fuels surface', () => {
     });
   });
 
+  it('waits for the delivery-point catalog before reading a selected port', async () => {
+    let resolveDeliveryPoints!: (points: Array<{ id: string; name: string; region: string; is_active: boolean }>) => void;
+    deliveryPoints.mockReturnValue(new Promise(resolve => { resolveDeliveryPoints = resolve; }));
+    setMarketplaceSlice();
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => expect(deliveryPoints).toHaveBeenCalledTimes(1), { timeout: 15_000 });
+    expect(listAsksPaged).not.toHaveBeenCalled();
+    expect(productCounts).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveDeliveryPoints([
+        { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(productCounts).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+    }, { timeout: 15_000 });
+
+    listAsksPaged.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
+
+    await waitFor(() => {
+      expect(listBids).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+    }, { timeout: 15_000 });
+    expect(listAsksPaged).not.toHaveBeenCalled();
+  }, 45_000);
+
+  it('clears counts when a new market scope count request fails', async () => {
+    productCounts
+      .mockResolvedValueOnce({
+        counts: { BIO_METHANOL: 1, E_METHANOL: 0, BIO_ETHANOL: 0, SYNTHETIC_ETHANOL: 0 },
+        total: 1,
+      })
+      .mockRejectedValueOnce(new Error('Counts unavailable'));
+
+    renderWithProviders(<Marketplace />);
+    expect(await screen.findByRole('button', { name: /Bio Methanol \(1\)/i }, { timeout: 15_000 })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Port' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Rotterdam/i }, { timeout: 15_000 }));
+
+    await waitFor(() => {
+      expect(productCounts).toHaveBeenLastCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-2',
+      }));
+    }, { timeout: 15_000 });
+    expect(screen.queryByRole('button', { name: /Bio Methanol \(1\)/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Bio Methanol$/i })).toBeTruthy();
+  }, 45_000);
+
   it.each(['B30', 'B100'])('filters %s and keeps its fixed specification visible when inspecting a listing', async (product) => {
     const biofuel = {
       ...listingsResponse.items[0], market_product: product, product_name: product, fuel_type: 'Biofuel',
@@ -983,5 +1056,42 @@ describe('Marketplace green fuels surface', () => {
     expect(within(listingRow).getByText('e-Methanol')).toBeTruthy();
     expect(within(listingRow).queryByText('Bio Methanol')).toBeNull();
   });
+
+  it('supersedes an in-flight listing when the user forces a refresh', async () => {
+    let resolveInitial!: (value: typeof listingsResponse) => void;
+    let resolveRefresh!: (value: typeof listingsResponse) => void;
+    const initialRequest = new Promise<typeof listingsResponse>(resolve => { resolveInitial = resolve; });
+    const refreshRequest = new Promise<typeof listingsResponse>(resolve => { resolveRefresh = resolve; });
+    let requestCount = 0;
+    listAsksPaged.mockImplementation(() => {
+      requestCount += 1;
+      return requestCount === 1 ? initialRequest : refreshRequest;
+    });
+
+    renderWithProviders(<Marketplace />);
+    await waitFor(() => expect(requestCount).toBe(1));
+    fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
+
+    await waitFor(() => expect(requestCount).toBe(2));
+    expect(listAsksPaged).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+
+    await act(async () => {
+      resolveRefresh({
+        ...listingsResponse,
+        items: [{ ...listingsResponse.items[0], id: 'forced-refresh' }],
+      });
+    });
+    expect(await screen.findByRole('button', { name: /lift ask/i })).toBeTruthy();
+    expect(document.querySelector('[data-order-id="forced-refresh"]')).toBeTruthy();
+
+    await act(async () => {
+      resolveInitial({
+        ...listingsResponse,
+        items: [{ ...listingsResponse.items[0], id: 'stale-initial' }],
+      });
+    });
+    expect(document.querySelector('[data-order-id="forced-refresh"]')).toBeTruthy();
+    expect(document.querySelector('[data-order-id="stale-initial"]')).toBeNull();
+  }, 30_000);
 
 });
