@@ -198,8 +198,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const renderActions = (trade: Trade) => {
         const userSide = getUserSide(trade);
         const isLoadingThis = actionLoadingId === trade.id;
+        const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
-        if (trade.status === 'PENDING_CONFIRMATION') {
+        if (normalizedStatus === 'PENDING_CONFIRMATION') {
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
                 (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
@@ -376,7 +377,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                     const price = tradeDisplayPricePerMt(trade);
                                     const total = tradeGrossNotionalUsd(trade);
                                     const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.CANCELLED;
-                                    const counterpartyIsHidden = trade.is_anonymous && trade.status === 'PENDING_CONFIRMATION';
+                                    const counterpartyIsHidden = trade.is_anonymous && normalizedStatus === 'PENDING_CONFIRMATION';
                                     const counterpartyName = userSide === 'BUYER'
                                         ? (trade.seller_name || t('myTrades.counterparty.seller'))
                                         : (trade.buyer_name || t('myTrades.counterparty.buyer'));
