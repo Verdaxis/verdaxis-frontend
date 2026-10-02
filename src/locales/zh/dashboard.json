@@ -48,6 +48,8 @@
   "buyerMap": {
     "loading": "正在加载情报地图...",
     "error": "无法加载情报地图，请稍后重试。",
+    "ecaOverlayError": "ECA / SECA 边界暂时不可用，地图仍可正常使用。",
+    "ecaOverlayRetry": "重新加载地图",
     "mapLabel": "交互式市场情报地图",
     "marketAvails": "市场可售量",
     "lastDone": "近期挂牌",

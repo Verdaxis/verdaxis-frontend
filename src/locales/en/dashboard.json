@@ -48,6 +48,8 @@
   "buyerMap": {
     "loading": "Loading Intelligence Map...",
     "error": "Unable to load the Intelligence Map. Please try again later.",
+    "ecaOverlayError": "ECA / SECA boundaries are unavailable. The map remains available.",
+    "ecaOverlayRetry": "Reload map",
     "mapLabel": "Interactive market intelligence map",
     "marketAvails": "Open Market Avails",
     "lastDone": "Recent Listings",

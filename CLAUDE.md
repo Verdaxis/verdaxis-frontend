@@ -13,7 +13,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Styling:** Tailwind CSS with `darkMode: 'class'`, custom `verdaxis` color tokens in `tailwind.config.js`
 - **State Management:** React Context (Auth, Theme, Copilot, Notifications) -- no Redux/Zustand
 - **Charts:** Recharts
-- **Maps:** Leaflet + react-leaflet (port intelligence map, producer map, vessel tracking)
+- **Maps:** Mapbox GL JS for port intelligence; Leaflet + react-leaflet for the producer map
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
 - **AI Copilot:** Chat UI and tool-calling loop backed by backend `/api/ai/chat`; no client-side Gemini key
@@ -41,7 +41,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Every authenticated request includes `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`.
+- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the explicit public market GET allowlist omits credentials, support context, and JSON request headers.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
@@ -74,7 +74,8 @@ manual, serialized `Release Vercel Production` workflow; staging remains an
 operator-run VPS deployment. `vercel.json` disables automatic Git deployments,
 so pushing a branch cannot bypass the release workflow.
 
-**Server:** `verdaxis-prod@144.126.151.136`
+**Production API/database:** EU VPS `169.58.37.164`; SSH alias `verdaxis-prod-eu`, administrator `verdaxis-admin`, runtime owner `verdaxis-prod`.
+**Staging host:** shared VPS `194.233.68.86`. Read `/home/verdaxis-prod/verdaxis/PRODUCTION_HOST.md` before deployment or recovery; the old shared-host production checkout is retired.
 **Production site:** `app.verdaxis.exchange`, `verdaxis.exchange`, and `www.verdaxis.exchange` (Vercel project `verdaxis-frontend`)
 **Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
 **API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)

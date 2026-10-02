@@ -2,7 +2,7 @@
 
 ## Tech Stack
 
-React 19 + TypeScript, Vite 6, Tailwind CSS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
+React 19 + TypeScript, Vite 6, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
 
 ## Runtime
 
@@ -29,7 +29,6 @@ src/
   App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
   routeMetadata.ts                 # EN/ZH public catalog, private metadata, canonical and static-head generation
   types.ts                         # All shared TypeScript interfaces (Port, Vessel, Order, Trade...)
-  utils.ts                         # Leaflet icon factory, heading calc, formatting helpers
   utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
   utils/forwardCurveAxis.ts        # Chart-only delivery horizons and width-aware sparse/detailed tick layout
   utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
@@ -66,7 +65,7 @@ src/
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
     LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
-    MobileDesktopGate.tsx          # Desktop-only gate for authenticated /app workspace on mobile widths
+    MobileDesktopGate.tsx          # Mounts authenticated workspace children only at desktop widths (768px and above)
     layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
     # Buyer views
     BuyerMap.tsx                   # Mapbox GL JS intelligence map (Light/Dark v11) using approved ports and product-specific marketplace SPOT references
@@ -120,14 +119,15 @@ src/
 
   data/
     eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
-    secaZones.ts                   # ECA geometry types, bundle metadata, and MapLibre source identifiers
+    secaZones.ts                   # ECA geometry types, bundle metadata, and Mapbox source identifiers
     producerProjects.ts            # Static producer project dataset (locations, capacities)
     fuelPrices.ts                  # Public ticker adapter for disclosed Demo orderbook midpoints
     calculatorDefaults.ts          # Defaults for energy calculator
     educationArticles.ts           # Education article content/metadata
 
   map/
-    addEcaLayers.ts                # Installs and toggles generated ECA polygon and label layers in MapLibre
+    addEcaLayers.ts                # Installs and toggles generated ECA polygon and label layers in Mapbox
+    loadEcaLayers.ts               # Loads ECA geometry after the map instance exists
 
   tests/
     setup.ts                       # Vitest jsdom polyfills (matchMedia, ResizeObserver, etc.)
@@ -206,7 +206,9 @@ redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
 keeps it hidden and inert on other routes. Account, organization, or assisted-context changes
 discard the instance. Return navigation resizes it and refreshes market data; offscreen feeds
 pause. The compact map-summary endpoint supplies market groups and recent ASK indications.
-Login does not prefetch either map implementation.
+Login does not prefetch either map implementation. ECA geometry loads after map
+creation; style changes retain the overlay, and a failed chunk offers a page reload.
+Leaflet and its CSS load only with the producer map.
 Closed insights stop news refreshes; forward references load only for the visible Primary
 tab without a selected port. The ticker batches multiple selected fuels into one SPOT price
 read and still matches each displayed row by canonical fuel, catalog port, and window.
@@ -216,6 +218,11 @@ the table. The table validates that selection and chooses a fallback if it is no
 Visible table and detail refreshes run together every 30 seconds; changing the selection does
 not reset that deadline. Hidden tabs pause automatic reads and refresh when visible again.
 Request generation guards prevent obsolete responses from replacing the current selection.
+
+**Market refresh:** Marketplace waits for selected-port catalog resolution before reading
+the exact slice. Product counts refresh across tabs; paged listings refresh only on the
+Market tab. Marketplace, orderbook, and tape polls pause while the browser tab is hidden
+and resume with a current-scope read. Superseded filter responses cannot replace current data.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, market data 15 seconds, and private activity 10 seconds.

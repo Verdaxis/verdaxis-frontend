@@ -167,8 +167,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasLoadedListings, setHasLoadedListings] = useState(false);
-    useDashboardContentReady('MARKETPLACE', ready && !loading && hasLoadedListings);
-    const latestFetchRequest = useRef(0);
+    const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
+    useDashboardContentReady('MARKETPLACE', ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
+    const listingRequestsInFlight = useRef(new Map<string, symbol>());
+    const countRequestsInFlight = useRef(new Map<string, symbol>());
+    const currentListingsRequest = useRef('');
+    const currentCountsRequest = useRef('');
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
@@ -176,6 +180,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [portInput, setPortInput] = useState(() => initialSlice?.port || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+    const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice) return initialSlice.window as AvailabilityWindow;
@@ -246,7 +251,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const [marketTab, setMarketTab] = useState<'market' | 'orderbook' | 'my_orders'>('market');
     const [myOrders, setMyOrders] = useState<OrderBookOrder[]>([]);
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
@@ -283,10 +287,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         const loadDeliveryPoints = async () => {
             try {
                 const response = await api.catalog.deliveryPoints();
-                if (!cancelled) setDeliveryPoints(response.filter(point => point.is_active !== false));
+                if (!cancelled) {
+                    setDeliveryPoints(response.filter(point => point.is_active !== false));
+                    setDeliveryPointsStatus('ready');
+                }
             } catch (error) {
                 console.warn('Marketplace delivery points unavailable', error);
-                if (!cancelled) setDeliveryPoints([]);
+                if (!cancelled) {
+                    setDeliveryPoints([]);
+                    setDeliveryPointsStatus('failed');
+                }
             }
         };
 
@@ -298,9 +308,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
 
     // ─── Data fetching ────────────────────────────────────────────
-    const fetchData = useCallback(async (silent = false, skip = 0, force = false) => {
-        if (!ready) return;
-        const requestId = ++latestFetchRequest.current;
+    const marketScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${marketProduct}:${availability}:${sortBy}`;
+    const countScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${availability}`;
+    const currentMarketScope = useRef(marketScopeKey);
+    const currentCountScope = useRef(countScopeKey);
+    currentMarketScope.current = marketScopeKey;
+    currentCountScope.current = countScopeKey;
+    const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
+
+    const fetchListings = useCallback(async (silent = false, skip = 0, force = false) => {
+        if (!ready || isCatalogScopeResolving) return;
+        const requestScope = `${marketScopeKey}:${skip}`;
+        currentListingsRequest.current = requestScope;
+        if (!force && listingRequestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        listingRequestsInFlight.current.set(requestScope, requestToken);
         if (silent) setRefreshing(true);
         else setLoading(true);
         setError(null);
@@ -315,6 +337,36 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 skip,
                 limit: PAGE_SIZE,
             };
+            const data = await (force
+                ? configBase.fetchOrders(orderParams, { force: true })
+                : configBase.fetchOrders(orderParams));
+            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
+            setListings(data.items);
+            setTotalCount(data.total);
+            setCurrentSkip(data.skip);
+            setHasLoadedListings(true);
+        } catch (err: any) {
+            console.error('Marketplace fetch error:', err);
+            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
+            setError(err instanceof Error ? err.message : '');
+        } finally {
+            const isCurrentRequest = listingRequestsInFlight.current.get(requestScope) === requestToken;
+            if (isCurrentRequest) listingRequestsInFlight.current.delete(requestScope);
+            if (isCurrentRequest && requestScope === currentListingsRequest.current && marketScopeKey === currentMarketScope.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        }
+    }, [availability, configBase, isCatalogScopeResolving, marketProduct, marketScopeKey, ready, resolvedDeliveryPointId, resolvedPort, sortBy]);
+
+    const fetchProductCounts = useCallback(async (force = false) => {
+        if (!ready || isCatalogScopeResolving) return;
+        const requestScope = countScopeKey;
+        currentCountsRequest.current = requestScope;
+        if (!force && countRequestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        countRequestsInFlight.current.set(requestScope, requestToken);
+        try {
             const countParams = {
                 side: role === 'BUYER' ? 'ASK' as const : 'BID' as const,
                 region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
@@ -322,52 +374,61 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 availability_window: availability || undefined,
                 include_off_spec: false,
             };
-            const ordersRequest = force
-                ? configBase.fetchOrders(orderParams, { force: true })
-                : configBase.fetchOrders(orderParams);
-            const countsRequest = force
+            const counts = await (force
                 ? api.orderbook.productCounts(countParams, { force: true })
-                : api.orderbook.productCounts(countParams);
-            const [data, counts] = await Promise.all([
-                ordersRequest,
-                countsRequest.catch(() => null),
-            ]);
-            if (requestId !== latestFetchRequest.current) return;
-            setListings(data.items);
-            setTotalCount(data.total);
-            setCurrentSkip(data.skip);
-            setMarketProductCounts(counts?.counts ?? {});
-            setHasLoadedListings(true);
-        } catch (err: any) {
-            console.error('Marketplace fetch error:', err);
-            if (requestId !== latestFetchRequest.current) return;
-            setError(err instanceof Error ? err.message : '');
+                : api.orderbook.productCounts(countParams));
+            if (countRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentCountsRequest.current || countScopeKey !== currentCountScope.current) return;
+            setMarketProductCounts(counts.counts ?? {});
+        } catch {
+            // Counts support shared filter context; keep the last known values on a transient failure.
         } finally {
-            if (requestId === latestFetchRequest.current) {
-                setLoading(false);
-                setRefreshing(false);
-            }
+            if (countRequestsInFlight.current.get(requestScope) === requestToken) countRequestsInFlight.current.delete(requestScope);
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy]);
+    }, [availability, countScopeKey, isCatalogScopeResolving, ready, resolvedDeliveryPointId, resolvedPort, role]);
 
     useEffect(() => {
         setHasLoadedListings(false);
+        setTotalCount(0);
     }, [availability, marketProduct, resolvedDeliveryPointId, resolvedPort, role, sortBy]);
+
+    useEffect(() => {
+        setMarketProductCounts({});
+    }, [countScopeKey]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
-        if (!ready) return;
-        fetchData(false, 0);
-    }, [fetchData, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (!ready || marketTab !== 'market' || document.hidden) return;
+        void fetchListings(false, 0);
+        return () => {
+            listingRequestsInFlight.current.clear();
+            currentListingsRequest.current = '';
+        };
+    }, [fetchListings, marketTab, ready]);
 
-    // 60s auto-refresh (silent)
     useEffect(() => {
         if (!ready) return;
-        const interval = setInterval(() => {
-            fetchData(true, currentSkip);
-        }, REFRESH_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [fetchData, currentSkip, ready]);
+        if (!document.hidden) void fetchProductCounts();
+        return () => {
+            countRequestsInFlight.current.clear();
+            currentCountsRequest.current = '';
+        };
+    }, [fetchProductCounts, ready]);
+
+    // Refresh only while the page is visible, and refresh immediately when it resumes.
+    useEffect(() => {
+        if (!ready) return;
+        const refreshWhenVisible = () => {
+            if (document.hidden) return;
+            void fetchProductCounts();
+            if (marketTab === 'market') void fetchListings(hasLoadedListings, currentSkip);
+        };
+        const interval = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [currentSkip, fetchListings, fetchProductCounts, hasLoadedListings, marketTab, ready]);
 
     // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
     // One batched authenticated fetch per distinct set of visible ASK ids.
@@ -473,6 +534,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
         [marketProductCounts],
     );
+    const currentSliceCount = marketTab === 'market'
+        ? totalCount
+        : marketProduct === ALL_MARKET_PRODUCTS
+            ? totalMarketProductCount
+            : marketProductCounts[marketProduct] || 0;
 
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
@@ -502,7 +568,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const handlePageChange = (newSkip: number) => {
         setHasLoadedListings(false);
-        fetchData(false, newSkip);
+        void fetchListings(false, newSkip);
     };
 
     const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
@@ -547,7 +613,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setCurrentSkip(0);
     }, []);
 
-    // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
+    // Market product changes are handled by the listing callback dependencies.
 
     const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
         setHighlightedOrderId(order.id);
@@ -701,10 +767,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         // Keep the success message visible briefly, then reload current quotes.
         const timer = setTimeout(() => {
             closeTradeModal();
-            void fetchData(true, currentSkip, true);
+            void fetchProductCounts(true);
+            if (marketTab === 'market') void fetchListings(true, currentSkip, true);
         }, 2000);
         return () => clearTimeout(timer);
-    }, [tradeState, closeTradeModal, fetchData, currentSkip]);
+    }, [tradeState, closeTradeModal, currentSkip, fetchListings, fetchProductCounts, marketTab]);
 
     const validateTradeQuantity = () => {
         if (!selectedOrder || tradeState === 'submitting') return null;
@@ -984,7 +1051,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </button>
                             <button
                                 type="button"
-                                onClick={() => fetchData(true, currentSkip, true)}
+                                onClick={() => {
+                                    void fetchProductCounts(true);
+                                    if (marketTab === 'market') void fetchListings(true, currentSkip, true);
+                                }}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -1113,7 +1183,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
                                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.currentSlice')}</div>
                                             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {totalCount.toLocaleString()} {t(totalCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
+                                                {currentSliceCount.toLocaleString()} {t(currentSliceCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
                                             </div>
                                             <div className="mt-1 text-xs text-slate-400">{sliceSummary}</div>
                                             <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-400">
@@ -1206,7 +1276,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             </div>
 
             {/* Error state */}
-            {error && !loading && !hasLoadedListings && (
+            {marketTab === 'market' && error && !loading && !hasLoadedListings && (
                 <div className="flex-1 min-h-0 overflow-auto px-4 lg:px-10 pb-4">
                     <div className="max-w-7xl mx-auto">
                         <div role="alert" className="v-card p-8 flex flex-col items-center text-center">
@@ -1218,7 +1288,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                             </p>
                             <button
-                                onClick={() => fetchData(false, 0)}
+                                onClick={() => { void fetchListings(false, 0); }}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                             >
                                 {t('marketplace.btn.tryAgain')}
@@ -1228,13 +1298,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 </div>
             )}
 
-            {error && hasLoadedListings && (
+            {marketTab === 'market' && error && hasLoadedListings && (
                 <div role="alert" className="mx-4 mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 lg:mx-10">
                     {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                 </div>
             )}
 
-            {marketTab === 'orderbook' && (!error || hasLoadedListings) && (
+            {marketTab === 'orderbook' && (
                 <div className="flex-1 min-h-0 px-4 lg:px-10 pb-4">
                     <div className="h-full min-h-0 max-w-[1600px] mx-auto flex flex-col">
                         <div
@@ -1283,7 +1353,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </div>
                         </div>
                         <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
-                            {orderbookRequiresExactSlice ? (
+                            {isCatalogScopeResolving ? (
+                                <div className="v-card p-8 flex h-full min-h-0 items-center justify-center text-slate-400">
+                                    <Loader2 size={24} className="animate-spin" />
+                                </div>
+                            ) : orderbookRequiresExactSlice ? (
                                 <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
                                     <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
@@ -1758,7 +1832,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 onClose={() => {
                     setOrderModalSide(null);
                     setOrderModalPrefill(null);
-                    void fetchData(true, currentSkip, true);
+                    void fetchProductCounts(true);
+                    if (marketTab === 'market') void fetchListings(true, currentSkip, true);
                     if (marketTab === 'my_orders') void fetchMyOrders(true);
                 }}
                 side={orderModalSide || configBase.primaryAction.side}

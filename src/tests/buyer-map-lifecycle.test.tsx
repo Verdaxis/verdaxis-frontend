@@ -57,6 +57,7 @@ vi.mock('mapbox-gl', () => {
     getLayer() { return undefined; }
     getSource() { return undefined; }
     hasImage() { return true; }
+    isStyleLoaded() { return true; }
     loaded() { return true; }
     off(event: string, callback: () => void) {
       if (event === 'idle') lifecycle.idleHandlers.delete(callback);
