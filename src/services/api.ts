@@ -73,6 +73,7 @@ const PUBLIC_MARKET_READ_PATHS = new Set([
     '/curves/forward/slice',
     '/catalog/products',
     '/catalog/delivery-points',
+    '/ports',
 ]);
 
 export const isPublicMarketReadRequest = (path: string, method = 'GET'): boolean =>
@@ -623,8 +624,7 @@ export const api = {
     ports: {
         list: async (): Promise<Port[]> => {
             return cachedRead('ports:list', 'public', READ_CACHE_TTL_MS.reference, async () => {
-                const res = await fetchWithTimeout(`${API_URL}/ports`, { headers: getHeaders() });
-                const data = await handleResponse(res);
+                const data = await fetchApi('/ports');
                 return data.map(mapPortResponse);
             });
         },

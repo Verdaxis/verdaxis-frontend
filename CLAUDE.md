@@ -41,7 +41,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the exact public GET allowlist for market and reference catalog reads omits credentials, support context, and JSON request headers. Catalog cache keys retain their private principal scope.
+- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the exact public GET allowlist for market, reference catalog, and role-independent port reads omits credentials, support context, and JSON request headers. Catalog cache keys retain their private principal scope.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
