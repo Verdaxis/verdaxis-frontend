@@ -418,20 +418,23 @@ describe('ForwardCurveWorkspace', () => {
     expect(graph.querySelectorAll('path')).toHaveLength(2);
   });
 
-  it('shows exact quarter details on hover without selecting or fetching a slice', async () => {
+  it('shows exact quarter details on hover without selecting or fetching another slice', async () => {
     const table = makeLongTable();
     const lastWindow = table.columns.at(-1)!.availability_window;
+    const sliceRequest = deferred<ForwardCurveSliceResponse>();
     Object.assign(table.rows[0].cells[lastWindow], {
       primary_value: '1246.75', best_bid: '1241.25', best_ask: '1252.25', spread: '11.00', volume_mt: '9531.5',
     });
     tableMock.mockResolvedValue(table);
-    renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('5.0k MT available');
+    sliceMock.mockReturnValue(sliceRequest.promise);
+    await act(async () => {
+      renderWithProviders(<ForwardCurveWorkspace />);
+    });
+    expect(screen.getByText('Market Matrix')).toBeTruthy();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     const point = within(chart).getByRole('button', { name: new RegExp(formatAvailabilityWindow(lastWindow)) });
     const selected = localStorage.getItem('verdaxis_forward_curve_window');
-    sliceMock.mockClear();
-    tableMock.mockClear();
+    expect(sliceMock).toHaveBeenCalledTimes(1);
     fireEvent.mouseEnter(point);
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip.parentElement).toBe(document.body);
@@ -440,9 +443,11 @@ describe('ForwardCurveWorkspace', () => {
     for (const text of [formatAvailabilityWindow(lastWindow), '$1,246.75', '$1,241.25', '$1,252.25', '$11.00', '9,531.5', 'Demo data', 'Demo orderbook midpoint']) {
       expect(within(tooltip).getByText(text)).toBeTruthy();
     }
+    await act(async () => sliceRequest.resolve(makeSlice(singaporeSpot)));
+    expect(screen.getByRole('tooltip')).toBe(tooltip);
     expect(localStorage.getItem('verdaxis_forward_curve_window')).toBe(selected);
-    expect(sliceMock).not.toHaveBeenCalled();
-    expect(tableMock).not.toHaveBeenCalled();
+    expect(sliceMock).toHaveBeenCalledTimes(1);
+    expect(tableMock).toHaveBeenCalledTimes(1);
 
     fireEvent.mouseLeave(point);
     fireEvent.mouseEnter(tooltip);
@@ -458,10 +463,12 @@ describe('ForwardCurveWorkspace', () => {
   });
 
   it('supports focus and clears point details when focus, viewport, or horizon changes', async () => {
-    renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('5.0k MT available');
+    await act(async () => {
+      renderWithProviders(<ForwardCurveWorkspace />);
+    });
+    expect(screen.getByText('5.0k MT available')).toBeTruthy();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
-    const point = await within(chart).findByRole('button', { name: 'Spot $1015' });
+    const point = within(chart).getByRole('button', { name: 'Spot $1015' });
     act(() => point.focus());
     expect(screen.getByRole('tooltip')).toBeTruthy();
     fireEvent.mouseLeave(point);
@@ -486,8 +493,10 @@ describe('ForwardCurveWorkspace', () => {
       primary_value: null, best_bid: 980.25, best_ask: null, spread: null, volume_mt: 0,
     };
     tableMock.mockResolvedValue(table);
-    renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Curve mark');
+    await act(async () => {
+      renderWithProviders(<ForwardCurveWorkspace />);
+    });
+    expect(screen.getByText('Curve mark')).toBeTruthy();
     const chart = document.querySelector('[data-tour="forward-curve-chart"]') as HTMLElement;
     fireEvent.mouseEnter(within(chart).getByRole('button', { name: 'Spot $980' }));
     const tooltip = screen.getByRole('tooltip');
@@ -499,8 +508,10 @@ describe('ForwardCurveWorkspace', () => {
   });
 
   it('places details beside the point when a short viewport has no room above or below', async () => {
-    renderWithProviders(<ForwardCurveWorkspace />);
-    await screen.findByText('Curve mark');
+    await act(async () => {
+      renderWithProviders(<ForwardCurveWorkspace />);
+    });
+    expect(screen.getByText('5.0k MT available')).toBeTruthy();
     const height = window.innerHeight;
     Object.defineProperty(window, 'innerHeight', { value: 500, configurable: true });
     const bounds = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
