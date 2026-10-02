@@ -347,15 +347,41 @@ export interface AggregatedOrderbook {
     region: string;
     fuel_type: string;
     side: OrderSide;
-    min_price: number;
-    max_price: number;
-    total_quantity: number;
+    min_price: number | string;
+    max_price: number | string;
+    total_quantity: number | string;
     order_count: number;
+    product_total_order_count?: number;
     evidence_class?: string;
     source_kind?: MarketSourceKind;
     scope?: MarketScope;
     demo_status?: MarketDemoStatus;
     observed_at?: string;
+}
+
+export interface MapCompactMarket {
+    product_id: string;
+    product_name: string;
+    market_product: string;
+    fuel_type: string;
+    delivery_point_id: string;
+    delivery_point_name: string;
+    region: string;
+    evidence_class: 'REAL' | 'DEMO';
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
+    bid_min_price: string | null;
+    bid_max_price: string | null;
+    bid_total_quantity: string;
+    bid_order_count: number;
+    ask_min_price: string | null;
+    ask_max_price: string | null;
+    ask_total_quantity: string;
+    ask_order_count: number;
+    spot_best_bid: string | null;
+    spot_best_ask: string | null;
+    observed_at: string;
 }
 
 // ============== Price Discovery Types ==============
