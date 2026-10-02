@@ -388,6 +388,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     useEffect(() => {
         setHasLoadedListings(false);
+        setTotalCount(0);
     }, [availability, marketProduct, resolvedDeliveryPointId, resolvedPort, role, sortBy]);
 
     useEffect(() => {
