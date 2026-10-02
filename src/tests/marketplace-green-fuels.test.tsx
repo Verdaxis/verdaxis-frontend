@@ -751,9 +751,9 @@ describe('Marketplace green fuels surface', () => {
 
     expect(screen.getByText(/select a fuel, port, and window to show orderbook/i)).toBeTruthy();
     expect(screen.getByText(/choose a specific fuel, port, and availability window above/i)).toBeTruthy();
-    const marketScope = document.querySelector('[data-tour="marketplace-market-scope"]') as HTMLElement;
+    const marketScope = screen.getByLabelText(/market scope/i);
     labels.forEach((label) => expect(within(marketScope).getByText(label)).toBeTruthy());
-    states.forEach((state) => expect(screen.getByLabelText(state)).toBeTruthy());
+    states.forEach((state) => expect(within(marketScope).getByLabelText(state)).toBeTruthy());
     expect(listAsks).not.toHaveBeenCalled();
     expect(listBids).not.toHaveBeenCalled();
   });
@@ -1045,10 +1045,26 @@ describe('Marketplace green fuels surface', () => {
     renderWithProviders(<Marketplace viewMode="SUPPLIER" />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /place ask/i })).toBeTruthy();
+      expect(listBidsPaged).toHaveBeenCalledWith({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+        market_product: 'BIO_METHANOL',
+        availability: 'SPOT',
+        sort_by: 'price_desc',
+        skip: 0,
+        limit: 8,
+      });
+      expect(productCounts).toHaveBeenCalledWith({
+        side: 'BID',
+        region: undefined,
+        delivery_point_id: 'dp-1',
+        availability_window: 'SPOT',
+        include_off_spec: false,
+      });
     });
-
-    expect(listBidsPaged).toHaveBeenCalled();
+    expect(listAsksPaged).not.toHaveBeenCalled();
+    expect(listBids).not.toHaveBeenCalled();
+    expect(listAsks).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /place ask/i }));
 
