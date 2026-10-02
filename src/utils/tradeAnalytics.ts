@@ -19,8 +19,9 @@ export function isConfirmedLikeTrade(tradeOrStatus: Trade | string | null | unde
 
 export function normalizeTradeLifecycleStatus(status: string | null | undefined): string {
   const normalized = String(status || '').toUpperCase();
+  if (!normalized || normalized === 'PENDING') return 'PENDING_CONFIRMATION';
   if (COMPLETED_TRADE_STATUSES.has(normalized)) return 'CONFIRMED';
-  return normalized || 'PENDING';
+  return normalized;
 }
 
 export function tradeDisplayQuantityMt(trade: Trade): number {

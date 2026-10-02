@@ -7,7 +7,7 @@ import { MyTrades } from '../components/MyTrades';
 import i18n from '../i18n';
 
 const myTradesPagedMock = vi.fn();
-const makeTradePage = (id: string, buyerName: string, status: string) => ({
+const makeTradePage = (id: string, buyerName: string, status: string, isAnonymous = false) => ({
   items: [{
     id,
     buyer_id: 'buyer-org',
@@ -15,7 +15,7 @@ const makeTradePage = (id: string, buyerName: string, status: string) => ({
     buyer_name: buyerName,
     seller_name: `${buyerName} seller`,
     initiated_by: 'BUYER',
-    is_anonymous: false,
+    is_anonymous: isAnonymous,
     quantity_mt: 100,
     price_per_mt_usd: 700,
     status,
@@ -161,6 +161,18 @@ describe('MyTrades lifecycle', () => {
     await waitFor(() => {
       expect(myTradesPagedMock).toHaveBeenLastCalledWith({ skip: 0, limit: 20, status_group: 'active' });
     });
+  });
+
+  it('keeps legacy pending trades private and actionable', async () => {
+    myTradesPagedMock.mockResolvedValue(makeTradePage('legacy-pending', 'Legacy buyer', 'PENDING', true));
+
+    renderWithProviders(<MyTrades />);
+
+    expect(await screen.findByText('myTrades.status.pending')).toBeTruthy();
+    expect(screen.getByText('myTrades.anonymous')).toBeTruthy();
+    expect(screen.queryByText('Legacy buyer')).toBeNull();
+    expect(screen.getByRole('button', { name: 'myTrades.btn.confirm' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'myTrades.btn.decline' })).toBeTruthy();
   });
 
   it('leaves the page heading to its parent when embedded and keeps the trade window visible', async () => {

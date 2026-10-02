@@ -5,34 +5,8 @@ export const MONTH_WINDOW_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/;
 export const QUARTER_WINDOW_RE = /^(?<year>\d{4})-Q(?<quarter>[1-4])$/;
 export const CALENDAR_WINDOW_RE = /^(?<year>\d{4})-CAL$/;
 
-const LEGACY_WINDOW_ALIASES: Record<string, string> = {
-    SPOT: SPOT_WINDOW,
-    Spot: SPOT_WINDOW,
-    Q1_2025: '2025-Q1',
-    Q2_2025: '2025-Q2',
-    Q3_2025: '2025-Q3',
-    Q4_2025: '2025-Q4',
-    Q1_2026: '2026-Q1',
-    Q2_2026: '2026-Q2',
-    Q3_2026: '2026-Q3',
-    Q4_2026: '2026-Q4',
-    'Q1 2025': '2025-Q1',
-    'Q2 2025': '2025-Q2',
-    'Q3 2025': '2025-Q3',
-    'Q4 2025': '2025-Q4',
-    'Q1 2026': '2026-Q1',
-    'Q2 2026': '2026-Q2',
-    'Q3 2026': '2026-Q3',
-    'Q4 2026': '2026-Q4',
-    FORWARD_2027: '2027-CAL',
-    FORWARD_2028: '2028-CAL',
-    FORWARD_2029: '2029-CAL',
-    FORWARD_2030: '2030-CAL',
-    'Forward 2027': '2027-CAL',
-    'Forward 2028': '2028-CAL',
-    'Forward 2029': '2029-CAL',
-    'Forward 2030': '2030-CAL',
-};
+const LEGACY_QUARTER_WINDOW_RE = /^Q([1-4])[_ ](\d{4})$/i;
+const LEGACY_FORWARD_WINDOW_RE = /^FORWARD[_ ](\d{4})$/i;
 
 export interface AvailabilityWindowOption {
     value: string;
@@ -116,7 +90,7 @@ function parseWindow(value: string) {
         };
     }
 
-    return { normalized, kind: 'calendar' as const, year: Number.MAX_SAFE_INTEGER };
+    return { normalized, kind: 'unknown' as const };
 }
 
 export function normalizeAvailabilityWindow(value: string | null | undefined): string {
@@ -125,12 +99,21 @@ export function normalizeAvailabilityWindow(value: string | null | undefined): s
     const trimmed = value.trim();
     if (!trimmed) return SPOT_WINDOW;
 
-    if (LEGACY_WINDOW_ALIASES[trimmed]) {
-        return LEGACY_WINDOW_ALIASES[trimmed];
+    if (trimmed.toUpperCase() === SPOT_WINDOW) {
+        return SPOT_WINDOW;
+    }
+
+    const legacyQuarterMatch = trimmed.match(LEGACY_QUARTER_WINDOW_RE);
+    if (legacyQuarterMatch) {
+        return `${legacyQuarterMatch[2]}-Q${legacyQuarterMatch[1]}`;
+    }
+
+    const legacyForwardMatch = trimmed.match(LEGACY_FORWARD_WINDOW_RE);
+    if (legacyForwardMatch) {
+        return `${legacyForwardMatch[1]}-CAL`;
     }
 
     if (
-        trimmed === SPOT_WINDOW ||
         MONTH_WINDOW_RE.test(trimmed) ||
         QUARTER_WINDOW_RE.test(trimmed) ||
         CALENDAR_WINDOW_RE.test(trimmed)
@@ -149,7 +132,8 @@ export function compareAvailabilityWindows(left: string, right: string): number 
         if (item.kind === 'spot') return [0, 0, 0, 0];
         if (item.kind === 'month') return [1, item.year, item.month, 0];
         if (item.kind === 'quarter') return [1, item.year, quarterStartMonth(item.quarter), 1];
-        return [1, item.year, 1, 2];
+        if (item.kind === 'calendar') return [1, item.year, 1, 2];
+        return [2, 0, 0, 0];
     };
 
     const aRank = rank(a);
@@ -170,6 +154,7 @@ export function formatAvailabilityWindow(value: string | null | undefined, local
     if (parsed.kind === 'quarter') {
         return isChinese ? `${parsed.year}年第${parsed.quarter}季度` : `Q${parsed.quarter} ${parsed.year}`;
     }
+    if (parsed.kind === 'unknown') return parsed.normalized;
     if (isChinese) return `${parsed.year}年`;
     return `CAL ${parsed.year}`;
 }
@@ -190,6 +175,7 @@ export function formatAvailabilityWindowPeriod(value: string | null | undefined,
             ? `${String(parsed.year).slice(-2)}年Q${parsed.quarter}`
             : `Q${parsed.quarter} ${String(parsed.year).slice(-2)}`;
     }
+    if (parsed.kind === 'unknown') return parsed.normalized;
     return normalizedLocale(locale) === 'zh-CN' ? `${parsed.year}年` : `CAL ${String(parsed.year).slice(-2)}`;
 }
 

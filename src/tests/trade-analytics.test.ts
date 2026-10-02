@@ -5,6 +5,7 @@ import {
   isActiveTradeStatus,
   isCompletedTradeStatus,
   isConfirmedLikeTrade,
+  normalizeTradeLifecycleStatus,
   tradeSliceKey,
 } from '../utils/tradeAnalytics';
 
@@ -37,6 +38,10 @@ describe('tradeAnalytics', () => {
     expect(isCompletedTradeStatus('PENDING_CONFIRMATION')).toBe(false);
     expect(isConfirmedLikeTrade('PENDING_CONFIRMATION')).toBe(false);
     expect(buildTradePerformanceModel([{ ...baseTrade, status: 'PENDING_CONFIRMATION' }]).totalTrades).toBe(0);
+  });
+
+  it('normalizes the legacy pending status to pending confirmation', () => {
+    expect(normalizeTradeLifecycleStatus('PENDING')).toBe('PENDING_CONFIRMATION');
   });
 
   it('treats confirmed trades as completed and confirmed-like', () => {
