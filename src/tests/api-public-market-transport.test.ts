@@ -59,17 +59,22 @@ describe('public market API transport', () => {
         expect(isPublicMarketReadRequest('/curves/forward/slice?market_product=B30')).toBe(true);
         expect(isPublicMarketReadRequest('/catalog/products')).toBe(true);
         expect(isPublicMarketReadRequest('/catalog/delivery-points')).toBe(true);
+        expect(isPublicMarketReadRequest('/ports')).toBe(true);
 
         expect(isPublicMarketReadRequest('/orderbook/my')).toBe(false);
         expect(isPublicMarketReadRequest('/orderbook/bids/history')).toBe(false);
         expect(isPublicMarketReadRequest('/orderbook/bids', 'POST')).toBe(false);
         expect(isPublicMarketReadRequest('/catalog/products/private')).toBe(false);
         expect(isPublicMarketReadRequest('/catalog/products', 'POST')).toBe(false);
+        expect(isPublicMarketReadRequest('/ports/sg-sin')).toBe(false);
+        expect(isPublicMarketReadRequest('/ports', 'POST')).toBe(false);
     });
 
     it('omits private headers and cookies from every public market read', async () => {
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => (
-            String(input).includes('/catalog/') ? successfulJson([]) : successfulJson({ items: [] })
+            String(input).includes('/catalog/') || String(input).endsWith('/ports')
+                ? successfulJson([])
+                : successfulJson({ items: [] })
         ));
 
         await api.orderbook.listBids(undefined, { force: true });
@@ -85,8 +90,9 @@ describe('public market API transport', () => {
         }, { force: true });
         await api.catalog.products({ force: true });
         await api.catalog.deliveryPoints({ force: true });
+        await api.ports.list();
 
-        expect(fetchMock).toHaveBeenCalledTimes(9);
+        expect(fetchMock).toHaveBeenCalledTimes(10);
         for (const [, options] of fetchMock.mock.calls) {
             expect([...new Headers(options?.headers).entries()]).toEqual([]);
             expect(options?.credentials).toBe('omit');
@@ -107,16 +113,18 @@ describe('public market API transport', () => {
         expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/orderbook/map-summary/compact');
     });
 
-    it('keeps private market, notification, and watchlist reads credentialed', async () => {
+    it('keeps private market, port detail, notification, and watchlist reads credentialed', async () => {
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => successfulJson({ items: [] }));
 
         await api.orderbook.myOrders({ force: true });
+        await api.ports.getById('sg-sin');
         await api.notifications.list();
         await api.watchlists.list({ force: true });
 
         expectPrivateHeaders(fetchMock.mock.calls[0]?.[1], true);
         expectPrivateHeaders(fetchMock.mock.calls[1]?.[1]);
         expectPrivateHeaders(fetchMock.mock.calls[2]?.[1]);
+        expectPrivateHeaders(fetchMock.mock.calls[3]?.[1]);
     });
 
     it('keeps auth refresh cookie credentials', async () => {
