@@ -634,3 +634,7 @@
 - **Trigger:** A request guard copied from production skipped selected-port curve references that staging still renders.
 - **Rule:** Trace where each branch renders the dependent data and test global, selected-port, open, and closed modes before porting request gates.
 - **Why:** Shared component names do not imply identical data needs.
+
+- **Trigger:** I first attributed an order-prefill test failure to async catalog timing, but the fixture's requested B100 product was present and correctly selected.
+- **Rule:** Before changing waits after a UI test failure, compare the requested identifier with the complete fixture and trace the rendered branch and its display formatter. Use a truly absent value for unresolved-prefill tests, and assert canonical labels instead of arbitrary fixture names.
+- **Why:** A valid fixture can make the product behavior correct while the test expectation is false; labeling it a timing race hides the actual cause.

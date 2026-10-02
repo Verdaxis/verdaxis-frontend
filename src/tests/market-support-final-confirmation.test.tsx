@@ -3,10 +3,17 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MarketSupportFinalConfirmation } from '../components/market-support/MarketSupportFinalConfirmation';
 import i18n, { loadNamespace } from '../i18n';
+import { formatOrderExpiry } from '../utils/fuel';
 
 beforeAll(async () => { await Promise.all([loadNamespace('rfq'), loadNamespace('trading')]); });
 
 describe('MarketSupportFinalConfirmation', () => {
+  it('keeps good-till-date labels on the selected UTC calendar day', () => {
+    expect(formatOrderExpiry('2026-08-01T23:59:59.000Z', 'en-GB')).toBe('01 Aug 26 UTC');
+    expect(formatOrderExpiry(undefined, 'en', 'Good till cancelled')).toBe('Good till cancelled');
+    expect(formatOrderExpiry('invalid', 'en')).toBe('invalid');
+  });
+
   it('shows B100 buyer requirements in the exact draft before assisted submission', async () => {
     render(<MarketSupportFinalConfirmation organizationName="Northstar Fuels" supportReference="CASE-B100" onBack={vi.fn()} onConfirm={vi.fn()} draft={{
       side: 'BID', product: 'UCOME B100', deliveryPoint: 'Singapore', availabilityWindow: 'SPOT', quantityMt: 500, pricePerMtUsd: 1100, expiresAt: '', certificationScheme: '', specificationStandard: '', msdsAvailable: false, carbonIntensity: null, feedstock: '', origin: '',
@@ -59,6 +66,8 @@ describe('MarketSupportFinalConfirmation', () => {
     expect(screen.getByText('Singapore')).toBeTruthy();
     expect(screen.getByText('2,500 MT')).toBeTruthy();
     expect(screen.getByText('$745.00/MT')).toBeTruthy();
+    expect(screen.getByText(/Aug 1, 2026.*UTC/)).toBeTruthy();
+    expect(screen.queryByText(/Aug 2, 2026/)).toBeNull();
     expect(screen.getByText('ISCC EU')).toBeTruthy();
     expect(screen.getByText('Used cooking oil')).toBeTruthy();
     expect(screen.getByRole('dialog').getAttribute('aria-modal')).toBe('true');

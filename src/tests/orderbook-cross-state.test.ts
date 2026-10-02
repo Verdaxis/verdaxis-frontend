@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { getExecutableCrossState } from '../components/OrderBook';
 import type { OrderBookOrder } from '../types';
 
-const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
+type ProvenanceOrder = OrderBookOrder & { source_kind?: string; demo_status?: string; is_demo_listing?: boolean };
+
+const makeOrder = (overrides: Partial<ProvenanceOrder>): OrderBookOrder => ({
   id: overrides.id || 'order',
   side: overrides.side || 'BID',
   fuel_type: 'Methanol',
@@ -65,6 +67,18 @@ describe('getExecutableCrossState', () => {
     expect(state.hasCross).toBe(false);
     expect(state.bidIds.size).toBe(0);
     expect(state.askIds.size).toBe(0);
+  });
+
+  it('recognizes demo provenance when the compatibility boolean is absent', () => {
+    const state = getExecutableCrossState(
+      [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, source_kind: 'DEMO_SEED' })],
+      [makeOrder({ id: 'demo-ask', side: 'ASK', price_per_mt_usd: 650, demo_status: 'DEMO_ONLY' })],
+    );
+
+    expect(state.hasCross).toBe(false);
+    expect(state.bidIds.size).toBe(0);
+    expect(state.askIds.size).toBe(0);
+    expect(state.spread).toBeNull();
   });
 
   it('detects real executable crosses below demo top-of-book levels', () => {

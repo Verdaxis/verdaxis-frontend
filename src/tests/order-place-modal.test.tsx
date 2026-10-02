@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithProviders } from './test-utils';
@@ -8,6 +8,8 @@ import i18n, { loadNamespace } from '../i18n';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import type { AvailabilityWindow } from '../types';
 import type { SupplierOffer } from '../types/fameSupplierOffer';
+import { clearAccessToken, setAccessToken } from '../services/authToken';
+import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
@@ -22,6 +24,11 @@ const marketSupportControl = vi.hoisted(() => ({
     isLoading: false,
   },
 }));
+
+function reviewAndConfirm(side: 'Bid' | 'Ask') {
+  fireEvent.click(screen.getByRole('button', { name: `Review ${side}` }));
+  fireEvent.click(screen.getByRole('button', { name: `Confirm and place ${side}` }));
+}
 
 vi.mock('../services/api', () => ({
   api: {
@@ -67,6 +74,7 @@ describe('OrderPlaceModal', () => {
     productsMock.mockReset();
     deliveryPointsMock.mockReset();
     createOrderMock.mockReset();
+    clearAccessToken();
     createSupplierOfferMock.mockReset();
     updateSupplierOfferMock.mockReset();
     validateSupplierOfferMock.mockReset().mockReturnValue(null);
@@ -98,6 +106,277 @@ describe('OrderPlaceModal', () => {
     marketSupportControl.current = { context: null, isActive: false, isLoading: false };
   });
 
+  it('enforces the order API caps and two-decimal precision before submission', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    const quantity = screen.getByRole('spinbutton', { name: /quantity/i });
+    const price = screen.getByRole('spinbutton', { name: /^price/i });
+    const submit = screen.getByRole('button', { name: 'Review Bid' });
+    expect(quantity.getAttribute('max')).toBe('100000');
+    expect(quantity.getAttribute('step')).toBe('0.01');
+    expect(price.getAttribute('max')).toBe('1000000');
+
+    fireEvent.change(quantity, { target: { value: '1000.25' } });
+    fireEvent.change(price, { target: { value: '700.25' } });
+    expect(submit).toHaveProperty('disabled', false);
+
+    fireEvent.change(quantity, { target: { value: '100000.01' } });
+    expect(submit).toHaveProperty('disabled', true);
+    fireEvent.change(quantity, { target: { value: '1000.001' } });
+    expect(submit).toHaveProperty('disabled', true);
+    fireEvent.change(quantity, { target: { value: '1000.25' } });
+    fireEvent.change(price, { target: { value: '1000000.01' } });
+    expect(submit).toHaveProperty('disabled', true);
+    fireEvent.change(price, { target: { value: '700.001' } });
+    expect(submit).toHaveProperty('disabled', true);
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('enforces the catalog minimum and a future UTC expiry before review', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    const quantity = screen.getByRole('spinbutton', { name: /quantity/i });
+    const price = screen.getByRole('spinbutton', { name: /^price/i });
+    const review = screen.getByRole('button', { name: 'Review Bid' }) as HTMLButtonElement;
+    fireEvent.change(price, { target: { value: '700' } });
+    fireEvent.change(quantity, { target: { value: '499.99' } });
+    expect(review.disabled).toBe(true);
+    expect(screen.getByText(/catalog minimum of 500 MT/i)).toBeTruthy();
+
+    fireEvent.change(quantity, { target: { value: '500' } });
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Good-till-Date (UTC)' }));
+    expect(review.disabled).toBe(true);
+    expect(screen.getByText(/select an expiry date in UTC/i)).toBeTruthy();
+    fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2000-01-01' } });
+    expect(review.disabled).toBe(true);
+    expect(screen.getByText(/select a future expiry date in UTC/i)).toBeTruthy();
+
+    fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2099-12-31' } });
+    expect(review.disabled).toBe(false);
+    fireEvent.click(review);
+    expect(screen.getByRole('heading', { name: 'Review Bid' })).toBeTruthy();
+    expect(screen.getByText('500 MT')).toBeTruthy();
+    expect(screen.getByText('USD 700.00/MT')).toBeTruthy();
+    expect(screen.getByText('USD 350,000.00')).toBeTruthy();
+    expect(screen.getByText('Any certified scheme')).toBeTruthy();
+    expect(screen.getByText(/Dec 31, 2099.*UTC/)).toBeTruthy();
+    expect(screen.getByText(/can auto-match at once/i)).toBeTruthy();
+    expect(createOrderMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
+      quantity_mt: 500,
+      price_per_mt_usd: 700,
+      expires_at: '2099-12-31T23:59:59.000Z',
+    })));
+  });
+
+  it('fails closed when required catalog execution metadata is invalid or missing', async () => {
+    productsMock.mockResolvedValue([{
+      id: 'bad-product', name: 'Bad product', market_product: 'BIO_METHANOL', fuel_type: 'Methanol',
+      fuel_grade: 'Bio', unit: 'MT', min_lot_size: 0, is_active: true,
+    }]);
+    const firstView = renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '700' } });
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', true);
+    expect(screen.getAllByText(/catalog minimum unavailable/i).length).toBeGreaterThan(0);
+    firstView.unmount();
+
+    productsMock.mockResolvedValue([{
+      id: 'prod-1', name: 'Green Methanol', market_product: 'BIO_METHANOL', fuel_type: 'Methanol',
+      fuel_grade: 'Green', unit: 'MT', min_lot_size: 500, is_active: true,
+    }]);
+    deliveryPointsMock.mockResolvedValue([]);
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(deliveryPointsMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', true);
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('lets the user edit a review and freezes the final request against double confirmation', async () => {
+    let resolveRequest!: (value: { trades: never[] }) => void;
+    createOrderMock.mockReturnValue(new Promise(resolve => { resolveRequest = resolve; }));
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '540.25' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: /quantity/i }), { target: { value: '750.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    expect(screen.getByText('750.5 MT')).toBeTruthy();
+    expect(screen.getByText('USD 540.25/MT')).toBeTruthy();
+    expect(screen.getByText('Good till cancelled (up to 90 days)')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit order' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Order product' })));
+    fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '541.25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    expect(screen.getByText('USD 541.25/MT')).toBeTruthy();
+
+    const confirm = screen.getByRole('button', { name: 'Confirm and place Bid' });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    expect(createOrderMock.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
+      product_id: 'prod-1',
+      delivery_point_id: 'dp-1',
+      quantity_mt: 750.5,
+      price_per_mt_usd: 541.25,
+      idempotency_key: expect.any(String),
+    }));
+
+    resolveRequest({ trades: [] });
+    await screen.findByRole('button', { name: 'Close' });
+  });
+
+  it('cancels an open review when its prefilled market input changes', async () => {
+    const view = renderWithProviders(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
+    );
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    expect(screen.getByRole('button', { name: 'Confirm and place Bid' })).toBeTruthy();
+
+    view.rerender(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={650} />
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Review Bid' })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Confirm and place Bid' })).toBeNull();
+    expect((screen.getByRole('spinbutton', { name: /^price/i }) as HTMLInputElement).value).toBe('650');
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('does not replace an unresolved explicit market prefill with another slice', async () => {
+    const firstView = renderWithProviders(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="SYNTHETIC_ETHANOL" prefillPrice={540} />
+    );
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('combobox', { name: 'Order product' }).textContent).not.toContain('Bio Methanol');
+    firstView.unmount();
+
+    renderWithProviders(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="BIO_METHANOL" prefillDeliveryPointId="missing-port" prefillPrice={540} />
+    );
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', true);
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('returns to the form when the signed-in principal changes during review', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+
+    setAccessToken('replacement-session');
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('Your signed-in account changed. Review the order again.');
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toBeTruthy();
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('revalidates a dated expiry at final confirmation', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2099-12-30T12:00:00Z'));
+    try {
+      renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
+      await waitFor(() => expect(productsMock).toHaveBeenCalled());
+      fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Good-till-Date (UTC)' }));
+      fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2099-12-31' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+
+      now.mockReturnValue(Date.parse('2100-01-01T00:00:00Z'));
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
+
+      expect((await screen.findByRole('alert')).textContent).toBe('Select a future expiry date in UTC.');
+      expect(createOrderMock).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it('does not submit an assisted draft after the stored support context changes', async () => {
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1', organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42', expiresAt: '2099-12-31T23:59:59Z', scope: ['ORDER_CREATE'],
+      },
+    };
+    setMarketSupportContextId('ctx-1');
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+
+    setMarketSupportContextId('ctx-2');
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe('The assisted trading context changed. Review the order again.');
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+
+  it('keeps an assisted submission locked while its expired context catalog refreshes', async () => {
+    let rejectRequest!: (reason: Error) => void;
+    createOrderMock.mockReturnValue(new Promise((_resolve, reject) => { rejectRequest = reject; }));
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1', organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42', expiresAt: '2099-12-31T23:59:59Z', scope: ['ORDER_CREATE'],
+      },
+    };
+    setMarketSupportContextId('ctx-1');
+    const view = renderWithProviders(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
+    );
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('dialog')));
+
+    productsMock.mockResolvedValue([{
+      id: 'replacement-product',
+      name: 'Replacement Methanol',
+      market_product: 'E_METHANOL',
+      fuel_type: 'Methanol',
+      fuel_grade: 'Bio',
+      unit: 'MT',
+      min_lot_size: 500,
+      is_active: true,
+    }]);
+    clearMarketSupportContextId();
+    marketSupportControl.current = { context: null, isActive: false, isLoading: false };
+    view.rerender(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
+
+    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Order product' }).textContent)
+      .toContain('e-Methanol'));
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveProperty('disabled', true);
+    expect(createOrderMock).toHaveBeenCalledTimes(1);
+
+    rejectRequest(new Error('Request timed out. Please try again.'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Order product' }).textContent)
+      .toContain('e-Methanol'));
+    expect(createOrderMock).toHaveBeenCalledTimes(1);
+  });
+
   it('excludes UCOME from order creation even when execution metadata is missing', async () => {
     const legacyProducts = await productsMock();
     productsMock.mockResolvedValue([
@@ -118,7 +397,7 @@ describe('OrderPlaceModal', () => {
 
     expect((await screen.findByRole('link', { name: 'Return to Marketplace' })).getAttribute('href')).toBe('/app/marketplace?product=UCOME_B100');
     expect(screen.queryByRole('combobox', { name: 'Order product' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Place Bid' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Review Bid' })).toBeNull();
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 
@@ -140,7 +419,7 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'I declare that the stated certification applies to this supply.' }));
       fireEvent.click(screen.getByRole('checkbox', { name: 'A safety data sheet is available for this supply.' }));
     }
-    fireEvent.click(screen.getByRole('button', { name: side === 'BID' ? 'Place Bid' : 'Place Ask' }));
+    reviewAndConfirm(side === 'BID' ? 'Bid' : 'Ask');
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
     expect(createOrderMock.mock.calls[0][0]).toEqual(expect.objectContaining({
@@ -150,6 +429,40 @@ describe('OrderPlaceModal', () => {
       fame_terms: expect.objectContaining({ side, standard: 'EN_14214', standard_edition: '2012+A2:2019', neat_fame: true }),
     }));
     expect(createSupplierOfferMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a settled result when support context expiry races request completion', async () => {
+    let resolveRequest!: (value: { trades: never[] }) => void;
+    createOrderMock.mockReturnValue(new Promise(resolve => { resolveRequest = resolve; }));
+    marketSupportControl.current = {
+      isActive: true,
+      isLoading: false,
+      context: {
+        id: 'ctx-1', organization: { id: 'org-1', name: 'Northstar Fuels', domain: null, type: 'REAL' },
+        actor: { id: 'admin-1', name: 'Ravi Admin', email: 'ravi@verdaxis.exchange' },
+        supportReference: 'CASE-42', expiresAt: '2099-12-31T23:59:59Z', scope: ['ORDER_CREATE'],
+      },
+    };
+    setMarketSupportContextId('ctx-1');
+    renderWithProviders(
+      <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
+    );
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+
+    clearMarketSupportContextId();
+    marketSupportControl.current = { context: null, isActive: false, isLoading: false };
+    await act(async () => {
+      resolveRequest({ trades: [] });
+    });
+
+    expect(await screen.findByRole('button', { name: 'Close' })).toHaveProperty('disabled', false);
+    expect(screen.queryByRole('button', { name: 'Review Bid' })).toBeNull();
+    expect(createOrderMock).toHaveBeenCalledTimes(1);
   });
 
   it('resets to the new canonical slice when reopened', async () => {
@@ -260,7 +573,7 @@ describe('OrderPlaceModal', () => {
       target: { value: 'Netherlands' },
     });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+    reviewAndConfirm('Ask');
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -306,7 +619,7 @@ describe('OrderPlaceModal', () => {
       expect(productsMock).toHaveBeenCalled();
       expect(deliveryPointsMock).toHaveBeenCalled();
     }, { timeout: 10000 });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Place Bid' })).toBeTruthy(), { timeout: 10000 });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Review Bid' })).toBeTruthy(), { timeout: 10000 });
 
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 
@@ -317,7 +630,7 @@ describe('OrderPlaceModal', () => {
       target: { value: '540' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    reviewAndConfirm('Bid');
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -358,7 +671,9 @@ describe('OrderPlaceModal', () => {
       target: { value: '542' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    expect(screen.getByText('ISCC EU, REDcert EU')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -406,7 +721,13 @@ describe('OrderPlaceModal', () => {
       target: { value: 'Singapore hub' },
     });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review Ask' }));
+    expect(screen.getByText('IMPCA')).toBeTruthy();
+    expect(screen.getByText('42.5 gCO₂e/MJ')).toBeTruthy();
+    expect(screen.getAllByText('Confirmed').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Waste residue')).toBeTruthy();
+    expect(screen.getByText('Singapore hub')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Ask' }));
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -481,6 +802,7 @@ describe('OrderPlaceModal', () => {
         scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       },
     };
+    setMarketSupportContextId('ctx-1');
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
@@ -507,6 +829,7 @@ describe('OrderPlaceModal', () => {
         scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       },
     };
+    setMarketSupportContextId('ctx-1');
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
 
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
@@ -548,6 +871,7 @@ describe('OrderPlaceModal', () => {
         scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       },
     };
+    setMarketSupportContextId('ctx-1');
     createOrderMock
       .mockRejectedValueOnce(new Error('The request status is unknown'))
       .mockResolvedValueOnce({ trades: [] });
@@ -588,6 +912,7 @@ describe('OrderPlaceModal', () => {
         scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
       },
     };
+    setMarketSupportContextId('ctx-1');
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
@@ -606,22 +931,35 @@ describe('OrderPlaceModal', () => {
     expect(createOrderMock.mock.calls[0]?.[0]?.expires_at).toBeUndefined();
   });
 
-  it('retries a timed-out regular order with the same payload and key', async () => {
-    createOrderMock
-      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
-      .mockResolvedValueOnce({ trades: [] });
-    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
-    await waitFor(() => expect(productsMock).toHaveBeenCalled());
-    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+  it('retries an ambiguous dated order with the same payload and key after expiry', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2099-12-30T12:00:00Z'));
+    try {
+      createOrderMock
+        .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+        .mockResolvedValueOnce({ trades: [] });
+      renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+      await waitFor(() => expect(productsMock).toHaveBeenCalled());
+      fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+      fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Good-till-Date (UTC)' }));
+      fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2099-12-31' } });
+      reviewAndConfirm('Bid');
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
-    const firstPayload = createOrderMock.mock.calls[0]?.[0];
-    expect(firstPayload?.idempotency_key).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+      const firstPayload = createOrderMock.mock.calls[0]?.[0];
+      expect(firstPayload).toEqual(expect.objectContaining({
+        expires_at: '2099-12-31T23:59:59.000Z',
+        idempotency_key: expect.any(String),
+      }));
 
-    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
-    expect(createOrderMock.mock.calls[1]?.[0]).toEqual(firstPayload);
+      now.mockReturnValue(Date.parse('2100-01-01T00:00:00Z'));
+      fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
+
+      await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
+      expect(createOrderMock.mock.calls[1]?.[0]).toEqual(firstPayload);
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it('creates a new key after the failed draft is closed and edited', async () => {
@@ -631,13 +969,13 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    reviewAndConfirm('Bid');
     await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
     const firstKey = createOrderMock.mock.calls[0]?.[0]?.idempotency_key;
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '541' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    reviewAndConfirm('Bid');
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
     expect(createOrderMock.mock.calls[1]?.[0]?.price_per_mt_usd).toBe(541);
@@ -650,7 +988,8 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
-    const submit = screen.getByRole('button', { name: 'Place Bid' });
+    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    const submit = screen.getByRole('button', { name: 'Confirm and place Bid' });
     fireEvent.click(submit);
     fireEvent.click(submit);
 
@@ -681,7 +1020,7 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
 
     expect(await screen.findByRole('heading', { name: '发布买单' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '发布买单' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '核对买单' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /高级选项 可成交期限：现货/ })).toBeTruthy();
     // The heading renders before the asynchronous catalog selects a product.
     expect(await screen.findByText('该产品适用平台目录中的标准规格；下单前请核对认证、质量和交付要求。')).toBeTruthy();
@@ -789,6 +1128,7 @@ describe('OrderPlaceModal', () => {
           scope: ['ORDER_CREATE', 'ORDER_CANCEL'],
         },
       };
+      setMarketSupportContextId('ctx-1');
     }
 
     async function fillOrder(side: 'BID' | 'ASK' = 'ASK') {
@@ -804,6 +1144,29 @@ describe('OrderPlaceModal', () => {
       }
     }
 
+    it('preserves B100 declarations when editing a self-service review', async () => {
+      renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="UCOME_B100" />);
+      await fillOrder();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Review Ask' }));
+      expect(screen.getByText('UCOME B100')).toBeTruthy();
+      expect(screen.getByText('EN 14214 · 2012+A2:2019')).toBeTruthy();
+      expect(createOrderMock).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit order' }));
+
+      expect(await screen.findByLabelText('Standard edition')).toHaveProperty('value', '2012+A2:2019');
+      expect(screen.getByLabelText('Scheme certificate reference')).toHaveProperty('value', 'CERT-1');
+      expect(screen.getByRole('checkbox', { name: /safety data sheet is available/ })).toHaveProperty('checked', true);
+
+      reviewAndConfirm('Ask');
+      await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+      expect(createOrderMock.mock.calls[0][0]).toEqual(expect.objectContaining({
+        fame_terms: expect.objectContaining({ side: 'ASK', standard_edition: '2012+A2:2019' }),
+        certification_declared: true,
+        msds_available: true,
+      }));
+    });
+
     it.each(['BID', 'ASK'] as const)('offers active ORDERBOOK B100 alongside alcohols for %s', async (side) => {
       productsMock.mockResolvedValue([...(await productsMock()), { ...b100Product, id: 'inactive-ucome', is_active: false }]);
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side={side} />);
@@ -813,7 +1176,7 @@ describe('OrderPlaceModal', () => {
       expect(b100Options).toHaveLength(1);
       fireEvent.click(b100Options[0]);
       expect(await screen.findByLabelText('Standard edition')).toBeTruthy();
-      expect(screen.getByRole('button', { name: side === 'BID' ? 'Place Bid' : 'Place Ask' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: side === 'BID' ? 'Review Bid' : 'Review Ask' })).toBeTruthy();
       expect(screen.queryByRole('button', { name: 'Publish offer' })).toBeNull();
     });
 
@@ -845,7 +1208,7 @@ describe('OrderPlaceModal', () => {
       const ports = screen.getAllByRole('option', { name: /Singapore/i });
       expect(ports).toHaveLength(1);
       fireEvent.click(ports[0]);
-      fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+      reviewAndConfirm('Ask');
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({ product_id: 'prod-ucome', delivery_point_id: 'dp-1' })));
       expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
@@ -880,7 +1243,7 @@ describe('OrderPlaceModal', () => {
       createOrderMock.mockRejectedValueOnce(new Error('Request timed out.')).mockResolvedValueOnce({ trades: [] });
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="UCOME_B100" />);
       await fillOrder();
-      fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+      reviewAndConfirm('Ask');
       fireEvent.click(await screen.findByRole('button', { name: /retry safely/i }));
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
       expect(createOrderMock.mock.calls[1]).toEqual(createOrderMock.mock.calls[0]);
@@ -891,7 +1254,7 @@ describe('OrderPlaceModal', () => {
       createOrderMock.mockResolvedValue({ trades: [{ quantity_mt: 500, price_per_mt_usd: 1090 }] });
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="UCOME_B100" />);
       await fillOrder('BID');
-      fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+      reviewAndConfirm('Bid');
       expect(await screen.findByRole('heading', { name: i18n.t('orderPlaceModal.autoMatched.title', { ns: 'trading' }) })).toBeTruthy();
       expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
@@ -900,7 +1263,7 @@ describe('OrderPlaceModal', () => {
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="UCOME_B100" />);
       await fillOrder('BID');
       fireEvent.change(screen.getByLabelText('Maximum CI (gCO₂e/MJ, optional)'), { target: { value: '0' } });
-      fireEvent.submit(screen.getByRole('button', { name: 'Place Bid' }).closest('form')!);
+      fireEvent.submit(screen.getByRole('button', { name: 'Review Bid' }).closest('form')!);
       expect((await screen.findByRole('alert')).textContent).toBe(i18n.t('validation.ciContext', { ns: 'rfq' }));
       expect(screen.getByLabelText('Maximum CI (gCO₂e/MJ, optional)')).toHaveProperty('value', '0');
       expect(createOrderMock).not.toHaveBeenCalled();
