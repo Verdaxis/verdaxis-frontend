@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 import { ForwardCurveWorkspace } from '../components/ForwardCurveWorkspace';
 import i18n, { loadNamespace } from '../i18n';
@@ -229,6 +229,7 @@ const makeLongTable = () => {
 
 describe('ForwardCurveWorkspace', () => {
   afterEach(() => {
+    cleanup();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
