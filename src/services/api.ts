@@ -71,6 +71,8 @@ const PUBLIC_MARKET_READ_PATHS = new Set([
     '/orderbook/map-summary/compact',
     '/curves/forward/table',
     '/curves/forward/slice',
+    '/catalog/products',
+    '/catalog/delivery-points',
 ]);
 
 export const isPublicMarketReadRequest = (path: string, method = 'GET'): boolean =>
