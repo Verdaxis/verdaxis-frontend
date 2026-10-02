@@ -54,6 +54,7 @@ describe('public market API transport', () => {
         expect(isPublicMarketReadRequest('/orderbook/asks')).toBe(true);
         expect(isPublicMarketReadRequest('/orderbook/product-counts')).toBe(true);
         expect(isPublicMarketReadRequest('/orderbook/map-summary')).toBe(true);
+        expect(isPublicMarketReadRequest('/orderbook/map-summary/compact')).toBe(true);
         expect(isPublicMarketReadRequest('/curves/forward/table?windows=SPOT')).toBe(true);
         expect(isPublicMarketReadRequest('/curves/forward/slice?market_product=B30')).toBe(true);
 
@@ -69,6 +70,7 @@ describe('public market API transport', () => {
         await api.orderbook.listAsks(undefined, { force: true });
         await api.orderbook.productCounts({ side: 'ASK' }, { force: true });
         await api.orderbook.mapSummary({ force: true });
+        await api.orderbook.compactMapSummary({ force: true });
         await api.curves.table(undefined, { force: true });
         await api.curves.slice({
             market_product: 'B30',
@@ -76,7 +78,7 @@ describe('public market API transport', () => {
             availability_window: 'SPOT',
         }, { force: true });
 
-        expect(fetchMock).toHaveBeenCalledTimes(6);
+        expect(fetchMock).toHaveBeenCalledTimes(7);
         for (const [, options] of fetchMock.mock.calls) {
             expect([...new Headers(options?.headers).entries()]).toEqual([]);
             expect(options?.credentials).toBe('omit');
@@ -89,12 +91,12 @@ describe('public market API transport', () => {
             { status: 401, headers: { 'Content-Type': 'application/json' } },
         ));
 
-        const error = await api.orderbook.mapSummary({ force: true }).catch(caught => caught);
+        const error = await api.orderbook.compactMapSummary({ force: true }).catch(caught => caught);
 
         expect(error).toBeInstanceOf(ApiError);
         expect(error).toMatchObject({ status: 401, message: 'Unauthorized' });
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/orderbook/map-summary');
+        expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/orderbook/map-summary/compact');
     });
 
     it('keeps private market, notification, and watchlist reads credentialed', async () => {

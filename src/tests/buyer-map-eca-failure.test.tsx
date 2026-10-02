@@ -29,7 +29,7 @@ vi.mock('../services/api', () => ({
   api: {
     ports: { list: vi.fn().mockResolvedValue([]) },
     catalog: { deliveryPoints: vi.fn().mockResolvedValue([]) },
-    orderbook: { mapSummary: vi.fn().mockResolvedValue({ groups: [], recent_asks: [] }) },
+    orderbook: { compactMapSummary: vi.fn().mockResolvedValue({ markets: [], demo_groups: [], recent_asks: [] }) },
     vessels: { list: vi.fn().mockResolvedValue([]) },
   },
 }));
