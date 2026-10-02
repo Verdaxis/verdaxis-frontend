@@ -16,6 +16,9 @@ import { useMarketSupport } from '../context/MarketSupportContext';
 import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
 import i18n from '../i18n';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { formatOrderExpiry } from '../utils/fuel';
+import { getAuthGeneration } from '../services/authToken';
+import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -56,6 +59,12 @@ const QUANTITY_PRESETS = [
     { label: '5,000 MT', value: 5_000 },
 ];
 
+const MAX_ORDER_QUANTITY_MT = 100_000;
+const MAX_ORDER_PRICE_PER_MT_USD = 1_000_000;
+const hasAtMostTwoDecimalPlaces = (value: number) => (
+    Math.abs(value * 100 - Math.round(value * 100)) < 1e-8
+);
+
 const CERTIFICATION_SCHEME_OPTIONS = [
     { value: 'ISCC EU', label: 'ISCC EU', descriptionKey: 'orderPlaceModal.certification.ISCC_EU' },
     { value: 'ISCC PLUS', label: 'ISCC PLUS', descriptionKey: 'orderPlaceModal.certification.ISCC_PLUS' },
@@ -68,7 +77,20 @@ const DELIVERY_POINT_REGION_KEYS: Record<string, string> = {
     americas: 'orderPlaceModal.region.americas',
 };
 
-type ModalState = 'form' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
+type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
+
+interface OrderSnapshot {
+    payload: Record<string, any>;
+    productName: string;
+    deliveryPointName: string;
+    availabilityWindow: string;
+    quantityMt: number;
+    pricePerMtUsd: number;
+    expiresAt?: string;
+    authGeneration: number;
+    supportContextId: string | null;
+    reviewDetails: Array<{ label: string; value: string }>;
+}
 
 interface SubmissionRequest {
     payload: Record<string, any>;
@@ -91,7 +113,7 @@ function createInitialFormData(
         delivery_point_id: '',
         // The order API accepts at most 100,000 MT.
         quantity_mt: typeof prefillQuantity === 'number' && Number.isFinite(prefillQuantity) && prefillQuantity > 0
-            ? Math.min(prefillQuantity, 100_000)
+            ? Math.min(prefillQuantity, MAX_ORDER_QUANTITY_MT)
             : 1_000,
         price_per_mt_usd: prefillPrice && prefillPrice > 0 ? prefillPrice : 0,
         availability_window: prefillAvailabilityWindow || SPOT_WINDOW,
@@ -125,6 +147,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const previousFocusRef = useRef<HTMLElement | null>(null);
     const onCloseRef = useRef(onClose);
     const trackedOpen = useRef(false);
+    const focusFormAfterReviewRef = useRef(false);
     const { t, ready } = useNamespace('trading');
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const { context: marketSupportContext } = useMarketSupport();
@@ -140,8 +163,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [matchResult, setMatchResult] = useState<any>(null);
     const submissionRef = useRef<SubmissionRequest | null>(null);
     const submissionInFlightRef = useRef(false);
-    const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation: MarketSupportConfirmation } | null>(null);
+    const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation?: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
+    const [orderSnapshot, setOrderSnapshot] = useState<OrderSnapshot | null>(null);
 
     useEffect(() => {
         onCloseRef.current = onClose;
@@ -156,6 +180,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
+        setOrderSnapshot(null);
         setAdvancedOpen(side === 'ASK');
         onCloseRef.current();
     }, [side]);
@@ -163,22 +188,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     useEffect(() => {
         if (!isOpen) return;
 
-        const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow, prefillQuantity);
-        setFormData(initialForm);
-        setModalState('form');
-        setErrorMessage('');
-        setMatchResult(null);
-        submissionRef.current = null;
-        submissionInFlightRef.current = false;
-        supportRequestRef.current = null;
-        setSupportDraft(null);
-        setAdvancedOpen(side === 'ASK');
+        const preserveSubmission = submissionInFlightRef.current || submissionRef.current !== null;
+        if (!preserveSubmission) {
+            const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow, prefillQuantity);
+            setFormData(initialForm);
+            setModalState('form');
+            setErrorMessage('');
+            setMatchResult(null);
+            submissionRef.current = null;
+            supportRequestRef.current = null;
+            setSupportDraft(null);
+            setOrderSnapshot(null);
+            setAdvancedOpen(side === 'ASK');
+        }
 
         setCatalogLoading(true);
+        let cancelled = false;
         Promise.all([
             api.catalog.products().catch(() => [] as Product[]),
             api.catalog.deliveryPoints().catch(() => [] as DeliveryPoint[]),
         ]).then(([prods, dps]) => {
+            if (cancelled) return;
             const activeProds = prods.filter(p => (
                 p.is_active
                 && p.market_product
@@ -194,7 +224,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     product.fuel_type.toLowerCase() === prefillFuelType.toLowerCase()
                     || product.name.toLowerCase().includes(prefillFuelType.toLowerCase())
                 ))
-            )) ?? activeProds[0];
+            )) ?? (!prefillMarketProduct && !prefillFuelType ? activeProds[0] : undefined);
 
             const matchedDeliveryPoint = activeDps.find((point) => (
                 (prefillDeliveryPointId && point.id === prefillDeliveryPointId)
@@ -202,7 +232,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     point.region.toLowerCase().includes(prefillRegion.toLowerCase())
                     || point.name.toLowerCase().includes(prefillRegion.toLowerCase())
                 ))
-            )) ?? activeDps[0];
+            )) ?? (!prefillDeliveryPointId && !prefillRegion ? activeDps[0] : undefined);
 
             setFormData((prev) => ({
                 ...prev,
@@ -211,7 +241,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 delivery_point_id: matchedDeliveryPoint?.id ?? '',
                 availability_window: prefillAvailabilityWindow || prev.availability_window,
             }));
-        }).finally(() => setCatalogLoading(false));
+        }).finally(() => {
+            if (!cancelled) setCatalogLoading(false);
+        });
+        return () => { cancelled = true; };
     }, [
         isOpen,
         side,
@@ -295,9 +328,17 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }, [handleClose, isOpen, ready, supportConfirmationOpen]);
 
     useEffect(() => {
-        if (isOpen && ['success', 'auto_matched', 'error'].includes(modalState)) {
+        if (isOpen && ['reviewing', 'submitting', 'success', 'auto_matched', 'error'].includes(modalState)) {
             dialogRef.current?.focus();
         }
+    }, [isOpen, modalState]);
+
+    useEffect(() => {
+        if (!isOpen || modalState !== 'form' || !focusFormAfterReviewRef.current) return;
+        focusFormAfterReviewRef.current = false;
+        dialogRef.current?.querySelector<HTMLElement>(
+            '[data-tour="order-modal-core-fields"] button:not([disabled]), #order-quantity:not([disabled])'
+        )?.focus();
     }, [isOpen, modalState]);
 
     const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
@@ -372,6 +413,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
+        setOrderSnapshot(null);
         submissionRef.current = null;
         supportRequestRef.current = null;
         setModalState('form');
@@ -386,11 +428,42 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.carbon_intensity_gco2_mj > 0 &&
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
+    const catalogMinimumQuantityMt = selectedProduct?.min_lot_size;
+    const hasValidCatalogMinimum = typeof catalogMinimumQuantityMt === 'number'
+        && Number.isFinite(catalogMinimumQuantityMt)
+        && catalogMinimumQuantityMt > 0;
+    const minimumQuantityMt = hasValidCatalogMinimum ? Number(catalogMinimumQuantityMt) : NaN;
+    const expiryTimestamp = formData.expiry_type === 'date' && formData.expiry_date
+        ? Date.parse(`${formData.expiry_date}T23:59:59Z`)
+        : NaN;
+    const hasValidExpiry = formData.expiry_type === 'GTC'
+        || (Number.isFinite(expiryTimestamp) && expiryTimestamp > Date.now());
+    const quantityValidationMessage = selectedProduct && !hasValidCatalogMinimum
+        ? t('orderPlaceModal.validation.catalogMinimumUnavailable')
+        : selectedProduct && formData.quantity_mt < minimumQuantityMt
+            ? t('orderPlaceModal.validation.minQuantity', { quantity: minimumQuantityMt.toLocaleString(locale) })
+            : '';
+    const expiryValidationMessage = formData.expiry_type === 'date'
+        ? !formData.expiry_date
+            ? t('orderPlaceModal.validation.expiryRequired')
+            : !hasValidExpiry
+                ? t('orderPlaceModal.validation.expiryFuture')
+                : ''
+        : '';
     const isValid =
+        Boolean(selectedProduct && selectedDeliveryPoint) &&
+        hasValidCatalogMinimum &&
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
-        formData.quantity_mt > 0 &&
+        Number.isFinite(formData.quantity_mt) &&
+        formData.quantity_mt >= minimumQuantityMt &&
+        formData.quantity_mt <= MAX_ORDER_QUANTITY_MT &&
+        hasAtMostTwoDecimalPlaces(formData.quantity_mt) &&
+        Number.isFinite(formData.price_per_mt_usd) &&
         formData.price_per_mt_usd > 0 &&
+        formData.price_per_mt_usd <= MAX_ORDER_PRICE_PER_MT_USD &&
+        hasAtMostTwoDecimalPlaces(formData.price_per_mt_usd) &&
+        hasValidExpiry &&
         (side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
     const isValidOrder = isValid;
@@ -424,14 +497,59 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         return payload;
     };
 
-    const submitOrder = async (supportConfirmation?: MarketSupportConfirmation) => {
+    const buildOrderSnapshot = (): OrderSnapshot => {
+        // Copy the JSON request so form arrays and assisted-session state cannot alter reviewed terms.
+        const payload = JSON.parse(JSON.stringify(buildOrderPayload())) as Record<string, any>;
+        const reviewDetails: Array<{ label: string; value: string }> = [];
+        const addReviewDetail = (label: string, value: unknown) => {
+            if (typeof value === 'string' && value.trim()) reviewDetails.push({ label, value: value.trim() });
+        };
+        if (payload.side === 'BID') {
+            const certificationPreference = Array.isArray(payload.certifications) && payload.certifications.length > 0
+                ? payload.certifications.join(', ')
+                : t('orderPlaceModal.option.anyCertifiedScheme');
+            addReviewDetail(t('orderPlaceModal.label.certificationScheme'), certificationPreference);
+        }
+        if (payload.side === 'ASK') {
+            addReviewDetail(t('orderPlaceModal.label.certificationScheme'), payload.certification_scheme);
+            if (payload.certification_declared === true) {
+                addReviewDetail(t('orderPlaceModal.label.certificationDeclared'), t('orderPlaceModal.review.confirmed'));
+            }
+            addReviewDetail(t('orderPlaceModal.label.specificationStandard'), payload.specification_standard);
+            if (payload.msds_available === true) {
+                addReviewDetail(t('orderPlaceModal.label.msdsAvailable'), t('orderPlaceModal.review.confirmed'));
+            }
+            if (typeof payload.carbon_intensity_gco2_mj === 'number') {
+                addReviewDetail(t('orderPlaceModal.label.carbonIntensity'), `${payload.carbon_intensity_gco2_mj} gCO₂e/MJ`);
+            }
+            addReviewDetail(t(`${biofuelKey}.carbonIntensityMethodLabel`), payload.carbon_intensity_method);
+            addReviewDetail(t('orderPlaceModal.label.feedstock'), payload.feedstock);
+            addReviewDetail(t('orderPlaceModal.label.origin'), payload.origin);
+        }
+        return {
+            payload,
+            productName: selectedProduct ? getProductDisplayName(selectedProduct) : formData.product_id,
+            deliveryPointName: selectedDeliveryPoint?.name || formData.delivery_point_id,
+            availabilityWindow: availabilitySummary,
+            quantityMt: formData.quantity_mt,
+            pricePerMtUsd: formData.price_per_mt_usd,
+            expiresAt: typeof payload.expires_at === 'string' ? payload.expires_at : undefined,
+            authGeneration: getAuthGeneration(),
+            supportContextId: getMarketSupportContextId(),
+            reviewDetails,
+        };
+    };
+
+    const submitOrder = async (payload: Record<string, any>, supportConfirmation?: MarketSupportConfirmation) => {
         if (submissionInFlightRef.current) return;
-        if (selectedProduct?.market_product && selectedDeliveryPoint) {
+        const submittedProduct = products.find(product => product.id === payload.product_id);
+        const submittedDeliveryPoint = deliveryPoints.find(point => point.id === payload.delivery_point_id);
+        if (submittedProduct?.market_product && submittedDeliveryPoint) {
             analytics.track('order_form_submitted', {
-                product: selectedProduct.market_product,
-                delivery_point: selectedDeliveryPoint.id,
-                window: formData.availability_window,
-                side,
+                product: submittedProduct.market_product,
+                delivery_point: submittedDeliveryPoint.id,
+                window: payload.availability_window,
+                side: payload.side,
             });
         }
 
@@ -440,9 +558,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         submissionInFlightRef.current = true;
 
         try {
-            const currentPayload = supportConfirmation
-                ? { ...(supportRequestRef.current?.payload ?? buildOrderPayload(supportConfirmation)), support_confirmation: supportConfirmation }
-                : buildOrderPayload();
+            const currentPayload: Record<string, any> = {
+                ...payload,
+                ...(supportConfirmation ? { support_confirmation: supportConfirmation } : {}),
+            };
             delete currentPayload.idempotency_key;
             const currentSignature = JSON.stringify(currentPayload);
             let request = submissionRef.current?.draftSignature === currentSignature
@@ -474,28 +593,87 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         }
     };
 
+    const requireUnchangedExecutionContext = ({
+        allowElapsedExpiry = false,
+    }: { allowElapsedExpiry?: boolean } = {}) => {
+        if (!orderSnapshot) return false;
+        const principalChanged = orderSnapshot.authGeneration !== getAuthGeneration();
+        const currentContextId = marketSupportContext?.id ?? null;
+        const supportContextChanged = orderSnapshot.supportContextId !== getMarketSupportContextId()
+            || orderSnapshot.supportContextId !== currentContextId;
+        const expiryElapsed = !allowElapsedExpiry
+            && Boolean(orderSnapshot.expiresAt)
+            && Date.parse(orderSnapshot.expiresAt as string) <= Date.now();
+        if (!principalChanged && !supportContextChanged && !expiryElapsed) return true;
+        focusFormAfterReviewRef.current = true;
+        setOrderSnapshot(null);
+        setSupportDraft(null);
+        submissionRef.current = null;
+        supportRequestRef.current = null;
+        setErrorMessage(t(principalChanged
+            ? 'orderPlaceModal.validation.principalChanged'
+            : supportContextChanged
+                ? 'orderPlaceModal.validation.supportContextChanged'
+                : 'orderPlaceModal.validation.expiryFuture'));
+        setModalState('form');
+        return false;
+    };
+
     const retrySubmission = () => {
+        // The first request may have succeeded before its response became uncertain.
+        // Replay its exact idempotency key even when the reviewed GTD has since elapsed.
+        if (!requireUnchangedExecutionContext({ allowElapsedExpiry: true })) return;
         const request = submissionRef.current;
-        if (request) void submitOrder(request.confirmation);
+        if (request) void submitOrder(request.payload, request.confirmation);
+    };
+
+    const backFromReview = () => {
+        focusFormAfterReviewRef.current = true;
+        setOrderSnapshot(null);
+        submissionRef.current = null;
+        setErrorMessage('');
+        setModalState('form');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isValidOrder) return;
+        const snapshot = buildOrderSnapshot();
+        if (snapshot.supportContextId !== (marketSupportContext?.id ?? null)) {
+            setErrorMessage(t('orderPlaceModal.validation.supportContextChanged'));
+            return;
+        }
+        setOrderSnapshot(snapshot);
+        submissionRef.current = null;
         if (marketSupportContext) {
+            supportRequestRef.current = { payload: snapshot.payload };
             setSupportDraft(buildSupportDraft());
             setModalState('support_confirmation');
             setErrorMessage('');
             return;
         }
-        await submitOrder();
+        supportRequestRef.current = null;
+        setErrorMessage('');
+        setModalState('reviewing');
     };
 
     const handleSupportConfirm = async (confirmation: MarketSupportConfirmation) => {
-        await submitOrder(confirmation);
+        if (!requireUnchangedExecutionContext()) return;
+        const payload = supportRequestRef.current?.payload;
+        if (payload) await submitOrder(payload, confirmation);
+    };
+
+    const confirmReviewedOrder = async () => {
+        if (!requireUnchangedExecutionContext()) return;
+        if (orderSnapshot) await submitOrder(orderSnapshot.payload);
     };
 
     const sideLabel = side === 'BID' ? t('side.bidNoun') : t('side.askNoun');
+    const showOrderReview = Boolean(
+        orderSnapshot
+        && !supportRequestRef.current
+        && (modalState === 'reviewing' || modalState === 'submitting')
+    );
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
@@ -569,11 +747,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 })}
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 mb-4">
                                     {t('orderPlaceModal.autoMatched.history')}
-                                    {matchResult?.trades?.length > 0 && matchResult.trades[0].price_per_mt_usd !== formData.price_per_mt_usd && (
+                                    {matchResult?.trades?.length > 0 && matchResult.trades[0].price_per_mt_usd !== orderSnapshot?.pricePerMtUsd && (
                                         <span className="block mt-1 text-emerald-600 dark:text-emerald-400 font-medium">
                                             {t(side === 'BID' ? 'orderPlaceModal.autoMatched.improvement.bid' : 'orderPlaceModal.autoMatched.improvement.ask', {
                                                 price: matchResult.trades[0].price_per_mt_usd,
-                                                requestedPrice: formData.price_per_mt_usd,
+                                                requestedPrice: orderSnapshot?.pricePerMtUsd,
                                             })}
                                         </span>
                                     )}
@@ -590,9 +768,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
                                     {t('orderPlaceModal.success.body', {
                                         side: sideLabel,
-                                        qty: formData.quantity_mt.toLocaleString(locale),
-                                        product: selectedProduct?.name || t('orderPlaceModal.productFallback'),
-                                        price: formData.price_per_mt_usd,
+                                        qty: orderSnapshot?.quantityMt.toLocaleString(locale) ?? '',
+                                        product: orderSnapshot?.productName || t('orderPlaceModal.productFallback'),
+                                        price: orderSnapshot?.pricePerMtUsd ?? '',
                                     })}
                                 </p>
                             </>
@@ -637,7 +815,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     <div>
                         <div className="flex items-center gap-3">
                             <h2 id="order-place-modal-title" className="text-xl font-bold text-slate-900 dark:text-slate-200 font-['Montserrat']">
-                                {t('orderPlaceModal.title', { side: sideLabel })}
+                                {showOrderReview
+                                    ? t('orderPlaceModal.review.title', { side: sideLabel })
+                                    : t('orderPlaceModal.title', { side: sideLabel })}
                             </h2>
                             <span className={`px-2 py-0.5 text-xs font-bold rounded ${
                                 side === 'BID'
@@ -648,22 +828,92 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             </span>
                         </div>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                            {side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
+                            {showOrderReview
+                                ? t('orderPlaceModal.review.subtitle')
+                                : side === 'BID' ? t('orderPlaceModal.subtitle.bid') : t('orderPlaceModal.subtitle.ask')}
                         </p>
                     </div>
                     <button
                         type="button"
                         data-tour="order-modal-close"
                         onClick={handleClose}
-                        className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                        disabled={modalState === 'submitting'}
+                        className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         aria-label={t('orderPlaceModal.btn.close')}
                     >
                         <X size={24} />
                     </button>
                 </div>
 
+                {showOrderReview && orderSnapshot ? (
+                    <div className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                <dl className="divide-y divide-slate-200 dark:divide-slate-700">
+                                    {[
+                                        [t('orderPlaceModal.review.product'), orderSnapshot.productName],
+                                        [t('orderPlaceModal.review.deliveryPoint'), orderSnapshot.deliveryPointName],
+                                        [t('orderPlaceModal.review.availability'), orderSnapshot.availabilityWindow],
+                                        [t('orderPlaceModal.review.quantity'), `${orderSnapshot.quantityMt.toLocaleString(locale, { maximumFractionDigits: 2 })} MT`],
+                                        [t('orderPlaceModal.review.price'), `USD ${orderSnapshot.pricePerMtUsd.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/MT`],
+                                        [t('orderPlaceModal.review.total'), `USD ${(orderSnapshot.quantityMt * orderSnapshot.pricePerMtUsd).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+                                        [t('orderPlaceModal.review.timeInForce'), orderSnapshot.expiresAt
+                                            ? formatOrderExpiry(orderSnapshot.expiresAt, locale, '', true)
+                                            : t('orderPlaceModal.review.gtc')],
+                                        ...orderSnapshot.reviewDetails.map(({ label, value }) => [label, value]),
+                                    ].map(([label, value]) => (
+                                        <div key={label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-4 px-4 py-3">
+                                            <dt className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
+                                            <dd className="text-sm font-semibold text-right text-slate-900 dark:text-slate-100 break-words">{value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+
+                            <div data-tour="order-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <div className="font-bold">{t('orderPlaceModal.review.autoMatchTitle')}</div>
+                                        <p className="mt-1 text-xs leading-5">{t('orderPlaceModal.review.autoMatchBody')}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 flex gap-3 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.08)]">
+                            <button
+                                type="button"
+                                onClick={backFromReview}
+                                disabled={modalState === 'submitting'}
+                                className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {t('orderPlaceModal.btn.backToEdit')}
+                            </button>
+                            <button
+                                type="button"
+                                data-tour="order-final-confirm-button"
+                                onClick={() => { void confirmReviewedOrder(); }}
+                                disabled={modalState === 'submitting'}
+                                className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+                                    side === 'BID' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-[#5DADE2] hover:bg-[#4A9BD9]'
+                                }`}
+                            >
+                                {modalState === 'submitting' ? (
+                                    <>
+                                        <Loader2 className="animate-spin" size={18} />
+                                        {t('orderPlaceModal.btn.placing', { side: sideLabel })}
+                                    </>
+                                ) : t('orderPlaceModal.btn.confirmPlace', { side: sideLabel })}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {errorMessage && (
+                            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>
+                        )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
                             <div>
                                 <label className={labelClass}>{t('orderPlaceModal.label.product')}</label>
@@ -726,7 +976,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
                                     <div>
                                         <span className="text-slate-400 dark:text-slate-500 uppercase font-bold">{t('orderPlaceModal.label.minLot')}</span>
-                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">{selectedProduct.min_lot_size.toLocaleString()} MT</div>
+                                        <div className="font-bold text-slate-700 dark:text-slate-200 mt-0.5">
+                                            {hasValidCatalogMinimum
+                                                ? `${minimumQuantityMt.toLocaleString(locale)} MT`
+                                                : t('orderPlaceModal.validation.catalogMinimumUnavailable')}
+                                        </div>
                                     </div>
                                     {selectedDeliveryPoint && (
                                         <div>
@@ -772,12 +1026,20 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     value={formData.quantity_mt || ''}
                                     onChange={(e) => handleChange('quantity_mt', parseFloat(e.target.value) || 0)}
                                     placeholder={selectedProduct
-                                        ? t('orderPlaceModal.placeholder.minQuantity', { quantity: selectedProduct.min_lot_size.toLocaleString(locale) })
+                                        ? hasValidCatalogMinimum
+                                            ? t('orderPlaceModal.placeholder.minQuantity', { quantity: minimumQuantityMt.toLocaleString(locale) })
+                                            : t('orderPlaceModal.validation.catalogMinimumUnavailable')
                                         : t('orderPlaceModal.placeholder.quantity')}
-                                    min={selectedProduct?.min_lot_size || 0}
-                                    step={1}
+                                    min={hasValidCatalogMinimum ? minimumQuantityMt : undefined}
+                                    max={MAX_ORDER_QUANTITY_MT}
+                                    step={0.01}
+                                    aria-invalid={Boolean(quantityValidationMessage)}
+                                    aria-describedby={quantityValidationMessage ? 'order-quantity-error' : undefined}
                                     className={inputClass}
                                 />
+                                {quantityValidationMessage && (
+                                    <p id="order-quantity-error" className="mt-1 text-xs text-red-600 dark:text-red-400">{quantityValidationMessage}</p>
+                                )}
                             </div>
                             <div>
                                 <label htmlFor="order-price" className={labelClass}>{t('orderPlaceModal.label.price')} <span className="normal-case font-normal text-slate-400">({t('orderPlaceModal.label.deliveredFob')})</span></label>
@@ -787,7 +1049,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     value={formData.price_per_mt_usd || ''}
                                     onChange={(e) => handleChange('price_per_mt_usd', parseFloat(e.target.value) || 0)}
                                     placeholder={t('orderPlaceModal.placeholder.price')}
-                                    min={0}
+                                    min={0.01}
+                                    max={MAX_ORDER_PRICE_PER_MT_USD}
                                     step={0.01}
                                     className={inputClass}
                                 />
@@ -1028,8 +1291,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                 min={new Date().toISOString().slice(0, 10)}
                                                 value={formData.expiry_date}
                                                 onChange={(e) => handleChange('expiry_date', e.target.value)}
+                                                aria-invalid={Boolean(expiryValidationMessage)}
+                                                aria-describedby={expiryValidationMessage ? 'order-expiry-error' : undefined}
                                                 className={inputClass}
                                             />
+                                        )}
+                                        {expiryValidationMessage && (
+                                            <p id="order-expiry-error" className="mt-1 text-xs text-red-600 dark:text-red-400">{expiryValidationMessage}</p>
                                         )}
                                     </div>
                                 </div>
@@ -1062,7 +1330,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             type="button"
                             data-tour="order-modal-cancel"
                             onClick={handleClose}
-                            className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors"
+                            disabled={modalState === 'submitting'}
+                            className="flex-1 py-2.5 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-bold text-sm rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {t('orderPlaceModal.btn.cancel')}
                         </button>
@@ -1084,11 +1353,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     {t('orderPlaceModal.btn.placing', { side: sideLabel })}
                                 </>
                             ) : (
-                                t('orderPlaceModal.btn.place', { side: sideLabel })
+                                marketSupportContext
+                                    ? t('orderPlaceModal.btn.place', { side: sideLabel })
+                                    : t('orderPlaceModal.btn.review', { side: sideLabel })
                             )}
                         </button>
                     </div>
                 </form>
+                )}
             </div>
         </div>
     );

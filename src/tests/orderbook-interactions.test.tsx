@@ -47,6 +47,37 @@ describe('orderbook inspection', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
+  it('labels provenance-only demo rows and preserves two-decimal depth', async () => {
+    listBids.mockResolvedValue([{
+      id: 'demo-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+      remaining_quantity_mt: 12.34, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+    }]);
+
+    renderWithProviders(<OrderBook />);
+    const level = await screen.findByRole('group', { name: /Bid \$600 for 12\.34 MT/ });
+    fireEvent.focus(level);
+    expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
+  });
+
+  it('omits the spread footer for a demo-only cross', async () => {
+    listBids.mockResolvedValue([{
+      id: 'demo-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], is_demo_listing: true,
+    }]);
+    listAsks.mockResolvedValue([{
+      id: 'demo-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 590,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], is_demo_listing: true,
+    }]);
+
+    renderWithProviders(<OrderBook />);
+    expect(await screen.findByRole('group', { name: /Bid.*600/ })).toBeTruthy();
+    expect(screen.queryByText('Spread')).toBeNull();
+    expect(screen.queryByText('Crossed')).toBeNull();
+  });
+
   it('discards a stale response after the market product changes', async () => {
     let resolveBio!: (orders: unknown[]) => void;
     let resolveEMethanol!: (orders: unknown[]) => void;

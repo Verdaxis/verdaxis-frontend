@@ -611,3 +611,7 @@
 - **Trigger:** The user corrected the added activity consent gate and repeat prompt; the activity privacy policy is managed separately, outside this machine.
 - **Rule:** Record authenticated product activity without a separate in-app consent flow. Preserve the existing anonymous analytics choices and do not add policy acceptance, repeat prompts, or consent outreach for this feature.
 - **Why:** I added a product requirement that the user did not request and made the approved activity feature depend on it.
+
+- **Trigger:** I first attributed an order-prefill test failure to async catalog timing, but the fixture's requested B100 product was present and correctly selected.
+- **Rule:** Before changing waits after a UI test failure, compare the requested identifier with the complete fixture and trace the rendered branch and its display formatter. Use a truly absent value for unresolved-prefill tests, and assert canonical labels instead of arbitrary fixture names.
+- **Why:** A valid fixture can make the product behavior correct while the test expectation is false; labeling it a timing race hides the actual cause.
