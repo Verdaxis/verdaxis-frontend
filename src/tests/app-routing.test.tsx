@@ -191,7 +191,6 @@ vi.mock('../services/api', () => ({
       listBids,
       productCounts,
       myOrders,
-      productCounts: vi.fn().mockResolvedValue({ total: 0, counts: {} }),
     },
     trades: {
       initiate: tradesInitiate,
