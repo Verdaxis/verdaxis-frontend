@@ -421,6 +421,69 @@ describe('Marketplace green fuels surface', () => {
     });
   });
 
+  it('waits for the port catalog and avoids paged listings on a direct orderbook route', async () => {
+    let resolveDeliveryPoints!: (points: Array<{ id: string; name: string; region: string; is_active: boolean }>) => void;
+    deliveryPoints.mockReturnValue(new Promise(resolve => { resolveDeliveryPoints = resolve; }));
+    setMarketplaceSlice();
+
+    renderWithProviders(<Marketplace />, { route: '/app/marketplace?view=orderbook' });
+
+    await waitFor(() => expect(deliveryPoints).toHaveBeenCalledTimes(1), { timeout: 15_000 });
+    expect(listAsksPaged).not.toHaveBeenCalled();
+    expect(productCounts).not.toHaveBeenCalled();
+    expect(listAsks).not.toHaveBeenCalled();
+    expect(listBids).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveDeliveryPoints([{ id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true }]);
+    });
+
+    await waitFor(() => {
+      expect(productCounts).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(listBids).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+      expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-1',
+      }));
+    }, { timeout: 15_000 });
+    expect(listAsksPaged).not.toHaveBeenCalled();
+  }, 45_000);
+
+  it('clears counts when a new market scope count request fails', async () => {
+    productCounts
+      .mockResolvedValueOnce({
+        counts: { BIO_METHANOL: 1, E_METHANOL: 0, BIO_ETHANOL: 0, SYNTHETIC_ETHANOL: 0 },
+        total: 1,
+      })
+      .mockRejectedValueOnce(new Error('Counts unavailable'));
+
+    renderWithProviders(<Marketplace />);
+    expect(await screen.findByRole('button', { name: /Bio Methanol \(1\)/i }, { timeout: 15_000 })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Port' }));
+    fireEvent.click(await screen.findByRole('option', { name: /Rotterdam/i }, { timeout: 15_000 }));
+
+    await waitFor(() => {
+      expect(productCounts).toHaveBeenLastCalledWith(expect.objectContaining({
+        region: undefined,
+        delivery_point_id: 'dp-2',
+      }));
+    }, { timeout: 15_000 });
+    expect(screen.queryByRole('button', { name: /Bio Methanol \(1\)/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Bio Methanol$/i })).toBeTruthy();
+  }, 45_000);
+
   it('keeps window, expiry and qualification accessible in the compact product cell', async () => {
     renderWithProviders(<Marketplace />);
     const action = await screen.findByRole('button', { name: 'Lift Ask' });
@@ -464,18 +527,22 @@ describe('Marketplace green fuels surface', () => {
   it('keeps valid listings visible after a refresh error and resets them for a new filter', async () => {
     renderWithProviders(<Marketplace />);
     expect(await screen.findByRole('button', { name: /lift ask/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    expect(screen.getByText('Current slice').parentElement?.textContent).toContain('1 matching order');
 
     listAsksPaged.mockRejectedValueOnce(new Error('Refresh unavailable'));
     fireEvent.click(screen.getByRole('button', { name: /^refresh$/i }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Refresh unavailable');
     expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy();
+    expect(screen.getByText('Current slice').parentElement?.textContent).toContain('1 matching order');
 
     listAsksPaged.mockRejectedValueOnce(new Error('Changed filter unavailable'));
     fireEvent.click(screen.getByRole('button', { name: /^e-Methanol/i }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Changed filter unavailable');
     expect(screen.queryByRole('button', { name: /lift ask/i })).toBeNull();
+    expect(screen.getByText('Current slice').parentElement?.textContent).toContain('0 matching orders');
   });
 
   it('suppresses unknown backend English behind the Chinese listings fallback', async () => {
