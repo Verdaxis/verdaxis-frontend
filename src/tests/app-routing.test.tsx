@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 
@@ -19,6 +19,7 @@ const {
   listBidsPaged,
   listAsks,
   listBids,
+  productCounts,
   myOrders,
   products,
   deliveryPoints,
@@ -72,6 +73,7 @@ const {
     listBidsPaged: vi.fn(),
     listAsks: vi.fn(),
     listBids: vi.fn(),
+    productCounts: vi.fn(),
     myOrders: vi.fn(),
     products: vi.fn(),
     deliveryPoints: vi.fn(),
@@ -187,6 +189,7 @@ vi.mock('../services/api', () => ({
       listBidsPaged,
       listAsks,
       listBids,
+      productCounts,
       myOrders,
       productCounts: vi.fn().mockResolvedValue({ total: 0, counts: {} }),
     },
@@ -266,6 +269,7 @@ describe('app routing', () => {
     listBidsPaged.mockResolvedValue(emptyListings);
     listAsks.mockResolvedValue([]);
     listBids.mockResolvedValue([]);
+    productCounts.mockResolvedValue({ counts: {}, total: 0 });
     myOrders.mockResolvedValue([]);
     products.mockResolvedValue([
       { id: 'bio-methanol', market_product: 'BIO_METHANOL', fuel_type: 'Methanol', is_active: true, execution_mode: 'ORDERBOOK' },
@@ -531,15 +535,19 @@ describe('app routing', () => {
 
     it('preselects the slice from a valid deep link', async () => {
       renderApp('/app/m/bio-methanol/singapore/spot');
+      await act(() => vi.dynamicImportSettled());
       await waitFor(() => {
-        expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
+        const chip = document.querySelector('[data-market-product="BIO_METHANOL"]');
+        expect(chip?.getAttribute('aria-pressed')).toBe('true');
+      });
+      await waitFor(() => {
+        expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({
           market_product: 'BIO_METHANOL',
           availability: 'SPOT',
-          region: 'Singapore',
+          delivery_point_id: 'dp-1',
+          region: undefined,
         }));
       });
-      const chip = document.querySelector('[data-market-product="BIO_METHANOL"]');
-      expect(chip?.getAttribute('aria-pressed')).toBe('true');
       expect(currentPathname()).toBe('/app/m/bio-methanol/singapore/spot');
       expect(dashboardPageAttr()).toBe('MARKETPLACE');
     });
@@ -722,9 +730,14 @@ describe('app routing', () => {
       fireEvent.click(await screen.findByText('select-singapore'));
 
       await waitFor(() => expect(currentPathname()).toBe('/app/marketplace'));
+      await act(() => vi.dynamicImportSettled());
       await waitFor(() => {
-        expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({
-          region: 'Singapore',
+        expect(document.querySelector('[data-market-product="BIO_METHANOL"]')).toBeTruthy();
+      });
+      await waitFor(() => {
+        expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({
+          delivery_point_id: 'dp-1',
+          region: undefined,
           market_product: undefined,
         }));
       });
