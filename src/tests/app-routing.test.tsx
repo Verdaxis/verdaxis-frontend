@@ -103,6 +103,9 @@ vi.mock('../context/MarketSupportContext', () => ({
 vi.mock('../components/rfq/FameRfqWorkspace', () => ({ FameRfqWorkspace: ({ historyOnly }: { historyOnly?: boolean }) => <div data-testid="page-rfqs" data-history-only={historyOnly}>B100 RFQs</div> }));
 vi.mock('../components/supplier/SupplierOffersWorkspace', () => ({ SupplierOffersWorkspace: ({ mine, historyOnly }: { mine?: boolean; historyOnly?: boolean }) => <div data-testid="page-b100-offers" data-history-only={historyOnly}>{mine ? 'My B100 offers' : 'B100 supplier Listings'}</div> }));
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
+vi.mock('../components/MobileDesktopGate', () => ({
+  MobileDesktopGate: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
 vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: ({ isOpen, prefillMarketProduct, side }: { isOpen: boolean; prefillMarketProduct?: string; side: string }) => isOpen ? <div data-testid="order-place-dialog" data-product={prefillMarketProduct} data-side={side} /> : null }));
