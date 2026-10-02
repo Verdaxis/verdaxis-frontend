@@ -180,7 +180,7 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
-  it('renders availability and recent prices from the compact map summary', async () => {
+  it('renders compact map data and keeps all ticker fallbacks after selecting a map fuel', async () => {
     portsListMock.mockResolvedValue([]);
     compactMapSummaryMock.mockResolvedValueOnce({
       markets: [{
@@ -227,6 +227,26 @@ describe('BuyerMap failure localization', () => {
         scope: 'DELIVERY_POINT',
         demo_status: 'DEMO_ONLY',
         observed_at: '2026-09-08T00:00:00Z',
+      }, {
+        product_id: 'b100',
+        product_name: 'B100',
+        market_product: 'B100',
+        fuel_type: 'Biofuel',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        availability_window: 'SPOT',
+        region: 'Singapore',
+        side: 'ASK',
+        min_price: '777',
+        max_price: '777',
+        total_quantity: '500',
+        order_count: 1,
+        product_total_order_count: 1,
+        evidence_class: 'DEMO',
+        source_kind: 'DEMO_SEED',
+        scope: 'DELIVERY_POINT',
+        demo_status: 'DEMO_ONLY',
+        observed_at: '2026-09-08T00:00:00Z',
       }],
       recent_asks: [{
         product_id: 'bio-methanol',
@@ -251,7 +271,16 @@ describe('BuyerMap failure localization', () => {
     expect(compactMapSummaryMock).toHaveBeenCalledWith({ force: false });
     expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
       expect.objectContaining({ availability_window: 'SPOT', min_price: '999' }),
+      expect.objectContaining({ market_product: 'B100', min_price: '777' }),
     ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
+    await waitFor(() => {
+      expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '999' }),
+        expect.objectContaining({ market_product: 'B100', min_price: '777' }),
+      ]);
+    });
   });
 
   it('does not present methanol history or supply as B30 or B100 port data', async () => {
