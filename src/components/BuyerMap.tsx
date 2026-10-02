@@ -265,14 +265,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return map;
     }, [ports]);
 
-    const approvedDemoGroups = useMemo(() => demoGroups.filter(group => (
-        (!selectedProduct || group.market_product === selectedProduct)
-        && resolveApprovedPortName(
-            approvedListingLocationMap,
-            group.delivery_point_id,
-            group.delivery_point_name,
-        )
-    )), [approvedListingLocationMap, demoGroups, selectedProduct]);
+    const approvedDemoGroups = useMemo(() => demoGroups.filter(group => resolveApprovedPortName(
+        approvedListingLocationMap,
+        group.delivery_point_id,
+        group.delivery_point_name,
+    )), [approvedListingLocationMap, demoGroups]);
 
     const portBounds = useMemo<mapboxgl.LngLatBoundsLike | undefined>(() => {
         if (!visiblePorts.length) return undefined;

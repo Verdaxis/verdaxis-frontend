@@ -192,7 +192,7 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
-  it('renders B100 in shared orderbook availability and recent prices', async () => {
+  it('renders B100 map data and keeps all ticker fallbacks after selecting a map fuel', async () => {
     portsListMock.mockResolvedValue([]);
     const b100Row = {
       product_id: 'ucome-b100',
@@ -314,6 +314,14 @@ describe('BuyerMap failure localization', () => {
       expect.objectContaining({ availability_window: 'SPOT', min_price: '999' }),
       expect.objectContaining({ market_product: 'UCOME_B100', min_price: '777' }),
     ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'UCOME B100' }));
+    await waitFor(() => {
+      expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '999' }),
+        expect.objectContaining({ market_product: 'UCOME_B100', min_price: '777' }),
+      ]);
+    });
   });
 
   it.each(['en', 'zh'])('uses shared B100 map data, controls and trading navigation at its catalog port (%s)', async language => {
