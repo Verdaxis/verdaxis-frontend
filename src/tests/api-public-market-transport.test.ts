@@ -54,29 +54,39 @@ describe('public market API transport', () => {
         expect(isPublicMarketReadRequest('/orderbook/asks')).toBe(true);
         expect(isPublicMarketReadRequest('/orderbook/product-counts')).toBe(true);
         expect(isPublicMarketReadRequest('/orderbook/map-summary')).toBe(true);
+        expect(isPublicMarketReadRequest('/orderbook/map-summary/compact')).toBe(true);
         expect(isPublicMarketReadRequest('/curves/forward/table?windows=SPOT')).toBe(true);
         expect(isPublicMarketReadRequest('/curves/forward/slice?market_product=B30')).toBe(true);
+        expect(isPublicMarketReadRequest('/catalog/products')).toBe(true);
+        expect(isPublicMarketReadRequest('/catalog/delivery-points')).toBe(true);
 
         expect(isPublicMarketReadRequest('/orderbook/my')).toBe(false);
         expect(isPublicMarketReadRequest('/orderbook/bids/history')).toBe(false);
         expect(isPublicMarketReadRequest('/orderbook/bids', 'POST')).toBe(false);
+        expect(isPublicMarketReadRequest('/catalog/products/private')).toBe(false);
+        expect(isPublicMarketReadRequest('/catalog/products', 'POST')).toBe(false);
     });
 
     it('omits private headers and cookies from every public market read', async () => {
-        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => successfulJson({ items: [] }));
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async input => (
+            String(input).includes('/catalog/') ? successfulJson([]) : successfulJson({ items: [] })
+        ));
 
         await api.orderbook.listBids(undefined, { force: true });
         await api.orderbook.listAsks(undefined, { force: true });
         await api.orderbook.productCounts({ side: 'ASK' }, { force: true });
         await api.orderbook.mapSummary({ force: true });
+        await api.orderbook.compactMapSummary({ force: true });
         await api.curves.table(undefined, { force: true });
         await api.curves.slice({
             market_product: 'B30',
             delivery_point_id: 'delivery-point-1',
             availability_window: 'SPOT',
         }, { force: true });
+        await api.catalog.products({ force: true });
+        await api.catalog.deliveryPoints({ force: true });
 
-        expect(fetchMock).toHaveBeenCalledTimes(6);
+        expect(fetchMock).toHaveBeenCalledTimes(9);
         for (const [, options] of fetchMock.mock.calls) {
             expect([...new Headers(options?.headers).entries()]).toEqual([]);
             expect(options?.credentials).toBe('omit');
@@ -89,12 +99,12 @@ describe('public market API transport', () => {
             { status: 401, headers: { 'Content-Type': 'application/json' } },
         ));
 
-        const error = await api.orderbook.mapSummary({ force: true }).catch(caught => caught);
+        const error = await api.orderbook.compactMapSummary({ force: true }).catch(caught => caught);
 
         expect(error).toBeInstanceOf(ApiError);
         expect(error).toMatchObject({ status: 401, message: 'Unauthorized' });
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/orderbook/map-summary');
+        expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/orderbook/map-summary/compact');
     });
 
     it('keeps private market, notification, and watchlist reads credentialed', async () => {

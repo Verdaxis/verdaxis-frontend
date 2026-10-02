@@ -17,17 +17,18 @@ const resizeMock = vi.fn();
 const stopMock = vi.fn();
 const setLanguageMock = vi.fn();
 const setStyleMock = vi.fn();
-const mapSummaryMock = vi.fn();
+const compactMapSummaryMock = vi.fn();
 const useSSEMock = vi.fn();
 const removeMock = vi.fn();
 const panelPropsMock = vi.fn();
+const tickerPropsMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
     ports: { list: (...args: unknown[]) => portsListMock(...args) },
     catalog: { deliveryPoints: () => Promise.resolve([]) },
     orderbook: {
-      mapSummary: (...args: unknown[]) => mapSummaryMock(...args),
+      compactMapSummary: (...args: unknown[]) => compactMapSummaryMock(...args),
     },
     vessels: { list: () => Promise.resolve([]) },
   },
@@ -50,7 +51,10 @@ vi.mock('../map/addEcaLayers', () => ({
 }));
 
 vi.mock('../components/map/MarketWatchTicker', () => ({
-  MarketWatchTicker: () => null,
+  MarketWatchTicker: (props: unknown) => {
+    tickerPropsMock(props);
+    return null;
+  },
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
@@ -116,11 +120,12 @@ describe('BuyerMap failure localization', () => {
     stopMock.mockReset();
     setLanguageMock.mockReset();
     setStyleMock.mockReset();
-    mapSummaryMock.mockReset();
-    mapSummaryMock.mockResolvedValue({ groups: [], recent_asks: [] });
+    compactMapSummaryMock.mockReset();
+    compactMapSummaryMock.mockResolvedValue({ markets: [], demo_groups: [], recent_asks: [] });
     useSSEMock.mockReset();
     removeMock.mockReset();
     panelPropsMock.mockReset();
+    tickerPropsMock.mockReset();
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -175,10 +180,34 @@ describe('BuyerMap failure localization', () => {
     expect(document.activeElement).toBe(legendButton);
   });
 
-  it('renders availability and recent prices from the compact map summary', async () => {
+  it('renders compact map data and keeps all ticker fallbacks after selecting a map fuel', async () => {
     portsListMock.mockResolvedValue([]);
-    mapSummaryMock.mockResolvedValueOnce({
-      groups: [{
+    compactMapSummaryMock.mockResolvedValueOnce({
+      markets: [{
+        product_id: 'bio-methanol',
+        product_name: 'Bio Methanol',
+        market_product: 'BIO_METHANOL',
+        fuel_type: 'Methanol',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        region: 'Singapore',
+        evidence_class: 'REAL',
+        source_kind: 'LIVE_ORDER',
+        scope: 'DELIVERY_POINT',
+        demo_status: 'REAL_ONLY',
+        bid_min_price: null,
+        bid_max_price: null,
+        bid_total_quantity: '0',
+        bid_order_count: 0,
+        ask_min_price: '999',
+        ask_max_price: '999',
+        ask_total_quantity: '1234',
+        ask_order_count: 1,
+        spot_best_bid: null,
+        spot_best_ask: '999',
+        observed_at: '2026-09-08T00:00:00Z',
+      }],
+      demo_groups: [{
         product_id: 'bio-methanol',
         product_name: 'Bio Methanol',
         market_product: 'BIO_METHANOL',
@@ -192,6 +221,32 @@ describe('BuyerMap failure localization', () => {
         max_price: '999',
         total_quantity: '1234',
         order_count: 1,
+        product_total_order_count: 1,
+        evidence_class: 'DEMO',
+        source_kind: 'DEMO_SEED',
+        scope: 'DELIVERY_POINT',
+        demo_status: 'DEMO_ONLY',
+        observed_at: '2026-09-08T00:00:00Z',
+      }, {
+        product_id: 'b100',
+        product_name: 'B100',
+        market_product: 'B100',
+        fuel_type: 'Biofuel',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        availability_window: 'SPOT',
+        region: 'Singapore',
+        side: 'ASK',
+        min_price: '777',
+        max_price: '777',
+        total_quantity: '500',
+        order_count: 1,
+        product_total_order_count: 1,
+        evidence_class: 'DEMO',
+        source_kind: 'DEMO_SEED',
+        scope: 'DELIVERY_POINT',
+        demo_status: 'DEMO_ONLY',
+        observed_at: '2026-09-08T00:00:00Z',
       }],
       recent_asks: [{
         product_id: 'bio-methanol',
@@ -213,7 +268,19 @@ describe('BuyerMap failure localization', () => {
 
     expect(await screen.findByText('1,234 MT')).toBeTruthy();
     expect(screen.getByText('$999')).toBeTruthy();
-    expect(mapSummaryMock).toHaveBeenCalledWith({ force: false });
+    expect(compactMapSummaryMock).toHaveBeenCalledWith({ force: false });
+    expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+      expect.objectContaining({ availability_window: 'SPOT', min_price: '999' }),
+      expect.objectContaining({ market_product: 'B100', min_price: '777' }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bio Methanol' }));
+    await waitFor(() => {
+      expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '999' }),
+        expect.objectContaining({ market_product: 'B100', min_price: '777' }),
+      ]);
+    });
   });
 
   it('does not present methanol history or supply as B30 or B100 port data', async () => {
@@ -244,7 +311,7 @@ describe('BuyerMap failure localization', () => {
 
   it('shows a map warning when the compact market summary is unavailable', async () => {
     portsListMock.mockResolvedValue([]);
-    mapSummaryMock.mockRejectedValueOnce(new Error('market unavailable'));
+    compactMapSummaryMock.mockRejectedValueOnce(new Error('market unavailable'));
     vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
@@ -280,8 +347,8 @@ describe('BuyerMap failure localization', () => {
     expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(false);
     view.rerender(<BuyerMap active onPortSelect={onPortSelect} onNavigate={onNavigate} />);
     await waitFor(() => expect(resizeMock.mock.calls.length).toBeGreaterThan(1));
-    expect(mapSummaryMock).toHaveBeenNthCalledWith(1, { force: false });
-    expect(mapSummaryMock).toHaveBeenLastCalledWith({ force: true });
+    expect(compactMapSummaryMock).toHaveBeenNthCalledWith(1, { force: false });
+    expect(compactMapSummaryMock).toHaveBeenLastCalledWith({ force: true });
     expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(true);
     expect(screen.getByRole('button', { name: 'Bio Methanol' }).getAttribute('aria-pressed')).toBe('true');
     expect(mapOptionsMock).toHaveBeenCalledOnce();
