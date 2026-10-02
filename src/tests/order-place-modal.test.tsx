@@ -25,9 +25,15 @@ const marketSupportControl = vi.hoisted(() => ({
   },
 }));
 
-function reviewAndConfirm(side: 'Bid' | 'Ask') {
-  fireEvent.click(screen.getByRole('button', { name: `Review ${side}` }));
-  fireEvent.click(screen.getByRole('button', { name: `Confirm and place ${side}` }));
+async function waitForEnabledButton(name: string | RegExp): Promise<HTMLButtonElement> {
+  const button = screen.getByRole('button', { name }) as HTMLButtonElement;
+  await waitFor(() => expect(button.disabled).toBe(false));
+  return button;
+}
+
+async function reviewAndConfirm(side: 'Bid' | 'Ask') {
+  fireEvent.click(await waitForEnabledButton(`Review ${side}`));
+  fireEvent.click(await screen.findByRole('button', { name: `Confirm and place ${side}` }));
 }
 
 vi.mock('../services/api', () => ({
@@ -205,7 +211,7 @@ describe('OrderPlaceModal', () => {
 
     fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '540.25' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: /quantity/i }), { target: { value: '750.5' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
     expect(screen.getByText('750.5 MT')).toBeTruthy();
     expect(screen.getByText('USD 540.25/MT')).toBeTruthy();
     expect(screen.getByText('Good till cancelled (up to 90 days)')).toBeTruthy();
@@ -213,7 +219,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit order' }));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Order product' })));
     fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '541.25' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
     expect(screen.getByText('USD 541.25/MT')).toBeTruthy();
 
     const confirm = screen.getByRole('button', { name: 'Confirm and place Bid' });
@@ -236,8 +242,7 @@ describe('OrderPlaceModal', () => {
     const view = renderWithProviders(
       <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
     );
-    await waitFor(() => expect(productsMock).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
     expect(screen.getByRole('button', { name: 'Confirm and place Bid' })).toBeTruthy();
 
     view.rerender(
@@ -269,7 +274,7 @@ describe('OrderPlaceModal', () => {
   it('returns to the form when the signed-in principal changes during review', async () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
 
     setAccessToken('replacement-session');
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
@@ -287,7 +292,7 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
       fireEvent.click(screen.getByRole('button', { name: 'Good-till-Date (UTC)' }));
       fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2099-12-31' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+      fireEvent.click(await waitForEnabledButton('Review Bid'));
 
       now.mockReturnValue(Date.parse('2100-01-01T00:00:00Z'));
       fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
@@ -311,9 +316,7 @@ describe('OrderPlaceModal', () => {
     };
     setMarketSupportContextId('ctx-1');
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
-    const placeBidButton = screen.getByRole('button', { name: 'Place Bid' }) as HTMLButtonElement;
-    await waitFor(() => expect(placeBidButton.disabled).toBe(false));
-    fireEvent.click(placeBidButton);
+    fireEvent.click(await waitForEnabledButton('Place Bid'));
     fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
     fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
 
@@ -341,10 +344,9 @@ describe('OrderPlaceModal', () => {
     const view = renderWithProviders(
       <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
     );
-    await waitFor(() => expect(productsMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(await waitForEnabledButton('Place Bid'));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('dialog')));
@@ -421,7 +423,7 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'A safety data sheet is available for this supply.' }));
     }
     const orderAction = side === 'BID' ? 'Bid' : 'Ask';
-    fireEvent.click(screen.getByRole('button', { name: `Review ${orderAction}` }));
+    fireEvent.click(await waitForEnabledButton(`Review ${orderAction}`));
     if (side === 'BID') {
       expect(screen.getByText('ISCC EU')).toBeTruthy();
       expect(screen.queryByText('Any certified scheme')).toBeNull();
@@ -454,10 +456,9 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(
       <OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />
     );
-    await waitFor(() => expect(productsMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(await waitForEnabledButton('Place Bid'));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
 
@@ -580,7 +581,7 @@ describe('OrderPlaceModal', () => {
       target: { value: 'Netherlands' },
     });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    reviewAndConfirm('Ask');
+    await reviewAndConfirm('Ask');
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -637,7 +638,7 @@ describe('OrderPlaceModal', () => {
       target: { value: '540' },
     });
 
-    reviewAndConfirm('Bid');
+    await reviewAndConfirm('Bid');
 
     await waitFor(() => {
       expect(createOrderMock).toHaveBeenCalledWith(
@@ -678,7 +679,7 @@ describe('OrderPlaceModal', () => {
       target: { value: '542' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
     expect(screen.getByText('ISCC EU, REDcert EU')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Bid' }));
 
@@ -728,7 +729,7 @@ describe('OrderPlaceModal', () => {
       target: { value: 'Singapore hub' },
     });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Review Ask' }));
+    fireEvent.click(await waitForEnabledButton('Review Ask'));
     expect(screen.getByText('IMPCA')).toBeTruthy();
     expect(screen.getByText('42.5 gCO₂e/MJ')).toBeTruthy();
     expect(screen.getAllByText('Confirmed').length).toBeGreaterThanOrEqual(2);
@@ -813,7 +814,7 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(await waitForEnabledButton('Place Bid'));
 
     const externalReference = await screen.findByLabelText(/external instruction reference/i);
     const backButton = screen.getByRole('button', { name: /back/i });
@@ -847,7 +848,7 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
+    fireEvent.click(await waitForEnabledButton('Place Ask'));
 
     expect(createOrderMock).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: /confirm assisted order/i })).toBeTruthy();
@@ -892,9 +893,9 @@ describe('OrderPlaceModal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. Waste residue'), { target: { value: 'Waste residue' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Singapore hub'), { target: { value: 'Singapore hub' } });
     fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Place Ask' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(await waitForEnabledButton('Place Ask'));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit ask/i }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
@@ -923,10 +924,10 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '525' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
+    fireEvent.click(await waitForEnabledButton('Place Bid'));
     expect(screen.queryByLabelText(/evidence excerpt/i)).toBeNull();
-    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -950,7 +951,7 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
       fireEvent.click(screen.getByRole('button', { name: 'Good-till-Date (UTC)' }));
       fireEvent.change(document.getElementById('order-expiry-date')!, { target: { value: '2099-12-31' } });
-      reviewAndConfirm('Bid');
+      await reviewAndConfirm('Bid');
 
       await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
       const firstPayload = createOrderMock.mock.calls[0]?.[0];
@@ -976,13 +977,13 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
-    reviewAndConfirm('Bid');
+    await reviewAndConfirm('Bid');
     await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
     const firstKey = createOrderMock.mock.calls[0]?.[0]?.idempotency_key;
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '541' } });
-    reviewAndConfirm('Bid');
+    await reviewAndConfirm('Bid');
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
     expect(createOrderMock.mock.calls[1]?.[0]?.price_per_mt_usd).toBe(541);
@@ -995,7 +996,7 @@ describe('OrderPlaceModal', () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
     fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Review Bid' }));
+    fireEvent.click(await waitForEnabledButton('Review Bid'));
     const submit = screen.getByRole('button', { name: 'Confirm and place Bid' });
     fireEvent.click(submit);
     fireEvent.click(submit);
@@ -1155,7 +1156,7 @@ describe('OrderPlaceModal', () => {
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="UCOME_B100" />);
       await fillOrder();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Review Ask' }));
+      fireEvent.click(await waitForEnabledButton('Review Ask'));
       expect(screen.getByText('UCOME B100')).toBeTruthy();
       expect(screen.getByText('EN 14214 · 2012+A2:2019')).toBeTruthy();
       expect(createOrderMock).not.toHaveBeenCalled();
@@ -1165,7 +1166,7 @@ describe('OrderPlaceModal', () => {
       expect(screen.getByLabelText('Scheme certificate reference')).toHaveProperty('value', 'CERT-1');
       expect(screen.getByRole('checkbox', { name: /safety data sheet is available/ })).toHaveProperty('checked', true);
 
-      reviewAndConfirm('Ask');
+      await reviewAndConfirm('Ask');
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
       expect(createOrderMock.mock.calls[0][0]).toEqual(expect.objectContaining({
         fame_terms: expect.objectContaining({ side: 'ASK', standard_edition: '2012+A2:2019' }),
@@ -1215,7 +1216,7 @@ describe('OrderPlaceModal', () => {
       const ports = screen.getAllByRole('option', { name: /Singapore/i });
       expect(ports).toHaveLength(1);
       fireEvent.click(ports[0]);
-      reviewAndConfirm('Ask');
+      await reviewAndConfirm('Ask');
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({ product_id: 'prod-ucome', delivery_point_id: 'dp-1' })));
       expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
@@ -1225,7 +1226,7 @@ describe('OrderPlaceModal', () => {
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side={side} prefillMarketProduct="UCOME_B100" />);
       await fillOrder(side);
       const place = side === 'BID' ? 'Place Bid' : 'Place Ask';
-      fireEvent.click(screen.getByRole('button', { name: place }));
+      fireEvent.click(await waitForEnabledButton(place));
       expect(await screen.findByRole('heading', { name: /confirm assisted order/i })).toBeTruthy();
       expect(createOrderMock).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: /back/i }));
@@ -1234,7 +1235,7 @@ describe('OrderPlaceModal', () => {
         expect(screen.getByLabelText('Scheme certificate reference')).toHaveProperty('value', 'CERT-1');
         expect(screen.getByRole('checkbox', { name: /safety data sheet is available/ })).toHaveProperty('checked', true);
       }
-      fireEvent.click(screen.getByRole('button', { name: place }));
+      fireEvent.click(await waitForEnabledButton(place));
       fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
       fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
       fireEvent.click(screen.getByRole('button', { name: side === 'BID' ? /confirm and submit bid/i : /confirm and submit ask/i }));
@@ -1250,7 +1251,7 @@ describe('OrderPlaceModal', () => {
       createOrderMock.mockRejectedValueOnce(new Error('Request timed out.')).mockResolvedValueOnce({ trades: [] });
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="UCOME_B100" />);
       await fillOrder();
-      reviewAndConfirm('Ask');
+      await reviewAndConfirm('Ask');
       fireEvent.click(await screen.findByRole('button', { name: /retry safely/i }));
       await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
       expect(createOrderMock.mock.calls[1]).toEqual(createOrderMock.mock.calls[0]);
@@ -1261,7 +1262,7 @@ describe('OrderPlaceModal', () => {
       createOrderMock.mockResolvedValue({ trades: [{ quantity_mt: 500, price_per_mt_usd: 1090 }] });
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="UCOME_B100" />);
       await fillOrder('BID');
-      reviewAndConfirm('Bid');
+      await reviewAndConfirm('Bid');
       expect(await screen.findByRole('heading', { name: i18n.t('orderPlaceModal.autoMatched.title', { ns: 'trading' }) })).toBeTruthy();
       expect(createSupplierOfferMock).not.toHaveBeenCalled();
     });
