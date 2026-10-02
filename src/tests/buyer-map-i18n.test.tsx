@@ -78,6 +78,7 @@ vi.mock('mapbox-gl', () => {
     fitBounds(...args: unknown[]) { fitBoundsMock(...args); }
     flyTo(...args: unknown[]) { flyToMock(...args); }
     hasImage() { return true; }
+    isStyleLoaded() { return true; }
     loaded() { return true; }
     on(...args: unknown[]) { mapOnMock(...args); }
     off() {}

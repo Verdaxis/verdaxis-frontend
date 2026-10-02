@@ -1,6 +1,6 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, screen, waitFor } from '@testing-library/react';
 
 import { TradeTape } from '../components/TradeTape';
 import i18n, { loadNamespace } from '../i18n';
@@ -22,6 +22,10 @@ describe('TradeTape status copy', () => {
     await i18n.changeLanguage('en');
     tradeTapeList.mockReset();
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: false });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('uses 24-hour marketplace history copy instead of market-closed status', async () => {
@@ -80,6 +84,45 @@ describe('TradeTape status copy', () => {
     expect(screen.queryByText('Other grade')).toBeNull();
     expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({ fuel_type: 'FAME', market_product: 'UCOME_B100', delivery_point_id: 'singapore' }));
   });
+
+  it('pauses polling while hidden and refreshes immediately when visible', async () => {
+    let poll: (() => void) | undefined;
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler, timeout?: number) => {
+      if (timeout === 30_000 && typeof handler === 'function') poll = handler as () => void;
+      return 1;
+    }) as typeof window.setInterval);
+
+    renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />);
+    await waitFor(() => expect(tradeTapeList).toHaveBeenCalledTimes(1));
+    expect(poll).toBeTypeOf('function');
+
+    hidden.mockReturnValue(true);
+    await act(async () => { poll?.(); });
+    expect(tradeTapeList).toHaveBeenCalledTimes(1);
+
+    hidden.mockReturnValue(false);
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await waitFor(() => expect(tradeTapeList).toHaveBeenCalledTimes(2));
+  }, 30_000);
+
+  it('clears the prior scope total when a new scope fails to load', async () => {
+    tradeTapeList
+      .mockResolvedValueOnce({ items: [], total: 7, market_hours: false })
+      .mockRejectedValueOnce(new Error('Tape unavailable'));
+
+    const view = renderWithProviders(
+      <TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />,
+    );
+    expect(await screen.findByText('7 trades')).toBeTruthy();
+
+    view.rerender(<TradeTape marketProduct="E_METHANOL" region="Singapore" availability="SPOT" />);
+
+    expect(await screen.findByText('0 trades')).toBeTruthy();
+    expect(screen.queryByText('7 trades')).toBeNull();
+  }, 30_000);
 
   it('keeps demo trade badges visible while ignoring market-hours status', async () => {
     tradeTapeList.mockResolvedValue({

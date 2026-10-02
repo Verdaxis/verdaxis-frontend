@@ -13,17 +13,16 @@ import { api } from '../services/api';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
 import { MapLegend } from './map/MapLegend';
 import { useNamespace } from '../hooks/useNamespace';
-import { calculateHeading } from '../utils';
 import { useTheme } from '../context/ThemeContext';
 import { computePortMarketData, getMarketProductMapPorts, PortMarketData } from '../utils/buyerMapMarket';
 import { resolveApprovedMapPorts } from '../utils/marketPorts';
 import { PORTS as APPROVED_MAP_PORTS } from '../data';
-import { addEcaLayers, setEcaLayersVisible } from '../map/addEcaLayers';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 import { sliceToPath } from '../utils/sliceUrl';
 import { isOrderbookMarketProduct } from '../utils/marketProduct';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { useSSE } from '../hooks/useSSE';
+import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 
 interface BuyerMapProps {
     active?: boolean;
@@ -49,6 +48,18 @@ const getSpreadColor = (spreadPct: number): string => {
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
 const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const calculateHeading = (prev?: { lat: number; lng: number }, curr?: { lat: number; lng: number }): number => {
+    if (!prev || !curr) return 0;
+
+    const lat1 = prev.lat * Math.PI / 180;
+    const lat2 = curr.lat * Math.PI / 180;
+    const longitudeDelta = (curr.lng - prev.lng) * Math.PI / 180;
+    const y = Math.sin(longitudeDelta) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2)
+        - Math.sin(lat1) * Math.cos(lat2) * Math.cos(longitudeDelta);
+
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+};
 const escapeHtml = (value: unknown) => String(value).replace(/[&<>"']/g, character => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -144,6 +155,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [mapCreated, setMapCreated] = useState(false);
     const [marketSummaryReady, setMarketSummaryReady] = useState(false);
     const [marketDataError, setMarketDataError] = useState(false);
+    const [ecaOverlayError, setEcaOverlayError] = useState(false);
 
     const mapContainer = useRef<HTMLDivElement>(null);
     const toolbarRef = useRef<HTMLDivElement>(null);
@@ -157,12 +169,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const currentStyleRef = useRef<string | null>(null);
     const currentLanguageRef = useRef<string | null>(null);
     const languageIdleHandlerRef = useRef<(() => void) | null>(null);
+    const ecaLayersRef = useRef<EcaLayersModule | null>(null);
     const marketLoadGenerationRef = useRef(0);
     const hasActivatedRef = useRef(false);
     const portsRef = useRef(ports);
     portsRef.current = ports;
     const isDarkRef = useRef(isDark);
     isDarkRef.current = isDark;
+    const showSecaZonesRef = useRef(showSecaZones);
+    showSecaZonesRef.current = showSecaZones;
 
     useDashboardContentReady('MAP', active && mapStyleLoaded && marketSummaryReady);
 
@@ -745,30 +760,58 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return () => { map.off('style.load', addPortLayers); };
     }, [mapCreated, ready, visiblePorts, portMarketMap, maxVolume, selectedPortId, mapLanguage]);
 
-    // Versioned IMO ECA reference overlay generated from the shared geofence bundle.
+    // Load the large ECA geometry after Mapbox exists so it does not delay the basemap.
     useEffect(() => {
         const map = mapRef.current;
         if (!active || !map) return;
 
-        const install = () => addEcaLayers(map, {
-            isDark,
-            visible: showSecaZones,
+        let cancelled = false;
+        let styleGeneration = 0;
+        let installedGeneration = -1;
+        let handleStyleLoad: (() => void) | null = null;
+        setEcaOverlayError(false);
+
+        void loadEcaLayers().then((ecaLayers) => {
+            if (cancelled || mapRef.current !== map) return;
+            ecaLayersRef.current = ecaLayers;
+
+            const install = () => {
+                if (cancelled || mapRef.current !== map || installedGeneration === styleGeneration) return;
+                try {
+                    ecaLayers.addEcaLayers(map, {
+                        isDark: isDarkRef.current,
+                        visible: showSecaZonesRef.current,
+                    });
+                    installedGeneration = styleGeneration;
+                    setEcaOverlayError(false);
+                } catch (error) {
+                    console.error('Failed to install ECA map overlay', error);
+                    setEcaOverlayError(true);
+                }
+            };
+
+            handleStyleLoad = () => {
+                styleGeneration += 1;
+                install();
+            };
+            map.on('style.load', handleStyleLoad);
+            if (map.isStyleLoaded()) install();
+        }).catch((error) => {
+            if (cancelled || mapRef.current !== map) return;
+            console.error('Failed to load ECA map overlay', error);
+            setEcaOverlayError(true);
         });
 
-        map.on('style.load', install);
-        if (map.loaded()) {
-            install();
-        }
-
         return () => {
-            map.off('style.load', install);
+            cancelled = true;
+            if (handleStyleLoad) map.off('style.load', handleStyleLoad);
         };
-    }, [active, mapCreated, ready, isDark, showSecaZones]);
+    }, [active, ready]);
 
     useEffect(() => {
         const map = mapRef.current;
-        if (!map) return;
-        setEcaLayersVisible(map, showSecaZones);
+        if (!map || !ecaLayersRef.current) return;
+        ecaLayersRef.current.setEcaLayersVisible(map, showSecaZones);
     }, [showSecaZones]);
 
     // Vessel markers layer
@@ -923,6 +966,18 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                 {(loadError || marketDataError) && (
                     <div className="pointer-events-none absolute left-1/2 top-16 z-[25] -translate-x-1/2 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
                         {t('buyerMap.error')}
+                    </div>
+                )}
+                {ecaOverlayError && (
+                    <div className="absolute left-1/2 top-28 z-[25] flex -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-200 bg-white/95 px-4 py-2 text-center text-xs text-slate-600 shadow-lg backdrop-blur-sm dark:border-amber-800 dark:bg-slate-900/95 dark:text-slate-300" role="alert">
+                        <span>{t('buyerMap.ecaOverlayError')}</span>
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            className="rounded border border-amber-300 px-2 py-1 font-bold text-amber-800 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                        >
+                            {t('buyerMap.ecaOverlayRetry')}
+                        </button>
                     </div>
                 )}
 

@@ -145,6 +145,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         navigate({ pathname: location.pathname, search: search.toString() }, { replace: true });
     }, [isExactSliceRoute, location.pathname, location.search, navigate]);
     const historyView = new URLSearchParams(location.search).get('view');
+    const requestedView = historyView;
+    const marketTab = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
     const isHistorySelected = requestedProduct === 'UCOME_B100'
         && ['history_offers', 'history_my_offers', 'history_rfqs', 'requests'].includes(historyView ?? '');
     const role: ViewMode = user?.role === 'ADMIN'
@@ -175,8 +177,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [hasLoadedListings, setHasLoadedListings] = useState(false);
-    useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && !loading && hasLoadedListings);
-    const latestFetchRequest = useRef(0);
+    useDashboardContentReady('MARKETPLACE', !isHistorySelected && ready && (marketTab !== 'market' || (!loading && hasLoadedListings)));
+    const listingRequestsInFlight = useRef(new Map<string, symbol>());
+    const countRequestsInFlight = useRef(new Map<string, symbol>());
+    const currentListingsRequest = useRef('');
+    const currentCountsRequest = useRef('');
     const [complianceOverlays, setComplianceOverlays] = useState<Record<string, ListingComplianceOverlay | null>>({});
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
@@ -184,6 +189,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [portInput, setPortInput] = useState(() => (isOrderbookMarketProduct(initialSlice?.product) ? initialSlice?.port : undefined) || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
+    const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
     const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
     const [catalogError, setCatalogError] = useState(false);
     const latestCatalogRequest = useRef(0);
@@ -275,8 +281,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Trade modal state ────────────────────────────────────────
     const [selectedOrder, setSelectedOrder] = useState<OrderBookOrder | null>(null);
-    const requestedView = new URLSearchParams(location.search).get('view');
-    const marketTab = requestedView === 'orderbook' || requestedView === 'my_orders' ? requestedView : 'market';
     const fameTab = requestedView === 'history_rfqs' || requestedView === 'requests' ? 'history_rfqs' : requestedView === 'history_my_offers' ? 'history_my_offers' : 'history_offers';
     const setMarketTab = useCallback((tab: 'market' | 'orderbook' | 'my_orders' | 'history_offers' | 'history_my_offers' | 'history_rfqs') => {
         const next = new URLSearchParams(location.search);
@@ -361,10 +365,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         const loadDeliveryPoints = async () => {
             try {
                 const response = await api.catalog.deliveryPoints();
-                if (!cancelled) setDeliveryPoints(response.filter(point => point.is_active !== false));
+                if (!cancelled) {
+                    setDeliveryPoints(response.filter(point => point.is_active !== false));
+                    setDeliveryPointsStatus('ready');
+                }
             } catch (error) {
                 console.warn('Marketplace delivery points unavailable', error);
-                if (!cancelled) setDeliveryPoints([]);
+                if (!cancelled) {
+                    setDeliveryPoints([]);
+                    setDeliveryPointsStatus('failed');
+                }
             }
         };
 
@@ -378,9 +388,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
 
     // ─── Data fetching ────────────────────────────────────────────
-    const fetchData = useCallback(async (silent = false, skip = 0, force = false) => {
-        if (!ready || isHistorySelected) return;
-        const requestId = ++latestFetchRequest.current;
+    const marketScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${marketProduct}:${availability}:${sortBy}`;
+    const countScopeKey = `${role}:${resolvedPort}:${resolvedDeliveryPointId}:${availability}`;
+    const currentMarketScope = useRef(marketScopeKey);
+    const currentCountScope = useRef(countScopeKey);
+    currentMarketScope.current = marketScopeKey;
+    currentCountScope.current = countScopeKey;
+    const isCatalogScopeResolving = Boolean(resolvedPort) && deliveryPointsStatus === 'loading';
+
+    const fetchListings = useCallback(async (silent = false, skip = 0, force = false) => {
+        if (!ready || isHistorySelected || isCatalogScopeResolving) return;
+        const requestScope = `${marketScopeKey}:${skip}`;
+        currentListingsRequest.current = requestScope;
+        if (!force && listingRequestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        listingRequestsInFlight.current.set(requestScope, requestToken);
         if (silent) setRefreshing(true);
         else setLoading(true);
         setError(null);
@@ -395,6 +417,36 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 skip,
                 limit: PAGE_SIZE,
             };
+            const data = await (force
+                ? configBase.fetchOrders(orderParams, { force: true })
+                : configBase.fetchOrders(orderParams));
+            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
+            setListings(data.items.filter((order) => isOrderbookMarketProduct(order.market_product)));
+            setTotalCount(data.total);
+            setCurrentSkip(data.skip);
+            setHasLoadedListings(true);
+        } catch (err: any) {
+            console.error('Marketplace fetch error:', err);
+            if (listingRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentListingsRequest.current || marketScopeKey !== currentMarketScope.current) return;
+            setError(err instanceof Error ? err.message : '');
+        } finally {
+            const isCurrentRequest = listingRequestsInFlight.current.get(requestScope) === requestToken;
+            if (isCurrentRequest) listingRequestsInFlight.current.delete(requestScope);
+            if (isCurrentRequest && requestScope === currentListingsRequest.current && marketScopeKey === currentMarketScope.current) {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        }
+    }, [availability, configBase, isCatalogScopeResolving, isHistorySelected, marketProduct, marketScopeKey, ready, resolvedDeliveryPointId, resolvedPort, sortBy]);
+
+    const fetchProductCounts = useCallback(async (force = false) => {
+        if (!ready || isHistorySelected || isCatalogScopeResolving) return;
+        const requestScope = countScopeKey;
+        currentCountsRequest.current = requestScope;
+        if (!force && countRequestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        countRequestsInFlight.current.set(requestScope, requestToken);
+        try {
             const countParams = {
                 side: role === 'BUYER' ? 'ASK' as const : 'BID' as const,
                 region: resolvedDeliveryPointId ? undefined : resolvedPort || undefined,
@@ -402,53 +454,61 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 availability_window: availability || undefined,
                 include_off_spec: false,
             };
-            const ordersRequest = force
-                ? configBase.fetchOrders(orderParams, { force: true })
-                : configBase.fetchOrders(orderParams);
-            const countsRequest = force
+            const counts = await (force
                 ? api.orderbook.productCounts(countParams, { force: true })
-                : api.orderbook.productCounts(countParams);
-            const [data, counts] = await Promise.all([
-                ordersRequest,
-                countsRequest.catch(() => null),
-            ]);
-            if (requestId !== latestFetchRequest.current) return;
-            setListings(data.items.filter((order) => isOrderbookMarketProduct(order.market_product)));
-            setTotalCount(data.total);
-            setCurrentSkip(data.skip);
-            setMarketProductCounts(counts?.counts ?? {});
-            setHasLoadedListings(true);
-        } catch (err: any) {
-            console.error('Marketplace fetch error:', err);
-            if (requestId !== latestFetchRequest.current) return;
-            setError(err instanceof Error ? err.message : '');
+                : api.orderbook.productCounts(countParams));
+            if (countRequestsInFlight.current.get(requestScope) !== requestToken || requestScope !== currentCountsRequest.current || countScopeKey !== currentCountScope.current) return;
+            setMarketProductCounts(counts.counts ?? {});
+        } catch {
+            // Preserve the last good counts only while the selected scope is unchanged.
         } finally {
-            if (requestId === latestFetchRequest.current) {
-                setLoading(false);
-                setRefreshing(false);
-            }
+            if (countRequestsInFlight.current.get(requestScope) === requestToken) countRequestsInFlight.current.delete(requestScope);
         }
-    }, [configBase, resolvedDeliveryPointId, resolvedPort, marketProduct, availability, ready, role, sortBy, isHistorySelected]);
+    }, [availability, countScopeKey, isCatalogScopeResolving, isHistorySelected, ready, resolvedDeliveryPointId, resolvedPort, role]);
 
     useEffect(() => {
         setHasLoadedListings(false);
-    }, [availability, marketProduct, resolvedDeliveryPointId, resolvedPort, role, sortBy]);
+        setTotalCount(0);
+    }, [marketScopeKey]);
+
+    useEffect(() => {
+        setMarketProductCounts({});
+    }, [countScopeKey]);
 
     // Fetch on mount + whenever filters change (marketProduct, portInput, availability, role)
     useEffect(() => {
-        if (!ready || isHistorySelected) return;
-        fetchData(false, 0);
-        return () => { latestFetchRequest.current += 1; };
-    }, [fetchData, ready, isHistorySelected]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (!ready || isHistorySelected || marketTab !== 'market' || document.hidden) return;
+        void fetchListings(false, 0);
+        return () => {
+            listingRequestsInFlight.current.clear();
+            currentListingsRequest.current = '';
+        };
+    }, [fetchListings, isHistorySelected, marketTab, ready]);
 
-    // 60s auto-refresh (silent)
     useEffect(() => {
         if (!ready || isHistorySelected) return;
-        const interval = setInterval(() => {
-            fetchData(true, currentSkip);
-        }, REFRESH_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [fetchData, currentSkip, ready, isHistorySelected]);
+        if (!document.hidden) void fetchProductCounts();
+        return () => {
+            countRequestsInFlight.current.clear();
+            currentCountsRequest.current = '';
+        };
+    }, [fetchProductCounts, isHistorySelected, ready]);
+
+    // Refresh only while the page is visible, including an immediate refresh when it resumes.
+    useEffect(() => {
+        if (!ready || isHistorySelected) return;
+        const refreshWhenVisible = () => {
+            if (document.hidden) return;
+            void fetchProductCounts();
+            if (marketTab === 'market') void fetchListings(hasLoadedListings, currentSkip);
+        };
+        const interval = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [currentSkip, fetchListings, fetchProductCounts, hasLoadedListings, isHistorySelected, marketTab, ready]);
 
     // ─── FuelEU pricing overlay (H1.2) ─────────────────────────────
     // One batched authenticated fetch per distinct set of visible ASK ids.
@@ -550,6 +610,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         ];
         return parts.join(' · ');
     }, [availability, locale, marketProduct, resolvedPort, t]);
+    const totalMarketProductCount = useMemo(
+        () => Object.values(marketProductCounts).reduce((sum, count) => sum + count, 0),
+        [marketProductCounts],
+    );
+    const currentSliceCount = marketTab === 'market'
+        ? totalCount
+        : marketProduct === ALL_MARKET_PRODUCTS
+            ? totalMarketProductCount
+            : marketProductCounts[marketProduct] || 0;
     const hasActiveSliceFilters = marketProduct !== ALL_MARKET_PRODUCTS || Boolean(resolvedPort) || Boolean(availability);
 
     const clearMarketFilters = useCallback(() => {
@@ -573,7 +642,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const handlePageChange = (newSkip: number) => {
         setHasLoadedListings(false);
-        fetchData(false, newSkip);
+        void fetchListings(false, newSkip);
     };
 
     const hasExactProduct = marketProduct !== ALL_MARKET_PRODUCTS;
@@ -625,7 +694,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setCurrentSkip(0);
     }, []);
 
-    // marketProduct changes are handled by fetchData's useCallback deps — no separate effect needed
+    // Market product changes are handled by the listing callback dependencies.
 
     const handleOrderbookLevelClick = useCallback((order: OrderBookOrder) => {
         setHighlightedOrderId(order.id);
@@ -771,10 +840,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         // Keep the success message visible briefly, then reload current quotes.
         const timer = setTimeout(() => {
             closeTradeModal();
-            void fetchData(true, currentSkip, true);
+            void fetchProductCounts(true);
+            if (marketTab === 'market') void fetchListings(true, currentSkip, true);
         }, 2000);
         return () => clearTimeout(timer);
-    }, [tradeState, closeTradeModal, fetchData, currentSkip]);
+    }, [tradeState, closeTradeModal, currentSkip, fetchListings, fetchProductCounts, marketTab]);
 
     const validateTradeQuantity = () => {
         if (!selectedOrder || tradeState === 'submitting') return null;
@@ -1085,7 +1155,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             {marketProduct === 'UCOME_B100' && <button type="button" onClick={() => setMarketTab('history_offers')} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 dark:border-slate-600 dark:text-slate-300">{t('marketplace.b100.history')}</button>}
                             {marketTab !== 'orderbook' && <button
                                 type="button"
-                                onClick={() => { void loadCatalogProducts(true); void fetchData(true, currentSkip, true); }}
+                                onClick={() => {
+                                    void loadCatalogProducts(true);
+                                    void fetchProductCounts(true);
+                                    if (marketTab === 'market') void fetchListings(true, currentSkip, true);
+                                }}
                                 className="flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-emerald-500 transition-colors"
                             >
                                 <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
@@ -1204,7 +1278,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
                                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{t('marketplace.metrics.currentSlice')}</div>
                                             <div className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {totalCount.toLocaleString()} {t(totalCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
+                                                {currentSliceCount.toLocaleString()} {t(currentSliceCount === 1 ? 'marketplace.metrics.currentSliceCountOne' : 'marketplace.metrics.currentSliceCountOther')}
                                             </div>
                                             <div className="mt-1 text-xs text-slate-400">{sliceSummary}</div>
                                             <div className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-400">
@@ -1332,7 +1406,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 {locale.startsWith('zh') ? t('marketplace.error.message') : error || t('marketplace.error.message')}
                             </p>
                             <button
-                                onClick={() => fetchData(false, 0)}
+                                onClick={() => { void fetchListings(false, 0); }}
                                 className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
                             >
                                 {t('marketplace.btn.tryAgain')}
@@ -1397,7 +1471,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </div>
                         </div>
                         <div className="min-h-0 flex-1 overflow-hidden" data-tour="marketplace-orderbook-panel">
-                            {orderbookRequiresExactSlice ? (
+                            {isCatalogScopeResolving ? (
+                                <div className="v-card p-8 flex h-full min-h-0 items-center justify-center text-slate-400">
+                                    <Loader2 size={24} className="animate-spin" />
+                                </div>
+                            ) : orderbookRequiresExactSlice ? (
                                 <div className="v-card p-8 flex h-full min-h-0 flex-col items-center justify-center text-center">
                                     <Ship size={44} className="text-slate-300 dark:text-slate-600 mb-4" />
                                     <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 mb-2">{t('orderBook.selectProduct.title')}</h3>
@@ -1688,7 +1766,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 {tradeNeedsRefresh && (
                                     <button
                                         type="button"
-                                        onClick={() => { closeTradeModal(); void fetchData(false, currentSkip, true); }}
+                                        onClick={() => {
+                                            closeTradeModal();
+                                            void fetchProductCounts(true);
+                                            if (marketTab === 'market') void fetchListings(false, currentSkip, true);
+                                        }}
                                         className="mb-3 w-full rounded-lg border border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"
                                     >
                                         {t('marketplace.b100.refreshReview')}
@@ -1893,8 +1975,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 isOpen={orderModalSide !== null && !isHistorySelected}
                 onClose={() => {
                     setOrderModalSide(null);
-                                if (!isHistorySelected) {
-                        void fetchData(true, currentSkip, true);
+                    if (!isHistorySelected) {
+                        void fetchProductCounts(true);
+                        if (marketTab === 'market') void fetchListings(true, currentSkip, true);
                         if (marketTab === 'my_orders') void fetchMyOrders(true);
                     }
                 }}

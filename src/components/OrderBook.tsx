@@ -96,16 +96,22 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const [error, setError] = useState<string | null>(null);
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
+    const requestGeneration = useRef(0);
     const latestRequest = useRef(0);
+    const requestsInFlight = useRef(new Map<string, symbol>());
+    const needsInitialLoad = useRef(true);
     const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
     const orderbookAvailable = executionMode !== 'RFQ_ONLY'
         && (!b100Selected || executionMode === 'ORDERBOOK')
         && (!marketProduct || isOrderbookMarketProduct(marketProduct))
         && (!fuelType || isOrderbookFuelType(fuelType));
+    const requestScope = JSON.stringify([fuelType, marketProduct, executionMode, region, deliveryPointId, availability]);
+    const currentRequestScope = useRef(requestScope);
+    currentRequestScope.current = requestScope;
 
     const fetchData = useCallback(async (silent = false, force = false) => {
-        const requestId = ++latestRequest.current;
         if (!orderbookAvailable) {
+            needsInitialLoad.current = false;
             setBids([]);
             setAsks([]);
             setHoverTooltip(null);
@@ -113,6 +119,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
             setLoading(false);
             return;
         }
+        if (!force && requestsInFlight.current.has(requestScope)) return;
+        const requestToken = Symbol(requestScope);
+        requestsInFlight.current.set(requestScope, requestToken);
+        const generation = requestGeneration.current;
+        const requestId = ++latestRequest.current;
         if (!silent) {
             setLoading(true);
             setHoverTooltip(null);
@@ -130,7 +141,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                 force ? api.orderbook.listAsks(params, { force: true }) : api.orderbook.listAsks(params),
             ]);
 
-            if (requestId !== latestRequest.current) return;
+            if (requestsInFlight.current.get(requestScope) !== requestToken || generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
             setError(null);
 
             // Bids: highest price first (best bid at top)
@@ -150,26 +161,44 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
             setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
             setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
         } catch (err: any) {
-            if (requestId !== latestRequest.current) return;
-            if (!silent) setError(i18n.language.startsWith('zh') ? t('orderBook.error') : err?.message || t('orderBook.error'));
+            if (!silent && requestsInFlight.current.get(requestScope) === requestToken && generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
+                setError(i18n.language.startsWith('zh') ? t('orderBook.error') : err?.message || t('orderBook.error'));
+            }
         } finally {
-            if (requestId === latestRequest.current) setLoading(false);
+            const isCurrentRequest = requestsInFlight.current.get(requestScope) === requestToken;
+            if (isCurrentRequest) requestsInFlight.current.delete(requestScope);
+            if (isCurrentRequest && generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
+                needsInitialLoad.current = false;
+                setLoading(false);
+            }
         }
-    }, [fuelType, marketProduct, region, deliveryPointId, availability, orderbookAvailable, t]);
+    }, [availability, deliveryPointId, fuelType, marketProduct, orderbookAvailable, region, requestScope, t]);
 
     // Initial load + re-fetch when filters change
     useEffect(() => {
+        requestGeneration.current += 1;
+        needsInitialLoad.current = true;
         setLoading(true);
-        fetchData(false);
-        return () => { latestRequest.current += 1; };
-    }, [fetchData]);
+        setHoverTooltip(null);
+        if (!document.hidden) void fetchData(false);
+        return () => {
+            requestGeneration.current += 1;
+            requestsInFlight.current.delete(requestScope);
+        };
+    }, [fetchData, requestScope]);
 
-    // 10-second polling
+    // Refresh only while visible, including an immediate refresh when the page resumes.
     useEffect(() => {
-        if (loading || !orderbookAvailable) return;
-        const interval = setInterval(() => fetchData(true), POLL_INTERVAL_MS);
-        return () => clearInterval(interval);
-    }, [fetchData, loading, orderbookAvailable]);
+        const refreshWhenVisible = () => {
+            if (!document.hidden && orderbookAvailable) void fetchData(!needsInitialLoad.current);
+        };
+        const interval = window.setInterval(refreshWhenVisible, POLL_INTERVAL_MS);
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', refreshWhenVisible);
+        };
+    }, [fetchData, orderbookAvailable]);
 
     // Scale depth bars against the largest visible resting order so large positions still render proportionally.
     const maxQty = React.useMemo(() => {
