@@ -205,7 +205,9 @@ redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
 **Retained map:** The authenticated layout mounts `BuyerMap` lazily on its first visit and
 keeps it hidden and inert on other routes. Account, organization, or assisted-context changes
 discard the instance. Return navigation resizes it and refreshes market data; offscreen feeds
-pause. The compact map-summary endpoint supplies market groups and recent ASK indications.
+pause. `/orderbook/map-summary/compact` supplies all-window market totals, exact SPOT inputs,
+unchanged nearest-window demo groups, and recent ASK indications. The map fuel filter affects
+map references; independent ticker preferences retain other fuels at approved ports.
 Login does not prefetch either map implementation. ECA geometry loads after map
 creation; style changes retain the overlay, and a failed chunk offers a page reload.
 Leaflet and its CSS load only with the producer map.

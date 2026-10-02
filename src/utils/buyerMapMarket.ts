@@ -1,4 +1,4 @@
-import type { AggregatedOrderbook, DeliveryPoint, Port, Product } from '../types';
+import type { DeliveryPoint, MapCompactMarket, Port, Product } from '../types';
 import { isOrderbookMarketProduct, isOrderbookProduct } from './marketProduct';
 
 export interface PortMarketRow {
@@ -42,7 +42,7 @@ const canonicalProductLabels = new Map([
     ['synthetic ethanol', CANONICAL_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
 ]);
 
-const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null => {
+const resolveCanonicalProductLabel = (row: MapCompactMarket): string | null => {
     if (row.market_product) {
         return isOrderbookMarketProduct(row.market_product)
             ? CANONICAL_PRODUCT_LABELS[row.market_product]
@@ -56,14 +56,13 @@ const resolveCanonicalProductLabel = (row: AggregatedOrderbook): string | null =
 };
 
 const normalizeLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
-const isSpot = (row: AggregatedOrderbook) => row.availability_window?.trim().toUpperCase() === 'SPOT';
-const isDemo = (row: AggregatedOrderbook) => (
+const isDemo = (row: MapCompactMarket) => (
     row.source_kind === 'DEMO_SEED'
     || row.demo_status === 'DEMO_ONLY'
     || row.evidence_class === 'DEMO'
 );
 
-const referenceSource = (rows: AggregatedOrderbook[]): PortMarketReference['source'] => {
+const referenceSource = (rows: MapCompactMarket[]): PortMarketReference['source'] => {
     const hasDemo = rows.some(isDemo);
     const hasNonDemo = rows.some(row => !isDemo(row));
     const explicitlyMixed = rows.some(row => (
@@ -94,10 +93,20 @@ export const getMarketProductMapPorts = (
     return ports.filter(port => availablePointNames.has(normalizeLocation(port.name)));
 };
 
+const maxPrice = (values: Array<string | null>): number | null => values.reduce<number | null>(
+    (best, value) => value === null ? best : Math.max(best ?? Number(value), Number(value)),
+    null,
+);
+
+const minPrice = (values: Array<string | null>): number | null => values.reduce<number | null>(
+    (best, value) => value === null ? best : Math.min(best ?? Number(value), Number(value)),
+    null,
+);
+
 export const computePortMarketData = (
-    aggregated: AggregatedOrderbook[],
+    markets: MapCompactMarket[],
     port: string | PortMarketIdentity,
-    selectedProduct?: string
+    selectedProduct?: string,
 ): PortMarketData => {
     const selectedLabel = selectedProduct
         ? CANONICAL_PRODUCT_LABELS[selectedProduct] ?? canonicalProductLabels.get(selectedProduct.toLowerCase())
@@ -108,40 +117,36 @@ export const computePortMarketData = (
         normalizeLocation(identity.id),
         normalizeLocation(identity.catalogDeliveryPointId),
     ].filter(Boolean));
-    const portRows = aggregated.filter(
+    const portRows = markets.filter(
         row => approvedNames.has(normalizeLocation(row.delivery_point_name))
-            || approvedNames.has(normalizeLocation(row.region))
-            || approvedIds.has(normalizeLocation(row.delivery_point_id))
+            || approvedIds.has(normalizeLocation(row.delivery_point_id)),
     );
 
-    const byProduct: Record<string, { bids: AggregatedOrderbook[]; asks: AggregatedOrderbook[] }> = {};
+    const byProduct: Record<string, MapCompactMarket[]> = {};
     portRows.forEach((row) => {
         const productLabel = resolveCanonicalProductLabel(row);
-        if (!productLabel) return;
-        if (selectedLabel && productLabel !== selectedLabel) return;
-        if (!byProduct[productLabel]) byProduct[productLabel] = { bids: [], asks: [] };
-        if (row.side === 'BID') byProduct[productLabel].bids.push(row);
-        else byProduct[productLabel].asks.push(row);
+        if (!productLabel || (selectedLabel && productLabel !== selectedLabel)) return;
+        if (!byProduct[productLabel]) byProduct[productLabel] = [];
+        byProduct[productLabel].push(row);
     });
 
     let totalVolume = 0;
     const references: PortMarketReference[] = [];
-    const fuelRows = Object.entries(byProduct).map(([label, { bids, asks }]) => {
-        const bestBid = bids.length > 0 ? Math.max(...bids.map(bid => Number(bid.max_price))) : null;
-        const bestAsk = asks.length > 0 ? Math.min(...asks.map(ask => Number(ask.min_price))) : null;
-        const orderCount = bids.reduce((sum, bid) => sum + Number(bid.order_count), 0)
-            + asks.reduce((sum, ask) => sum + Number(ask.order_count), 0);
-        totalVolume += bids.reduce((sum, bid) => sum + Number(bid.total_quantity), 0)
-            + asks.reduce((sum, ask) => sum + Number(ask.total_quantity), 0);
+    const fuelRows = Object.entries(byProduct).map(([label, rows]) => {
+        const bestBid = maxPrice(rows.map(row => row.bid_max_price));
+        const bestAsk = minPrice(rows.map(row => row.ask_min_price));
+        const orderCount = rows.reduce(
+            (sum, row) => sum + row.bid_order_count + row.ask_order_count,
+            0,
+        );
+        totalVolume += rows.reduce(
+            (sum, row) => sum + Number(row.bid_total_quantity) + Number(row.ask_total_quantity),
+            0,
+        );
 
-        const spotBids = bids.filter(isSpot);
-        const spotAsks = asks.filter(isSpot);
-        const spotBid = spotBids.length > 0
-            ? Math.max(...spotBids.map(bid => Number(bid.max_price)))
-            : null;
-        const spotAsk = spotAsks.length > 0
-            ? Math.min(...spotAsks.map(ask => Number(ask.min_price)))
-            : null;
+        const spotRows = rows.filter(row => row.spot_best_bid !== null || row.spot_best_ask !== null);
+        const spotBid = maxPrice(spotRows.map(row => row.spot_best_bid));
+        const spotAsk = minPrice(spotRows.map(row => row.spot_best_ask));
         const spotPrice = spotBid !== null && spotAsk !== null
             ? (spotBid + spotAsk) / 2
             : spotBid ?? spotAsk;
@@ -149,7 +154,7 @@ export const computePortMarketData = (
             references.push({
                 productLabel: label,
                 price: spotPrice,
-                source: referenceSource([...spotBids, ...spotAsks]),
+                source: referenceSource(spotRows),
             });
         }
 
@@ -159,21 +164,12 @@ export const computePortMarketData = (
             if (mid > 0) spreadPct = ((bestAsk - bestBid) / mid) * 100;
         }
 
-        return {
-            key: label,
-            label,
-            bestBid,
-            bestAsk,
-            orderCount,
-            spreadPct,
-        };
+        return { key: label, label, bestBid, bestAsk, orderCount, spreadPct };
     }).filter(row => row.orderCount > 0);
 
-    let spreadPct = 999;
-    if (fuelRows.length > 0) {
-        spreadPct = Math.min(...fuelRows.map(row => row.spreadPct));
-    }
-
+    const spreadPct = fuelRows.length > 0
+        ? Math.min(...fuelRows.map(row => row.spreadPct))
+        : 999;
     const referenceProduct = selectedLabel || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
     const reference = references.find(item => item.productLabel === referenceProduct)
         ?? references[0]

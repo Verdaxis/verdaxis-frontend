@@ -5,7 +5,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { PanelRightOpen, TrendingUp, History, BarChart3, Anchor, Layers, Shield, Fuel, LocateFixed } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Port, Page, AggregatedOrderbook, Product, DeliveryPoint } from '../types';
+import { Port, Page, AggregatedOrderbook, MapCompactMarket, Product, DeliveryPoint } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { IntelligencePanel } from './map/IntelligencePanel';
 import { MarketWatchTicker } from './map/MarketWatchTicker';
@@ -47,6 +47,13 @@ const getSpreadColor = (spreadPct: number): string => {
 };
 
 const normalizeMarketLocation = (value?: string | null) => (value ?? '').trim().toLowerCase();
+const resolveApprovedPortName = (
+    approvedLocations: Map<string, string>,
+    deliveryPointId?: string | null,
+    deliveryPointName?: string | null,
+) => [deliveryPointId, deliveryPointName]
+    .map(value => approvedLocations.get(normalizeMarketLocation(value)))
+    .find((value): value is string => Boolean(value));
 const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const calculateHeading = (prev?: { lat: number; lng: number }, curr?: { lat: number; lng: number }): number => {
     if (!prev || !curr) return 0;
@@ -120,7 +127,7 @@ const LayerSwitch: React.FC<LayerSwitchProps> = ({ checked, description, label, 
     </button>
 );
 
-type MapRecentAsk = Awaited<ReturnType<typeof api.orderbook.mapSummary>>['recent_asks'][number];
+type MapRecentAsk = Awaited<ReturnType<typeof api.orderbook.compactMapSummary>>['recent_asks'][number];
 
 export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect, onNavigate, onOrderClick }) => {
     const navigate = useNavigate();
@@ -140,7 +147,8 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const [showSecaZones, setShowSecaZones] = useState(true);
     const [isLayersMenuOpen, setIsLayersMenuOpen] = useState(false);
     const [recentAsks, setRecentAsks] = useState<MapRecentAsk[]>([]);
-    const [aggregatedData, setAggregatedData] = useState<AggregatedOrderbook[]>([]);
+    const [compactMarkets, setCompactMarkets] = useState<MapCompactMarket[]>([]);
+    const [demoGroups, setDemoGroups] = useState<AggregatedOrderbook[]>([]);
     const [selectedProduct, setSelectedProduct] = useState<string | undefined>(undefined);
     const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
     const [catalogPoints, setCatalogPoints] = useState<DeliveryPoint[]>([]);
@@ -213,9 +221,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const refreshMarketSummary = useCallback(async (force = false) => {
         const generation = ++marketLoadGenerationRef.current;
         try {
-            const summary = await api.orderbook.mapSummary({ force });
+            const summary = await api.orderbook.compactMapSummary({ force });
             if (generation !== marketLoadGenerationRef.current) return;
-            setAggregatedData(summary.groups.filter(group => isOrderbookMarketProduct(group.market_product)));
+            setCompactMarkets(summary.markets.filter(market => isOrderbookMarketProduct(market.market_product)));
+            setDemoGroups(summary.demo_groups.filter(group => isOrderbookMarketProduct(group.market_product)));
             setRecentAsks(summary.recent_asks.filter(ask => isOrderbookMarketProduct(ask.market_product)));
             setMarketSummaryReady(true);
             setMarketDataError(false);
@@ -256,21 +265,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return map;
     }, [ports]);
 
-    const approvedAskGroups = useMemo(() => (
-        aggregatedData.reduce<Array<AggregatedOrderbook & { region: string }>>((approved, group) => {
-            if (group.side !== 'ASK' || (selectedProduct && group.market_product !== selectedProduct)) return approved;
-            const approvedPortName = [
-                group.delivery_point_id,
-                group.delivery_point_name,
-                group.region,
-            ].map((value) => approvedListingLocationMap.get(normalizeMarketLocation(value)))
-                .find((value): value is string => Boolean(value));
-
-            if (!approvedPortName) return approved;
-            approved.push({ ...group, region: approvedPortName });
-            return approved;
-        }, [])
-    ), [aggregatedData, approvedListingLocationMap, selectedProduct]);
+    const approvedDemoGroups = useMemo(() => demoGroups.filter(group => resolveApprovedPortName(
+        approvedListingLocationMap,
+        group.delivery_point_id,
+        group.delivery_point_name,
+    )), [approvedListingLocationMap, demoGroups]);
 
     const portBounds = useMemo<mapboxgl.LngLatBoundsLike | undefined>(() => {
         if (!visiblePorts.length) return undefined;
@@ -365,10 +364,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const portMarketMap = useMemo(() => {
         const map: Record<string, PortMarketData> = {};
         ports.forEach(port => {
-            map[port.id] = computePortMarketData(aggregatedData, port, selectedProduct);
+            map[port.id] = computePortMarketData(compactMarkets, port, selectedProduct);
         });
         return map;
-    }, [ports, aggregatedData, selectedProduct]);
+    }, [ports, compactMarkets, selectedProduct]);
 
     // Map listeners outlive React renders. Read the current product's market data.
     const portMarketRef = useRef(portMarketMap);
@@ -414,18 +413,25 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return Math.max(1, ...Object.values(portMarketMap).map(d => d.totalVolume));
     }, [portMarketMap]);
 
-    // Aggregate all eligible ASK groups by approved delivery point.
+    // Aggregate all eligible ASK volume by exact approved delivery point.
     const availsByRegion = useMemo(() => {
         const regionMap: Record<string, number> = {};
-        approvedAskGroups.forEach(group => {
-            regionMap[group.region] = (regionMap[group.region] || 0) + Number(group.total_quantity);
+        compactMarkets.forEach(market => {
+            if (market.ask_order_count <= 0 || (selectedProduct && market.market_product !== selectedProduct)) return;
+            const portName = resolveApprovedPortName(
+                approvedListingLocationMap,
+                market.delivery_point_id,
+                market.delivery_point_name,
+            );
+            if (!portName) return;
+            regionMap[portName] = (regionMap[portName] || 0) + Number(market.ask_total_quantity);
         });
 
         return Object.entries(regionMap)
             .map(([region, qty]) => ({ region, qty }))
             .sort((a, b) => b.qty - a.qty)
             .slice(0, 6);
-    }, [approvedAskGroups]);
+    }, [approvedListingLocationMap, compactMarkets, selectedProduct]);
 
     const maxAvailQty = availsByRegion.length > 0 ? availsByRegion[0].qty : 1;
 
@@ -434,9 +440,11 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         const regionMap: Record<string, { price: number; qty: number; date: string; fuel: string }> = {};
         recentAsks.forEach(ask => {
             if (selectedProduct && ask.market_product !== selectedProduct) return;
-            const region = [ask.delivery_point_id, ask.delivery_point_name, ask.region]
-                .map(value => approvedListingLocationMap.get(normalizeMarketLocation(value)))
-                .find((value): value is string => Boolean(value));
+            const region = resolveApprovedPortName(
+                approvedListingLocationMap,
+                ask.delivery_point_id,
+                ask.delivery_point_name,
+            );
             if (region && (!regionMap[region] || ask.created_at > regionMap[region].date)) {
                 regionMap[region] = {
                     price: Number(ask.price_per_mt_usd),
@@ -1053,7 +1061,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             onOpenPanel={() => setIsPanelOpen(true)}
                             ports={ports}
                             catalogProducts={catalogProducts}
-                            aggregatedData={aggregatedData}
+                            aggregatedData={approvedDemoGroups}
                         />
                     </div>
                 )}

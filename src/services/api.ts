@@ -3,7 +3,7 @@ import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from
 import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
 import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
-import type { AggregatedOrderbook, MarketDemoStatus, MarketScope, MarketSourceKind, OrderCreateInput, TradeCreateInput } from '../types';
+import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderCreateInput, TradeCreateInput } from '../types';
 import { mapOrderbookFameResponse, mapTradeFameResponse } from './fameOrder';
 import {
     AcquisitionResponse,
@@ -68,8 +68,11 @@ const PUBLIC_MARKET_READ_PATHS = new Set([
     '/orderbook/asks',
     '/orderbook/product-counts',
     '/orderbook/map-summary',
+    '/orderbook/map-summary/compact',
     '/curves/forward/table',
     '/curves/forward/slice',
+    '/catalog/products',
+    '/catalog/delivery-points',
 ]);
 
 export const isPublicMarketReadRequest = (path: string, method = 'GET'): boolean =>
@@ -400,6 +403,12 @@ export interface MapRecentAsk {
 
 export interface MapOrderbookSummary {
     groups: AggregatedOrderbook[];
+    recent_asks: MapRecentAsk[];
+}
+
+export interface MapCompactOrderbookSummary {
+    markets: MapCompactMarket[];
+    demo_groups: AggregatedOrderbook[];
     recent_asks: MapRecentAsk[];
 }
 
@@ -968,6 +977,10 @@ export const api = {
         },
         mapSummary: async (cacheOptions?: ReadCacheOptions): Promise<MapOrderbookSummary> => {
             const path = '/orderbook/map-summary';
+            return readApi(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
+        },
+        compactMapSummary: async (cacheOptions?: ReadCacheOptions): Promise<MapCompactOrderbookSummary> => {
+            const path = '/orderbook/map-summary/compact';
             return readApi(`orderbook:${path}`, path, 'market', 'public', undefined, cacheOptions);
         },
     },

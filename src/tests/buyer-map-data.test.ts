@@ -1,14 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
+import { PORTS } from '../data';
 import { mapPortResponse } from '../services/api';
+import type { DeliveryPoint, MapCompactMarket, Product } from '../types';
 import { computePortMarketData, getMarketProductMapPorts } from '../utils/buyerMapMarket';
 import { filterPortsByActiveDeliveryPoints, resolveApprovedMapPorts } from '../utils/marketPorts';
-import { PORTS } from '../data';
-import type { AggregatedOrderbook, Product, DeliveryPoint } from '../types';
-import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
+
+const compactMarket = (overrides: Partial<MapCompactMarket> = {}): MapCompactMarket => ({
+    product_id: 'product-bio-methanol',
+    product_name: 'Bio Methanol',
+    market_product: 'BIO_METHANOL',
+    fuel_type: 'Methanol',
+    delivery_point_id: 'dp-singapore',
+    delivery_point_name: 'Singapore',
+    region: 'Asia',
+    evidence_class: 'REAL',
+    source_kind: 'LIVE_ORDER',
+    scope: 'DELIVERY_POINT',
+    demo_status: 'REAL_ONLY',
+    bid_min_price: null,
+    bid_max_price: null,
+    bid_total_quantity: '0',
+    bid_order_count: 0,
+    ask_min_price: null,
+    ask_max_price: null,
+    ask_total_quantity: '0',
+    ask_order_count: 0,
+    spot_best_bid: null,
+    spot_best_ask: null,
+    observed_at: '2026-10-02T00:00:00Z',
+    ...overrides,
+});
 
 describe('BuyerMap market data', () => {
-    it('uses the active orderbook catalog coverage for B100 without adding liquidity', () => {
+    it('uses active orderbook catalog coverage for B100 without adding liquidity', () => {
         const singapore: DeliveryPoint = { id: 'singapore-catalog', name: 'Singapore', region: 'Asia', is_active: true };
         const rotterdam: DeliveryPoint = { id: 'rotterdam-catalog', name: 'Rotterdam', region: 'Europe', is_active: true };
         const product: Product = {
@@ -17,6 +42,7 @@ describe('BuyerMap market data', () => {
             is_active: true, execution_mode: 'ORDERBOOK',
             available_delivery_point_ids: [singapore.id],
         };
+
         expect(getMarketProductMapPorts('UCOME_B100', [product], [singapore, rotterdam], PORTS).map(port => port.name)).toEqual(['Singapore']);
         expect(getMarketProductMapPorts('UCOME_B100', [{ ...product, is_active: false }], [singapore], PORTS)).toEqual([]);
         expect(getMarketProductMapPorts('UCOME_B100', [{ ...product, execution_mode: 'RFQ_ONLY' }], [singapore], PORTS)).toEqual([]);
@@ -25,305 +51,209 @@ describe('BuyerMap market data', () => {
     });
 
     it('does not borrow alcohol prices or volume when B100 is selected', () => {
-        const rows: AggregatedOrderbook[] = [{
-            market_product: 'BIO_METHANOL', product_name: 'Bio Methanol', fuel_type: 'Methanol',
-            delivery_point_name: 'Singapore', region: 'Asia', availability_window: 'SPOT',
-            side: 'ASK', min_price: 1000, max_price: 1000, total_quantity: 500, order_count: 1,
-        }];
-        expect(computePortMarketData(rows, 'Singapore', 'UCOME_B100')).toEqual({
+        const market = compactMarket({
+            bid_max_price: '950', bid_total_quantity: '500', bid_order_count: 1,
+            ask_min_price: '1000', ask_total_quantity: '500', ask_order_count: 1,
+            spot_best_bid: '950', spot_best_ask: '1000',
+        });
+
+        expect(computePortMarketData([market], 'Singapore', 'UCOME_B100')).toEqual({
             totalVolume: 0, fuelRows: [], spreadPct: 999, reference: null,
         });
-        expect(computePortMarketData(rows, 'Singapore', 'Bio Methanol').reference?.price).toBe(1000);
+        expect(computePortMarketData([market], 'Singapore', 'BIO_METHANOL').reference?.price).toBe(975);
     });
 
-    it('uses B100 canonical identity instead of a misleading alcohol display label', () => {
-        const aggregated: AggregatedOrderbook[] = [{
-            market_product: 'UCOME_B100',
-            product_name: 'Bio Methanol',
-            fuel_type: 'Methanol',
-            delivery_point_name: 'Singapore',
-            availability_window: 'SPOT',
-            region: 'Singapore',
-            side: 'ASK',
-            min_price: 999,
-            max_price: 999,
-            total_quantity: 1000,
-            order_count: 1,
-            source_kind: 'DEMO_SEED',
-            demo_status: 'DEMO_ONLY',
-        }];
-
-        const result = computePortMarketData(aggregated, 'Singapore', 'UCOME_B100');
-        expect(result.totalVolume).toBe(1000);
-        expect(result.fuelRows).toEqual([expect.objectContaining({ label: 'UCOME B100', bestAsk: 999 })]);
-        expect(result.reference).toEqual({ productLabel: 'UCOME B100', price: 999, source: 'DEMO' });
-        expect(buildDemoMarketQuotes(aggregated)).toEqual([expect.objectContaining({ product: 'UCOME_B100', price: 999 })]);
-    });
-
-    it('shows only the selected B100 book when alcohol orders are also present', () => {
-        const rows = ['BIO_METHANOL', 'UCOME_B100'].map((marketProduct, index) => ({
-            market_product: marketProduct, product_name: marketProduct, fuel_type: index ? 'FAME' : 'Methanol',
-            delivery_point_name: 'Singapore', region: 'Asia', availability_window: 'SPOT',
-            side: 'ASK', min_price: 1000 + index * 100, max_price: 1000 + index * 100,
-            total_quantity: 500, order_count: 1,
-        })) as AggregatedOrderbook[];
-        const result = computePortMarketData(rows, 'Singapore', 'UCOME_B100');
-        expect(result.totalVolume).toBe(500);
-        expect(result.fuelRows).toHaveLength(1);
-        expect(result.reference).toEqual({ productLabel: 'UCOME B100', price: 1100, source: 'MARKET' });
-    });
-
-    it('keeps the four seeded products separate instead of collapsing to two fuel buckets', () => {
-        const aggregated = [
-            {
-                product_id: 'legacy-methanol',
-                fuel_type: 'Methanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'ASK',
-                min_price: '900.00',
-                max_price: '950.00',
-                total_quantity: '10000.00',
-                order_count: 4,
-            },
-            {
-                product_id: 'bio-methanol',
-                product_name: 'Bio Methanol',
-                fuel_type: 'Methanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'ASK',
-                min_price: '1056.00',
-                max_price: '1171.00',
-                total_quantity: '37000.00',
-                order_count: 12,
-            },
-            {
-                product_id: 'bio-methanol',
-                product_name: 'Bio Methanol',
-                fuel_type: 'Methanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'BID',
-                min_price: '1036.00',
-                max_price: '1083.00',
-                total_quantity: '36500.00',
-                order_count: 12,
-            },
-            {
-                product_id: 'e-methanol',
-                product_name: 'e-Methanol',
-                fuel_type: 'Methanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'ASK',
-                min_price: '1185.00',
-                max_price: '1233.00',
-                total_quantity: '26000.00',
-                order_count: 11,
-            },
-            {
-                product_id: 'e-methanol',
-                product_name: 'e-Methanol',
-                fuel_type: 'Methanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'BID',
-                min_price: '1115.00',
-                max_price: '1149.00',
-                total_quantity: '23500.00',
-                order_count: 8,
-            },
-            {
-                product_id: 'bio-ethanol',
-                product_name: 'Bio Ethanol',
-                fuel_type: 'Ethanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'ASK',
-                min_price: '692.50',
-                max_price: '726.70',
-                total_quantity: '42500.00',
-                order_count: 12,
-            },
-            {
-                product_id: 'bio-ethanol',
-                product_name: 'Bio Ethanol',
-                fuel_type: 'Ethanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'BID',
-                min_price: '632.50',
-                max_price: '666.70',
-                total_quantity: '32500.00',
-                order_count: 12,
-            },
-            {
-                product_id: 'synthetic-ethanol',
-                product_name: 'Synthetic Ethanol',
-                fuel_type: 'Ethanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'ASK',
-                min_price: '785.00',
-                max_price: '819.00',
-                total_quantity: '31000.00',
-                order_count: 10,
-            },
-            {
-                product_id: 'synthetic-ethanol',
-                product_name: 'Synthetic Ethanol',
-                fuel_type: 'Ethanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'BID',
-                min_price: '718.50',
-                max_price: '760.50',
-                total_quantity: '31000.00',
-                order_count: 13,
-            },
-            {
-                product_id: 'legacy-ethanol',
-                fuel_type: 'Ethanol',
-                delivery_point_id: 'singapore',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Asia',
-                side: 'BID',
-                min_price: '600.00',
-                max_price: '640.00',
-                total_quantity: '10000.00',
-                order_count: 4,
-            },
+    it('matches the legacy all-window golden for mixed REAL and DEMO rows', () => {
+        const markets = [
+            compactMarket({
+                bid_min_price: '900.00',
+                bid_max_price: '950.00',
+                bid_total_quantity: '3000.00',
+                bid_order_count: 3,
+                ask_min_price: '1000.00',
+                ask_max_price: '1100.00',
+                ask_total_quantity: '4000.00',
+                ask_order_count: 4,
+                spot_best_bid: '950.00',
+                spot_best_ask: '1000.20',
+            }),
+            compactMarket({
+                evidence_class: 'DEMO',
+                source_kind: 'DEMO_SEED',
+                demo_status: 'DEMO_ONLY',
+                bid_min_price: '800.00',
+                bid_max_price: '960.00',
+                bid_total_quantity: '500.00',
+                bid_order_count: 1,
+                ask_min_price: '990.00',
+                ask_max_price: '1200.00',
+                ask_total_quantity: '750.00',
+                ask_order_count: 2,
+                spot_best_bid: '940.10',
+            }),
         ];
 
-        const result = computePortMarketData(aggregated as any, 'Singapore', 'Singapore');
+        const result = computePortMarketData(markets, 'Singapore', 'Bio Methanol');
 
-        expect(result.fuelRows.map((row) => row.label).sort()).toEqual([
+        expect(result).toEqual({
+            totalVolume: 8250,
+            fuelRows: [{
+                key: 'Bio Methanol',
+                label: 'Bio Methanol',
+                bestBid: 960,
+                bestAsk: 990,
+                orderCount: 10,
+                spreadPct: ((990 - 960) / 975) * 100,
+            }],
+            spreadPct: ((990 - 960) / 975) * 100,
+            reference: {
+                productLabel: 'Bio Methanol',
+                price: 975.1,
+                source: 'MIXED',
+            },
+        });
+    });
+
+    it('keeps all five canonical products separate', () => {
+        const products = [
+            ['BIO_METHANOL', 'Bio Methanol', 'Methanol'],
+            ['E_METHANOL', 'e-Methanol', 'Methanol'],
+            ['BIO_ETHANOL', 'Bio Ethanol', 'Ethanol'],
+            ['SYNTHETIC_ETHANOL', 'Synthetic Ethanol', 'Ethanol'],
+            ['UCOME_B100', 'Bio Methanol', 'FAME'],
+        ] as const;
+        const markets = products.map(([marketProduct, productName, fuelType], index) => compactMarket({
+            product_id: `product-${marketProduct}`,
+            product_name: productName,
+            market_product: marketProduct,
+            fuel_type: fuelType,
+            bid_min_price: String(700 + index),
+            bid_max_price: String(700 + index),
+            bid_total_quantity: '100',
+            bid_order_count: 1,
+            ask_min_price: String(720 + index),
+            ask_max_price: String(720 + index),
+            ask_total_quantity: '100',
+            ask_order_count: 1,
+        }));
+
+        const result = computePortMarketData(markets, 'Singapore');
+
+        expect(result.fuelRows.map(row => row.label).sort()).toEqual([
             'Bio Ethanol',
             'Bio Methanol',
+            'UCOME B100',
             'e-Ethanol',
             'e-Methanol',
         ]);
-        expect(result.fuelRows.map((row) => row.label)).not.toContain('Methanol');
-        expect(result.fuelRows.map((row) => row.label)).not.toContain('Ethanol');
-
-        const bioMethanol = result.fuelRows.find((row) => row.label === 'Bio Methanol');
-        const syntheticEthanol = result.fuelRows.find((row) => row.label === 'e-Ethanol');
-
-        expect(bioMethanol).toMatchObject({ bestBid: 1083, bestAsk: 1056 });
-        expect(syntheticEthanol).toMatchObject({ bestBid: 760.5, bestAsk: 785 });
     });
 
-    it('derives the reference from the selected product exact SPOT book', () => {
-        const aggregated = [
-            {
+    it('preserves a one-sided B100 SPOT reference and product selection', () => {
+        const product = 'UCOME_B100';
+        const markets = [
+            compactMarket({
+                product_id: `product-${product}`,
                 product_name: 'Bio Methanol',
-                market_product: 'BIO_METHANOL',
-                fuel_type: 'Methanol',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Singapore',
-                side: 'BID',
-                min_price: '940.00',
-                max_price: '950.00',
-                total_quantity: '1000.00',
-                order_count: 2,
+                market_product: product,
+                fuel_type: 'FAME',
+                evidence_class: 'DEMO',
                 source_kind: 'DEMO_SEED',
                 demo_status: 'DEMO_ONLY',
-            },
-            {
-                product_name: 'Bio Methanol',
-                market_product: 'BIO_METHANOL',
-                fuel_type: 'Methanol',
-                delivery_point_name: 'Singapore',
-                availability_window: 'SPOT',
-                region: 'Singapore',
-                side: 'ASK',
-                min_price: '1000.00',
-                max_price: '1010.00',
-                total_quantity: '1000.00',
-                order_count: 2,
-                source_kind: 'DEMO_SEED',
-                demo_status: 'DEMO_ONLY',
-            },
-            {
-                product_name: 'Bio Methanol',
-                market_product: 'BIO_METHANOL',
-                fuel_type: 'Methanol',
-                delivery_point_name: 'Singapore',
-                availability_window: '2027-Q1',
-                region: 'Singapore',
-                side: 'ASK',
-                min_price: '520.00',
-                max_price: '520.00',
-                total_quantity: '1000.00',
-                order_count: 1,
-                source_kind: 'DEMO_SEED',
-                demo_status: 'DEMO_ONLY',
-            },
+                bid_min_price: '780',
+                bid_max_price: '780',
+                bid_total_quantity: '500',
+                bid_order_count: 1,
+                spot_best_bid: '780',
+            }),
+            compactMarket({
+                ask_min_price: '1100',
+                ask_max_price: '1100',
+                ask_total_quantity: '500',
+                ask_order_count: 1,
+                spot_best_ask: '1100',
+            }),
         ];
 
-        const result = computePortMarketData(aggregated as any, 'Singapore');
+        const result = computePortMarketData(markets, 'Singapore', product);
 
+        expect(result.fuelRows).toEqual([expect.objectContaining({
+            label: 'UCOME B100',
+            bestBid: 780,
+            bestAsk: null,
+            orderCount: 1,
+        })]);
+        expect(result.reference).toEqual({ productLabel: 'UCOME B100', price: 780, source: 'DEMO' });
+        expect(result.spreadPct).toBe(999);
+    });
+
+    it('keeps the SPOT midpoint separate from all-window extrema', () => {
+        const market = compactMarket({
+            bid_min_price: '900',
+            bid_max_price: '950',
+            bid_total_quantity: '2000',
+            bid_order_count: 2,
+            ask_min_price: '520',
+            ask_max_price: '1010',
+            ask_total_quantity: '3000',
+            ask_order_count: 3,
+            spot_best_bid: '950',
+            spot_best_ask: '1000',
+        });
+
+        const result = computePortMarketData([market], 'Singapore');
+
+        expect(result.fuelRows[0]).toMatchObject({ bestBid: 950, bestAsk: 520, orderCount: 5 });
         expect(result.reference).toEqual({
             productLabel: 'Bio Methanol',
             price: 975,
-            source: 'DEMO',
+            source: 'MARKET',
         });
     });
 
-    it('does not pull unsupported delivery points into approved ports through country or broad region matching', () => {
-        const aggregated = [
-            {
-                product_name: 'Bio Methanol',
-                market_product: 'BIO_METHANOL',
-                fuel_type: 'Methanol',
+    it('keeps all-window data when a product has no SPOT market', () => {
+        const market = compactMarket({
+            product_name: 'e-Methanol',
+            market_product: 'E_METHANOL',
+            bid_min_price: '800',
+            bid_max_price: '850',
+            bid_total_quantity: '1000',
+            bid_order_count: 1,
+            ask_min_price: '900',
+            ask_max_price: '950',
+            ask_total_quantity: '1500',
+            ask_order_count: 2,
+        });
+
+        const result = computePortMarketData([market], 'Singapore', 'e-Methanol');
+
+        expect(result.totalVolume).toBe(2500);
+        expect(result.fuelRows[0]).toMatchObject({ bestBid: 850, bestAsk: 900, orderCount: 3 });
+        expect(result.reference).toBeNull();
+    });
+
+    it('does not match another delivery point through a broad region name', () => {
+        const markets = [
+            compactMarket({
                 delivery_point_id: 'dp-ningbo',
                 delivery_point_name: 'Ningbo',
-                availability_window: 'SPOT',
-                region: 'China',
-                side: 'ASK',
-                min_price: '100.00',
-                max_price: '110.00',
-                total_quantity: '9999.00',
-                order_count: 9,
-            },
-            {
-                product_name: 'Bio Methanol',
-                market_product: 'BIO_METHANOL',
-                fuel_type: 'Methanol',
+                region: 'Shanghai',
+                ask_min_price: '100',
+                ask_max_price: '110',
+                ask_total_quantity: '9999',
+                ask_order_count: 9,
+            }),
+            compactMarket({
                 delivery_point_id: 'dp-shanghai',
                 delivery_point_name: 'Shanghai',
-                availability_window: 'SPOT',
                 region: 'China',
-                side: 'ASK',
-                min_price: '700.00',
-                max_price: '720.00',
-                total_quantity: '1500.00',
-                order_count: 2,
-            },
+                ask_min_price: '700',
+                ask_max_price: '720',
+                ask_total_quantity: '1500',
+                ask_order_count: 2,
+            }),
         ];
 
-        const result = computePortMarketData(aggregated as any, {
+        const result = computePortMarketData(markets, {
             id: 'cn-sha',
             catalogDeliveryPointId: 'dp-shanghai',
             name: 'Shanghai',
@@ -331,11 +261,7 @@ describe('BuyerMap market data', () => {
 
         expect(result.totalVolume).toBe(1500);
         expect(result.fuelRows).toHaveLength(1);
-        expect(result.fuelRows[0]).toMatchObject({
-            label: 'Bio Methanol',
-            bestAsk: 700,
-            orderCount: 2,
-        });
+        expect(result.fuelRows[0]).toMatchObject({ bestAsk: 700, orderCount: 2 });
     });
 
     it('does not invent port intelligence when the backend returns none', () => {
@@ -358,32 +284,10 @@ describe('BuyerMap market data', () => {
 
     it('keeps only ports that are active market delivery points on the intelligence map', () => {
         const ports = [
-            mapPortResponse({
-                id: 'singapore',
-                name: 'Singapore',
-                country: 'Singapore',
-                lat: 1.26,
-                lng: 103.82,
-                intelligence: null,
-            }),
-            mapPortResponse({
-                id: 'port-klang',
-                name: 'Port Klang',
-                country: 'Malaysia',
-                lat: 3.0,
-                lng: 101.4,
-                intelligence: null,
-            }),
-            mapPortResponse({
-                id: 'rotterdam',
-                name: 'Rotterdam',
-                country: 'Netherlands',
-                lat: 51.92,
-                lng: 4.48,
-                intelligence: null,
-            }),
+            mapPortResponse({ id: 'singapore', name: 'Singapore', country: 'Singapore', lat: 1.26, lng: 103.82, intelligence: null }),
+            mapPortResponse({ id: 'port-klang', name: 'Port Klang', country: 'Malaysia', lat: 3.0, lng: 101.4, intelligence: null }),
+            mapPortResponse({ id: 'rotterdam', name: 'Rotterdam', country: 'Netherlands', lat: 51.92, lng: 4.48, intelligence: null }),
         ];
-
         const deliveryPoints = [
             { id: 'sg', name: 'Singapore', region: 'Asia', is_active: true },
             { id: 'rtm', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -392,28 +296,24 @@ describe('BuyerMap market data', () => {
 
         const filtered = filterPortsByActiveDeliveryPoints(ports, deliveryPoints);
 
-        expect(filtered.map((port) => port.name)).toEqual(['Singapore', 'Rotterdam']);
+        expect(filtered.map(port => port.name)).toEqual(['Singapore', 'Rotterdam']);
     });
 
     it('resolves approved map ports to catalog delivery point IDs by port name', () => {
-        const livePorts = [
-            mapPortResponse({
-                id: 'sg-sin',
-                name: 'Singapore',
-                country: 'Singapore',
-                lat: 1.26,
-                lng: 103.82,
-                intelligence: { methanol_price_avg: 615, price_trend: 1.5 },
-            }),
-        ];
-        const deliveryPoints = [
-            {
-                id: '11111111-1111-1111-1111-111111111111',
-                name: 'Singapore',
-                region: 'Asia',
-                is_active: true,
-            },
-        ];
+        const livePorts = [mapPortResponse({
+            id: 'sg-sin',
+            name: 'Singapore',
+            country: 'Singapore',
+            lat: 1.26,
+            lng: 103.82,
+            intelligence: { methanol_price_avg: 615, price_trend: 1.5 },
+        })];
+        const deliveryPoints = [{
+            id: '11111111-1111-1111-1111-111111111111',
+            name: 'Singapore',
+            region: 'Asia',
+            is_active: true,
+        }];
 
         const resolved = resolveApprovedMapPorts(PORTS, livePorts, deliveryPoints);
         const singapore = resolved.find(port => port.name === 'Singapore');
@@ -424,16 +324,14 @@ describe('BuyerMap market data', () => {
     });
 
     it('does not restore legacy static prices when live port intelligence is empty', () => {
-        const livePorts = [
-            mapPortResponse({
-                id: 'sg-sin',
-                name: 'Singapore',
-                country: 'Singapore',
-                lat: 1.26,
-                lng: 103.82,
-                intelligence: null,
-            }),
-        ];
+        const livePorts = [mapPortResponse({
+            id: 'sg-sin',
+            name: 'Singapore',
+            country: 'Singapore',
+            lat: 1.26,
+            lng: 103.82,
+            intelligence: null,
+        })];
 
         const singapore = resolveApprovedMapPorts(PORTS, livePorts).find(port => port.name === 'Singapore');
 
