@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { isDemoMarketActivity } from '../utils/marketActivity';
 import i18n from '../i18n';
 
 interface OrderBookProps {
@@ -40,7 +41,7 @@ function isOrderbookOrder(order: OrderBookOrder): boolean {
 
 export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
     // API decimal fields can arrive as strings despite the frontend order type.
-    const hasLivePrice = (order: OrderBookOrder) => isOrderbookOrder(order) && !order.is_demo_listing
+    const hasLivePrice = (order: OrderBookOrder) => isOrderbookOrder(order) && !isDemoMarketActivity(order)
         && Number.isFinite(Number(order.price_per_mt_usd)) && Number(order.price_per_mt_usd) > 0;
     const realBids = bids
         .filter(hasLivePrice)
@@ -85,7 +86,7 @@ function formatPrice(price: number, locale = 'en'): string {
 
 function formatQty(qty: number, locale = 'en'): string {
     const value = Number(qty);
-    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 0 }) : '—';
+    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 2 }) : '—';
 }
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, executionMode, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
@@ -213,7 +214,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();
         const tooltipWidth = 320;
-        const tooltipHeight = order.is_demo_listing ? 196 : 152;
+        const tooltipHeight = isDemoMarketActivity(order) ? 196 : 152;
         const padding = 16;
         const preferredX = rect.right + 14;
         const fallbackX = rect.left - tooltipWidth - 14;
@@ -308,6 +309,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                     Array.from({ length: maxRows }).map((_, i) => {
                         const bid = bids[i] ?? null;
                         const ask = asks[i] ?? null;
+                        const bidIsDemo = isDemoMarketActivity(bid);
+                        const askIsDemo = isDemoMarketActivity(ask);
                         const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
                         const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
                         const bidCrossed = bid ? (bid as any).is_crossed === true : false;
@@ -343,7 +346,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                     >
-                                        {bid.is_demo_listing && (
+                                        {bidIsDemo && (
                                             <span
                                                 className="absolute left-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
                                                 aria-hidden="true"
@@ -414,7 +417,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                                             }`}
                                             style={{ width: `${askDepth}%` }}
                                         />
-                                        {ask.is_demo_listing && (
+                                        {askIsDemo && (
                                             <span
                                                 className="absolute right-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
                                                 aria-hidden="true"
@@ -478,7 +481,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                                 {hoverTooltip.order.side}
                             </span>
                         </div>
-                        {hoverTooltip.order.is_demo_listing && (
+                        {isDemoMarketActivity(hoverTooltip.order) && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
                                 {t('marketplace.demo.tooltip')}
                             </div>

@@ -200,8 +200,9 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const renderActions = (trade: Trade) => {
         const userSide = getUserSide(trade);
         const isLoadingThis = actionLoadingId === trade.id;
+        const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
-        if (trade.status === 'PENDING_CONFIRMATION') {
+        if (normalizedStatus === 'PENDING_CONFIRMATION') {
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
                 (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
@@ -378,7 +379,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                     const price = tradeDisplayPricePerMt(trade);
                                     const total = tradeGrossNotionalUsd(trade);
                                     const statusCfg = STATUS_CONFIG[normalizedStatus] || STATUS_CONFIG.CANCELLED;
-                                    const counterpartyIsHidden = trade.is_anonymous && trade.status === 'PENDING_CONFIRMATION';
+                                    const counterpartyIsHidden = trade.is_anonymous && normalizedStatus === 'PENDING_CONFIRMATION';
                                     const counterpartyName = userSide === 'BUYER'
                                         ? (trade.seller_name || t('myTrades.counterparty.seller'))
                                         : (trade.buyer_name || t('myTrades.counterparty.buyer'));
@@ -444,7 +445,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                         </tr>
                                         {trade.fame_terms_snapshot && <tr className="bg-slate-50/70 dark:bg-slate-900/40">
                                             <td colSpan={userRole === 'BUYER' ? 8 : 10} className="px-4 py-3 lg:px-6">
-                                                <details open={trade.status === 'PENDING_CONFIRMATION'}>
+                                                <details open={normalizedStatus === 'PENDING_CONFIRMATION'}>
                                                     <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">{t('myTrades.fameTerms.title')}</summary>
                                                     <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('myTrades.fameTerms.notice')}</p>
                                                     <div className="mt-4 space-y-5">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { useTranslation } from 'react-i18next';
 import { formatAvailabilityWindow } from '../../utils/availabilityWindow';
+import { formatOrderExpiry } from '../../utils/fuel';
 import { useNamespace } from '../../hooks/useNamespace';
 import type { FameOrderTerms } from '../../types/fameOrder';
 import { FameOrderTermsDetails } from '../fame/FameOrderTermsDetails';
@@ -38,18 +39,6 @@ interface MarketSupportFinalConfirmationProps {
   onBack: () => void;
   onConfirm: (confirmation: MarketSupportConfirmation) => void;
 }
-
-const formatExpiry = (value: string, locale: string, goodTillCancelled: string) => {
-  if (!value) return goodTillCancelled;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString(locale, {
-        dateStyle: 'medium',
-        timeStyle: 'medium',
-        timeZone: 'UTC',
-      }) + ' UTC';
-};
 
 export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirmationProps> = ({
   organizationName,
@@ -89,7 +78,7 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
     [t('marketSupport.confirm.availabilityWindow'), formatAvailabilityWindow(draft.availabilityWindow, i18n.language)],
     [t('marketSupport.confirm.quantity'), `${draft.quantityMt.toLocaleString(i18n.language)} MT`],
     [t('marketSupport.confirm.price'), `$${draft.pricePerMtUsd.toFixed(2)}/MT`],
-    [t('marketSupport.confirm.expiry'), formatExpiry(draft.expiresAt, i18n.language, t('marketSupport.confirm.goodTillCancelled'))],
+    [t('marketSupport.confirm.expiry'), formatOrderExpiry(draft.expiresAt, i18n.language, t('marketSupport.confirm.goodTillCancelled'), true)],
     ...(draft.side === 'ASK' && !draft.fameTerms ? [
       [t('marketSupport.confirm.certification'), draft.certificationScheme],
       [t('marketSupport.confirm.specification'), draft.specificationStandard],

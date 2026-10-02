@@ -108,9 +108,21 @@ describe('orderbook inspection', () => {
   });
 
   it('formats API decimal strings as readable prices and quantities', async () => {
-    listBids.mockResolvedValue([{ ...bid, price_per_mt_usd: '1260.20', remaining_quantity_mt: '1500' }]);
+    listBids.mockResolvedValue([{ ...bid, price_per_mt_usd: '1260.20', remaining_quantity_mt: '1500.25' }]);
     renderWithProviders(<OrderBook />);
-    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500 MT/ })).toBeTruthy();
+    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();
+  });
+
+  it('labels provenance-only demo rows', async () => {
+    listBids.mockResolvedValue([{
+      ...bid,
+      source_kind: 'DEMO_SEED',
+      demo_status: 'DEMO_ONLY',
+    }]);
+    renderWithProviders(<OrderBook />);
+    const level = await screen.findByRole('group', { name: /Bid.*600/ });
+    fireEvent.focus(level);
+    expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
   });
 
   it('forces fresh book data when the user selects Refresh', async () => {

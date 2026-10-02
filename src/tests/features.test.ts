@@ -48,12 +48,16 @@ describe('Availability Windows', () => {
         expect(normalizeAvailabilityWindow('Spot')).toBe(SPOT_WINDOW);
         expect(normalizeAvailabilityWindow('Q3 2026')).toBe('2026-Q3');
         expect(normalizeAvailabilityWindow('Forward 2027')).toBe('2027-CAL');
+        expect(normalizeAvailabilityWindow('Q1_2032')).toBe('2032-Q1');
+        expect(normalizeAvailabilityWindow('FORWARD_2032')).toBe('2032-CAL');
     });
 
     it('should format canonical codes for display', () => {
         expect(formatAvailabilityWindow(SPOT_WINDOW)).toBe('Spot');
         expect(formatAvailabilityWindow('2026-04')).toBe('Apr 2026');
         expect(formatAvailabilityWindow('2026-Q3')).toBe('Q3 2026');
+        expect(formatAvailabilityWindow('CUSTOM_WINDOW')).toBe('CUSTOM_WINDOW');
+        expect(formatAvailabilityWindowPeriod('CUSTOM_WINDOW')).toBe('CUSTOM_WINDOW');
     });
 
     it('should localize user-facing Chinese windows while keeping compact contract codes', () => {
