@@ -63,6 +63,18 @@ const getHeaders = () => {
 
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
+const PUBLIC_MARKET_READ_PATHS = new Set([
+    '/orderbook/bids',
+    '/orderbook/asks',
+    '/orderbook/product-counts',
+    '/orderbook/map-summary',
+    '/curves/forward/table',
+    '/curves/forward/slice',
+]);
+
+export const isPublicMarketReadRequest = (path: string, method = 'GET'): boolean =>
+    method.toUpperCase() === 'GET' && PUBLIC_MARKET_READ_PATHS.has(path.split('?')[0]);
+
 /**
  * Only organization-scoped customer routes receive the context locator.
  * Admin lifecycle routes and authentication requests must never carry it.
@@ -139,6 +151,14 @@ const withAuthHeader = (headers?: RequestInit['headers'], token?: string): Heade
         merged.delete('Authorization');
     }
     return merged;
+};
+
+const withoutPrivateHeaders = (headers?: RequestInit['headers']): Headers => {
+    const publicHeaders = new Headers(headers);
+    publicHeaders.delete('Authorization');
+    publicHeaders.delete('Content-Type');
+    publicHeaders.delete(MARKET_SUPPORT_CONTEXT_HEADER);
+    return publicHeaders;
 };
 
 const handleResponse = async (res: Response, contextId?: string | null) => {
@@ -223,9 +243,12 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     const isMutation = options?.method && options.method !== 'GET';
     const timeout = isMutation ? 30000 : 15000;
     const url = `${API_URL}${path}`;
-    const initialHeaders = withAuthHeader(options?.headers);
-    const contextId = getMarketSupportContextId();
     const method = options?.method || 'GET';
+    const isPublicMarketRead = isPublicMarketReadRequest(path, method);
+    const initialHeaders = isPublicMarketRead
+        ? withoutPrivateHeaders(options?.headers)
+        : withAuthHeader(options?.headers);
+    const contextId = getMarketSupportContextId();
     if (
         contextId
         && (
@@ -235,12 +258,13 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     ) {
         throw new ApiError('This action is unavailable while acting for a supplier organization.', 403, 'MARKET_SUPPORT_MUTATION_BLOCKED');
     }
-    if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
+    if (contextId && !isPublicMarketRead && isMarketSupportScopedRequest(path, method)) {
         initialHeaders.set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
     }
     const initialOptions: RequestInit = {
         ...options,
         headers: initialHeaders,
+        ...(isPublicMarketRead ? { credentials: 'omit' } : {}),
     };
     const requestGeneration = getAuthGeneration();
 
@@ -261,7 +285,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         reliability.reportBackendUnavailable();
     }
 
-    if (contextId && (
+    if (!isPublicMarketRead && contextId && (
         res.status === 410
         || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
     )) {
@@ -270,7 +294,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         }));
     }
 
-    if (res.status === 401 && !shouldSkipRefresh(path)) {
+    if (res.status === 401 && !isPublicMarketRead && !shouldSkipRefresh(path)) {
         const refreshedToken = await refreshAccessToken();
         if (requestGeneration !== getAuthGeneration()) {
             throw new DOMException('Authentication session changed', 'AbortError');
@@ -298,7 +322,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         }
     }
 
-    const responseBody = await handleResponse(res, contextId);
+    const responseBody = await handleResponse(res, isPublicMarketRead ? null : contextId);
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
