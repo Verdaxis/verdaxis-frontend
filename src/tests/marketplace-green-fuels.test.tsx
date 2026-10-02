@@ -390,10 +390,18 @@ describe('Marketplace green fuels surface', () => {
 
   it('clears a canonical B100 query when clearing all market filters', async () => {
     myOrders.mockResolvedValue(listingsResponse.items);
-    renderWithProviders(<Marketplace />, { route: '/app/marketplace?product=UCOME_B100&view=my_orders' });
+    function CurrentUrl() {
+      const location = useLocation();
+      return <output data-testid="clear-filters-url">{location.pathname}{location.search}</output>;
+    }
+    renderWithProviders(<><Marketplace /><CurrentUrl /></>, { route: '/app/marketplace?product=UCOME_B100&view=my_orders' });
     fireEvent.click(await screen.findByRole('button', { name: 'Clear' }));
-    await waitFor(() => expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: undefined })));
-    expect(screen.getByRole('button', { name: 'All products' }).getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => {
+      expect(screen.getByTestId('clear-filters-url').textContent).toBe('/app/marketplace?view=my_orders');
+      expect(screen.getByRole('button', { name: 'All products' }).getAttribute('aria-pressed')).toBe('true');
+    });
+    expect(myOrders).toHaveBeenCalled();
+    expect(listAsksPaged).not.toHaveBeenCalled();
   });
 
   it('shows canonical market product chips instead of generic fuel families', async () => {
