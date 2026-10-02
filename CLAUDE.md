@@ -13,7 +13,7 @@ Verdaxis is a maritime alternative fuel procurement platform. The frontend is a 
 - **Styling:** Tailwind CSS with `darkMode: 'class'`, custom `verdaxis` color tokens in `tailwind.config.js`
 - **State Management:** React Context (Auth, Theme, Copilot, Notifications) -- no Redux/Zustand
 - **Charts:** Recharts
-- **Maps:** Leaflet + react-leaflet (port intelligence map, producer map, vessel tracking)
+- **Maps:** Mapbox GL JS for port intelligence; Leaflet + react-leaflet for the producer map
 - **Animations:** Motion (Framer Motion v12), GSAP, Lenis (smooth scroll on public pages)
 - **Icons:** lucide-react
 - **AI Copilot:** Chat UI and tool-calling loop backed by backend `/api/ai/chat`; no client-side Gemini key
@@ -41,7 +41,7 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 - **Base URL:** Configured via `VITE_API_URL` env var (see Environment Configuration below).
 - **Client:** `src/services/api.ts` -- a plain `fetch`-based API client organized by resource (ports, vessels, orderbook, trades, inventory, listings, notifications, training, catalog, curves).
-- **Auth:** Every authenticated request includes `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`.
+- **Auth:** Private requests include `Authorization: Bearer <token>` from the in-memory token store; refresh uses the backend HttpOnly cookie via `credentials: 'include'`. Only the explicit public market GET allowlist omits credentials, support context, and JSON request headers.
 - **Data transformation:** The API layer transforms snake_case backend responses to camelCase frontend interfaces. See `types.ts` for all interfaces.
 - **Path alias:** `@/` maps to `./src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 
@@ -69,18 +69,19 @@ The authenticated `/app` route is a **layout route** (`DashboardLayout`): every 
 
 CI (`.github/workflows/frontend-ci.yml`) runs tests, typecheck, i18n check, and both builds on pushes/PRs to `staging` and `prod`; it does not deploy. Deploys are operator-run on the VPS as described below.
 
-**SSH login:** `jons-openclaw@194.233.68.86` (verified 2026-09-22).
+**Staging SSH:** `jons-openclaw@194.233.68.86`.
+**Production API/database:** EU VPS `169.58.37.164`; SSH alias `verdaxis-prod-eu`, administrator `verdaxis-admin`, runtime owner `verdaxis-prod`. Read `/home/verdaxis-prod/verdaxis/PRODUCTION_HOST.md` before deployment or recovery; the old shared-host production checkout is retired.
 **Service account:** Run `sudo su - verdaxis-prod` after login; no password is required.
-**Site:** `app.verdaxis.exchange` and `verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/prod/fe/dist`)
+**Production site:** `app.verdaxis.exchange`, `verdaxis.exchange`, and `www.verdaxis.exchange` (Vercel).
 **Staging:** `staging.verdaxis.exchange` (served by Caddy from `/home/verdaxis-prod/verdaxis/staging/fe/dist`)
 **API:** `api.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8000`)
 **Staging API:** `api-staging.verdaxis.exchange` (Caddy reverse proxy to backend on `localhost:8001`)
 
 Before deployment, confirm current DNS for the target site/API, the live
 systemd unit's `User` and `WorkingDirectory`, and Caddy's staging document
-root. The verified runtime host is `194.233.68.86` (`vmi1840561`); historical
-`144.126.151.136` references are not deployment authority. Keep the SSH login
-and service account distinct.
+root. Production API/database run on `vmi3623757`; staging runs on
+`194.233.68.86` (`vmi1840561`). Historical `144.126.151.136` references are
+not deployment authority. Keep the SSH login and service account distinct.
 
 ### Build commands
 
@@ -91,13 +92,11 @@ npm run build:staging
 
 ### Deploy command
 
-Build a verified artifact, then rsync `dist/` into the Caddy-served folder for the target environment.
+Production uses only the manual `Release Vercel Production` workflow on `prod`;
+this staging branch has no production release authority. Staging uses a verified
+artifact served from its canonical `dist` directory.
 
 ```bash
-bash ./scripts/deploy.sh prod
-rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/prod/fe/dist/
-npm run smoke:live -- prod
-
 bash ./scripts/deploy.sh staging
 rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/staging/fe/dist/
 npm run smoke:live -- staging
