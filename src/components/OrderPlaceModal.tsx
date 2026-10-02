@@ -543,7 +543,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         const addReviewDetail = (label: string, value: unknown) => {
             if (typeof value === 'string' && value.trim()) reviewDetails.push({ label, value: value.trim() });
         };
-        if (payload.side === 'BID') {
+        if (payload.side === 'BID' && !payload.fame_terms) {
             const certificationPreference = Array.isArray(payload.certifications) && payload.certifications.length > 0
                 ? payload.certifications.join(', ')
                 : t('orderPlaceModal.option.anyCertifiedScheme');

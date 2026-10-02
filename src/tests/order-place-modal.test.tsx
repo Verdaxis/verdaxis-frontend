@@ -311,10 +311,11 @@ describe('OrderPlaceModal', () => {
     };
     setMarketSupportContextId('ctx-1');
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillPrice={540} />);
-    await waitFor(() => expect(productsMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: 'Place Bid' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+    const placeBidButton = screen.getByRole('button', { name: 'Place Bid' }) as HTMLButtonElement;
+    await waitFor(() => expect(placeBidButton.disabled).toBe(false));
+    fireEvent.click(placeBidButton);
+    fireEvent.click(await screen.findByRole('checkbox', { name: /exact terms/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /standing order/i }));
 
     setMarketSupportContextId('ctx-2');
     fireEvent.click(screen.getByRole('button', { name: /confirm and submit bid/i }));
@@ -419,7 +420,13 @@ describe('OrderPlaceModal', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'I declare that the stated certification applies to this supply.' }));
       fireEvent.click(screen.getByRole('checkbox', { name: 'A safety data sheet is available for this supply.' }));
     }
-    reviewAndConfirm(side === 'BID' ? 'Bid' : 'Ask');
+    const orderAction = side === 'BID' ? 'Bid' : 'Ask';
+    fireEvent.click(screen.getByRole('button', { name: `Review ${orderAction}` }));
+    if (side === 'BID') {
+      expect(screen.getByText('ISCC EU')).toBeTruthy();
+      expect(screen.queryByText('Any certified scheme')).toBeNull();
+    }
+    fireEvent.click(screen.getByRole('button', { name: `Confirm and place ${orderAction}` }));
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
     expect(createOrderMock.mock.calls[0][0]).toEqual(expect.objectContaining({
