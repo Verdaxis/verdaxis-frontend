@@ -5,6 +5,7 @@ export type MarketActivityInput = {
     source_kind?: MarketSourceKind | null;
     demo_status?: MarketDemoStatus | null;
     provenance_kind?: string | null;
+    is_demo_listing?: boolean | null;
     is_demo_trade?: boolean | null;
     is_demo_benchmark?: boolean | null;
 };
@@ -26,7 +27,8 @@ export type ForwardCurveSignalInput = {
 
 export function isDemoMarketActivity(activity: MarketActivityInput | null | undefined): boolean {
     if (!activity) return false;
-    return activity.demo_status === 'DEMO_ONLY'
+    return activity.is_demo_listing === true
+        || activity.demo_status === 'DEMO_ONLY'
         || activity.source_kind === 'DEMO_SEED'
         || activity.provenance_kind === 'DEMO_SEED'
         || activity.is_demo_trade === true

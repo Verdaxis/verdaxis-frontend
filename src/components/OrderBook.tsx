@@ -7,6 +7,7 @@ import { useNamespace } from '../hooks/useNamespace';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { isDemoMarketActivity } from '../utils/marketActivity';
 import i18n from '../i18n';
 
 interface OrderBookProps {
@@ -29,10 +30,10 @@ const MAX_ROWS = 15;
 
 export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
     const realBids = bids
-        .filter(order => !order.is_demo_listing)
+        .filter(order => !isDemoMarketActivity(order))
         .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd);
     const realAsks = asks
-        .filter(order => !order.is_demo_listing)
+        .filter(order => !isDemoMarketActivity(order))
         .sort((a, b) => a.price_per_mt_usd - b.price_per_mt_usd);
 
     const bestBid = realBids[0];
@@ -55,6 +56,7 @@ export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookO
         bidIds,
         askIds,
         spread: bestBid && bestAsk ? bestAsk.price_per_mt_usd - bestBid.price_per_mt_usd : null,
+        bestBidPrice: bestBid?.price_per_mt_usd ?? null,
     };
 }
 
@@ -63,7 +65,8 @@ function formatPrice(price: number, locale = 'en'): string {
 }
 
 function formatQty(qty: number, locale = 'en'): string {
-    return qty.toLocaleString(locale, { maximumFractionDigits: 0 });
+    const value = Number(qty);
+    return Number.isFinite(value) ? value.toLocaleString(locale, { maximumFractionDigits: 2 }) : '—';
 }
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
@@ -164,11 +167,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
     }, [bids, asks]);
 
     const maxRows = Math.max(bids.length, asks.length);
+    const liveCrossState = getExecutableCrossState(bids, asks);
 
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();
         const tooltipWidth = 320;
-        const tooltipHeight = order.is_demo_listing ? 196 : 152;
+        const tooltipHeight = isDemoMarketActivity(order) ? 196 : 152;
         const padding = 16;
         const preferredX = rect.right + 14;
         const fallbackX = rect.left - tooltipWidth - 14;
@@ -276,6 +280,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                     Array.from({ length: maxRows }).map((_, i) => {
                         const bid = bids[i] ?? null;
                         const ask = asks[i] ?? null;
+                        const bidIsDemo = isDemoMarketActivity(bid);
+                        const askIsDemo = isDemoMarketActivity(ask);
                         const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
                         const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
                         const bidCrossed = bid ? (bid as any).is_crossed === true : false;
@@ -311,7 +317,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             bidCrossed ? 'bg-amber-50 dark:bg-amber-950/20' : ''
                                         }`}
                                     >
-                                        {bid.is_demo_listing && (
+                                        {bidIsDemo && (
                                             <span
                                                 className="absolute left-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
                                                 aria-hidden="true"
@@ -382,7 +388,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                                             }`}
                                             style={{ width: `${askDepth}%` }}
                                         />
-                                        {ask.is_demo_listing && (
+                                        {askIsDemo && (
                                             <span
                                                 className="absolute right-1 top-1/2 z-20 inline-flex -translate-y-1/2 text-amber-500 dark:text-amber-400"
                                                 aria-hidden="true"
@@ -450,7 +456,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                         {getBiofuelSpecification(hoverTooltip.order.market_product || marketProduct) && (
                             <p className="mt-2 text-[11px] leading-4 text-slate-600 dark:text-slate-300">{t(`${(hoverTooltip.order.market_product || marketProduct)?.toLowerCase()}.contract`)}</p>
                         )}
-                        {hoverTooltip.order.is_demo_listing && (
+                        {isDemoMarketActivity(hoverTooltip.order) && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">
                                 {t('marketplace.demo.tooltip')}
                             </div>
@@ -481,17 +487,17 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, r
                 )}
             </div>
 
-            {/* Spread footer */}
-            {bids.length > 0 && asks.length > 0 && (() => {
-                const bestBid = bids[0].price_per_mt_usd;
-                const bestAsk = asks[0].price_per_mt_usd;
-                const spread = bestAsk - bestBid;
-                const spreadPct = bestBid > 0 ? (spread / bestBid) * 100 : 0;
+            {/* Only executable orders define the spread, never demo liquidity. */}
+            {liveCrossState.spread !== null && liveCrossState.bestBidPrice !== null && (() => {
+                const spread = liveCrossState.spread;
+                const spreadPct = liveCrossState.bestBidPrice > 0
+                    ? (spread / liveCrossState.bestBidPrice) * 100
+                    : 0;
                 return (
                     <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
                         <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
-                        <span className={`text-xs font-mono font-bold ${spread <= 0 ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {spread <= 0 ? (
+                        <span className={`text-xs font-mono font-bold ${liveCrossState.hasCross ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {liveCrossState.hasCross ? (
                                 <span className="flex items-center gap-1">
                                     <Zap size={10} className="text-amber-500" />
                                     {t('orderBook.crossed')}

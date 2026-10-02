@@ -101,6 +101,21 @@ export function getStatusConfig(status: string, t: TFunction): StatusConfig {
 }
 
 // ─── Expiry Formatter ──────────────────────────────────────────
+export function formatOrderExpiry(
+  value: string | undefined,
+  locale = 'en',
+  goodTillCancelled = 'GTC',
+  includeTime = false,
+): string {
+  if (!value) return goodTillCancelled;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const formatted = includeTime
+    ? date.toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' })
+    : date.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'UTC' });
+  return `${formatted} UTC`;
+}
+
 export function formatExpiry(order: OrderBookOrder, locale = 'en'): React.ReactNode {
   const expiryDate = order.expires_at;
   if (!expiryDate) {
@@ -108,10 +123,9 @@ export function formatExpiry(order: OrderBookOrder, locale = 'en'): React.ReactN
       className: 'text-xs bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono'
     }, 'GTC');
   }
-  const formatted = new Date(expiryDate).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: '2-digit' });
   return React.createElement('span', {
     className: 'text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono whitespace-nowrap'
-  }, formatted);
+  }, formatOrderExpiry(expiryDate, locale));
 }
 
 // ─── Availability Window ───────────────────────────────────────
