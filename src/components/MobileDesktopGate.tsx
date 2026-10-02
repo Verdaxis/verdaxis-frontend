@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Monitor } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -7,14 +7,26 @@ interface MobileDesktopGateProps {
   children: React.ReactNode;
 }
 
+const DESKTOP_MEDIA_QUERY = '(min-width: 768px)';
+
 export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }) => {
   const { t } = useTranslation('common');
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia(DESKTOP_MEDIA_QUERY).matches);
+
+  useEffect(() => {
+    const desktopMedia = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const updateViewport = (event: MediaQueryListEvent) => setIsDesktop(event.matches);
+
+    setIsDesktop(desktopMedia.matches);
+    desktopMedia.addEventListener('change', updateViewport);
+    return () => desktopMedia.removeEventListener('change', updateViewport);
+  }, []);
+
+  if (isDesktop) {
+    return <div className="desktop-only-content">{children}</div>;
+  }
 
   return (
-    <>
-      <div className="desktop-only-content">
-        {children}
-      </div>
       <div className="mobile-desktop-gate" aria-live="polite">
         <div className="mobile-desktop-gate__orb mobile-desktop-gate__orb--blue" />
         <div className="mobile-desktop-gate__orb mobile-desktop-gate__orb--green" />
@@ -61,6 +73,5 @@ export const MobileDesktopGate: React.FC<MobileDesktopGateProps> = ({ children }
           </Link>
         </div>
       </div>
-    </>
   );
 };

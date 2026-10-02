@@ -99,6 +99,9 @@ vi.mock('../context/MarketSupportContext', () => ({
 }));
 
 vi.mock('../components/GuidedTutorial', () => ({ GuidedTutorial: () => null }));
+vi.mock('../components/MobileDesktopGate', () => ({
+  MobileDesktopGate: ({ children }: { children: React.ReactNode }) => children,
+}));
 vi.mock('../components/notifications/NotificationBell', () => ({ NotificationBell: () => null }));
 vi.mock('../components/LanguageSelector', () => ({ default: () => null }));
 vi.mock('../components/OrderPlaceModal', () => ({ OrderPlaceModal: () => null }));

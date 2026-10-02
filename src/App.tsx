@@ -1,10 +1,4 @@
 import { LoadingScreen } from './components/LoadingScreen';
-import { BuyerDashboard } from './components/CommandCenter';
-import { SupplierDashboard } from './components/CommandCenter';
-import { SupplierQuotes } from './components/SupplierQuotes';
-import { TradeHistoryPage } from './components/TradeHistoryPage';
-import { Marketplace } from './components/Marketplace';
-import { WatchlistPage } from './components/WatchlistPage';
 
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -69,6 +63,12 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
+const BuyerDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.BuyerDashboard })));
+const SupplierDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.SupplierDashboard })));
+const SupplierQuotes = lazyWithRetry(() => import('./components/SupplierQuotes').then((module) => ({ default: module.SupplierQuotes })));
+const TradeHistoryPage = lazyWithRetry(() => import('./components/TradeHistoryPage').then((module) => ({ default: module.TradeHistoryPage })));
+const Marketplace = lazyWithRetry(() => import('./components/Marketplace').then((module) => ({ default: module.Marketplace })));
+const WatchlistPage = lazyWithRetry(() => import('./components/WatchlistPage').then((module) => ({ default: module.WatchlistPage })));
 const Compliance = lazyWithRetry(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
 const AdminDashboard = lazyWithRetry(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
 
