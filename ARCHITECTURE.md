@@ -119,7 +119,7 @@ src/
 
   data/
     eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
-    secaZones.ts                   # ECA geometry types, bundle metadata, and MapLibre source identifiers
+    secaZones.ts                   # ECA geometry types, bundle metadata, and Mapbox source identifiers
     producerProjects.ts            # Static producer project dataset (locations, capacities)
     fuelPrices.ts                  # Public ticker adapter for disclosed Demo orderbook midpoints
     calculatorDefaults.ts          # Defaults for energy calculator
