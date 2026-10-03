@@ -1,6 +1,6 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { Trade, TradeCreateInput } from '../types';
-import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
+import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot } from '../types';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -66,6 +66,7 @@ const getHeaders = () => {
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
 const PUBLIC_MARKET_READ_PATHS = new Set([
+    '/orderbook/snapshot',
     '/orderbook/bids',
     '/orderbook/asks',
     '/orderbook/product-counts',
@@ -897,6 +898,26 @@ export const api = {
     },
 
     orderbook: {
+        snapshot: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }, cacheOptions?: ReadCacheOptions): Promise<OrderBookSnapshot> => {
+            const searchParams = new URLSearchParams({
+                market_product: params.market_product,
+                delivery_point_id: params.delivery_point_id,
+                availability_window: params.availability_window,
+            });
+            const path = `/orderbook/snapshot?${searchParams.toString()}`;
+            return readApi(
+                `orderbook:${path}`,
+                path,
+                'orderbookSnapshot',
+                'public',
+                undefined,
+                cacheOptions,
+            );
+        },
         listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
