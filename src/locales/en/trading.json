@@ -272,6 +272,7 @@
   "myTrades.toast.retryPending.title": "Safe retry pending",
   "myTrades.toast.retryPending.message": "Resolve the unknown trade request before starting another trade action.",
   "myTrades.retryPending": "Resolve the pending safe retry first",
+  "myTrades.retryBanner": "A trade request has an unknown outcome. Retry the exact saved request before starting another action.",
   "myTrades.toast.delivered.title": "Trade Delivered",
   "myTrades.toast.delivered.message": "Delivery has been recorded.",
   "myTrades.toast.deliveryFailed.title": "Delivery Failed",

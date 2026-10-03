@@ -175,6 +175,40 @@ describe('MyTrades lifecycle', () => {
     expect(confirmMock.mock.calls[0][1]).toEqual(expect.any(String));
   });
 
+  it('keeps confirmation retry visible after SSE refresh shows the committed trade', async () => {
+    myTradesPagedMock.mockResolvedValue(makeTradePage('confirmed-after-loss', 'Retry buyer', 'PENDING_CONFIRMATION'));
+    confirmMock.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown')).mockResolvedValueOnce(undefined);
+    renderWithProviders(<MyTrades />);
+    fireEvent.click(await screen.findByRole('button', { name: 'myTrades.btn.confirm' }));
+    const firstRequest = confirmMock.mock.calls[0];
+    await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
+
+    myTradesPagedMock.mockResolvedValue(makeTradePage('confirmed-after-loss', 'Retry buyer', 'CONFIRMED'));
+    act(() => sseControl.handler?.());
+    await screen.findByText('myTrades.status.confirmed');
+    fireEvent.click(screen.getByRole('button', { name: 'myTrades.btn.retrySafely' }));
+
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(2));
+    expect(confirmMock.mock.calls[1]).toEqual(firstRequest);
+  });
+
+  it('keeps decline retry visible after SSE refresh removes the target row', async () => {
+    myTradesPagedMock.mockResolvedValue(makeTradePage('declined-after-loss', 'Retry buyer', 'PENDING_CONFIRMATION'));
+    declineMock.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown')).mockResolvedValueOnce(undefined);
+    renderWithProviders(<MyTrades />);
+    fireEvent.click(await screen.findByRole('button', { name: 'myTrades.btn.decline' }));
+    const firstRequest = declineMock.mock.calls[0];
+    await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
+
+    myTradesPagedMock.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 20 });
+    act(() => sseControl.handler?.());
+    await screen.findByText('myTrades.empty.title');
+    fireEvent.click(screen.getByRole('button', { name: 'myTrades.btn.retrySafely' }));
+
+    await waitFor(() => expect(declineMock).toHaveBeenCalledTimes(2));
+    expect(declineMock.mock.calls[1]).toEqual(firstRequest);
+  });
+
   it('discards a decline retry after the auth generation changes', async () => {
     myTradesPagedMock.mockResolvedValue(makeTradePage('retry-decline', 'Retry buyer', 'PENDING_CONFIRMATION'));
     declineMock.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'));

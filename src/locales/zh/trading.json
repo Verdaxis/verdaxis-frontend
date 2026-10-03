@@ -268,6 +268,7 @@
   "myTrades.toast.retryPending.title": "安全重试待处理",
   "myTrades.toast.retryPending.message": "请先处理结果未知的交易请求，再执行其他交易操作。",
   "myTrades.retryPending": "请先处理待完成的安全重试",
+  "myTrades.retryBanner": "一项交易请求的结果未知。请先安全重试已保存的相同请求，再执行其他操作。",
   "myTrades.toast.delivered.title": "交易已交付",
   "myTrades.toast.delivered.message": "交付已记录。",
   "myTrades.toast.deliveryFailed.title": "交付失败",
