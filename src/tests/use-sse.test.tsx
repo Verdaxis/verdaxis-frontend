@@ -241,4 +241,31 @@ describe('useSSE', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(FakeEventSource.instances[0].url).toBe('http://localhost:8000/api/stream/prices');
   });
+
+  it('invalidates and refreshes the public snapshot when its stream reopens', async () => {
+    const load = vi.fn()
+      .mockResolvedValueOnce('before-disconnect')
+      .mockResolvedValueOnce('after-reconnect');
+    await cachedRead('orderbook:snapshot:test', 'public', 60_000, load);
+    const onEvent = vi.fn();
+    render(<Harness channel="orderbook" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    const first = FakeEventSource.instances[0];
+    act(() => {
+      first.emit('open');
+      first.emit('error');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    act(() => FakeEventSource.instances[1].emit('open'));
+
+    expect(onEvent).toHaveBeenCalledWith('reconnect', {
+      reason: 'transport_reconnected',
+    });
+    await expect(
+      cachedRead('orderbook:snapshot:test', 'public', 60_000, load),
+    ).resolves.toBe('after-reconnect');
+    expect(load).toHaveBeenCalledTimes(2);
+  });
 });
