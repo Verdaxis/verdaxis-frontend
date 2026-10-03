@@ -50,7 +50,11 @@ const orderCore = {
     delivery_point_id: 'dp-1', delivery_point_name: 'Singapore', region: 'Asia', quantity_mt: 1000,
     remaining_quantity_mt: 750, price_per_mt_usd: 1095, availability_window: 'SPOT',
     certifications: ['ISCC EU'], certification_declared: true, is_verdaxis_verified: false,
-    off_spec: false, status: 'OPEN', version: 1, created_at: '2026-09-22T04:00:00Z',
+    off_spec: false, status: 'OPEN', version: 1, terms_digest: 'terms-digest-1', created_at: '2026-09-22T04:00:00Z',
+};
+const tradeResult = {
+    status: 'PENDING_CONFIRMATION', product_name: 'UCOME B100', market_product: 'UCOME_B100', fuel_type: 'FAME',
+    delivery_point_name: 'Singapore', region: 'Asia', quantity_mt: 750, price_per_mt_usd: 1095,
 };
 const bid = { ...orderCore, id: 'b100-bid', side: 'BID', fame_terms: bidTerms };
 const ask = { ...orderCore, id: 'b100-ask', side: 'ASK', fame_terms: askTerms };
@@ -72,7 +76,7 @@ beforeEach(async () => {
     mocks.listBids.mockResolvedValue([bid]);
     mocks.productCounts.mockResolvedValue({ counts: { UCOME_B100: 1 }, total: 1 });
     mocks.myOrders.mockResolvedValue([]);
-    mocks.initiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
+    mocks.initiate.mockResolvedValue(tradeResult);
     mocks.pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: null });
 });
 
@@ -92,7 +96,7 @@ function fill(form: ReturnType<typeof within>, label: string, value: string) {
 
 describe('Marketplace B100 standard take flow', () => {
     it('submits a supplier declaration against a BID only after both sides are reviewed and confirmed', async () => {
-        let resolveTrade!: (result: { status: string }) => void;
+        let resolveTrade!: (result: typeof tradeResult) => void;
         mocks.initiate.mockImplementation(() => new Promise(resolve => { resolveTrade = resolve; }));
         const form = await openTake('SUPPLIER');
         fill(form, copy.form.standardEdition, '2012+A2:2019');
@@ -131,7 +135,7 @@ describe('Marketplace B100 standard take flow', () => {
         fireEvent.click(confirm);
         await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
         expect(mocks.initiate).toHaveBeenCalledWith(expect.objectContaining({
-            order_id: 'b100-bid', expected_order_version: 1, quantity_mt: 750, idempotency_key: expect.any(String),
+            order_id: 'b100-bid', expected_order_version: 1, expected_terms_digest: 'terms-digest-1', quantity_mt: 750, idempotency_key: expect.any(String),
             certification_declared: true, msds_available: true,
             fame_terms: expect.objectContaining({
                 side: 'ASK', neat_fame: true, uco_mass_pct: 100, nomination_status: 'IDENTIFIED',
@@ -141,7 +145,7 @@ describe('Marketplace B100 standard take flow', () => {
                 ci_boundary: 'Well-to-wake', ci_basis: 'ACTUAL', evidence_due: 'BEFORE_LOADING',
             }),
         }));
-        await act(async () => { resolveTrade({ status: 'PENDING_CONFIRMATION' }); });
+        await act(async () => { resolveTrade(tradeResult); });
         expect(await screen.findByRole('heading', { name: t('marketplace.modal.tradeInitiated') })).toBeTruthy();
     });
 
@@ -164,7 +168,7 @@ describe('Marketplace B100 standard take flow', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Confirm Trade' }));
         await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
         expect(mocks.initiate).toHaveBeenCalledWith(expect.objectContaining({
-            order_id: 'b100-ask', expected_order_version: 1,
+            order_id: 'b100-ask', expected_order_version: 1, expected_terms_digest: 'terms-digest-1',
             fame_terms: expect.objectContaining({ side: 'BID', max_ci_gco2e_mj: 0,
                 ci_methodology: 'RED lifecycle calculation', ci_boundary: 'Well-to-wake', ci_basis: 'ACTUAL' }),
         }));
@@ -173,12 +177,12 @@ describe('Marketplace B100 standard take flow', () => {
     });
 
     it('requires a fresh review after a stale order response instead of retrying the old terms', async () => {
-        mocks.initiate.mockRejectedValueOnce(new ApiError('Order version changed', 409, 'ORDER_VERSION_CONFLICT'))
-            .mockResolvedValueOnce({ status: 'PENDING_CONFIRMATION' });
+        mocks.initiate.mockRejectedValueOnce(new ApiError('Order terms changed', 409, 'ORDER_TERMS_REVIEW_REQUIRED'))
+            .mockResolvedValueOnce(tradeResult);
         await openTake('BUYER');
         const listingCallsBeforeTrade = mocks.listAsksPaged.mock.calls.length;
         mocks.listAsksPaged.mockResolvedValue({
-            items: [{ ...ask, version: 2, remaining_quantity_mt: 500,
+            items: [{ ...ask, version: 2, terms_digest: 'terms-digest-2', remaining_quantity_mt: 500,
                 fame_terms: { ...askTerms, standard_edition: 'Updated edition 2026' } }],
             total: 1, skip: 0, limit: 20,
         });
@@ -189,7 +193,9 @@ describe('Marketplace B100 standard take flow', () => {
         expect(await screen.findByText(message)).toBeTruthy();
         expect(screen.queryByRole('button', { name: /retry safely/i })).toBeNull();
         expect(mocks.initiate).toHaveBeenCalledTimes(1);
-        expect(mocks.initiate.mock.calls[0][0]).toEqual(expect.objectContaining({ expected_order_version: 1 }));
+        expect(mocks.initiate.mock.calls[0][0]).toEqual(expect.objectContaining({
+            expected_order_version: 1, expected_terms_digest: 'terms-digest-1',
+        }));
         expect(mocks.listAsksPaged).toHaveBeenCalledTimes(listingCallsBeforeTrade);
 
         fireEvent.click(screen.getByRole('button', { name: 'Refresh and review' }));
@@ -208,7 +214,7 @@ describe('Marketplace B100 standard take flow', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Confirm Trade' }));
         await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(2));
         expect(mocks.initiate.mock.calls[1][0]).toEqual(expect.objectContaining({
-            expected_order_version: 2, quantity_mt: 500,
+            expected_order_version: 2, expected_terms_digest: 'terms-digest-2', quantity_mt: 500,
             fame_terms: expect.objectContaining({ standard_edition: 'Updated edition 2026' }),
         }));
         expect(mocks.initiate.mock.calls[1][0].idempotency_key).not.toBe(mocks.initiate.mock.calls[0][0].idempotency_key);
