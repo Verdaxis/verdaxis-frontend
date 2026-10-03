@@ -114,9 +114,29 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
         const handleControlEvent = (source: EventSource, event: string, message: MessageEvent<string>) => {
             if (!closeSource(source)) return;
 
+            let data: unknown = message.data;
+            if (event === 'reset') {
+                try {
+                    data = JSON.parse(message.data);
+                } catch {
+                    // Plain-text reset reasons remain valid callback input.
+                }
+            }
+            // Overflow recovery uses both paths: the reset callback refreshes
+            // REST snapshots, and reconnect replays retained private history
+            // after the last acknowledged cursor.
+            const preservesPrivateCursor = (
+                channel === 'trades'
+                && event === 'reset'
+                && typeof data === 'object'
+                && data !== null
+                && 'reason' in data
+                && data.reason === 'subscriber_overflow'
+            );
+
             // Authorization changes can also mean an organization switch. A
             // new token must start with a fresh cursor for the new scope.
-            if (event === 'auth_revoked' || event === 'reset') {
+            if (event === 'auth_revoked' || (event === 'reset' && !preservesPrivateCursor)) {
                 lastEventIdRef.current = null;
             }
             if (event === 'auth_revoked') {
@@ -127,12 +147,6 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             }
             scheduleReconnect();
             if (event === 'reset') {
-                let data: unknown = message.data;
-                try {
-                    data = JSON.parse(message.data);
-                } catch {
-                    // Plain-text reset reasons remain valid callback input.
-                }
                 invalidateReadsForEvent(channel, event);
                 handlerRef.current(event, data);
             }
