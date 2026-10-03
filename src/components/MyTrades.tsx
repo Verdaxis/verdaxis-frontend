@@ -278,6 +278,10 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         const isLoadingThis = actionLoadingId === trade.id;
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
+        if (retryRequest) {
+            return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
+        }
+
         if (normalizedStatus === 'PENDING_CONFIRMATION') {
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
@@ -290,23 +294,6 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                         {t('myTrades.awaiting.counterparty')}
                     </span>
                 );
-            }
-
-            if (retryRequest?.tradeId === trade.id) {
-                return (
-                    <button
-                        onClick={() => runTradeCommand(retryRequest.operation, trade.id)}
-                        disabled={actionLoadingId !== null}
-                        className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
-                    >
-                        {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                        {t('myTrades.btn.retrySafely')}
-                    </button>
-                );
-            }
-
-            if (retryRequest) {
-                return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
             }
 
             return (
@@ -408,6 +395,21 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                 ))}
             </div>
+
+            {retryRequest && (
+                <div role="status" className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{t('myTrades.retryBanner')}</span>
+                    <button
+                        type="button"
+                        onClick={() => runTradeCommand(retryRequest.operation, retryRequest.tradeId)}
+                        disabled={actionLoadingId !== null}
+                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-amber-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                    >
+                        {actionLoadingId !== null ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                        {t('myTrades.btn.retrySafely')}
+                    </button>
+                </div>
+            )}
 
             {error && (
                 <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
