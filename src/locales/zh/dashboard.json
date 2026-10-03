@@ -140,7 +140,27 @@
       "title": "需求：双燃料船队",
       "averageConsumption": "平均消耗：每艘船 {{amount}} MT/yr",
       "estimatedDemand": "预计需求：{{amount}}",
-      "pendingDeliveries": "等待交付"
+      "pendingDeliveries": "等待交付",
+      "empty": "本次更新的实时数据集未报告船队需求条目。"
+    },
+    "provenance": {
+      "staticDataset": "静态数据集",
+      "producerMetrics": "生产商指标",
+      "fleetMetrics": "船队指标",
+      "projectSource": "行业项目 CSV 快照",
+      "vintage": "数据集日期：{{date}}",
+      "source": "来源：{{source}}",
+      "updated": "更新时间：{{date}}",
+      "sourceUnknown": "API 未提供来源",
+      "sampleSource": "Verdaxis 示例样本",
+      "noLiveUpdate": "无实时更新时间",
+      "demandMethod": "估算方法：已交付船舶数 × 每艘船的年均消耗量。",
+      "fleetState": {
+        "loading": "正在加载实时船队数据；以下数值为示例样本。",
+        "live": "实时船队数据集",
+        "empty": "实时船队数据集返回零条目",
+        "sample": "实时船队数据不可用；以下数值为示例样本。"
+      }
     },
     "balance": {
       "title": "供需概览",

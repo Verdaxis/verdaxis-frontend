@@ -140,7 +140,27 @@
       "title": "Demand: Dual-Fuel Fleet",
       "averageConsumption": "Avg consumption: {{amount}} MT/yr per vessel",
       "estimatedDemand": "Est. demand: {{amount}}",
-      "pendingDeliveries": "Pending deliveries"
+      "pendingDeliveries": "Pending deliveries",
+      "empty": "The live dataset reported no fleet demand entries for this update."
+    },
+    "provenance": {
+      "staticDataset": "Static dataset",
+      "producerMetrics": "Producer metrics",
+      "fleetMetrics": "Fleet metrics",
+      "projectSource": "Industry project CSV snapshot",
+      "vintage": "Dataset vintage: {{date}}",
+      "source": "Source: {{source}}",
+      "updated": "Updated: {{date}}",
+      "sourceUnknown": "Source not supplied by the API",
+      "sampleSource": "Verdaxis illustrative sample",
+      "noLiveUpdate": "No live update time",
+      "demandMethod": "Estimate method: delivered vessels × average annual consumption per vessel.",
+      "fleetState": {
+        "loading": "Loading live fleet data; the values below are an illustrative sample.",
+        "live": "Live fleet dataset",
+        "empty": "Live fleet dataset returned zero entries",
+        "sample": "Live fleet data is unavailable; the values below are an illustrative sample."
+      }
     },
     "balance": {
       "title": "Supply vs Demand Snapshot",
