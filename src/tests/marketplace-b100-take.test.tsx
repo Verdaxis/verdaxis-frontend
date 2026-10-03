@@ -22,8 +22,8 @@ vi.mock('../components/OrderBook', () => ({ OrderBook: () => null }));
 vi.mock('../components/TradeTape', () => ({ TradeTape: () => null }));
 vi.mock('../components/ui/Pagination', () => ({ Pagination: () => null }));
 vi.mock('../services/api', async importOriginal => {
-    const { ApiError } = await importOriginal<typeof import('../services/api')>();
-    return { ApiError, api: {
+    const { ApiError, ApiOutcomeUnknownError } = await importOriginal<typeof import('../services/api')>();
+    return { ApiError, ApiOutcomeUnknownError, api: {
     catalog: { products: mocks.products, deliveryPoints: mocks.deliveryPoints },
     orderbook: { listAsksPaged: mocks.listAsksPaged, listBidsPaged: mocks.listBidsPaged,
         listAsks: mocks.listAsks, listBids: mocks.listBids, productCounts: mocks.productCounts, myOrders: mocks.myOrders },
