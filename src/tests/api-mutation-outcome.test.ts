@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiOutcomeUnknownError, api } from '../services/api';
 
 const tradeRequest = {
     order_id: 'order-1',
@@ -29,7 +29,7 @@ describe('mutation outcome classification', () => {
             { status: 422, headers: { 'Content-Type': 'application/json' } },
         )));
 
-        await expect(api.trades.initiate(tradeRequest)).rejects.toMatchObject<ApiError>({
+        await expect(api.trades.initiate(tradeRequest)).rejects.toMatchObject({
             name: 'ApiError',
             status: 422,
             code: 'INVALID_TRADE',
