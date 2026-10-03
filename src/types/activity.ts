@@ -13,6 +13,7 @@ export interface UserActivityItem {
 }
 
 export interface BrowserReportedDeliveryLossSummary {
+  coverage: 'partial';
   reports_received: number;
   dropped_events: number;
   rejected_events: number;

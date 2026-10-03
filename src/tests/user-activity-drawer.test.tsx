@@ -36,7 +36,7 @@ describe('UserActivityDrawer', () => {
       has_more: true,
       last_activity_at: '2026-09-25T08:30:00Z',
       browser_reported_delivery_loss: {
-        reports_received: 2,
+        coverage: 'partial', reports_received: 2,
         dropped_events: 5,
         rejected_events: 1,
         last_reported_at: '2026-09-25T08:35:00Z',
@@ -96,7 +96,7 @@ describe('UserActivityDrawer', () => {
         has_more: false,
         last_activity_at: '2026-09-25T09:00:00Z',
         browser_reported_delivery_loss: {
-          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+          coverage: 'partial', reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
         },
       });
     });
@@ -108,7 +108,7 @@ describe('UserActivityDrawer', () => {
         has_more: false,
         last_activity_at: '2026-09-25T08:00:00Z',
         browser_reported_delivery_loss: {
-          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+          coverage: 'partial', reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
         },
       });
     });
@@ -123,7 +123,7 @@ describe('UserActivityDrawer', () => {
         has_more: false,
         last_activity_at: null,
         browser_reported_delivery_loss: {
-          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+          coverage: 'partial', reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
         },
       });
 

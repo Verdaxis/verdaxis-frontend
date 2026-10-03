@@ -425,5 +425,7 @@ illustrative samples. Resting quote references are not confirmed-trade VWAP. The
 reference label reports available order context time or states that it is unavailable.
 Production identified activity delivery checks HTTP results and bounds its buffer
 to 200 events, three attempts, 30 seconds of age and a five-second request timeout.
-Retries retain UUIDs and context. Delivery counters are browser-local, not an admin
-coverage report. Staging retains its separate catalog and tracking scope.
+Retries retain UUIDs and context. Full delivery counters remain browser-local.
+Bounded dropped/rejected reports feed an explicitly partial admin signal; offline
+browsers and undelivered reports remain unknown. Staging retains its separate
+catalog and tracking scope.

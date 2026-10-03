@@ -25,7 +25,7 @@ describe('activity API client', () => {
         has_more: false,
         last_activity_at: null,
         browser_reported_delivery_loss: {
-          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+          coverage: 'partial', reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
         },
       }));
     global.fetch = fetchMock as unknown as typeof fetch;
