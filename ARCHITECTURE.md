@@ -40,7 +40,7 @@ index.html
 ## Route and workspace rules
 
 - Public pages use `/:lang/*` and `PublicLayout`. Legacy unprefixed public paths redirect to a language route.
-- `/app` is protected, organization/profile gated, and desktop-only below 768 px. Platform admins can bypass organization onboarding.
+- `/app` is protected and organization/profile gated. The desktop workspace is available at widths of 768 px or more; `MobileDesktopGate` blocks narrower viewports. Platform admins can bypass organization onboarding.
 - Bare `/app` restores the last accepted page. Nested routes are the source of truth; the `Page` type remains for sidebar state, session restore, analytics, and smoke selectors.
 - Marketplace slices use `/app/m/:product/:port/:window`. Invalid slices return to `/app/marketplace`.
 - The sidebar lists Command Center, Intelligence Map, Marketplace, Forward Curve, Watchlist, Analytics, and Trade History. Settings and Admin are separate footer/admin entries.

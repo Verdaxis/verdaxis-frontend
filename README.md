@@ -26,7 +26,7 @@ The assisted order form supports BID and ASK creation plus cancellation of the a
 
 Production is not served from the shared VPS frontend directory. Its source release controls live on the `prod` branch and promote one guarded Vercel artifact.
 
-[`scripts/deploy.sh`](scripts/deploy.sh) builds a staging artifact and validates its baked staging API target. It does not publish the live site. On the shared host, follow the reviewed atomic publisher guide at `/home/jons-openclaw/artifacts/verdaxis-performance-20261002/release/STAGING_FE_ATOMIC_RELEASE.md`. Do not use direct `rsync` into the live `dist` directory because that can expose mixed hashed assets.
+[`./scripts/deploy.sh staging`](scripts/deploy.sh) builds a staging artifact and validates its baked staging API target. The helper defaults to `prod` when no target is supplied. It builds and checks the artifact; it does not publish the live site. On the shared host, read `/home/verdaxis-prod/verdaxis/PRODUCTION_HOST.md` for the reviewed atomic operator workflow and exact current CI gates. Do not use direct `rsync` into the live `dist` directory because that can expose mixed hashed assets.
 
 ## Local setup
 
