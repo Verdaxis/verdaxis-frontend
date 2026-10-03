@@ -20,6 +20,7 @@ import i18n from '../i18n';
 import { formatOrderExpiry } from '../utils/fuel';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { createIdempotencyKey } from '../utils/idempotencyKey';
 import type { FameOrderTerms } from '../types/fameOrder';
 import {
     FameOrderFields, readFameOrderTerms, validateFameOrderTerms,
@@ -116,15 +117,6 @@ interface SubmissionRequest {
     draftSignature: string;
     confirmation?: MarketSupportConfirmation;
 }
-
-const createIdempotencyKey = () => {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    // Idempotency keys identify a draft; they are not authorization credentials.
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
-        const random = Math.floor(Math.random() * 16);
-        return (character === 'x' ? random : (random & 0x3) | 0x8).toString(16);
-    });
-};
 
 function createInitialFormData(
     side: 'BID' | 'ASK',
@@ -608,7 +600,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 : null;
             if (!request) {
                 request = {
-                    payload: { ...currentPayload, idempotency_key: createIdempotencyKey() },
+                    payload: { ...currentPayload, idempotency_key: createIdempotencyKey('order') },
                     draftSignature: currentSignature,
                     confirmation: supportConfirmation,
                 };

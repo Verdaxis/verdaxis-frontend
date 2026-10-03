@@ -5,6 +5,7 @@ import { Trade, Page, ViewMode } from '../types';
 import { ApiOutcomeUnknownError, api } from '../services/api';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { createIdempotencyKey } from '../utils/idempotencyKey';
 import type { TradeSummary } from '../services/api';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -40,10 +41,6 @@ interface FrozenConfirmRequest {
     authGeneration: number;
     supportContextId: string | null;
 }
-
-const createConfirmKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `trade-confirm-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const CTA_CONFIG = {
     BUYER: {
@@ -188,7 +185,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
             }
             const request = retainedRequest ?? {
                 tradeId: confirmState.tradeId,
-                idempotencyKey: createConfirmKey(),
+                idempotencyKey: createIdempotencyKey('trade-confirm'),
                 authGeneration: getAuthGeneration(),
                 supportContextId: getMarketSupportContextId(),
             };
