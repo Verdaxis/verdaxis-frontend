@@ -24,6 +24,7 @@ import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Trade, TradeCreateInput } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -121,14 +122,6 @@ function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
 
 const PAGE_SIZE = 8;
 const REFRESH_INTERVAL_MS = 60_000;
-
-const createTradeIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `trade-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-const createCancellationIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `order-cancel-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
@@ -808,7 +801,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             orderId: pendingCancellation.id,
             reason: cancellationReason.trim(),
             etag: pendingCancellation.etag,
-            idempotencyKey: createCancellationIdempotencyKey(),
+            idempotencyKey: createIdempotencyKey('order-cancel'),
             authGeneration: getAuthGeneration(),
             supportContextId: getMarketSupportContextId(),
         };
@@ -973,7 +966,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
                 tradeRequestRef.current = {
                     signature,
-                    payload: { ...requestPayload, idempotency_key: createTradeIdempotencyKey() },
+                    payload: { ...requestPayload, idempotency_key: createIdempotencyKey('trade') },
                     authGeneration: getAuthGeneration(),
                     supportContextId: getMarketSupportContextId(),
                     reviewedOrder: { ...selectedOrder, certifications: [...selectedOrder.certifications] },

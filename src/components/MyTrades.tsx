@@ -16,6 +16,7 @@ import { ApiOutcomeUnknownError, api } from '../services/api';
 import { Trade } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { useAuth } from '../context/AuthContext';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { useSSE } from '../hooks/useSSE';
@@ -47,10 +48,6 @@ interface FrozenTradeCommand {
     authGeneration: number;
     supportContextId: string | null;
 }
-
-const createTradeCommandKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `trade-command-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     const { user, isAuthenticated } = useAuth();
@@ -194,7 +191,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         const request = retainedRequest ?? {
             operation,
             tradeId,
-            idempotencyKey: createTradeCommandKey(),
+            idempotencyKey: createIdempotencyKey('trade-command'),
             authGeneration: getAuthGeneration(),
             supportContextId: getMarketSupportContextId(),
         };
