@@ -1,5 +1,6 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
-import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
+import type { Trade, TradeCreateInput } from '../types';
+import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot } from '../types';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -25,7 +26,12 @@ import type {
     MarketSupportSession,
     MarketSupportStartInput,
 } from '../types/marketSupport';
-import type { ActivityRecordInput, UserActivityQuery, UserActivityResponse } from '../types/activity';
+import type {
+    ActivityDeliveryResult,
+    ActivityRecordInput,
+    UserActivityQuery,
+    UserActivityResponse,
+} from '../types/activity';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -60,6 +66,7 @@ const getHeaders = () => {
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
 const PUBLIC_MARKET_READ_PATHS = new Set([
+    '/orderbook/snapshot',
     '/orderbook/bids',
     '/orderbook/asks',
     '/orderbook/product-counts',
@@ -129,6 +136,16 @@ export class ApiError extends Error {
         this.status = status;
         this.code = code;
         this.details = details;
+    }
+}
+
+export class ApiOutcomeUnknownError extends Error {
+    readonly cause: unknown;
+
+    constructor(cause: unknown) {
+        super('The request was sent, but the server did not confirm the outcome.');
+        this.name = 'ApiOutcomeUnknownError';
+        this.cause = cause;
     }
 }
 
@@ -232,10 +249,19 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
         });
 };
 
+const ACTIVITY_DELIVERY_TIMEOUT_MS = 5_000;
+
 export const isAbortError = (error: unknown): boolean =>
     error instanceof DOMException
         ? error.name === 'AbortError'
         : (error as { name?: string } | null)?.name === 'AbortError';
+
+const classifyMutationFailure = (error: unknown, isMutation: boolean): unknown => {
+    if (!isMutation || isAbortError(error)) return error;
+    if (error instanceof ApiOutcomeUnknownError) return error;
+    if (error instanceof ApiError && error.status < 500) return error;
+    return new ApiOutcomeUnknownError(error);
+};
 
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
@@ -275,8 +301,10 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         // Best-effort, deduplicated telemetry; the caller's error handling
         // and the maintenance UI behavior are unchanged. Caller-initiated
         // aborts are control flow, not failures.
-        if (!isAbortError(error)) reliability.reportFrontendError('network');
-        throw error;
+        if (!isAbortError(error)) {
+            reliability.reportFrontendError('network');
+        }
+        throw classifyMutationFailure(error, Boolean(isMutation));
     }
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
@@ -310,7 +338,14 @@ const fetchApi = async (path: string, options?: RequestInit) => {
             if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
                 (retryOptions.headers as Headers).set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
             }
-            res = await fetchWithTimeout(url, retryOptions, timeout);
+            try {
+                res = await fetchWithTimeout(url, retryOptions, timeout);
+            } catch (error) {
+                if (!isAbortError(error)) {
+                    reliability.reportFrontendError('network');
+                }
+                throw classifyMutationFailure(error, Boolean(isMutation));
+            }
             if (contextId && (
                 res.status === 410
                 || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
@@ -322,7 +357,12 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         }
     }
 
-    const responseBody = await handleResponse(res, isPublicMarketRead ? null : contextId);
+    let responseBody: any;
+    try {
+        responseBody = await handleResponse(res, isPublicMarketRead ? null : contextId);
+    } catch (error) {
+        throw classifyMutationFailure(error, Boolean(isMutation));
+    }
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
@@ -604,11 +644,11 @@ export const api = {
         // Account-linked activity is best-effort telemetry. It must never
         // refresh or invalidate the user's session, surface global notices,
         // or interfere with the action that produced the event.
-        record: (input: ActivityRecordInput): void => {
+        record: async (input: ActivityRecordInput): Promise<ActivityDeliveryResult> => {
             const token = getAccessToken();
-            if (!token) return;
-            void Promise.resolve()
-                .then(() => fetch(`${API_URL}/activity/events`, {
+            if (!token) return 'rejected';
+            try {
+                const response = await fetchWithTimeout(`${API_URL}/activity/events`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -616,8 +656,15 @@ export const api = {
                     },
                     body: JSON.stringify(input),
                     keepalive: true,
-                }))
-                .catch(() => undefined);
+                }, ACTIVITY_DELIVERY_TIMEOUT_MS);
+                if (response.ok) return 'accepted';
+                if (response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500) {
+                    return 'retryable';
+                }
+                return 'rejected';
+            } catch {
+                return 'retryable';
+            }
         },
     },
     preferences: {
@@ -851,6 +898,26 @@ export const api = {
     },
 
     orderbook: {
+        snapshot: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }, cacheOptions?: ReadCacheOptions): Promise<OrderBookSnapshot> => {
+            const searchParams = new URLSearchParams({
+                market_product: params.market_product,
+                delivery_point_id: params.delivery_point_id,
+                availability_window: params.availability_window,
+            });
+            const path = `/orderbook/snapshot?${searchParams.toString()}`;
+            return readApi(
+                `orderbook:${path}`,
+                path,
+                'orderbookSnapshot',
+                'public',
+                undefined,
+                cacheOptions,
+            );
+        },
         listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);
@@ -1044,7 +1111,7 @@ export const api = {
     },
 
     trades: {
-        initiate: async (data: { order_id: string; quantity_mt: number } & { idempotency_key?: string }) => {
+        initiate: async (data: TradeCreateInput): Promise<Trade> => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
             return mutateApi(invalidateTradeExecutionReads, '/trades/', {
                 method: 'POST',
@@ -1053,7 +1120,7 @@ export const api = {
                     ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
                 },
                 body: JSON.stringify(requestData),
-            });
+            }) as Promise<Trade>;
         },
         // Backward-compatible: returns array
         myTrades: async (cacheOptions?: ReadCacheOptions) => {

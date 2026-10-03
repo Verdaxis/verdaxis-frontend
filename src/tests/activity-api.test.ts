@@ -12,6 +12,7 @@ describe('activity API client', () => {
   const originalFetch = global.fetch;
 
   afterEach(() => {
+    vi.useRealTimers();
     clearAccessToken();
     global.fetch = originalFetch;
     vi.restoreAllMocks();
@@ -34,14 +35,14 @@ describe('activity API client', () => {
     );
   });
 
-  it('records authenticated events without exposing failures to the caller', async () => {
+  it('classifies a network failure as retryable without throwing', async () => {
     setAccessToken('activity-token');
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       throw new Error('collector unavailable');
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    expect(() => api.activity.record({
+    await expect(api.activity.record({
       events: [{
         id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f',
         action: 'market_view',
@@ -50,7 +51,7 @@ describe('activity API client', () => {
         delivery_point_id: 'a9f46f75-51f7-4d31-9f36-32b525ab2f1f',
         availability_window: 'SPOT',
       }],
-    })).not.toThrow();
+    })).resolves.toBe('retryable');
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     const [, options] = fetchMock.mock.calls[0];
@@ -68,13 +69,49 @@ describe('activity API client', () => {
     });
   });
 
-  it('does not send account activity without an access token', () => {
+  it('checks HTTP status before reporting accepted delivery', async () => {
+    setAccessToken('activity-token');
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 422 }))
+      .mockResolvedValueOnce(new Response(null, { status: 202 }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const input = {
+      events: [{ id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f', action: 'page_view' as const, page: 'home' }],
+    };
+
+    await expect(api.activity.record(input)).resolves.toBe('retryable');
+    await expect(api.activity.record(input)).resolves.toBe('rejected');
+    await expect(api.activity.record(input)).resolves.toBe('accepted');
+  });
+
+  it('classifies a hung activity request as retryable after five seconds', async () => {
+    vi.useFakeTimers();
+    setAccessToken('activity-token');
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+    }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const delivery = api.activity.record({
+      events: [{ id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f', action: 'page_view', page: 'home' }],
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(delivery).resolves.toBe('retryable');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(true);
+  });
+
+  it('does not send account activity without an access token', async () => {
     const fetchMock = vi.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    api.activity.record({
+    await expect(api.activity.record({
       events: [{ id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f', action: 'page_view', page: 'home' }],
-    });
+    })).resolves.toBe('rejected');
 
     expect(fetchMock).not.toHaveBeenCalled();
   });

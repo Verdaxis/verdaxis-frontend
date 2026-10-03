@@ -39,3 +39,5 @@ export interface ActivityRecordEvent {
 export interface ActivityRecordInput {
   events: ActivityRecordEvent[];
 }
+
+export type ActivityDeliveryResult = 'accepted' | 'retryable' | 'rejected';

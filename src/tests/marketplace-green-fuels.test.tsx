@@ -7,15 +7,14 @@ import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { activity } from '../services/activityTracking';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
   listBidsPaged: vi.fn(),
-  listAsks: vi.fn(),
-  listBids: vi.fn(),
+  snapshot: vi.fn(),
   productCounts: vi.fn(),
   myOrders: vi.fn(),
   deliveryPoints: vi.fn(),
@@ -23,6 +22,10 @@ const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBi
   togglePin: vi.fn(),
   tradeTapeList: vi.fn(),
   tradesInitiate: vi.fn(),
+  TestApiError: class extends Error {
+    constructor(public status: number, public code: string | null = null) { super('API error'); }
+  },
+  TestApiOutcomeUnknownError: class extends Error {},
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -72,6 +75,8 @@ vi.mock('../components/ui/Pagination', () => ({
 }));
 
 vi.mock('../services/api', () => ({
+  ApiError: TestApiError,
+  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   api: {
     catalog: {
       deliveryPoints,
@@ -79,8 +84,7 @@ vi.mock('../services/api', () => ({
     orderbook: {
       listAsksPaged,
       listBidsPaged,
-      listAsks,
-      listBids,
+      snapshot,
       productCounts,
       myOrders,
     },
@@ -112,6 +116,7 @@ const listingsResponse = {
   items: [
     {
       id: 'ask-1',
+      terms_digest: 'terms-digest-1',
       side: 'ASK',
       product_id: 'product-1',
       product_name: 'Bio Methanol',
@@ -191,8 +196,15 @@ describe('Marketplace green fuels surface', () => {
       }
       return { items: [], total: 0, skip: 0, limit: 20 };
     });
-    listAsks.mockResolvedValue(listingsResponse.items);
-    listBids.mockResolvedValue([]);
+    snapshot.mockImplementation(async (params: { market_product: string; delivery_point_id: string; availability_window: string }) => ({
+      ...params,
+      generated_at: new Date().toISOString(),
+      source_kind: 'LIVE_ORDER',
+      scope: 'DELIVERY_POINT',
+      demo_status: 'REAL_ONLY',
+      bids: [],
+      asks: params.market_product === 'BIO_METHANOL' ? listingsResponse.items : [],
+    }));
     productCounts.mockResolvedValue({
       counts: {
         BIO_METHANOL: 1,
@@ -211,7 +223,10 @@ describe('Marketplace green fuels surface', () => {
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
-    tradesInitiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
+    tradesInitiate.mockResolvedValue({
+      id: 'trade-1', status: 'PENDING_CONFIRMATION', quantity_mt: 1000, price_per_mt_usd: 1080,
+      product_name: 'Bio Methanol', delivery_point_name: 'Singapore', fuel_type: 'Methanol', region: 'Asia',
+    });
     pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
@@ -274,14 +289,10 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
 
     await waitFor(() => {
-      expect(listBids).toHaveBeenCalledWith(expect.objectContaining({
-        region: undefined,
+      expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({
+        market_product: 'BIO_METHANOL',
         delivery_point_id: 'dp-1',
-      }));
-      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({
-        region: undefined,
-        delivery_point_id: 'dp-1',
-      }));
+      }), { force: false });
       expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
         region: undefined,
         delivery_point_id: 'dp-1',
@@ -321,7 +332,6 @@ describe('Marketplace green fuels surface', () => {
       carbon_intensity_gco2_mj: 75, carbon_intensity_method: 'Certified batch whole-blend assessment',
     };
     listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [biofuel] });
-    listAsks.mockResolvedValue([biofuel]);
     renderWithProviders(<Marketplace />);
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(product) }));
     await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: product })));
@@ -468,7 +478,7 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => {
       expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
     });
-    expect(screen.getByTitle(/vs order-book reference \$1,092.00\/MT · may include demo listings/i)).toBeTruthy();
+    expect(screen.getByTitle(/resting quote reference \$1,092.00\/MT · open-order quote reference, not confirmed-trade VWAP · source: source unavailable · reference time unavailable/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 
@@ -533,20 +543,11 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
 
     await waitFor(() => {
-      expect(listAsks).toHaveBeenCalledWith({
-        fuel_type: undefined,
+      expect(snapshot).toHaveBeenCalledWith({
         market_product: 'BIO_METHANOL',
-        region: undefined,
         delivery_point_id: 'dp-1',
-        availability: 'SPOT',
-      });
-      expect(listBids).toHaveBeenCalledWith({
-        fuel_type: undefined,
-        market_product: 'BIO_METHANOL',
-        region: undefined,
-        delivery_point_id: 'dp-1',
-        availability: 'SPOT',
-      });
+        availability_window: 'SPOT',
+      }, { force: false });
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
@@ -642,8 +643,7 @@ describe('Marketplace green fuels surface', () => {
     const marketScope = screen.getByLabelText(/market scope/i);
     labels.forEach((label) => expect(within(marketScope).getByText(label)).toBeTruthy());
     states.forEach((state) => expect(within(marketScope).getByLabelText(state)).toBeTruthy());
-    expect(listAsks).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
+    expect(snapshot).not.toHaveBeenCalled();
   });
 
 
@@ -809,6 +809,10 @@ describe('Marketplace green fuels surface', () => {
   });
 
   it('requires final confirmation and cancels post-trade refresh on unmount', async () => {
+    tradesInitiate.mockResolvedValueOnce({
+      id: 'trade-returned', status: 'PENDING_CONFIRMATION', quantity_mt: 875, price_per_mt_usd: 1075,
+      product_name: 'Returned Bio Methanol', delivery_point_name: 'Returned Singapore', fuel_type: 'Methanol', region: 'Asia',
+    });
     const view = renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
@@ -832,10 +836,14 @@ describe('Marketplace green fuels surface', () => {
       expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
         order_id: 'ask-1',
         quantity_mt: 1000,
+        expected_terms_digest: 'terms-digest-1',
         idempotency_key: expect.any(String),
       }));
     });
     await screen.findByText('Trade Request Sent');
+    expect(screen.getByText('Returned Bio Methanol')).toBeTruthy();
+    expect(screen.getByText('875 MT')).toBeTruthy();
+    expect(screen.getByText('$1075/MT')).toBeTruthy();
     const readsBeforeUnmount = listAsksPaged.mock.calls.length;
     view.unmount();
     await new Promise(resolve => setTimeout(resolve, 2100));
@@ -844,8 +852,11 @@ describe('Marketplace green fuels surface', () => {
 
   it('retries a timed-out trade with the same payload and idempotency key', async () => {
     tradesInitiate
-      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
-      .mockResolvedValueOnce({});
+      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Request timed out. Please try again.'))
+      .mockResolvedValueOnce({
+        id: 'trade-1', status: 'PENDING_CONFIRMATION', quantity_mt: 1000, price_per_mt_usd: 1080,
+        product_name: 'Bio Methanol', delivery_point_name: 'Singapore', fuel_type: 'Methanol', region: 'Asia',
+      });
     renderWithProviders(<Marketplace />);
     await waitFor(() => expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /lift ask/i }));
@@ -859,6 +870,20 @@ describe('Marketplace green fuels surface', () => {
 
     await waitFor(() => expect(tradesInitiate).toHaveBeenCalledTimes(2));
     expect(tradesInitiate.mock.calls[1]?.[0]).toEqual(firstPayload);
+  });
+
+  it('requires a fresh order review when a cached listing has no terms digest', async () => {
+    listAsksPaged.mockResolvedValue({
+      ...listingsResponse,
+      items: listingsResponse.items.map(({ terms_digest: _termsDigest, ...item }) => item),
+    });
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /lift ask/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /submit trade/i }));
+
+    expect(await screen.findByText(/does not include review data/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /refresh and review/i })).toBeTruthy();
+    expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
   it('marks demo listings and blocks trade submission', async () => {
@@ -951,8 +976,7 @@ describe('Marketplace green fuels surface', () => {
       });
     });
     expect(listAsksPaged).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
-    expect(listAsks).not.toHaveBeenCalled();
+    expect(snapshot).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /place ask/i }));
 

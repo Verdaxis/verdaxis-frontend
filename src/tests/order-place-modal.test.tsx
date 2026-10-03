@@ -13,6 +13,9 @@ import { clearMarketSupportContextId, setMarketSupportContextId } from '../servi
 const productsMock = vi.fn();
 const deliveryPointsMock = vi.fn();
 const createOrderMock = vi.fn();
+const { TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+  TestApiOutcomeUnknownError: class extends Error {},
+}));
 const marketSupportControl = vi.hoisted(() => ({
   current: {
     context: null as any,
@@ -27,6 +30,7 @@ function reviewAndConfirm(side: 'Bid' | 'Ask') {
 }
 
 vi.mock('../services/api', () => ({
+  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   api: {
     catalog: {
       products: (...args: unknown[]) => productsMock(...args),
@@ -364,7 +368,7 @@ describe('OrderPlaceModal', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toHaveProperty('disabled', true);
     expect(createOrderMock).toHaveBeenCalledTimes(1);
 
-    rejectRequest(new Error('Request timed out. Please try again.'));
+    rejectRequest(new TestApiOutcomeUnknownError('Request timed out. Please try again.'));
     await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
 
@@ -932,7 +936,7 @@ describe('OrderPlaceModal', () => {
     };
     setMarketSupportContextId('ctx-1');
     createOrderMock
-      .mockRejectedValueOnce(new Error('The request status is unknown'))
+      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('The request status is unknown'))
       .mockResolvedValueOnce({ trades: [] });
 
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
@@ -994,7 +998,7 @@ describe('OrderPlaceModal', () => {
     const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2099-12-30T12:00:00Z'));
     try {
       createOrderMock
-        .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+        .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Request timed out. Please try again.'))
         .mockResolvedValueOnce({ trades: [] });
       renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
       await waitFor(() => expect(productsMock).toHaveBeenCalled());
@@ -1023,7 +1027,7 @@ describe('OrderPlaceModal', () => {
 
   it('creates a new key after the failed draft is closed and edited', async () => {
     createOrderMock
-      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
+      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Request timed out. Please try again.'))
       .mockResolvedValueOnce({ trades: [] });
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
