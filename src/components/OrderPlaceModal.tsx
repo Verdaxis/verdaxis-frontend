@@ -19,6 +19,7 @@ import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { formatOrderExpiry } from '../utils/fuel';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
+import { createIdempotencyKey } from '../utils/idempotencyKey';
 
 interface OrderPlaceModalProps {
     isOpen: boolean;
@@ -97,10 +98,6 @@ interface SubmissionRequest {
     draftSignature: string;
     confirmation?: MarketSupportConfirmation;
 }
-
-const createIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function createInitialFormData(
     side: 'BID' | 'ASK',
@@ -569,7 +566,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 : null;
             if (!request) {
                 request = {
-                    payload: { ...currentPayload, idempotency_key: createIdempotencyKey() },
+                    payload: { ...currentPayload, idempotency_key: createIdempotencyKey('order') },
                     draftSignature: currentSignature,
                     confirmation: supportConfirmation,
                 };
