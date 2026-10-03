@@ -239,7 +239,7 @@ describe('bounded API read cache', () => {
 
         const failedCancel = api.orderbook.cancel('order-2');
         await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'during-failure' }]);
-        const rejection = expect(failedCancel).rejects.toThrow('network failed');
+        const rejection = expect(failedCancel).rejects.toThrow('The request was sent, but the server did not confirm the outcome.');
         failedMutation.reject(new TypeError('network failed'));
         await rejection;
         await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'after-failure' }]);

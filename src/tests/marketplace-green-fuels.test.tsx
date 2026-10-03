@@ -7,15 +7,14 @@ import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { activity } from '../services/activityTracking';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
   orderPlaceModalSpy: vi.fn(),
   listAsksPaged: vi.fn(),
   listBidsPaged: vi.fn(),
-  listAsks: vi.fn(),
-  listBids: vi.fn(),
+  snapshot: vi.fn(),
   productCounts: vi.fn(),
   myOrders: vi.fn(),
   deliveryPoints: vi.fn(),
@@ -85,8 +84,7 @@ vi.mock('../services/api', () => ({
     orderbook: {
       listAsksPaged,
       listBidsPaged,
-      listAsks,
-      listBids,
+      snapshot,
       productCounts,
       myOrders,
     },
@@ -198,8 +196,15 @@ describe('Marketplace green fuels surface', () => {
       }
       return { items: [], total: 0, skip: 0, limit: 20 };
     });
-    listAsks.mockResolvedValue(listingsResponse.items);
-    listBids.mockResolvedValue([]);
+    snapshot.mockImplementation(async (params: { market_product: string; delivery_point_id: string; availability_window: string }) => ({
+      ...params,
+      generated_at: new Date().toISOString(),
+      source_kind: 'LIVE_ORDER',
+      scope: 'DELIVERY_POINT',
+      demo_status: 'REAL_ONLY',
+      bids: [],
+      asks: params.market_product === 'BIO_METHANOL' ? listingsResponse.items : [],
+    }));
     productCounts.mockResolvedValue({
       counts: {
         BIO_METHANOL: 1,
@@ -284,14 +289,10 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
 
     await waitFor(() => {
-      expect(listBids).toHaveBeenCalledWith(expect.objectContaining({
-        region: undefined,
+      expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({
+        market_product: 'BIO_METHANOL',
         delivery_point_id: 'dp-1',
-      }));
-      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({
-        region: undefined,
-        delivery_point_id: 'dp-1',
-      }));
+      }), { force: false });
       expect(tradeTapeList).toHaveBeenCalledWith(expect.objectContaining({
         region: undefined,
         delivery_point_id: 'dp-1',
@@ -331,7 +332,6 @@ describe('Marketplace green fuels surface', () => {
       carbon_intensity_gco2_mj: 75, carbon_intensity_method: 'Certified batch whole-blend assessment',
     };
     listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [biofuel] });
-    listAsks.mockResolvedValue([biofuel]);
     renderWithProviders(<Marketplace />);
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(product) }));
     await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: product })));
@@ -478,7 +478,7 @@ describe('Marketplace green fuels surface', () => {
     await waitFor(() => {
       expect(screen.getByText(/Benchmark ref \$1,092.00/i)).toBeTruthy();
     });
-    expect(screen.getByTitle(/vs order-book reference \$1,092.00\/MT · may include demo listings/i)).toBeTruthy();
+    expect(screen.getByTitle(/resting quote reference \$1,092.00\/MT · open-order quote reference, not confirmed-trade VWAP · source: source unavailable · reference time unavailable/i)).toBeTruthy();
     expect(screen.getByText(/-\$12.00/i)).toBeTruthy();
   });
 
@@ -543,20 +543,11 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: /^orderbook$/i }));
 
     await waitFor(() => {
-      expect(listAsks).toHaveBeenCalledWith({
-        fuel_type: undefined,
+      expect(snapshot).toHaveBeenCalledWith({
         market_product: 'BIO_METHANOL',
-        region: undefined,
         delivery_point_id: 'dp-1',
-        availability: 'SPOT',
-      });
-      expect(listBids).toHaveBeenCalledWith({
-        fuel_type: undefined,
-        market_product: 'BIO_METHANOL',
-        region: undefined,
-        delivery_point_id: 'dp-1',
-        availability: 'SPOT',
-      });
+        availability_window: 'SPOT',
+      }, { force: false });
       expect(tradeTapeList).toHaveBeenCalledWith({
         fuel_type: undefined,
         market_product: 'BIO_METHANOL',
@@ -652,8 +643,7 @@ describe('Marketplace green fuels surface', () => {
     const marketScope = screen.getByLabelText(/market scope/i);
     labels.forEach((label) => expect(within(marketScope).getByText(label)).toBeTruthy());
     states.forEach((state) => expect(within(marketScope).getByLabelText(state)).toBeTruthy());
-    expect(listAsks).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
+    expect(snapshot).not.toHaveBeenCalled();
   });
 
 
@@ -986,8 +976,7 @@ describe('Marketplace green fuels surface', () => {
       });
     });
     expect(listAsksPaged).not.toHaveBeenCalled();
-    expect(listBids).not.toHaveBeenCalled();
-    expect(listAsks).not.toHaveBeenCalled();
+    expect(snapshot).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /place ask/i }));
 
