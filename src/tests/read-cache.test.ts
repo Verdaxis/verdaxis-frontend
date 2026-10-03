@@ -131,6 +131,28 @@ describe('bounded API read cache', () => {
             .resolves.toBe('recovered');
     });
 
+    it('caches the public book snapshot and lets an explicit refresh bypass it', async () => {
+        const first = { generated_at: '2026-10-03T12:00:00Z', bids: [], asks: [] };
+        const refreshed = { generated_at: '2026-10-03T12:00:10Z', bids: [], asks: [] };
+        const fetchMock = vi.spyOn(globalThis, 'fetch')
+            .mockResolvedValueOnce(jsonResponse(first))
+            .mockResolvedValueOnce(jsonResponse(refreshed));
+        const params = {
+            market_product: 'BIO_METHANOL',
+            delivery_point_id: 'delivery-point',
+            availability_window: 'SPOT',
+        };
+
+        await expect(api.orderbook.snapshot(params)).resolves.toEqual(first);
+        await expect(api.orderbook.snapshot(params)).resolves.toEqual(first);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        await expect(api.orderbook.snapshot(params, { force: true })).resolves.toEqual(refreshed);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(String(fetchMock.mock.calls[0][0])).toContain('/orderbook/snapshot?');
+        expect(String(fetchMock.mock.calls[0][0])).toContain('availability_window=SPOT');
+    });
+
     it('rejects private results completed after account or assisted-context switches', async () => {
         setAccessToken('account-a');
         const accountRequest = deferred<string>();
@@ -217,7 +239,7 @@ describe('bounded API read cache', () => {
 
         const failedCancel = api.orderbook.cancel('order-2');
         await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'during-failure' }]);
-        const rejection = expect(failedCancel).rejects.toThrow('network failed');
+        const rejection = expect(failedCancel).rejects.toThrow('The request was sent, but the server did not confirm the outcome.');
         failedMutation.reject(new TypeError('network failed'));
         await rejection;
         await expect(api.orderbook.myOrders()).resolves.toEqual([{ id: 'after-failure' }]);

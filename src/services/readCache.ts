@@ -4,6 +4,7 @@ import { getMarketSupportContextId } from './marketSupportContextStore';
 export const READ_CACHE_TTL_MS = {
     reference: 5 * 60_000,
     market: 15_000,
+    orderbookSnapshot: 9_000,
     private: 10_000,
 } as const;
 

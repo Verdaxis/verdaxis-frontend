@@ -120,6 +120,38 @@ describe('DataAnalytics', () => {
       expect(screen.getByText('Unlock Full Supply & Demand Intelligence')).toBeTruthy();
     });
     expect((await screen.findAllByText('4/10 delivered')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Source: Fleet intelligence mock')).toBeTruthy();
+    expect(screen.getByText('Updated: 2026-05-14 08:00:00 UTC')).toBeTruthy();
+    expect(screen.getAllByText('Static dataset').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Estimate method: delivered vessels/)).toBeTruthy();
+  });
+
+  it('distinguishes a successful zero-entry response from unavailable data', async () => {
+    fleetIntelligenceGetMock.mockResolvedValue({
+      entries: [],
+      sources: ['Fleet intelligence live'],
+      last_updated: '2026-05-15T08:00:00Z',
+    });
+    useAuthMock.mockReturnValue({ user: { role: 'ADMIN' } });
+
+    renderWithProviders(<DataAnalytics />);
+
+    expect((await screen.findAllByText('Live fleet dataset returned zero entries')).length).toBeGreaterThan(0);
+    expect(screen.getByText('The live dataset reported no fleet demand entries for this update.')).toBeTruthy();
+    expect(screen.getByText('Source: Fleet intelligence live')).toBeTruthy();
+    expect(screen.queryByText(/Live fleet data is unavailable/)).toBeNull();
+  });
+
+  it('labels fallback figures as sample data when the API is unavailable', async () => {
+    fleetIntelligenceGetMock.mockRejectedValue(new Error('unavailable'));
+    useAuthMock.mockReturnValue({ user: { role: 'ADMIN' } });
+
+    renderWithProviders(<DataAnalytics />);
+
+    expect((await screen.findAllByText('Live fleet data is unavailable; the values below are an illustrative sample.')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Source: Verdaxis illustrative sample')).toBeTruthy();
+    expect(screen.getByText('Updated: No live update time')).toBeTruthy();
+    expect(contentReadyMock).toHaveBeenLastCalledWith('DATA_ANALYTICS', true);
   });
 
   it('unlocks the screen for admin users even without a premium subscription', async () => {

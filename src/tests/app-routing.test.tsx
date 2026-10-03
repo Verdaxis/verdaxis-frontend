@@ -17,8 +17,7 @@ const {
   mapLifecycle,
   listAsksPaged,
   listBidsPaged,
-  listAsks,
-  listBids,
+  orderbookSnapshot,
   productCounts,
   myOrders,
   products,
@@ -71,8 +70,7 @@ const {
     mapLifecycle: { mounts: 0, unmounts: 0 },
     listAsksPaged: vi.fn(),
     listBidsPaged: vi.fn(),
-    listAsks: vi.fn(),
-    listBids: vi.fn(),
+    orderbookSnapshot: vi.fn(),
     productCounts: vi.fn(),
     myOrders: vi.fn(),
     products: vi.fn(),
@@ -187,8 +185,7 @@ vi.mock('../services/api', () => ({
     orderbook: {
       listAsksPaged,
       listBidsPaged,
-      listAsks,
-      listBids,
+      snapshot: orderbookSnapshot,
       productCounts,
       myOrders,
     },
@@ -266,8 +263,7 @@ describe('app routing', () => {
     };
     listAsksPaged.mockResolvedValue(emptyListings);
     listBidsPaged.mockResolvedValue(emptyListings);
-    listAsks.mockResolvedValue([]);
-    listBids.mockResolvedValue([]);
+    orderbookSnapshot.mockResolvedValue({ bids: [], asks: [], generated_at: '2026-10-03T00:00:00Z' });
     productCounts.mockResolvedValue({ counts: {}, total: 0 });
     myOrders.mockResolvedValue([]);
     products.mockResolvedValue([
@@ -519,8 +515,11 @@ describe('app routing', () => {
 
     it('loads the B100 orderbook from an exact slice without losing its route', async () => {
       renderApp('/app/m/ucome-b100/singapore/2028-q1?view=orderbook');
-      await waitFor(() => expect(listBids).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2028-Q1' })));
-      expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'UCOME_B100', delivery_point_id: 'dp-1', availability: '2028-Q1' }));
+      await waitFor(() => expect(orderbookSnapshot).toHaveBeenCalledWith({
+        market_product: 'UCOME_B100',
+        delivery_point_id: 'dp-1',
+        availability_window: '2028-Q1',
+      }, { force: false }));
       expect(currentPathname()).toBe('/app/m/ucome-b100/singapore/2028-q1');
       expect(screen.getByTestId('location-search').textContent).toBe('?view=orderbook');
     });

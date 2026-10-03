@@ -241,6 +241,7 @@ export interface OrderCreateInput {
 export interface TradeCreateInput {
     order_id: string;
     quantity_mt: number;
+    expected_terms_digest: string;
     expected_order_version?: number;
     fame_terms?: FameOrderTerms | null;
     certification_declared?: boolean;
@@ -250,6 +251,7 @@ export interface TradeCreateInput {
 
 export interface OrderBookOrder {
     id: string;
+    terms_digest?: string;
     version?: number;
     organization_id?: string; // Only in "my" view
     side: OrderSide;
@@ -297,6 +299,18 @@ export interface OrderBookOrder {
     trade_count?: number; // Only in "my" view
     creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;
     etag?: string;
+}
+
+export interface OrderBookSnapshot {
+    market_product: MarketProduct;
+    delivery_point_id: string;
+    availability_window: string;
+    generated_at: string;
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
+    bids: OrderBookOrder[];
+    asks: OrderBookOrder[];
 }
 
 export interface Trade {

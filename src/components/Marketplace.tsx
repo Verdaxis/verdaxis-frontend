@@ -19,9 +19,11 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ApiError, api } from '../services/api';
+import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, TradeCreateInput } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, ORDERBOOK_MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../types';
+import { getAuthGeneration } from '../services/authToken';
+import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
 import { Pagination } from './ui/Pagination';
@@ -300,10 +302,17 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const latestMyOrdersRequest = useRef(0);
     const { isActive: isMarketSupportActive } = useMarketSupport();
     const [tradeQuantity, setTradeQuantity] = useState(0);
-    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'error'>('idle');
+    const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
     const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
-    const tradeRequestRef = useRef<{ signature: string; payload: TradeCreateInput } | null>(null);
+    const [tradeResult, setTradeResult] = useState<Trade | null>(null);
+    const tradeRequestRef = useRef<{
+        signature: string;
+        payload: TradeCreateInput;
+        authGeneration: number;
+        supportContextId: string | null;
+        reviewedOrder: OrderBookOrder;
+    } | null>(null);
     const tradeTermsForm = useRef<HTMLFormElement>(null);
     const [tradeFameInput, setTradeFameInput] = useState<Pick<TradeCreateInput, 'fame_terms' | 'certification_declared' | 'msds_available'> | null>(null);
     const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
@@ -335,6 +344,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeState('idle');
         setTradeFameInput(null);
         setTradeNeedsRefresh(false);
+        setTradeResult(null);
         tradeRequestRef.current = null;
         setMyOrders([]);
         latestMyOrdersRequest.current += 1;
@@ -734,6 +744,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
         setTradeFameInput(null);
         setTradeNeedsRefresh(false);
+        setTradeResult(null);
         setSelectedOrder(order);
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
@@ -832,6 +843,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeError('');
         setTradeFameInput(null);
         setTradeNeedsRefresh(false);
+        setTradeResult(null);
         tradeRequestRef.current = null;
     }, []);
 
@@ -865,6 +877,13 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             return;
         }
         if (validateTradeQuantity() == null) return;
+        if (!selectedOrder.terms_digest) {
+            tradeRequestRef.current = null;
+            setTradeNeedsRefresh(true);
+            setTradeError(t('marketplace.modal.reviewRequired'));
+            setTradeState('error');
+            return;
+        }
         if (selectedOrder.market_product === 'UCOME_B100') {
             if (!b100TradingEnabled || !selectedOrder.fame_terms || !tradeTermsForm.current
                 || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1) {
@@ -899,9 +918,27 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             setTradeState('error');
             return;
         }
-        const normalizedTradeQuantity = validateTradeQuantity();
+        const retainedRequest = tradeState === 'outcome_unknown' ? tradeRequestRef.current : null;
+        if (retainedRequest && (
+            retainedRequest.authGeneration !== getAuthGeneration()
+            || retainedRequest.supportContextId !== getMarketSupportContextId()
+        )) {
+            tradeRequestRef.current = null;
+            setTradeNeedsRefresh(true);
+            setTradeError(t('marketplace.modal.contextChanged'));
+            setTradeState('error');
+            return;
+        }
+        const normalizedTradeQuantity = retainedRequest ? retainedRequest.payload.quantity_mt : validateTradeQuantity();
         if (normalizedTradeQuantity == null) return;
-        if (selectedOrder.market_product === 'UCOME_B100' && (!b100TradingEnabled || !tradeFameInput?.fame_terms
+        if (!retainedRequest && !selectedOrder.terms_digest) {
+            tradeRequestRef.current = null;
+            setTradeNeedsRefresh(true);
+            setTradeError(t('marketplace.modal.reviewRequired'));
+            setTradeState('error');
+            return;
+        }
+        if (!retainedRequest && selectedOrder.market_product === 'UCOME_B100' && (!b100TradingEnabled || !tradeFameInput?.fame_terms
             || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1)) return;
         setTradeState('submitting');
         tradeInFlightRef.current = true;
@@ -909,28 +946,37 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             const requestPayload = {
                 order_id: selectedOrder.id,
                 quantity_mt: normalizedTradeQuantity,
+                expected_terms_digest: selectedOrder.terms_digest!,
                 ...(selectedOrder.market_product === 'UCOME_B100'
                     ? { ...tradeFameInput, expected_order_version: selectedOrder.version } : {}),
             };
             const signature = JSON.stringify(requestPayload);
-            if (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature) {
+            if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
                 tradeRequestRef.current = {
                     signature,
                     payload: { ...requestPayload, idempotency_key: createTradeIdempotencyKey() },
+                    authGeneration: getAuthGeneration(),
+                    supportContextId: getMarketSupportContextId(),
+                    reviewedOrder: { ...selectedOrder, certifications: [...selectedOrder.certifications] },
                 };
             }
-            await api.trades.initiate(tradeRequestRef.current.payload);
+            const result = await api.trades.initiate(tradeRequestRef.current!.payload);
+            setTradeResult(result);
             setTradeState('success');
-        } catch (err: any) {
-            if (selectedOrder.market_product === 'UCOME_B100' && err instanceof ApiError && err.status === 409) {
-                // A new review needs the new order version and a new idempotency key.
+        } catch (err: unknown) {
+            if (err instanceof ApiOutcomeUnknownError) {
+                setTradeError(t('marketplace.modal.outcomeUnknown.body'));
+                setTradeState('outcome_unknown');
+            } else if (err instanceof ApiError && err.code === 'ORDER_TERMS_REVIEW_REQUIRED') {
                 tradeRequestRef.current = null;
                 setTradeNeedsRefresh(true);
-                setTradeError(t('marketplace.b100.staleOrder'));
+                setTradeError(t('marketplace.modal.reviewRequired'));
+                setTradeState('error');
             } else {
-                setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err.message || t('marketplace.modal.tradeFailedFallback'));
+                tradeRequestRef.current = null;
+                setTradeError(i18n.language.startsWith('zh') ? t('marketplace.modal.tradeFailedFallback') : err instanceof Error ? err.message : t('marketplace.modal.tradeFailedFallback'));
+                setTradeState('error');
             }
-            setTradeState('error');
         } finally {
             tradeInFlightRef.current = false;
         }
@@ -1014,6 +1060,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             priceUsd={Number(order.price_per_mt_usd)}
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
                             deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
+                            benchmarkSource={order.benchmark_source}
+                            contextUpdatedAt={order.updated_at}
                         />
                         {overlay && (
                             <CompliancePriceHint overlay={overlay} assumptions={overlayAssumptions} />
@@ -1723,38 +1771,69 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
                                     <CheckCircle2 size={24} />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{t('marketplace.modal.tradeInitiated')}</h3>
-                                {selectedOrder && (
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
+                                    {tradeResult?.status === 'PENDING_CONFIRMATION'
+                                        ? t('marketplace.modal.tradeInitiated')
+                                        : t('marketplace.modal.tradeRecorded')}
+                                </h3>
+                                {tradeResult && (
                                     <div className="w-full mt-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-left">
                                         <div className="grid grid-cols-2 gap-2 text-sm">
                                             <div>
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.product')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))}</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.product_name || (typeof tradeResult.market_product === 'string' ? tradeResult.market_product : tradeResult.fuel_type)}</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.filter.port')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{selectedOrder.delivery_point_name || selectedOrder.region}</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.delivery_point_name || tradeResult.region}</div>
                                             </div>
                                             <div>
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.quantity')}</span>
-                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeQuantity.toLocaleString(locale)} MT</div>
+                                                <div className="font-bold text-slate-800 dark:text-slate-200">{tradeResult.quantity_mt.toLocaleString(locale)} MT</div>
                                             </div>
                                             <div className="text-right">
                                                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('marketplace.modal.price')}</span>
-                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${selectedOrder.price_per_mt_usd}/MT</div>
+                                                <div className="font-bold text-emerald-600 dark:text-emerald-400">${tradeResult.price_per_mt_usd}/MT</div>
                                             </div>
                                         </div>
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
                                             <span className="text-xs text-slate-400">{t('marketplace.modal.total')}</span>
                                             <span className="text-base font-bold text-slate-900 dark:text-white">
-                                                ${(tradeQuantity * selectedOrder.price_per_mt_usd).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                ${(tradeResult.quantity_mt * tradeResult.price_per_mt_usd).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
+                                        </div>
+                                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                                            {t('marketplace.modal.status')}: {tradeResult.status.replaceAll('_', ' ')}
                                         </div>
                                     </div>
                                 )}
                                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
-                                    {role === 'BUYER' ? t('marketplace.modal.tradeInitiated.buyer') : t('marketplace.modal.tradeInitiated.supplier')}
+                                    {tradeResult?.status === 'PENDING_CONFIRMATION'
+                                        ? role === 'BUYER'
+                                            ? t('marketplace.modal.tradeInitiated.buyer')
+                                            : t('marketplace.modal.tradeInitiated.supplier')
+                                        : t('marketplace.modal.tradeRecorded.body', {
+                                            status: tradeResult?.status.replaceAll('_', ' '),
+                                        })}
                                 </p>
+                            </div>
+                        ) : tradeState === 'outcome_unknown' ? (
+                            <div className="p-8 flex flex-col items-center text-center">
+                                <div className="p-4 bg-amber-500/10 rounded-full mb-4">
+                                    <AlertTriangle size={28} className="text-amber-500" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.outcomeUnknown.title')}</h3>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => { void confirmTrade(); }}
+                                    className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300"
+                                >
+                                    {t('marketplace.btn.retrySafely')}
+                                </button>
+                                <button type="button" onClick={closeTradeModal} className="px-6 py-2.5 bg-slate-700 text-white text-sm font-bold rounded-lg hover:bg-slate-600 transition-colors">
+                                    {t('marketplace.btn.cancel')}
+                                </button>
                             </div>
                         ) : tradeState === 'error' ? (
                             <div className="p-8 flex flex-col items-center text-center">
@@ -1773,16 +1852,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         }}
                                         className="mb-3 w-full rounded-lg border border-emerald-500 px-3 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-300"
                                     >
-                                        {t('marketplace.b100.refreshReview')}
-                                    </button>
-                                )}
-                                {tradeRequestRef.current && (
-                                    <button
-                                        type="button"
-                                        onClick={() => { void confirmTrade(); }}
-                                        className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300"
-                                    >
-                                        {t('marketplace.btn.retrySafely')}
+                                        {t('marketplace.modal.refreshReview')}
                                     </button>
                                 )}
                                 <button

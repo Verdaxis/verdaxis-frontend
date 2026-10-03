@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 
-// Fallback demand data (used while API loads)
+// Illustrative values shown while live fleet data loads or is unavailable.
 const DEMAND_FLEET_FALLBACK = [
     { fuel: 'Methanol', orderedVessels: 323, deliveredVessels: 112, avgConsumptionMt: 9500, color: '#5DADE2' },
     { fuel: 'Biofuel', orderedVessels: 20, deliveredVessels: 11, avgConsumptionMt: 6800, color: '#4CAF50' },
@@ -17,6 +17,16 @@ const DEMAND_FLEET_FALLBACK = [
 ];
 
 interface FleetEntry { fuel: string; orderedVessels: number; deliveredVessels: number; avgConsumptionMt: number; color: string }
+type FleetDataState = 'loading' | 'live' | 'empty' | 'sample';
+
+const PRODUCER_DATASET_VINTAGE = '2026-02-17';
+
+const formatObservedAt = (value: string): string => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime())
+        ? value
+        : parsed.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+};
 
 const translationKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const CANONICAL_TRADED_PRODUCTS = new Set([
@@ -32,6 +42,7 @@ export const DataAnalytics: React.FC = () => {
     const { t, ready } = useNamespace('dashboard');
     const [subscription, setSubscription] = useState<Subscription | null>(null);
     const [demandFleet, setDemandFleet] = useState<FleetEntry[]>(DEMAND_FLEET_FALLBACK);
+    const [fleetDataState, setFleetDataState] = useState<FleetDataState>('loading');
     const [fleetSources, setFleetSources] = useState<string[]>([]);
     const [fleetLastUpdated, setFleetLastUpdated] = useState<string>('');
     const [fleetLoaded, setFleetLoaded] = useState(false);
@@ -42,6 +53,10 @@ export const DataAnalytics: React.FC = () => {
     useEffect(() => {
         let cancelled = false;
         setFleetLoaded(false);
+        setFleetDataState('loading');
+        setDemandFleet(DEMAND_FLEET_FALLBACK);
+        setFleetSources([]);
+        setFleetLastUpdated('');
         setSubscriptionLoaded(user?.role === 'ADMIN');
         setSubscription(null);
         if (user?.role !== 'ADMIN') {
@@ -60,18 +75,27 @@ export const DataAnalytics: React.FC = () => {
         api.fleetIntelligence.get()
             .then(data => {
                 if (cancelled) return;
-                setDemandFleet(data.entries.map(e => ({
+                const entries = data.entries.map(e => ({
                     fuel: e.fuel,
                     orderedVessels: e.ordered_vessels,
                     deliveredVessels: e.delivered_vessels,
                     avgConsumptionMt: e.avg_consumption_mt,
                     color: e.color,
-                })));
+                }));
+                setDemandFleet(entries);
                 setFleetSources(data.sources);
                 setFleetLastUpdated(data.last_updated);
+                setFleetDataState(entries.length === 0 ? 'empty' : 'live');
                 setFleetLoaded(true);
             })
-            .catch(() => { /* keep fallback */ });
+            .catch(() => {
+                if (cancelled) return;
+                setDemandFleet(DEMAND_FLEET_FALLBACK);
+                setFleetSources([]);
+                setFleetLastUpdated('');
+                setFleetDataState('sample');
+                setFleetLoaded(true);
+            });
         return () => { cancelled = true; };
     }, [user?.id, user?.organization_id, user?.role]);
     const hasPremiumAccess = user?.role === 'ADMIN' || !!(subscription && subscription.tier !== 'free');
@@ -105,7 +129,7 @@ export const DataAnalytics: React.FC = () => {
     const totalDelivered = DEMAND_FLEET.reduce((s, d) => s + d.deliveredVessels, 0);
     const estDemandMt = DEMAND_FLEET.reduce((s, d) => s + d.deliveredVessels * d.avgConsumptionMt, 0);
 
-    const maxOrdered = Math.max(...DEMAND_FLEET.map(d => d.orderedVessels));
+    const maxOrdered = Math.max(1, ...DEMAND_FLEET.map(d => d.orderedVessels));
 
     if (!ready) return null;
 
@@ -114,6 +138,12 @@ export const DataAnalytics: React.FC = () => {
         : t(`dataAnalytics.fuels.${translationKey(fuel)}`, { defaultValue: t('dataAnalytics.fuels.other') });
     const statusLabel = (status: string) => t(`dataAnalytics.status.${translationKey(status)}`, { defaultValue: t('dataAnalytics.status.unknown') });
     const countryLabel = (country: string) => t(`countries.${translationKey(country)}`, { defaultValue: t('countries.unknown') });
+    const fleetSource = fleetDataState === 'live' || fleetDataState === 'empty'
+        ? fleetSources.join(', ') || t('dataAnalytics.provenance.sourceUnknown')
+        : t('dataAnalytics.provenance.sampleSource');
+    const fleetUpdatedAt = (fleetDataState === 'live' || fleetDataState === 'empty') && fleetLastUpdated
+        ? formatObservedAt(fleetLastUpdated)
+        : t('dataAnalytics.provenance.noLiveUpdate');
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -126,6 +156,19 @@ export const DataAnalytics: React.FC = () => {
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                     {t('dataAnalytics.subtitle')}
                 </p>
+            </div>
+
+            <div className="grid gap-2 text-xs text-slate-600 dark:text-slate-400 md:grid-cols-2">
+                <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/40">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{t('dataAnalytics.provenance.producerMetrics')}:</span>
+                    {' '}{t('dataAnalytics.provenance.staticDataset')} · {t('dataAnalytics.provenance.vintage', { date: PRODUCER_DATASET_VINTAGE })}
+                </div>
+                <div className={`rounded border px-3 py-2 ${fleetDataState === 'sample'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
+                    : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-700/40 dark:bg-blue-950/30 dark:text-blue-300'}`}>
+                    <span className="font-semibold">{t('dataAnalytics.provenance.fleetMetrics')}:</span>
+                    {' '}{t(`dataAnalytics.provenance.fleetState.${fleetDataState}`)}
+                </div>
             </div>
 
             {/* KPI Cards */}
@@ -157,6 +200,11 @@ export const DataAnalytics: React.FC = () => {
                         <Factory size={14} className="text-emerald-600 dark:text-emerald-400" />
                         <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">{t('dataAnalytics.supply.title')}</span>
                         <span className="ml-auto text-xs text-slate-500">{t('dataAnalytics.projectsCount', { count: producerProjects.length })}</span>
+                    </div>
+                    <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-[11px] text-slate-600 dark:border-slate-700/50 dark:bg-slate-900/40 dark:text-slate-400">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">{t('dataAnalytics.provenance.staticDataset')}</span>
+                        {' · '}{t('dataAnalytics.provenance.projectSource')}
+                        {' · '}{t('dataAnalytics.provenance.vintage', { date: PRODUCER_DATASET_VINTAGE })}
                     </div>
                     <div className="overflow-x-auto max-h-80 overflow-y-auto">
                         <table className="w-full text-xs">
@@ -218,7 +266,26 @@ export const DataAnalytics: React.FC = () => {
                         <span className="ml-auto text-xs text-slate-500">{t('dataAnalytics.deliveredCount', { delivered: totalDelivered, ordered: totalOrderedVessels })}</span>
                     </div>
                     <div className="p-4 space-y-4">
-                        {DEMAND_FLEET.map((d) => {
+                        <div
+                            className={`rounded border px-3 py-2 text-[11px] ${fleetDataState === 'sample'
+                                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-300'
+                                : fleetDataState === 'empty'
+                                    ? 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400'
+                                    : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-700/40 dark:bg-blue-950/30 dark:text-blue-300'}`}
+                            role={fleetDataState === 'sample' ? 'status' : undefined}
+                        >
+                            <div className="font-semibold">
+                                {t(`dataAnalytics.provenance.fleetState.${fleetDataState}`)}
+                            </div>
+                            <div>{t('dataAnalytics.provenance.source', { source: fleetSource })}</div>
+                            <div>{t('dataAnalytics.provenance.updated', { date: fleetUpdatedAt })}</div>
+                            <div>{t('dataAnalytics.provenance.demandMethod')}</div>
+                        </div>
+                        {fleetDataState === 'empty' ? (
+                            <div className="rounded border border-dashed border-slate-300 px-3 py-6 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                                {t('dataAnalytics.demand.empty')}
+                            </div>
+                        ) : DEMAND_FLEET.map((d) => {
                             const estDemand = d.deliveredVessels * d.avgConsumptionMt;
                             return (
                                 <div key={d.fuel}>

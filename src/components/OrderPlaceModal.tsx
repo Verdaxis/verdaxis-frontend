@@ -9,7 +9,7 @@ import {
     getAvailabilityWindowSummary,
 } from '../utils/availabilityWindow';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
-import { api } from '../services/api';
+import { ApiOutcomeUnknownError, api } from '../services/api';
 import { formatMarketProduct, getProductDisplayName, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { UCOME_MARKETPLACE_PATH } from '../utils/sliceUrl';
@@ -96,7 +96,7 @@ const getSupplierOfferDeliveryPoints = (product: Product | undefined, points: De
     && product?.available_delivery_point_ids?.includes(point.id)
 ));
 
-type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'error';
+type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'outcome_unknown' | 'error';
 
 interface OrderSnapshot {
     payload: Record<string, any>;
@@ -625,8 +625,13 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 setModalState('success');
             }
         } catch (err: any) {
-            setErrorMessage(i18n.language.startsWith('zh') ? t('orderPlaceModal.error.fallback') : err.message || t('orderPlaceModal.error.fallback'));
-            setModalState('error');
+            if (err instanceof ApiOutcomeUnknownError) {
+                setErrorMessage(t('orderPlaceModal.outcomeUnknown.body'));
+                setModalState('outcome_unknown');
+            } else {
+                setErrorMessage(i18n.language.startsWith('zh') ? t('orderPlaceModal.error.fallback') : err.message || t('orderPlaceModal.error.fallback'));
+                setModalState('error');
+            }
         } finally {
             submissionInFlightRef.current = false;
         }
@@ -778,7 +783,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
 
-    if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'error') {
+    if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'outcome_unknown' || modalState === 'error') {
         return (
             <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div
@@ -790,14 +795,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
                 >
                     <div className="p-8 text-center">
-                        {modalState === 'error' ? (
+                        {modalState === 'error' || modalState === 'outcome_unknown' ? (
                             <>
-                                <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-                                    <AlertTriangle size={32} className="text-red-500" />
+                                <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${modalState === 'outcome_unknown' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                                    <AlertTriangle size={32} className={modalState === 'outcome_unknown' ? 'text-amber-500' : 'text-red-500'} />
                                 </div>
-                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t('orderPlaceModal.error.title')}</h3>
+                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t(modalState === 'outcome_unknown' ? 'orderPlaceModal.outcomeUnknown.title' : 'orderPlaceModal.error.title')}</h3>
                                 <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
-                                {submissionRef.current && <button type="button" onClick={retrySubmission} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
+                                {modalState === 'outcome_unknown' && submissionRef.current && <button type="button" onClick={retrySubmission} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
                             </>
                         ) : modalState === 'auto_matched' ? (
                             <>
