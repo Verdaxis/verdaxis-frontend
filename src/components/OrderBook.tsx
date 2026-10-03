@@ -22,14 +22,11 @@ interface OrderBookProps {
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
 
-interface OrderBookRow extends OrderBookOrder {
-    is_crossed?: boolean;
-}
-
 const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
-export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+export function getLivePriceCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+    // This is a provenance-scoped public price signal, not execution authority.
     const realBids = bids
         .filter(order => !isDemoMarketActivity(order))
         .sort((a, b) => b.price_per_mt_usd - a.price_per_mt_usd);
@@ -72,8 +69,8 @@ function formatQty(qty: number, locale = 'en'): string {
 
 export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
-    const [bids, setBids] = useState<OrderBookRow[]>([]);
-    const [asks, setAsks] = useState<OrderBookRow[]>([]);
+    const [bids, setBids] = useState<OrderBookOrder[]>([]);
+    const [asks, setAsks] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -112,19 +109,17 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
             if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
 
             // Bids: highest price first (best bid at top)
-            const sortedBids: OrderBookRow[] = [...snapshot.bids]
+            const sortedBids: OrderBookOrder[] = [...snapshot.bids]
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => b.price_per_mt_usd - a.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
             // Asks: lowest price first (best ask at top)
-            const sortedAsks: OrderBookRow[] = [...snapshot.asks]
+            const sortedAsks: OrderBookOrder[] = [...snapshot.asks]
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
-            const crossState = getExecutableCrossState(sortedBids, sortedAsks);
-
-            setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
-            setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
+            setBids(sortedBids);
+            setAsks(sortedAsks);
             setGeneratedAt(snapshot.generated_at);
             setClock(Date.now());
             hasSnapshot.current = true;
@@ -210,7 +205,10 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
     }, [bids, asks]);
 
     const maxRows = Math.max(bids.length, asks.length);
-    const liveCrossState = getExecutableCrossState(bids, asks);
+    const livePriceCrossState = React.useMemo(
+        () => getLivePriceCrossState(bids, asks),
+        [bids, asks],
+    );
     const generatedAtMs = generatedAt ? Date.parse(generatedAt) : Number.NaN;
     const snapshotAgeSeconds = Number.isFinite(generatedAtMs)
         ? Math.max(0, Math.floor((clock - generatedAtMs) / 1_000))
@@ -368,8 +366,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                         const askIsDemo = isDemoMarketActivity(ask);
                         const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
                         const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
-                        const bidCrossed = bid ? (bid as any).is_crossed === true : false;
-                        const askCrossed = ask ? (ask as any).is_crossed === true : false;
+                        const bidCrossed = bid ? livePriceCrossState.bidIds.has(bid.id) : false;
+                        const askCrossed = ask ? livePriceCrossState.askIds.has(ask.id) : false;
 
                         const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
                         const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
@@ -571,17 +569,17 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                 )}
             </div>
 
-            {/* Only executable orders define the spread, never demo liquidity. */}
-            {liveCrossState.spread !== null && liveCrossState.bestBidPrice !== null && (() => {
-                const spread = liveCrossState.spread;
-                const spreadPct = liveCrossState.bestBidPrice > 0
-                    ? (spread / liveCrossState.bestBidPrice) * 100
+            {/* Only live prices define the spread; demo liquidity and API cross metadata do not. */}
+            {livePriceCrossState.spread !== null && livePriceCrossState.bestBidPrice !== null && (() => {
+                const spread = livePriceCrossState.spread;
+                const spreadPct = livePriceCrossState.bestBidPrice > 0
+                    ? (spread / livePriceCrossState.bestBidPrice) * 100
                     : 0;
                 return (
                     <div className="flex items-center justify-center gap-3 px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
                         <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wide">{t('orderBook.spread')}</span>
-                        <span className={`text-xs font-mono font-bold ${liveCrossState.hasCross ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                            {liveCrossState.hasCross ? (
+                        <span className={`text-xs font-mono font-bold ${livePriceCrossState.hasCross ? 'text-amber-500' : 'text-slate-600 dark:text-slate-300'}`}>
+                            {livePriceCrossState.hasCross ? (
                                 <span className="flex items-center gap-1">
                                     <Zap size={10} className="text-amber-500" />
                                     {t('orderBook.crossed')}

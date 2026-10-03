@@ -216,6 +216,29 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances[2].url).toContain('stream_token=stream-token');
   });
 
+  it('preserves the private cursor after an overflow reset', async () => {
+    const onEvent = vi.fn();
+    render(<Harness channel="trades" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    const first = FakeEventSource.instances[0];
+    act(() => {
+      first.emit('trade_confirmed', { data: '{}', lastEventId: '42' });
+      first.emit('reset', {
+        data: '{"schema_version":1,"reason":"subscriber_overflow","resync_required":true}',
+      });
+    });
+
+    expect(onEvent).toHaveBeenLastCalledWith('reset', {
+      schema_version: 1,
+      reason: 'subscriber_overflow',
+      resync_required: true,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+    expect(FakeEventSource.instances[1].url).toContain('last_event_id=42');
+  });
+
   it('drops a pending source when the account scope changes', async () => {
     let resolveToken: (value: Response) => void = () => undefined;
     fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => {

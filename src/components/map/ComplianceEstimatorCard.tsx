@@ -4,6 +4,7 @@ import { ArrowRight, Calculator, Plus, ShieldAlert, Trash2 } from 'lucide-react'
 import { useNamespace } from '../../hooks/useNamespace';
 import type { Port } from '../../types';
 import { formatMarketProduct } from '../../utils/marketProduct';
+import { writeMarketplaceSlice } from '../../utils/marketplaceSelection';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../../utils/marketProducts';
 import {
     DEFAULT_COMPLIANCE_ESTIMATOR_INPUT,
@@ -27,14 +28,6 @@ interface VoyageSegment {
     days: number;
     mode: VoyageSegmentMode;
 }
-
-const STORAGE_KEYS = {
-    port: 'verdaxis_marketplace_port',
-    deliveryPointId: 'verdaxis_marketplace_delivery_point_id',
-    product: 'verdaxis_marketplace_product',
-    legacyFuel: 'verdaxis_marketplace_fuel',
-    window: 'verdaxis_marketplace_window',
-};
 
 const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
 const oneDecimalFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
@@ -167,16 +160,12 @@ export const ComplianceEstimatorCard: React.FC<ComplianceEstimatorCardProps> = (
         if (selectedFuel) {
             analytics.track('estimator_completed', { port: selectedPort.id, fuel: selectedFuelProduct });
         }
-        localStorage.setItem(STORAGE_KEYS.product, selectedFuelProduct);
-        localStorage.removeItem(STORAGE_KEYS.legacyFuel);
-        localStorage.setItem(STORAGE_KEYS.port, selectedPort.name);
-        const deliveryPointId = getCanonicalDeliveryPointId(selectedPort);
-        if (deliveryPointId) {
-            localStorage.setItem(STORAGE_KEYS.deliveryPointId, deliveryPointId);
-        } else {
-            localStorage.removeItem(STORAGE_KEYS.deliveryPointId);
-        }
-        localStorage.setItem(STORAGE_KEYS.window, 'SPOT');
+        writeMarketplaceSlice({
+            portName: selectedPort.name,
+            deliveryPointId: getCanonicalDeliveryPointId(selectedPort),
+            marketProduct: selectedFuelProduct,
+            availabilityWindow: 'SPOT',
+        });
         onOpenMarketplace(selectedPort);
     };
 

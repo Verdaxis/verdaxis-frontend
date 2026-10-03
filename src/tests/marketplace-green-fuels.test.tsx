@@ -672,6 +672,43 @@ describe('Marketplace green fuels surface', () => {
     expect(screen.getByRole('button', { name: /hide filters/i })).toBeTruthy();
   });
 
+  it('persists a changed delivery window, restores it after reload, and clears it', async () => {
+    const firstView = renderWithProviders(<Marketplace />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Window' }));
+    fireEvent.click(await screen.findByRole('option', { name: /^Spot$/i }));
+
+    await waitFor(() => {
+      expect(localStorage.getItem('verdaxis_marketplace_window')).toBe('SPOT');
+      expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({
+        availability: 'SPOT',
+      }));
+    });
+
+    firstView.unmount();
+    listAsksPaged.mockClear();
+
+    renderWithProviders(<Marketplace />);
+
+    await waitFor(() => {
+      expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({
+        availability: 'SPOT',
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Window' }));
+    fireEvent.click(await screen.findByRole('option', { name: /^Any window$/i }));
+
+    await waitFor(() => {
+      expect(localStorage.getItem('verdaxis_marketplace_window')).toBeNull();
+      expect(listAsksPaged).toHaveBeenLastCalledWith(expect.objectContaining({
+        availability: undefined,
+      }));
+    });
+  });
+
   it('filters My Listings by the active market slice', async () => {
     localStorage.setItem('verdaxis_marketplace_product', 'E_METHANOL');
     myOrders.mockResolvedValue([
