@@ -251,6 +251,15 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, [active, refreshMarketSummary]);
     usePublicMarketRefresh(refreshFromPublicEvent, active);
 
+    useEffect(() => {
+        if (!active) return;
+        const refreshWhenVisible = () => {
+            if (!document.hidden) void refreshMarketSummary(true);
+        };
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => document.removeEventListener('visibilitychange', refreshWhenVisible);
+    }, [active, refreshMarketSummary]);
+
     const approvedListingLocationMap = useMemo(() => {
         const map = new Map<string, string>();
         ports.forEach((port) => {
