@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getExecutableCrossState } from '../components/OrderBook';
+import { getLivePriceCrossState } from '../components/OrderBook';
 import type { OrderBookOrder } from '../types';
 
 const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
@@ -21,9 +21,9 @@ const makeOrder = (overrides: Partial<OrderBookOrder>): OrderBookOrder => ({
   ...overrides,
 });
 
-describe('getExecutableCrossState', () => {
-  it('ignores demo-only crosses so demo prices do not show as executable', () => {
-    const state = getExecutableCrossState(
+describe('getLivePriceCrossState', () => {
+  it('ignores demo-only crosses so demo prices do not show as live', () => {
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, is_demo_listing: true })],
       [makeOrder({ id: 'real-ask', side: 'ASK', price_per_mt_usd: 650 })],
     );
@@ -34,7 +34,7 @@ describe('getExecutableCrossState', () => {
   });
 
   it('recognizes demo provenance when the compatibility boolean is absent', () => {
-    const state = getExecutableCrossState(
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, source_kind: 'DEMO_SEED' })],
       [makeOrder({ id: 'demo-ask', side: 'ASK', price_per_mt_usd: 650, demo_status: 'DEMO_ONLY' })],
     );
@@ -45,8 +45,8 @@ describe('getExecutableCrossState', () => {
     expect(state.spread).toBeNull();
   });
 
-  it('detects real executable crosses below demo top-of-book levels', () => {
-    const state = getExecutableCrossState(
+  it('detects real price crosses below demo top-of-book levels', () => {
+    const state = getLivePriceCrossState(
       [
         makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 720, is_demo_listing: true }),
         makeOrder({ id: 'real-bid', side: 'BID', price_per_mt_usd: 680 }),
