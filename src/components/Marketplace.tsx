@@ -1587,7 +1587,6 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             </div>
                         ) : (
                             <div className="min-h-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-auto">
-                                {myOrdersError && <div role="alert" className="m-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{myOrdersError}</div>}
                                 <table className="w-full min-w-[980px] border-collapse text-sm">
                                     <thead className="sticky top-0 z-30 bg-slate-100 dark:bg-slate-800">
                                         <tr>

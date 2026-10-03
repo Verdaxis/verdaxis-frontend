@@ -85,12 +85,12 @@ describe('MyTrades lifecycle', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     setAccessToken('my-trades-session-a');
-    confirmMock.mockResolvedValue(undefined);
-    declineMock.mockResolvedValue(undefined);
+    confirmMock.mockReset().mockResolvedValue(undefined);
+    declineMock.mockReset().mockResolvedValue(undefined);
     sseControl.handler = null;
     namespaceControl.ready = true;
     await i18n.changeLanguage('en');
-    myTradesPagedMock.mockResolvedValue({
+    myTradesPagedMock.mockReset().mockResolvedValue({
       items: [{
         id: 'trade-1',
         bid_order_id: 'bid-1',
@@ -167,7 +167,7 @@ describe('MyTrades lifecycle', () => {
     fireEvent.click((await screen.findAllByRole('button', { name: 'myTrades.btn.confirm' }))[0]);
     const retry = await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
     expect(screen.queryByRole('button', { name: 'myTrades.btn.confirm' })).toBeNull();
-    expect(screen.getByText('myTrades.retryPending')).toBeTruthy();
+    expect(screen.getAllByText('myTrades.retryPending')).toHaveLength(2);
     fireEvent.click(retry);
 
     await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(2));
