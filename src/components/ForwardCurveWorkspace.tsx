@@ -38,6 +38,22 @@ type SelectedSlice = {
     availabilityWindow: string;
 };
 
+type LoadedSlice = {
+    selectionKey: string;
+    response: ForwardCurveSliceResponse;
+};
+
+type SliceReadState =
+    | { status: 'idle' }
+    | { status: 'loading' | 'failed'; selectionKey: string; previous: LoadedSlice | null }
+    | { status: 'ready'; result: LoadedSlice };
+
+const getLoadedSlice = (state: SliceReadState): LoadedSlice | null => {
+    if (state.status === 'ready') return state.result;
+    if (state.status === 'loading' || state.status === 'failed') return state.previous;
+    return null;
+};
+
 const PRODUCT_STORAGE_KEY = 'verdaxis_forward_curve_product';
 const DELIVERY_POINT_STORAGE_KEY = 'verdaxis_forward_curve_delivery_point';
 const WINDOW_STORAGE_KEY = 'verdaxis_forward_curve_window';
@@ -786,13 +802,9 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
     const [table, setTable] = useState<ForwardCurveTableResponse | null>(null);
     const [selected, setSelected] = useState<SelectedSlice | null>(() => getStoredSelection());
-    const [slice, setSlice] = useState<ForwardCurveSliceResponse | null>(null);
-    const [sliceSelectionKey, setSliceSelectionKey] = useState('');
-    const [pendingSliceKey, setPendingSliceKey] = useState('');
-    const [failedSliceKey, setFailedSliceKey] = useState('');
+    const [sliceRead, setSliceRead] = useState<SliceReadState>({ status: 'idle' });
     const [loadingTable, setLoadingTable] = useState(true);
     useDashboardContentReady('FORWARD_CURVE', ready && table !== null);
-    const [loadingSlice, setLoadingSlice] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const tableRequestIdRef = useRef(0);
     const sliceRequestIdRef = useRef(0);
@@ -846,18 +858,16 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         if (!ready) return;
         const requestId = ++sliceRequestIdRef.current;
         if (!selection) {
-            setSlice(null);
-            setSliceSelectionKey('');
-            setPendingSliceKey('');
-            setFailedSliceKey('');
-            setLoadingSlice(false);
+            setSliceRead({ status: 'idle' });
             return;
         }
 
         const requestKey = sliceKey(selection);
-        setPendingSliceKey(requestKey);
-        setFailedSliceKey('');
-        setLoadingSlice(true);
+        setSliceRead(current => ({
+            status: 'loading',
+            selectionKey: requestKey,
+            previous: getLoadedSlice(current),
+        }));
         const params = {
             market_product: selection.marketProduct,
             delivery_point_id: selection.deliveryPointId,
@@ -868,17 +878,18 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             : api.curves.slice(params);
         return request.then(response => {
             if (requestId !== sliceRequestIdRef.current) return;
-            setSlice(response);
-            setSliceSelectionKey(requestKey);
-            setPendingSliceKey('');
-            setFailedSliceKey('');
+            setSliceRead({
+                status: 'ready',
+                result: { selectionKey: requestKey, response },
+            });
         }).catch(err => {
             if (requestId !== sliceRequestIdRef.current) return;
             console.error('Failed to load forward curve slice', err);
-            setPendingSliceKey('');
-            setFailedSliceKey(requestKey);
-        }).finally(() => {
-            if (requestId === sliceRequestIdRef.current) setLoadingSlice(false);
+            setSliceRead(current => ({
+                status: 'failed',
+                selectionKey: requestKey,
+                previous: getLoadedSlice(current),
+            }));
         });
     }, [ready]);
 
@@ -922,9 +933,11 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
 
     const prepareSliceRefresh = (next: SelectedSlice) => {
         sliceRequestIdRef.current += 1;
-        setPendingSliceKey(sliceKey(next));
-        setFailedSliceKey('');
-        setLoadingSlice(true);
+        setSliceRead(current => ({
+            status: 'loading',
+            selectionKey: sliceKey(next),
+            previous: getLoadedSlice(current),
+        }));
     };
 
     const selectCell = (cell: ForwardCurveMarketCell) => {
@@ -966,11 +979,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     };
 
     const selectedKey = sliceKey(selected);
-    const activeSlice = slice && sliceSelectionKey === selectedKey ? slice : null;
-    const waitingForActiveSlice = Boolean(selectedKey && pendingSliceKey === selectedKey);
+    const loadedSlice = getLoadedSlice(sliceRead);
+    const activeSlice = loadedSlice?.selectionKey === selectedKey ? loadedSlice.response : null;
+    const sliceFailed = sliceRead.status === 'failed' && sliceRead.selectionKey === selectedKey;
     const latestSignals = table?.latest_signals ?? [];
     const activeCell = activeSlice?.cell ?? selectedCell;
-    const evidenceLoading = loadingSlice || waitingForActiveSlice || Boolean(activeCell && !activeSlice && failedSliceKey !== selectedKey);
+    const evidenceLoading = sliceRead.status === 'loading' || Boolean(activeCell && !activeSlice && !sliceFailed);
 
     if (!ready) return null;
 
@@ -1223,7 +1237,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                 cell={activeCell}
                                 slice={activeSlice}
                                 loading={evidenceLoading}
-                                failed={failedSliceKey === selectedKey}
+                                failed={sliceFailed}
                             />
                             <div className="forward-curve-console__panel border bg-[#080c13]">
                                 <div className="forward-curve-console__label border-b border-slate-800 px-3 py-2 font-bold uppercase tracking-[0.18em]">
@@ -1235,7 +1249,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
                                             <RefreshCw size={13} className="mr-2 animate-spin" aria-hidden="true" />
                                             {t('forwardCurve.summary.refreshingPrint')}
                                         </div>
-                                    ) : failedSliceKey === selectedKey ? (
+                                    ) : sliceFailed ? (
                                         <div role="alert" className="bg-rose-950/30 px-3 py-4 text-xs text-rose-300">
                                             {t('forwardCurve.summary.printError')}
                                         </div>
