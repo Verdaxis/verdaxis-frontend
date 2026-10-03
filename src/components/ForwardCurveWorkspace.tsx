@@ -18,6 +18,7 @@ import type {
 import { formatAvailabilityWindow, formatAvailabilityWindowPeriod, getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import { getForwardCurveHorizon, getForwardCurveTicks, type ForwardCurveHorizon } from '../utils/forwardCurveAxis';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
+import { writeMarketplaceSlice } from '../utils/marketplaceSelection';
 import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextClass } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import type { MarketSlice } from '../utils/sliceUrl';
@@ -144,15 +145,6 @@ const persistSelection = (selection: SelectedSlice) => {
     localStorage.setItem(PRODUCT_STORAGE_KEY, selection.marketProduct);
     localStorage.setItem(DELIVERY_POINT_STORAGE_KEY, selection.deliveryPointId);
     localStorage.setItem(WINDOW_STORAGE_KEY, selection.availabilityWindow);
-};
-
-const persistMarketplaceSlice = (cell: ForwardCurveMarketCell) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem('verdaxis_marketplace_port', cell.delivery_point_name);
-    localStorage.setItem('verdaxis_marketplace_delivery_point_id', cell.delivery_point_id);
-    localStorage.setItem('verdaxis_marketplace_product', cell.market_product);
-    localStorage.removeItem('verdaxis_marketplace_fuel');
-    localStorage.setItem('verdaxis_marketplace_window', cell.availability_window);
 };
 
 const flattenCells = (table: ForwardCurveTableResponse | null) => (
@@ -960,7 +952,12 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
             });
             return;
         }
-        persistMarketplaceSlice(cell);
+        writeMarketplaceSlice({
+            portName: cell.delivery_point_name,
+            deliveryPointId: cell.delivery_point_id,
+            marketProduct: cell.market_product,
+            availabilityWindow: cell.availability_window,
+        });
         onNavigate?.('MARKETPLACE');
     };
 

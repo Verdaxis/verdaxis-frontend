@@ -47,6 +47,7 @@ import {
 import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
+import { MARKETPLACE_SELECTION_STORAGE_KEYS } from '../utils/marketplaceSelection';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
@@ -107,13 +108,9 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 // ─── Product chip options ─────────────────────────────────────────
 const ALL_MARKET_PRODUCTS = 'All';
 const MARKET_PRODUCT_FILTERS: Array<typeof ALL_MARKET_PRODUCTS | MarketProduct> = [ALL_MARKET_PRODUCTS, ...ORDERBOOK_MARKET_PRODUCTS];
-const MARKETPLACE_PRODUCT_STORAGE_KEY = 'verdaxis_marketplace_product';
-const LEGACY_MARKETPLACE_FUEL_STORAGE_KEY = 'verdaxis_marketplace_fuel';
-const MARKETPLACE_DELIVERY_POINT_STORAGE_KEY = 'verdaxis_marketplace_delivery_point_id';
-
 function readStoredMarketProduct(): typeof ALL_MARKET_PRODUCTS | MarketProduct {
-    const stored = localStorage.getItem(MARKETPLACE_PRODUCT_STORAGE_KEY)
-        ?? localStorage.getItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
+    const stored = localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.product)
+        ?? localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.legacyFuel);
     return isOrderbookMarketProduct(stored) ? stored : ALL_MARKET_PRODUCTS;
 }
 
@@ -193,8 +190,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [overlayAssumptions, setOverlayAssumptions] = useState<ComplianceOverlayAssumptions | null>(null);
 
     // ─── Filter state ─────────────────────────────────────────────
-    const [portInput, setPortInput] = useState(() => (isOrderbookMarketProduct(initialSlice?.product) ? initialSlice?.port : undefined) || initialPort?.name || localStorage.getItem('verdaxis_marketplace_port') || '');
-    const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY) || '');
+    const [portInput, setPortInput] = useState(() => (isOrderbookMarketProduct(initialSlice?.product) ? initialSlice?.port : undefined) || initialPort?.name || localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.port) || '');
+    const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
     const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
@@ -221,7 +218,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const marketProduct = isOrderbookMarketProduct(requestedProduct) ? requestedProduct : selectedMarketProduct;
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window as AvailabilityWindow;
-        const stored = localStorage.getItem('verdaxis_marketplace_window');
+        const stored = localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow);
         return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({ locale }), [locale]);
@@ -615,21 +612,41 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
-        localStorage.setItem('verdaxis_marketplace_port', portInput);
+        localStorage.setItem(MARKETPLACE_SELECTION_STORAGE_KEYS.port, portInput);
     }, [portInput]);
 
     useEffect(() => {
         if (resolvedDeliveryPointId) {
-            localStorage.setItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY, resolvedDeliveryPointId);
+            localStorage.setItem(
+                MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId,
+                resolvedDeliveryPointId,
+            );
         } else if (!resolvedPort) {
-            localStorage.removeItem(MARKETPLACE_DELIVERY_POINT_STORAGE_KEY);
+            localStorage.removeItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId);
         }
     }, [resolvedDeliveryPointId, resolvedPort]);
 
     useEffect(() => {
-        localStorage.setItem(MARKETPLACE_PRODUCT_STORAGE_KEY, marketProduct);
-        localStorage.removeItem(LEGACY_MARKETPLACE_FUEL_STORAGE_KEY);
+        localStorage.setItem(MARKETPLACE_SELECTION_STORAGE_KEYS.product, marketProduct);
+        localStorage.removeItem(MARKETPLACE_SELECTION_STORAGE_KEYS.legacyFuel);
     }, [marketProduct]);
+
+    useEffect(() => {
+        if (
+            !ready
+            || isHistorySelected
+            || (initialSlice && availability !== initialSlice.window)
+        ) return;
+
+        if (availability) {
+            localStorage.setItem(
+                MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow,
+                availability,
+            );
+        } else {
+            localStorage.removeItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow);
+        }
+    }, [availability, initialSlice?.window, isHistorySelected, ready]);
 
     const portOptions = useMemo(() => ([
         { value: '', label: t('marketplace.filter.allPorts') },
