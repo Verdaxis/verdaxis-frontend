@@ -4,11 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 
 // Mock IntersectionObserver for motion/react useInView
 beforeAll(() => {
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
+  global.IntersectionObserver = vi.fn(function IntersectionObserverMock() {
+    return {
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+    };
+  });
 });
 
 import { PartnerShowcasePage } from '../PartnerShowcasePage';

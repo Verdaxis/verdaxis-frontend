@@ -63,6 +63,9 @@ describe('useSSE', () => {
 
   beforeEach(() => {
     invalidateReadCache();
+    fetchMock.mockReset();
+    authTokenMocks.getAccessToken.mockReset();
+    authTokenMocks.refreshAccessToken.mockReset();
     vi.spyOn(Math, 'random').mockReturnValue(0);
     FakeEventSource.instances = [];
     vi.stubGlobal('EventSource', FakeEventSource);
