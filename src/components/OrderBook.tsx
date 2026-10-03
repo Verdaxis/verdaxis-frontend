@@ -22,10 +22,6 @@ interface OrderBookProps {
     onInstantTrade?: (orderId: string, side: 'BID' | 'ASK', price: number, quantity: number) => void;
 }
 
-interface OrderBookRow extends OrderBookOrder {
-    is_crossed?: boolean;
-}
-
 const POLL_INTERVAL_MS = 10_000;
 const MAX_ROWS = 15;
 
@@ -40,7 +36,8 @@ function isOrderbookOrder(order: OrderBookOrder): boolean {
         : ['methanol', 'ethanol'].includes(order.fuel_type?.trim().toLowerCase());
 }
 
-export function getExecutableCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+export function getLivePriceCrossState(bids: OrderBookOrder[], asks: OrderBookOrder[]) {
+    // This is a provenance-scoped public price signal, not execution authority.
     // API decimal fields can arrive as strings despite the frontend order type.
     const hasLivePrice = (order: OrderBookOrder) => isOrderbookOrder(order) && !isDemoMarketActivity(order)
         && Number.isFinite(Number(order.price_per_mt_usd)) && Number(order.price_per_mt_usd) > 0;
@@ -92,8 +89,8 @@ function formatQty(qty: number, locale = 'en'): string {
 
 export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, executionMode, region, deliveryPointId, availability, actionableSide, onLevelClick, onInstantTrade }) => {
     const { t, ready } = useNamespace('trading');
-    const [bids, setBids] = useState<OrderBookRow[]>([]);
-    const [asks, setAsks] = useState<OrderBookRow[]>([]);
+    const [bids, setBids] = useState<OrderBookOrder[]>([]);
+    const [asks, setAsks] = useState<OrderBookOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -147,21 +144,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
             if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
 
             // Bids: highest price first (best bid at top)
-            const sortedBids: OrderBookRow[] = [...snapshot.bids]
+            const sortedBids: OrderBookOrder[] = [...snapshot.bids]
                 .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => b.price_per_mt_usd - a.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
             // Asks: lowest price first (best ask at top)
-            const sortedAsks: OrderBookRow[] = [...snapshot.asks]
+            const sortedAsks: OrderBookOrder[] = [...snapshot.asks]
                 .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
-            const crossState = getExecutableCrossState(sortedBids, sortedAsks);
-
-            setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
-            setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
+            setBids(sortedBids);
+            setAsks(sortedAsks);
             setGeneratedAt(snapshot.generated_at);
             setClock(Date.now());
             hasSnapshot.current = true;
@@ -251,7 +246,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     }, [bids, asks]);
 
     const maxRows = Math.max(bids.length, asks.length);
-    const liveSpread = getExecutableCrossState(bids, asks).spread;
+    const livePriceCrossState = React.useMemo(
+        () => getLivePriceCrossState(bids, asks),
+        [bids, asks],
+    );
+    const liveSpread = livePriceCrossState.spread;
     const b100Visible = b100Selected || [...bids, ...asks].some(order => order.market_product === 'UCOME_B100');
     const generatedAtMs = generatedAt ? Date.parse(generatedAt) : Number.NaN;
     const snapshotAgeSeconds = Number.isFinite(generatedAtMs)
@@ -386,8 +385,8 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                         const askIsDemo = isDemoMarketActivity(ask);
                         const bidDepth = bid ? (bid.remaining_quantity_mt / maxQty) * 100 : 0;
                         const askDepth = ask ? (ask.remaining_quantity_mt / maxQty) * 100 : 0;
-                        const bidCrossed = bid ? (bid as any).is_crossed === true : false;
-                        const askCrossed = ask ? (ask as any).is_crossed === true : false;
+                        const bidCrossed = bid ? livePriceCrossState.bidIds.has(bid.id) : false;
+                        const askCrossed = ask ? livePriceCrossState.askIds.has(ask.id) : false;
 
                         const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
                         const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
@@ -585,7 +584,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                 )}
             </div>
 
-            {/* Only executable orders define the live spread, never demo liquidity. */}
+            {/* Only live prices define the spread; demo liquidity and API cross metadata do not. */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs dark:border-slate-700 dark:bg-slate-800/30">
                 <span className="text-slate-500 dark:text-slate-400">{t('orderBook.visibleRows', { count: MAX_ROWS })}</span>
                 <span className="font-medium text-slate-600 dark:text-slate-300">

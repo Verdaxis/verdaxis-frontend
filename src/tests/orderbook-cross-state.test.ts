@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getExecutableCrossState } from '../components/OrderBook';
+import { getLivePriceCrossState } from '../components/OrderBook';
 import type { OrderBookOrder } from '../types';
 
 type ProvenanceOrder = OrderBookOrder & { source_kind?: string; demo_status?: string; is_demo_listing?: boolean };
@@ -23,9 +23,9 @@ const makeOrder = (overrides: Partial<ProvenanceOrder>): OrderBookOrder => ({
   ...overrides,
 });
 
-describe('getExecutableCrossState', () => {
+describe('getLivePriceCrossState', () => {
   it('does not compare a B100 bid with an alcohol ask in an aggregate book', () => {
-    const state = getExecutableCrossState(
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'b100-bid', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 })],
       [makeOrder({ id: 'alcohol-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 650 })],
     );
@@ -36,7 +36,7 @@ describe('getExecutableCrossState', () => {
   });
 
   it('includes B100 in price overlap calculations and still excludes its demo liquidity', () => {
-    const state = getExecutableCrossState(
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'b100-bid', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 })],
       [
         makeOrder({ id: 'b100-ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 }),
@@ -54,12 +54,12 @@ describe('getExecutableCrossState', () => {
   it('compares decimal strings from the API numerically, not alphabetically', () => {
     const bid = makeOrder({ id: 'bid', price_per_mt_usd: '995.00' as unknown as number });
     const ask = makeOrder({ id: 'ask', side: 'ASK', price_per_mt_usd: '1050.00' as unknown as number });
-    expect(getExecutableCrossState([bid], [ask]).hasCross).toBe(false);
-    expect(getExecutableCrossState([bid], [ask]).spread).toBe(55);
+    expect(getLivePriceCrossState([bid], [ask]).hasCross).toBe(false);
+    expect(getLivePriceCrossState([bid], [ask]).spread).toBe(55);
   });
 
-  it('ignores demo-only crosses so demo prices do not show as executable', () => {
-    const state = getExecutableCrossState(
+  it('ignores demo-only crosses so demo prices do not show as live', () => {
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, is_demo_listing: true })],
       [makeOrder({ id: 'real-ask', side: 'ASK', price_per_mt_usd: 650 })],
     );
@@ -70,7 +70,7 @@ describe('getExecutableCrossState', () => {
   });
 
   it('recognizes demo provenance when the compatibility boolean is absent', () => {
-    const state = getExecutableCrossState(
+    const state = getLivePriceCrossState(
       [makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 700, source_kind: 'DEMO_SEED' })],
       [makeOrder({ id: 'demo-ask', side: 'ASK', price_per_mt_usd: 650, demo_status: 'DEMO_ONLY' })],
     );
@@ -81,8 +81,8 @@ describe('getExecutableCrossState', () => {
     expect(state.spread).toBeNull();
   });
 
-  it('detects real executable crosses below demo top-of-book levels', () => {
-    const state = getExecutableCrossState(
+  it('detects real price crosses below demo top-of-book levels', () => {
+    const state = getLivePriceCrossState(
       [
         makeOrder({ id: 'demo-bid', side: 'BID', price_per_mt_usd: 720, is_demo_listing: true }),
         makeOrder({ id: 'real-bid', side: 'BID', price_per_mt_usd: 680 }),
