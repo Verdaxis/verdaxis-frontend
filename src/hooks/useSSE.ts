@@ -76,6 +76,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
     useEffect(() => {
         const generation = ++generationRef.current;
         let disposed = false;
+        let sourceAttempts = 0;
         const tokenRequestController = new AbortController();
 
         const isActive = () => (
@@ -164,6 +165,8 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             }
             const query = params.toString();
             const url = `${API_URL}/stream/${channel}${query ? `?${query}` : ''}`;
+            const isReconnect = sourceAttempts > 0;
+            sourceAttempts += 1;
             const source = new EventSource(url);
             sourceRef.current = source;
 
@@ -171,6 +174,10 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 if (sourceRef.current !== source || !isActive()) return;
                 setIsConnected(true);
                 backoffRef.current = INITIAL_RECONNECT_DELAY;
+                if (isReconnect) {
+                    invalidateReadsForEvent(channel);
+                    handlerRef.current('reconnect', { reason: 'transport_reconnected' });
+                }
             };
 
             const handleMessage = (type: string, event: MessageEvent<string>) => {
