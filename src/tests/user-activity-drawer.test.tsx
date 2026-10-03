@@ -35,6 +35,12 @@ describe('UserActivityDrawer', () => {
       }],
       has_more: true,
       last_activity_at: '2026-09-25T08:30:00Z',
+      browser_reported_delivery_loss: {
+        reports_received: 2,
+        dropped_events: 5,
+        rejected_events: 1,
+        last_reported_at: '2026-09-25T08:35:00Z',
+      },
     });
 
     render(<UserActivityDrawer user={user} onClose={vi.fn()} />);
@@ -42,6 +48,9 @@ describe('UserActivityDrawer', () => {
     expect(await screen.findByText('Viewed page')).toBeTruthy();
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeTruthy();
     expect(document.querySelector('img')).toBeNull();
+    expect(screen.getByText('Partial browser delivery signal')).toBeTruthy();
+    expect(screen.getByText('Reports: 2 · Dropped events: 5 · Rejected events: 1')).toBeTruthy();
+    expect(screen.getByText(/Closed or offline browsers and undelivered reports remain unknown/)).toBeTruthy();
     expect(mocks.userActivity).toHaveBeenLastCalledWith(
       'user-1',
       { days: 30, kind: 'all', limit: 50, offset: 0 },
@@ -86,6 +95,9 @@ describe('UserActivityDrawer', () => {
         items: [{ id: 'second', occurred_at: '2026-09-25T09:00:00Z', source: 'business', action: 'second_action', details: {} }],
         has_more: false,
         last_activity_at: '2026-09-25T09:00:00Z',
+        browser_reported_delivery_loss: {
+          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+        },
       });
     });
     expect(await screen.findByText('Second Action')).toBeTruthy();
@@ -95,6 +107,9 @@ describe('UserActivityDrawer', () => {
         items: [{ id: 'first', occurred_at: '2026-09-25T08:00:00Z', source: 'business', action: 'stale_action', details: {} }],
         has_more: false,
         last_activity_at: '2026-09-25T08:00:00Z',
+        browser_reported_delivery_loss: {
+          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+        },
       });
     });
     expect(screen.queryByText('Stale Action')).toBeNull();
@@ -103,7 +118,14 @@ describe('UserActivityDrawer', () => {
   it('offers a retry and then shows the empty state', async () => {
     mocks.userActivity
       .mockRejectedValueOnce(new Error('unavailable'))
-      .mockResolvedValueOnce({ items: [], has_more: false, last_activity_at: null });
+      .mockResolvedValueOnce({
+        items: [],
+        has_more: false,
+        last_activity_at: null,
+        browser_reported_delivery_loss: {
+          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+        },
+      });
 
     render(<UserActivityDrawer user={user} onClose={vi.fn()} />);
 

@@ -20,7 +20,14 @@ describe('activity API client', () => {
 
   it('builds the bounded admin activity query', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
-      okJson({ items: [], has_more: false, last_activity_at: null }));
+      okJson({
+        items: [],
+        has_more: false,
+        last_activity_at: null,
+        browser_reported_delivery_loss: {
+          reports_received: 0, dropped_events: 0, rejected_events: 0, last_reported_at: null,
+        },
+      }));
     global.fetch = fetchMock as unknown as typeof fetch;
 
     await api.admin.userActivity('user/id', {
@@ -51,6 +58,11 @@ describe('activity API client', () => {
         delivery_point_id: 'a9f46f75-51f7-4d31-9f36-32b525ab2f1f',
         availability_window: 'SPOT',
       }],
+      delivery_loss: {
+        report_id: 'f24aa0fc-5ba7-426d-990e-ed5523c4d685',
+        dropped_events: 3,
+        rejected_events: 1,
+      },
     })).resolves.toBe('retryable');
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -66,6 +78,11 @@ describe('activity API client', () => {
         delivery_point_id: 'a9f46f75-51f7-4d31-9f36-32b525ab2f1f',
         availability_window: 'SPOT',
       }],
+      delivery_loss: {
+        report_id: 'f24aa0fc-5ba7-426d-990e-ed5523c4d685',
+        dropped_events: 3,
+        rejected_events: 1,
+      },
     });
   });
 

@@ -53,8 +53,17 @@ in-app consent prompt and does not depend on the anonymous analytics preference.
 The queue exists only in memory. Events attempted before authentication are dropped
 and are never replayed. Logout and account change clear queued work.
 Repeated equivalent events are deduplicated. Delivery is fire-and-forget through a quiet
-API path: failures do not refresh auth, log out the user, show notifications, retry, or
-interrupt an interaction.
+API path with at most three bounded attempts. Failures do not refresh auth, log out the user,
+show notifications, or interrupt an interaction.
+
+Account-linked browsers attach one bounded delivery-loss report to the next normal activity batch
+after queue overflow, permanent rejection, or exhausted delivery retries. The report contains
+only a new UUID and dropped/rejected counts. It is frozen across retries and discarded with
+queued work when the principal or auth generation changes. Logout and provider unmount clears
+are not reported. The adapter never sends a report by itself, and a failed report does not
+requeue that report. As a result, the admin delivery-loss summary is a partial signal: closed
+or offline browsers and reports that never reach the server remain unknown. It is not a
+delivery percentage or an audit ledger.
 
 Platform administrators can view the resulting user activity timeline. Account-linked
 browsing is available for 90 days, then removed by the next scheduled cleanup. Business actions are recorded by the backend at

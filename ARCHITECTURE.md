@@ -280,6 +280,11 @@ Only fixed app page slugs, canonical market products, delivery-point UUIDs, and 
 availability windows can leave the adapter. It never sends URL values, search terms, request
 content, user identifiers, or time-spent estimates. `services/cookiePreferences.ts` stores
 the anonymous analytics choice and accepts existing version-1 and version-2 choices.
+Terminal delivery failures and queue overflow add bounded dropped/rejected counts to the next
+normal activity batch. The adapter freezes that report across retries, never sends it alone,
+and discards it at account or auth-generation boundaries. The Admin activity drawer presents
+the server's aggregate as a partial browser-reported signal because closed/offline browsers and
+undelivered reports remain unknown.
 `CookieConsent` provides the banner and settings controls.
 Withdrawal clears queued Umami operations and stops future Umami tracking; essential sign-in and
 display preferences remain available. Auto-tracking, replay, and heatmaps are disabled.

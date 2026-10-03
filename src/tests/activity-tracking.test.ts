@@ -192,6 +192,44 @@ describe('identified activity tracking', () => {
     });
   });
 
+  it('reports terminal loss only with the next normal batch and freezes it across retries', async () => {
+    const send = vi.fn()
+      .mockResolvedValueOnce('retryable')
+      .mockResolvedValueOnce('retryable')
+      .mockResolvedValueOnce('retryable')
+      .mockResolvedValueOnce('accepted');
+    const tracker = createActivityTracker({
+      send,
+      createId,
+      retryDelayMs: 10,
+      maxDeliveryAttempts: 2,
+    });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+
+    await vi.advanceTimersByTimeAsync(260);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0][0]).not.toHaveProperty('delivery_loss');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(send).toHaveBeenCalledTimes(2);
+
+    tracker.trackPage('map');
+    await vi.advanceTimersByTimeAsync(250);
+    const reportedBatch = send.mock.calls[2][0];
+    expect(reportedBatch).toEqual({
+      events: [{ id: expect.any(String), action: 'page_view', page: 'map' }],
+      delivery_loss: {
+        report_id: expect.any(String),
+        dropped_events: 1,
+        rejected_events: 0,
+      },
+    });
+
+    await vi.advanceTimersByTimeAsync(10);
+    expect(send.mock.calls[3][0]).toEqual(reportedBatch);
+  });
+
   it('bounds the buffer and counts permanent rejection separately', async () => {
     const send = vi.fn().mockResolvedValue('rejected');
     const tracker = createActivityTracker({ send, createId, maxBufferedEvents: 2 });
@@ -209,6 +247,56 @@ describe('identified activity tracking', () => {
       retried: 0,
       dropped: 1,
       pending: 0,
+    });
+  });
+
+  it('reports overflow and permanent rejection in bounded fields', async () => {
+    const send = vi.fn()
+      .mockResolvedValueOnce('rejected')
+      .mockResolvedValueOnce('accepted');
+    const tracker = createActivityTracker({ send, createId, maxBufferedEvents: 1 });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+    for (let index = 0; index < 10_005; index += 1) {
+      tracker.trackPage(index % 2 === 0 ? 'map' : 'curve');
+    }
+
+    await vi.advanceTimersByTimeAsync(250);
+    expect(send.mock.calls[0][0].delivery_loss).toMatchObject({
+      dropped_events: 10_000,
+      rejected_events: 0,
+    });
+
+    tracker.trackPage('curve');
+    await vi.advanceTimersByTimeAsync(250);
+    expect(send.mock.calls[1][0].delivery_loss).toMatchObject({
+      dropped_events: 0,
+      rejected_events: 1,
+    });
+  });
+
+  it('discards pending loss and ignores old completions at a session boundary', async () => {
+    let resolveOldBatch: (outcome: 'retryable') => void = () => undefined;
+    const send = vi.fn()
+      .mockImplementationOnce(() => new Promise(resolve => {
+        resolveOldBatch = resolve;
+      }))
+      .mockResolvedValue('accepted');
+    const tracker = createActivityTracker({ send, createId, maxBufferedEvents: 1 });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+    tracker.trackPage('map');
+    await vi.advanceTimersByTimeAsync(250);
+
+    tracker.setSession('user-2');
+    resolveOldBatch('retryable');
+    await Promise.resolve();
+    tracker.trackPage('curve');
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0]).toEqual({
+      events: [{ id: expect.any(String), action: 'page_view', page: 'curve' }],
     });
   });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { TFunction } from 'i18next';
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, Clock3, Eye, Loader2, LogIn, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, CircleAlert, Clock3, Eye, Loader2, LogIn, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { api, isAbortError } from '../../services/api';
@@ -47,6 +47,8 @@ const formatTimestamp = (value: string, locale: string) => {
         timeZoneName: 'short',
       }).format(date);
 };
+
+const formatCount = (value: number, locale: string) => new Intl.NumberFormat(locale).format(value);
 
 const formatDetail = (key: string, value: unknown, locale: string): string => {
   if (key === 'market_product' && typeof value === 'string') return formatMarketProduct(value);
@@ -300,6 +302,36 @@ export const UserActivityDrawer: React.FC<UserActivityDrawerProps> = ({ user, on
                   ? formatTimestamp(response.last_activity_at, locale)
                   : t('activity.neverRecorded', { defaultValue: 'No recorded activity' })}
           </div>
+          {!loading && !error && response && (
+            <section
+              aria-labelledby="browser-delivery-loss-title"
+              className="mt-3 flex gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-3"
+            >
+              <CircleAlert size={16} className="mt-0.5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+              <div className="min-w-0 text-xs leading-relaxed text-verdaxis-text-muted">
+                <h3 id="browser-delivery-loss-title" className="font-semibold text-verdaxis-text">
+                  {t('activity.deliveryLoss.title', { defaultValue: 'Partial browser delivery signal' })}
+                </h3>
+                <p className="mt-1">
+                  {t('activity.deliveryLoss.summary', {
+                    reports: formatCount(response.browser_reported_delivery_loss.reports_received, locale),
+                    dropped: formatCount(response.browser_reported_delivery_loss.dropped_events, locale),
+                    rejected: formatCount(response.browser_reported_delivery_loss.rejected_events, locale),
+                    defaultValue: 'Reports: {{reports}} · Dropped events: {{dropped}} · Rejected events: {{rejected}}',
+                  })}
+                </p>
+                <p className="mt-1">
+                  {t('activity.deliveryLoss.coverage', { defaultValue: 'This covers only browsers that later delivered a report. Closed or offline browsers and undelivered reports remain unknown.' })}
+                </p>
+                {response.browser_reported_delivery_loss.last_reported_at && (
+                  <p className="mt-1">
+                    {t('activity.deliveryLoss.lastReported', { defaultValue: 'Last report' })}: {' '}
+                    {formatTimestamp(response.browser_reported_delivery_loss.last_reported_at, locale)}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
