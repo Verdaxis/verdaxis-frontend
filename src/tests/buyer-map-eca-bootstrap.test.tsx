@@ -44,7 +44,8 @@ vi.mock('../services/api', () => ({
 vi.mock('mapbox-gl', () => {
   class MockMap {
     private listeners = new Map<string, Set<() => void>>();
-    setStyle = vi.fn();
+    private styleLoaded = false;
+    setStyle = vi.fn(() => { this.styleLoaded = false; });
 
     constructor() {
       mapState.events.push('map');
@@ -58,7 +59,7 @@ vi.mock('mapbox-gl', () => {
     getLayer() { return undefined; }
     getSource() { return undefined; }
     hasImage() { return true; }
-    isStyleLoaded() { return true; }
+    isStyleLoaded() { return this.styleLoaded; }
     loaded() { return true; }
     on(event: string, callback: () => void) {
       const listeners = this.listeners.get(event) ?? new Set<() => void>();
@@ -67,7 +68,10 @@ vi.mock('mapbox-gl', () => {
     }
     off(event: string, callback: () => void) { this.listeners.get(event)?.delete(callback); }
     once() {}
-    emit(event: string) { this.listeners.get(event)?.forEach(callback => callback()); }
+    emit(event: string) {
+      if (event === 'style.load') this.styleLoaded = true;
+      this.listeners.get(event)?.forEach(callback => callback());
+    }
     remove() {}
     resize() {}
     setLanguage() {}
@@ -117,11 +121,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('starts Mapbox before ECA and reinstalls the overlay with current settings after style changes', async () => {
+it('waits for the initial Mapbox style before ECA and reinstalls the overlay after style changes', async () => {
   const currentView = render(<MemoryRouter><BuyerMap active {...props} /></MemoryRouter>);
 
-  await waitFor(() => expect(overlay.addEcaLayers).toHaveBeenCalledOnce());
+  await waitFor(() => expect(mapState.instances).toHaveLength(1));
   const currentMap = mapState.instances[0];
+  expect(overlay.loadEcaLayers).not.toHaveBeenCalled();
+  expect(overlay.addEcaLayers).not.toHaveBeenCalled();
+
+  act(() => currentMap.emit('style.load'));
+
+  await waitFor(() => expect(overlay.addEcaLayers).toHaveBeenCalledOnce());
+  expect(overlay.loadEcaLayers).toHaveBeenCalledOnce();
   expect(mapState.events.slice(0, 2)).toEqual(['map', 'eca']);
   expect(overlay.addEcaLayers).toHaveBeenLastCalledWith(currentMap, {
     isDark: false,
@@ -149,4 +160,18 @@ it('starts Mapbox before ECA and reinstalls the overlay with current settings af
     isDark: true,
     visible: false,
   });
+  expect(overlay.loadEcaLayers).toHaveBeenCalledOnce();
+});
+
+it('does not load ECA after unmounting before the initial style is ready', async () => {
+  const currentView = render(<MemoryRouter><BuyerMap active {...props} /></MemoryRouter>);
+
+  await waitFor(() => expect(mapState.instances).toHaveLength(1));
+  const currentMap = mapState.instances[0];
+  currentView.unmount();
+
+  act(() => currentMap.emit('style.load'));
+
+  expect(overlay.loadEcaLayers).not.toHaveBeenCalled();
+  expect(overlay.addEcaLayers).not.toHaveBeenCalled();
 });
