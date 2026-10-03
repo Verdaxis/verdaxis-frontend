@@ -59,7 +59,7 @@ index.html
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
-**Private stream resets.** `useSSE` invalidates affected REST reads and clears the private trade replay cursor for every server `reset`. `auth_revoked` also clears the cursor and all cached reads before reconnect.
+**Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor.
 
 **Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
 
@@ -102,6 +102,7 @@ src/
     publicMarketSync.ts             shared market invalidation subscriber
     analytics.ts                    optional consent-gated Umami adapter
   hooks/                            workspace readiness, SSE, preferences, watchlists
+  utils/marketplaceSelection.ts      persisted Marketplace product/port/window handoff
   utils/                            market identity, slice URLs, axis and display helpers
   locales/{en,zh}/                  lazy translation namespaces
   pages/                            auth/onboarding and public route pages
