@@ -59,7 +59,7 @@ index.html
 
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
-**Private stream recovery.** After a `subscriber_overflow` reset, `useSSE` refreshes affected REST reads and reconnects the private trade stream with its last acknowledged replay cursor. Other resets and `auth_revoked` clear that cursor.
+**Private stream resets.** `useSSE` invalidates affected REST reads and clears the private trade replay cursor for every server `reset`. `auth_revoked` also clears the cursor and all cached reads before reconnect.
 
 **Production activity.** `ActivityTrackingProvider`, `services/activityTracking.ts`, and `types/activity.ts` send bounded authenticated page and canonical market-slice activity. The adapter clears account-bound state at auth changes and does not replace optional Umami analytics consent.
 
