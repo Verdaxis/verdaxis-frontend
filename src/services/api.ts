@@ -237,6 +237,8 @@ const fetchWithTimeout = (url: string, options?: RequestInit, timeoutMs = 15000)
         });
 };
 
+const ACTIVITY_DELIVERY_TIMEOUT_MS = 5_000;
+
 export const isAbortError = (error: unknown): boolean =>
     error instanceof DOMException
         ? error.name === 'AbortError'
@@ -613,7 +615,7 @@ export const api = {
             const token = getAccessToken();
             if (!token) return 'rejected';
             try {
-                const response = await fetch(`${API_URL}/activity/events`, {
+                const response = await fetchWithTimeout(`${API_URL}/activity/events`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -621,7 +623,7 @@ export const api = {
                     },
                     body: JSON.stringify(input),
                     keepalive: true,
-                });
+                }, ACTIVITY_DELIVERY_TIMEOUT_MS);
                 if (response.ok) return 'accepted';
                 if (response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500) {
                     return 'retryable';

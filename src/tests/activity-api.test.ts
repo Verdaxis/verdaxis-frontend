@@ -12,6 +12,7 @@ describe('activity API client', () => {
   const originalFetch = global.fetch;
 
   afterEach(() => {
+    vi.useRealTimers();
     clearAccessToken();
     global.fetch = originalFetch;
     vi.restoreAllMocks();
@@ -82,6 +83,26 @@ describe('activity API client', () => {
     await expect(api.activity.record(input)).resolves.toBe('retryable');
     await expect(api.activity.record(input)).resolves.toBe('rejected');
     await expect(api.activity.record(input)).resolves.toBe('accepted');
+  });
+
+  it('classifies a hung activity request as retryable after five seconds', async () => {
+    vi.useFakeTimers();
+    setAccessToken('activity-token');
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('Aborted', 'AbortError'));
+      }, { once: true });
+    }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const delivery = api.activity.record({
+      events: [{ id: '548ae12e-d8dd-43c4-96cf-dbe581cd459f', action: 'page_view', page: 'home' }],
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(delivery).resolves.toBe('retryable');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0][1]?.signal as AbortSignal).aborted).toBe(true);
   });
 
   it('does not send account activity without an access token', async () => {
