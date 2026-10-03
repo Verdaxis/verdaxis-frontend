@@ -301,6 +301,18 @@ export interface OrderBookOrder {
     etag?: string;
 }
 
+export interface OrderBookSnapshot {
+    market_product: MarketProduct;
+    delivery_point_id: string;
+    availability_window: string;
+    generated_at: string;
+    source_kind: MarketSourceKind;
+    scope: MarketScope;
+    demo_status: MarketDemoStatus;
+    bids: OrderBookOrder[];
+    asks: OrderBookOrder[];
+}
+
 export interface Trade {
     id: string;
     bid_order_id?: string;

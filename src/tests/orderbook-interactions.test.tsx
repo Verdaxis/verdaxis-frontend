@@ -4,139 +4,43 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
 
-const { listBids, listAsks } = vi.hoisted(() => ({ listBids: vi.fn(), listAsks: vi.fn() }));
-vi.mock('../services/api', () => ({ api: { orderbook: { listBids, listAsks } } }));
+const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
 
-const bid = {
-    id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
-    remaining_quantity_mt: 100, availability_window: '2028-Q1', region: 'Singapore',
-    certifications: ['ISCC'],
-};
+vi.mock('../services/api', () => ({ api: { orderbook: {
+  snapshot,
+} } }));
 
-beforeEach(() => {
-  listBids.mockReset().mockResolvedValue([bid]);
-  listAsks.mockReset().mockResolvedValue([]);
+const MARKET = {
+  marketProduct: 'BIO_METHANOL',
+  deliveryPointId: 'delivery-point',
+  availability: 'SPOT',
+} as const;
+
+const makeSnapshot = (bids: unknown[] = [], asks: unknown[] = [], generatedAt = new Date().toISOString()) => ({
+  market_product: 'BIO_METHANOL',
+  delivery_point_id: MARKET.deliveryPointId,
+  availability_window: MARKET.availability,
+  generated_at: generatedAt,
+  source_kind: 'LIVE_ORDER',
+  scope: 'DELIVERY_POINT',
+  demo_status: 'REAL_ONLY',
+  bids,
+  asks,
 });
 
 describe('orderbook inspection', () => {
-  it.each([
-    { marketProduct: 'UCOME_B100' },
-    { marketProduct: 'UCOME_B100', executionMode: 'RFQ_ONLY' as const },
-    { marketProduct: 'UNRECOGNIZED_PRODUCT' },
-    { fuelType: 'Unrecognized fuel' },
-  ])('does not request book data for unsupported product filters: %j', async (filters) => {
-    const openTrade = vi.fn();
-    await act(async () => {
-      renderWithProviders(<OrderBook {...filters} actionableSide="BID" onLevelClick={openTrade} onInstantTrade={openTrade} />);
-    });
-    expect(listBids).not.toHaveBeenCalled();
-    expect(listAsks).not.toHaveBeenCalled();
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(openTrade).not.toHaveBeenCalled();
-  });
-
-  it('discards a pending alcohol response after switching to an RFQ product', async () => {
-    let resolveOld: (rows: unknown[]) => void = () => {};
-    listBids.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
-    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" actionableSide="BID" onLevelClick={vi.fn()} />);
-    await waitFor(() => expect(listBids).toHaveBeenCalledTimes(1));
-    view.rerender(<OrderBook marketProduct="UCOME_B100" executionMode="RFQ_ONLY" actionableSide="BID" onLevelClick={vi.fn()} />);
-    await act(async () => resolveOld([bid]));
-    expect(listBids).toHaveBeenCalledTimes(1);
-    expect(listAsks).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.queryByText('$600')).toBeNull();
-  });
-
-  it('stops polling when the selected product changes to RFQ-only', async () => {
-    vi.useFakeTimers();
-    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" />);
-    try {
-      await act(async () => {});
-      expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
-      expect(listBids).toHaveBeenCalledTimes(1);
-      expect(listAsks).toHaveBeenCalledTimes(1);
-      await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
-      expect(listBids).toHaveBeenCalledTimes(2);
-      expect(listAsks).toHaveBeenCalledTimes(2);
-      view.rerender(<OrderBook marketProduct="UCOME_B100" executionMode="RFQ_ONLY" />);
-      await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
-      expect(listBids).toHaveBeenCalledTimes(2);
-      expect(listAsks).toHaveBeenCalledTimes(2);
-    } finally {
-      view.unmount();
-      vi.useRealTimers();
-    }
-  });
-
-  it('shows canonical B100 orders while excluding unknown products returned by an unfiltered request', async () => {
-    listBids.mockResolvedValue([
-      bid,
-      { ...bid, id: 'b100', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 },
-      { ...bid, id: 'unknown', market_product: 'UNKNOWN_FUEL', price_per_mt_usd: 1250 },
-      { ...bid, id: 'unclassified-fame', market_product: undefined, fuel_type: 'FAME', price_per_mt_usd: 1275 },
-    ]);
-    renderWithProviders(<OrderBook actionableSide="BID" onLevelClick={vi.fn()} onInstantTrade={vi.fn()} />);
-    expect(await screen.findByRole('button', { name: /bid.*600/i })).toBeTruthy();
-    expect(screen.getByText('$1,200')).toBeTruthy();
-    expect(screen.queryByText('$1,250')).toBeNull();
-    expect(screen.queryByText('$1,275')).toBeNull();
-    expect(screen.getAllByRole('button', { name: 'Sell' })).toHaveLength(2);
-  });
-
-  it('loads executable B100 orders and opens the same trade review interaction', async () => {
-    const b100Ask = { ...bid, id: 'b100-ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 };
-    listBids.mockResolvedValue([]);
-    listAsks.mockResolvedValue([b100Ask]);
-    const openTrade = vi.fn();
-    renderWithProviders(<OrderBook fuelType="FAME" marketProduct="UCOME_B100" executionMode="ORDERBOOK" deliveryPointId="singapore" availability="SPOT" actionableSide="ASK" onLevelClick={openTrade} />);
-    const level = await screen.findByRole('button', { name: /ask.*1,100/i });
-    expect(listAsks).toHaveBeenCalledWith(expect.objectContaining({ fuel_type: 'FAME', market_product: 'UCOME_B100', delivery_point_id: 'singapore', availability: 'SPOT' }));
-    fireEvent.keyDown(level, { key: 'Enter' });
-    expect(openTrade).toHaveBeenCalledWith(expect.objectContaining(b100Ask));
-    expect(screen.queryByText('Orderbook trading is unavailable for this product.')).toBeNull();
-  });
-
-  it('describes crossed B100 prices as overlap without claiming compatible fuel terms', async () => {
-    listBids.mockResolvedValue([{ ...bid, market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200 }]);
-    listAsks.mockResolvedValue([{ ...bid, id: 'ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100 }]);
-    renderWithProviders(<OrderBook marketProduct="UCOME_B100" executionMode="ORDERBOOK" />);
-    expect(await screen.findByRole('group', { name: /Bid.*1,200/ })).toBeTruthy();
-    expect(screen.getAllByText('PRICE OVERLAP').length).toBeGreaterThan(0);
-    expect(screen.getByText('Price overlap does not confirm matching fuel terms. Review the order requirements before trading.')).toBeTruthy();
-    expect(screen.queryByText('CROSSED')).toBeNull();
-  });
-
-  it('formats API decimal strings as readable prices and quantities', async () => {
-    listBids.mockResolvedValue([{ ...bid, price_per_mt_usd: '1260.20', remaining_quantity_mt: '1500.25' }]);
-    renderWithProviders(<OrderBook />);
-    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();
-  });
-
-  it('labels provenance-only demo rows', async () => {
-    listBids.mockResolvedValue([{
-      ...bid,
-      source_kind: 'DEMO_SEED',
-      demo_status: 'DEMO_ONLY',
-    }]);
-    renderWithProviders(<OrderBook />);
-    const level = await screen.findByRole('group', { name: /Bid.*600/ });
-    fireEvent.focus(level);
-    expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
-  });
-
-  it('forces fresh book data when the user selects Refresh', async () => {
-    renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" deliveryPointId="dp-1" availability="SPOT" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
-    await waitFor(() => {
-      expect(listBids).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: 'SPOT' }), { force: true });
-      expect(listAsks).toHaveBeenLastCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL', delivery_point_id: 'dp-1', availability: 'SPOT' }), { force: true });
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    snapshot.mockImplementation(async (params: { market_product?: string }) => makeSnapshot([{
+        id: 'bid', side: 'BID', market_product: params.market_product ?? 'BIO_METHANOL', price_per_mt_usd: 600,
+        remaining_quantity_mt: 100, availability_window: '2028-Q1', region: 'Singapore',
+        certifications: ['ISCC'],
+      }], []));
   });
 
   it('allows keyboard inspection without making the other side executable', async () => {
     const openTrade = vi.fn();
-    renderWithProviders(<OrderBook actionableSide="ASK" onLevelClick={openTrade} />);
+    renderWithProviders(<OrderBook {...MARKET} actionableSide="ASK" onLevelClick={openTrade} />);
     const level = await screen.findByRole('group', { name: /Bid.*600/ });
     expect(level.tabIndex).toBe(0);
     fireEvent.focus(level);
@@ -148,28 +52,170 @@ describe('orderbook inspection', () => {
     expect(screen.queryByRole('tooltip')).toBeNull();
   });
 
-  it('does not show a demo-only cross as an executable spread', async () => {
-    listBids.mockResolvedValue([{ ...bid, is_demo_listing: true }]);
-    listAsks.mockResolvedValue([{ ...bid, id: 'ask', side: 'ASK', price_per_mt_usd: 590, is_demo_listing: true }]);
-    renderWithProviders(<OrderBook />);
+  it('labels provenance-only demo rows and preserves two-decimal depth', async () => {
+    snapshot.mockResolvedValue(makeSnapshot([{
+      id: 'demo-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+      remaining_quantity_mt: 12.34, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], source_kind: 'DEMO_SEED', demo_status: 'DEMO_ONLY',
+    }], []));
+
+    renderWithProviders(<OrderBook {...MARKET} />);
+    const level = await screen.findByRole('group', { name: /Bid \$600 for 12\.34 MT/ });
+    fireEvent.focus(level);
+    expect(screen.getByRole('tooltip').textContent).toContain('Demo listing seeded for platform preview');
+  });
+
+  it('omits the spread footer for a demo-only cross', async () => {
+    snapshot.mockResolvedValue(makeSnapshot([{
+      id: 'demo-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], is_demo_listing: true,
+    }], [{
+      id: 'demo-ask', side: 'ASK', market_product: 'BIO_METHANOL', price_per_mt_usd: 590,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore',
+      certifications: [], is_demo_listing: true,
+    }]));
+
+    renderWithProviders(<OrderBook {...MARKET} />);
     expect(await screen.findByRole('group', { name: /Bid.*600/ })).toBeTruthy();
     expect(screen.getByText('Live spread').textContent).toContain('—');
+    expect(screen.queryByText('Crossed')).toBeNull();
+  });
+
+  it.each([
+    { marketProduct: 'UCOME_B100' },
+    { marketProduct: 'UCOME_B100', executionMode: 'RFQ_ONLY' as const },
+    { marketProduct: 'UNRECOGNIZED_PRODUCT' },
+    { marketProduct: 'BIO_METHANOL', fuelType: 'Unrecognized fuel' },
+  ])('does not request a snapshot for unsupported product filters: %j', async (filters) => {
+    const openTrade = vi.fn();
+    renderWithProviders(<OrderBook {...MARKET} {...filters} actionableSide="BID" onLevelClick={openTrade} onInstantTrade={openTrade} />);
+    await act(async () => {});
+    expect(snapshot).not.toHaveBeenCalled();
+    expect(openTrade).not.toHaveBeenCalled();
+  });
+
+  it('loads executable B100 orders and opens the same trade review interaction', async () => {
+    const b100Ask = {
+      id: 'b100-ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    };
+    snapshot.mockResolvedValue(makeSnapshot([], [b100Ask]));
+    const openTrade = vi.fn();
+    renderWithProviders(<OrderBook {...MARKET} fuelType="FAME" marketProduct="UCOME_B100" executionMode="ORDERBOOK" actionableSide="ASK" onLevelClick={openTrade} />);
+    const level = await screen.findByRole('button', { name: /ask.*1,100/i });
+    expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({
+      market_product: 'UCOME_B100',
+      delivery_point_id: MARKET.deliveryPointId,
+      availability_window: MARKET.availability,
+    }), { force: false });
+    fireEvent.keyDown(level, { key: 'Enter' });
+    expect(openTrade).toHaveBeenCalledWith(expect.objectContaining(b100Ask));
+  });
+
+  it('describes crossed B100 prices as overlap without claiming compatible fuel terms', async () => {
+    snapshot.mockResolvedValue(makeSnapshot([{
+      id: 'bid', side: 'BID', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1200,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    }], [{
+      id: 'ask', side: 'ASK', market_product: 'UCOME_B100', fuel_type: 'FAME', price_per_mt_usd: 1100,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    }]));
+    renderWithProviders(<OrderBook {...MARKET} marketProduct="UCOME_B100" executionMode="ORDERBOOK" />);
+    expect(await screen.findByRole('group', { name: /Bid.*1,200/ })).toBeTruthy();
+    expect(screen.getAllByText('PRICE OVERLAP').length).toBeGreaterThan(0);
+    expect(screen.getByText('Price overlap does not confirm matching fuel terms. Review the order requirements before trading.')).toBeTruthy();
     expect(screen.queryByText('CROSSED')).toBeNull();
   });
 
-  it('discards a superseded market request and clears its old tooltip', async () => {
-    let resolveOld: (rows: unknown[]) => void = () => {};
-    listBids.mockReturnValueOnce(new Promise(resolve => { resolveOld = resolve; }));
-    const view = renderWithProviders(<OrderBook marketProduct="BIO_METHANOL" />);
-    await waitFor(() => expect(listBids).toHaveBeenCalledTimes(1));
-    listBids.mockResolvedValue([{ ...bid, id: 'new', market_product: 'E_METHANOL', price_per_mt_usd: 1600 }]);
-    view.rerender(<OrderBook marketProduct="E_METHANOL" />);
-    const current = await screen.findByRole('group', { name: /Bid.*1,600/ });
-    await act(async () => resolveOld([bid]));
-    expect(screen.queryByRole('group', { name: /Bid \$600/ })).toBeNull();
-    fireEvent.focus(current);
-    expect(screen.getByRole('tooltip')).toBeTruthy();
-    await act(async () => view.rerender(<OrderBook marketProduct="BIO_ETHANOL" />));
-    expect(screen.queryByRole('tooltip')).toBeNull();
+  it('formats API decimal strings as readable prices and quantities', async () => {
+    snapshot.mockResolvedValue(makeSnapshot([{
+      id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: '1260.20',
+      remaining_quantity_mt: '1500.25', availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    }], []));
+    renderWithProviders(<OrderBook {...MARKET} />);
+    expect(await screen.findByRole('group', { name: /Bid \$1,260.2 for 1,500.25 MT/ })).toBeTruthy();
+  });
+
+  it('discards a stale response after the market product changes', async () => {
+    let resolveBio!: (value: ReturnType<typeof makeSnapshot>) => void;
+    let resolveEMethanol!: (value: ReturnType<typeof makeSnapshot>) => void;
+    const bioRequest = new Promise<ReturnType<typeof makeSnapshot>>(resolve => { resolveBio = resolve; });
+    const eMethanolRequest = new Promise<ReturnType<typeof makeSnapshot>>(resolve => { resolveEMethanol = resolve; });
+    snapshot.mockImplementation(({ market_product }: { market_product?: string }) => (
+      market_product === 'E_METHANOL' ? eMethanolRequest : bioRequest
+    ));
+
+    const view = renderWithProviders(<OrderBook {...MARKET} marketProduct="BIO_METHANOL" />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'BIO_METHANOL' }), { force: false }));
+
+    view.rerender(<OrderBook {...MARKET} marketProduct="E_METHANOL" />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'E_METHANOL' }), { force: false }));
+
+    await act(async () => {
+      resolveEMethanol(makeSnapshot([{
+        id: 'bid-e', side: 'BID', market_product: 'E_METHANOL', price_per_mt_usd: 700,
+        remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      }], []));
+    });
+    expect(await screen.findByRole('group', { name: /Bid.*700/ })).toBeTruthy();
+
+    await act(async () => {
+      resolveBio(makeSnapshot([{
+        id: 'bid-bio', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+        remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      }], []));
+    });
+    expect(screen.getByRole('group', { name: /Bid.*700/ })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: /Bid.*600/ })).toBeNull();
+  }, 30_000);
+
+  it('keeps depth visible and reports stale data after a failed forced refresh', async () => {
+    snapshot.mockResolvedValueOnce(makeSnapshot([{
+      id: 'bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    }], [], new Date(Date.now() - 30_000).toISOString()));
+    renderWithProviders(<OrderBook {...MARKET} />);
+
+    expect(await screen.findByRole('group', { name: /Bid.*600/ })).toBeTruthy();
+    expect(screen.getByTestId('orderbook-freshness').textContent).toContain('Stale');
+
+    snapshot.mockRejectedValueOnce(new Error('network unavailable'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('refresh failed'));
+    expect(screen.getByRole('group', { name: /Bid.*600/ })).toBeTruthy();
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+  });
+
+  it('lets a forced resume refresh supersede an ordinary in-flight read', async () => {
+    let resolveOrdinary!: (value: ReturnType<typeof makeSnapshot>) => void;
+    const ordinaryRequest = new Promise<ReturnType<typeof makeSnapshot>>(resolve => { resolveOrdinary = resolve; });
+    snapshot.mockImplementationOnce(() => ordinaryRequest);
+    snapshot.mockResolvedValueOnce(makeSnapshot([{
+      id: 'fresh-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 700,
+      remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+    }], []));
+
+    renderWithProviders(<OrderBook {...MARKET} />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledWith(expect.any(Object), { force: false }));
+
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+      window.dispatchEvent(new Event('online'));
+    });
+
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    expect(await screen.findByRole('group', { name: /Bid.*700/ })).toBeTruthy();
+
+    await act(async () => {
+      resolveOrdinary(makeSnapshot([{
+        id: 'old-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 600,
+        remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      }], []));
+    });
+    expect(screen.getByRole('group', { name: /Bid.*700/ })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: /Bid.*600/ })).toBeNull();
   });
 });

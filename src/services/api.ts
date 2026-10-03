@@ -3,7 +3,7 @@ import { mapFameQuoteResponse, mapFameRfqResponse, mapFameRfqListResponse } from
 import type { SupplierOffer, SupplierOfferCreateInput, SupplierOfferList, SupplierOfferListParams, SupplierOfferMyListParams, SupplierOfferUpdateInput } from '../types/fameSupplierOffer';
 import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferListQuery, SUPPLIER_OFFERS_CHANGED_EVENT } from './fameSupplierOffer';
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
-import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderCreateInput, Trade, TradeCreateInput } from '../types';
+import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
 import { mapOrderbookFameResponse, mapTradeFameResponse } from './fameOrder';
 import {
     AcquisitionResponse,
@@ -64,6 +64,7 @@ const getHeaders = () => {
 const shouldSkipRefresh = (path: string) => path.startsWith('/auth/');
 
 const PUBLIC_MARKET_READ_PATHS = new Set([
+    '/orderbook/snapshot',
     '/orderbook/bids',
     '/orderbook/asks',
     '/orderbook/product-counts',
@@ -866,6 +867,31 @@ export const api = {
     },
 
     orderbook: {
+        snapshot: async (params: {
+            market_product: string;
+            delivery_point_id: string;
+            availability_window: string;
+        }, cacheOptions?: ReadCacheOptions): Promise<OrderBookSnapshot> => {
+            const searchParams = new URLSearchParams({
+                market_product: params.market_product,
+                delivery_point_id: params.delivery_point_id,
+                availability_window: params.availability_window,
+            });
+            const path = `/orderbook/snapshot?${searchParams.toString()}`;
+            const response = await readApi<OrderBookSnapshot>(
+                `orderbook:${path}`,
+                path,
+                'orderbookSnapshot',
+                'public',
+                undefined,
+                cacheOptions,
+            );
+            return {
+                ...response,
+                bids: mapOrderbookFameResponse(response.bids),
+                asks: mapOrderbookFameResponse(response.asks),
+            };
+        },
         listWithCI: async (params?: { region?: string; delivery_point_id?: string; fuel_type?: string; market_product?: string; side?: string }, cacheOptions?: ReadCacheOptions) => {
             const searchParams = new URLSearchParams();
             if (params?.region) searchParams.append('region', params.region);

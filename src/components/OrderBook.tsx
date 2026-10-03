@@ -94,13 +94,16 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const [bids, setBids] = useState<OrderBookRow[]>([]);
     const [asks, setAsks] = useState<OrderBookRow[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+    const [clock, setClock] = useState(() => Date.now());
     const [hoverTooltip, setHoverTooltip] = useState<{ order: OrderBookOrder; x: number; y: number } | null>(null);
     const tooltipId = useId();
     const requestGeneration = useRef(0);
     const latestRequest = useRef(0);
-    const requestsInFlight = useRef(new Map<string, symbol>());
-    const needsInitialLoad = useRef(true);
+    const requestsInFlight = useRef(new Map<string, { token: symbol; forced: boolean }>());
+    const hasSnapshot = useRef(false);
     const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
     const orderbookAvailable = executionMode !== 'RFQ_ONLY'
         && (!b100Selected || executionMode === 'ORDERBOOK')
@@ -110,49 +113,44 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const currentRequestScope = useRef(requestScope);
     currentRequestScope.current = requestScope;
 
-    const fetchData = useCallback(async (silent = false, force = false) => {
+    const fetchData = useCallback(async (force = false) => {
         if (!orderbookAvailable) {
-            needsInitialLoad.current = false;
+            hasSnapshot.current = false;
             setBids([]);
             setAsks([]);
             setHoverTooltip(null);
             setError(null);
+            setGeneratedAt(null);
             setLoading(false);
             return;
         }
-        if (!force && requestsInFlight.current.has(requestScope)) return;
+        if (!marketProduct || !isOrderbookMarketProduct(marketProduct) || !deliveryPointId || !availability) return;
+        const activeRequest = requestsInFlight.current.get(requestScope);
+        if (activeRequest && (!force || activeRequest.forced)) return;
         const requestToken = Symbol(requestScope);
-        requestsInFlight.current.set(requestScope, requestToken);
+        requestsInFlight.current.set(requestScope, { token: requestToken, forced: force });
         const generation = requestGeneration.current;
         const requestId = ++latestRequest.current;
-        if (!silent) {
-            setLoading(true);
-            setHoverTooltip(null);
-        }
+        if (hasSnapshot.current) setRefreshing(true);
+        else setLoading(true);
+        setError(null);
         try {
-            const params = {
-                fuel_type: fuelType,
-                market_product: isOrderbookMarketProduct(marketProduct) ? marketProduct : undefined,
-                region: deliveryPointId ? undefined : region,
+            const snapshot = await api.orderbook.snapshot({
+                market_product: marketProduct,
                 delivery_point_id: deliveryPointId,
-                availability,
-            };
-            const [rawBids, rawAsks] = await Promise.all([
-                force ? api.orderbook.listBids(params, { force: true }) : api.orderbook.listBids(params),
-                force ? api.orderbook.listAsks(params, { force: true }) : api.orderbook.listAsks(params),
-            ]);
+                availability_window: availability,
+            }, { force });
 
-            if (requestsInFlight.current.get(requestScope) !== requestToken || generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
-            setError(null);
+            if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
 
             // Bids: highest price first (best bid at top)
-            const sortedBids: OrderBookRow[] = [...rawBids]
+            const sortedBids: OrderBookRow[] = [...snapshot.bids]
                 .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => b.price_per_mt_usd - a.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
             // Asks: lowest price first (best ask at top)
-            const sortedAsks: OrderBookRow[] = [...rawAsks]
+            const sortedAsks: OrderBookRow[] = [...snapshot.asks]
                 .filter(isOrderbookOrder)
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
@@ -161,16 +159,18 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
 
             setBids(sortedBids.map(order => ({ ...order, is_crossed: crossState.bidIds.has(order.id) })));
             setAsks(sortedAsks.map(order => ({ ...order, is_crossed: crossState.askIds.has(order.id) })));
-        } catch (err: any) {
-            if (!silent && requestsInFlight.current.get(requestScope) === requestToken && generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
-                setError(i18n.language.startsWith('zh') ? t('orderBook.error') : err?.message || t('orderBook.error'));
+            setGeneratedAt(snapshot.generated_at);
+            setClock(Date.now());
+            hasSnapshot.current = true;
+        } catch {
+            if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
+                setError(t('orderBook.error'));
             }
         } finally {
-            const isCurrentRequest = requestsInFlight.current.get(requestScope) === requestToken;
-            if (isCurrentRequest) requestsInFlight.current.delete(requestScope);
-            if (isCurrentRequest && generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
-                needsInitialLoad.current = false;
+            if (requestsInFlight.current.get(requestScope)?.token === requestToken) requestsInFlight.current.delete(requestScope);
+            if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
                 setLoading(false);
+                setRefreshing(false);
             }
         }
     }, [availability, deliveryPointId, fuelType, marketProduct, orderbookAvailable, region, requestScope, t]);
@@ -178,28 +178,49 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     // Initial load + re-fetch when filters change
     useEffect(() => {
         requestGeneration.current += 1;
-        needsInitialLoad.current = true;
+        hasSnapshot.current = false;
+        setBids([]);
+        setAsks([]);
+        setGeneratedAt(null);
+        setError(null);
         setLoading(true);
         setHoverTooltip(null);
-        if (!document.hidden) void fetchData(false);
+        if (!orderbookAvailable) {
+            setLoading(false);
+        } else if (!marketProduct || !isOrderbookMarketProduct(marketProduct) || !deliveryPointId || !availability) {
+            setLoading(false);
+            setError(t('orderBook.error'));
+        } else if (!document.hidden) {
+            void fetchData();
+        }
         return () => {
             requestGeneration.current += 1;
             requestsInFlight.current.delete(requestScope);
         };
-    }, [fetchData, requestScope]);
+    }, [availability, deliveryPointId, fetchData, marketProduct, orderbookAvailable, requestScope, t]);
 
-    // Refresh only while visible, including an immediate refresh when the page resumes.
+    // Poll through the 10-second cache. A visibility/network resume bypasses it.
     useEffect(() => {
-        const refreshWhenVisible = () => {
-            if (!document.hidden && orderbookAvailable) void fetchData(!needsInitialLoad.current);
+        const pollWhenVisible = () => {
+            if (!document.hidden && orderbookAvailable) void fetchData();
         };
-        const interval = window.setInterval(refreshWhenVisible, POLL_INTERVAL_MS);
-        document.addEventListener('visibilitychange', refreshWhenVisible);
+        const refreshAfterResume = () => {
+            if (!document.hidden && orderbookAvailable) void fetchData(true);
+        };
+        const interval = window.setInterval(pollWhenVisible, POLL_INTERVAL_MS);
+        document.addEventListener('visibilitychange', refreshAfterResume);
+        window.addEventListener('online', refreshAfterResume);
         return () => {
             window.clearInterval(interval);
-            document.removeEventListener('visibilitychange', refreshWhenVisible);
+            document.removeEventListener('visibilitychange', refreshAfterResume);
+            window.removeEventListener('online', refreshAfterResume);
         };
     }, [fetchData, orderbookAvailable]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => setClock(Date.now()), 1_000);
+        return () => window.clearInterval(interval);
+    }, []);
 
     // Scale depth bars against the largest visible resting order so large positions still render proportionally.
     const maxQty = React.useMemo(() => {
@@ -210,6 +231,12 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const maxRows = Math.max(bids.length, asks.length);
     const liveSpread = getExecutableCrossState(bids, asks).spread;
     const b100Visible = b100Selected || [...bids, ...asks].some(order => order.market_product === 'UCOME_B100');
+    const generatedAtMs = generatedAt ? Date.parse(generatedAt) : Number.NaN;
+    const snapshotAgeSeconds = Number.isFinite(generatedAtMs)
+        ? Math.max(0, Math.floor((clock - generatedAtMs) / 1_000))
+        : null;
+    const snapshotIsStale = snapshotAgeSeconds !== null
+        && snapshotAgeSeconds * 1_000 > POLL_INTERVAL_MS * 2;
 
     const showTooltipFromElement = useCallback((order: OrderBookOrder, element: HTMLDivElement) => {
         const rect = element.getBoundingClientRect();
@@ -245,17 +272,31 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
         );
     }
 
-    if (error) {
+    if (error && generatedAt === null) {
         return (
             <div role="alert" className="v-glass p-4 mb-0 text-center text-sm text-red-600 dark:text-red-400">
-                <p>{error}</p>
-                <button type="button" onClick={() => fetchData(false, true)}
+                <p>{t('orderBook.unavailable')}</p>
+                <button type="button" onClick={() => void fetchData(true)}
                     className="mt-3 min-h-11 rounded-lg border border-slate-300 px-4 font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-                    {t('marketplace.btn.tryAgain')}
+                    {t('orderBook.retry')}
                 </button>
             </div>
         );
     }
+
+    const age = snapshotAgeSeconds ?? 0;
+    const freshnessText = refreshing
+        ? t('orderBook.refreshing', { age })
+        : error
+            ? t('orderBook.refreshFailed', { age })
+            : snapshotIsStale
+                ? t('orderBook.stale', { age })
+                : t('orderBook.updated', { age });
+    const freshnessTone = error
+        ? 'text-red-600 dark:text-red-400'
+        : snapshotIsStale
+            ? 'text-amber-600 dark:text-amber-400'
+            : 'text-slate-400';
 
     return (
         <div className="v-glass mb-0 overflow-hidden h-full flex flex-col" data-tour="orderbook-panel">
@@ -266,10 +307,20 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                     {region && <span> · {region}</span>}
                     {availability && <span> · {formatAvailabilityWindow(availability, locale)}</span>}
                 </h2>
-                <button type="button" onClick={() => fetchData(false, true)} aria-label={t('marketplace.btn.refresh')}
-                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-medium text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 dark:text-slate-400 dark:hover:bg-slate-800">
-                    <RefreshCw size={14} aria-hidden="true" />{t('orderBook.live')}
-                </button>
+                <div className="flex items-center gap-2">
+                    <span
+                        role={error ? 'alert' : 'status'}
+                        data-testid="orderbook-freshness"
+                        className={`text-[11px] font-medium ${freshnessTone}`}
+                    >
+                        {freshnessText}
+                    </span>
+                    <button type="button" onClick={() => void fetchData(true)} aria-label={t('orderBook.refresh')}
+                        disabled={refreshing}
+                        className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-medium text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-500 disabled:cursor-wait dark:text-slate-400 dark:hover:bg-slate-800">
+                        <RefreshCw size={14} aria-hidden="true" className={refreshing ? 'animate-spin' : undefined} />
+                    </button>
+                </div>
             </div>
 
             {/* Column headers */}
