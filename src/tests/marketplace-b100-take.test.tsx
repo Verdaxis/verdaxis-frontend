@@ -189,7 +189,7 @@ describe('Marketplace B100 standard take flow', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Submit Trade' }));
         fireEvent.click(screen.getByRole('button', { name: 'Confirm Trade' }));
 
-        const message = 'This order changed. Refresh and review its current fuel terms before submitting again.';
+        const message = 'This order changed or does not include review data. Refresh and review the current terms before you submit.';
         expect(await screen.findByText(message)).toBeTruthy();
         expect(screen.queryByRole('button', { name: /retry safely/i })).toBeNull();
         expect(mocks.initiate).toHaveBeenCalledTimes(1);
