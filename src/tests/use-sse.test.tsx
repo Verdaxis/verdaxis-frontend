@@ -242,6 +242,36 @@ describe('useSSE', () => {
     expect(FakeEventSource.instances[0].url).toBe('http://localhost:8000/api/stream/prices');
   });
 
+  it('invalidates every public market cache before delivering a committed refresh signal', async () => {
+    const prefixes = [
+      'orderbook:', 'prices:', 'curves:', 'trade-tape:',
+      'availability:', 'demand:', 'watchlists:',
+    ];
+    const loads = prefixes.map((prefix) => vi.fn()
+      .mockResolvedValueOnce('before-event')
+      .mockResolvedValueOnce('after-event'));
+    await Promise.all(prefixes.map((prefix, index) => (
+      cachedRead(`${prefix}test`, 'public', 60_000, loads[index])
+    )));
+    const onEvent = vi.fn();
+    render(<Harness channel="orderbook" onEvent={onEvent} />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => FakeEventSource.instances[0].emit('market_invalidated', {
+      data: '{"schema_version":1,"resync_required":true}',
+    }));
+
+    expect(onEvent).toHaveBeenCalledWith('market_invalidated', {
+      schema_version: 1,
+      resync_required: true,
+    });
+    await Promise.all(prefixes.map((prefix, index) => (
+      expect(cachedRead(`${prefix}test`, 'public', 60_000, loads[index]))
+        .resolves.toBe('after-event')
+    )));
+    loads.forEach((load) => expect(load).toHaveBeenCalledTimes(2));
+  });
+
   it('invalidates and refreshes the public snapshot when its stream reopens', async () => {
     const load = vi.fn()
       .mockResolvedValueOnce('before-disconnect')

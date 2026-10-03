@@ -37,6 +37,7 @@ import {
 } from '../utils/fuel';
 import { useNamespace } from '../hooks/useNamespace';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import {
     formatAvailabilityWindow,
     getAvailabilityWindowOptions,
@@ -495,6 +496,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             if (countRequestsInFlight.current.get(requestScope) === requestToken) countRequestsInFlight.current.delete(requestScope);
         }
     }, [availability, countScopeKey, isCatalogScopeResolving, isHistorySelected, ready, resolvedDeliveryPointId, resolvedPort, role]);
+
+    const refreshFromPublicEvent = useCallback(() => {
+        if (document.hidden) return Promise.resolve();
+        const requests: Promise<void>[] = [fetchProductCounts(true)];
+        if (marketTab === 'market') requests.push(fetchListings(true, currentSkip, true));
+        return Promise.all(requests).then(() => undefined);
+    }, [currentSkip, fetchListings, fetchProductCounts, marketTab]);
+    usePublicMarketRefresh(refreshFromPublicEvent, ready && !isHistorySelected);
 
     useEffect(() => {
         setHasLoadedListings(false);

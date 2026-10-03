@@ -8,6 +8,7 @@ import { describeMarketActivity } from '../utils/marketActivity';
 import { MarketActivityBadge } from './trading/MarketActivityBadge';
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
     BIO_METHANOL: 'bg-violet-500',
@@ -139,6 +140,12 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             document.removeEventListener('visibilitychange', refreshWhenVisible);
         };
     }, [fetchData]);
+
+    const refreshFromPublicEvent = useCallback(() => {
+        if (document.hidden) return Promise.resolve();
+        return fetchData(true);
+    }, [fetchData]);
+    usePublicMarketRefresh(refreshFromPublicEvent);
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';

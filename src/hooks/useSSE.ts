@@ -8,7 +8,7 @@ type SSEHandler = (event: string, data: any) => void;
 
 const EVENT_TYPES: Record<SSEChannel, string[]> = {
     prices: ['price_update'],
-    orderbook: ['order_created', 'order_cancelled', 'orders_matched'],
+    orderbook: ['order_created', 'order_cancelled', 'orders_matched', 'market_invalidated'],
     trades: ['trade_created', 'trade_confirmed', 'trade_declined', 'trade_delivered', 'trade_paid', 'trade_auto_matched'],
 };
 
@@ -133,7 +133,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 } catch {
                     // Plain-text reset reasons remain valid callback input.
                 }
-                invalidateReadsForEvent(channel);
+                invalidateReadsForEvent(channel, event);
                 handlerRef.current(event, data);
             }
         };
@@ -175,7 +175,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 setIsConnected(true);
                 backoffRef.current = INITIAL_RECONNECT_DELAY;
                 if (isReconnect) {
-                    invalidateReadsForEvent(channel);
+                    invalidateReadsForEvent(channel, 'reconnect');
                     handlerRef.current('reconnect', { reason: 'transport_reconnected' });
                 }
             };
@@ -189,7 +189,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
                 } catch {
                     // Plain-text events remain valid callback input.
                 }
-                invalidateReadsForEvent(channel);
+                invalidateReadsForEvent(channel, type);
                 handlerRef.current(type, data);
             };
 

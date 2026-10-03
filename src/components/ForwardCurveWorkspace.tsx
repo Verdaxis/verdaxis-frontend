@@ -22,6 +22,7 @@ import { describeForwardCurveSignal, describeMarketActivity, marketActivityTextC
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { useNamespace } from '../hooks/useNamespace';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
@@ -865,7 +866,7 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
         const request = force
             ? api.curves.slice(params, { force: true })
             : api.curves.slice(params);
-        request.then(response => {
+        return request.then(response => {
             if (requestId !== sliceRequestIdRef.current) return;
             setSlice(response);
             setSliceSelectionKey(requestKey);
@@ -887,21 +888,29 @@ export const ForwardCurveWorkspace: React.FC<ForwardCurveWorkspaceProps> = ({ on
     }, [fetchTable]);
 
     useEffect(() => {
-        if (!document.hidden) fetchSlice(selectedForRead);
+        if (!document.hidden) void fetchSlice(selectedForRead);
         return () => { sliceRequestIdRef.current += 1; };
     }, [fetchSlice, selectedForRead]);
 
-    const refresh = useCallback((force = false) => {
-        void fetchTable(force);
-        fetchSlice(selectedForRead, force);
+    const refresh = useCallback(async (force = false) => {
+        await Promise.all([
+            fetchTable(force),
+            fetchSlice(selectedForRead, force),
+        ]);
     }, [fetchTable, fetchSlice, selectedForRead]);
     const refreshRef = useRef(refresh);
     useLayoutEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
+    const refreshFromPublicEvent = useCallback(() => {
+        if (!ready || document.hidden) return Promise.resolve();
+        return refresh(true);
+    }, [ready, refresh]);
+    usePublicMarketRefresh(refreshFromPublicEvent, ready);
+
     useEffect(() => {
         if (!ready) return;
         const refreshWhenVisible = () => {
-            if (!document.hidden) refreshRef.current();
+            if (!document.hidden) void refreshRef.current();
         };
         const interval = window.setInterval(refreshWhenVisible, REFRESH_INTERVAL_MS);
         document.addEventListener('visibilitychange', refreshWhenVisible);
