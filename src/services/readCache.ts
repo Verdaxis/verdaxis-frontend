@@ -84,9 +84,18 @@ export const invalidateReadsForEvent = (
     channel: 'prices' | 'orderbook' | 'trades',
     event?: string,
 ): void => {
-    if (event === 'market_invalidated' || event === 'reset' || event === 'reconnect') {
+    const invalidatesAllPublicMarketReads = (
+        event === 'market_invalidated'
+        || event === 'reset'
+        || event === 'reconnect'
+    );
+    if (invalidatesAllPublicMarketReads) {
         invalidateReadCache(...PUBLIC_MARKET_CACHE_PREFIXES);
+        // Broad trade-stream signals also invalidate private trade history.
+        if (channel === 'trades') invalidateReadCache('trades:');
+        return;
     }
+
     if (channel === 'prices') {
         invalidateReadCache('prices:', 'curves:');
         return;

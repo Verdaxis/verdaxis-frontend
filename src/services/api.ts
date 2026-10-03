@@ -294,18 +294,21 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     };
     const requestGeneration = getAuthGeneration();
 
-    let res: Response;
-    try {
-        res = await fetchWithTimeout(url, initialOptions, timeout);
-    } catch (error) {
-        // Best-effort, deduplicated telemetry; the caller's error handling
-        // and the maintenance UI behavior are unchanged. Caller-initiated
-        // aborts are control flow, not failures.
-        if (!isAbortError(error)) {
-            reliability.reportFrontendError('network');
+    const sendRequest = async (requestOptions: RequestInit): Promise<Response> => {
+        try {
+            return await fetchWithTimeout(url, requestOptions, timeout);
+        } catch (error) {
+            // Best-effort, deduplicated telemetry; the caller's error handling
+            // and the maintenance UI behavior are unchanged. Caller-initiated
+            // aborts are control flow, not failures.
+            if (!isAbortError(error)) {
+                reliability.reportFrontendError('network');
+            }
+            throw classifyMutationFailure(error, Boolean(isMutation));
         }
-        throw classifyMutationFailure(error, Boolean(isMutation));
-    }
+    };
+
+    let res = await sendRequest(initialOptions);
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
@@ -338,14 +341,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
             if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
                 (retryOptions.headers as Headers).set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
             }
-            try {
-                res = await fetchWithTimeout(url, retryOptions, timeout);
-            } catch (error) {
-                if (!isAbortError(error)) {
-                    reliability.reportFrontendError('network');
-                }
-                throw classifyMutationFailure(error, Boolean(isMutation));
-            }
+            res = await sendRequest(retryOptions);
             if (contextId && (
                 res.status === 410
                 || res.headers.get('X-Verdaxis-Market-Support-Context-Invalid') === 'true'
