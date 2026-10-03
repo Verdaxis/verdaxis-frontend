@@ -110,6 +110,23 @@ describe('market support API transport', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('sends the cancellation key and precondition in the same support context', async () => {
+    setMarketSupportContextId('ctx-opaque-123');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
+
+    await api.orderbook.cancel('listing-1', {
+      reason: 'Customer requested cancellation',
+      etag: '"listing-v4"',
+      idempotencyKey: 'cancel-request-1',
+    });
+
+    const [, options] = vi.mocked(fetch).mock.calls[0];
+    const headers = new Headers(options?.headers);
+    expect(headers.get('X-Verdaxis-Market-Support-Context')).toBe('ctx-opaque-123');
+    expect(headers.get('If-Match')).toBe('"listing-v4"');
+    expect(headers.get('Idempotency-Key')).toBe('cancel-request-1');
+  });
+
   it('preserves status and structured code for invalid support responses', async () => {
     setMarketSupportContextId('ctx-opaque-123');
     const invalidation = vi.fn();
