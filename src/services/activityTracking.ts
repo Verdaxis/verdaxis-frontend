@@ -189,7 +189,8 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
 
     let outcome: ActivityDeliveryResult = 'retryable';
     try {
-      outcome = await options.send({ events: bufferedEvents.map(item => item.event) }) ?? 'accepted';
+      const result = await options.send({ events: bufferedEvents.map(item => item.event) });
+      outcome = typeof result === 'string' ? result : 'accepted';
     } catch {
       outcome = 'retryable';
     }
