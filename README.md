@@ -80,3 +80,5 @@ Do not submit orders, trades, or customer forms during a read-only smoke unless 
 | Build artifact | `vite.config.ts`, `scripts/check-build-artifacts.mjs`, `scripts/deploy.sh` | both target builds and `npm run build:check` |
 
 `openapi.json` is a generated backend contract snapshot. `.codesight/` is a historical generated navigation aid. Verify both against current source before relying on them. Product language is in [the market glossary](docs/market-glossary.md); UI rules are in [the design system](docs/design-system.md).
+
+The [dated dependency follow-up](docs/plans/2026-10-03-reliability-followups.md) records the audit scope and limits as of 2026-10-03; use fresh audit output for current status.

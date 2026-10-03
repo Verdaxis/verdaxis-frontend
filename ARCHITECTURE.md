@@ -55,6 +55,12 @@ index.html
 
 **Cached reads.** `readCache.ts` keys private reads by the auth generation, accepted account/organization, and assisted context. Mutations and market stream events invalidate affected keys. Results from an obsolete scope cannot repopulate the cache.
 
+**Orderbook snapshots.** `OrderBook` treats the bids, asks, and server `generated_at` value from one canonical market-slice snapshot as one dated view. It clears that evidence when the slice changes. If refresh fails, it keeps the last depth visible and labels its age and refresh failure.
+
+**Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
+
+**Private stream recovery.** After a `subscriber_overflow` reset, `useSSE` refreshes affected REST reads and reconnects the private trade stream with its last acknowledged replay cursor. Other resets and `auth_revoked` clear that cursor.
+
 **Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
 
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo, history, or reference values into executable claims.
