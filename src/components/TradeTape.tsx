@@ -8,6 +8,7 @@ import { describeMarketActivity } from '../utils/marketActivity';
 import { MarketActivityBadge } from './trading/MarketActivityBadge';
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 
 const FUEL_DOT_COLORS: Record<string, string> = {
     BIO_METHANOL: 'bg-violet-500',
@@ -80,22 +81,25 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
     const currentRequestScope = useRef(requestScope);
     currentRequestScope.current = requestScope;
 
-    const fetchData = useCallback(async (silent = false) => {
-        if (requestsInFlight.current.has(requestScope)) return;
+    const fetchData = useCallback(async (silent = false, force = false) => {
+        if (!force && requestsInFlight.current.has(requestScope)) return;
         const requestToken = Symbol(requestScope);
         requestsInFlight.current.set(requestScope, requestToken);
         const generation = requestGeneration.current;
         const requestId = ++latestRequest.current;
         if (!silent) setLoading(true);
         try {
-            const data = await api.tradeTape.list({
+            const params = {
                 fuel_type: fuelType && fuelType !== 'All' ? fuelType : undefined,
                 market_product: marketProduct,
                 delivery_point_id: deliveryPointId || undefined,
                 region: deliveryPointId ? undefined : region || undefined,
                 availability_window: availability || undefined,
                 limit: 20,
-            });
+            };
+            const data = await (force
+                ? api.tradeTape.list(params, { force: true })
+                : api.tradeTape.list(params));
             if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
             // Handle both response shapes
             const items: TradeTapeEntry[] = data.items ?? [];
@@ -111,7 +115,7 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             if (requestsInFlight.current.get(requestScope) === requestToken) requestsInFlight.current.delete(requestScope);
             if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
                 needsInitialLoad.current = false;
-                if (!silent) setLoading(false);
+                setLoading(false);
             }
         }
     }, [availability, deliveryPointId, fuelType, marketProduct, region, requestScope]);
@@ -139,6 +143,12 @@ export const TradeTape: React.FC<TradeTapeProps> = ({ fuelType, marketProduct, a
             document.removeEventListener('visibilitychange', refreshWhenVisible);
         };
     }, [fetchData]);
+
+    const refreshFromPublicEvent = useCallback(() => {
+        if (document.hidden) return Promise.resolve();
+        return fetchData(true, true);
+    }, [fetchData]);
+    usePublicMarketRefresh(refreshFromPublicEvent);
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';

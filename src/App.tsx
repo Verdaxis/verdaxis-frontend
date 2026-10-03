@@ -17,6 +17,7 @@ import { TradeNotifier } from './components/TradeNotifier';
 import { AnalyticsProvider } from './components/AnalyticsProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
+import { PublicMarketSync } from './components/PublicMarketSync';
 import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
@@ -651,6 +652,7 @@ const App: React.FC = () => {
             <BrowserRouter>
                 <AnalyticsProvider>
                 <RouteMetadata />
+                <PublicMarketSync />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes />

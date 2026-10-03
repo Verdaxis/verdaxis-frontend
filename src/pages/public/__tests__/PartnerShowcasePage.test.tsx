@@ -3,12 +3,21 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock IntersectionObserver for motion/react useInView
+class IntersectionObserverMock implements IntersectionObserver {
+  readonly root: Element | Document | null = null;
+  readonly rootMargin = '';
+  readonly thresholds: ReadonlyArray<number> = [];
+
+  disconnect(): void {}
+  observe(_target: Element): void {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+  unobserve(_target: Element): void {}
+}
+
 beforeAll(() => {
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }));
+  global.IntersectionObserver = IntersectionObserverMock;
 });
 
 import { PartnerShowcasePage } from '../PartnerShowcasePage';

@@ -12,8 +12,10 @@ import {
     AlertTriangle,
     EyeOff,
 } from 'lucide-react';
-import { api } from '../services/api';
+import { ApiOutcomeUnknownError, api } from '../services/api';
 import { Trade } from '../types';
+import { getAuthGeneration } from '../services/authToken';
+import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { useAuth } from '../context/AuthContext';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { useSSE } from '../hooks/useSSE';
@@ -37,6 +39,20 @@ type StatusGroup = Lowercase<FilterTab>;
 
 const PAGE_SIZE = 20;
 
+type TradeCommand = 'confirm' | 'decline';
+
+interface FrozenTradeCommand {
+    operation: TradeCommand;
+    tradeId: string;
+    idempotencyKey: string;
+    authGeneration: number;
+    supportContextId: string | null;
+}
+
+const createTradeCommandKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `trade-command-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     const { user, isAuthenticated } = useAuth();
     const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
@@ -54,8 +70,23 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const [hasLoaded, setHasLoaded] = useState(false);
     useDashboardContentReady('TRADES', ready && !isLoading && hasLoaded);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+    const activeCommandRef = useRef<symbol | null>(null);
+    const [retryRequest, setRetryRequest] = useState<FrozenTradeCommand | null>(null);
     const requestGeneration = useRef(0);
     const requestScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}`;
+    const commandScope = `${requestScope}:${marketSupportContext?.id ?? 'direct'}`;
+    const commandScopeRef = useRef(commandScope);
+    const commandEpochRef = useRef(0);
+    if (commandScopeRef.current !== commandScope) {
+        commandScopeRef.current = commandScope;
+        commandEpochRef.current += 1;
+    }
+
+    useEffect(() => {
+        activeCommandRef.current = null;
+        setRetryRequest(null);
+        setActionLoadingId(null);
+    }, [user?.id, user?.organization_id, marketSupportContext?.id]);
 
     const fetchTrades = useCallback(async (silent = false, force = false) => {
         if (!ready) return;
@@ -130,39 +161,84 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         return null;
     };
 
-    const handleConfirm = async (tradeId: string) => {
+    const runTradeCommand = async (operation: TradeCommand, tradeId: string) => {
+        if (activeCommandRef.current) {
+            addToast({ type: 'warning', title: t('myTrades.toast.retryPending.title'), message: t('myTrades.toast.retryPending.message') });
+            return;
+        }
+        if (retryRequest && (
+            retryRequest.authGeneration !== getAuthGeneration()
+            || retryRequest.supportContextId !== getMarketSupportContextId()
+        )) {
+            setRetryRequest(null);
+            addToast({ type: 'warning', title: t('myTrades.toast.contextChanged.title'), message: t('myTrades.toast.contextChanged.message') });
+            return;
+        }
+        const retainedRequest = retryRequest?.operation === operation && retryRequest.tradeId === tradeId
+            ? retryRequest
+            : null;
+        if (retryRequest && !retainedRequest) {
+            addToast({ type: 'warning', title: t('myTrades.toast.retryPending.title'), message: t('myTrades.toast.retryPending.message') });
+            return;
+        }
+        const request = retainedRequest ?? {
+            operation,
+            tradeId,
+            idempotencyKey: createTradeCommandKey(),
+            authGeneration: getAuthGeneration(),
+            supportContextId: getMarketSupportContextId(),
+        };
+        const executionEpoch = commandEpochRef.current;
+        const commandToken = Symbol(`${operation}:${tradeId}`);
+        const executionIsCurrent = () => (
+            executionEpoch === commandEpochRef.current
+            && request.authGeneration === getAuthGeneration()
+            && request.supportContextId === getMarketSupportContextId()
+        );
+        activeCommandRef.current = commandToken;
         setActionLoadingId(tradeId);
         try {
-            await api.trades.confirm(tradeId);
-            addToast({ type: 'success', title: t('myTrades.toast.confirmed.title'), message: t('myTrades.toast.confirmed.message') });
+            const updatedTrade = operation === 'confirm'
+                ? await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade
+                : await api.trades.decline(request.tradeId, request.idempotencyKey) as Trade;
+            if (!executionIsCurrent()) {
+                if (executionEpoch === commandEpochRef.current) setRetryRequest(null);
+                return;
+            }
+            if (updatedTrade?.id) setTrades(current => current.map(trade => trade.id === updatedTrade.id ? updatedTrade : trade));
+            setRetryRequest(null);
+            addToast(operation === 'confirm'
+                ? { type: 'success', title: t('myTrades.toast.confirmed.title'), message: t('myTrades.toast.confirmed.message') }
+                : { type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
             fetchTrades(true, true);
         } catch (err: any) {
+            if (!executionIsCurrent()) {
+                if (executionEpoch === commandEpochRef.current) setRetryRequest(null);
+                return;
+            }
+            if (err instanceof ApiOutcomeUnknownError) {
+                setRetryRequest(request);
+                addToast({ type: 'warning', title: t('myTrades.toast.outcomeUnknown.title'), message: t('myTrades.toast.outcomeUnknown.message') });
+                return;
+            }
+            setRetryRequest(null);
             addToast({
                 type: 'warning',
-                title: t('myTrades.toast.confirmFailed.title'),
-                message: i18n.language.startsWith('zh') ? t('myTrades.toast.confirmFailed.message') : err.message || t('myTrades.toast.confirmFailed.message'),
+                title: t(operation === 'confirm' ? 'myTrades.toast.confirmFailed.title' : 'myTrades.toast.declineFailed.title'),
+                message: i18n.language.startsWith('zh')
+                    ? t(operation === 'confirm' ? 'myTrades.toast.confirmFailed.message' : 'myTrades.toast.declineFailed.message')
+                    : err.message || t(operation === 'confirm' ? 'myTrades.toast.confirmFailed.message' : 'myTrades.toast.declineFailed.message'),
             });
         } finally {
-            setActionLoadingId(null);
+            if (activeCommandRef.current === commandToken) {
+                activeCommandRef.current = null;
+                if (executionEpoch === commandEpochRef.current) setActionLoadingId(null);
+            }
         }
     };
 
-    const handleDecline = async (tradeId: string) => {
-        setActionLoadingId(tradeId);
-        try {
-            await api.trades.decline(tradeId);
-            addToast({ type: 'info', title: t('myTrades.toast.declined.title'), message: t('myTrades.toast.declined.message') });
-            fetchTrades(true, true);
-        } catch (err: any) {
-            addToast({
-                type: 'warning',
-                title: t('myTrades.toast.declineFailed.title'),
-                message: i18n.language.startsWith('zh') ? t('myTrades.toast.declineFailed.message') : err.message || t('myTrades.toast.declineFailed.message'),
-            });
-        } finally {
-            setActionLoadingId(null);
-        }
-    };
+    const handleConfirm = (tradeId: string) => runTradeCommand('confirm', tradeId);
+    const handleDecline = (tradeId: string) => runTradeCommand('decline', tradeId);
 
     // The API applies the selected status group before pagination. Keeping the
     // page intact here prevents a second, page-local filter from hiding rows.
@@ -203,6 +279,10 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
         if (normalizedStatus === 'PENDING_CONFIRMATION') {
+            if (retryRequest) {
+                return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
+            }
+
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
                 (trade.initiated_by === 'SELLER' && userSide === 'BUYER');
@@ -220,7 +300,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => handleConfirm(trade.id)}
-                        disabled={isLoadingThis || Boolean(trade.fame_terms_snapshot && !fuelTermsReady)}
+                        disabled={actionLoadingId !== null || Boolean(trade.fame_terms_snapshot && !fuelTermsReady)}
                         className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
@@ -228,7 +308,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                     <button
                         onClick={() => handleDecline(trade.id)}
-                        disabled={isLoadingThis}
+                        disabled={actionLoadingId !== null}
                         className="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
                     >
                         {isLoadingThis ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
@@ -315,6 +395,21 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                 ))}
             </div>
+
+            {retryRequest && (
+                <div role="status" className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{t('myTrades.retryBanner')}</span>
+                    <button
+                        type="button"
+                        onClick={() => runTradeCommand(retryRequest.operation, retryRequest.tradeId)}
+                        disabled={actionLoadingId !== null}
+                        className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-amber-500 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                    >
+                        {actionLoadingId !== null ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                        {t('myTrades.btn.retrySafely')}
+                    </button>
+                </div>
+            )}
 
             {error && (
                 <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">

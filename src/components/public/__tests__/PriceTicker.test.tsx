@@ -1,10 +1,11 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import i18n, { loadNamespace } from '../../../i18n';
 import { PriceTicker } from '../PriceTicker';
 import { fetchFuelPrices } from '../../../data/fuelPrices';
 import { formatAvailabilityWindowPeriod } from '../../../utils/availabilityWindow';
+import { queuePublicMarketRefresh } from '../../../services/publicMarketSync';
 
 vi.mock('../../../utils/availabilityWindow', () => ({
   formatAvailabilityWindowPeriod: vi.fn((value: string, locale = 'en') => {
@@ -96,6 +97,23 @@ describe('PriceTicker', () => {
 
     expect(container.querySelector('.public-price-ticker')?.getAttribute('tabindex')).toBe('0');
     expect(screen.queryByText(/unavailable/i)).toBeNull();
+  });
+
+  it('refreshes mounted prices after the shared public market signal', async () => {
+    vi.useFakeTimers();
+    try {
+      render(<PriceTicker />);
+      await act(async () => { await Promise.resolve(); });
+      expect(mockedFetchFuelPrices).toHaveBeenCalledTimes(1);
+      act(() => {
+        queuePublicMarketRefresh();
+        vi.advanceTimersByTime(500);
+      });
+      await act(async () => { await Promise.resolve(); });
+      expect(mockedFetchFuelPrices).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('passes the current Chinese language to the availability formatter', async () => {

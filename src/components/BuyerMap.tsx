@@ -21,7 +21,7 @@ import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 import { sliceToPath } from '../utils/sliceUrl';
 import { isOrderbookMarketProduct } from '../utils/marketProduct';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
-import { useSSE } from '../hooks/useSSE';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
 
 interface BuyerMapProps {
@@ -245,10 +245,20 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return () => { marketLoadGenerationRef.current += 1; };
     }, [active, refreshMarketSummary]);
 
-    const handleOrderbookEvent = useCallback(() => {
-        void refreshMarketSummary(true);
-    }, [refreshMarketSummary]);
-    useSSE('orderbook', handleOrderbookEvent, active, 'buyer-map');
+    const refreshFromPublicEvent = useCallback(() => {
+        if (!active || document.hidden) return Promise.resolve();
+        return refreshMarketSummary(true);
+    }, [active, refreshMarketSummary]);
+    usePublicMarketRefresh(refreshFromPublicEvent, active);
+
+    useEffect(() => {
+        if (!active) return;
+        const refreshWhenVisible = () => {
+            if (!document.hidden) void refreshMarketSummary(true);
+        };
+        document.addEventListener('visibilitychange', refreshWhenVisible);
+        return () => document.removeEventListener('visibilitychange', refreshWhenVisible);
+    }, [active, refreshMarketSummary]);
 
     const approvedListingLocationMap = useMemo(() => {
         const map = new Map<string, string>();

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 import { api } from '../services/api';
 import { clearAccessToken, setAccessToken } from '../services/authToken';
@@ -247,11 +247,11 @@ describe('bounded API read cache', () => {
 
     it('invalidates watchlists for every trade transition and market reads for declines', async () => {
         vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
-        const loads = new Map<string, ReturnType<typeof vi.fn>>();
+        const loads = new Map<string, Mock<() => Promise<string>>>();
         const read = async (resourceKey: string) => {
             let load = loads.get(resourceKey);
             if (!load) {
-                load = vi.fn(async () => resourceKey);
+                load = vi.fn<() => Promise<string>>(async () => resourceKey);
                 loads.set(resourceKey, load);
             }
             return cachedRead(resourceKey, 'public', 1_000, load);

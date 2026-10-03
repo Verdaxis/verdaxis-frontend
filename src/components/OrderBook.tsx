@@ -4,6 +4,7 @@ import { AlertTriangle, TrendingUp, TrendingDown, Loader2, RefreshCw, Zap } from
 import { OrderBookOrder, ProductExecutionMode } from '../types';
 import { api } from '../services/api';
 import { useNamespace } from '../hooks/useNamespace';
+import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../utils/marketActivity';
@@ -102,7 +103,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const tooltipId = useId();
     const requestGeneration = useRef(0);
     const latestRequest = useRef(0);
-    const requestsInFlight = useRef(new Map<string, { token: symbol; forced: boolean }>());
+    const requestsInFlight = useRef(new Map<string, { token: symbol; forced: boolean; completion: Promise<void> }>());
     const hasSnapshot = useRef(false);
     const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
     const orderbookAvailable = executionMode !== 'RFQ_ONLY'
@@ -126,9 +127,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
         }
         if (!marketProduct || !isOrderbookMarketProduct(marketProduct) || !deliveryPointId || !availability) return;
         const activeRequest = requestsInFlight.current.get(requestScope);
-        if (activeRequest && (!force || activeRequest.forced)) return;
+        if (activeRequest && (!force || activeRequest.forced)) return activeRequest.completion;
         const requestToken = Symbol(requestScope);
-        requestsInFlight.current.set(requestScope, { token: requestToken, forced: force });
+        let completeRequest!: () => void;
+        const completion = new Promise<void>((resolve) => { completeRequest = resolve; });
+        requestsInFlight.current.set(requestScope, { token: requestToken, forced: force, completion });
         const generation = requestGeneration.current;
         const requestId = ++latestRequest.current;
         if (hasSnapshot.current) setRefreshing(true);
@@ -168,6 +171,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
             }
         } finally {
             if (requestsInFlight.current.get(requestScope)?.token === requestToken) requestsInFlight.current.delete(requestScope);
+            completeRequest();
             if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
                 setLoading(false);
                 setRefreshing(false);
@@ -216,6 +220,24 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
             window.removeEventListener('online', refreshAfterResume);
         };
     }, [fetchData, orderbookAvailable]);
+
+    const refreshFromPublicEvent = useCallback(async () => {
+        if (document.hidden || !orderbookAvailable) return;
+        const refreshGeneration = requestGeneration.current;
+        const activeRequest = requestsInFlight.current.get(requestScope);
+        if (activeRequest?.forced) await activeRequest.completion;
+        if (
+            document.hidden
+            || !orderbookAvailable
+            || refreshGeneration !== requestGeneration.current
+            || requestScope !== currentRequestScope.current
+        ) return;
+        await fetchData(true);
+    }, [fetchData, orderbookAvailable, requestScope]);
+    usePublicMarketRefresh(
+        refreshFromPublicEvent,
+        Boolean(orderbookAvailable && marketProduct && deliveryPointId && availability),
+    );
 
     useEffect(() => {
         const interval = window.setInterval(() => setClock(Date.now()), 1_000);

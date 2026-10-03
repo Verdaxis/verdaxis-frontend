@@ -52,6 +52,7 @@ src/
     fameRfq.ts                     # RFQ response normalization; unknown measurements stay null; declared USD/GJ comparison
     fameSupplierOffer.ts            # Supplier offer normalization and successful-write refresh event
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
+    publicMarketSync.ts            # Debounced shared public refresh subscribers with one queued rerun per consumer
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     cookiePreferences.ts           # Versioned visitor choice, fail-closed storage, same/cross-tab updates
@@ -65,6 +66,7 @@ src/
     CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
     RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
+    PublicMarketSync.tsx           # One root subscriber for the public orderbook invalidation stream
     LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Mounts authenticated workspace children only at desktop widths (768px and above)
@@ -226,6 +228,11 @@ Request generation guards prevent obsolete responses from replacing the current 
 the exact slice. Product counts refresh across tabs; paged listings refresh only on the
 Market tab. Marketplace, orderbook, and tape polls pause while the browser tab is hidden
 and resume with a current-scope read. Superseded filter responses cannot replace current data.
+The root public-market subscriber owns one orderbook EventSource connection.
+Committed `market_invalidated` signals synchronously clear public market cache prefixes, then
+coalesce mounted PriceTicker, map, orderbook, curve and trade-tape REST refreshes. Each consumer
+runs at most one signal refresh with one dirty rerun. Stream reset/reconnect uses the same REST
+freshness path, while existing visibility-aware polling remains the recovery path.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, general market data 15 seconds, selected book snapshots
@@ -416,12 +423,23 @@ Direct-hit review freezes terms, request key and execution context. The API trea
 transport failure, HTTP 5xx and unreadable success as an unknown outcome. A deliberate
 retry reuses the frozen request and key only under the same account and assisted
 context. Success shows the returned trade economics and lifecycle status. Order
-entry uses the same outcome distinction. This does not add general lifecycle replay.
+entry uses the same outcome distinction. Confirm, decline and cancel also retain
+a frozen key and request until a known result or a principal/context change.
+A pending trade retry remains available when live updates change or remove its
+row. The six API adapters support keyed results; payment and delivery remain
+off-platform in the maintained UI.
+
+One root public orderbook subscription invalidates cached reads immediately.
+Mounted consumers coalesce refreshes for 500 ms and force a fresh REST read;
+one active refresh can schedule one follow-up. Visibility, polling and reconnect
+recovery remain in place. Public signals carry no private sequence or economics.
 
 Market analytics distinguishes live data, valid zero results, unavailable data and
 illustrative samples. Resting quote references are not confirmed-trade VWAP. The
 reference label reports available order context time or states that it is unavailable.
 Production identified activity delivery checks HTTP results and bounds its buffer
 to 200 events, three attempts, 30 seconds of age and a five-second request timeout.
-Retries retain UUIDs and context. Delivery counters are browser-local, not an admin
-coverage report. Staging retains its separate catalog and tracking scope.
+Retries retain UUIDs and context. Production reports bounded browser losses
+as partial admin coverage; closed browsers and undelivered reports remain
+unknown. Staging retains its separate catalog and tracking scope and does not
+include that identified activity pipeline.

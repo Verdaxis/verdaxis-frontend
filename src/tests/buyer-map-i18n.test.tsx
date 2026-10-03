@@ -6,6 +6,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { BuyerMap } from '../components/BuyerMap';
 import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
+import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 
 const themeMock = vi.hoisted(() => ({ theme: 'light' }));
 const portsListMock = vi.fn();
@@ -405,14 +406,56 @@ describe('BuyerMap failure localization', () => {
     expect(setStyleMock).toHaveBeenLastCalledWith('mapbox://styles/mapbox/dark-v11');
     view.rerender(<BuyerMap active={false} onPortSelect={onPortSelect} onNavigate={onNavigate} />);
     expect(stopMock).toHaveBeenCalledOnce();
-    expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(false);
     view.rerender(<BuyerMap active onPortSelect={onPortSelect} onNavigate={onNavigate} />);
     await waitFor(() => expect(resizeMock.mock.calls.length).toBeGreaterThan(1));
     expect(compactMapSummaryMock).toHaveBeenNthCalledWith(1, { force: false });
     expect(compactMapSummaryMock).toHaveBeenLastCalledWith({ force: true });
-    expect(useSSEMock.mock.calls.at(-1)?.[2]).toBe(true);
     expect(screen.getByRole('button', { name: 'Bio Methanol' }).getAttribute('aria-pressed')).toBe('true');
     expect(mapOptionsMock).toHaveBeenCalledOnce();
+  });
+
+
+  it('refreshes after a hidden committed signal and ignores the stale pre-resume failure', async () => {
+    await i18n.changeLanguage('en');
+    portsListMock.mockResolvedValue([]);
+    let rejectStaleRequest!: (reason?: unknown) => void;
+    const staleRequest = new Promise<never>((_resolve, reject) => {
+      rejectStaleRequest = reject;
+    });
+    compactMapSummaryMock
+      .mockImplementationOnce(() => staleRequest)
+      .mockResolvedValueOnce({ markets: [], demo_groups: [], recent_asks: [] });
+    let hidden = true;
+    vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderWithProviders(<BuyerMap active onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    await waitFor(() => expect(compactMapSummaryMock).toHaveBeenCalledTimes(1));
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(compactMapSummaryMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    hidden = false;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(compactMapSummaryMock).toHaveBeenCalledTimes(2));
+    expect(compactMapSummaryMock).toHaveBeenLastCalledWith({ force: true });
+
+    await act(async () => {
+      rejectStaleRequest(new Error('stale request failed'));
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
 });
