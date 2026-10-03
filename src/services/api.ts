@@ -25,7 +25,12 @@ import type {
     MarketSupportSession,
     MarketSupportStartInput,
 } from '../types/marketSupport';
-import type { ActivityRecordInput, UserActivityQuery, UserActivityResponse } from '../types/activity';
+import type {
+    ActivityDeliveryResult,
+    ActivityRecordInput,
+    UserActivityQuery,
+    UserActivityResponse,
+} from '../types/activity';
 
 export const mapPortResponse = (p: any): Port => ({
     ...p,
@@ -604,11 +609,11 @@ export const api = {
         // Account-linked activity is best-effort telemetry. It must never
         // refresh or invalidate the user's session, surface global notices,
         // or interfere with the action that produced the event.
-        record: (input: ActivityRecordInput): void => {
+        record: async (input: ActivityRecordInput): Promise<ActivityDeliveryResult> => {
             const token = getAccessToken();
-            if (!token) return;
-            void Promise.resolve()
-                .then(() => fetch(`${API_URL}/activity/events`, {
+            if (!token) return 'rejected';
+            try {
+                const response = await fetch(`${API_URL}/activity/events`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -616,8 +621,15 @@ export const api = {
                     },
                     body: JSON.stringify(input),
                     keepalive: true,
-                }))
-                .catch(() => undefined);
+                });
+                if (response.ok) return 'accepted';
+                if (response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500) {
+                    return 'retryable';
+                }
+                return 'rejected';
+            } catch {
+                return 'retryable';
+            }
         },
     },
     preferences: {

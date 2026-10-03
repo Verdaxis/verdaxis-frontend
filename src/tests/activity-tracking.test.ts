@@ -145,6 +145,95 @@ describe('identified activity tracking', () => {
     expect(send.mock.calls[1][0].events).toHaveLength(1);
   });
 
+  it('retries transient failures with the same UUIDs and records accepted delivery', async () => {
+    const send = vi.fn()
+      .mockResolvedValueOnce('retryable')
+      .mockResolvedValueOnce('accepted');
+    const tracker = createActivityTracker({ send, createId, retryDelayMs: 10 });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+
+    await vi.advanceTimersByTimeAsync(250);
+    const firstBatch = send.mock.calls[0][0];
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0]).toEqual(firstBatch);
+    expect(tracker.getDeliveryStats()).toEqual({
+      accepted: 1,
+      rejected: 0,
+      retried: 1,
+      dropped: 0,
+      pending: 0,
+    });
+  });
+
+  it('stops after the attempt cap and accounts for dropped events', async () => {
+    const send = vi.fn().mockResolvedValue('retryable');
+    const tracker = createActivityTracker({
+      send,
+      createId,
+      retryDelayMs: 10,
+      maxDeliveryAttempts: 2,
+    });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+
+    await vi.advanceTimersByTimeAsync(260);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0]).toEqual(send.mock.calls[0][0]);
+    expect(tracker.getDeliveryStats()).toEqual({
+      accepted: 0,
+      rejected: 0,
+      retried: 1,
+      dropped: 1,
+      pending: 0,
+    });
+  });
+
+  it('bounds the buffer and counts permanent rejection separately', async () => {
+    const send = vi.fn().mockResolvedValue('rejected');
+    const tracker = createActivityTracker({ send, createId, maxBufferedEvents: 2 });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+    tracker.trackPage('map');
+    tracker.trackPage('curve');
+
+    await vi.advanceTimersByTimeAsync(250);
+
+    expect(send.mock.calls[0][0].events).toHaveLength(2);
+    expect(tracker.getDeliveryStats()).toEqual({
+      accepted: 0,
+      rejected: 2,
+      retried: 0,
+      dropped: 1,
+      pending: 0,
+    });
+  });
+
+  it('drops an aged retry without another network attempt', async () => {
+    let now = 0;
+    const send = vi.fn().mockResolvedValue('retryable');
+    const tracker = createActivityTracker({
+      send,
+      createId,
+      retryDelayMs: 10,
+      maxEventAgeMs: 5,
+      now: () => now,
+    });
+    tracker.setSession('user-1');
+    tracker.trackPage('home');
+
+    await vi.advanceTimersByTimeAsync(250);
+    now = 6;
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(tracker.getDeliveryStats().dropped).toBe(1);
+    expect(tracker.getDeliveryStats().pending).toBe(0);
+  });
+
   it('maps authenticated routes to the fixed page registry without retaining URL values', () => {
     expect(activityPageFromPath('/app/home')).toBe('home');
     expect(activityPageFromPath('/app/home?search=private')).toBeNull();

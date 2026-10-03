@@ -911,6 +911,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                             priceUsd={Number(order.price_per_mt_usd)}
                             benchmarkUsd={order.benchmark_price_per_mt_usd == null ? null : Number(order.benchmark_price_per_mt_usd)}
                             deltaUsd={order.premium_discount_per_mt_usd == null ? null : Number(order.premium_discount_per_mt_usd)}
+                            benchmarkSource={order.benchmark_source}
+                            contextUpdatedAt={order.updated_at}
                         />
                         {overlay && (
                             <CompliancePriceHint overlay={overlay} assumptions={overlayAssumptions} />
