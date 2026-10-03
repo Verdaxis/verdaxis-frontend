@@ -311,7 +311,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
 
     if (!isPublicMarketRead && contextId && (
         res.status === 410
-        || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
+        || res.headers.get('X-Verdaxis-Market-Support-Context-Invalid') === 'true'
     )) {
         window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
             detail: { reason: 'expired', contextId },
@@ -344,7 +344,7 @@ const fetchApi = async (path: string, options?: RequestInit) => {
             }
             if (contextId && (
                 res.status === 410
-                || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
+                || res.headers.get('X-Verdaxis-Market-Support-Context-Invalid') === 'true'
             )) {
                 window.dispatchEvent(new CustomEvent('verdaxis:market-support-context-invalidated', {
                     detail: { reason: 'expired', status: res.status, contextId },
