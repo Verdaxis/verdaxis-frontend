@@ -173,6 +173,28 @@ describe('Command Center trade summaries and action queue', () => {
         expect(screen.queryByRole('button', { name: /retry safely with the same request/i })).toBeNull();
     });
 
+    it('closes the confirmation modal after auth changes during the refresh', async () => {
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+        let resolveOldSummary!: (value: ReturnType<typeof summary>) => void;
+        let resolveOldActions!: (value: { items: never[]; total: number; skip: number; limit: number }) => void;
+        controls.summary.mockImplementationOnce(() => new Promise(resolve => { resolveOldSummary = resolve; }));
+        controls.myTradesPaged.mockImplementationOnce(() => new Promise(resolve => { resolveOldActions = resolve; }));
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
+        setAccessToken('command-center-session-b');
+
+        await act(async () => {
+            resolveOldSummary(summary({ action_required_count: 0, confirmed_count: 21 }));
+            resolveOldActions({ items: [], total: 0, skip: 0, limit: 8 });
+        });
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(screen.queryByRole('heading', { name: 'Trade Confirmed' })).toBeNull();
+    });
+
     it('does not restore a success modal after scope changes during the refresh', async () => {
         const view = renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
         fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));

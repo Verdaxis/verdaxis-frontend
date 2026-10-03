@@ -210,7 +210,13 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 if (updatedTrade?.id) setTrades(current => current.map(trade => trade.id === updatedTrade.id ? updatedTrade : trade));
                 confirmRequestRef.current = null;
                 await loadDashboardData();
-                if (!executionIsCurrent()) return;
+                if (!executionIsCurrent()) {
+                    if (executionEpoch === confirmEpochRef.current) {
+                        confirmRequestRef.current = null;
+                        setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }
+                    return;
+                }
                 setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
