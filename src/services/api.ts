@@ -1021,14 +1021,17 @@ export const api = {
                 body: JSON.stringify(requestData),
             });
         },
-        update: async (id: string, data: any) => {
+        update: async (id: string, data: any, idempotencyKey?: string) => {
             return mutateApi(invalidateTradeExecutionReads, `/orderbook/${id}`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: {
+                    ...getHeaders(),
+                    ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+                },
                 body: JSON.stringify(data),
             });
         },
-        cancel: async (id: string, options?: { reason?: string; etag?: string }) => {
+        cancel: async (id: string, options?: { reason?: string; etag?: string; idempotencyKey?: string }) => {
             if (getMarketSupportContextId() && !options?.etag) {
                 throw new ApiError(
                     'A current listing version is required before cancelling in the assisted workspace.',
@@ -1041,6 +1044,7 @@ export const api = {
                 headers: {
                     ...getHeaders(),
                     ...(options?.etag ? { 'If-Match': options.etag } : {}),
+                    ...(options?.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
                 },
                 body: JSON.stringify({ reason: options?.reason?.trim() || 'User requested cancellation' }),
             });
@@ -1149,29 +1153,29 @@ export const api = {
             const path = `/trades/my?${searchParams.toString()}`;
             return readApi(`trades:${path}`, path, 'private', 'private', { headers: getHeaders() }, cacheOptions);
         },
-        confirm: async (tradeId: string) => {
+        confirm: async (tradeId: string, idempotencyKey?: string) => {
             return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/confirm`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
             });
         },
-        decline: async (tradeId: string) => {
+        decline: async (tradeId: string, idempotencyKey?: string) => {
             return mutateApi(invalidateTradeExecutionReads, `/trades/${tradeId}/decline`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
             });
         },
-        deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }) => {
+        deliver: async (tradeId: string, data: { final_quantity_mt: number; final_price_per_mt: number }, idempotencyKey?: string) => {
             return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/deliver`, {
                 method: 'PUT',
-                headers: getHeaders(),
+                headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
                 body: JSON.stringify(data),
             });
         },
-        pay: async (tradeId: string) => {
+        pay: async (tradeId: string, idempotencyKey?: string) => {
             return mutateApi(invalidateTradeTransitionReads, `/trades/${tradeId}/pay`, {
                 method: 'POST',
-                headers: getHeaders(),
+                headers: { ...getHeaders(), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
             });
         },
     },

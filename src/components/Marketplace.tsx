@@ -128,6 +128,10 @@ const createTradeIdempotencyKey = () => typeof crypto !== 'undefined' && typeof 
     ? crypto.randomUUID()
     : `trade-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+const createCancellationIdempotencyKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `order-cancel-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 // ─── Props ────────────────────────────────────────────────────────
 interface MarketplaceProps {
     initialPort?: Port | null;
@@ -257,7 +261,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [myOrdersLoading, setMyOrdersLoading] = useState(false);
     const [myOrdersError, setMyOrdersError] = useState<string | null>(null);
     const latestMyOrdersRequest = useRef(0);
-    const { isActive: isMarketSupportActive } = useMarketSupport();
+    const { context: marketSupportContext, isActive: isMarketSupportActive } = useMarketSupport();
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
@@ -274,6 +278,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
     const [cancellationReason, setCancellationReason] = useState('');
     const [cancellationLoading, setCancellationLoading] = useState(false);
+    const [cancellationOutcomeUnknown, setCancellationOutcomeUnknown] = useState(false);
+    const cancellationRequestRef = useRef<{
+        orderId: string;
+        reason: string;
+        etag?: string;
+        idempotencyKey: string;
+        authGeneration: number;
+        supportContextId: string | null;
+    } | null>(null);
+    const cancellationScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${marketSupportContext?.id ?? 'direct'}`;
+    const cancellationScopeRef = useRef(cancellationScope);
+    const cancellationEpochRef = useRef(0);
+    if (cancellationScopeRef.current !== cancellationScope) {
+        cancellationScopeRef.current = cancellationScope;
+        cancellationEpochRef.current += 1;
+    }
 
     // ─── News panel toggle ──────────────────────────────────────
 
@@ -736,6 +756,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }), [availability, marketProduct, outstandingMyOrders, resolvedDeliveryPointId, resolvedPort]);
 
     const handleCancelOrder = async (order: OrderBookOrder) => {
+        cancellationRequestRef.current = null;
+        setCancellationOutcomeUnknown(false);
         setPendingCancellation(order);
         setCancellationReason(isMarketSupportActive ? t('marketplace.cancel.reason.assisted') : t('marketplace.cancel.reason.user'));
         setMyOrdersError(null);
@@ -743,29 +765,98 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const confirmCancelOrder = async () => {
         if (!pendingCancellation || !cancellationReason.trim()) return;
+        const retainedRequest = cancellationOutcomeUnknown ? cancellationRequestRef.current : null;
+        if (retainedRequest && (
+            retainedRequest.authGeneration !== getAuthGeneration()
+            || retainedRequest.supportContextId !== getMarketSupportContextId()
+        )) {
+            cancellationRequestRef.current = null;
+            setCancellationOutcomeUnknown(false);
+            setPendingCancellation(null);
+            setMyOrdersError(t('marketplace.cancel.contextChanged'));
+            return;
+        }
         if (isMarketSupportActive && pendingCancellation.creation_method === 'MARKET_SUPPORT' && !pendingCancellation.etag) {
             setMyOrdersError(t('marketplace.cancel.missingVersion'));
             await fetchMyOrders();
             setPendingCancellation(null);
             return;
         }
+        const request = retainedRequest ?? {
+            orderId: pendingCancellation.id,
+            reason: cancellationReason.trim(),
+            etag: pendingCancellation.etag,
+            idempotencyKey: createCancellationIdempotencyKey(),
+            authGeneration: getAuthGeneration(),
+            supportContextId: getMarketSupportContextId(),
+        };
+        const executionEpoch = cancellationEpochRef.current;
+        const executionIsCurrent = () => (
+            executionEpoch === cancellationEpochRef.current
+            && request.authGeneration === getAuthGeneration()
+            && request.supportContextId === getMarketSupportContextId()
+        );
+        cancellationRequestRef.current = request;
         setCancellationLoading(true);
         try {
-            await api.orderbook.cancel(pendingCancellation.id, { reason: cancellationReason, etag: pendingCancellation.etag });
-            setMyOrders(prev => prev.filter(o => o.id !== pendingCancellation.id));
+            await api.orderbook.cancel(request.orderId, {
+                reason: request.reason,
+                etag: request.etag,
+                idempotencyKey: request.idempotencyKey,
+            });
+            if (!executionIsCurrent()) {
+                if (executionEpoch === cancellationEpochRef.current) {
+                    cancellationRequestRef.current = null;
+                    setCancellationOutcomeUnknown(false);
+                    setPendingCancellation(null);
+                }
+                return;
+            }
+            setMyOrders(prev => prev.filter(o => o.id !== request.orderId));
+            cancellationRequestRef.current = null;
+            setCancellationOutcomeUnknown(false);
             setPendingCancellation(null);
         } catch (error) {
+            if (!executionIsCurrent()) {
+                if (executionEpoch === cancellationEpochRef.current) {
+                    cancellationRequestRef.current = null;
+                    setCancellationOutcomeUnknown(false);
+                    setPendingCancellation(null);
+                }
+                return;
+            }
+            if (error instanceof ApiOutcomeUnknownError) {
+                setCancellationOutcomeUnknown(true);
+                setMyOrdersError(null);
+                return;
+            }
+            cancellationRequestRef.current = null;
+            setCancellationOutcomeUnknown(false);
             if (error instanceof ApiError && (error.status === 412 || error.status === 428)) {
-                await fetchMyOrders();
+                await fetchMyOrders(true);
                 setMyOrdersError(t('marketplace.cancel.stale'));
                 setPendingCancellation(null);
             } else {
                 setMyOrdersError(i18n.language.startsWith('zh') ? t('marketplace.cancel.error') : error instanceof Error ? error.message : t('marketplace.cancel.error'));
             }
         } finally {
-            setCancellationLoading(false);
+            if (executionEpoch === cancellationEpochRef.current) setCancellationLoading(false);
         }
     };
+
+    const closeCancellationModal = () => {
+        if (cancellationLoading) return;
+        cancellationRequestRef.current = null;
+        setCancellationOutcomeUnknown(false);
+        setPendingCancellation(null);
+    };
+
+    useEffect(() => {
+        cancellationRequestRef.current = null;
+        setCancellationOutcomeUnknown(false);
+        setCancellationLoading(false);
+        setPendingCancellation(null);
+    }, [user?.id, user?.organization_id, marketSupportContext?.id]);
 
     const closeTradeModal = useCallback(() => {
         setSelectedOrder(null);
@@ -1897,14 +1988,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             {/* ─── Order Placement Modal ────────────────────────────── */}
             <ConfirmModal
                 isOpen={Boolean(pendingCancellation)}
-                onClose={() => setPendingCancellation(null)}
+                onClose={closeCancellationModal}
                 onConfirm={() => { void confirmCancelOrder(); }}
                 title={t('marketplace.cancel.title')}
-                message={t('marketplace.cancel.message')}
-                confirmText={t('marketplace.cancel.confirm')}
+                message={t(cancellationOutcomeUnknown ? 'marketplace.cancel.outcomeUnknown' : 'marketplace.cancel.message')}
+                confirmText={t(cancellationOutcomeUnknown ? 'marketplace.cancel.retrySafely' : 'marketplace.cancel.confirm')}
                 variant="danger"
                 isLoading={cancellationLoading}
-                confirmDisabled={cancellationReason.trim().length < 3}
+                confirmDisabled={!cancellationOutcomeUnknown && cancellationReason.trim().length < 3}
             >
                 <label className="mb-2 block text-xs font-bold uppercase text-slate-500">
                     {t('marketplace.cancel.reasonLabel')}
@@ -1914,6 +2005,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         rows={3}
                         maxLength={500}
                         value={cancellationReason}
+                        disabled={cancellationOutcomeUnknown}
                         onChange={(event) => setCancellationReason(event.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                     />

@@ -5,8 +5,15 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { MyTrades } from '../components/MyTrades';
 import i18n from '../i18n';
+import { setAccessToken } from '../services/authToken';
 
-const myTradesPagedMock = vi.fn();
+const { myTradesPagedMock, confirmMock, declineMock, addToastMock, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+  myTradesPagedMock: vi.fn(),
+  confirmMock: vi.fn(),
+  declineMock: vi.fn(),
+  addToastMock: vi.fn(),
+  TestApiOutcomeUnknownError: class extends Error {},
+}));
 const makeTradePage = (id: string, buyerName: string, status: string, isAnonymous = false) => ({
   items: [{
     id,
@@ -42,7 +49,7 @@ const sseControl = vi.hoisted(() => ({
 
 vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({
-    user: { role: 'SUPPLIER', organization_id: 'seller-org' },
+    user: { id: 'user-1', role: 'SUPPLIER', organization_id: 'seller-org' },
     isAuthenticated: true,
   }),
 }));
@@ -54,7 +61,7 @@ vi.mock('../hooks/useSSE', () => ({
 }));
 
 vi.mock('../components/Toast', () => ({
-  useToast: () => ({ addToast: vi.fn() }),
+  useToast: () => ({ addToast: addToastMock }),
 }));
 
 vi.mock('../hooks/useNamespace', () => ({
@@ -62,11 +69,12 @@ vi.mock('../hooks/useNamespace', () => ({
 }));
 
 vi.mock('../services/api', () => ({
+  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   api: {
     trades: {
       myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
-      confirm: vi.fn(),
-      decline: vi.fn(),
+      confirm: confirmMock,
+      decline: declineMock,
       deliver: vi.fn(),
       pay: vi.fn(),
     },
@@ -76,6 +84,9 @@ vi.mock('../services/api', () => ({
 describe('MyTrades lifecycle', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    setAccessToken('my-trades-session-a');
+    confirmMock.mockResolvedValue(undefined);
+    declineMock.mockResolvedValue(undefined);
     sseControl.handler = null;
     namespaceControl.ready = true;
     await i18n.changeLanguage('en');
@@ -141,6 +152,61 @@ describe('MyTrades lifecycle', () => {
     expect(screen.queryByText('Legacy buyer')).toBeNull();
     expect(screen.getByRole('button', { name: 'myTrades.btn.confirm' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'myTrades.btn.decline' })).toBeTruthy();
+  });
+
+  it('retries a confirmation with the same key after an unknown outcome', async () => {
+    const page = makeTradePage('retry-confirm', 'Retry buyer', 'PENDING_CONFIRMATION');
+    page.items.push({ ...page.items[0], id: 'blocked-confirm', buyer_name: 'Blocked buyer' });
+    page.total = 2;
+    myTradesPagedMock.mockResolvedValue(page);
+    confirmMock
+      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'))
+      .mockResolvedValueOnce({ ...makeTradePage('retry-confirm', 'Retry buyer', 'CONFIRMED').items[0], status: 'CONFIRMED' });
+
+    renderWithProviders(<MyTrades />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'myTrades.btn.confirm' }))[0]);
+    const retry = await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
+    expect(screen.queryByRole('button', { name: 'myTrades.btn.confirm' })).toBeNull();
+    expect(screen.getByText('myTrades.retryPending')).toBeTruthy();
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(2));
+    expect(confirmMock.mock.calls[1]).toEqual(confirmMock.mock.calls[0]);
+    expect(confirmMock.mock.calls[0][1]).toEqual(expect.any(String));
+  });
+
+  it('discards a decline retry after the auth generation changes', async () => {
+    myTradesPagedMock.mockResolvedValue(makeTradePage('retry-decline', 'Retry buyer', 'PENDING_CONFIRMATION'));
+    declineMock.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'));
+
+    renderWithProviders(<MyTrades />);
+    fireEvent.click(await screen.findByRole('button', { name: 'myTrades.btn.decline' }));
+    const retry = await screen.findByRole('button', { name: 'myTrades.btn.retrySafely' });
+    setAccessToken('my-trades-session-b');
+    fireEvent.click(retry);
+
+    expect(declineMock).toHaveBeenCalledTimes(1);
+    expect(addToastMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      title: 'myTrades.toast.contextChanged.title',
+    }));
+  });
+
+  it('does not start another trade command while one is in flight', async () => {
+    const page = makeTradePage('pending-a', 'Buyer A', 'PENDING_CONFIRMATION');
+    page.items.push({ ...page.items[0], id: 'pending-b', buyer_name: 'Buyer B' });
+    page.total = 2;
+    myTradesPagedMock.mockResolvedValue(page);
+    let resolveConfirmation!: (value: unknown) => void;
+    confirmMock.mockReturnValueOnce(new Promise(resolve => { resolveConfirmation = resolve; }));
+    renderWithProviders(<MyTrades />);
+
+    const confirmButtons = await screen.findAllByRole('button', { name: 'myTrades.btn.confirm' });
+    fireEvent.click(confirmButtons[0]);
+    await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(1));
+    expect((confirmButtons[1] as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(confirmButtons[1]);
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    await act(async () => resolveConfirmation(undefined));
   });
 
   it('leaves the page heading to its parent when embedded and keeps the trade window visible', async () => {

@@ -6,8 +6,9 @@ import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { activity } from '../services/activityTracking';
+import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
@@ -17,6 +18,7 @@ const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBi
   snapshot: vi.fn(),
   productCounts: vi.fn(),
   myOrders: vi.fn(),
+  cancelOrder: vi.fn(),
   deliveryPoints: vi.fn(),
   toggleSlice: vi.fn(),
   togglePin: vi.fn(),
@@ -87,6 +89,7 @@ vi.mock('../services/api', () => ({
       snapshot,
       productCounts,
       myOrders,
+      cancel: cancelOrder,
     },
     trades: {
       initiate: tradesInitiate,
@@ -180,6 +183,7 @@ describe('Marketplace green fuels surface', () => {
     vi.clearAllMocks();
     userRole.current = 'BUYER';
     marketSupportActive.current = false;
+    clearMarketSupportContextId();
     localStorage.clear();
     listAsksPaged.mockImplementation(async (params?: { market_product?: string }) => {
       if (!params?.market_product || params.market_product === 'BIO_METHANOL') {
@@ -215,6 +219,7 @@ describe('Marketplace green fuels surface', () => {
       total: 1,
     });
     myOrders.mockResolvedValue([]);
+    cancelOrder.mockResolvedValue(undefined);
     deliveryPoints.mockResolvedValue([
       { id: 'dp-1', name: 'Singapore', region: 'Asia', is_active: true },
       { id: 'dp-2', name: 'Rotterdam', region: 'Europe', is_active: true },
@@ -785,6 +790,46 @@ describe('Marketplace green fuels surface', () => {
     });
 
     expect(screen.queryByText('Filled Bio Methanol')).toBeNull();
+  });
+
+  it('retries cancellation with the frozen reason, ETag, and key', async () => {
+    myOrders.mockResolvedValue([{ ...listingsResponse.items[0], id: 'mine-retry', side: 'BID', etag: '"v7"' }]);
+    cancelOrder.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown')).mockResolvedValueOnce(undefined);
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+    const row = (await screen.findByText('Bio Methanol')).closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /cancel/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /cancellation reason/i }), { target: { value: '  Stop this listing  ' } });
+    fireEvent.click(screen.getByRole('button', { name: /cancel listing/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /retry safely with the same request/i }));
+
+    await waitFor(() => expect(cancelOrder).toHaveBeenCalledTimes(2));
+    expect(cancelOrder.mock.calls[1]).toEqual(cancelOrder.mock.calls[0]);
+    expect(cancelOrder.mock.calls[0]).toEqual(['mine-retry', {
+      reason: 'Stop this listing',
+      etag: '"v7"',
+      idempotencyKey: expect.any(String),
+    }]);
+  });
+
+  it('refuses a retained cancellation after the support context changes', async () => {
+    marketSupportActive.current = true;
+    setMarketSupportContextId('support-context-1');
+    myOrders.mockResolvedValue([{
+      ...listingsResponse.items[0], id: 'mine-assisted', side: 'BID', etag: '"v9"', creation_method: 'MARKET_SUPPORT',
+    }]);
+    cancelOrder.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown'));
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
+    const row = (await screen.findByText('Bio Methanol')).closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /cancel/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancel listing/i }));
+    const retry = await screen.findByRole('button', { name: /retry safely with the same request/i });
+    setMarketSupportContextId('support-context-2');
+    fireEvent.click(retry);
+
+    expect(cancelOrder).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/account or assisted context changed/i)).toBeTruthy();
   });
 
   it('opens the lift ask modal even when marketplace is nested inside a form', async () => {
