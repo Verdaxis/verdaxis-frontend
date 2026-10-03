@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
+import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 
 const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
 
@@ -171,4 +172,43 @@ describe('orderbook inspection', () => {
     expect(screen.getByRole('group', { name: /Bid.*700/ })).toBeTruthy();
     expect(screen.queryByRole('group', { name: /Bid.*600/ })).toBeNull();
   });
+
+  it('waits for an active forced request before refreshing for a committed public event', async () => {
+    let resolveBusyRefresh!: (value: ReturnType<typeof makeSnapshot>) => void;
+    const busyRefresh = new Promise<ReturnType<typeof makeSnapshot>>(resolve => {
+      resolveBusyRefresh = resolve;
+    });
+    snapshot
+      .mockResolvedValueOnce(makeSnapshot())
+      .mockImplementationOnce(() => busyRefresh)
+      .mockResolvedValueOnce(makeSnapshot([{
+        id: 'event-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 710,
+        remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      }], []));
+
+    renderWithProviders(<OrderBook {...MARKET} />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(snapshot).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        resolveBusyRefresh(makeSnapshot());
+        await busyRefresh;
+        await Promise.resolve();
+      });
+      expect(snapshot).toHaveBeenCalledTimes(3);
+      expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });

@@ -48,6 +48,7 @@ src/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
+    publicMarketSync.ts            # Debounced shared public refresh subscribers with one queued rerun per consumer
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     activityTracking.ts            # Authenticated page/market activity batching and session boundary clears
@@ -63,6 +64,7 @@ src/
     CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
     RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
+    PublicMarketSync.tsx           # One root subscriber for the public orderbook invalidation stream
     LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Mounts authenticated workspace children only at desktop widths (768px and above)
@@ -225,6 +227,11 @@ Request generation guards prevent obsolete responses from replacing the current 
 the exact slice. Product counts refresh across tabs; paged listings refresh only on the
 Market tab. Marketplace, orderbook, and tape polls pause while the browser tab is hidden
 and resume with a current-scope read. Superseded filter responses cannot replace current data.
+The root public-market subscriber owns one orderbook EventSource connection.
+Committed `market_invalidated` signals synchronously clear public market cache prefixes, then
+coalesce mounted PriceTicker, map, orderbook, curve and trade-tape REST refreshes. Each consumer
+runs at most one signal refresh with one dirty rerun. Stream reset/reconnect uses the same REST
+freshness path, while existing visibility-aware polling remains the recovery path.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, general market data 15 seconds, selected book snapshots

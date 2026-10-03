@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlaskConical } from 'lucide-react';
 import { DEMO_FUEL_PRICES, fetchFuelPrices, type FuelPrice } from '../../data/fuelPrices';
 import { useNamespace } from '../../hooks/useNamespace';
 import { formatAvailabilityWindowPeriod } from '../../utils/availabilityWindow';
+import { usePublicMarketRefresh } from '../../hooks/usePublicMarketRefresh';
 
 const formatLocalizedAvailabilityWindowPeriod = formatAvailabilityWindowPeriod as (
   value: string | null | undefined,
@@ -18,20 +19,30 @@ export const PriceTicker: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const { i18n } = useTranslation();
   const [prices, setPrices] = useState<FuelPrice[]>(DEMO_FUEL_PRICES);
+  const requestController = useRef<AbortController | null>(null);
   const currentLanguage = i18n.resolvedLanguage ?? i18n.language;
 
-  useEffect(() => {
+  const refreshPrices = useCallback(async () => {
+    requestController.current?.abort();
     const controller = new AbortController();
+    requestController.current = controller;
 
-    fetchFuelPrices(controller.signal)
-      .then(setPrices)
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        // Keep the visible, explicitly labelled Demo snapshot on feed failure.
-      });
-
-    return () => controller.abort();
+    try {
+      const nextPrices = await fetchFuelPrices(controller.signal);
+      if (!controller.signal.aborted) setPrices(nextPrices);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      // Keep the visible, explicitly labelled Demo snapshot on feed failure.
+    } finally {
+      if (requestController.current === controller) requestController.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshPrices();
+    return () => requestController.current?.abort();
+  }, [refreshPrices]);
+  usePublicMarketRefresh(refreshPrices);
 
   const doubled = [...prices, ...prices];
   const midpoint = prices.length;

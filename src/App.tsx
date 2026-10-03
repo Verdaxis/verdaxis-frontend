@@ -18,6 +18,7 @@ import { AnalyticsProvider } from './components/AnalyticsProvider';
 import { ActivityTrackingProvider } from './components/ActivityTrackingProvider';
 import { DeploymentUpdateNotice } from './components/DeploymentUpdateNotice';
 import { RouteMetadata } from './components/RouteMetadata';
+import { PublicMarketSync } from './components/PublicMarketSync';
 import { analytics } from './services/analytics';
 import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
@@ -643,6 +644,7 @@ const App: React.FC = () => {
                 <AnalyticsProvider>
                 <ActivityTrackingProvider>
                 <RouteMetadata />
+                <PublicMarketSync />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
                 <AppRoutes />

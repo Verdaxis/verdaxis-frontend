@@ -387,10 +387,10 @@ const readApi = <T = any>(
 );
 
 const invalidateMarketReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
-const invalidateTradeReads = () => invalidateReadCache('trades:');
-const invalidateTradeTransitionReads = () => invalidateReadCache('trades:', 'watchlists:');
+const invalidateTradeReads = () => invalidateReadCache('trades:', 'trade-tape:');
+const invalidateTradeTransitionReads = () => invalidateReadCache('trades:', 'trade-tape:', 'watchlists:');
 const invalidateWatchlistReads = () => invalidateReadCache('watchlists:');
-const invalidateTradeExecutionReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:');
+const invalidateTradeExecutionReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:', 'trades:', 'trade-tape:');
 
 const mutateApi = async <T = any>(invalidate: () => void, path: string, options: RequestInit): Promise<T> => {
     invalidate();
@@ -1489,7 +1489,7 @@ export const api = {
             sp.append('limit', String(params?.limit ?? 20));
             sp.append('skip', String(params?.skip ?? 0));
             const path = `/trade-tape?${sp.toString()}`;
-            return readApi(`trades:${path}`, path, 'market', 'private', undefined, cacheOptions);
+            return readApi(`trade-tape:${path}`, path, 'market', 'private', undefined, cacheOptions);
         },
     },
 
