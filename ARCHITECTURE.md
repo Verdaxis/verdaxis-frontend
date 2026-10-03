@@ -227,7 +227,8 @@ Market tab. Marketplace, orderbook, and tape polls pause while the browser tab i
 and resume with a current-scope read. Superseded filter responses cannot replace current data.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
-Reference data lasts five minutes, market data 15 seconds, and private activity 10 seconds.
+Reference data lasts five minutes, general market data 15 seconds, selected book snapshots
+10 seconds, and private activity 10 seconds.
 Private scope includes the auth session, accepted user/organization profile, and assisted
 context. Mutations invalidate before and after execution; SSE invalidates affected resources
 before consumers refresh. Superseded requests cannot populate or return another scope's data.
@@ -400,3 +401,24 @@ npm run preview      # Preview production build
 npm run test         # Vitest single run
 npm run test:watch   # Vitest watch mode
 ```
+
+## Trading response and data-source contracts (2026-10-03)
+
+The order book reads one canonical snapshot for both sides. Its cache and visible
+refresh interval are ten seconds. Manual and resume reads bypass ordinary pending
+reads. Snapshot generation time drives age, refreshing, stale and unavailable
+labels; a failed refresh retains old depth with a visible failure state.
+
+Direct-hit review freezes terms, request key and execution context. The API treats
+transport failure, HTTP 5xx and unreadable success as an unknown outcome. A deliberate
+retry reuses the frozen request and key only under the same account and assisted
+context. Success shows the returned trade economics and lifecycle status. Order
+entry uses the same outcome distinction. This does not add general lifecycle replay.
+
+Market analytics distinguishes live data, valid zero results, unavailable data and
+illustrative samples. Resting quote references are not confirmed-trade VWAP. The
+reference label reports available order context time or states that it is unavailable.
+Production identified activity delivery checks HTTP results and bounds its buffer
+to 200 events, three attempts, 30 seconds of age and a five-second request timeout.
+Retries retain UUIDs and context. Delivery counters are browser-local, not an admin
+coverage report. Staging retains its separate catalog and tracking scope.
