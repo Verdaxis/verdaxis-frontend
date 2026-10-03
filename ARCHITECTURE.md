@@ -229,7 +229,7 @@ and resume with a current-scope read. Superseded filter responses cannot replace
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, general market data 15 seconds, selected book snapshots
-10 seconds, and private activity 10 seconds.
+nine seconds, and private activity 10 seconds.
 Private scope includes the auth session, accepted user/organization profile, and assisted
 context. Mutations invalidate before and after execution; SSE invalidates affected resources
 before consumers refresh. Superseded requests cannot populate or return another scope's data.
@@ -407,8 +407,8 @@ The earlier independent supplier offers and requests retain their original terms
 
 ## Trading response and data-source contracts (2026-10-03)
 
-The order book reads one canonical snapshot for both sides. Its cache and visible
-refresh interval are ten seconds. Manual and resume reads bypass ordinary pending
+The order book reads one canonical snapshot for both sides. Its cache lasts nine seconds; its visible
+refresh interval is ten seconds. Manual and resume reads bypass ordinary pending
 reads. Snapshot generation time drives age, refreshing, stale and unavailable
 labels; a failed refresh retains old depth with a visible failure state.
 
