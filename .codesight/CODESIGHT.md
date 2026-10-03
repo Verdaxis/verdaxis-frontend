@@ -1,5 +1,7 @@
 # verdaxis-exchange — AI Context Map
 
+> **Historical generated snapshot:** This corpus was scanned on 2026-07-22 and can be stale. Start with [README.md](../README.md) and [ARCHITECTURE.md](../ARCHITECTURE.md), then verify routes, models, coverage, and dependencies in the current branch source. The counts below are not current source authority.
+
 > **Stack:** raw-http | none | react | typescript
 
 > 158 routes | 206 models | 129 components | 33 lib files | 7 env vars | 3 middleware | 4% test coverage

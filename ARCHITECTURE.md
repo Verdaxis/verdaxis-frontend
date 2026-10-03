@@ -1,445 +1,132 @@
 # Architecture
 
-## Tech Stack
+## Scope and stack
 
-React 19 + TypeScript, Vite 6, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, lightweight-charts, react-router-dom v7, Vitest
+This repository is the Verdaxis React single-page application. It serves localized public pages and the protected buyer/supplier platform. The stack is React 19, TypeScript, Vite 6, react-router-dom 7, Tailwind CSS, Mapbox GL JS, Leaflet, Recharts, lightweight-charts, i18next, and Vitest.
 
-## Runtime
+## Runtime topology
 
-The production static frontend is deployed on Vercel for `verdaxis.exchange`,
-`www.verdaxis.exchange`, and `app.verdaxis.exchange`. Staging remains a
-Caddy-served VPS build at `staging.verdaxis.exchange`. Production uses one
-immutable Vercel artifact: build, target-strict artifact validation, stable
-canary alias, rendered browser smoke, then promotion without rebuilding.
-Repeated deterministic frontend failure after promotion can roll back only to
-the captured prior deployment while the production API is independently
-healthy. Vercel's Git integration remains connected for source metadata, but
-automatic Git deployments are disabled in `vercel.json`.
+| Target | Static frontend | API and database | Release control |
+|---|---|---|---|
+| Production | Vercel | EU production host | Protected Vercel workflow on `prod` |
+| Staging | Caddy on the shared VPS | Shared VPS staging services | Host-side atomic publisher after staging CI |
 
-Public route metadata is shared between runtime navigation and Vite's static
-HTML output. Builds emit 52 localized public entry pages with canonical and
-social metadata; the SPA fallback stays generic and noindex. Staging blocks
-indexing in every entry page and robots.txt, and does not publish a sitemap.
+Production is not served from the shared VPS frontend directory. On this branch, `scripts/deploy.sh staging` creates a checked staging artifact. The reviewed host publisher builds from the exact accepted `staging` commit, atomically exchanges the static directory, runs live smoke, and only then aligns the staging checkout.
 
-## File Map
+## Bootstrap and dependency flow
 
+```text
+index.html
+  -> src/index.tsx
+  -> src/App.tsx
+     -> Theme/Auth/MarketSupport/Toast/Notification/Tutorial providers
+     -> BrowserRouter
+        -> AnalyticsProvider
+        -> RouteMetadata + PublicMarketSync + AppRoutes
+           -> localized public routes
+           -> auth and onboarding routes
+           -> /app guard chain
+              -> ProtectedRoute -> RequireOrganization -> RequireProfile
+              -> MobileDesktopGate -> DashboardLayout
+                 -> Layout -> Sidebar + Header
+                 -> retained BuyerMap or nested Outlet workspace
+                 -> Marketplace / ForwardCurveWorkspace / other views
+                    -> services/api.ts -> readCache/authToken
+                    -> production or staging API
 ```
+
+`src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable.
+
+## Route and workspace rules
+
+- Public pages use `/:lang/*` and `PublicLayout`. Legacy unprefixed public paths redirect to a language route.
+- `/app` is protected, organization/profile gated, and desktop-only below 768 px. Platform admins can bypass organization onboarding.
+- Bare `/app` restores the last accepted page. Nested routes are the source of truth; the `Page` type remains for sidebar state, session restore, analytics, and smoke selectors.
+- Marketplace slices use `/app/m/:product/:port/:window`. Invalid slices return to `/app/marketplace`.
+- The sidebar lists Command Center, Intelligence Map, Marketplace, Forward Curve, Watchlist, Analytics, and Trade History. Settings and Admin are separate footer/admin entries.
+- Buyer and Supplier modes share the main destinations. They change the Command Center content and the primary action to BID or ASK.
+- Marketplace owns catalog resolution, product counts, paged listings, orderbook depth, and the user's orders. Forward Curve owns market-period monitoring and selected-slice evidence. It opens Marketplace for order inspection or entry.
+
+## Security and state boundaries
+
+**Authentication.** Access tokens stay in memory. Refresh uses the backend HttpOnly cookie, then `/auth/me` validates the session. Public market reads use an exact GET allowlist; private requests carry the bearer token.
+
+**Market Support.** The admin remains the authenticated principal. The browser persists only an opaque context id. `MarketSupportContext` rehydrates server state and expires it; `api.ts` sends the context header only to the narrow customer route allowlist. Capability discovery recognizes `MARKET_SUPPORT_LISTINGS` and `MARKET_SUPPORT_AUTHORIZATIONS`, while the server eligibility result remains authoritative. Entry requires an approved `REAL` organization and an `ORDER_CREATE`/`ORDER_CANCEL` scope. Both assisted BID and ASK use `OrderPlaceModal` and `MarketSupportFinalConfirmation`. Unsupported mutations and trade execution stay blocked.
+
+**Cached reads.** `readCache.ts` keys private reads by the auth generation, accepted account/organization, and assisted context. Mutations and market stream events invalidate affected keys. Results from an obsolete scope cannot repopulate the cache.
+
+**Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
+
+**Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo, history, or reference values into executable claims.
+
+## File map
+
+```text
 src/
-  index.tsx                        # ReactDOM entry, mounts <App /> into #root
-  App.tsx                          # Route definitions, auth guards, DashboardLayout + nested /app routes
-  routeMetadata.ts                 # EN/ZH public catalog, private metadata, canonical and static-head generation
-  types.ts                         # Shared TypeScript interfaces (Port, Vessel, Order, Trade...)
-  types/fameRfq.ts                 # Versioned UCOME B100 request/offer declarations and normalized RFQ responses
-  types/fameSupplierOffer.ts       # Indicative supplier listing inputs, public/full declarations and offer revisions
-  utils/availabilityWindow.ts      # Canonical availability-window parsing, display labels, picker option ladder
-  utils/forwardCurveAxis.ts        # Chart-only delivery horizons and width-aware sparse/detailed tick layout
-  utils/marketActivity.ts          # Shared provenance/source labels for demo, benchmark, mixed, and live market activity
-  utils/marketProduct.ts           # Canonical product labels and orderbook execution allowlist helpers
-  utils/watchlist.ts               # Market Radar slice keys, labels, event copy, latest-event helpers
-  data.ts                          # Static/mock seed data (ports, suppliers, courses)
-  index.css                        # Tailwind base + global styles
-
-  context/
-    AuthContext.tsx                 # JWT auth state, login/logout, /auth/me validation
-    MarketSupportContext.tsx        # Opaque admin-to-organization context lifecycle and scope
-    ThemeContext.tsx                # Light/dark/system toggle, persists to localStorage
-    NotificationContext.tsx        # 30s polling for notifications, read/unread state
-    TutorialContext.tsx             # Guided tutorial state
-
-  services/
-    config.ts                      # API_URL from VITE_API_URL env var
-    api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades, RFQs...)
-    fameRfq.ts                     # RFQ response normalization; unknown measurements stay null; declared USD/GJ comparison
-    fameSupplierOffer.ts            # Supplier offer normalization and successful-write refresh event
-    readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
-    publicMarketSync.ts            # Debounced shared public refresh subscribers with one queued rerun per consumer
-    marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
-    analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
-    cookiePreferences.ts           # Versioned visitor choice, fail-closed storage, same/cross-tab updates
-    ai.ts                          # Supplier risk AI export
-    ai-engine/
-      generators.ts                # AI supplier-risk memo helper, proxied through backend /ai/chat
-      cache.ts                     # In-memory 5-min TTL cache for AI responses
-
+  index.tsx                         React mount
+  App.tsx                           providers, route tree, dashboard layout route
+  routeMetadata.ts                  localized route metadata and static-head catalog
+  types.ts                          shared UI and API domain types
+  types/marketSupport.ts            assisted-workspace contracts
+  types/fame{Order,Rfq,SupplierOffer}.ts
+                                    staging UCOME B100 and history contracts
   components/
-    AnalyticsProvider.tsx          # Consent-gated, normalized manual SPA pageviews
-    CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
-    RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
-    DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
-    PublicMarketSync.tsx           # One root subscriber for the public orderbook invalidation stream
-    LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
-    Layout.tsx                     # App shell: sidebar + header + content frame
-    MobileDesktopGate.tsx          # Mounts authenticated workspace children only at desktop widths (768px and above)
-    layout/{Sidebar,Header}.tsx    # Nav sidebar (role-aware); top bar with view-mode switch
-    # Buyer views
-    BuyerMap.tsx                   # Mapbox GL JS intelligence map (Light/Dark v11) using approved ports and product-specific marketplace SPOT references
-    BuyerDashboard.tsx             # Order overview, active trades, quick actions
-    Marketplace.tsx                # Browse/filter listings, place orders, show benchmark deltas
-    rfq/{FameRfqWorkspace,FameRfqForms}.tsx # Marketplace UCOME B100 requests, declared quote comparison, revisions and withdrawals; no execution
-    fame/                          # Shared B100 declaration fields, fixed quality-result units and evidence inputs
-    OrderBook.tsx                  # Live depth widget; executable crosses ignore demo-only liquidity
-    ForwardCurveWorkspace.tsx      # Canonical market-monitoring matrix and selected-period evidence graph
-    DataAnalytics.tsx              # Shared supply-and-demand intelligence for buyer and supplier views
-    GuidedTutorial.tsx             # Controlled Joyride walkthrough with click-to-advance workflow steps
-    Fleet.tsx                      # Vessel list with compliance and voyage info
-    Stats.tsx                      # Buyer analytics and trade history
-    Training.tsx                   # Crew training courses
-    Compliance.tsx                 # EU ETS / FuelEU compliance dashboard
-    Settings.tsx                   # User/org settings (shared by both roles)
-    # Supplier views
-    SupplierDashboard.tsx          # Incoming orders, revenue overview
-    SupplierQuotes.tsx             # Supplier route alias for the shared trade blotter
-    SupplierInventory.tsx          # Fuel inventory by port
-    supplier/SupplierOffersWorkspace.tsx # Historical indicative B100 offers, preserved readback and withdrawal
-    SupplierStats.tsx              # Supplier-specific stats
-    SupplierDemandFeed.tsx         # Live demand signals from buyers
-    WatchlistPage.tsx              # Slice-first Market Radar detail view and event feed
-    # Modals
-    buyer/CreateBidModal.tsx       # Buy-side orderbook entry modal
-    OrderPlaceModal.tsx            # Shared BID/ASK order dialog with fuel-specific B100 requirements/declarations
-    # Feature groups
-    admin/AdminDashboard.tsx      # Product analytics, onboarding review, pre-approved user/org invites, organization entry
-    admin/ProductUsageSection.tsx  # Isolated 7/30/90 behavioral aggregate dashboard
-    admin/market-support/MarketSupportEntryDialog.tsx # Approved real-organization entry flow
-    market-support/{ActingOrganizationBanner,MarketSupportFinalConfirmation}.tsx # Context chrome and final BID/ASK confirmation
-    map/{IntelligencePanel,VesselMarkers,MapLegend,MarketWatchTicker}.tsx
-    compliance/{ComplianceDashboard,ComplianceTracing,ComplianceLedgerModal,ComplianceDataInput}.tsx
-    notifications/{NotificationBell,NotificationList}.tsx
-    fleet/VesselDetailModal.tsx
-    ui/{Tooltip,MarkdownRenderer,ConfirmModal,VerdaxisSelect}.tsx
-    trading/MarketActivityBadge.tsx # Compact provenance badge for demo/reference/mixed market activity
-    watchlist/MarketRadarPanel.tsx # Command-center radar summary for tracked slices
-    # Public site
-    public/PublicLayout.tsx        # Public page shell (nav + footer + Lenis smooth scroll)
-    public/MobilePilotCta.tsx      # Localized mobile pilot link, page exclusions and safe-area clearance
-    public/{PublicNav,PublicFooter,HeroSection,PriceTicker,PilotApplicationForm}.tsx
-    public/{DataOcean,motionUtils}.tsx  # Animated background (GSAP); motion presets
-
-  pages/
-    LoginPage.tsx                  # Email/password login
-    RegisterPage.tsx               # User registration
-    AcceptInvitationPage.tsx       # One-page pre-approved account claim, agreement, password, and sign-in
-    OnboardingPage.tsx             # Post-registration role selection + profile setup
-    CreateOrganizationPage.tsx     # Organization creation/join flow with ISO country selector
-    public/                        # Marketing, legal, education, custom 404 and truthful completion pages
-
-  data/
-    eca-zones-web.json             # Versioned, web-simplified IMO ECA polygons generated from operational geometry
-    secaZones.ts                   # ECA geometry types, bundle metadata, and Mapbox source identifiers
-    producerProjects.ts            # Static producer project dataset (locations, capacities)
-    fuelPrices.ts                  # Public ticker adapter for disclosed Demo orderbook midpoints
-    calculatorDefaults.ts          # Defaults for energy calculator
-    educationArticles.ts           # Education article content/metadata
-
-  map/
-    addEcaLayers.ts                # Installs and toggles generated ECA polygon and label layers in Mapbox
-    loadEcaLayers.ts               # Loads ECA geometry after the map instance exists
-
-  tests/
-    setup.ts                       # Vitest jsdom polyfills (matchMedia, ResizeObserver, etc.)
-    *.test.ts                      # Unit tests (utils, pricing, matchmaking, map, etc.)
-
+    Layout.tsx                      authenticated shell
+    layout/{Sidebar,Header,sidebarConfig}.tsx
+    Marketplace.tsx                market/listings/orderbook and FAME history workspace
+    OrderBook.tsx                   depth and level interaction
+    OrderPlaceModal.tsx             shared BID/ASK entry, including catalog-enabled B100
+    ForwardCurveWorkspace.tsx       monitoring matrix, chart, selected-period evidence
+    BuyerMap.tsx                    retained authenticated intelligence map
+    CommandCenter.tsx               buyer/supplier home views
+    fame/                           shared UCOME B100 fields and readback
+    rfq/                            earlier FAME request history
+    supplier/                       earlier FAME supplier-offer history
+    admin/                          admin and product analytics workspaces
+    admin/market-support/           eligible-organization entry
+    market-support/                 acting banner and final order confirmation
+    public/                         localized public shell and components
+  context/                          auth, market support, theme, notifications, tutorial
+  services/
+    api.ts                          fetch client and response transforms
+    authToken.ts                    in-memory access-token generation
+    readCache.ts                    scoped TTL cache and request deduplication
+    fame{Order,Rfq,SupplierOffer}.ts
+                                    staging FAME normalization and events
+    publicMarketSync.ts             shared market invalidation subscriber
+    analytics.ts                    optional consent-gated Umami adapter
+  hooks/                            workspace readiness, SSE, preferences, watchlists
+  utils/                            market identity, slice URLs, axis and display helpers
+  locales/{en,zh}/                  lazy translation namespaces
+  pages/                            auth/onboarding and public route pages
+  tests/                            Vitest and React Testing Library checks
 scripts/
-  deploy.sh                       # Static prod/staging build script with API-target validation
-  check-translations.ts           # Recursive EN/ZH locale leaf-parity gate
-  optimize-brand-images.sh        # Deterministic responsive logo, favicon, and social-card variants
-  smoke-live.mjs                  # Prod/staging live smoke checks
-  start-frontend.sh               # Local development server helper
-  seed_listings.sh                 # Seed marketplace data
-  geocode_projects.py             # Geocode producer project locations
-
-database/schema.txt                # Backend DB schema reference
-.github/workflows/frontend-ci.yml # CI: tests/typecheck/i18n/builds on staging+prod pushes and PRs (no deploy)
+  check-build-artifacts.mjs         static chunk/artifact inspection
+  deploy.sh                         target-aware static build helper
+  smoke-live.mjs                    external production/staging read checks
+  smoke_navigation.py               local or deployed browser navigation
+.github/workflows/
+  frontend-ci.yml                   tests, types, i18n, both builds
 ```
 
-Lazy i18n namespaces are readiness-gated before locale-dependent effects run. Controlled
-API values are translated at the UI boundary, unknown backend prose falls back to a safe
-localized message outside English, and user-facing third-party control labels follow the
-active locale.
+## Source-to-test locator
 
-## Dependency Flow
+| Area | Source | Tests/checks |
+|---|---|---|
+| Routes and sidebar | `App.tsx`, `layout/sidebarConfig.ts`, `types.ts` | `app-routing.test.tsx`, `sidebar-config.test.ts` |
+| Marketplace/order entry | `Marketplace.tsx`, `OrderBook.tsx`, `OrderPlaceModal.tsx`, `api.ts` | `marketplace-green-fuels.test.tsx`, `order-place-modal.test.tsx`, `api-*.test.ts` |
+| Forward Curve | `ForwardCurveWorkspace.tsx`, `utils/forwardCurveAxis.ts` | `forward-curve-workspace.test.tsx`, `forward-curve-axis.test.ts` |
+| Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
+| FAME/catalog | FAME types/services/components and `Marketplace.tsx` | `b100-order-api.test.ts`, `marketplace-b100-take.test.tsx`, FAME component tests |
+| Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
 
-```
-index.html --> index.tsx --> App.tsx
-                               |
-                 +-------------+-------------+
-                 |             |             |
-            ThemeProvider AuthProvider
-                               |
-                    MarketSupportProvider
-                               |
-                      NotificationProvider
-                               |
-                        TutorialProvider
-                               |
-                         BrowserRouter
-                        /      |      \
-                  /login  PublicLayout  /app (ProtectedRoute)
-                             |              |
-                        public pages   RequireOrganization* --> RequireProfile
-                                            |
-                                     DashboardLayout (layout route)
-                                       /    |    \
-                                Layout viewMode <Outlet/> child routes
-                               / |  \                (home, marketplace,
-                        Sidebar Header               m/:product/:port/:window,
-                                                     curve, watchlist, ...)
-                                  └─ retained BuyerMap for /app/map after first visit
-                                                |
-                                        Backend REST API
-```
-
-`RequireOrganization` applies to buyer and supplier accounts. Platform admins
-may be organization-less and bypass organization onboarding.
-
-## Key Patterns
-
-**URL-routed app navigation:** Every authenticated view is a nested route under `/app`
-(`/app/home`, `/app/map`, `/app/marketplace`, `/app/curve`, ...) rendered through the
-`DashboardLayout` layout route in `App.tsx`. The legacy `Page` enum survives as the
-sidebar/session/dogfood vocabulary: `PAGE_SLUGS` in `types.ts` maps every `Page` value to its
-URL slug, and `pathToPage` derives the active page from the pathname. Marketplace slices get
-deep links via `/app/m/:product/:port/:window` (codec in `utils/sliceUrl.ts`; invalid slices
-redirect to `/app/marketplace`). Bare `/app` restores the last visited page from
-`sessionStorage.verdaxis_currentPage`. New authenticated views should add a child route plus a
-`Page` value and `PAGE_SLUGS` entry.
-
-**Retained map:** The authenticated layout mounts `BuyerMap` lazily on its first visit and
-keeps it hidden and inert on other routes. Account, organization, or assisted-context changes
-discard the instance. Return navigation resizes it and refreshes market data; offscreen feeds
-pause. `/orderbook/map-summary/compact` supplies all-window market totals, exact SPOT inputs,
-unchanged nearest-window demo groups, and recent ASK indications. The map fuel filter affects
-map references; independent ticker preferences retain other fuels at approved ports.
-Login does not prefetch either map implementation. ECA geometry loads after map
-creation; style changes retain the overlay, and a failed chunk offers a page reload.
-Leaflet and its CSS load only with the producer map.
-Closed insights stop news refreshes; forward references load only for the visible Primary
-tab, using the selected fuel and port when present. The ticker batches covered fuels into
-one SPOT price read and still matches each displayed row by canonical fuel, catalog port,
-and window.
-
-**Forward monitoring reads:** A canonical saved selection starts its detail request alongside
-the table. The table validates that selection and chooses a fallback if it is no longer present.
-Visible table and detail refreshes run together every 30 seconds; changing the selection does
-not reset that deadline. Hidden tabs pause automatic reads and refresh when visible again.
-Request generation guards prevent obsolete responses from replacing the current selection.
-
-**Market refresh:** Marketplace waits for selected-port catalog resolution before reading
-the exact slice. Product counts refresh across tabs; paged listings refresh only on the
-Market tab. Marketplace, orderbook, and tape polls pause while the browser tab is hidden
-and resume with a current-scope read. Superseded filter responses cannot replace current data.
-The root public-market subscriber owns one orderbook EventSource connection.
-Committed `market_invalidated` signals synchronously clear public market cache prefixes, then
-coalesce mounted PriceTicker, map, orderbook, curve and trade-tape REST refreshes. Each consumer
-runs at most one signal refresh with one dirty rerun. Stream reset/reconnect uses the same REST
-freshness path, while existing visibility-aware polling remains the recovery path.
-
-**Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
-Reference data lasts five minutes, general market data 15 seconds, selected book snapshots
-nine seconds, and private activity 10 seconds.
-Private scope includes the auth session, accepted user/organization profile, and assisted
-context. Mutations invalidate before and after execution; SSE invalidates affected resources
-before consumers refresh. Superseded requests cannot populate or return another scope's data.
-Repeated forced reads share an already-forced pending request. Explicit invalidation still
-removes pending work, so a mutation or event cannot reuse a request from before invalidation.
-Command Center subscribes to private trade events and refreshes its action queue, totals,
-and Watchlist without requiring navigation away from the dashboard.
-The dashboard remounts its page subtree on account, organization, or assisted-context changes
-so previously rendered data and local drafts cannot remain under a different scope.
-Page readiness timing waits for usable data and paint, separately from the route commit.
-
-**Desktop-only platform workspace:** The authenticated `/app` route is wrapped in
-`MobileDesktopGate`, which shows a desktop-required notice below 768px. Public marketing,
-auth, and onboarding routes remain available on mobile.
-
-**Dual-role view mode:** `viewMode` (`BUYER | SUPPLIER`) determines which sidebar items and
-page components render. Supplier users default to `SUPPLIER`; buyers to `BUYER`. The header
-provides a toggle to switch.
-
-**API data transform:** Backend returns snake_case with numbers-as-strings. `api.ts`
-transforms to camelCase frontend interfaces and wraps numeric fields with `Number()`.
-Orderbook timing is normalized through `utils/availabilityWindow.ts` so the UI can show
-relative labels while the API persists canonical codes. Green-fuels naming is normalized
-through `utils/marketProduct.ts`, and benchmark-relative pricing is carried in the shared
-order interfaces.
-
-**AI assistance:** The floating Copilot chat has been removed. Supplier quote risk memos still
-call the backend `/ai/chat` proxy through `services/ai-engine/generators.ts`, with short-lived
-frontend caching for repeated memo requests.
-
-**Context-only state:** No Redux/Zustand. React Contexts cover Auth, Theme, Notifications,
-and Tutorial state, with custom hooks (`useAuth()`, `useTheme()`, etc.).
-
-**Behavioral analytics boundary:** `AnalyticsProvider` performs normalized manual SPA
-page tracking through the typed adapter in `services/analytics.ts`, without assigning
-Verdaxis user or organization IDs. Umami loads only when both public analytics environment
-variables are valid and the visitor permits optional analytics. `services/cookiePreferences.ts`
-stores the versioned choice; `CookieConsent` provides the banner and settings controls.
-Withdrawal clears queued operations and stops future tracking; essential sign-in and
-display preferences remain available. Auto-tracking, replay, and heatmaps are disabled.
-Components emit selective allowlisted events, and the adapter drops unknown properties
-and isolates all collector failures. The Admin Product Usage section consumes only the backend's aggregated,
-admin-authorized endpoint and degrades independently from commercial analytics.
-
-**Assisted order-entry context boundary:** Admin Users exposes entry only for approved REAL
-organizations. The browser stores only an opaque context id in sessionStorage;
-the real admin token remains the sole credential. `MarketSupportProvider` rehydrates and
-expires the context, while `services/api.ts` adds the context header only to the scoped
-customer allowlist and preserves it across refresh retries. Buyer and supplier views remain
-available under a persistent acting-organization banner. Entering a clearly one-sided
-organization defaults the shell to its matching view once; the admin may still switch views.
-BID and ASK creation use the normal
-order form plus a compact final confirmation, with GTC or dated expiry and no evidence-text
-requirement. Orders remain post-only. Own assisted-order cancellation uses the canonical
-POST route with reason and ETag. Role-appropriate orderbook rows remain inspection
-shortcuts into Listings; hit/lift actions and unsupported customer mutations remain denied.
-
-**Server-persisted preferences:** `useServerPreference` (src/hooks/useServerPreference.ts)
-backs Market Watch ticker config, notification toggles, and tutorial completion with
-`/api/users/me/preferences` (local-first render, server-wins sync, debounced writes);
-localStorage is only a per-device cache.
-
-**Green-fuels market surface:** Buyer/supplier UIs now flatten the market to the approved
-green-fuels products while preserving richer certification and sustainability metadata on
-supplier listings. Benchmark comparisons key on `market_product + delivery_point + availability_window`.
-RCF and Advanced designations belong to offer-level origin, CI and certification evidence,
-not additional orderbook selectors. Gasoil is excluded. The 2026-09-15 pathway/supply-preview
-experiment was withdrawn; no supplied email indications were persisted as orders. This
-product rule does not label RCF as certified biofuel or add Fuel Oil to the live catalog.
-Demo liquidity is labelled and blocked from execution, row watchlist controls use compact visible
-copy with explicit accessible labels, and crossed-market indicators only consider real resting orders
-so seeded preview prices do not look executable.
-Canonical product selectors are catalog-driven rather than liquidity-driven, so Bio Methanol,
-e-Methanol, Bio Ethanol, and e-Ethanol remain visible even when a slice has no orders. The public
-price ticker joins active approved delivery points and active orderbook catalog products to the Demo
-orderbook, rendering every quoted pair in port-major order. The ticker and map Market Watch derive
-clearly labelled Demo midpoints from the nearest exact
-`market_product + delivery_point + availability_window` orderbook slice. They never present those
-values as third-party benchmarks or executable quotes; a labelled Demo preview remains visible if
-the public market endpoints are temporarily unavailable.
-
-**B100 shared orderbook:** All five catalog products use the shared orderbook allowlist. Explicit catalog execution mode and delivery-point coverage still control eligibility. B100 is active at Singapore. Standard Marketplace Listings/Orderbook/My Listings, BID/ASK dialogs, trade actions, Map, Market Watch and Forward Curve use that same identity. Market-slice links preserve the selected availability window. New entry submits `fame_terms` with buyer requirements or supplier declarations; compatibility is enforced by the backend.
-
-Earlier indicative offers and RFQs remain available through history, including cancellation/withdrawal. They are not counted as orderbook liquidity or silently converted. B100 prices are not fabricated when data is absent, and product-level curve aggregates explain that individual specifications can differ.
-
-**Guided tutorial flow:** `GuidedTutorial` is controlled by step index. Informational steps use
-Joyride's footer controls, while workflow steps hide the footer and advance only after the user
-clicks the highlighted in-app tab, button, row, or modal control. The tutorial stops at submit/confirm
-boundaries and does not place real bids, asks, listings, or trades.
-
-**Monitoring vs trading surfaces:** `ForwardCurveWorkspace` is the live monitoring page.
-The former `MarketTerminal` trading-oriented surface was archived in 2026-07 after its sidebar
-entry had been absent since the 2026-04 pilot cleanup. Its capabilities are covered by
-Forward Curve for monitoring, Marketplace for execution, and the Trade History Alerts tab for
-price alerts; the old implementation remains recoverable from git history if needed. Forward Curve consumes `/curves/forward/table`
-for the product-port-period matrix and `/curves/forward/slice` for the selected-period evidence graph.
-The compact table payload carries product and delivery-point identity once per row; the workspace
-rehydrates that row context onto cells before selection, charting, or Marketplace handoff.
-It does not execute trades. Its prominent curve is keyed to the selected product and delivery point,
-with chart-only 1Y/3Y/All delivery horizons (All by default), sparse long-range year ticks,
-fixed-size text and container-measured SVG geometry. Every period retains its slot, including
-periods with no evidence. Range changes preserve the selected slice and disclose an out-of-range
-selection rather than silently changing the Marketplace handoff.
-The market matrix stays below the chart, with selected-period range evidence in the right inspector. Price summaries,
-forward cells, watchlist events, and trade tape entries carry `source_kind`, `scope`, `demo_status`, and
-`observed_at` where available; the frontend normalizes those through `utils/marketActivity.ts` so
-demo-seeded, benchmark-reference, mixed-source, and live activity are labelled consistently without
-exposing party identities.
-
-**ECA map overlay:** `BuyerMap` renders active, transition, and adopted ECA/SECA
-references from the generated `data/eca-zones-web.json` bundle through
-`map/addEcaLayers.ts`. The frontend must not maintain a separate hand-drawn
-polygon set. These polygons are visual regulatory references only, not a
-navigation product or a legal-compliance determination. The map's Layers menu
-independently controls Market Watch, market activity widgets, and ECA geometry;
-it must not reintroduce a parent overlay switch that can mask a child state.
-The map opens with all approved ports in view and market widgets collapsed under
-Layers. The shared port picker focuses the selected port clear of the insights
-panel; All ports restores the overview. Native Mapbox navigation and a keyboard
-accessible legend provide visible controls. Theme/language changes retain the
-camera position, and port popups read the current product's market reference.
-
-**Market Radar watchlists:** Watchlists are slice-first. `useWatchlist()` hydrates the default
-`Market Radar` container, the Marketplace tracks canonical slice keys (`market_product + delivery_point +
-availability_window`), `CommandCenter` shows compact radar cards, and `WatchlistPage` persists pinned live
-orders plus the event feed. The frontend API client uses the target/event endpoints directly
-(`POST /watchlists/me`, `POST /watchlists/{id}/targets`, event listing, event read state) rather than
-legacy product-entry adapters.
-
-**Shared select system:** `ui/VerdaxisSelect.tsx` is the platform dropdown primitive. Targeted
-forms should use it instead of browser-native `<select>` elements unless there is a strong
-accessibility or browser-integration reason not to.
-
-**Orderbook timing model:** `OrderPlaceModal` keeps `Availability Window` in Advanced Options
-but mandatory, with `Spot` as the default. Relative labels like `M+1` are display-only and
-must resolve to canonical month/quarter codes before requests are sent.
-
-**Hybrid auth flow:** Login and refresh return an access token that stays in memory only.
-Password login supplies the sanitized profile to avoid an immediate duplicate `/auth/me`.
-Legacy/OAuth responses without a valid profile retain the `/auth/me` fallback.
-`AuthContext` restores sessions by calling `/api/auth/refresh` with `credentials: 'include'`,
-while the backend rotates the refresh token in an HttpOnly cookie scoped to `/api/auth`.
-If rotation returns a different account, the old tab clears its local identity and cached
-data without revoking the shared cookie. Restoration requires a fresh `/auth/me` check.
-Email links open `/verify-email`, which exchanges the one-time token through a `POST`
-mutation. Admin user review then presents email verification, account admission,
-organization verification, and membership as separate ordered decisions; none is
-silently collapsed into another.
-
-## Entry Points
-
-- **App bootstrap:** `index.html` -> `src/index.tsx` -> `src/App.tsx`
-- **API client:** `src/services/api.ts` (all backend communication)
-- **AI helper:** `src/services/ai-engine/generators.ts` (`analyzeRisk` supplier memo entry)
-- **Route definitions:** `src/App.tsx` (auth, public, and protected routes)
-- **Type system:** `src/types.ts` (all shared interfaces and type unions)
-
-## Run Commands
+## Run commands
 
 ```bash
-npm run dev          # Vite dev server on :5173 (proxies /api to backend)
-npm run build        # Production build to dist/
-npm run preview      # Preview production build
-npm run test         # Vitest single run
-npm run test:watch   # Vitest watch mode
+npm ci --legacy-peer-deps   # Node 24
+npm test && npm run typecheck && npm run i18n:check
+npm run build:staging && npm run build:check
+npm run build:prod && npm run build:check
 ```
 
-## UCOME B100 contracts and historical offers
-
-New supply and demand use the existing order API with fuel-specific fields for standard/edition, ASTM grade or EN climate designation, separate cold-flow measurements, comparable CI, operator certification, batch quality and consignment sustainability evidence. Future batch nomination remains explicit. Optional values retain null and zero distinctly.
-
-B100 terms appear on order and trade readback. Public projections omit private batch/site/certificate/document references; authorized participants receive the applicable saved trade snapshot. A current operator certificate is not a guarantee of validity at a future loading date. Evidence commitments are recorded with a loading/delivery milestone.
-
-The earlier independent supplier offers and requests retain their original terms and revision snapshots in history. They do not execute, reserve stock or become standing orders. The `rfq` locale namespace remains for historical views and shared fuel declarations. USD/GJ comparisons require a positive declared LHV and do not imply engine efficiency or compliance savings.
-
-## Trading response and data-source contracts (2026-10-03)
-
-The order book reads one canonical snapshot for both sides. Its cache lasts nine seconds; its visible
-refresh interval is ten seconds. Manual and resume reads bypass ordinary pending
-reads. Snapshot generation time drives age, refreshing, stale and unavailable
-labels; a failed refresh retains old depth with a visible failure state.
-
-Direct-hit review freezes terms, request key and execution context. The API treats
-transport failure, HTTP 5xx and unreadable success as an unknown outcome. A deliberate
-retry reuses the frozen request and key only under the same account and assisted
-context. Success shows the returned trade economics and lifecycle status. Order
-entry uses the same outcome distinction. Confirm, decline and cancel also retain
-a frozen key and request until a known result or a principal/context change.
-A pending trade retry remains available when live updates change or remove its
-row. The six API adapters support keyed results; payment and delivery remain
-off-platform in the maintained UI.
-
-One root public orderbook subscription invalidates cached reads immediately.
-Mounted consumers coalesce refreshes for 500 ms and force a fresh REST read;
-one active refresh can schedule one follow-up. Visibility, polling and reconnect
-recovery remain in place. Public signals carry no private sequence or economics.
-
-Market analytics distinguishes live data, valid zero results, unavailable data and
-illustrative samples. Resting quote references are not confirmed-trade VWAP. The
-reference label reports available order context time or states that it is unavailable.
-Production identified activity delivery checks HTTP results and bounds its buffer
-to 200 events, three attempts, 30 seconds of age and a five-second request timeout.
-Retries retain UUIDs and context. Production reports bounded browser losses
-as partial admin coverage; closed browsers and undelivered reports remain
-unknown. Staging retains its separate catalog and tracking scope and does not
-include that identified activity pipeline.
+See [README.md](README.md) for the full routine CI sequence and the separation between local checks and live smoke. [`scripts/deploy.sh`](scripts/deploy.sh) is the staging build guide; the host atomic publisher remains the release control.
