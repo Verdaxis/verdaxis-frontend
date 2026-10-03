@@ -294,11 +294,11 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         const isLoadingThis = actionLoadingId === trade.id;
         const normalizedStatus = normalizeTradeLifecycleStatus(trade.status);
 
-        if (retryRequest) {
-            return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
-        }
-
         if (normalizedStatus === 'PENDING_CONFIRMATION') {
+            if (retryRequest) {
+                return <span className="text-xs text-amber-600 dark:text-amber-400">{t('myTrades.retryPending')}</span>;
+            }
+
             const isCounterparty =
                 (trade.initiated_by === 'BUYER' && userSide === 'SELLER') ||
                 (trade.initiated_by === 'SELLER' && userSide === 'BUYER');

@@ -180,6 +180,34 @@ describe('Command Center trade summaries and action queue', () => {
         expect(screen.queryByRole('button', { name: /retry safely with the same request/i })).toBeNull();
     });
 
+    it('does not restore a success modal after scope changes during the refresh', async () => {
+        const view = renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+        let resolveOldSummary!: (value: ReturnType<typeof summary>) => void;
+        let resolveOldActions!: (value: { items: never[]; total: number; skip: number; limit: number }) => void;
+        controls.summary
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOldSummary = resolve; }))
+            .mockResolvedValueOnce(summary({ total_count: 2, action_required_count: 0 }));
+        controls.myTradesPaged
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOldActions = resolve; }))
+            .mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 8 });
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
+        controls.scopeKey = 'support-organization-2';
+        view.rerender(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(3));
+
+        await act(async () => {
+            resolveOldSummary(summary({ action_required_count: 0, confirmed_count: 21 }));
+            resolveOldActions({ items: [], total: 0, skip: 0, limit: 8 });
+        });
+
+        expect(screen.queryByRole('heading', { name: 'Trade Confirmed' })).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('ignores a stale response when the organization scope changes during reload', async () => {
         let resolveOldSummary!: (value: ReturnType<typeof summary>) => void;
         let resolveOldActions!: (value: { items: never[]; total: number; skip: number; limit: number }) => void;
