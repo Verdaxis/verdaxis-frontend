@@ -778,7 +778,7 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         return () => { map.off('style.load', addPortLayers); };
     }, [mapCreated, ready, visiblePorts, portMarketMap, maxVolume, selectedPortId, mapLanguage]);
 
-    // Load the large ECA geometry after Mapbox exists so it does not delay the basemap.
+    // Wait for the initial Mapbox style before loading the large ECA geometry.
     useEffect(() => {
         const map = mapRef.current;
         if (!active || !map) return;
@@ -789,39 +789,46 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
         let handleStyleLoad: (() => void) | null = null;
         setEcaOverlayError(false);
 
-        void loadEcaLayers().then((ecaLayers) => {
-            if (cancelled || mapRef.current !== map) return;
-            ecaLayersRef.current = ecaLayers;
+        const startEcaLoad = () => {
+            map.off('style.load', startEcaLoad);
+            void loadEcaLayers().then((ecaLayers) => {
+                if (cancelled || mapRef.current !== map) return;
+                ecaLayersRef.current = ecaLayers;
 
-            const install = () => {
-                if (cancelled || mapRef.current !== map || installedGeneration === styleGeneration) return;
-                try {
-                    ecaLayers.addEcaLayers(map, {
-                        isDark: isDarkRef.current,
-                        visible: showSecaZonesRef.current,
-                    });
-                    installedGeneration = styleGeneration;
-                    setEcaOverlayError(false);
-                } catch (error) {
-                    console.error('Failed to install ECA map overlay', error);
-                    setEcaOverlayError(true);
-                }
-            };
+                const install = () => {
+                    if (cancelled || mapRef.current !== map || installedGeneration === styleGeneration) return;
+                    try {
+                        ecaLayers.addEcaLayers(map, {
+                            isDark: isDarkRef.current,
+                            visible: showSecaZonesRef.current,
+                        });
+                        installedGeneration = styleGeneration;
+                        setEcaOverlayError(false);
+                    } catch (error) {
+                        console.error('Failed to install ECA map overlay', error);
+                        setEcaOverlayError(true);
+                    }
+                };
 
-            handleStyleLoad = () => {
-                styleGeneration += 1;
-                install();
-            };
-            map.on('style.load', handleStyleLoad);
-            if (map.isStyleLoaded()) install();
-        }).catch((error) => {
-            if (cancelled || mapRef.current !== map) return;
-            console.error('Failed to load ECA map overlay', error);
-            setEcaOverlayError(true);
-        });
+                handleStyleLoad = () => {
+                    styleGeneration += 1;
+                    install();
+                };
+                map.on('style.load', handleStyleLoad);
+                if (map.isStyleLoaded()) install();
+            }).catch((error) => {
+                if (cancelled || mapRef.current !== map) return;
+                console.error('Failed to load ECA map overlay', error);
+                setEcaOverlayError(true);
+            });
+        };
+
+        if (map.isStyleLoaded()) startEcaLoad();
+        else map.on('style.load', startEcaLoad);
 
         return () => {
             cancelled = true;
+            map.off('style.load', startEcaLoad);
             if (handleStyleLoad) map.off('style.load', handleStyleLoad);
         };
     }, [active, ready]);
