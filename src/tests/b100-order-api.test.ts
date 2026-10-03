@@ -61,11 +61,12 @@ describe('B100 standard orderbook API', () => {
         expect(page.items[3].version).toBeUndefined();
         await api.trades.initiate({
             order_id: 'ask-1', quantity_mt: 100, fame_terms: bidTerms,
+            expected_terms_digest: 'terms-digest-1',
             expected_order_version: page.items[0].version,
         });
         expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({ expected_order_version: 7 });
-        await api.trades.initiate({ order_id: 'alcohol-1', quantity_mt: 100 });
-        expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({ order_id: 'alcohol-1', quantity_mt: 100 });
+        await api.trades.initiate({ order_id: 'alcohol-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-2' });
+        expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({ order_id: 'alcohol-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-2' });
     });
 
     it('submits B100 buyer requirements to orderbook with the existing idempotency header', async () => {
@@ -92,9 +93,9 @@ describe('B100 standard orderbook API', () => {
                 schema_version: 1, bid: { ...bidTerms, max_ci_gco2e_mj: '0' }, ask: { ...publicAsk, ci_gco2e_mj: '0' },
             },
         }), { status: 201 }));
-        const trade = await api.trades.initiate({ order_id: 'ask-1', quantity_mt: 100, fame_terms: bidTerms, idempotency_key: 'trade-uuid' });
+        const trade = await api.trades.initiate({ order_id: 'ask-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-1', fame_terms: bidTerms, idempotency_key: 'trade-uuid' });
         expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/trades\/$/);
-        expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ order_id: 'ask-1', quantity_mt: 100, fame_terms: bidTerms });
+        expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ order_id: 'ask-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-1', fame_terms: bidTerms });
         expect(trade.fame_terms_snapshot.bid.max_ci_gco2e_mj).toBe(0);
         expect(trade.fame_terms_snapshot.ask.ci_gco2e_mj).toBe(0);
         expect(trade.fame_terms_snapshot.ask).not.toHaveProperty('certificate_holder');
@@ -121,10 +122,12 @@ describe('B100 standard orderbook API', () => {
         const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ id: 'trade-1' }), { status: 201 }));
         await api.trades.initiate({
             order_id: 'bid-1', quantity_mt: 100, fame_terms: askTerms,
+            expected_terms_digest: 'terms-digest-1',
             certification_declared: true, msds_available: true,
         });
         expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
             order_id: 'bid-1', quantity_mt: 100, fame_terms: askTerms,
+            expected_terms_digest: 'terms-digest-1',
             certification_declared: true, msds_available: true,
         });
     });

@@ -241,6 +241,7 @@ export interface OrderCreateInput {
 export interface TradeCreateInput {
     order_id: string;
     quantity_mt: number;
+    expected_terms_digest: string;
     expected_order_version?: number;
     fame_terms?: FameOrderTerms | null;
     certification_declared?: boolean;
@@ -250,6 +251,7 @@ export interface TradeCreateInput {
 
 export interface OrderBookOrder {
     id: string;
+    terms_digest?: string;
     version?: number;
     organization_id?: string; // Only in "my" view
     side: OrderSide;

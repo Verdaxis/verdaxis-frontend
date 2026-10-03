@@ -7,7 +7,7 @@ import { renderWithProviders } from './test-utils';
 import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 
-const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, rfqList, supplierOffersList, supplierOffersMy } = vi.hoisted(() => ({
+const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, listAsks, listBids, productCounts, myOrders, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, products, rfqList, supplierOffersList, supplierOffersMy, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
   marketSupportActive: { current: false },
   pricingOverlay: vi.fn(),
@@ -27,6 +27,10 @@ const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBi
   togglePin: vi.fn(),
   tradeTapeList: vi.fn(),
   tradesInitiate: vi.fn(),
+  TestApiError: class extends Error {
+    constructor(public status: number, public code: string | null = null) { super('API error'); }
+  },
+  TestApiOutcomeUnknownError: class extends Error {},
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -76,6 +80,8 @@ vi.mock('../components/ui/Pagination', () => ({
 }));
 
 vi.mock('../services/api', () => ({
+  ApiError: TestApiError,
+  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
   api: {
     catalog: {
       products,
@@ -119,6 +125,7 @@ const listingsResponse = {
   items: [
     {
       id: 'ask-1',
+      terms_digest: 'terms-digest-1',
       side: 'ASK',
       product_id: 'product-1',
       product_name: 'Bio Methanol',
@@ -223,7 +230,10 @@ describe('Marketplace green fuels surface', () => {
     toggleSlice.mockResolvedValue(true);
     togglePin.mockResolvedValue(true);
     tradeTapeList.mockResolvedValue({ items: [], total: 0, market_hours: true });
-    tradesInitiate.mockResolvedValue({ status: 'PENDING_CONFIRMATION' });
+    tradesInitiate.mockResolvedValue({
+      id: 'trade-1', status: 'PENDING_CONFIRMATION', quantity_mt: 1000, price_per_mt_usd: 1080,
+      product_name: 'Bio Methanol', delivery_point_name: 'Singapore', fuel_type: 'Methanol', region: 'Asia',
+    });
     pricingOverlay.mockResolvedValue({ overlays: {}, assumptions: overlayAssumptionsFixture });
   });
 
@@ -929,6 +939,10 @@ describe('Marketplace green fuels surface', () => {
   });
 
   it('requires final confirmation and cancels post-trade refresh on unmount', async () => {
+    tradesInitiate.mockResolvedValueOnce({
+      id: 'trade-returned', status: 'PENDING_CONFIRMATION', quantity_mt: 875, price_per_mt_usd: 1075,
+      product_name: 'Returned Bio Methanol', delivery_point_name: 'Returned Singapore', fuel_type: 'Methanol', region: 'Asia',
+    });
     const view = renderWithProviders(<Marketplace />);
 
     await waitFor(() => {
@@ -952,10 +966,14 @@ describe('Marketplace green fuels surface', () => {
       expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
         order_id: 'ask-1',
         quantity_mt: 1000,
+        expected_terms_digest: 'terms-digest-1',
         idempotency_key: expect.any(String),
       }));
     });
     await screen.findByText('Trade Request Sent');
+    expect(screen.getByText('Returned Bio Methanol')).toBeTruthy();
+    expect(screen.getByText('875 MT')).toBeTruthy();
+    expect(screen.getByText('$1075/MT')).toBeTruthy();
     const readsBeforeUnmount = listAsksPaged.mock.calls.length;
     view.unmount();
     await new Promise(resolve => setTimeout(resolve, 2100));
@@ -964,8 +982,11 @@ describe('Marketplace green fuels surface', () => {
 
   it('retries a timed-out trade with the same payload and idempotency key', async () => {
     tradesInitiate
-      .mockRejectedValueOnce(new Error('Request timed out. Please try again.'))
-      .mockResolvedValueOnce({});
+      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Request timed out. Please try again.'))
+      .mockResolvedValueOnce({
+        id: 'trade-1', status: 'PENDING_CONFIRMATION', quantity_mt: 1000, price_per_mt_usd: 1080,
+        product_name: 'Bio Methanol', delivery_point_name: 'Singapore', fuel_type: 'Methanol', region: 'Asia',
+      });
     renderWithProviders(<Marketplace />);
     await waitFor(() => expect(screen.getByRole('button', { name: /lift ask/i })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /lift ask/i }));
@@ -979,6 +1000,20 @@ describe('Marketplace green fuels surface', () => {
 
     await waitFor(() => expect(tradesInitiate).toHaveBeenCalledTimes(2));
     expect(tradesInitiate.mock.calls[1]?.[0]).toEqual(firstPayload);
+  });
+
+  it('requires a fresh order review when a cached listing has no terms digest', async () => {
+    listAsksPaged.mockResolvedValue({
+      ...listingsResponse,
+      items: listingsResponse.items.map(({ terms_digest: _termsDigest, ...item }) => item),
+    });
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /lift ask/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /submit trade/i }));
+
+    expect(await screen.findByText(/does not include review data/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /refresh and review/i })).toBeTruthy();
+    expect(tradesInitiate).not.toHaveBeenCalled();
   });
 
   it('marks demo listings and blocks trade submission', async () => {
