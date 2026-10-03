@@ -127,6 +127,55 @@ describe('market support API transport', () => {
     expect(headers.get('Idempotency-Key')).toBe('cancel-request-1');
   });
 
+  it('invalidates the original context from the response header on a successful request', async () => {
+    setMarketSupportContextId('ctx-opaque-123');
+    const invalidation = vi.fn();
+    window.addEventListener('verdaxis:market-support-context-invalidated', invalidation);
+    try {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'X-Verdaxis-Market-Support-Context-Invalid': 'true' },
+      }));
+
+      await api.orderbook.myOrders();
+
+      expect(invalidation).toHaveBeenCalledTimes(1);
+      expect(invalidation).toHaveBeenCalledWith(expect.objectContaining({
+        detail: expect.objectContaining({ reason: 'expired', contextId: 'ctx-opaque-123' }),
+      }));
+    } finally {
+      window.removeEventListener('verdaxis:market-support-context-invalidated', invalidation);
+    }
+  });
+
+  it('invalidates the original context once when the refreshed retry carries the response header', async () => {
+    setMarketSupportContextId('ctx-opaque-123');
+    const invalidation = vi.fn();
+    window.addEventListener('verdaxis:market-support-context-invalidated', invalidation);
+    try {
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response('', { status: 401 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: refreshedToken }), { status: 200 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'X-Verdaxis-Market-Support-Context-Invalid': 'true' },
+        }));
+
+      await api.orderbook.myOrders();
+
+      expect(invalidation).toHaveBeenCalledTimes(1);
+      expect(invalidation).toHaveBeenCalledWith(expect.objectContaining({
+        detail: expect.objectContaining({
+          reason: 'expired',
+          status: 200,
+          contextId: 'ctx-opaque-123',
+        }),
+      }));
+    } finally {
+      window.removeEventListener('verdaxis:market-support-context-invalidated', invalidation);
+    }
+  });
+
   it('preserves status and structured code for invalid support responses', async () => {
     setMarketSupportContextId('ctx-opaque-123');
     const invalidation = vi.fn();
