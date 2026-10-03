@@ -213,6 +213,7 @@ describe('MyTrades lifecycle', () => {
     myTradesPagedMock.mockResolvedValue(makeTradePage('confirmed-after-loss', 'Retry buyer', 'CONFIRMED'));
     act(() => sseControl.handler?.());
     await screen.findByText('myTrades.status.confirmed');
+    expect(screen.getByText(/Off-platform after confirmation/i)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'myTrades.btn.retrySafely' }));
     await waitFor(() => expect(confirmMock).toHaveBeenCalledTimes(2));
     expect(confirmMock.mock.calls[1]).toEqual(firstRequest);
