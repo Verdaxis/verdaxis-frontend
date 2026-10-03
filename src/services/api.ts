@@ -1,4 +1,5 @@
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
+import type { Trade, TradeCreateInput } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind } from '../types';
 import {
     AcquisitionResponse,
@@ -137,6 +138,16 @@ export class ApiError extends Error {
     }
 }
 
+export class ApiOutcomeUnknownError extends Error {
+    readonly cause: unknown;
+
+    constructor(cause: unknown) {
+        super('The request was sent, but the server did not confirm the outcome.');
+        this.name = 'ApiOutcomeUnknownError';
+        this.cause = cause;
+    }
+}
+
 export class MarketSupportContextChangedError extends Error {
     readonly code = 'MARKET_SUPPORT_CONTEXT_CHANGED';
 
@@ -244,6 +255,13 @@ export const isAbortError = (error: unknown): boolean =>
         ? error.name === 'AbortError'
         : (error as { name?: string } | null)?.name === 'AbortError';
 
+const classifyMutationFailure = (error: unknown, isMutation: boolean): unknown => {
+    if (!isMutation || isAbortError(error)) return error;
+    if (error instanceof ApiOutcomeUnknownError) return error;
+    if (error instanceof ApiError && error.status < 500) return error;
+    return new ApiOutcomeUnknownError(error);
+};
+
 // Helper to fetch from API and handle response
 const fetchApi = async (path: string, options?: RequestInit) => {
     // Mutations get a longer timeout (30s) since they must not be silently dropped
@@ -282,8 +300,10 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         // Best-effort, deduplicated telemetry; the caller's error handling
         // and the maintenance UI behavior are unchanged. Caller-initiated
         // aborts are control flow, not failures.
-        if (!isAbortError(error)) reliability.reportFrontendError('network');
-        throw error;
+        if (!isAbortError(error)) {
+            reliability.reportFrontendError('network');
+        }
+        throw classifyMutationFailure(error, Boolean(isMutation));
     }
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
@@ -317,7 +337,14 @@ const fetchApi = async (path: string, options?: RequestInit) => {
             if (contextId && isMarketSupportScopedRequest(path, options?.method || 'GET')) {
                 (retryOptions.headers as Headers).set(MARKET_SUPPORT_CONTEXT_HEADER, contextId);
             }
-            res = await fetchWithTimeout(url, retryOptions, timeout);
+            try {
+                res = await fetchWithTimeout(url, retryOptions, timeout);
+            } catch (error) {
+                if (!isAbortError(error)) {
+                    reliability.reportFrontendError('network');
+                }
+                throw classifyMutationFailure(error, Boolean(isMutation));
+            }
             if (contextId && (
                 res.status === 410
                 || res.headers.get('X-Verdaxis-Market-Support-Context-Expired') === 'true'
@@ -329,7 +356,12 @@ const fetchApi = async (path: string, options?: RequestInit) => {
         }
     }
 
-    const responseBody = await handleResponse(res, isPublicMarketRead ? null : contextId);
+    let responseBody: any;
+    try {
+        responseBody = await handleResponse(res, isPublicMarketRead ? null : contextId);
+    } catch (error) {
+        throw classifyMutationFailure(error, Boolean(isMutation));
+    }
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
@@ -1058,7 +1090,7 @@ export const api = {
     },
 
     trades: {
-        initiate: async (data: { order_id: string; quantity_mt: number } & { idempotency_key?: string }) => {
+        initiate: async (data: TradeCreateInput): Promise<Trade> => {
             const { idempotency_key: idempotencyKey, ...requestData } = data;
             return mutateApi(invalidateTradeExecutionReads, '/trades/', {
                 method: 'POST',
@@ -1067,7 +1099,7 @@ export const api = {
                     ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
                 },
                 body: JSON.stringify(requestData),
-            });
+            }) as Promise<Trade>;
         },
         // Backward-compatible: returns array
         myTrades: async (cacheOptions?: ReadCacheOptions) => {

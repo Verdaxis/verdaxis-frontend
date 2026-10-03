@@ -207,8 +207,16 @@ export type OrderBookStatus = 'OPEN' | 'PARTIALLY_FILLED' | 'FILLED' | 'CANCELLE
 export type TradeStatus = 'PENDING_CONFIRMATION' | 'CONFIRMED' | 'DELIVERED' | 'PAID' | 'CANCELLED' | 'DECLINED';
 export type Initiator = 'BUYER' | 'SELLER';
 
+export interface TradeCreateInput {
+    order_id: string;
+    quantity_mt: number;
+    expected_terms_digest: string;
+    idempotency_key?: string;
+}
+
 export interface OrderBookOrder {
     id: string;
+    terms_digest?: string;
     organization_id?: string; // Only in "my" view
     side: OrderSide;
     // Product/DeliveryPoint FK fields (new model)
