@@ -12,10 +12,19 @@ export interface UserActivityItem {
   details: Record<string, unknown>;
 }
 
+export interface BrowserReportedDeliveryLossSummary {
+  coverage: 'partial';
+  reports_received: number;
+  dropped_events: number;
+  rejected_events: number;
+  last_reported_at: string | null;
+}
+
 export interface UserActivityResponse {
   items: UserActivityItem[];
   has_more: boolean;
   last_activity_at: string | null;
+  browser_reported_delivery_loss: BrowserReportedDeliveryLossSummary;
 }
 
 export interface UserActivityQuery {
@@ -36,8 +45,15 @@ export interface ActivityRecordEvent {
   availability_window?: string;
 }
 
+export interface ActivityDeliveryLossReport {
+  report_id: string;
+  dropped_events: number;
+  rejected_events: number;
+}
+
 export interface ActivityRecordInput {
   events: ActivityRecordEvent[];
+  delivery_loss?: ActivityDeliveryLossReport;
 }
 
 export type ActivityDeliveryResult = 'accepted' | 'retryable' | 'rejected';

@@ -70,7 +70,23 @@ export const setReadCachePrincipal = (userId?: string | null, organizationId?: s
     invalidateReadCache();
 };
 
-export const invalidateReadsForEvent = (channel: 'prices' | 'orderbook' | 'trades'): void => {
+export const PUBLIC_MARKET_CACHE_PREFIXES = [
+    'orderbook:',
+    'prices:',
+    'curves:',
+    'trade-tape:',
+    'availability:',
+    'demand:',
+    'watchlists:',
+] as const;
+
+export const invalidateReadsForEvent = (
+    channel: 'prices' | 'orderbook' | 'trades',
+    event?: string,
+): void => {
+    if (event === 'market_invalidated' || event === 'reset' || event === 'reconnect') {
+        invalidateReadCache(...PUBLIC_MARKET_CACHE_PREFIXES);
+    }
     if (channel === 'prices') {
         invalidateReadCache('prices:', 'curves:');
         return;
@@ -79,7 +95,7 @@ export const invalidateReadsForEvent = (channel: 'prices' | 'orderbook' | 'trade
         invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
         return;
     }
-    invalidateReadCache('trades:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
+    invalidateReadCache('trades:', 'trade-tape:', 'orderbook:', 'prices:', 'curves:', 'watchlists:');
 };
 
 export const cachedRead = <T>(

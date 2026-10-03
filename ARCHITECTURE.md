@@ -48,6 +48,7 @@ src/
     config.ts                      # API_URL from VITE_API_URL env var
     api.ts                         # Fetch-based API client (ports, vessels, orderbook, trades...)
     readCache.ts                   # Bounded read cache, request deduplication, principal/context and event invalidation
+    publicMarketSync.ts            # Debounced shared public refresh subscribers with one queued rerun per consumer
     marketSupportContextStore.ts   # Opaque context id storage and cross-tab invalidation
     analytics.ts                   # Typed privacy allowlist and optional Umami v3 adapter
     activityTracking.ts            # Authenticated page/market activity batching and session boundary clears
@@ -63,6 +64,7 @@ src/
     CookieConsent.tsx             # Visitor analytics choices and reusable settings controls
     RouteMetadata.tsx             # Synchronizes document title, description, canonical, robots and social tags
     DeploymentUpdateNotice.tsx     # Detects stale long-lived browser bundles and offers a safe refresh
+    PublicMarketSync.tsx           # One root subscriber for the public orderbook invalidation stream
     LoadingScreen.tsx              # Shared branded route/auth/page fallback; HTML shell uses the same SVG and CSS
     Layout.tsx                     # App shell: sidebar + header + content frame
     MobileDesktopGate.tsx          # Mounts authenticated workspace children only at desktop widths (768px and above)
@@ -225,6 +227,11 @@ Request generation guards prevent obsolete responses from replacing the current 
 the exact slice. Product counts refresh across tabs; paged listings refresh only on the
 Market tab. Marketplace, orderbook, and tape polls pause while the browser tab is hidden
 and resume with a current-scope read. Superseded filter responses cannot replace current data.
+The root public-market subscriber owns one orderbook EventSource connection.
+Committed `market_invalidated` signals synchronously clear public market cache prefixes, then
+coalesce mounted PriceTicker, map, orderbook, curve and trade-tape REST refreshes. Each consumer
+runs at most one signal refresh with one dirty rerun. Stream reset/reconnect uses the same REST
+freshness path, while existing visibility-aware polling remains the recovery path.
 
 **Read cache:** Selected API reads use a bounded in-memory cache with request deduplication.
 Reference data lasts five minutes, general market data 15 seconds, selected book snapshots
@@ -280,6 +287,11 @@ Only fixed app page slugs, canonical market products, delivery-point UUIDs, and 
 availability windows can leave the adapter. It never sends URL values, search terms, request
 content, user identifiers, or time-spent estimates. `services/cookiePreferences.ts` stores
 the anonymous analytics choice and accepts existing version-1 and version-2 choices.
+Terminal delivery failures and queue overflow add bounded dropped/rejected counts to the next
+normal activity batch. The adapter freezes that report across retries, never sends it alone,
+and discards it at account or auth-generation boundaries. The Admin activity drawer presents
+the server's aggregate as a partial browser-reported signal because closed/offline browsers and
+undelivered reports remain unknown.
 `CookieConsent` provides the banner and settings controls.
 Withdrawal clears queued Umami operations and stops future Umami tracking; essential sign-in and
 display preferences remain available. Auto-tracking, replay, and heatmaps are disabled.
@@ -413,12 +425,23 @@ Direct-hit review freezes terms, request key and execution context. The API trea
 transport failure, HTTP 5xx and unreadable success as an unknown outcome. A deliberate
 retry reuses the frozen request and key only under the same account and assisted
 context. Success shows the returned trade economics and lifecycle status. Order
-entry uses the same outcome distinction. This does not add general lifecycle replay.
+entry uses the same outcome distinction. Confirm, decline and cancel also retain
+a frozen key and request until a known result or a principal/context change.
+A pending trade retry remains available when live updates change or remove its
+row. The six API adapters support keyed results; payment and delivery remain
+off-platform in the maintained UI.
+
+One root public orderbook subscription invalidates cached reads immediately.
+Mounted consumers coalesce refreshes for 500 ms and force a fresh REST read;
+one active refresh can schedule one follow-up. Visibility, polling and reconnect
+recovery remain in place. Public signals carry no private sequence or economics.
 
 Market analytics distinguishes live data, valid zero results, unavailable data and
 illustrative samples. Resting quote references are not confirmed-trade VWAP. The
 reference label reports available order context time or states that it is unavailable.
 Production identified activity delivery checks HTTP results and bounds its buffer
 to 200 events, three attempts, 30 seconds of age and a five-second request timeout.
-Retries retain UUIDs and context. Delivery counters are browser-local, not an admin
-coverage report. Staging retains its separate catalog and tracking scope.
+Retries retain UUIDs and context. Full delivery counters remain browser-local.
+Bounded dropped/rejected reports feed an explicitly partial admin signal; offline
+browsers and undelivered reports remain unknown. Staging retains its separate
+catalog and tracking scope.

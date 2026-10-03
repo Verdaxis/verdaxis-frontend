@@ -2,7 +2,9 @@ import { LoadingScreen } from './LoadingScreen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, FileText, Gavel, HandCoins, Search } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
-import { api } from '../services/api';
+import { ApiOutcomeUnknownError, api } from '../services/api';
+import { getAuthGeneration } from '../services/authToken';
+import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import type { TradeSummary } from '../services/api';
 import type { MarketSlice } from '../utils/sliceUrl';
 import { ConfirmModal } from './ui/ConfirmModal';
@@ -32,6 +34,17 @@ const EMPTY_SUMMARY: TradeSummary = {
     confirmed_count: 0,
 };
 
+interface FrozenConfirmRequest {
+    tradeId: string;
+    idempotencyKey: string;
+    authGeneration: number;
+    supportContextId: string | null;
+}
+
+const createConfirmKey = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `trade-confirm-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 const CTA_CONFIG = {
     BUYER: {
         primary: { icon: Gavel, labelKey: 'common:commandCenter.actions.postBid', descKey: 'common:commandCenter.actions.postBidDescription', side: 'BID' as const },
@@ -55,22 +68,36 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     const { radar, events, loading: radarLoading, error: radarError, refresh: refreshWatchlist } = useWatchlist();
     const { context, isActive: isMarketSupportActive } = useMarketSupport();
     const loadGeneration = useRef(0);
+    const confirmRequestRef = useRef<FrozenConfirmRequest | null>(null);
     const scopeKey = `${user?.id ?? ''}:${user?.organization_id ?? ''}:${context?.id ?? 'direct'}`;
+    const confirmScopeRef = useRef(scopeKey);
+    const confirmEpochRef = useRef(0);
+    if (confirmScopeRef.current !== scopeKey) {
+        confirmScopeRef.current = scopeKey;
+        confirmEpochRef.current += 1;
+    }
 
     useDashboardContentReady('DASHBOARD', ready && !loading && !loadError
         && (isMarketSupportActive || (!radarLoading && !radarError)));
 
     const [confirmState, setConfirmState] = useState<{
         isOpen: boolean;
-        type: 'CONFIRM' | 'ERROR' | 'SUCCESS' | null;
+        type: 'CONFIRM' | 'RETRY' | 'ERROR' | 'SUCCESS' | null;
         title: string;
         message: string;
         tradeId?: string;
         variant?: 'info' | 'success' | 'danger' | 'warning';
     }>({ isOpen: false, type: null, title: '', message: '' });
 
+    useEffect(() => {
+        confirmRequestRef.current = null;
+        setProcessing(false);
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+    }, [scopeKey]);
+
     const closeConfirm = () => {
         if (processing) return;
+        confirmRequestRef.current = null;
         setConfirmState(prev => ({ ...prev, isOpen: false }));
     };
 
@@ -133,6 +160,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     }, [loading, openOrderId]);
 
     const handleConfirmTrade = useCallback((tradeId: string) => {
+        confirmRequestRef.current = null;
         const prefix = viewMode === 'BUYER' ? 'buyerDashboard' : 'supplierDashboard';
         setConfirmState({
             isOpen: true,
@@ -145,12 +173,56 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
     }, [t, viewMode]);
 
     const handleConfirmAction = async () => {
-        if (confirmState.type === 'CONFIRM' && confirmState.tradeId) {
+        if ((confirmState.type === 'CONFIRM' || confirmState.type === 'RETRY') && confirmState.tradeId) {
             setProcessing(true);
             const prefix = viewMode === 'BUYER' ? 'buyerDashboard' : 'supplierDashboard';
+            const retainedRequest = confirmState.type === 'RETRY' ? confirmRequestRef.current : null;
+            if (retainedRequest && (
+                retainedRequest.authGeneration !== getAuthGeneration()
+                || retainedRequest.supportContextId !== getMarketSupportContextId()
+            )) {
+                confirmRequestRef.current = null;
+                setConfirmState({
+                    isOpen: true,
+                    type: 'ERROR',
+                    title: t('common:commandCenter.confirmRetry.contextChangedTitle'),
+                    message: t('common:commandCenter.confirmRetry.contextChangedMessage'),
+                    variant: 'warning',
+                });
+                setProcessing(false);
+                return;
+            }
+            const request = retainedRequest ?? {
+                tradeId: confirmState.tradeId,
+                idempotencyKey: createConfirmKey(),
+                authGeneration: getAuthGeneration(),
+                supportContextId: getMarketSupportContextId(),
+            };
+            const executionEpoch = confirmEpochRef.current;
+            const executionIsCurrent = () => (
+                executionEpoch === confirmEpochRef.current
+                && request.authGeneration === getAuthGeneration()
+                && request.supportContextId === getMarketSupportContextId()
+            );
             try {
-                await api.trades.confirm(confirmState.tradeId);
+                const updatedTrade = await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade;
+                if (!executionIsCurrent()) {
+                    if (executionEpoch === confirmEpochRef.current) {
+                        confirmRequestRef.current = null;
+                        setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }
+                    return;
+                }
+                if (updatedTrade?.id) setTrades(current => current.map(trade => trade.id === updatedTrade.id ? updatedTrade : trade));
+                confirmRequestRef.current = null;
                 await loadDashboardData();
+                if (!executionIsCurrent()) {
+                    if (executionEpoch === confirmEpochRef.current) {
+                        confirmRequestRef.current = null;
+                        setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }
+                    return;
+                }
                 setConfirmState({
                     isOpen: true,
                     type: 'SUCCESS',
@@ -163,7 +235,27 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     variant: 'success',
                 });
             } catch (error) {
+                if (!executionIsCurrent()) {
+                    if (executionEpoch === confirmEpochRef.current) {
+                        confirmRequestRef.current = null;
+                        setConfirmState(prev => ({ ...prev, isOpen: false }));
+                    }
+                    return;
+                }
                 console.error('Failed to confirm trade', error);
+                if (error instanceof ApiOutcomeUnknownError) {
+                    confirmRequestRef.current = request;
+                    setConfirmState({
+                        isOpen: true,
+                        type: 'RETRY',
+                        title: t('common:commandCenter.confirmRetry.title'),
+                        message: t('common:commandCenter.confirmRetry.message'),
+                        tradeId: request.tradeId,
+                        variant: 'warning',
+                    });
+                    return;
+                }
+                confirmRequestRef.current = null;
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',
@@ -174,7 +266,7 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     variant: 'danger',
                 });
             } finally {
-                setProcessing(false);
+                if (executionEpoch === confirmEpochRef.current) setProcessing(false);
             }
         } else {
             closeConfirm();
@@ -296,7 +388,11 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                 variant={confirmState.variant}
                 isLoading={processing}
                 cancelText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? '' : t('common:btn.cancel')}
-                confirmText={confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS' ? t('common:btn.close') : t('common:btn.confirm')}
+                confirmText={confirmState.type === 'RETRY'
+                    ? t('common:commandCenter.confirmRetry.action')
+                    : confirmState.type === 'ERROR' || confirmState.type === 'SUCCESS'
+                        ? t('common:btn.close')
+                        : t('common:btn.confirm')}
             />
         </div>
     );

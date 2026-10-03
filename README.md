@@ -51,6 +51,16 @@ npm run smoke:live
 npm run verify
 ```
 
+## Dependency Security
+
+The 2026-10-03 lockfile audit reports five high-severity development-only
+entries from `braces@3.0.3` through Tailwind CSS 3. The upstream
+[advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) lists no patched
+`braces` release. `npm audit --omit=dev` reports zero vulnerabilities. Do not
+hide the findings or add an unsupported override. The supported removal path is
+a separately reviewed Tailwind CSS 4 migration with browser and visual
+regression coverage.
+
 ## Project Structure
 
 - `src/App.tsx` defines public/auth routes and the authenticated app shell.

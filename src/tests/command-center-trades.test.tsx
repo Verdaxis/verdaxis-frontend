@@ -9,9 +9,10 @@ const controls = vi.hoisted(() => ({
     useSSE: vi.fn(),
     refreshWatchlist: vi.fn(),
     scopeKey: 'real-account',
+    OutcomeUnknown: class extends Error {},
 }));
 
-vi.mock('../services/api', () => ({ api: { trades: controls } }));
+vi.mock('../services/api', () => ({ ApiOutcomeUnknownError: controls.OutcomeUnknown, api: { trades: controls } }));
 vi.mock('../hooks/useWatchlist', () => ({
     useWatchlist: () => ({ radar: null, events: [], loading: false, error: null, refresh: controls.refreshWatchlist }),
 }));
@@ -31,6 +32,7 @@ vi.mock('../components/SupplierDemandFeed', () => ({ SupplierDemandFeed: () => n
 
 import { CommandCenter } from '../components/CommandCenter';
 import { renderWithProviders } from './test-utils';
+import { setAccessToken } from '../services/authToken';
 
 const trade = (id = 'trade-1', initiatedBy: 'BUYER' | 'SELLER' = 'SELLER') => ({
     id,
@@ -60,6 +62,7 @@ const summary = (overrides: Partial<Record<string, number>> = {}) => ({
 describe('Command Center trade summaries and action queue', () => {
     beforeEach(() => {
         controls.scopeKey = 'real-account';
+        setAccessToken('command-center-session-a');
         controls.summary.mockReset().mockResolvedValue(summary());
         controls.myTradesPaged.mockReset().mockResolvedValue({ items: [trade()], total: 4, skip: 0, limit: 8 });
         controls.confirm.mockReset().mockResolvedValue(undefined);
@@ -133,6 +136,98 @@ describe('Command Center trade summaries and action queue', () => {
         await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
         expect(controls.myTradesPaged).toHaveBeenCalledTimes(2);
         expect(screen.getByText('21')).toBeTruthy();
+    });
+
+    it('keeps the confirmation modal open and retries with the same key', async () => {
+        controls.confirm
+            .mockRejectedValueOnce(new controls.OutcomeUnknown('Outcome unknown'))
+            .mockResolvedValueOnce({ ...trade(), status: 'CONFIRMED' });
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        fireEvent.click(await screen.findByRole('button', { name: /retry safely with the same request/i }));
+
+        await waitFor(() => expect(controls.confirm).toHaveBeenCalledTimes(2));
+        expect(controls.confirm.mock.calls[1]).toEqual(controls.confirm.mock.calls[0]);
+        expect(controls.confirm.mock.calls[0][1]).toEqual(expect.any(String));
+    });
+
+    it('stops a retained confirmation after the auth generation changes', async () => {
+        controls.confirm.mockRejectedValueOnce(new controls.OutcomeUnknown('Outcome unknown'));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        const retry = await screen.findByRole('button', { name: /retry safely with the same request/i });
+        setAccessToken('command-center-session-b');
+        fireEvent.click(retry);
+
+        expect(controls.confirm).toHaveBeenCalledTimes(1);
+        expect(await screen.findByRole('heading', { name: /retry stopped/i })).toBeTruthy();
+    });
+
+    it('discards an in-flight confirmation that settles after an auth change', async () => {
+        let rejectConfirmation!: (reason?: unknown) => void;
+        controls.confirm.mockReturnValueOnce(new Promise((_, reject) => { rejectConfirmation = reject; }));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+
+        setAccessToken('command-center-session-b');
+        await act(async () => rejectConfirmation(new controls.OutcomeUnknown('Outcome unknown')));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(screen.queryByRole('button', { name: /retry safely with the same request/i })).toBeNull();
+    });
+
+    it('closes the confirmation modal after auth changes during the refresh', async () => {
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+        let resolveOldSummary!: (value: ReturnType<typeof summary>) => void;
+        let resolveOldActions!: (value: { items: never[]; total: number; skip: number; limit: number }) => void;
+        controls.summary.mockImplementationOnce(() => new Promise(resolve => { resolveOldSummary = resolve; }));
+        controls.myTradesPaged.mockImplementationOnce(() => new Promise(resolve => { resolveOldActions = resolve; }));
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
+        setAccessToken('command-center-session-b');
+
+        await act(async () => {
+            resolveOldSummary(summary({ action_required_count: 0, confirmed_count: 21 }));
+            resolveOldActions({ items: [], total: 0, skip: 0, limit: 8 });
+        });
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(screen.queryByRole('heading', { name: 'Trade Confirmed' })).toBeNull();
+    });
+
+    it('does not restore a success modal after scope changes during the refresh', async () => {
+        const view = renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+
+        let resolveOldSummary!: (value: ReturnType<typeof summary>) => void;
+        let resolveOldActions!: (value: { items: never[]; total: number; skip: number; limit: number }) => void;
+        controls.summary
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOldSummary = resolve; }))
+            .mockResolvedValueOnce(summary({ total_count: 2, action_required_count: 0 }));
+        controls.myTradesPaged
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOldActions = resolve; }))
+            .mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 8 });
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
+        controls.scopeKey = 'support-organization-2';
+        view.rerender(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(3));
+
+        await act(async () => {
+            resolveOldSummary(summary({ action_required_count: 0, confirmed_count: 21 }));
+            resolveOldActions({ items: [], total: 0, skip: 0, limit: 8 });
+        });
+
+        expect(screen.queryByRole('heading', { name: 'Trade Confirmed' })).toBeNull();
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('ignores a stale response when the organization scope changes during reload', async () => {

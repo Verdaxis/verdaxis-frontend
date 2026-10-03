@@ -5,6 +5,7 @@ import { act, screen, waitFor } from '@testing-library/react';
 import { TradeTape } from '../components/TradeTape';
 import i18n, { loadNamespace } from '../i18n';
 import { renderWithProviders } from './test-utils';
+import { queuePublicMarketRefresh } from '../services/publicMarketSync';
 
 const tradeTapeList = vi.fn();
 
@@ -182,4 +183,59 @@ describe('TradeTape status copy', () => {
     expect(screen.getByText('3天前')).toBeTruthy();
     expect(screen.queryByText('5m')).toBeNull();
   });
+
+  it('forces a fresh event read while an ordinary request is pending and ignores the stale result', async () => {
+    let resolveStaleRequest!: (value: { items: unknown[]; total: number; market_hours: boolean }) => void;
+    const staleRequest = new Promise<{ items: unknown[]; total: number; market_hours: boolean }>(resolve => {
+      resolveStaleRequest = resolve;
+    });
+    const trade = {
+      market_product: 'BIO_METHANOL',
+      fuel_type: 'Methanol',
+      fuel_grade: 'Bio',
+      region: 'Singapore',
+      quantity_mt: '100',
+      confirmed_at: new Date().toISOString(),
+      availability_window: 'SPOT',
+      provenance_kind: 'CONFIRMED_TRADE',
+    };
+    tradeTapeList
+      .mockImplementationOnce(() => staleRequest)
+      .mockResolvedValueOnce({
+        items: [{ ...trade, id: 'fresh-trade', price_per_mt_usd: '720' }],
+        total: 1,
+        market_hours: true,
+      });
+
+    renderWithProviders(<TradeTape marketProduct="BIO_METHANOL" region="Singapore" availability="SPOT" />);
+    await waitFor(() => expect(tradeTapeList).toHaveBeenCalledTimes(1));
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        queuePublicMarketRefresh();
+        await vi.advanceTimersByTimeAsync(500);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    await waitFor(() => expect(tradeTapeList).toHaveBeenCalledTimes(2));
+    expect(tradeTapeList).toHaveBeenLastCalledWith(expect.objectContaining({
+      market_product: 'BIO_METHANOL',
+    }), { force: true });
+    expect(await screen.findByText('$720/MT')).toBeTruthy();
+
+    await act(async () => {
+      resolveStaleRequest({
+        items: [{ ...trade, id: 'stale-trade', price_per_mt_usd: '600' }],
+        total: 1,
+        market_hours: true,
+      });
+      await staleRequest;
+    });
+    expect(screen.getByText('$720/MT')).toBeTruthy();
+    expect(screen.queryByText('$600/MT')).toBeNull();
+  });
+
 });

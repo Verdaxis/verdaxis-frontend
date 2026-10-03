@@ -61,4 +61,18 @@ describe('ActivityTrackingProvider', () => {
     expect(mocks.activity.setSession).toHaveBeenCalledWith(null);
     expect(mocks.activity.trackPage).not.toHaveBeenCalled();
   });
+
+  it('clears activity state on logout and provider unmount', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/app/home']}>
+        <ActivityTrackingProvider><span>content</span></ActivityTrackingProvider>
+      </MemoryRouter>,
+    );
+
+    window.dispatchEvent(new Event('verdaxis:auth-logout'));
+    expect(mocks.activity.setSession).toHaveBeenLastCalledWith(null);
+
+    unmount();
+    expect(mocks.activity.clear).toHaveBeenCalledTimes(1);
+  });
 });

@@ -2,7 +2,7 @@ import { MARKET_PRODUCTS, type MarketProduct } from '../types';
 import { normalizeAvailabilityWindow } from '../utils/availabilityWindow';
 import { api } from './api';
 import { getAuthGeneration } from './authToken';
-import type { ActivityDeliveryResult } from '../types/activity';
+import type { ActivityDeliveryLossReport, ActivityDeliveryResult } from '../types/activity';
 
 export type ActivityAction = 'page_view' | 'market_view' | 'market_filter';
 
@@ -17,6 +17,7 @@ export interface ActivityEvent {
 
 export interface ActivityBatch {
   events: ActivityEvent[];
+  delivery_loss?: ActivityDeliveryLossReport;
 }
 
 export const ACTIVITY_PAGES = [
@@ -76,6 +77,7 @@ const DEFAULT_RETRY_DELAY_MS = 500;
 const DEFAULT_MAX_DELIVERY_ATTEMPTS = 3;
 const DEFAULT_MAX_EVENT_AGE_MS = 30_000;
 const DEFAULT_MAX_BUFFERED_EVENTS = 200;
+const MAX_REPORTED_LOSS_COUNT = 10_000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WINDOW_PATTERN = /^(?:SPOT|\d{4}-(?:0[1-9]|1[0-2])|\d{4}-Q[1-4]|\d{4}-CAL)$/;
 const activityPages = new Set<string>(ACTIVITY_PAGES);
@@ -145,6 +147,10 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     retried: 0,
     dropped: 0,
   };
+  const unreportedLoss = {
+    dropped: 0,
+    rejected: 0,
+  };
   let identity: string | null = null;
   let sessionEpoch: unknown = null;
   let timer: number | null = null;
@@ -155,6 +161,8 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     deliveryGeneration += 1;
     deliveryStats.dropped += bufferedEventCount;
     bufferedEventCount = 0;
+    unreportedLoss.dropped = 0;
+    unreportedLoss.rejected = 0;
     queue.length = 0;
     lastSignature.clear();
     if (timer !== null) clearTimer(timer);
@@ -163,13 +171,31 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     timer = null;
   };
 
+  const accumulateLoss = (outcome: 'dropped' | 'rejected', count: number) => {
+    unreportedLoss[outcome] = Math.min(MAX_REPORTED_LOSS_COUNT, unreportedLoss[outcome] + count);
+  };
+
+  const takeLossReport = (): ActivityDeliveryLossReport | undefined => {
+    if (unreportedLoss.dropped + unreportedLoss.rejected === 0) return undefined;
+    const report = {
+      report_id: createId(),
+      dropped_events: unreportedLoss.dropped,
+      rejected_events: unreportedLoss.rejected,
+    };
+    unreportedLoss.dropped = 0;
+    unreportedLoss.rejected = 0;
+    return report;
+  };
+
   const finishBatch = (count: number, outcome: 'accepted' | 'rejected' | 'dropped') => {
     deliveryStats[outcome] += count;
     bufferedEventCount = Math.max(0, bufferedEventCount - count);
+    if (outcome !== 'accepted') accumulateLoss(outcome, count);
   };
 
   const deliver = async (
     bufferedEvents: BufferedActivityEvent[],
+    batch: ActivityBatch,
     attempt: number,
     batchIdentity: string,
     batchSessionEpoch: unknown,
@@ -189,7 +215,7 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
 
     let outcome: ActivityDeliveryResult = 'retryable';
     try {
-      const result = await options.send({ events: bufferedEvents.map(item => item.event) });
+      const result = await options.send(batch);
       outcome = typeof result === 'string' ? result : 'accepted';
     } catch {
       outcome = 'retryable';
@@ -218,7 +244,7 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     const delay = retryDelayMs * (2 ** (attempt - 1));
     const retryTimer = setTimer(() => {
       retryTimers.delete(retryTimer);
-      void deliver(bufferedEvents, attempt + 1, batchIdentity, batchSessionEpoch, generation);
+      void deliver(bufferedEvents, batch, attempt + 1, batchIdentity, batchSessionEpoch, generation);
     }, delay);
     retryTimers.add(retryTimer);
   };
@@ -232,7 +258,12 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
       return;
     }
     const events = queue.splice(0, MAX_BATCH_SIZE);
-    void deliver(events, 1, identity, sessionEpoch, deliveryGeneration);
+    const deliveryLoss = takeLossReport();
+    const batch: ActivityBatch = {
+      events: events.map(item => item.event),
+      ...(deliveryLoss ? { delivery_loss: deliveryLoss } : {}),
+    };
+    void deliver(events, batch, 1, identity, sessionEpoch, deliveryGeneration);
     if (queue.length > 0) timer = setTimer(flush, flushDelayMs);
   };
 
@@ -248,6 +279,7 @@ export const createActivityTracker = (options: ActivityTrackerOptions) => {
     if (lastSignature.get(action) === signature) return;
     if (bufferedEventCount >= maxBufferedEvents) {
       deliveryStats.dropped += 1;
+      accumulateLoss('dropped', 1);
       return;
     }
     lastSignature.set(action, signature);
