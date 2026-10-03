@@ -425,7 +425,16 @@ Direct-hit review freezes terms, request key and execution context. The API trea
 transport failure, HTTP 5xx and unreadable success as an unknown outcome. A deliberate
 retry reuses the frozen request and key only under the same account and assisted
 context. Success shows the returned trade economics and lifecycle status. Order
-entry uses the same outcome distinction. This does not add general lifecycle replay.
+entry uses the same outcome distinction. Confirm, decline and cancel also retain
+a frozen key and request until a known result or a principal/context change.
+A pending trade retry remains available when live updates change or remove its
+row. The six API adapters support keyed results; payment and delivery remain
+off-platform in the maintained UI.
+
+One root public orderbook subscription invalidates cached reads immediately.
+Mounted consumers coalesce refreshes for 500 ms and force a fresh REST read;
+one active refresh can schedule one follow-up. Visibility, polling and reconnect
+recovery remain in place. Public signals carry no private sequence or economics.
 
 Market analytics distinguishes live data, valid zero results, unavailable data and
 illustrative samples. Resting quote references are not confirmed-trade VWAP. The
