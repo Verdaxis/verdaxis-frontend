@@ -93,17 +93,15 @@ npm run build:staging
 ### Deploy command
 
 Production uses only the manual `Release Vercel Production` workflow on `prod`;
-this staging branch has no production release authority. Staging uses a verified
-artifact served from its canonical `dist` directory.
+this staging branch has no production release authority.
 
-```bash
-bash ./scripts/deploy.sh staging
-rsync -a --delete dist/ /home/verdaxis-prod/verdaxis/staging/fe/dist/
-npm run smoke:live -- staging
-```
-
-**IMPORTANT:** Deploy with `rsync -a --delete dist/ .../dist/` so stale hashed assets are removed. Vite generates hashed JS filenames on each build. If stale `dist/index.html` references an old hash, the site breaks with:
-> "Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of text/html"
+Staging publication is separate from artifact creation. `bash ./scripts/deploy.sh staging` builds and checks an artifact; it does not publish.
+The portable release boundaries are [README.md](README.md) and
+[ARCHITECTURE.md](ARCHITECTURE.md). On the shared host, read
+`/home/verdaxis-prod/verdaxis/PRODUCTION_HOST.md`; its current host-only atomic
+publisher guide is
+`/home/jons-openclaw/artifacts/verdaxis-performance-20261002/release/STAGING_FE_ATOMIC_RELEASE.md`.
+Use the host atomic publisher for live staging publication.
 
 ### Verify deployment
 
