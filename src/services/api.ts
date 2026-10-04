@@ -374,13 +374,16 @@ const readApi = <T = any>(
     scope: 'public' | 'private' = 'private',
     options?: RequestInit,
     cacheOptions?: ReadCacheOptions,
-): Promise<T> => cachedRead(
-    resourceKey,
-    scope,
-    READ_CACHE_TTL_MS[freshness],
-    () => fetchApi(path, options) as Promise<T>,
-    cacheOptions?.force,
-);
+): Promise<T> => {
+    const effectiveScope = isPublicMarketReadRequest(path, options?.method) ? 'public' : scope;
+    return cachedRead(
+        resourceKey,
+        effectiveScope,
+        READ_CACHE_TTL_MS[freshness],
+        () => fetchApi(path, options) as Promise<T>,
+        cacheOptions?.force,
+    );
+};
 
 const invalidateMarketReads = () => invalidateReadCache('orderbook:', 'prices:', 'curves:', 'watchlists:');
 const invalidateTradeReads = () => invalidateReadCache('trades:', 'trade-tape:');

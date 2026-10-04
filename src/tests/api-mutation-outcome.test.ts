@@ -14,10 +14,10 @@ describe('mutation outcome classification', () => {
         vi.unstubAllGlobals();
     });
 
-    it('classifies an HTTP 5xx response as an unknown mutation outcome', async () => {
+    it('preserves a lock-busy HTTP 503 response as an unknown mutation outcome', async () => {
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
-            JSON.stringify({ detail: 'upstream timeout' }),
-            { status: 504, headers: { 'Content-Type': 'application/json' } },
+            JSON.stringify({ detail: 'Idempotency key is busy; retry the same request' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } },
         )));
 
         await expect(api.trades.initiate(tradeRequest)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
