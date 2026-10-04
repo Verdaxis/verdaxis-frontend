@@ -830,23 +830,35 @@ describe('Marketplace green fuels surface', () => {
   });
 
   it('retries cancellation with the frozen reason, ETag, and key', async () => {
+    let rejectFirstCancellation!: (reason?: unknown) => void;
+    const firstCancellation = new Promise<never>((_resolve, reject) => { rejectFirstCancellation = reject; });
     myOrders.mockResolvedValue([{ ...listingsResponse.items[0], id: 'mine-retry', side: 'BID', etag: '"v7"' }]);
-    cancelOrder.mockRejectedValueOnce(new TestApiOutcomeUnknownError('Outcome unknown')).mockResolvedValueOnce(undefined);
+    cancelOrder.mockReturnValueOnce(firstCancellation).mockResolvedValueOnce(undefined);
     renderWithProviders(<Marketplace />);
     fireEvent.click(await screen.findByRole('button', { name: /my listings/i }));
     const row = (await screen.findByText('Bio Methanol')).closest('tr')!;
     fireEvent.click(within(row).getByRole('button', { name: /cancel/i }));
-    fireEvent.change(screen.getByRole('textbox', { name: /cancellation reason/i }), { target: { value: '  Stop this listing  ' } });
+    const reason = screen.getByRole('textbox', { name: /cancellation reason/i });
+    fireEvent.change(reason, { target: { value: '  Stop this listing  ' } });
     fireEvent.click(screen.getByRole('button', { name: /cancel listing/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /retry safely with the same request/i }));
 
-    await waitFor(() => expect(cancelOrder).toHaveBeenCalledTimes(2));
-    expect(cancelOrder.mock.calls[1]).toEqual(cancelOrder.mock.calls[0]);
+    await waitFor(() => expect(cancelOrder).toHaveBeenCalledTimes(1));
     expect(cancelOrder.mock.calls[0]).toEqual(['mine-retry', {
       reason: 'Stop this listing',
       etag: '"v7"',
       idempotencyKey: expect.any(String),
     }]);
+    expect(reason).toHaveProperty('disabled', true);
+
+    await act(async () => {
+      rejectFirstCancellation(new TestApiOutcomeUnknownError('Outcome unknown'));
+    });
+    const retry = await screen.findByRole('button', { name: /retry safely with the same request/i });
+    expect(reason).toHaveProperty('disabled', true);
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(cancelOrder).toHaveBeenCalledTimes(2));
+    expect(cancelOrder.mock.calls[1]).toEqual(cancelOrder.mock.calls[0]);
   });
 
   it('refuses a retained cancellation after the support context changes', async () => {
