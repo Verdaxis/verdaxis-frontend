@@ -308,10 +308,6 @@ const fetchApi = async (path: string, options?: RequestInit) => {
     if (requestGeneration !== getAuthGeneration()) {
         throw new DOMException('Authentication session changed', 'AbortError');
     }
-    if (isBackendUnavailableStatus(res.status)) {
-        reliability.reportBackendUnavailable();
-    }
-
     if (!isPublicMarketRead && contextId && (
         res.status === 410
         || res.headers.get('X-Verdaxis-Market-Support-Context-Invalid') === 'true'
@@ -347,6 +343,10 @@ const fetchApi = async (path: string, options?: RequestInit) => {
                 }));
             }
         }
+    }
+
+    if (isBackendUnavailableStatus(res.status)) {
+        reliability.reportBackendUnavailable();
     }
 
     let responseBody: any;

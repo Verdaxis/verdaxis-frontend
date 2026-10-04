@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { reliability } from '../services/analytics';
 import { ApiOutcomeUnknownError, api } from '../services/api';
+import { clearAccessToken, setAccessToken } from '../services/authToken';
+
+const sessionToken = (subject: string, version: number): string =>
+    'header.' + btoa(JSON.stringify({ sub: subject, version })) + '.signature';
 
 const tradeRequest = {
     order_id: 'order-1',
@@ -11,6 +16,8 @@ const tradeRequest = {
 
 describe('mutation outcome classification', () => {
     afterEach(() => {
+        clearAccessToken();
+        vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
 
@@ -21,6 +28,37 @@ describe('mutation outcome classification', () => {
         )));
 
         await expect(api.trades.initiate(tradeRequest)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+    });
+
+    it('reports backend unavailability when a refreshed mutation retry returns 503', async () => {
+        setAccessToken(sessionToken('user-1', 1));
+        const reportBackendUnavailable = vi
+            .spyOn(reliability, 'reportBackendUnavailable')
+            .mockImplementation(() => undefined);
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(
+                JSON.stringify({ detail: 'Access token expired' }),
+                { status: 401, headers: { 'Content-Type': 'application/json' } },
+            ))
+            .mockResolvedValueOnce(new Response(
+                JSON.stringify({ access_token: sessionToken('user-1', 2) }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ))
+            .mockResolvedValueOnce(new Response(
+                JSON.stringify({ detail: 'Service unavailable' }),
+                { status: 503, headers: { 'Content-Type': 'application/json' } },
+            ));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(api.trades.initiate(tradeRequest)).rejects.toBeInstanceOf(ApiOutcomeUnknownError);
+
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+            expect.stringMatching(/\/trades\/$/),
+            expect.stringMatching(/\/auth\/refresh$/),
+            expect.stringMatching(/\/trades\/$/),
+        ]);
+        expect(reportBackendUnavailable).toHaveBeenCalledTimes(1);
     });
 
     it('keeps an HTTP 422 response as an authoritative rejection', async () => {
