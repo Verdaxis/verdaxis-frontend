@@ -634,7 +634,7 @@ describe('ForwardCurveWorkspace', () => {
 
     renderWithProviders(<ForwardCurveWorkspace />);
     await screen.findByText('Curve mark');
-    expect(sliceMock).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(sliceMock).toHaveBeenCalledTimes(2));
     expect(localStorage.getItem('verdaxis_forward_curve_delivery_point')).toBe('dp-singapore');
     await act(async () => staleSlice.resolve(makeSlice(absentCell)));
     expect(screen.queryByText('$1,215')).toBeNull();

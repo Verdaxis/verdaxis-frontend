@@ -80,12 +80,15 @@ const lazyNamespaces: Record<string, Record<string, () => Promise<any>>> = {
 
 export async function loadNamespace(ns: string): Promise<void> {
   for (const lang of SUPPORTED_LANGS) {
-    if (!i18n.hasResourceBundle(lang, ns)) {
-      const loader = lazyNamespaces[lang]?.[ns];
-      if (loader) {
-        const mod = await loader();
-        i18n.addResourceBundle(lang, ns, mod.default || mod, true, true);
-      }
+    const loader = lazyNamespaces[lang]?.[ns];
+    if (!loader) continue;
+
+    try {
+      if (i18n.hasResourceBundle(lang, ns)) continue;
+      const mod = await loader();
+      i18n.addResourceBundle(lang, ns, mod.default || mod, true, true);
+    } catch {
+      console.error(`[i18n] Failed to load ${lang}/${ns} translations.`);
     }
   }
 }
