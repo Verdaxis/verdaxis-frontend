@@ -447,7 +447,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 ? t('orderPlaceModal.validation.expiryFuture')
                 : ''
         : '';
-    const isValid =
+    const isOrderValid =
         Boolean(selectedProduct && selectedDeliveryPoint) &&
         hasValidCatalogMinimum &&
         formData.product_id !== '' &&
@@ -463,7 +463,6 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         hasValidExpiry &&
         (side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
-    const isValidOrder = isValid;
 
     const buildOrderPayload = (supportConfirmation?: MarketSupportConfirmation): Record<string, any> => {
         const payload: Record<string, any> = {
@@ -639,7 +638,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isValidOrder) return;
+        if (!isOrderValid) return;
         const snapshot = buildOrderSnapshot();
         if (snapshot.supportContextId !== (marketSupportContext?.id ?? null)) {
             setErrorMessage(t('orderPlaceModal.validation.supportContextChanged'));
@@ -1340,9 +1339,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         <button
                             type="submit"
                             data-tour="order-modal-submit-boundary"
-                            disabled={!isValid || modalState === 'submitting'}
+                            disabled={!isOrderValid || modalState === 'submitting'}
                             className={`flex-1 py-2.5 font-bold text-sm rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                                isValid && modalState !== 'submitting'
+                                isOrderValid && modalState !== 'submitting'
                                     ? side === 'BID'
                                         ? 'bg-emerald-500 hover:bg-emerald-400 text-white'
                                         : 'bg-[#5DADE2] hover:bg-[#4A9BD9] text-white'
