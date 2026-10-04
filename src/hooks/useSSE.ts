@@ -16,6 +16,14 @@ const CONTROL_EVENTS = ['auth_expired', 'auth_revoked', 'reconnect', 'reset'];
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
 
+const decodeEventData = (data: string): unknown => {
+    try {
+        return JSON.parse(data);
+    } catch {
+        return data;
+    }
+};
+
 async function requestStreamToken(parentSignal: AbortSignal): Promise<string | null> {
     const requestController = new AbortController();
     if (parentSignal.aborted) return null;
@@ -114,14 +122,9 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
         const handleControlEvent = (source: EventSource, event: string, message: MessageEvent<string>) => {
             if (!closeSource(source)) return;
 
-            let data: unknown = message.data;
-            if (event === 'reset') {
-                try {
-                    data = JSON.parse(message.data);
-                } catch {
-                    // Plain-text reset reasons remain valid callback input.
-                }
-            }
+            const data = event === 'reset'
+                ? decodeEventData(message.data)
+                : message.data;
             // Overflow recovery uses both paths: the reset callback refreshes
             // REST snapshots, and reconnect replays retained private history
             // after the last acknowledged cursor.
@@ -197,12 +200,7 @@ export function useSSE(channel: SSEChannel, onEvent: SSEHandler, enabled = true,
             const handleMessage = (type: string, event: MessageEvent<string>) => {
                 if (sourceRef.current !== source || !isActive()) return;
                 if (event.lastEventId) lastEventIdRef.current = event.lastEventId;
-                let data: unknown = event.data;
-                try {
-                    data = JSON.parse(event.data);
-                } catch {
-                    // Plain-text events remain valid callback input.
-                }
+                const data = decodeEventData(event.data);
                 invalidateReadsForEvent(channel, type);
                 handlerRef.current(type, data);
             };
