@@ -1044,8 +1044,10 @@ describe('Marketplace green fuels surface', () => {
   });
 
   it('retries a timed-out trade with the same payload and idempotency key', async () => {
+    let rejectFirstTrade!: (reason?: unknown) => void;
+    const firstTrade = new Promise<never>((_resolve, reject) => { rejectFirstTrade = reject; });
     tradesInitiate
-      .mockRejectedValueOnce(new TestApiOutcomeUnknownError('Request timed out. Please try again.'))
+      .mockReturnValueOnce(firstTrade)
       .mockResolvedValueOnce({
         id: 'trade-1', status: 'PENDING_CONFIRMATION', quantity_mt: 1000, price_per_mt_usd: 1080,
         product_name: 'Bio Methanol', delivery_point_name: 'Singapore', fuel_type: 'Methanol', region: 'Asia',
@@ -1056,9 +1058,18 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(await screen.findByRole('button', { name: /submit trade/i }));
     fireEvent.click(await screen.findByRole('button', { name: /confirm trade/i }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    await waitFor(() => expect(tradesInitiate).toHaveBeenCalledTimes(1));
     const firstPayload = tradesInitiate.mock.calls[0]?.[0];
     expect(firstPayload?.idempotency_key).toBeTruthy();
+    expect(screen.getByRole('button', { name: /close trade modal/i })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: /submitting/i })).toHaveProperty('disabled', true);
+
+    await act(async () => {
+      rejectFirstTrade(new TestApiOutcomeUnknownError('Request timed out. Please try again.'));
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: /retry safely/i })).toBeTruthy());
+    expect(screen.getByRole('button', { name: /^cancel$/i })).toHaveProperty('disabled', false);
     fireEvent.click(screen.getByRole('button', { name: /retry safely/i }));
 
     await waitFor(() => expect(tradesInitiate).toHaveBeenCalledTimes(2));
