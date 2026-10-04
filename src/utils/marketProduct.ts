@@ -2,7 +2,7 @@ import { ORDERBOOK_MARKET_PRODUCTS, type OrderbookMarketProduct, type Product } 
 
 export type ProductReference = string | Product | null | undefined;
 
-const MARKET_PRODUCT_LABELS: Record<string, string> = {
+export const MARKET_PRODUCT_LABELS: Record<string, string> = {
   BIO_METHANOL: 'Bio Methanol',
   BIO_ETHANOL: 'Bio Ethanol',
   E_METHANOL: 'e-Methanol',
