@@ -120,7 +120,11 @@ For dashboard navigation dogfood, install the browser harness once with `npm run
 npm run dev
 ```
 
-`.env` should use `VITE_API_URL=/api` for local dev. The vite proxy (configured in `vite.config.ts`) forwards `/api/*` to `http://144.126.151.136:8000/api/*`, avoiding CORS issues.
+`.env` should use `VITE_API_URL=/api` for local development. The Vite proxy
+forwards `/api/*` to `http://127.0.0.1:8000/api/*` by default, so run a
+separate development API on loopback port 8000. If that API listens on another
+local port, set the server-only `DEV_API_PROXY_TARGET` to its origin, for
+example `http://127.0.0.1:8001`. Do not include the `/api` suffix.
 
 ## Environment Configuration
 
