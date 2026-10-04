@@ -458,4 +458,143 @@ describe('BuyerMap failure localization', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('applies an older valid summary after a newer forced refresh fails', async () => {
+    await i18n.changeLanguage('en');
+    portsListMock.mockResolvedValue([]);
+    const olderSummary = {
+      markets: [],
+      demo_groups: [{
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        min_price: '650',
+      }],
+      recent_asks: [],
+    };
+    let resolveOlderRequest!: (summary: typeof olderSummary) => void;
+    const olderRequest = new Promise<typeof olderSummary>((resolve) => {
+      resolveOlderRequest = resolve;
+    });
+    compactMapSummaryMock
+      .mockImplementationOnce(() => olderRequest)
+      .mockRejectedValueOnce(new Error('forced refresh failed'));
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    renderWithProviders(<BuyerMap active onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    await waitFor(() => expect(compactMapSummaryMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    expect(await screen.findByRole('alert')).toBeTruthy();
+
+    await act(async () => {
+      resolveOlderRequest(olderSummary);
+      await olderRequest;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '650' }),
+      ]);
+    });
+    expect(compactMapSummaryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a newer successful summary when an older valid request finishes later', async () => {
+    await i18n.changeLanguage('en');
+    portsListMock.mockResolvedValue([]);
+    const olderSummary = {
+      markets: [],
+      demo_groups: [{
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        min_price: '650',
+      }],
+      recent_asks: [],
+    };
+    const newerSummary = {
+      markets: [],
+      demo_groups: [{
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        min_price: '900',
+      }],
+      recent_asks: [],
+    };
+    let resolveOlderRequest!: (summary: typeof olderSummary) => void;
+    const olderRequest = new Promise<typeof olderSummary>((resolve) => {
+      resolveOlderRequest = resolve;
+    });
+    compactMapSummaryMock
+      .mockImplementationOnce(() => olderRequest)
+      .mockResolvedValueOnce(newerSummary);
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+
+    renderWithProviders(<BuyerMap active onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    await waitFor(() => expect(compactMapSummaryMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+        expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '900' }),
+      ]);
+    });
+
+    await act(async () => {
+      resolveOlderRequest(olderSummary);
+      await olderRequest;
+    });
+
+    expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([
+      expect.objectContaining({ market_product: 'BIO_METHANOL', min_price: '900' }),
+    ]);
+    expect(compactMapSummaryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores a pending summary after the map becomes inactive', async () => {
+    await i18n.changeLanguage('en');
+    portsListMock.mockResolvedValue([]);
+    const inactiveSummary = {
+      markets: [],
+      demo_groups: [{
+        market_product: 'BIO_METHANOL',
+        delivery_point_id: 'sg-sin',
+        delivery_point_name: 'Singapore',
+        min_price: '650',
+      }],
+      recent_asks: [],
+    };
+    let resolveInactiveRequest!: (summary: typeof inactiveSummary) => void;
+    const inactiveRequest = new Promise<typeof inactiveSummary>((resolve) => {
+      resolveInactiveRequest = resolve;
+    });
+    compactMapSummaryMock.mockImplementationOnce(() => inactiveRequest);
+
+    const view = renderWithProviders(
+      <BuyerMap active onPortSelect={vi.fn()} onNavigate={vi.fn()} />,
+    );
+    await waitFor(() => expect(compactMapSummaryMock).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      view.rerender(<BuyerMap active={false} onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    });
+    await act(async () => {
+      resolveInactiveRequest(inactiveSummary);
+      await inactiveRequest;
+    });
+
+    expect(tickerPropsMock.mock.calls.at(-1)?.[0].aggregatedData).toEqual([]);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(compactMapSummaryMock).toHaveBeenCalledTimes(1);
+  });
+
 });
