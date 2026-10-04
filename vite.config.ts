@@ -75,9 +75,8 @@ export default defineConfig(({ command, mode }) => {
         host: '0.0.0.0',
         proxy: {
           '/api': {
-            target: 'http://144.126.151.136:8000',
+            target: env.DEV_API_PROXY_TARGET?.trim() || 'http://127.0.0.1:8000',
             changeOrigin: true,
-            secure: false,
           },
         },
       },
