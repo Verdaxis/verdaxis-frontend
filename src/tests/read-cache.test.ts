@@ -153,6 +153,26 @@ describe('bounded API read cache', () => {
         expect(String(fetchMock.mock.calls[0][0])).toContain('availability_window=SPOT');
     });
 
+    it('keeps credentialless catalog reads cached after an access-token replacement advances auth generation', async () => {
+        const products = [{
+            id: 'product-1',
+            name: 'Bio Methanol',
+            fuel_type: 'METHANOL',
+            fuel_grade: 'Bio',
+            unit: 'MT',
+            min_lot_size: 1,
+            is_active: true,
+        }];
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(products));
+
+        setAccessToken('access-token-a');
+        await expect(api.catalog.products()).resolves.toEqual(products);
+
+        setAccessToken('access-token-b');
+        await expect(api.catalog.products()).resolves.toEqual(products);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('rejects private results completed after account or assisted-context switches', async () => {
         setAccessToken('account-a');
         const accountRequest = deferred<string>();
