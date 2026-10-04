@@ -100,6 +100,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     const tooltipId = useId();
     const requestGeneration = useRef(0);
     const latestRequest = useRef(0);
+    const latestAppliedRequest = useRef(0);
     const requestsInFlight = useRef(new Map<string, { token: symbol; forced: boolean; completion: Promise<void> }>());
     const hasSnapshot = useRef(false);
     const b100Selected = marketProduct === 'UCOME_B100' || fuelType?.trim().toLowerCase() === 'fame';
@@ -141,7 +142,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                 availability_window: availability,
             }, { force });
 
-            if (generation !== requestGeneration.current || requestId !== latestRequest.current || requestScope !== currentRequestScope.current) return;
+            if (
+                generation !== requestGeneration.current
+                || requestScope !== currentRequestScope.current
+                || requestId < latestAppliedRequest.current
+            ) return;
 
             // Bids: highest price first (best bid at top)
             const sortedBids: OrderBookOrder[] = [...snapshot.bids]
@@ -155,11 +160,19 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                 .sort((a: OrderBookOrder, b: OrderBookOrder) => a.price_per_mt_usd - b.price_per_mt_usd)
                 .slice(0, MAX_ROWS);
 
+            latestAppliedRequest.current = requestId;
             setBids(sortedBids);
             setAsks(sortedAsks);
             setGeneratedAt(snapshot.generated_at);
             setClock(Date.now());
             hasSnapshot.current = true;
+            setError(null);
+            setLoading(false);
+            const activeRequestAfterSnapshot = requestsInFlight.current.get(requestScope);
+            setRefreshing(Boolean(
+                activeRequestAfterSnapshot
+                && activeRequestAfterSnapshot.token !== requestToken
+            ));
         } catch {
             if (generation === requestGeneration.current && requestId === latestRequest.current && requestScope === currentRequestScope.current) {
                 setError(t('orderBook.error'));
