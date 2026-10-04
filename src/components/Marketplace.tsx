@@ -944,6 +944,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, [user?.id, user?.organization_id, marketSupportContext?.id]);
 
     const closeTradeModal = useCallback(() => {
+        if (tradeInFlightRef.current) return;
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
@@ -1980,7 +1981,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             {getOrderDisplayName(selectedOrder, t('marketplace.unknownProduct'))} &middot; {selectedOrder.region}
                                         </p>
                                     </div>
-                                    <button type="button" aria-label={t('marketplace.modal.close')} data-tour="trade-modal-close" onClick={closeTradeModal} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors">
+                                    <button
+                                        type="button"
+                                        aria-label={t('marketplace.modal.close')}
+                                        data-tour="trade-modal-close"
+                                        onClick={closeTradeModal}
+                                        disabled={tradeState === 'submitting'}
+                                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
                                         <X size={20} />
                                     </button>
                                 </div>
@@ -2082,7 +2090,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <button
                                         type="button"
                                         onClick={tradeState === 'reviewing' ? () => setTradeState('confirming') : closeTradeModal}
-                                        className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors"
+                                        disabled={tradeState === 'submitting'}
+                                        className="px-5 py-2.5 text-slate-600 dark:text-slate-400 font-bold hover:text-slate-800 dark:hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                         {tradeState === 'reviewing' ? t('marketplace.btn.back') : t('marketplace.btn.cancel')}
                                     </button>
