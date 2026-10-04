@@ -187,7 +187,21 @@ describe('useSSE', () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it('resets the cursor on a server reset and renews it after token expiry', async () => {
+  it.each([
+    {
+      label: 'JSON',
+      resetData: '{"reason":"cursor_expired"}',
+      expectedData: { reason: 'cursor_expired' },
+    },
+    {
+      label: 'plain-text',
+      resetData: 'cursor_expired',
+      expectedData: 'cursor_expired',
+    },
+  ])('resets the cursor on a $label server reset and renews it after token expiry', async ({
+    resetData,
+    expectedData,
+  }) => {
     const onEvent = vi.fn();
     render(<Harness channel="trades" onEvent={onEvent} />);
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
@@ -200,8 +214,8 @@ describe('useSSE', () => {
       .mockResolvedValueOnce('before-reset')
       .mockResolvedValueOnce('after-reset');
     await cachedRead('trades:test', 'public', 1_000, load);
-    act(() => first.emit('reset', { data: '{"reason":"cursor_expired"}' }));
-    expect(onEvent).toHaveBeenLastCalledWith('reset', { reason: 'cursor_expired' });
+    act(() => first.emit('reset', { data: resetData }));
+    expect(onEvent).toHaveBeenLastCalledWith('reset', expectedData);
     await expect(cachedRead('trades:test', 'public', 1_000, load)).resolves.toBe('after-reset');
     expect(load).toHaveBeenCalledTimes(2);
     await new Promise((resolve) => setTimeout(resolve, 1100));
