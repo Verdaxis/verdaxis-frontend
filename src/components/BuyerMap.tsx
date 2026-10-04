@@ -168,7 +168,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const currentLanguageRef = useRef<string | null>(null);
     const languageIdleHandlerRef = useRef<(() => void) | null>(null);
     const ecaLayersRef = useRef<EcaLayersModule | null>(null);
-    const marketLoadGenerationRef = useRef(0);
+    const marketLifecycleEpochRef = useRef(0);
+    const latestStartedMarketRequestRef = useRef(0);
+    const latestAppliedMarketRequestRef = useRef(0);
     const hasActivatedRef = useRef(false);
     const portsRef = useRef(ports);
     portsRef.current = ports;
@@ -202,30 +204,43 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     }, []);
 
     const refreshMarketSummary = useCallback(async (force = false) => {
-        const generation = ++marketLoadGenerationRef.current;
+        const lifecycleEpoch = marketLifecycleEpochRef.current;
+        const requestId = ++latestStartedMarketRequestRef.current;
         try {
             const summary = await api.orderbook.compactMapSummary({ force });
-            if (generation !== marketLoadGenerationRef.current) return;
-            setCompactMarkets(summary.markets);
-            setDemoGroups(summary.demo_groups);
-            setRecentAsks(summary.recent_asks);
+            if (
+                lifecycleEpoch !== marketLifecycleEpochRef.current
+                || requestId < latestAppliedMarketRequestRef.current
+            ) return;
+
+            const nextCompactMarkets = summary.markets;
+            const nextDemoGroups = summary.demo_groups;
+            const nextRecentAsks = summary.recent_asks;
+            latestAppliedMarketRequestRef.current = requestId;
+            setCompactMarkets(nextCompactMarkets);
+            setDemoGroups(nextDemoGroups);
+            setRecentAsks(nextRecentAsks);
             setMarketSummaryReady(true);
             setMarketDataError(false);
         } catch (error) {
+            if (
+                lifecycleEpoch !== marketLifecycleEpochRef.current
+                || requestId !== latestStartedMarketRequestRef.current
+            ) return;
             console.warn('Map market summary unavailable', error);
-            if (generation === marketLoadGenerationRef.current) setMarketDataError(true);
+            setMarketDataError(true);
         }
     }, []);
 
     useEffect(() => {
         if (!active) {
-            marketLoadGenerationRef.current += 1;
+            marketLifecycleEpochRef.current += 1;
             return;
         }
         const force = hasActivatedRef.current;
         hasActivatedRef.current = true;
         void refreshMarketSummary(force);
-        return () => { marketLoadGenerationRef.current += 1; };
+        return () => { marketLifecycleEpochRef.current += 1; };
     }, [active, refreshMarketSummary]);
 
     const refreshFromPublicEvent = useCallback(() => {
