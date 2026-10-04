@@ -187,8 +187,9 @@ describe('orderbook inspection', () => {
       }], []));
 
     renderWithProviders(<OrderBook {...MARKET} />);
-    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh orderbook' }));
+    const refreshButton = await screen.findByRole('button', { name: 'Refresh orderbook' });
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    fireEvent.click(refreshButton);
     await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
 
     vi.useFakeTimers();
