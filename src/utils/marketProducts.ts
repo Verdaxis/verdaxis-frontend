@@ -1,4 +1,5 @@
 import type { MarketProduct } from '../types';
+import { MARKET_PRODUCT_LABELS } from './marketProduct';
 
 export type MarketplaceProductFilter = 'All' | MarketProduct;
 
@@ -10,12 +11,12 @@ export interface MarketplaceProductOption {
 
 export const MARKETPLACE_PRODUCT_OPTIONS: MarketplaceProductOption[] = [
     { value: 'All', label: 'All' },
-    { value: 'BIO_METHANOL', label: 'Bio Methanol', fuelType: 'Methanol' },
-    { value: 'E_METHANOL', label: 'e-Methanol', fuelType: 'Methanol' },
-    { value: 'BIO_ETHANOL', label: 'Bio Ethanol', fuelType: 'Ethanol' },
-    { value: 'SYNTHETIC_ETHANOL', label: 'e-Ethanol', fuelType: 'Ethanol' },
-    { value: 'B30', label: 'B30', fuelType: 'Biofuel' },
-    { value: 'B100', label: 'B100', fuelType: 'Biofuel' },
+    { value: 'BIO_METHANOL', label: MARKET_PRODUCT_LABELS.BIO_METHANOL, fuelType: 'Methanol' },
+    { value: 'E_METHANOL', label: MARKET_PRODUCT_LABELS.E_METHANOL, fuelType: 'Methanol' },
+    { value: 'BIO_ETHANOL', label: MARKET_PRODUCT_LABELS.BIO_ETHANOL, fuelType: 'Ethanol' },
+    { value: 'SYNTHETIC_ETHANOL', label: MARKET_PRODUCT_LABELS.SYNTHETIC_ETHANOL, fuelType: 'Ethanol' },
+    { value: 'B30', label: MARKET_PRODUCT_LABELS.B30, fuelType: 'Biofuel' },
+    { value: 'B100', label: MARKET_PRODUCT_LABELS.B100, fuelType: 'Biofuel' },
 ];
 
 export const ACTIVE_MARKETPLACE_PRODUCT_OPTIONS = MARKETPLACE_PRODUCT_OPTIONS.filter(
