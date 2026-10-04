@@ -2028,7 +2028,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                         rows={3}
                         maxLength={500}
                         value={cancellationReason}
-                        disabled={cancellationOutcomeUnknown}
+                        disabled={cancellationLoading || cancellationOutcomeUnknown}
                         onChange={(event) => setCancellationReason(event.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-white"
                     />
