@@ -1,5 +1,5 @@
 import type { DeliveryPoint, MapCompactMarket, Port, Product } from '../types';
-import { isOrderbookMarketProduct, isOrderbookProduct } from './marketProduct';
+import { isOrderbookMarketProduct, isOrderbookProduct, MARKET_PRODUCT_LABELS } from './marketProduct';
 
 export interface PortMarketRow {
     key: string;
@@ -29,23 +29,15 @@ interface PortMarketIdentity {
     name: string;
 }
 
-const CANONICAL_PRODUCT_LABELS: Record<string, string> = {
-    BIO_METHANOL: 'Bio Methanol',
-    E_METHANOL: 'e-Methanol',
-    BIO_ETHANOL: 'Bio Ethanol',
-    SYNTHETIC_ETHANOL: 'e-Ethanol',
-    UCOME_B100: 'UCOME B100',
-};
-
 const canonicalProductLabels = new Map([
-    ...Object.values(CANONICAL_PRODUCT_LABELS).map(label => [label.toLowerCase(), label] as const),
-    ['synthetic ethanol', CANONICAL_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
+    ...Object.values(MARKET_PRODUCT_LABELS).map(label => [label.toLowerCase(), label] as const),
+    ['synthetic ethanol', MARKET_PRODUCT_LABELS.SYNTHETIC_ETHANOL],
 ]);
 
 const resolveCanonicalProductLabel = (row: MapCompactMarket): string | null => {
     if (row.market_product) {
         return isOrderbookMarketProduct(row.market_product)
-            ? CANONICAL_PRODUCT_LABELS[row.market_product]
+            ? MARKET_PRODUCT_LABELS[row.market_product]
             : null;
     }
 
@@ -109,7 +101,7 @@ export const computePortMarketData = (
     selectedProduct?: string,
 ): PortMarketData => {
     const selectedLabel = selectedProduct
-        ? CANONICAL_PRODUCT_LABELS[selectedProduct] ?? canonicalProductLabels.get(selectedProduct.toLowerCase())
+        ? MARKET_PRODUCT_LABELS[selectedProduct] ?? canonicalProductLabels.get(selectedProduct.toLowerCase())
         : undefined;
     const identity = typeof port === 'string' ? { name: port } : port;
     const approvedNames = new Set([normalizeLocation(identity.name)].filter(Boolean));
@@ -170,7 +162,7 @@ export const computePortMarketData = (
     const spreadPct = fuelRows.length > 0
         ? Math.min(...fuelRows.map(row => row.spreadPct))
         : 999;
-    const referenceProduct = selectedLabel || CANONICAL_PRODUCT_LABELS.BIO_METHANOL;
+    const referenceProduct = selectedLabel || MARKET_PRODUCT_LABELS.BIO_METHANOL;
     const reference = references.find(item => item.productLabel === referenceProduct)
         ?? references[0]
         ?? null;
