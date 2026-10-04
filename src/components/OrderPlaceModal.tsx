@@ -485,7 +485,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.price_per_mt_usd <= MAX_ORDER_PRICE_PER_MT_USD &&
         hasAtMostTwoDecimalPlaces(formData.price_per_mt_usd) &&
         (!isFameOrder || availableDeliveryPoints.some(point => point.id === formData.delivery_point_id));
-    const isValidOrder = hasValidCore && hasValidExpiry &&
+    const isOrderValid = hasValidCore && hasValidExpiry &&
         Boolean(selectedProduct && isOrderbookProduct(selectedProduct)) &&
         (isFameOrder || side === 'BID' || formData.certification_scheme.trim() !== '') &&
         (isFameOrder || side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
@@ -493,7 +493,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         selectedProduct?.market_product === 'UCOME_B100' &&
         availableDeliveryPoints.some(point => point.id === formData.delivery_point_id) &&
         !marketSupportContext && (!editSupplierOffer || editSupplierOffer.canEdit);
-    const isValid = isSupplierOffer ? isValidSupplierOffer : isValidOrder;
+    const isValid = isSupplierOffer ? isValidSupplierOffer : isOrderValid;
 
     const buildOrderPayload = (supportConfirmation?: MarketSupportConfirmation): Record<string, any> => {
         const payload: Record<string, any> = {
@@ -720,7 +720,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             await submitSupplierOffer(e.currentTarget);
             return;
         }
-        if (!isValidOrder) return;
+        if (!isOrderValid) return;
         if (isFameOrder) {
             const data = new FormData(e.currentTarget);
             const terms = readFameOrderTerms(data, side);
