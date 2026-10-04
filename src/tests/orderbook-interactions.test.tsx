@@ -189,6 +189,49 @@ describe('orderbook inspection', () => {
     expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
   });
 
+  it('uses an ordinary in-flight snapshot after a forced resume refresh fails', async () => {
+    let resolveOrdinary!: (value: ReturnType<typeof makeSnapshot>) => void;
+    let rejectRefresh!: (reason?: unknown) => void;
+    const ordinaryRequest = new Promise<ReturnType<typeof makeSnapshot>>(resolve => {
+      resolveOrdinary = resolve;
+    });
+    const refreshRequest = new Promise<ReturnType<typeof makeSnapshot>>((_resolve, reject) => {
+      rejectRefresh = reject;
+    });
+    snapshot
+      .mockImplementationOnce(() => ordinaryRequest)
+      .mockImplementationOnce(() => refreshRequest);
+
+    renderWithProviders(<OrderBook {...MARKET} />);
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    await waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
+    expect(snapshot).toHaveBeenLastCalledWith(expect.any(Object), { force: true });
+
+    await act(async () => {
+      rejectRefresh(new Error('network unavailable'));
+      await refreshRequest.catch(() => undefined);
+    });
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+
+    await act(async () => {
+      resolveOrdinary(makeSnapshot([{
+        id: 'fallback-bid', side: 'BID', market_product: 'BIO_METHANOL', price_per_mt_usd: 650,
+        remaining_quantity_mt: 100, availability_window: 'SPOT', region: 'Singapore', certifications: [],
+      }], []));
+      await ordinaryRequest;
+    });
+
+    expect(screen.getByRole('group', { name: /Bid.*650/ })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Refresh orderbook' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(snapshot).toHaveBeenCalledTimes(2);
+  });
+
   it('lets a forced resume refresh supersede an ordinary in-flight read', async () => {
     let resolveOrdinary!: (value: ReturnType<typeof makeSnapshot>) => void;
     const ordinaryRequest = new Promise<ReturnType<typeof makeSnapshot>>(resolve => { resolveOrdinary = resolve; });
