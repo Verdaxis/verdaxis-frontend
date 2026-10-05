@@ -35,9 +35,9 @@ import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
 import LegacyRedirect from './components/public/LegacyRedirect';
 import { useTranslation } from 'react-i18next';
 import { EDUCATION_SLUGS } from './routeMetadata';
+import { publicPageLoaders } from './publicPageLoaders';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
-const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
 
 const CHUNK_RELOAD_FLAG = 'verdaxis_chunk_reloaded';
 
@@ -63,7 +63,7 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 }
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
-const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
+const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
 const BuyerDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.BuyerDashboard })));
 const SupplierDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.SupplierDashboard })));
 const SupplierQuotes = lazyWithRetry(() => import('./components/SupplierQuotes').then((module) => ({ default: module.SupplierQuotes })));
@@ -90,25 +90,25 @@ const DataAnalytics = lazyWithRetry(() => import('./components/DataAnalytics').t
 const Training = lazyWithRetry(() => import('./components/Training').then((module) => ({ default: module.Training })));
 const Settings = lazyWithRetry(() => import('./components/Settings').then((module) => ({ default: module.Settings })));
 const ForwardCurveWorkspace = lazyWithRetry(() => import('./components/ForwardCurveWorkspace').then((module) => ({ default: module.ForwardCurveWorkspace })));
-const LandingPage = lazyWithRetry(() => import('./pages/public/LandingPage').then((module) => ({ default: module.LandingPage })));
-const HowItWorksPage = lazyWithRetry(() => import('./pages/public/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
-const FuelCoveragePage = lazyWithRetry(() => import('./pages/public/FuelCoveragePage').then((module) => ({ default: module.FuelCoveragePage })));
-const ComplianceInfoPage = lazyWithRetry(() => import('./pages/public/ComplianceInfoPage').then((module) => ({ default: module.ComplianceInfoPage })));
-const ProducerUseCasePage = lazyWithRetry(() => import('./pages/public/ProducerUseCasePage').then((module) => ({ default: module.ProducerUseCasePage })));
-const BuyerUseCasePage = lazyWithRetry(() => import('./pages/public/BuyerUseCasePage').then((module) => ({ default: module.BuyerUseCasePage })));
-const TraderUseCasePage = lazyWithRetry(() => import('./pages/public/TraderUseCasePage').then((module) => ({ default: module.TraderUseCasePage })));
-const FinancierUseCasePage = lazyWithRetry(() => import('./pages/public/FinancierUseCasePage').then((module) => ({ default: module.FinancierUseCasePage })));
-const GovernancePage = lazyWithRetry(() => import('./pages/public/GovernancePage').then((module) => ({ default: module.GovernancePage })));
-const PilotPage = lazyWithRetry(() => import('./pages/public/PilotPage').then((module) => ({ default: module.PilotPage })));
-const EducationPage = lazyWithRetry(() => import('./pages/public/EducationPage').then((module) => ({ default: module.EducationPage })));
-const PartnersPage = lazyWithRetry(() => import('./pages/public/PartnersPage').then((module) => ({ default: module.PartnersPage })));
-const EducationArticlePage = lazyWithRetry(() => import('./pages/public/EducationArticlePage').then((module) => ({ default: module.EducationArticlePage })));
-const RoadmapPage = lazyWithRetry(() => import('./pages/public/RoadmapPage').then((module) => ({ default: module.RoadmapPage })));
-const EnergyCalculatorPage = lazyWithRetry(() => import('./pages/public/EnergyCalculatorPage').then((module) => ({ default: module.EnergyCalculatorPage })));
+const LandingPage = lazyWithRetry(publicPageLoaders.landing);
+const HowItWorksPage = lazyWithRetry(publicPageLoaders.howItWorks);
+const FuelCoveragePage = lazyWithRetry(publicPageLoaders.fuelCoverage);
+const ComplianceInfoPage = lazyWithRetry(publicPageLoaders.compliance);
+const ProducerUseCasePage = lazyWithRetry(publicPageLoaders.producers);
+const BuyerUseCasePage = lazyWithRetry(publicPageLoaders.buyers);
+const TraderUseCasePage = lazyWithRetry(publicPageLoaders.traders);
+const FinancierUseCasePage = lazyWithRetry(publicPageLoaders.financiers);
+const GovernancePage = lazyWithRetry(publicPageLoaders.governance);
+const PilotPage = lazyWithRetry(publicPageLoaders.pilot);
+const EducationPage = lazyWithRetry(publicPageLoaders.education);
+const PartnersPage = lazyWithRetry(publicPageLoaders.partners);
+const EducationArticlePage = lazyWithRetry(publicPageLoaders.educationArticle);
+const RoadmapPage = lazyWithRetry(publicPageLoaders.roadmap);
+const EnergyCalculatorPage = lazyWithRetry(publicPageLoaders.energyCalculator);
 const PartnerShowcasePage = lazyWithRetry(() => import('./pages/public/PartnerShowcasePage').then((module) => ({ default: module.PartnerShowcasePage })));
 const PartnerLandingPage = lazyWithRetry(() => import('./pages/public/PartnerLandingPage').then((module) => ({ default: module.PartnerLandingPage })));
-const PrivacyPage = lazyWithRetry(() => import('./pages/public/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
-const TermsPage = lazyWithRetry(() => import('./pages/public/TermsPage').then((module) => ({ default: module.TermsPage })));
+const PrivacyPage = lazyWithRetry(publicPageLoaders.privacy);
+const TermsPage = lazyWithRetry(publicPageLoaders.terms);
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 const ThankYouPage = lazyWithRetry(() => import('./pages/public/ThankYouPage').then((module) => ({ default: module.ThankYouPage })));
 

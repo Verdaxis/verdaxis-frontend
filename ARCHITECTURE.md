@@ -35,6 +35,10 @@ index.html
                     -> production or staging API
 ```
 
+`vite.config.ts` prerenders the 52 indexable English and Chinese public routes at build time. `src/prerender/renderPublicRoute.tsx` uses the existing React pages and translation resources; the producer map has a static project summary from the same public dataset because Leaflet requires a browser. Private routes keep the non-indexable loading shell. Staging also excludes all public routes from indexing.
+
+`src/publicPageLoaders.ts` shares public lazy loaders between the route tree and bootstrap. For a known public route, `src/index.tsx` loads its page and translation namespace before replacing the static content with the interactive application. The build emits localized metadata, canonical and language links, and factual JSON-LD; `RouteMetadata` updates them after client navigation. Production edge redirects send the domain root to `/en/` and `www` to the apex host.
+
 `src/types.ts` supplies the shared route, market, order, and API model vocabulary. `PAGE_SLUGS` connects the legacy `Page` type to real URLs. `src/components/layout/sidebarConfig.ts` is the visible primary navigation list. A component render case alone does not make a workspace reachable.
 
 ## Route and workspace rules
@@ -71,9 +75,11 @@ index.html
 
 ```text
 src/
-  index.tsx                         React mount
+  index.tsx                         public preload and React mount
   App.tsx                           providers, route tree, dashboard layout route
-  routeMetadata.ts                  localized route metadata and static-head catalog
+  routeMetadata.ts                  localized metadata, language links, and JSON-LD
+  publicPageLoaders.ts               shared public route imports
+  prerender/renderPublicRoute.tsx    build-only public content rendering
   types.ts                          shared UI and API domain types
   types/{activity,marketSupport}.ts production activity and assisted-workspace contracts
   components/

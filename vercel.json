@@ -7,6 +7,60 @@
   "buildCommand": "npm run build:prod && npm run build:check:prod",
   "outputDirectory": "dist",
   "installCommand": "npm ci --legacy-peer-deps",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://verdaxis.exchange/en/",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www\\.verdaxis\\.exchange"
+        }
+      ]
+    },
+    {
+      "source": "/:path*",
+      "destination": "https://verdaxis.exchange/:path*",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www\\.verdaxis\\.exchange"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "destination": "/en/",
+      "permanent": true
+    },
+    {
+      "source": "/:route(how-it-works|fuels|compliance|for-producers|for-buyers|for-traders|for-financiers|governance|pilot|partners|education|roadmap|privacy|terms)",
+      "destination": "/en/:route",
+      "permanent": true
+    },
+    {
+      "source": "/fuels/:sector(maritime|aviation|land)",
+      "destination": "/en/fuels/:sector",
+      "permanent": true
+    },
+    {
+      "source": "/education/:slug(what-is-carbon-intensity|physical-vs-book-and-claim|compliance-vs-credits|scope-3-claims|energy-content-matters|fueleu-maritime-guide)",
+      "destination": "/en/education/:slug",
+      "permanent": true
+    },
+    {
+      "source": "/tools/energy-calculator",
+      "destination": "/en/tools/energy-calculator",
+      "permanent": true
+    },
+    {
+      "source": "/map/producers",
+      "destination": "/en/map/producers",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

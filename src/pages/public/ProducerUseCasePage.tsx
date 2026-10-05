@@ -19,6 +19,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -58,6 +59,7 @@ const sectionSubtitle: React.CSSProperties = {
 
 export const ProducerUseCasePage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   if (!ready) return null;
 
   const valueProps = [
@@ -329,7 +331,7 @@ export const ProducerUseCasePage: React.FC = () => {
           <Reveal delay={0.2}>
             <HoverButton>
               <Link
-                to="/pilot"
+                to={localePath('/pilot')}
                 style={{
                   display: 'inline-block',
                   background: `linear-gradient(135deg, ${ACCENT}, #5DADE2)`,

@@ -140,10 +140,12 @@
     class="bg-verdaxis-light text-verdaxis-dark antialiased h-screen overflow-hidden"
   >
     <div id="root">
+      <!-- public-prerender:start -->
       <div class="loading-screen loading-screen--fullscreen" role="status" aria-live="polite">
         <img class="loading-screen__mark" src="/loading-fuel.svg" width="96" height="112" alt="" aria-hidden="true" />
         <p class="loading-screen__label">Loading...</p>
       </div>
+      <!-- public-prerender:end -->
     </div>
     <script type="module" src="/src/index.tsx"></script>
   </body>

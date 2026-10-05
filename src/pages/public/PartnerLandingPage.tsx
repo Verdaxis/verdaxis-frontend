@@ -22,6 +22,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PriceTicker } from '../../components/public/PriceTicker';
 import { HeroSection } from '../../components/public/HeroSection';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -112,6 +113,7 @@ const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = (
 
 export const PartnerLandingPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const howSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -578,7 +580,7 @@ export const PartnerLandingPage: React.FC = () => {
               {t('partnerLanding.how.subtitle')}
             </p>
             <Link
-              to="/how-it-works"
+              to={localePath('/how-it-works')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -683,7 +685,7 @@ export const PartnerLandingPage: React.FC = () => {
               </div>
             ))}
             <div style={{ textAlign: 'center', marginTop: 8 }}>
-              <Link to="/how-it-works" style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Link to={localePath('/how-it-works')} style={{ fontSize: 15, fontWeight: 600, color: '#5DADE2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 {t('partnerLanding.how.seeFullProcess')} <ArrowRight size={16} />
               </Link>
             </div>
@@ -811,7 +813,7 @@ export const PartnerLandingPage: React.FC = () => {
                     ))}
                   </ul>
                   <Link
-                    to={path}
+                    to={localePath(path)}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -963,7 +965,7 @@ export const PartnerLandingPage: React.FC = () => {
             >
               <motion.div whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
                 <Link
-                  to="/pilot"
+                  to={localePath('/pilot')}
                   className="cta-gradient"
                   style={{
                     background: 'linear-gradient(135deg, #4CAF50, #5DADE2)',

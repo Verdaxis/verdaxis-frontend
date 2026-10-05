@@ -34,7 +34,7 @@ describe('EducationPage', () => {
     expect(screen.getByText('FuelEU Maritime: What Fuel Buyers Need to Know')).toBeTruthy();
     const readLinks = screen
       .getAllByRole('link')
-      .filter((link) => link.getAttribute('href')?.startsWith('/education/'));
+      .filter((link) => link.getAttribute('href')?.startsWith('/en/education/'));
     expect(readLinks.length).toBe(6);
   });
 
@@ -77,7 +77,7 @@ describe('EducationArticlePage', () => {
     );
     expect(screen.getByText('Article not found')).toBeTruthy();
     const backLink = screen.getByRole('link', { name: /back to education/i });
-    expect(backLink.getAttribute('href')).toBe('/education');
+    expect(backLink.getAttribute('href')).toBe('/en/education');
   });
 });
 

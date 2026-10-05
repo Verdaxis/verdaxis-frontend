@@ -17,6 +17,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Shared styles                                                      */
@@ -32,6 +33,7 @@ const sectionPadding: React.CSSProperties = {
 
 export const ComplianceInfoPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   if (!ready) return null;
 
   const stewardshipPoints = [
@@ -287,7 +289,7 @@ export const ComplianceInfoPage: React.FC = () => {
           <Reveal delay={0.1}>
             <HoverButton>
               <Link
-                to="/how-it-works"
+                to={localePath('/how-it-works')}
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',

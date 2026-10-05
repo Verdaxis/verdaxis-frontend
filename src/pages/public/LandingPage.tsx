@@ -23,6 +23,7 @@ import { HeroSection } from '../../components/public/HeroSection';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
 import i18n from '../../i18n';
+import { MARKET_PRODUCTS } from '../../types';
 import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -166,7 +167,7 @@ export const LandingPage: React.FC = () => {
   ];
 
   const stats = [
-    { value: 4, suffix: '', label: t('landing.stats.fuelProducts') },
+    { value: MARKET_PRODUCTS.length, suffix: '', label: t('landing.stats.fuelProducts') },
     { value: 8, suffix: '', label: t('landing.stats.tradingPorts') },
     { value: 2, suffix: '', label: t('landing.stats.complianceRegimes') },
     { value: 24, suffix: '/7', label: t('landing.stats.marketAccess') },

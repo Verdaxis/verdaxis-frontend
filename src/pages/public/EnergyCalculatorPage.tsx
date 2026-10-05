@@ -8,6 +8,7 @@ import {
   calculateVoyage,
 } from '../../data/calculatorDefaults';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 import i18n from '../../i18n';
 import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
@@ -626,6 +627,7 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
 
 export const EnergyCalculatorPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const [inputs, setInputs] = useState<CalculatorInputs>({ ...defaultInputs });
   const hasStarted = useRef(false);
   const hasCompleted = useRef(false);
@@ -1024,7 +1026,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             {t('energyCalculator.cta.subtitle')}
           </p>
           <Link
-            to="/pilot"
+            to={localePath('/pilot')}
             onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'calculator', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
             className="calc-cta-btn"
             style={{

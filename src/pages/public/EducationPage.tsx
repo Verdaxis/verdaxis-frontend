@@ -16,6 +16,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -46,6 +47,7 @@ const ArticleCard: React.FC<{ article: EducationArticle; categoryLabel: string; 
   readArticleLabel,
   minReadLabel,
 }) => {
+  const localePath = useLocalePath();
   const colors = categoryColors[article.category] ?? { bg: '#F1F5F9', text: '#64748B' };
 
   return (
@@ -127,7 +129,7 @@ const ArticleCard: React.FC<{ article: EducationArticle; categoryLabel: string; 
 
         {/* Read article link */}
         <Link
-          to={`/education/${article.slug}`}
+          to={localePath(`/education/${article.slug}`)}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Globe, Zap, BarChart3, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -17,14 +17,26 @@ const trustSignalIcons = [Shield, Globe, Zap, BarChart3];
 export const HeroSection: React.FC = () => {
   const { t, ready } = useNamespace('public');
   const localePath = useLocalePath();
+  // Motion's hook snapshots this preference. Subscribe here to handle live changes.
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
   const sectionRef = useRef<HTMLElement>(null);
   const orbGreenRef = useRef<HTMLDivElement>(null);
   const orbBlueRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setReducedMotion(preference.matches);
+    updatePreference();
+    preference.addEventListener('change', updatePreference);
+    return () => preference.removeEventListener('change', updatePreference);
+  }, []);
+
+  useEffect(() => {
     const section = sectionRef.current;
-    if (!section) return;
+    if (!section || reducedMotion) return;
 
     // Parallax: orbs drift up slower than scroll
     const ctx = gsap.context(() => {
@@ -63,7 +75,7 @@ export const HeroSection: React.FC = () => {
     }, section);
 
     return () => ctx.revert();
-  }, []);
+  }, [reducedMotion]);
 
   if (!ready) return null;
 
@@ -127,7 +139,7 @@ export const HeroSection: React.FC = () => {
       <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Badge */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           style={{
@@ -145,8 +157,8 @@ export const HeroSection: React.FC = () => {
           }}
         >
           <motion.span
-            animate={{ scale: [1, 1.3, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ scale: reducedMotion ? 1 : [1, 1.3, 1] }}
+            transition={{ duration: reducedMotion ? 0 : 2, repeat: reducedMotion ? 0 : Infinity, ease: 'easeInOut' }}
             style={{
               width: 6,
               height: 6,
@@ -160,7 +172,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Headline */}
         <motion.h1
-          initial={{ opacity: 0, y: 30 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           style={{
@@ -189,7 +201,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Subtitle */}
         <motion.p
-          initial={{ opacity: 0, y: 24 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="hero-subtitle"
@@ -206,7 +218,7 @@ export const HeroSection: React.FC = () => {
 
         {/* CTA Buttons */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="hero-cta"
@@ -217,7 +229,7 @@ export const HeroSection: React.FC = () => {
             marginBottom: 64,
           }}
         >
-          <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+          <motion.div whileTap={reducedMotion ? undefined : { scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to={localePath('/pilot')}
               onClick={() => analytics.track('landing_cta_clicked', { cta: 'pilot', placement: 'hero', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
@@ -239,7 +251,7 @@ export const HeroSection: React.FC = () => {
               <ArrowRight size={16} />
             </Link>
           </motion.div>
-          <motion.div whileTap={{ scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
+          <motion.div whileTap={reducedMotion ? undefined : { scale: 0.97 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }}>
             <Link
               to={localePath('/how-it-works')}
               onClick={() => analytics.track('landing_cta_clicked', { cta: 'how_it_works', placement: 'hero', language: i18n.language.split('-')[0] as AnalyticsLanguage })}
@@ -265,7 +277,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Shimmer divider */}
         <motion.div
-          initial={{ scaleX: 0 }}
+          initial={reducedMotion ? false : { scaleX: 0 }}
           animate={{ scaleX: 1 }}
           transition={{ duration: 1, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="shimmer-line"
@@ -285,7 +297,7 @@ export const HeroSection: React.FC = () => {
           {trustSignals.map(({ icon: Icon, label }, i) => (
             <motion.div
               key={label}
-              initial={{ opacity: 0, y: 12 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.8 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
               style={{

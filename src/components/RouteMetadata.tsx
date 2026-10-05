@@ -5,7 +5,9 @@ import {
   SITE_ORIGIN,
   SOCIAL_IMAGE_ALT,
   SOCIAL_IMAGE_PATH,
+  buildRouteStructuredData,
   resolveRouteMetadata,
+  serializeStructuredData,
 } from '../routeMetadata';
 
 function setMeta(selector: string, attributes: Record<string, string>) {
@@ -29,6 +31,37 @@ function setCanonical(href?: string) {
   if (!existing) document.head.appendChild(element);
 }
 
+const ROUTE_ALTERNATE_SELECTOR = 'link[rel="alternate"][data-verdaxis-route-metadata="alternate"]';
+
+function setAlternates(alternates?: Record<string, string>) {
+  document.head.querySelectorAll(ROUTE_ALTERNATE_SELECTOR).forEach((element) => element.remove());
+
+  if (!alternates) return;
+  for (const language of ['en', 'zh', 'x-default']) {
+    const element = document.createElement('link');
+    element.rel = 'alternate';
+    element.setAttribute('hreflang', language);
+    element.href = alternates[language];
+    element.dataset.verdaxisRouteMetadata = 'alternate';
+    document.head.appendChild(element);
+  }
+}
+
+function setStructuredData(metadata: ReturnType<typeof resolveRouteMetadata>) {
+  const existing = document.head.querySelector<HTMLScriptElement>('#verdaxis-structured-data');
+  const structuredData = buildRouteStructuredData(metadata);
+  if (!structuredData) {
+    existing?.remove();
+    return;
+  }
+
+  const element = existing ?? document.createElement('script');
+  element.id = 'verdaxis-structured-data';
+  element.type = 'application/ld+json';
+  element.textContent = serializeStructuredData(structuredData);
+  if (!existing) document.head.appendChild(element);
+}
+
 export function RouteMetadata() {
   const { pathname } = useLocation();
   const { i18n } = useTranslation();
@@ -42,6 +75,8 @@ export function RouteMetadata() {
     const robots = import.meta.env.MODE === 'staging' ? 'noindex,nofollow,noarchive' : metadata.robots;
     setMeta('meta[name="robots"]', { name: 'robots', content: robots });
     setCanonical(metadata.canonical);
+    setAlternates(metadata.alternates);
+    setStructuredData(metadata);
 
     setMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'Verdaxis' });
     setMeta('meta[property="og:type"]', { property: 'og:type', content: metadata.type });

@@ -30,6 +30,11 @@ describe('route metadata', () => {
       expect(metadata.description.length).toBeGreaterThan(15);
       expect(metadata.robots).toContain('index,follow');
       expect(metadata.canonical).toBe(`${SITE_ORIGIN}${pathname}`);
+      const englishPath = pathname.replace(/^\/(?:en|zh)(?=\/)/, '/en');
+      const chinesePath = pathname.replace(/^\/(?:en|zh)(?=\/)/, '/zh');
+      expect(metadata.alternates).toEqual({
+        en: `${SITE_ORIGIN}${englishPath}`, zh: `${SITE_ORIGIN}${chinesePath}`, 'x-default': `${SITE_ORIGIN}${englishPath}`,
+      });
     }
   });
 
@@ -79,11 +84,44 @@ describe('route metadata', () => {
     expect(xml).not.toMatch(/thank-you|\/app|\/login|partners-preview/);
   });
 
+  it('keeps Vercel redirects permanent, query-safe, and limited to public routes', () => {
+    const redirects = (JSON.parse(readFileSync(path.resolve(process.cwd(), 'vercel.json'), 'utf8')) as {
+      redirects: Array<{
+        source: string; destination: string; permanent: boolean;
+        has?: Array<{ type: string; value: string }>;
+      }>;
+    }).redirects;
+    const [wwwRoot, wwwPaths, publicRoot] = redirects;
+
+    expect(wwwRoot).toMatchObject({
+      source: '/',
+      destination: 'https://verdaxis.exchange/en/',
+      permanent: true,
+      has: [{ type: 'host', value: 'www\\.verdaxis\\.exchange' }],
+    });
+    expect(wwwPaths).toMatchObject({
+      source: '/:path*',
+      destination: 'https://verdaxis.exchange/:path*',
+      permanent: true,
+      has: [{ type: 'host', value: 'www\\.verdaxis\\.exchange' }],
+    });
+    expect(publicRoot).toMatchObject({ source: '/', destination: '/en/', permanent: true });
+
+    expect(redirects.every(({ permanent }) => permanent)).toBe(true);
+    expect(redirects.every(({ destination }) => !destination.includes('?'))).toBe(true);
+    const hostAgnosticSources = redirects.filter(({ has }) => !has).map(({ source }) => source);
+    expect(hostAgnosticSources).not.toContain('/:path*');
+    expect(hostAgnosticSources).not.toContain('/(.*)');
+  });
+
   it('renders crawler metadata into localized HTML and forces staging noindex', () => {
     const template = '<html lang="en"><head><!-- route-metadata:start --><title>Old</title><!-- route-metadata:end --></head></html>';
     const metadata = resolveRouteMetadata('/zh/how-it-works');
     const html = renderRouteHtml(template, metadata, true);
 
+    expect(html).toContain('hreflang="x-default" href="https://verdaxis.exchange/en/how-it-works"');
+    expect(html).toContain('hreflang="zh" href="https://verdaxis.exchange/zh/how-it-works"');
+    expect(html).toContain('id="verdaxis-structured-data"');
     expect(html).toContain('<html lang="zh">');
     expect(html).toContain(metadata.title);
     expect(html).toContain('name="robots" content="noindex,nofollow,noarchive"');
@@ -103,11 +141,24 @@ describe('route metadata', () => {
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content')).toContain('structured listings');
     expect(document.head.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(`${SITE_ORIGIN}/en/how-it-works`);
 
+    const alternates = Array.from(document.head.querySelectorAll('link[rel="alternate"]'));
+    expect(alternates).toHaveLength(3);
+    expect(alternates.map((element) => element.getAttribute('hreflang'))).toEqual(['en', 'zh', 'x-default']);
+
+    const structuredDataElement = document.head.querySelector('#verdaxis-structured-data');
+    expect(structuredDataElement).not.toBeNull();
+    const structuredData = JSON.parse(structuredDataElement?.textContent ?? '{}');
+    const types = structuredData['@graph'].map((entry: { '@type': string }) => entry['@type']);
+    expect(types).toEqual(['Organization', 'WebSite', 'WebPage']);
+    expect(JSON.stringify(structuredData)).not.toMatch(/AggregateRating|Offer|PostalAddress|Person/);
+
     fireEvent.click(screen.getByRole('button', { name: 'private route' }));
 
     expect(document.title).toBe('Invitation | Verdaxis');
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex,nofollow,noarchive');
     expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
+    expect(document.head.querySelectorAll('link[rel="alternate"]')).toHaveLength(0);
+    expect(document.head.querySelector('#verdaxis-structured-data')).toBeNull();
     expect(document.head.textContent).not.toContain('private-code-123');
   });
 });

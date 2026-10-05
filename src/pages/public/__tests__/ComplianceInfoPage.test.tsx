@@ -43,6 +43,6 @@ describe('ComplianceInfoPage', () => {
     renderWithRouter(<ComplianceInfoPage />);
     expect(screen.getByText(/see how the platform works end-to-end/i)).toBeTruthy();
     const link = screen.getByRole('link', { name: /how it works/i });
-    expect(link.getAttribute('href')).toBe('/how-it-works');
+    expect(link.getAttribute('href')).toBe('/en/how-it-works');
   });
 });
