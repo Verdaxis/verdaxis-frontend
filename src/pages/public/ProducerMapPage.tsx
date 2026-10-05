@@ -13,6 +13,7 @@ import {
   type ProducerProject,
 } from '../../data/producerProjects';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -339,6 +340,7 @@ const ProjectMarker: React.FC<{
 
 export const ProducerMapPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   const { i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabId>('map');
   const [search, setSearch] = useState('');
@@ -815,7 +817,7 @@ export const ProducerMapPage: React.FC = () => {
           {activeTab === 'futures' ? t('producerMap.cta.subtitleFutures') : t('producerMap.cta.subtitleMap')}
         </p>
         <Link
-          to="/pilot"
+          to={localePath('/pilot')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

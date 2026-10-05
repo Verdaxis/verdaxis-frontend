@@ -160,7 +160,7 @@ describe('ProducerMapPage', () => {
     expect(screen.getByText(/want to list your project/i)).toBeTruthy();
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
-    expect(ctaLink.getAttribute('href')).toBe('/pilot');
+    expect(ctaLink.getAttribute('href')).toBe('/en/pilot');
   });
 
   it('renders search input', () => {
@@ -214,6 +214,6 @@ describe('ProducerMapPage - Future Production tab', () => {
     expect(screen.getByText(/have future production to offer/i)).toBeTruthy();
     const ctaLink = screen.getByRole('link', { name: /list your production/i });
     expect(ctaLink).toBeTruthy();
-    expect(ctaLink.getAttribute('href')).toBe('/pilot');
+    expect(ctaLink.getAttribute('href')).toBe('/en/pilot');
   });
 });

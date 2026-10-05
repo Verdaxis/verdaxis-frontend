@@ -28,6 +28,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Shared inline-style helpers                                        */
@@ -180,6 +181,7 @@ const ColumnArrow: React.FC = () => (
 
 export const HowItWorksPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   if (!ready) return null;
 
   const sellerBenefits = [
@@ -459,7 +461,7 @@ export const HowItWorksPage: React.FC = () => {
           <Reveal delay={0.1}>
             <HoverButton>
               <Link
-                to="/fuels"
+                to={localePath('/fuels')}
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #5DADE2, #4CAF50)',

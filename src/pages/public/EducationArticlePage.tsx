@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { EDUCATION_CATEGORY_KEYS, getEducationArticles } from '../../data/educationArticles';
 import { Reveal, GradientOrb, HoverButton } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -24,6 +25,7 @@ export const EducationArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t, ready: publicReady } = useNamespace('public');
   const { ready: educationReady } = useNamespace('education');
+  const localePath = useLocalePath();
 
   if (!publicReady || !educationReady) return null;
 
@@ -55,7 +57,7 @@ export const EducationArticlePage: React.FC = () => {
         </p>
         <HoverButton>
           <Link
-            to="/education"
+            to={localePath('/education')}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -110,7 +112,7 @@ export const EducationArticlePage: React.FC = () => {
           {/* Back link */}
           <HoverButton>
             <Link
-              to="/education"
+              to={localePath('/education')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -219,7 +221,7 @@ export const EducationArticlePage: React.FC = () => {
             >
               <HoverButton>
                 <Link
-                  to="/education"
+                  to={localePath('/education')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',

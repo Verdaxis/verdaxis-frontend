@@ -39,7 +39,7 @@ describe('ProducerUseCasePage', () => {
     renderWithRouter(<ProducerUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -53,22 +53,22 @@ describe('BuyerUseCasePage', () => {
     expect(screen.getByText('For Owners & Charterers')).toBeTruthy();
     expect(screen.getByText('Unified Market Access')).toBeTruthy();
     expect(screen.getByText('Transparent, Reliable Pricing')).toBeTruthy();
-    expect(screen.getByText('All Sustainable Fuel Types')).toBeTruthy();
-    expect(screen.getByText('Hedging & Price Risk Tools')).toBeTruthy();
+    expect(screen.getByText('Supported Marine Fuel Products')).toBeTruthy();
+    expect(screen.getByText('Forward Market Monitoring')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<BuyerUseCasePage />);
-    expect(screen.getByText(/Post your fuel requirements/i)).toBeTruthy();
-    expect(screen.getByText(/Review matched offers/i)).toBeTruthy();
-    expect(screen.getByText(/Execute the trade/i)).toBeTruthy();
+    expect(screen.getByText(/Choose a market product/i)).toBeTruthy();
+    expect(screen.getByText(/Review the selected market's bids/i)).toBeTruthy();
+    expect(screen.getByText(/Place a physical bid/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<BuyerUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -80,24 +80,24 @@ describe('TraderUseCasePage', () => {
   it('renders title and value propositions', () => {
     renderWithRouter(<TraderUseCasePage />);
     expect(screen.getByText('For Traders & Aggregators')).toBeTruthy();
-    expect(screen.getByText('Deep Liquidity Pool')).toBeTruthy();
-    expect(screen.getByText('Hedging Tools & Swaps')).toBeTruthy();
+    expect(screen.getByText('Physical Orderbook')).toBeTruthy();
+    expect(screen.getByText('Forward-Curve Monitoring')).toBeTruthy();
     expect(screen.getByText('Price Discovery & Market Intelligence')).toBeTruthy();
-    expect(screen.getByText('Integrated Risk Management')).toBeTruthy();
+    expect(screen.getByText('Orders & Trade History')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<TraderUseCasePage />);
-    expect(screen.getByText(/Access the live orderbook/i)).toBeTruthy();
-    expect(screen.getByText(/Execute spot trades, swaps, or forwards/i)).toBeTruthy();
-    expect(screen.getByText(/Monitor positions/i)).toBeTruthy();
+    expect(screen.getByText(/Select a product, delivery point/i)).toBeTruthy();
+    expect(screen.getByText(/Place a physical bid or ask/i)).toBeTruthy();
+    expect(screen.getByText(/Monitor open orders/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<TraderUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -126,6 +126,6 @@ describe('FinancierUseCasePage', () => {
     renderWithRouter(<FinancierUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });

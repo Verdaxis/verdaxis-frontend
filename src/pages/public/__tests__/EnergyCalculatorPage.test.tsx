@@ -63,7 +63,7 @@ describe('EnergyCalculatorPage', () => {
     // Apply for Pilot CTA
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
-    expect(ctaLink.getAttribute('href')).toBe('/pilot');
+    expect(ctaLink.getAttribute('href')).toBe('/en/pilot');
   });
 
   it('tracks the first valid user-triggered result exactly once', async () => {

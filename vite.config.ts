@@ -1,6 +1,6 @@
 import path from 'path';
 import { rm, writeFile } from 'node:fs/promises';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { createServer, defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import {
     INDEXABLE_PUBLIC_PATHS,
@@ -28,13 +28,42 @@ export function validateReleaseApiUrl(
     }
 }
 
+const PRERENDER_VISIBILITY_STYLE = `
+    <style data-public-prerender-style>
+      body:has(#root > [data-public-prerender]) {
+        height: auto !important;
+        overflow: auto !important;
+      }
+      [data-public-prerender] [style="opacity:0"],
+      [data-public-prerender] [style^="opacity:0;"],
+      [data-public-prerender] [style*=";opacity:0;"],
+      [data-public-prerender] [style$=";opacity:0"] {
+        opacity: 1 !important;
+        transform: none !important;
+      }
+    </style>`;
+
+function renderPrerenderedBody(html: string, content: string): string {
+    const startMarker = '<!-- public-prerender:start -->';
+    const endMarker = '<!-- public-prerender:end -->';
+    const start = html.indexOf(startMarker);
+    const end = html.indexOf(endMarker);
+    if (start < 0 || end < start) {
+        throw new Error('Built index.html public prerender markers are missing');
+    }
+
+    const contentStart = start + startMarker.length;
+    const withContent = `${html.slice(0, contentStart)}\n      <div data-public-prerender>${content}</div>\n      ${html.slice(end)}`;
+    return withContent.replace('</head>', `${PRERENDER_VISIBILITY_STYLE}\n  </head>`);
+}
+
 export function staticRouteMetadataPlugin(mode: string): Plugin {
     const isStaging = mode === 'staging';
     return {
         name: 'verdaxis-static-route-metadata',
         apply: 'build',
         enforce: 'post',
-        generateBundle(_options, bundle) {
+        async generateBundle(_options, bundle) {
             const entry = bundle['index.html'];
             if (!entry || entry.type !== 'asset' || typeof entry.source !== 'string') {
                 throw new Error('Vite did not emit index.html');
@@ -43,15 +72,44 @@ export function staticRouteMetadataPlugin(mode: string): Plugin {
             const template = entry.source;
             entry.source = renderRouteHtml(template, resolveRouteMetadata('/not-found'), true);
 
-            for (const pathname of INDEXABLE_PUBLIC_PATHS) {
-                const outputPath = `${pathname.replace(/^\/+|\/+$/g, '')}/index.html`;
-                this.emitFile({
-                    type: 'asset',
-                    fileName: outputPath,
-                    source: renderRouteHtml(template, resolveRouteMetadata(pathname), isStaging),
-                });
+            const server = await createServer({
+                appType: 'custom',
+                configFile: false,
+                logLevel: 'error',
+                mode,
+                root: process.cwd(),
+                plugins: [react()],
+                resolve: {
+                    // React Router's Node export is CommonJS. Point the build-only
+                    // module runner at its ESM files so public pages can render
+                    // without changing browser resolution.
+                    alias: [
+                        { find: /^react-router-dom$/, replacement: path.resolve(__dirname, './node_modules/react-router-dom/dist/index.mjs') },
+                        { find: /^react-router\/dom$/, replacement: path.resolve(__dirname, './node_modules/react-router/dist/development/dom-export.mjs') },
+                        { find: /^react-router$/, replacement: path.resolve(__dirname, './node_modules/react-router/dist/development/index.mjs') },
+                        { find: '@', replacement: path.resolve(__dirname, './src') },
+                    ],
+                },
+                server: { middlewareMode: true },
+                ssr: { noExternal: ['react-router', 'react-router-dom'] },
+            });
+            try {
+                const renderer = await server.ssrLoadModule('/src/prerender/renderPublicRoute.tsx') as {
+                    renderPublicRoute: (pathname: string) => Promise<string>;
+                };
+                for (const pathname of INDEXABLE_PUBLIC_PATHS) {
+                    const outputPath = `${pathname.replace(/^\/+|\/+$/g, '')}/index.html`;
+                    const content = await renderer.renderPublicRoute(pathname);
+                    const routeHtml = renderRouteHtml(template, resolveRouteMetadata(pathname), isStaging);
+                    this.emitFile({
+                        type: 'asset',
+                        fileName: outputPath,
+                        source: renderPrerenderedBody(routeHtml, content),
+                    });
+                }
+            } finally {
+                await server.close();
             }
-
         },
         async writeBundle(options) {
             if (!isStaging) return;

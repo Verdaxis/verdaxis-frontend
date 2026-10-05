@@ -6,7 +6,7 @@
   },
   "landing": {
     "stats": {
-      "fuelProducts": "Fuel Products",
+      "fuelProducts": "Active Fuel Products",
       "tradingPorts": "Trading Ports",
       "complianceRegimes": "Compliance Regimes",
       "marketAccess": "Market Access"
@@ -18,19 +18,19 @@
       "cards": {
         "0": {
           "title": "Price Discovery",
-          "body": "Real-time aggregation of supply and demand drives transparent, market-driven pricing for sustainable marine fuels."
+          "body": "Bids, asks, and disclosed reference data support price discovery across available marine fuel products."
         },
         "1": {
           "title": "Transparency",
-          "body": "Verified sustainability data, CI scores, and full chain-of-custody for every fuel batch on the platform."
+          "body": "Product, carbon-intensity, sustainability, and document fields stay with the relevant market record when disclosed."
         },
         "2": {
           "title": "Low Friction",
-          "body": "Streamlined digital trading enables simple, error-free transactions — accelerating contract negotiation and cutting settlement times."
+          "body": "A standard order workflow captures product, quantity, delivery point, availability window, and limit price."
         },
         "3": {
           "title": "Market Access",
-          "body": "Connects fuel producers, buyers, and traders on a unified marketplace with broad availability across all sustainable fuel types."
+          "body": "Connects producers, buyers, and traders across B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol markets."
         }
       }
     },
@@ -44,18 +44,18 @@
       "steps": {
         "0": {
           "step": "STEP",
-          "title": "List & Verify",
-          "body": "Producers register fuel supply, CI score, and certifications."
+          "title": "List & Document",
+          "body": "Suppliers enter fuel supply, market terms, and supporting sustainability data."
         },
         "1": {
           "step": "STEP",
           "title": "Discover & Trade",
-          "body": "Access a unified market of verified sustainable fuel suppliers with real-time pricing and compliance data."
+          "body": "Review physical bids and asks by product, delivery point, and availability window."
         },
         "2": {
           "step": "STEP",
           "title": "Manage & Optimise",
-          "body": "Integrated risk management, market intelligence, and hedging tools including swaps and forwards."
+          "body": "Monitor market activity, forward curves, watchlists, and trade history in one workspace."
         }
       }
     },
@@ -76,7 +76,7 @@
         "1": {
           "title": "Fuel Buyers",
           "bullets": {
-            "0": "One-stop access to all sustainable fuel types",
+            "0": "B30, B100, methanol, and ethanol markets",
             "1": "Transparent, reliable pricing",
             "2": "Efficiency and speed"
           }
@@ -84,23 +84,23 @@
         "2": {
           "title": "Traders",
           "bullets": {
-            "0": "Liquidity access",
-            "1": "Access to hedging tools and swaps",
-            "2": "Market intelligence and forecasting"
+            "0": "Physical orderbook access",
+            "1": "Forward-curve and watchlist monitoring",
+            "2": "Market news and activity data"
           }
         },
         "3": {
           "title": "Financiers",
           "bullets": {
-            "0": "Verified sustainability data",
-            "1": "Integrated risk management",
-            "2": "Reduced diligence cost"
+            "0": "Listing and trade data by market",
+            "1": "Order and trade status visibility",
+            "2": "Market and compliance context"
           }
         }
       }
     },
     "frameworks": {
-      "label": "Built for global compliance frameworks"
+      "label": "Market and regulatory context"
     },
     "cta": {
       "eyebrow": "Join the Pilot",
@@ -119,42 +119,42 @@
   "howItWorks": {
     "hero": {
       "title": "How Verdaxis Works",
-      "subtitle": "Verdaxis connects sustainable fuel producers with buyers and traders through a transparent exchange — delivering liquidity, price discovery, and verified sustainability data."
+      "subtitle": "Verdaxis connects producers, buyers, and traders through physical low-carbon marine fuel orderbooks, market monitoring, and disclosed sustainability data."
     },
     "benefits": {
       "title": "Benefits of the Verdaxis Platform",
-      "subtitle": "A two-sided marketplace connecting sustainable fuel supply with global demand.",
+      "subtitle": "A two-sided marketplace for supported low-carbon marine fuel products.",
       "sellers": {
         "title": "Sellers",
         "subtitle": "Producers & Traders",
         "items": {
-          "0": "Direct access to qualified buyers",
-          "1": "Reduced customer acquisition costs",
-          "2": "Lower friction for contract negotiation",
-          "3": "Market visibility and deal flow analytics",
-          "4": "Ability to pre-market future production"
+          "0": "Place physical asks by product, delivery point, and availability window",
+          "1": "Review visible bids in the selected market",
+          "2": "Use standard fields for quantity, price, delivery point, and timing",
+          "3": "Monitor orders, trades, and market activity",
+          "4": "Post future availability windows"
         }
       },
       "platform": {
         "title": "Verdaxis Platform",
         "subtitle": "The Exchange",
         "items": {
-          "0": "Real-time aggregation and matching delivering liquidity in the market",
-          "1": "Drives price discovery in the market",
-          "2": "Verified sustainability data and reporting",
-          "3": "Integrated risk management tools",
-          "4": "AI-powered market intelligence and forecasting"
+          "0": "Aggregate bids and asks by supported physical market",
+          "1": "Display price and depth for the selected market",
+          "2": "Attach disclosed sustainability data and documents to relevant records",
+          "3": "Forward-curve, watchlist, and trade monitoring",
+          "4": "Market news and selected-market activity"
         }
       },
       "buyers": {
         "title": "Buyers",
         "subtitle": "Owners & Charterers",
         "items": {
-          "0": "Access to a unified market of verified sustainable fuel suppliers",
-          "1": "Transparent, reliable pricing via exchange",
-          "2": "One-stop access to all sustainable fuel types",
-          "3": "Transparency and price discovery",
-          "4": "Access to hedging tools (SWAPs)"
+          "0": "Compare physical bids and asks in one marketplace",
+          "1": "See whether displayed data is marked Demo, reference, or market data",
+          "2": "Access B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol markets",
+          "3": "Place bids with quantity, price, delivery point, and availability window",
+          "4": "Monitor forward curves and saved markets"
         }
       }
     },
@@ -164,20 +164,20 @@
       "items": {
         "0": {
           "title": "Physical-First Logic",
-          "description": "Every listing on Verdaxis is tied to a physical fuel batch. No decoupled paper credits or synthetic instruments — real fuel, real trades."
+          "description": "Each order is for a physical market product. The marketplace does not offer paper swaps or decoupled environmental credits."
         },
         "1": {
           "title": "End-to-End Integrity",
-          "description": "From production through bunkering to final consumption, the chain of custody is maintained. Sustainability data travels with the fuel at every stage."
+          "description": "Market records can carry product, pathway, carbon-intensity, certification, and supporting document fields when provided."
         },
         "2": {
-          "title": "Singapore-Hosted, Global Reach",
-          "description": "Backed by SGX and MPA Singapore, Verdaxis provides price discovery for any point in the world while maintaining the highest standards of market integrity."
+          "title": "Singapore-Based, Market-Focused",
+          "description": "Based in Singapore, Verdaxis provides a physical-first marketplace organised by fuel product, delivery point, and availability window."
         }
       }
     },
     "cta": {
-      "title": "See what fuels are supported on the platform",
+      "title": "See current market products and informational fuel pathways",
       "button": "Explore Fuel Coverage"
     }
   },
@@ -216,46 +216,46 @@
   "buyer": {
     "hero": {
       "title": "For Owners & Charterers",
-      "subtitle": "Access a unified market of verified sustainable fuel suppliers — with transparent pricing, full fuel-type coverage, and the hedging tools to manage price risk."
+      "subtitle": "Compare physical bids and asks for B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol by delivery point and availability window."
     },
     "valueProps": {
       "title": "Why Buyers Choose Verdaxis",
-      "subtitle": "The market, the prices, and the tools — all in one place.",
+      "subtitle": "Supported physical fuel markets, orderbook data, and monitoring tools in one workspace.",
       "items": {
         "0": {
           "title": "Unified Market Access",
-          "description": "Connect to a curated network of verified sustainable fuel suppliers in one place. No more fragmented bilateral negotiations — Verdaxis brings the entire market to you so you can compare, evaluate, and transact efficiently."
+          "description": "Use one marketplace to view and place physical fuel bids across supported products, delivery points, and availability windows."
         },
         "1": {
           "title": "Transparent, Reliable Pricing",
-          "description": "See live and reference prices across all sustainable fuel types with full price discovery. Verdaxis shows you what the market is clearing at — not just what a single counterparty quotes — so you always negotiate from a position of knowledge."
+          "description": "Review bids and asks for the selected market and see whether displayed data is marked Demo or reference data."
         },
         "2": {
-          "title": "All Sustainable Fuel Types",
-          "description": "One-stop access to bio-LNG, bio-MGO, green methanol, green ammonia, e-fuels, and more. Compare fuel options side by side on price, availability, and energy content — all within a single trading interface."
+          "title": "Supported Marine Fuel Products",
+          "description": "Access B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol in one trading interface."
         },
         "3": {
-          "title": "Speed & Execution Efficiency",
-          "description": "Post your requirements once and receive matched offers fast. Verdaxis's matching engine surfaces the best available supply against your volume, port, and delivery window — cutting procurement time from days to hours."
+          "title": "Standard Order Entry",
+          "description": "Enter product, quantity, delivery point, availability window, and limit price in one order workflow."
         },
         "4": {
-          "title": "Hedging & Price Risk Tools",
-          "description": "Manage price volatility with access to SWAP instruments directly on the platform. Lock in future fuel costs, hedge exposure to sustainable fuel price swings, and plan procurement budgets with confidence."
+          "title": "Forward Market Monitoring",
+          "description": "Monitor forward periods marked as indicative and open the corresponding physical market."
         }
       }
     },
     "howItWorks": {
       "title": "How It Works For You",
-      "subtitle": "From fuel requirement to executed trade in three steps.",
+      "subtitle": "From market selection to a monitored physical order in three steps.",
       "steps": {
-        "0": "Post your fuel requirements — type, volume, port, and delivery window",
-        "1": "Review matched offers with transparent pricing and full fuel-type coverage",
-        "2": "Execute the trade and optionally hedge your price exposure with SWAPs"
+        "0": "Choose a market product, quantity, delivery point, availability window, and limit price",
+        "1": "Review the selected market's bids, asks, and data labels",
+        "2": "Place a physical bid and monitor its order and trade status"
       }
     },
     "cta": {
       "title": "Ready to access the market?",
-      "subtitle": "Join the Verdaxis pilot programme and start sourcing sustainable fuels with transparent pricing, broad supplier coverage, and built-in hedging tools.",
+      "subtitle": "Join the Verdaxis pilot programme to access supported physical fuel markets, orderbook data, and monitoring tools.",
       "button": "Apply for Pilot"
     }
   },
@@ -304,42 +304,42 @@
   "trader": {
     "hero": {
       "title": "For Traders & Aggregators",
-      "subtitle": "Deep liquidity. Hedging tools and swaps. Real-time price discovery and market intelligence — built for professional fuel traders."
+      "subtitle": "Physical bids and asks, forward-curve monitoring, watchlists, and market intelligence for professional fuel traders."
     },
     "valueProps": {
       "title": "Why Traders Choose Verdaxis",
-      "subtitle": "Exchange-grade tools — liquidity, hedging, risk management, and market data — in one integrated platform.",
+      "subtitle": "A physical orderbook, selected-market monitoring, and market data in one workspace.",
       "items": {
         "0": {
-          "title": "Deep Liquidity Pool",
-          "description": "Verdaxis aggregates bids and asks across regions and counterparties in real time, giving traders the depth and immediacy they need to execute at scale."
+          "title": "Physical Orderbook",
+          "description": "View bids and asks by product, delivery point, and availability window, with depth where active orders exist."
         },
         "1": {
-          "title": "Hedging Tools & Swaps",
-          "description": "Access paper trading instruments — swaps and forwards — alongside physical contracts. Manage exposure and lock in margins with standardised, exchange-grade structures."
+          "title": "Forward-Curve Monitoring",
+          "description": "Monitor forward periods marked as indicative and open the corresponding physical market for order review or entry."
         },
         "2": {
           "title": "Price Discovery & Market Intelligence",
-          "description": "Transparent price formation driven by live order flow. Market intelligence and forecasting tools help you anticipate moves and inform strategy ahead of the curve."
+          "description": "Review displayed orderbook data, data labels, market news, and activity for the selected market."
         },
         "3": {
-          "title": "Integrated Risk Management",
-          "description": "Monitor open positions, margin exposure, and settlement obligations in one place. Automated workflows reduce manual reconciliation and counterparty risk."
+          "title": "Orders & Trade History",
+          "description": "Track open orders, matches, and trade lifecycle status in one workspace."
         }
       }
     },
     "howItWorks": {
       "title": "How It Works For You",
-      "subtitle": "From orderbook to settled position in three steps.",
+      "subtitle": "From selected market to monitored physical order in three steps.",
       "steps": {
-        "0": "Access the live orderbook — real-time bids, asks, and depth across fuel types and regions",
-        "1": "Execute spot trades, swaps, or forwards with standardised terms and verified sustainability data",
-        "2": "Monitor positions, risk exposure, and market intelligence — all in a single dashboard"
+        "0": "Select a product, delivery point, and availability window to view bids, asks, and depth",
+        "1": "Place a physical bid or ask with standardised market terms and supporting data",
+        "2": "Monitor open orders, saved markets, and trade history in one dashboard"
       }
     },
     "cta": {
       "title": "Ready to access real liquidity?",
-      "subtitle": "Join the Verdaxis pilot programme and trade with institutional liquidity, hedging tools, and live market intelligence from day one.",
+      "subtitle": "Join the Verdaxis pilot programme to access supported physical fuel markets and monitoring tools.",
       "button": "Apply for Pilot"
     }
   },
@@ -388,97 +388,97 @@
   "fuelCoverage": {
     "hero": {
       "title": "Fuel Coverage",
-      "subtitle": "Verdaxis supports sustainable fuels across maritime, aviation, and land transport. Explore fuel types, pathways, and environmental attributes by sector."
+      "subtitle": "Current marine orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol. Aviation and land sections provide informational pathway coverage."
     },
     "sectors": {
       "maritime": {
         "label": "Maritime",
         "headline": "Maritime Fuels",
-        "subtitle": "Low-carbon bunker fuels for the global fleet — from drop-in biofuel blends to next-generation ammonia and E-Methanol."
+        "subtitle": "Current orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol for marine delivery markets."
       },
       "aviation": {
         "label": "Aviation",
         "headline": "Aviation Fuels",
-        "subtitle": "Sustainable Aviation Fuel (SAF) and its feedstock pathways — meeting ReFuelEU, CORSIA, and Scope 3 mandates."
+        "subtitle": "Informational coverage of Sustainable Aviation Fuel and related feedstock pathways; these are not current Verdaxis orderbooks."
       },
       "land": {
         "label": "Land",
         "headline": "Land & Power",
-        "subtitle": "Ethanol for road transport and ammonia for clean power generation — the bridge fuels for terrestrial decarbonisation."
+        "subtitle": "Informational coverage of ethanol and ammonia pathways for road transport and power; these are not current Verdaxis orderbooks."
       }
     },
     "fuels": {
       "methanol": {
         "name": "Methanol",
         "pathways": {
-          "0": "Bio Methanol (waste/biomass)",
-          "1": "E-Methanol (green H₂ + CO₂)",
-          "2": "Fossil (grey)"
+          "0": "Bio Methanol",
+          "1": "e-Methanol",
+          "2": "Other methanol pathways (informational)"
         },
         "keyMarkets": "Maritime bunkering, chemical feedstock",
-        "note": "∼2M mt expected production in 2026. Key producers: CRI (Iceland), GoldWind (China), MGC (Japan)"
+        "note": "Bio Methanol and e-Methanol are available as separate marine market products. Pathway and sustainability fields are shown when disclosed."
       },
       "ethanol": {
         "name": "Ethanol",
         "pathways": {
-          "0": "1G (sugarcane/corn)",
-          "1": "2G (cellulosic/bagasse)",
-          "2": "Waste-based"
+          "0": "Bio Ethanol",
+          "1": "Synthetic Ethanol",
+          "2": "Other ethanol pathways (informational)"
         },
         "keyMarkets": "Road transport blending, SAF feedstock, maritime",
-        "note": "Production could match methanol volumes. Cross-pollination with SAF pathways."
+        "note": "Bio Ethanol and Synthetic Ethanol are available as separate market products. Other pathway details are informational."
       },
       "bioLng": {
-        "name": "Bio-LNG",
+        "name": "Bio-LNG (Informational)",
         "pathways": {
           "0": "Anaerobic digestion (biogas)",
           "1": "Gasification (woody biomass)",
           "2": "Landfill gas upgrading"
         },
         "keyMarkets": "Maritime bunkering, LNG-fuelled vessels",
-        "note": "Drop-in for the growing LNG-fuelled fleet. 700+ LNG-capable vessels in service or on order."
+        "note": "Pathway overview only. Bio-LNG is not a current Verdaxis orderbook product."
       },
       "bioMgo": {
-        "name": "Bio-MGO / FAME Blends",
+        "name": "B30 / B100",
         "pathways": {
-          "0": "UCOME (used cooking oil methyl ester)",
-          "1": "FAME B20–B100 blends",
-          "2": "HVO (hydrotreated vegetable oil)"
+          "0": "B30 biodiesel blend",
+          "1": "B100 biodiesel",
+          "2": "Feedstock and pathway data when disclosed"
         },
         "keyMarkets": "Maritime bunkering, drop-in blending",
-        "note": "Lowest-barrier entry for existing fleet. UCOME widely available at major bunkering hubs."
+        "note": "B30 and B100 are available as separate marine market products."
       },
       "ammonia": {
-        "name": "Ammonia",
+        "name": "Ammonia (Informational)",
         "pathways": {
           "0": "Green ammonia (electrolysis)",
           "1": "Blue ammonia (SMR + CCS)"
         },
         "keyMarkets": "Maritime (next-gen engines), power generation, industrial heat",
-        "note": "MAN and Wärtsilä ammonia engines in development. First commercial vessels expected 2026–2028."
+        "note": "Pathway overview only. Ammonia is not a current Verdaxis orderbook product."
       },
       "saf": {
-        "name": "Sustainable Aviation Fuel (SAF)",
+        "name": "Sustainable Aviation Fuel (Informational)",
         "pathways": {
           "0": "HEFA (used cooking oil / tallow)",
           "1": "Fischer-Tropsch (gasification)",
           "2": "Alcohol-to-Jet (AtJ)"
         },
         "keyMarkets": "Aviation, blending mandates (EU ReFuelEU)",
-        "note": "Global SAF mandates accelerating: EU 2% (2025), 6% (2030), 70% (2050). CORSIA Phase 1 starts 2027."
+        "note": "Pathway overview only. SAF is not a current Verdaxis orderbook product."
       },
       "ucome": {
-        "name": "UCOME",
+        "name": "UCOME (Informational)",
         "pathways": {
           "0": "Used cooking oil collection & processing",
           "1": "Waste grease transesterification"
         },
         "keyMarkets": "SAF feedstock (HEFA pathway), biodiesel, maritime",
-        "note": "The dominant SAF feedstock today. Supply chain integrity critical — UCO fraud risk drives need for verified provenance."
+        "note": "Feedstock overview only. UCOME is not a current Verdaxis orderbook product."
       }
     },
     "fuelCard": {
-      "comingSoon": "Coming Soon",
+      "comingSoon": "Informational",
       "pathways": "Pathways",
       "ciRange": "CI Range",
       "energyDensity": "Energy Density",
@@ -486,7 +486,7 @@
     },
     "attributes": {
       "title": "Key Attributes",
-      "subtitle": "Every fuel registered on Verdaxis carries verified environmental data across these dimensions.",
+      "subtitle": "Market records can include these environmental and commercial fields when the data is disclosed.",
       "items": {
         "0": {
           "title": "Carbon Intensity (CI)",
@@ -502,7 +502,7 @@
         },
         "3": {
           "title": "Certification Scheme",
-          "description": "Third-party certifications that verify fuel claims. Supported schemes: ISCC EU, ISCC PLUS, RSB, RenovaBio, RED III compliance."
+          "description": "Third-party certification information can accompany a market record when supplied, including the named scheme and supporting documents."
         }
       }
     },
@@ -664,8 +664,8 @@
   },
   "partners": {
     "hero": {
-      "title": "Our Partners",
-      "subtitle": "Verdaxis works alongside leading industry bodies, pricing agencies, and technology partners to build the world's most trusted sustainable fuel exchange."
+      "title": "Partner Network",
+      "subtitle": "Verdaxis is building relationships across pricing, regulation, analytics, and sustainability for its physical low-carbon fuel marketplace."
     },
     "network": {
       "title": "Partner Network",
@@ -674,7 +674,7 @@
     },
     "insights": {
       "title": "Insights & Resources",
-      "subtitle": "Market intelligence and explainers from the Verdaxis partner ecosystem.",
+      "subtitle": "Verdaxis market explainers and educational resources.",
       "readMore": "Read more",
       "minRead": "min read"
     },

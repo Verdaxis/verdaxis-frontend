@@ -285,6 +285,20 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
     if (!ctx) return;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let inView = true;
+
+    function shouldAnimate() {
+      return inView && !document.hidden && !reducedMotion.matches;
+    }
+
+    function updateAnimation() {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      if (!inView || document.hidden) return;
+      // Keep the illustration visible without continuous motion when requested.
+      draw(reducedMotion.matches ? 0 : performance.now());
+    }
 
     function resize() {
       const rect = canvas!.getBoundingClientRect();
@@ -292,11 +306,13 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
       canvas!.height = rect.height * dpr;
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
       dotsRef.current = buildShippingDots(rect.width, rect.height);
+      updateAnimation();
     }
 
     // Track mouse on document level so it works even when cursor is
     // over the hero text content (which sits above the canvas in z-order)
     function onMouseMove(e: MouseEvent) {
+      if (!shouldAnimate()) return;
       const rect = canvas!.getBoundingClientRect();
       mouseRef.current.x = e.clientX - rect.left;
       mouseRef.current.y = e.clientY - rect.top;
@@ -442,11 +458,17 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
         ctx!.fill();
       }
 
-      rafRef.current = requestAnimationFrame(draw);
+      if (shouldAnimate()) rafRef.current = requestAnimationFrame(draw);
     }
 
     resize();
-    rafRef.current = requestAnimationFrame(draw);
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting;
+      updateAnimation();
+    });
+    visibilityObserver.observe(canvas);
+    document.addEventListener('visibilitychange', updateAnimation);
+    reducedMotion.addEventListener('change', updateAnimation);
 
     // Listen on document so mouse works even over overlaid content
     // Use the canvas parent (the hero section) for mouseleave
@@ -457,6 +479,9 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
 
     return () => {
       cancelAnimationFrame(rafRef.current);
+      visibilityObserver.disconnect();
+      document.removeEventListener('visibilitychange', updateAnimation);
+      reducedMotion.removeEventListener('change', updateAnimation);
       document.removeEventListener('mousemove', onMouseMove);
       parent?.removeEventListener('mouseleave', onMouseLeave);
       window.removeEventListener('resize', resize);
@@ -466,6 +491,7 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
   return (
     <canvas
       ref={canvasRef}
+      aria-hidden="true"
       style={{
         position: 'absolute',
         inset: 0,

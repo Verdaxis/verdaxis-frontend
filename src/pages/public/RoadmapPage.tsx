@@ -11,6 +11,7 @@ import {
   HoverButton,
 } from '../../components/public/motionUtils';
 import { useNamespace } from '../../hooks/useNamespace';
+import { useLocalePath } from '../../hooks/useLocalePath';
 
 /* ------------------------------------------------------------------ */
 /*  Data types                                                         */
@@ -348,6 +349,7 @@ const MobilePhaseCard: React.FC<{ phase: Phase; index: number; totalPhases: numb
 
 export const RoadmapPage: React.FC = () => {
   const { t, ready } = useNamespace('public');
+  const localePath = useLocalePath();
   if (!ready) return null;
 
   const currentLabel = t('roadmap.phases.current');
@@ -638,7 +640,7 @@ export const RoadmapPage: React.FC = () => {
           </Reveal>
           <HoverButton>
             <Link
-              to="/pilot"
+              to={localePath('/pilot')}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

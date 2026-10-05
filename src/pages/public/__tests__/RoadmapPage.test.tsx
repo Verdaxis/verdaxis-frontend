@@ -76,6 +76,6 @@ describe('RoadmapPage', () => {
     expect(screen.getByText(/want to be part of the journey/i)).toBeTruthy();
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
-    expect(ctaLink.getAttribute('href')).toBe('/pilot');
+    expect(ctaLink.getAttribute('href')).toBe('/en/pilot');
   });
 });
