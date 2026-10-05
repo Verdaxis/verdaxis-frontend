@@ -45,8 +45,7 @@ function StaticProducerMapPage() {
         </p>
       </section>
       <section style={{ margin: '0 auto', maxWidth: 1100, padding: '48px 24px' }}>
-        <h2 style={{ color: '#0F172A', fontSize: 26, margin: '0 0 8px' }}>{t('producerMap.futures.title')}</h2>
-        <p style={{ color: '#64748B', lineHeight: 1.6, margin: '0 0 28px' }}>{t('producerMap.futures.subtitle')}</p>
+        <h2 style={{ color: '#0F172A', fontSize: 26, margin: '0 0 8px' }}>{producerProjects.length} {t('producerMap.header.projects', { count: producerProjects.length })}</h2>
         <ul style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', listStyle: 'none', margin: 0, padding: 0 }}>
           {producerProjects.map((project) => (
             <li key={`${project.name}-${project.country}`} style={{ border: '1px solid #E2E8F0', borderRadius: 12, padding: 20 }}>
