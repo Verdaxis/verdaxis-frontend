@@ -1,5 +1,10 @@
 import type { ComponentType } from 'react';
 
+export interface PreparedPublicPage {
+  pathname: string;
+  Component: ComponentType;
+}
+
 type PublicPageModule = { default: ComponentType };
 type PublicPageLoader = () => Promise<PublicPageModule>;
 

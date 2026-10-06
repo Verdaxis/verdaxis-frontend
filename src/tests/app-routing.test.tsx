@@ -2,10 +2,11 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import i18n from '../i18n';
 import { AppRoutes } from '../App';
+import type { PreparedPublicPage } from '../publicPageLoaders';
 import { NotificationList } from '../components/notifications/NotificationList';
 
 type Role = 'BUYER' | 'SUPPLIER' | 'ADMIN';
@@ -214,11 +215,11 @@ const NavigateButton: React.FC<{ to: string }> = ({ to }) => {
 
 type InitialEntry = string | { pathname: string; state?: unknown };
 
-function buildApp(initialEntry: InitialEntry, extra?: React.ReactNode) {
+function buildApp(initialEntry: InitialEntry, extra?: React.ReactNode, initialPublicPage?: PreparedPublicPage) {
   return (
     <I18nextProvider i18n={i18n}>
       <MemoryRouter initialEntries={[initialEntry]}>
-        <AppRoutes />
+        <AppRoutes initialPublicPage={initialPublicPage} />
         <LocationSpy />
         {extra}
       </MemoryRouter>
@@ -275,6 +276,23 @@ describe('app routing', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it('renders the preloaded public page without a loading gap and keeps later routing', async () => {
+    const pathname = '/en/education/what-is-carbon-intensity';
+    const PreparedArticle = () => {
+      const { slug } = useParams();
+      return <h1>Ready article: {slug}</h1>;
+    };
+    render(buildApp(pathname, <NavigateButton to="/en/not-a-page" />, {
+      pathname,
+      Component: PreparedArticle,
+    }));
+
+    expect(screen.getByRole('heading', { name: 'Ready article: what-is-carbon-intensity' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'navigate-to-target' }));
+    expect(await screen.findByTestId('page-not-found')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: /Ready article/ })).toBeNull();
   });
 
   describe('route → component per viewMode', () => {
