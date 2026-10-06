@@ -26,7 +26,7 @@ import { useLocalePath } from '../../hooks/useLocalePath';
 
 gsap.registerPlugin(ScrollTrigger);
 
-/* ── Partner Data ── */
+/* Independent industry resources; no affiliation or endorsement is implied. */
 
 const partners = [
   {
@@ -60,35 +60,6 @@ const partners = [
 ];
 
 const frameworkIndexes = [0, 1, 2, 3, 4, 5];
-
-const Stat: React.FC<{ value: number; suffix: string; label: string }> = ({ value, suffix, label }) => {
-  return (
-    <div>
-      <div
-        style={{
-          fontFamily: '"DM Serif Display", serif',
-          fontSize: 42,
-          fontWeight: 400,
-          color: '#FFFFFF',
-          marginBottom: 6,
-        }}
-      >
-        {value}{suffix}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          color: '#64748B',
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-};
 
 /* ── RevealSection ── */
 const RevealSection: React.FC<{ children: React.ReactNode; delay?: number }> = ({ children, delay = 0 }) => {
@@ -201,12 +172,7 @@ export const PartnerLandingPage: React.FC = () => {
     },
   ];
 
-  const stats = [
-    { value: 4, suffix: '', label: t('landing.stats.fuelProducts') },
-    { value: 8, suffix: '', label: t('landing.stats.tradingPorts') },
-    { value: 2, suffix: '', label: t('landing.stats.complianceRegimes') },
-    { value: 24, suffix: '/7', label: t('landing.stats.marketAccess') },
-  ];
+
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -216,31 +182,7 @@ export const PartnerLandingPage: React.FC = () => {
       {/* 2. Hero Section */}
       <HeroSection />
 
-      {/* 3. Stats Bar */}
-      <section
-        style={{
-          background: '#0F172A',
-          padding: '52px 24px',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1000,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 24,
-            textAlign: 'center',
-          }}
-          className="landing-stats-grid"
-        >
-          {stats.map((s) => (
-            <Stat key={s.label} value={s.value} suffix={s.suffix} label={s.label} />
-          ))}
-        </div>
-      </section>
-
-      {/* ★ PARTNER SECTION — Trusted By ★ */}
+      {/* Independent industry resources */}
       <section
         style={{
           background: '#FAFDF7',
@@ -1011,9 +953,6 @@ export const PartnerLandingPage: React.FC = () => {
       {/* Responsive overrides */}
       <style>{`
         @media (max-width: 768px) {
-          .landing-stats-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
           .how-track {
             display: none !important;
           }

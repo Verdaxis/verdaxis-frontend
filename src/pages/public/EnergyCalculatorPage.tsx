@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Flame, Wind, ShieldCheck, AlertTriangle, TrendingDown, DollarSign } from 'lucide-react';
+import { ArrowRight, Flame, Wind, DollarSign } from 'lucide-react';
 import {
   CalculatorInputs,
   VoyageResult,
@@ -154,7 +154,7 @@ const SliderInput: React.FC<SliderInputProps> = ({ label, value, onChange, min, 
             value={value}
             onChange={(e) => {
               const v = parseFloat(e.target.value);
-              if (!isNaN(v)) onChange(v);
+              if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
             }}
             step={step}
             min={min}
@@ -431,30 +431,26 @@ interface FuelResultRowProps {
   label: string;
   result: VoyageResult;
   inputs: CalculatorInputs;
+  emissionFactor: number;
   isCheaper: boolean;
   accentColor: string;
   metricLabels: {
     fuelBurn: string;
+    energyDelivered: string;
     co2Emissions: string;
     euEtsCost: string;
-    fuelEu: string;
-    ciiProxy: string;
     pricePerGJ: string;
     totalCost: string;
     lowerCost: string;
-    compliant: string;
-    penalty: string;
     efficiency: string;
     coverage: string;
-    better: string;
-    worse: string;
+    combustionFactor: string;
     fuelCost: string;
-    versus: string;
-    intensity: string;
+    etsAddition: string;
   };
 }
 
-const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, isCheaper, accentColor, metricLabels }) => {
+const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, emissionFactor, isCheaper, accentColor, metricLabels }) => {
   const costHighlight = isCheaper ? 'green' : 'red';
 
   return (
@@ -503,10 +499,16 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           subLines={[`${metricLabels.efficiency}: ${result.effTperDay} t/d`]}
         />
         <MetricCard
+          icon={<Flame size={14} color="#5DADE2" />}
+          title={metricLabels.energyDelivered}
+          mainValue={`${fmtNumber(result.totalEnergyGJ)} GJ`}
+          subLines={[`${inputs.dailyEnergyDemandGJ.toLocaleString()} GJ/d × ${inputs.voyageDays}`]}
+        />
+        <MetricCard
           icon={<Wind size={14} color="#5DADE2" />}
           title={metricLabels.co2Emissions}
           mainValue={`${fmtNumber(result.co2T)} t`}
-          subLines={[`EF: ${inputs.emissionFactor}`]}
+          subLines={[`${metricLabels.combustionFactor}: ${emissionFactor} tCO₂/t`]}
         />
         <MetricCard
           icon={<DollarSign size={14} color="#5DADE2" />}
@@ -516,24 +518,6 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
             `${metricLabels.coverage}: ${Math.round(inputs.etsCoverage * 100)}%`,
             `EUA: \u20AC${inputs.euaPrice}/t`,
           ]}
-        />
-        <MetricCard
-          icon={
-            result.fueleuCompliant
-              ? <ShieldCheck size={14} color="#4CAF50" />
-              : <AlertTriangle size={14} color="#EF4444" />
-          }
-          title={metricLabels.fuelEu}
-          mainValue={result.fueleuCompliant ? fmtEur(0) : fmtEur(result.fueleuPenaltyEur)}
-          subLines={[`${metricLabels.intensity}: ${result.fueleuIntensity}`, `${metricLabels.versus} ${inputs.fueleuThreshold}`]}
-          badge={result.fueleuCompliant ? metricLabels.compliant : metricLabels.penalty}
-          badgeColor={result.fueleuCompliant ? '#4CAF50' : '#EF4444'}
-        />
-        <MetricCard
-          icon={<TrendingDown size={14} color="#5DADE2" />}
-          title={metricLabels.ciiProxy}
-          mainValue={String(result.ciiProxy)}
-          subLines={[isCheaper ? `${metricLabels.better} \u2191` : `${metricLabels.worse} \u2193`]}
         />
         <MetricCard
           icon={<DollarSign size={14} color="#5DADE2" />}
@@ -548,7 +532,7 @@ const FuelResultRow: React.FC<FuelResultRowProps> = ({ label, result, inputs, is
           icon={<DollarSign size={14} color={isCheaper ? '#4CAF50' : '#EF4444'} />}
           title={metricLabels.totalCost}
           mainValue={fmtUsd(result.totalCostUsd)}
-          subLines={[`${metricLabels.fuelCost}: ${fmtUsd(result.fuelCostUsd)}`, '+ETS+FuelEU']}
+          subLines={[`${metricLabels.fuelCost}: ${fmtUsd(result.fuelCostUsd)}`, metricLabels.etsAddition]}
           highlight={costHighlight}
         />
       </div>
@@ -604,7 +588,7 @@ const DeltaCard: React.FC<DeltaCardProps> = ({ label, value, formatter, maxValue
           fontFamily: "'Montserrat', sans-serif",
         }}
       >
-        +{formatter(Math.abs(value))}
+        {formatter(Math.abs(value))}
       </div>
       <div style={{ height: 4, background: '#F1F5F9', borderRadius: 2, overflow: 'hidden' }}>
         <div
@@ -641,11 +625,11 @@ export const EnergyCalculatorPage: React.FC = () => {
   };
 
   const resultA = useMemo(
-    () => calculateVoyage(inputs.fuelA_energyDensity, inputs.fuelA_price, inputs.fuelA_dailyConsumption, inputs),
+    () => calculateVoyage(inputs.fuelA_energyDensity, inputs.fuelA_price, inputs.fuelA_emissionFactor, inputs),
     [inputs]
   );
   const resultB = useMemo(
-    () => calculateVoyage(inputs.fuelB_energyDensity, inputs.fuelB_price, inputs.fuelB_dailyConsumption, inputs),
+    () => calculateVoyage(inputs.fuelB_energyDensity, inputs.fuelB_price, inputs.fuelB_emissionFactor, inputs),
     [inputs]
   );
 
@@ -661,35 +645,25 @@ export const EnergyCalculatorPage: React.FC = () => {
   const diff = resultA.totalCostUsd - resultB.totalCostUsd;
   const fuelDiff = resultA.fuelCostUsd - resultB.fuelCostUsd;
   const etsDiff = resultA.etsCostEur - resultB.etsCostEur;
-  const fueleuDiff = resultA.fueleuPenaltyEur - resultB.fueleuPenaltyEur;
-
-  const totalFuelBurned = (resultA.fuelBurnT + resultB.fuelBurnT) / 2;
-  const perTonneLow = totalFuelBurned > 0 ? Math.round(Math.abs(diff) / totalFuelBurned * 0.8) : 0;
-  const perTonneHigh = totalFuelBurned > 0 ? Math.round(Math.abs(diff) / totalFuelBurned * 1.2) : 0;
 
   const aIsCheaper = resultA.totalCostUsd <= resultB.totalCostUsd;
-  const maxDelta = Math.max(Math.abs(fuelDiff), Math.abs(etsDiff * inputs.eurToUsd), Math.abs(fueleuDiff * inputs.eurToUsd), 1);
+  const maxDelta = Math.max(Math.abs(fuelDiff), Math.abs(etsDiff * inputs.eurToUsd), 1);
 
   if (!ready) return null;
 
   const metricLabels = {
     fuelBurn: t('energyCalculator.metrics.fuelBurn'),
+    energyDelivered: t('energyCalculator.metrics.energyDelivered'),
     co2Emissions: t('energyCalculator.metrics.co2Emissions'),
     euEtsCost: t('energyCalculator.metrics.euEtsCost'),
-    fuelEu: t('energyCalculator.metrics.fuelEu'),
-    ciiProxy: t('energyCalculator.metrics.ciiProxy'),
     pricePerGJ: t('energyCalculator.metrics.pricePerGJ'),
     totalCost: t('energyCalculator.metrics.totalCost'),
     lowerCost: t('energyCalculator.metrics.lowerCost'),
-    compliant: t('energyCalculator.metrics.compliant'),
-    penalty: t('energyCalculator.metrics.penalty'),
     efficiency: t('energyCalculator.metrics.efficiency'),
     coverage: t('energyCalculator.metrics.coverage'),
-    better: t('energyCalculator.metrics.better'),
-    worse: t('energyCalculator.metrics.worse'),
+    combustionFactor: t('energyCalculator.metrics.combustionFactor'),
     fuelCost: t('energyCalculator.metrics.fuelCost'),
-    versus: t('energyCalculator.metrics.versus'),
-    intensity: t('energyCalculator.metrics.intensity'),
+    etsAddition: t('energyCalculator.metrics.etsAddition'),
   };
 
   return (
@@ -777,7 +751,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               {t('energyCalculator.fuelA')}
             </h3>
             <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelA_energyDensity} onChange={(v) => update('fuelA_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#5DADE2" />
-            <SliderInput label={t('energyCalculator.labels.dailyConsumption')} value={inputs.fuelA_dailyConsumption} onChange={(v) => update('fuelA_dailyConsumption', v)} min={10} max={100} step={1} unit="t/day" accentColor="#5DADE2" />
+            <SliderInput label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelA_emissionFactor} onChange={(v) => update('fuelA_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#5DADE2" />
             <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelA_price} onChange={(v) => update('fuelA_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#5DADE2" />
           </div>
 
@@ -806,7 +780,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               {t('energyCalculator.fuelB')}
             </h3>
             <SliderInput label={t('energyCalculator.labels.energyDensity')} value={inputs.fuelB_energyDensity} onChange={(v) => update('fuelB_energyDensity', v)} min={15} max={50} step={0.1} unit="MJ/kg" accentColor="#4CAF50" />
-            <SliderInput label={t('energyCalculator.labels.dailyConsumption')} value={inputs.fuelB_dailyConsumption} onChange={(v) => update('fuelB_dailyConsumption', v)} min={10} max={100} step={1} unit="t/day" accentColor="#4CAF50" />
+            <SliderInput label={t('energyCalculator.labels.combustionFactor')} value={inputs.fuelB_emissionFactor} onChange={(v) => update('fuelB_emissionFactor', v)} min={0} max={5} step={0.001} unit="tCO₂/t" accentColor="#4CAF50" />
             <SliderInput label={t('energyCalculator.labels.fuelPrice')} value={inputs.fuelB_price} onChange={(v) => update('fuelB_price', v)} min={200} max={1500} step={10} unit="$/mt" accentColor="#4CAF50" />
           </div>
 
@@ -834,6 +808,7 @@ export const EnergyCalculatorPage: React.FC = () => {
               <CompassIcon color="#64748B" />
               {t('energyCalculator.voyageRegulatory')}
             </h3>
+            <SliderInput label={t('energyCalculator.labels.dailyEnergyDemand')} value={inputs.dailyEnergyDemandGJ} onChange={(v) => update('dailyEnergyDemandGJ', v)} min={100} max={10000} step={50} unit="GJ/day" accentColor="#64748B" />
             <SliderInput label={t('energyCalculator.labels.voyageDays')} value={inputs.voyageDays} onChange={(v) => update('voyageDays', v)} min={1} max={60} step={1} unit={t('energyCalculator.units.days')} accentColor="#64748B" />
             <SliderInput label={t('energyCalculator.labels.euaPrice')} value={inputs.euaPrice} onChange={(v) => update('euaPrice', v)} min={20} max={200} step={1} unit={`\u20AC/tCO\u2082`} accentColor="#64748B" />
             <DropdownInput
@@ -841,15 +816,47 @@ export const EnergyCalculatorPage: React.FC = () => {
               value={inputs.etsCoverage}
               onChange={(v) => update('etsCoverage', v)}
               options={[
-                { label: '40%', value: 0.4 },
+                { label: '0%', value: 0 },
                 { label: '50%', value: 0.5 },
-                { label: '70%', value: 0.7 },
                 { label: '100%', value: 1.0 },
               ]}
             />
-            <SliderInput label={t('energyCalculator.labels.fueleuThreshold')} value={inputs.fueleuThreshold} onChange={(v) => update('fueleuThreshold', v)} min={50} max={100} step={0.01} unit={`gCO\u2082e/MJ`} accentColor="#64748B" />
             <SliderInput label={t('energyCalculator.labels.eurUsdRate')} value={inputs.eurToUsd} onChange={(v) => update('eurToUsd', v)} min={0.8} max={1.5} step={0.01} unit="" accentColor="#64748B" />
           </div>
+        </div>
+      </section>
+
+      <section style={{ padding: '32px 24px', background: '#FFFFFF', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#0F172A', marginBottom: 12 }}>
+            {t('energyCalculator.method.title')}
+          </h2>
+          <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
+            {t('energyCalculator.method.summary')}
+          </p>
+          <ul style={{ color: '#475569', lineHeight: 1.7, paddingLeft: 20, margin: '0 0 16px' }}>
+            <li>{t('energyCalculator.method.energyEquation')}</li>
+            <li>{t('energyCalculator.method.fuelEquation')}</li>
+            <li>{t('energyCalculator.method.etsEquation')}</li>
+          </ul>
+          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.7, marginBottom: 10 }}>
+            {t('energyCalculator.method.assumptions')}
+          </p>
+          <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.7, marginBottom: 16 }}>
+            {t('energyCalculator.method.regulatoryBoundary')}
+          </p>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 14 }}>
+            <a href="https://eur-lex.europa.eu/eli/reg/2023/1805" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>
+              {t('energyCalculator.method.fuelEuSource')}
+            </a>
+            <a href="https://climate.ec.europa.eu/areas-action/transport-decarbonisation/reducing-emissions-shipping-sector/faq-maritime-transport-eu-emissions-trading-system-ets_en" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>
+              {t('energyCalculator.method.etsSource')}
+            </a>
+            <a href="https://wwwcdn.imo.org/localresources/en/KnowledgeCentre/IndexofIMOResolutions/MEPCDocuments/MEPC.352%2878%29.pdf" target="_blank" rel="noreferrer" style={{ color: '#2563EB' }}>
+              {t('energyCalculator.method.ciiSource')}
+            </a>
+          </div>
+          <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 12 }}>{t('energyCalculator.method.reviewed')}</p>
         </div>
       </section>
 
@@ -886,6 +893,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             label={t('energyCalculator.fuelA')}
             result={resultA}
             inputs={inputs}
+            emissionFactor={inputs.fuelA_emissionFactor}
             isCheaper={aIsCheaper}
             accentColor="#5DADE2"
             metricLabels={metricLabels}
@@ -901,6 +909,7 @@ export const EnergyCalculatorPage: React.FC = () => {
             label={t('energyCalculator.fuelB')}
             result={resultB}
             inputs={inputs}
+            emissionFactor={inputs.fuelB_emissionFactor}
             isCheaper={!aIsCheaper}
             accentColor="#4CAF50"
             metricLabels={metricLabels}
@@ -971,21 +980,6 @@ export const EnergyCalculatorPage: React.FC = () => {
           >
             <DeltaCard label={t('energyCalculator.savings.fuelCostDelta')} value={fuelDiff} formatter={fmtUsd} maxValue={maxDelta} />
             <DeltaCard label={t('energyCalculator.savings.etsCostDelta')} value={etsDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
-            <DeltaCard label={t('energyCalculator.savings.fueleuPenaltyDelta')} value={fueleuDiff} formatter={fmtEur} maxValue={maxDelta / inputs.eurToUsd} />
-          </div>
-
-          <div
-            style={{
-              display: 'inline-block',
-              background: '#F8FAFC',
-              border: '1px solid #E2E8F0',
-              borderRadius: 8,
-              padding: '10px 24px',
-            }}
-          >
-            <p style={{ fontSize: 14, color: '#64748B', lineHeight: 1.6, fontFamily: "'Lato', sans-serif" }}>
-              {t('energyCalculator.savings.energyValueEstimate', { low: perTonneLow, high: perTonneHigh })}
-            </p>
           </div>
         </div>
       </section>

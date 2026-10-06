@@ -3,29 +3,32 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup, ZoomControl } from 'react-leaflet';
 import type { Popup as LeafletPopup } from 'leaflet';
-import { Search, ArrowRight, Calendar, Factory, Zap, MapPin, Clock, Mail } from 'lucide-react';
+import { Search, ArrowRight, Calendar, Factory, Zap, MapPin, Mail } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import {
   producerProjects,
   fuelTypeColors,
+  hasMapCoordinates,
   type FuelType,
+  type MappedProducerProject,
   type ProjectStatus,
   type ProducerProject,
 } from '../../data/producerProjects';
 import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
+import { ProducerDatasetNotice } from '../../components/public/ProducerDatasetNotice';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Bio Methanol', 'Green Methanol'];
+const ALL_FUEL_TYPES: FuelType[] = ['E-Methanol', 'Bio Methanol', 'Other Methanol'];
 const ALL_STATUSES: (ProjectStatus | 'All')[] = ['All', 'Operational', 'Under Construction', 'Engineering', 'Pre-Feasibility'];
 
 const fuelTypeKeys: Record<FuelType, string> = {
   'E-Methanol': 'producerMap.fuelTypes.eMethanol',
   'Bio Methanol': 'producerMap.fuelTypes.bioMethanol',
-  'Green Methanol': 'producerMap.fuelTypes.greenMethanol',
+  'Other Methanol': 'producerMap.fuelTypes.otherMethanol',
 };
 
 const statusKeys: Record<ProjectStatus | 'All', string> = {
@@ -106,11 +109,11 @@ type TabId = 'map' | 'futures';
 const FutureProjectCard: React.FC<{
   project: ProducerProject;
   labels: {
-    imminent: string;
     capacity: string;
     expectedCod: string;
     location: string;
     pathway: string;
+    coordinateUnavailable: string;
     expressInterest: string;
     fuelType: string;
     status: string;
@@ -121,13 +124,12 @@ const FutureProjectCard: React.FC<{
 }> = ({ project, labels }) => {
   const fuelColor = fuelTypeColors[project.fuelType];
   const statusColor = statusColors[project.status];
-  const isImminent = project.codYear <= new Date().getFullYear() + 1;
 
   return (
     <div
       style={{
         background: '#FFFFFF',
-        border: `1px solid ${isImminent ? '#FFE082' : '#E2E8F0'}`,
+        border: '1px solid #E2E8F0',
         borderRadius: 12,
         padding: 24,
         position: 'relative',
@@ -143,25 +145,6 @@ const FutureProjectCard: React.FC<{
         (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
       }}
     >
-      {isImminent && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            background: '#FF9800',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 700,
-            padding: '3px 10px',
-            borderRadius: '0 12px 0 8px',
-            letterSpacing: '0.05em',
-          }}
-        >
-          {labels.imminent}
-        </div>
-      )}
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
         <span
           style={{
@@ -217,7 +200,7 @@ const FutureProjectCard: React.FC<{
             <Calendar size={12} color="#FF9800" />
             <span style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{labels.expectedCod}</span>
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>Q1 {project.codYear}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>{project.codYear}</div>
         </div>
         <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
@@ -227,6 +210,9 @@ const FutureProjectCard: React.FC<{
           <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
             {project.city ? `${project.city}, ${project.country}` : project.country}
           </div>
+          {!hasMapCoordinates(project) && (
+            <div style={{ marginTop: 4, fontSize: 11, color: '#B45309' }}>{labels.coordinateUnavailable}</div>
+          )}
         </div>
         <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
@@ -273,7 +259,7 @@ const FutureProjectCard: React.FC<{
 /* ------------------------------------------------------------------ */
 
 const ProjectMarker: React.FC<{
-  project: ProducerProject;
+  project: MappedProducerProject;
   popupLabels: { capacity: string; cod: string; city: string; country: string; close: string };
   displayLabels: { fuelType: string; status: string; pathway: string };
 }> = ({ project, popupLabels, displayLabels }) => {
@@ -364,6 +350,15 @@ export const ProducerMapPage: React.FC = () => {
     });
   }, [search, selectedFuelTypes, selectedStatus, codMin, codMax]);
 
+  const mappedProjects = useMemo(
+    () => filteredProjects.filter(hasMapCoordinates),
+    [filteredProjects],
+  );
+  const unmappedProjects = useMemo(
+    () => filteredProjects.filter((project): boolean => !hasMapCoordinates(project)),
+    [filteredProjects],
+  );
+
   const filteredFutures = useMemo(() => {
     const q = futuresSearch.toLowerCase();
     return futureProjects
@@ -400,11 +395,11 @@ export const ProducerMapPage: React.FC = () => {
   if (!ready) return null;
 
   const cardLabels = {
-    imminent: t('producerMap.futures.imminent'),
     capacity: t('producerMap.futures.capacity'),
     expectedCod: t('producerMap.futures.expectedCod'),
     location: t('producerMap.futures.location'),
     pathway: t('producerMap.futures.pathway'),
+    coordinateUnavailable: t('producerMap.coordinateUnavailable'),
     expressInterest: t('producerMap.futures.expressInterest'),
   };
 
@@ -496,6 +491,8 @@ export const ProducerMapPage: React.FC = () => {
           ))}
         </div>
       </section>
+
+      <ProducerDatasetNotice />
 
       {/* ---- Tab Content ---- */}
       {activeTab === 'map' ? (
@@ -610,6 +607,26 @@ export const ProducerMapPage: React.FC = () => {
                 {t('producerMap.sidebar.showingProjects', { shown: filteredProjects.length, count: producerProjects.length })}
               </div>
 
+              {unmappedProjects.length > 0 && (
+                <div
+                  role="status"
+                  style={{
+                    padding: '10px 14px',
+                    background: '#FFF7ED',
+                    border: '1px solid #FED7AA',
+                    borderRadius: 8,
+                    color: '#9A3412',
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    marginBottom: 20,
+                  }}
+                >
+                  {unmappedProjects.map((project) => (
+                    <div key={project.id}><strong>{project.name}:</strong> {t('producerMap.coordinateUnavailable')}</div>
+                  ))}
+                </div>
+              )}
+
               {/* Legend */}
               <div>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -645,7 +662,7 @@ export const ProducerMapPage: React.FC = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {filteredProjects.map((project) => (
+                {mappedProjects.map((project) => (
                   <ProjectMarker
                     key={project.id}
                     project={project}
@@ -658,7 +675,7 @@ export const ProducerMapPage: React.FC = () => {
           </section>
         </>
       ) : (
-        /* ---- Future Production Marketplace ---- */
+        /* ---- Non-operational project records ---- */
         <section style={{ background: '#F8FAFC', minHeight: 600 }}>
           {/* Futures Header */}
           <div style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0', padding: '24px 32px' }}>
@@ -749,7 +766,7 @@ export const ProducerMapPage: React.FC = () => {
                         alignItems: 'center',
                         gap: 8,
                         padding: '8px 18px',
-                        background: year <= new Date().getFullYear() + 1 ? '#0F172A' : '#334155',
+                        background: '#334155',
                         color: '#fff',
                         borderRadius: 8,
                         fontSize: 18,
@@ -757,8 +774,7 @@ export const ProducerMapPage: React.FC = () => {
                         letterSpacing: '-0.02em',
                       }}
                     >
-                      <Clock size={16} />
-                      {year <= new Date().getFullYear() ? `${year} (${t('producerMap.futures.imminent')})` : year}
+                      {year}
                     </div>
                     <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
                     <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 600 }}>

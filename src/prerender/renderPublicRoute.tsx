@@ -3,9 +3,10 @@ import { renderToString } from 'react-dom/server';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Route, Routes, StaticRouter } from 'react-router-dom';
 
-import { producerProjects } from '../data/producerProjects';
+import { producerProjects, hasMapCoordinates } from '../data/producerProjects';
 import i18n, { loadNamespace } from '../i18n';
 import { PublicLayout } from '../components/public/PublicLayout';
+import { ProducerDatasetNotice } from '../components/public/ProducerDatasetNotice';
 import { BuyerUseCasePage } from '../pages/public/BuyerUseCasePage';
 import { ComplianceInfoPage } from '../pages/public/ComplianceInfoPage';
 import { EducationArticlePage } from '../pages/public/EducationArticlePage';
@@ -44,6 +45,7 @@ function StaticProducerMapPage() {
           {' · '}{totalCapacity.toLocaleString()} {t('producerMap.header.ktpaCapacity')}
         </p>
       </section>
+      <ProducerDatasetNotice />
       <section style={{ margin: '0 auto', maxWidth: 1100, padding: '48px 24px' }}>
         <h2 style={{ color: '#0F172A', fontSize: 26, margin: '0 0 8px' }}>{producerProjects.length} {t('producerMap.header.projects', { count: producerProjects.length })}</h2>
         <ul style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', listStyle: 'none', margin: 0, padding: 0 }}>
@@ -56,6 +58,11 @@ function StaticProducerMapPage() {
                 {t('producerMap.popup.capacity')}: {project.capacityKtpa.toLocaleString()} ktpa
                 {' · '}{t('producerMap.popup.cod')}: {project.codYear}
               </p>
+              {!hasMapCoordinates(project) && (
+                <p style={{ color: '#9A3412', fontSize: 13, margin: '8px 0 0' }}>
+                  {t('producerMap.coordinateUnavailable')}
+                </p>
+              )}
             </li>
           ))}
         </ul>

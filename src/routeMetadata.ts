@@ -162,12 +162,12 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   partners: {
     en: {
-      title: 'Industry Partners | Verdaxis',
-      description: 'Learn about the industry relationships and market resources Verdaxis is developing for the low-carbon fuel ecosystem.',
+      title: 'Industry Resources | Verdaxis',
+      description: 'Explore independent standards, regulatory bodies, and market resources relevant to low-carbon fuel commerce. Inclusion does not imply partnership or endorsement.',
     },
     zh: {
-      title: '行业合作伙伴 | Verdaxis',
-      description: '了解 Verdaxis 正在为低碳燃料生态系统建立的行业合作关系和市场资源。',
+      title: '行业资源 | Verdaxis',
+      description: '了解与低碳燃料交易相关的独立标准、监管机构和市场资源。列示并不代表合作关系或认可。',
     },
   },
   education: {
@@ -193,21 +193,21 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   'tools/energy-calculator': {
     en: {
       title: 'Marine Fuel Price and Energy Calculator | Verdaxis',
-      description: 'Compare marine biofuel, methanol, ammonia, and conventional fuels by energy content and examine effects on voyage and compliance costs.',
+      description: 'Compare marine fuels at the same energy demand. Estimate fuel cost, direct CO2 emissions, and an illustrative EU ETS allowance cost from editable inputs.',
     },
     zh: {
       title: '燃料能量计算器 | Verdaxis',
-      description: '按能量含量比较船用燃料，并了解燃料属性可能对航次和合规成本产生的影响。',
+      description: '按相同能量需求比较船用燃料，并根据可调整的输入估算燃料成本、直接二氧化碳排放和示例欧盟 ETS 配额成本。',
     },
   },
   'map/producers': {
     en: {
-      title: 'Green Methanol and Low-Carbon Fuel Project Map | Verdaxis',
-      description: 'Explore a public map of methanol and other low-carbon fuel production projects by location, pathway, status, and timeline.',
+      title: 'Methanol Production Project Index | Verdaxis',
+      description: 'Explore a compiled methanol project index with recorded pathways, status, capacity, commissioning years, and approximate city locations.',
     },
     zh: {
-      title: '低碳燃料项目地图 | Verdaxis',
-      description: '按地点、生产路径、状态和时间查看公开的低碳燃料生产项目地图。',
+      title: '甲醇生产项目索引 | Verdaxis',
+      description: '查看汇编的甲醇项目索引，包括记录的生产路径、状态、产能、投产年份和近似城市位置。',
     },
   },
   privacy: {

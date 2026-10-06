@@ -24,7 +24,7 @@ const categoryColors: Record<string, { bg: string; text: string }> = {
 export const EducationArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { t, ready: publicReady } = useNamespace('public');
-  const { ready: educationReady } = useNamespace('education');
+  const { t: educationT, ready: educationReady } = useNamespace('education');
   const localePath = useLocalePath();
 
   if (!publicReady || !educationReady) return null;
@@ -168,22 +168,29 @@ export const EducationArticlePage: React.FC = () => {
             {article.title}
           </motion.h1>
 
-          {/* Read time */}
-          <motion.span
+          {/* Article provenance */}
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.5 }}
             style={{
-              display: 'inline-flex',
+              display: 'flex',
+              flexWrap: 'wrap',
               alignItems: 'center',
-              gap: 6,
+              gap: 8,
               fontSize: 14,
               color: '#94A3B8',
             }}
           >
-            <Clock size={15} />
-            {article.readTime} {t('educationArticle.minRead')}
-          </motion.span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Clock size={15} />
+              {article.readTime} {t('educationArticle.minRead')}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>{educationT('articleMeta.maintainedBy', { name: article.maintainer })}</span>
+            <span aria-hidden="true">·</span>
+            <span>{educationT('articleMeta.sourcesChecked', { date: article.sourcesCheckedOn })}</span>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -209,6 +216,43 @@ export const EducationArticlePage: React.FC = () => {
               </p>
             </Reveal>
           ))}
+
+          <Reveal>
+            <section
+              aria-labelledby="education-primary-references"
+              style={{
+                borderTop: '1px solid #E2E8F0',
+                paddingTop: 28,
+                marginTop: 32,
+              }}
+            >
+              <h2
+                id="education-primary-references"
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: '#0F172A',
+                  marginBottom: 12,
+                }}
+              >
+                {educationT('articleMeta.primaryReferences')}
+              </h2>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {article.references.map((reference) => (
+                  <li key={reference.url} style={{ marginBottom: 8, color: '#475569' }}>
+                    <a
+                      href={reference.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#2563EB', textDecoration: 'underline' }}
+                    >
+                      {reference.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </Reveal>
 
           {/* Back link at bottom */}
           <Reveal>

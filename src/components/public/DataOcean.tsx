@@ -286,18 +286,20 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mobileViewport = window.matchMedia('(max-width: 768px)');
     let inView = true;
 
     function shouldAnimate() {
-      return inView && !document.hidden && !reducedMotion.matches;
+      return inView && !document.hidden && !reducedMotion.matches && !mobileViewport.matches;
     }
 
     function updateAnimation() {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
       if (!inView || document.hidden) return;
-      // Keep the illustration visible without continuous motion when requested.
-      draw(reducedMotion.matches ? 0 : performance.now());
+      // Keep the illustration visible without continuous work on mobile or
+      // when the user requests reduced motion.
+      draw(reducedMotion.matches || mobileViewport.matches ? 0 : performance.now());
     }
 
     function resize() {
@@ -469,6 +471,7 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
     visibilityObserver.observe(canvas);
     document.addEventListener('visibilitychange', updateAnimation);
     reducedMotion.addEventListener('change', updateAnimation);
+    mobileViewport.addEventListener('change', updateAnimation);
 
     // Listen on document so mouse works even over overlaid content
     // Use the canvas parent (the hero section) for mouseleave
@@ -482,6 +485,7 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
       visibilityObserver.disconnect();
       document.removeEventListener('visibilitychange', updateAnimation);
       reducedMotion.removeEventListener('change', updateAnimation);
+      mobileViewport.removeEventListener('change', updateAnimation);
       document.removeEventListener('mousemove', onMouseMove);
       parent?.removeEventListener('mouseleave', onMouseLeave);
       window.removeEventListener('resize', resize);
@@ -503,4 +507,3 @@ export const DataOcean: React.FC<{ style?: React.CSSProperties }> = ({ style }) 
     />
   );
 };
-

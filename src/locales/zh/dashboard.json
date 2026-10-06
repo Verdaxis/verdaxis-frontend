@@ -189,7 +189,8 @@
       "bioethanol": "Bio Ethanol",
       "eethanol": "e-Ethanol",
       "greenmethanol": "绿色甲醇",
-      "other": "其他燃料"
+      "other": "其他燃料",
+      "othermethanol": "其他甲醇"
     }
   },
   "newsFeed": {

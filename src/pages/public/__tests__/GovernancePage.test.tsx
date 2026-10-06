@@ -15,29 +15,28 @@ describe('GovernancePage', () => {
   it('renders page title', () => {
     renderWithRouter(<GovernancePage />);
     expect(screen.getByText(/governance & trust/i)).toBeTruthy();
-    expect(screen.getByText(/before live trading, governance matters more than ui/i)).toBeTruthy();
+    expect(screen.getByText(/governance principles for platform operation, participant access/i)).toBeTruthy();
   });
 
   it('renders guiding principles (trust, rules, independence)', () => {
     renderWithRouter(<GovernancePage />);
     expect(screen.getByText(/trust before liquidity/i)).toBeTruthy();
-    expect(screen.getByText(/earn credibility before scaling volume/i)).toBeTruthy();
+    expect(screen.getByText(/prioritises account and organization approval/i)).toBeTruthy();
     expect(screen.getByText(/rules before prices/i)).toBeTruthy();
-    expect(screen.getByText(/compliance standards, and attribute definitions/i)).toBeTruthy();
+    expect(screen.getByText(/supported products, delivery points, order fields/i)).toBeTruthy();
     expect(screen.getByText(/independence & neutrality/i)).toBeTruthy();
-    expect(screen.getByText(/neutral infrastructure provider/i)).toBeTruthy();
+    expect(screen.getByText(/same platform rules and data labels consistently/i)).toBeTruthy();
   });
 
   it('renders structural separation roles', () => {
     renderWithRouter(<GovernancePage />);
     expect(screen.getAllByText(/structural separation of roles/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/platform operator/i)).toBeTruthy();
-    expect(screen.getByText(/technology and registry provider/i)).toBeTruthy();
-    expect(screen.getByText(/does not take proprietary trading positions/i)).toBeTruthy();
+    expect(screen.getByText(/not an environmental-attribute registry/i)).toBeTruthy();
     expect(screen.getByText(/market participants/i)).toBeTruthy();
     expect(screen.getByText(/producers, buyers, traders, and financiers/i)).toBeTruthy();
-    expect(screen.getByText(/verification bodies/i)).toBeTruthy();
-    expect(screen.getByText(/independent third-party certifiers/i)).toBeTruthy();
+    expect(screen.getByText('Certification Information')).toBeTruthy();
+    expect(screen.getByText(/does not independently verify those declarations/i)).toBeTruthy();
   });
 
   it('renders data neutrality statement', () => {
@@ -46,7 +45,7 @@ describe('GovernancePage', () => {
     expect(screen.getByText(/equal confidentiality/i)).toBeTruthy();
     expect(screen.getByText(/aggregated, anonymised market data/i)).toBeTruthy();
     expect(screen.getByText(/never shared with competitors/i)).toBeTruthy();
-    expect(screen.getByText(/retain ownership of their data/i)).toBeTruthy();
+    expect(screen.getByText(/privacy policy and terms of service/i)).toBeTruthy();
   });
 
   it('renders conflict of interest policy', () => {
@@ -54,8 +53,8 @@ describe('GovernancePage', () => {
     expect(screen.getByText(/conflict of interest policy/i)).toBeTruthy();
     expect(screen.getByText(/fully disclosed to all participants/i)).toBeTruthy();
     expect(screen.getByText(/no preferential access, no information advantage/i)).toBeTruthy();
-    expect(screen.getByText(/independent oversight function/i)).toBeTruthy();
-    expect(screen.getByText(/confidential channel/i)).toBeTruthy();
+    expect(screen.getByText(/potential conflicts should be disclosed and reviewed/i)).toBeTruthy();
+    expect(screen.getByText(/published contact channel/i)).toBeTruthy();
   });
 
   it('renders advisory board section', () => {

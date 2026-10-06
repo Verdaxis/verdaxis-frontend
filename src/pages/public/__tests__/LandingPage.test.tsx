@@ -86,10 +86,10 @@ describe('LandingPage', () => {
   it('states the neutral exchange mission accurately', () => {
     renderWithRouter(<LandingPage />);
     expect(screen.getByText(
-      'Verdaxis is the neutral exchange where verified low-carbon fuel meets real demand. Trade anonymously until confirmation, with transparent pricing and compliance documentation built into every transaction.'
+      'Verdaxis is a neutral marketplace for physical low-carbon fuel bids and asks. Participants remain anonymous until confirmation and can review supplier-declared sustainability fields and source-labelled market data.'
     )).toBeTruthy();
     expect(publicZh.hero.subtitle).toBe(
-      'Verdaxis 是一个中立的交易平台，让经过核验的低碳燃料对接真实需求。交易双方在确认前保持匿名，价格透明，并在每笔交易中内置合规文件。'
+      'Verdaxis 是一个中立的实物低碳燃料 BID 与 ASK 市场。参与者在确认前保持匿名，并可查看供应商申报的可持续发展字段和标明来源的市场数据。'
     );
   });
 
@@ -111,7 +111,7 @@ describe('LandingPage', () => {
 
     const fuelProducts = screen.getByText('Active Fuel Products');
     expect(fuelProducts.previousElementSibling?.textContent).toBe('6');
-    expect(screen.getByText('Trading Ports').previousElementSibling?.textContent).toBe('8');
+    expect(screen.getByText('Supported Delivery Points').previousElementSibling?.textContent).toBe('8');
     expect(screen.getAllByRole('link', { name: /see full process/i })[0].getAttribute('href')).toBe('/en/how-it-works');
     expect(screen.getAllByRole('link', { name: /learn more/i })[0].getAttribute('href')).toBe('/en/for-producers');
   });

@@ -7,14 +7,14 @@
   "landing": {
     "stats": {
       "fuelProducts": "Active Fuel Products",
-      "tradingPorts": "Trading Ports",
+      "tradingPorts": "Supported Delivery Points",
       "complianceRegimes": "Compliance Regimes",
       "marketAccess": "Market Access"
     },
     "why": {
       "eyebrow": "The Platform",
       "title": "Why Verdaxis",
-      "subtitle": "A unified exchange for sustainable marine fuels — bringing price discovery, transparency, and liquidity to a fragmented market.",
+      "subtitle": "A unified marketplace for sustainable marine fuels, organizing bids, asks, and source-labelled reference data across supported physical markets.",
       "cards": {
         "0": {
           "title": "Price Discovery",
@@ -62,23 +62,23 @@
     "roles": {
       "eyebrow": "For Every Role",
       "title": "Built for Every Participant",
-      "subtitle": "Whether you produce, buy, trade, or finance low-carbon fuels, Verdaxis gives you the tools and trust layer you need.",
+      "subtitle": "Producers, buyers, traders, and financiers use the same supported market slices, source labels, and order and trade status records.",
       "learnMore": "Learn more",
       "cards": {
         "0": {
           "title": "Fuel Producers",
           "bullets": {
-            "0": "Direct access to qualified buyers",
-            "1": "Market reach and visibility",
-            "2": "Lower friction for contract negotiation"
+            "0": "Physical asks in supported market slices",
+            "1": "Visibility across supported products and delivery points",
+            "2": "Order and trade status monitoring"
           }
         },
         "1": {
           "title": "Fuel Buyers",
           "bullets": {
             "0": "B30, B100, methanol, and ethanol markets",
-            "1": "Transparent, reliable pricing",
-            "2": "Efficiency and speed"
+            "1": "Visible bids, asks, and source labels",
+            "2": "Standard physical order entry"
           }
         },
         "2": {
@@ -94,13 +94,13 @@
           "bullets": {
             "0": "Listing and trade data by market",
             "1": "Order and trade status visibility",
-            "2": "Market and compliance context"
+            "2": "Market and regulatory context"
           }
         }
       }
     },
     "frameworks": {
-      "label": "Market and regulatory context"
+      "label": "Regulatory and industry reference context"
     },
     "cta": {
       "eyebrow": "Join the Pilot",
@@ -160,7 +160,7 @@
     },
     "principles": {
       "title": "Key Principles",
-      "subtitle": "The design choices that make Verdaxis a trusted and transparent marketplace.",
+      "subtitle": "Design choices for a physical-first marketplace with disclosed fields and source labels.",
       "items": {
         "0": {
           "title": "Physical-First Logic",
@@ -184,28 +184,28 @@
   "compliance": {
     "hero": {
       "title": "Compliance & Integrity",
-      "subtitle": "Verdaxis is the steward of the sustainable fuel supply chain — providing end-to-end integrity from the producer to the tank."
+      "subtitle": "Review disclosed sustainability fields and supporting information alongside physical fuel market records."
     },
     "stewardship": {
-      "title": "The Steward of High-Integrity Supply",
-      "subtitle": "Only Verdaxis can safely facilitate the entire journey of sustainable fuel — from the moment it is produced to the moment it reaches the tank. Our platform is the single source of truth for every participant in the chain.",
+      "title": "Sustainability Information in Market Records",
+      "subtitle": "Verdaxis keeps disclosed product, pathway, carbon-intensity, certification, and supporting-document fields with the relevant market record. These fields are not independent verification or a regulatory determination.",
       "chain": {
-        "producer": "Producer",
-        "verdaxis": "Verdaxis",
-        "vessel": "Vessel",
-        "tank": "Tank"
+        "producer": "Supplier",
+        "verdaxis": "Market Record",
+        "vessel": "Order or Trade",
+        "tank": "Lifecycle Status"
       },
       "points": {
-        "0": "End-to-end visibility from the point of production to the bunker tank",
-        "1": "Every transaction is recorded, timestamped, and auditable",
-        "2": "Verified sustainability data travels with the fuel at every stage",
-        "3": "Platform-enforced integrity eliminates gaps in the supply chain"
+        "0": "Disclosed sustainability fields stay associated with the relevant market record",
+        "1": "Orders and trades carry platform timestamps and lifecycle status",
+        "2": "Supplier-declared certification information is labelled as a declaration",
+        "3": "Users can review disclosed fields before making a market decision"
       },
       "chainLabels": {
-        "producer": "Producer",
-        "verdaxis": "Verdaxis",
-        "vessel": "Vessel",
-        "tank": "Tank"
+        "producer": "Supplier",
+        "verdaxis": "Market Record",
+        "vessel": "Order or Trade",
+        "tank": "Lifecycle Status"
       }
     },
     "cta": {
@@ -219,7 +219,7 @@
       "subtitle": "Compare physical bids and asks for B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol by delivery point and availability window."
     },
     "valueProps": {
-      "title": "Why Buyers Choose Verdaxis",
+      "title": "What Buyers Can Do on Verdaxis",
       "subtitle": "Supported physical fuel markets, orderbook data, and monitoring tools in one workspace.",
       "items": {
         "0": {
@@ -227,7 +227,7 @@
           "description": "Use one marketplace to view and place physical fuel bids across supported products, delivery points, and availability windows."
         },
         "1": {
-          "title": "Transparent, Reliable Pricing",
+          "title": "Visible Bids, Asks & Data Labels",
           "description": "Review bids and asks for the selected market and see whether displayed data is marked Demo or reference data."
         },
         "2": {
@@ -262,52 +262,52 @@
   "producer": {
     "hero": {
       "title": "For Fuel Producers",
-      "subtitle": "Put your fuel production in front of the largest pool of qualified buyers. More reach, lower acquisition costs, and faster deal flow — all in one marketplace."
+      "subtitle": "Place physical asks by supported product, delivery point, and availability window, with supplier-declared sustainability fields when provided."
     },
     "valueProps": {
-      "title": "Why Producers Choose Verdaxis",
-      "subtitle": "The exchange built around your need for reach, visibility, and lower friction — from first listing to signed contract.",
+      "title": "What Producers Can Do on Verdaxis",
+      "subtitle": "Create and monitor physical asks in supported markets using standard order fields and source-labelled market data.",
       "items": {
         "0": {
-          "title": "Maximum Market Reach",
-          "description": "List your production once and get it in front of the largest pool of qualified fuel buyers on the market. More eyeballs means more competitive bids and faster deal flow."
+          "title": "Supported Market Visibility",
+          "description": "Place physical asks in exact product, delivery-point, and availability-window market slices for approved platform organizations."
         },
         "1": {
-          "title": "Lower Customer Acquisition Cost",
-          "description": "Stop spending on trade shows, cold outreach, and broker commissions. Verdaxis brings motivated buyers directly to your listings — dramatically cutting the cost of finding your next offtake partner."
+          "title": "Standard Order Entry",
+          "description": "Enter product, quantity, limit price, delivery point, availability window, and supplier-declared sustainability fields in one physical ASK workflow."
         },
         "2": {
-          "title": "Deal Flow Analytics & Market Visibility",
-          "description": "See how your listings perform: views, bid activity, and price benchmarks across the market. Know where you stand and price with confidence."
+          "title": "Market Monitoring",
+          "description": "Review visible bids and asks, source-labelled forward monitoring, saved markets, and order and trade status in one workspace."
         },
         "3": {
-          "title": "Pre-Market Future Production",
-          "description": "Sell forward before the first barrel is produced. List upcoming production capacity today to secure committed buyers and give your project bankable revenue certainty."
+          "title": "Future Availability Windows",
+          "description": "Post physical asks for supported future availability windows and monitor the resulting order status and market activity."
         }
       }
     },
     "howItWorks": {
       "title": "How It Works For You",
-      "subtitle": "Three steps from listing to closed deal.",
+      "subtitle": "From market selection to a monitored physical ask in three steps.",
       "steps": {
-        "0": "List your production — current inventory or future capacity — on the Verdaxis marketplace",
-        "1": "Qualified buyers discover your listings and submit bids directly, with no intermediary friction",
-        "2": "Negotiate terms, agree price, and close deals faster with built-in contract tooling"
+        "0": "Choose a supported product, quantity, delivery point, availability window, and limit price",
+        "1": "Review the selected market's visible bids, asks, and source labels",
+        "2": "Place a physical ask and monitor its order and trade lifecycle status"
       }
     },
     "cta": {
-      "title": "Ready to grow your buyer network?",
-      "subtitle": "Join the Verdaxis pilot programme and get your production in front of the market's most active fuel buyers today.",
+      "title": "Ready to Enter a Supported Market?",
+      "subtitle": "Join the pilot to access supported physical fuel markets, orderbook data, and monitoring tools.",
       "button": "Apply for Pilot"
     }
   },
   "trader": {
     "hero": {
       "title": "For Traders & Aggregators",
-      "subtitle": "Physical bids and asks, forward-curve monitoring, watchlists, and market intelligence for professional fuel traders."
+      "subtitle": "Physical bids and asks, source-labelled forward monitoring, watchlists, and market information for professional fuel traders."
     },
     "valueProps": {
-      "title": "Why Traders Choose Verdaxis",
+      "title": "What Traders Can Do on Verdaxis",
       "subtitle": "A physical orderbook, selected-market monitoring, and market data in one workspace.",
       "items": {
         "0": {
@@ -319,7 +319,7 @@
           "description": "Monitor forward periods marked as indicative and open the corresponding physical market for order review or entry."
         },
         "2": {
-          "title": "Price Discovery & Market Intelligence",
+          "title": "Market Data & Context",
           "description": "Review displayed orderbook data, data labels, market news, and activity for the selected market."
         },
         "3": {
@@ -338,7 +338,7 @@
       }
     },
     "cta": {
-      "title": "Ready to access real liquidity?",
+      "title": "Ready to Review Supported Markets?",
       "subtitle": "Join the Verdaxis pilot programme to access supported physical fuel markets and monitoring tools.",
       "button": "Apply for Pilot"
     }
@@ -346,42 +346,42 @@
   "financier": {
     "hero": {
       "title": "For Financiers & Auditors",
-      "subtitle": "Verified data. Integrated risk management. Reduced diligence cost. Verdaxis gives green finance the intelligence it needs."
+      "subtitle": "Review disclosed sustainability fields, physical market records, and source-labelled monitoring data in one workspace."
     },
     "valueProps": {
-      "title": "Why Financiers Choose Verdaxis",
-      "subtitle": "Verified data, integrated risk tools, and market forecasting — the investment intelligence green finance requires.",
+      "title": "Market Information for Financial Review",
+      "subtitle": "Structured records help users review information supplied for supported physical fuel markets.",
       "items": {
         "0": {
-          "title": "Verified Sustainability Data",
-          "description": "Every data point on Verdaxis is independently verified and timestamped. Production volumes, CI scores, and compliance certifications — audit-ready from day one."
+          "title": "Disclosed Sustainability Fields",
+          "description": "Review product, pathway, carbon-intensity, and certification fields when supplied; declarations remain distinct from independent verification."
         },
         "1": {
-          "title": "Integrated Risk Management",
-          "description": "Built-in risk tools flag counterparty exposure, compliance gaps, and regulatory drift before they affect your portfolio — all from a single dashboard."
+          "title": "Structured Market Context",
+          "description": "Compare visible bids and asks by supported product, delivery point, and availability window."
         },
         "2": {
-          "title": "Reduced Diligence Cost",
-          "description": "Platform-verified counterparties, standardised data formats, and immutable audit trails cut the time and cost of sustainability due diligence significantly."
+          "title": "Consistent Market Records",
+          "description": "Review order and trade status with the fields attached to each market record."
         },
         "3": {
-          "title": "Market Intelligence & Forecasting",
-          "description": "Access forward price curves, supply/demand signals, and regulatory trend analysis to inform investment decisions and stress-test green finance structures."
+          "title": "Source-Labelled Monitoring",
+          "description": "Use forward curves and monitoring data with their displayed Demo, reference, or market-data labels."
         }
       }
     },
     "howItWorks": {
       "title": "How It Works For You",
-      "subtitle": "From verified data to confident investment decisions in three steps.",
+      "subtitle": "Move from disclosed fields to market context in three steps.",
       "steps": {
-        "0": "Access bankable, auditable sustainability data across all platform participants",
-        "1": "Run integrated risk assessments and review standardised compliance reporting",
-        "2": "Apply market intelligence and forecasting to structure and price green finance deals"
+        "0": "Review sustainability fields disclosed for the selected physical market",
+        "1": "Compare bids and asks for the exact product, delivery point, and availability window",
+        "2": "Use source and status labels as inputs to your own review and diligence"
       }
     },
     "cta": {
-      "title": "Ready to invest with verified intelligence?",
-      "subtitle": "Join the Verdaxis pilot programme and access bankable sustainability data, integrated risk management, and market forecasting — all in one platform.",
+      "title": "Review Supported Market Information",
+      "subtitle": "Join the pilot to review supported physical fuel markets and source-labelled monitoring tools.",
       "button": "Apply for Pilot"
     }
   },
@@ -498,7 +498,7 @@
         },
         "2": {
           "title": "Geography & Price Discovery",
-          "description": "Verdaxis is headquartered in Singapore but enables price discovery for any point in the world. Physical trades can take place at any port or delivery location globally."
+          "description": "Verdaxis is headquartered in Singapore and organizes supported physical markets by approved delivery point. Availability depends on the selected product, delivery point, and availability window."
         },
         "3": {
           "title": "Certification Scheme",
@@ -514,57 +514,63 @@
   "energyCalculator": {
     "hero": {
       "title": "Energy Calculator",
-      "subtitle": "Compare fuels by energy content, not just price per tonne. See the real economic difference including EU ETS exposure, FuelEU Maritime compliance, and total voyage cost."
+      "subtitle": "Compare two fuel scenarios for the same energy demand. Estimate required mass, fuel cost, direct combustion CO₂, and an illustrative EU ETS allowance cost."
     },
     "fuelA": "Fuel A",
     "fuelB": "Fuel B",
-    "voyageRegulatory": "Voyage & Regulatory",
-    "totalVoyageCostComparison": "Total Voyage Cost Comparison",
+    "voyageRegulatory": "Shared Scenario Inputs",
+    "totalVoyageCostComparison": "Fuel + EU ETS Scenario Cost",
     "labels": {
-      "energyDensity": "Energy Density",
-      "dailyConsumption": "Daily Consumption",
-      "fuelPrice": "Fuel Price",
+      "energyDensity": "Lower Calorific Value",
+      "combustionFactor": "Direct CO₂ Factor",
+      "fuelPrice": "Assumed Fuel Price",
+      "dailyEnergyDemand": "Daily Energy Demand",
       "voyageDays": "Voyage Days",
-      "euaPrice": "EUA Price",
-      "euEtsCoverage": "EU ETS Coverage",
-      "fueleuThreshold": "FuelEU Threshold",
-      "eurUsdRate": "EUR/USD Rate"
+      "euaPrice": "Assumed EUA Price",
+      "euEtsCoverage": "Voyage CO₂ Share in Scope",
+      "eurUsdRate": "Assumed EUR/USD Rate"
     },
     "metrics": {
-      "fuelBurn": "Fuel Burn",
-      "co2Emissions": "CO₂ Emissions",
-      "euEtsCost": "EU ETS Cost",
-      "fuelEu": "FuelEU",
-      "ciiProxy": "CII Proxy",
+      "fuelBurn": "Required Fuel",
+      "energyDelivered": "Energy Demand",
+      "co2Emissions": "Direct Combustion CO₂",
+      "euEtsCost": "EU ETS Illustration",
       "pricePerGJ": "Price / GJ",
-      "totalCost": "Total Cost",
-      "lowerCost": "Lower Cost",
-      "compliant": "Compliant",
-      "penalty": "Penalty",
-      "efficiency": "Efficiency",
-      "better": "Better",
-      "worse": "Worse",
+      "totalCost": "Scenario Cost",
+      "lowerCost": "Lower Estimate",
+      "efficiency": "Daily fuel",
+      "combustionFactor": "Factor",
       "fuelCost": "Fuel Cost",
-      "versus": "vs",
-      "intensity": "Intensity",
-      "coverage": "Coverage"
+      "etsAddition": "+ illustrative EU ETS cost",
+      "coverage": "CO₂ share in scope"
     },
     "units": {
       "days": "days"
     },
+    "method": {
+      "title": "Method, assumptions, and limits",
+      "summary": "Both scenarios use the same requested energy. The default LCV and direct CO₂ factors illustrate HFO and MDO/MGO values in Regulation (EU) 2023/1805. All prices, demand, scope, and exchange-rate values are editable assumptions, not live market quotes.",
+      "energyEquation": "Energy demand (GJ) = daily energy demand × voyage days.",
+      "fuelEquation": "Required fuel (t) = energy demand ÷ LCV (GJ/t). Direct CO₂ (t) = fuel mass × combustion factor (tCO₂/t).",
+      "etsEquation": "EU ETS illustration (EUR) = direct CO₂ × selected voyage share in scope × assumed EUA price.",
+      "assumptions": "The estimate excludes engine and propulsion efficiency changes, auxiliary loads, fuel quality variation, well-to-tank emissions, CH₄ and N₂O, port and route applicability, taxes, logistics, storage, and other voyage costs. EU ETS includes CH₄ and N₂O from 2026; this simplified calculator models CO₂ only.",
+      "regulatoryBoundary": "This tool does not calculate FuelEU Maritime compliance or an IMO CII rating. FuelEU requires verified annual ship energy and pathway-specific well-to-wake factors. CII requires annual fuel, ship capacity, distance, ship type, and applicable corrections.",
+      "fuelEuSource": "EU FuelEU regulation and default factors",
+      "etsSource": "European Commission: maritime EU ETS",
+      "ciiSource": "IMO CII calculation guidelines",
+      "reviewed": "Method and source links reviewed 6 October 2026."
+    },
     "savings": {
-      "eyebrow": "Net Savings Per Voyage",
-      "fuelBSaves": "Fuel B saves this amount compared to Fuel A",
-      "fuelASaves": "Fuel A saves this amount compared to Fuel B",
-      "equal": "Both fuels are equal in total voyage cost",
-      "fuelCostDelta": "Fuel Cost Delta",
-      "etsCostDelta": "ETS Cost Delta",
-      "fueleuPenaltyDelta": "FuelEU Penalty Delta",
-      "energyValueEstimate": "≈ ${{low}}–${{high}} per tonne in effective value based on energy alone"
+      "eyebrow": "Scenario Cost Difference",
+      "fuelBSaves": "Fuel B has the lower estimate for the selected assumptions",
+      "fuelASaves": "Fuel A has the lower estimate for the selected assumptions",
+      "equal": "Both scenarios have the same estimated cost",
+      "fuelCostDelta": "Fuel Cost Difference",
+      "etsCostDelta": "EU ETS Cost Difference"
     },
     "cta": {
-      "title": "Want to see energy-adjusted prices from real suppliers?",
-      "subtitle": "Join the Verdaxis pilot to access verified energy density data, CI scoring, and compliance-aware pricing from vetted fuel producers.",
+      "title": "Build a supplier-backed fuel scenario",
+      "subtitle": "Join the Verdaxis pilot to compare supplier information and document the assumptions behind a procurement decision.",
       "button": "Apply for Pilot"
     }
   },
@@ -572,7 +578,7 @@
     "fuelTypes": {
       "eMethanol": "E-Methanol",
       "bioMethanol": "Bio Methanol",
-      "greenMethanol": "Green Methanol"
+      "otherMethanol": "Other Methanol"
     },
     "statuses": {
       "all": "All",
@@ -596,15 +602,15 @@
     },
     "header": {
       "title": "Producer & Project Map",
-      "subtitle": "Explore methanol production projects worldwide. Filter by fuel type, project status, and timeline.",
-      "projects_one": "project",
-      "projects_other": "projects",
-      "countries": "countries",
-      "ktpaCapacity": "ktpa total capacity"
+      "subtitle": "Browse a compiled index of announced methanol projects. Filter the imported records by category, stated status, and COD year.",
+      "projects_one": "indexed project",
+      "projects_other": "indexed projects",
+      "countries": "listed countries/regions",
+      "ktpaCapacity": "ktpa listed nameplate capacity"
     },
     "tabs": {
       "projectMap": "Project Map",
-      "futureProduction": "Future Production"
+      "futureProduction": "Non-operational Records"
     },
     "controls": {
       "zoomIn": "Zoom in",
@@ -615,52 +621,60 @@
       "searchPlaceholder": "Search by name or company",
       "fuelType": "Fuel Type",
       "status": "Status",
-      "codYearRange": "COD Year Range",
+      "codYearRange": "Stated COD Year Range",
       "to": "to",
       "showingProjects_one": "Showing {{shown}} of {{count}} project",
       "showingProjects_other": "Showing {{shown}} of {{count}} projects",
       "legend": "Legend",
-      "markerSizeNote": "Marker size indicates capacity (small <50, medium 50-500, large >500 ktpa)"
+      "markerSizeNote": "Marker size indicates listed nameplate capacity (small <50, medium 50-500, large >500 ktpa)"
     },
     "futures": {
-      "title": "Future Production Marketplace",
-      "subtitle": "Upcoming production capacity available for off-take agreements. Contact producers directly to secure future supply.",
-      "upcomingProjects_one": "upcoming project",
-      "upcomingProjects_other": "upcoming projects",
-      "ktpaPipeline": "ktpa pipeline",
+      "title": "Non-operational Project Records",
+      "subtitle": "Records whose imported status is not Operational. This does not confirm current status, availability, producer contact, or off-take interest.",
+      "upcomingProjects_one": "non-operational record",
+      "upcomingProjects_other": "non-operational records",
+      "ktpaPipeline": "ktpa listed capacity",
       "searchPlaceholder": "Search projects, companies, countries...",
       "allFuelTypes": "All Fuel Types",
       "sortByTimeline": "Sort by Timeline",
       "sortByCapacity": "Sort by Capacity",
-      "showingProjects_one": "Showing {{shown}} of {{count}} future project",
-      "showingProjects_other": "Showing {{shown}} of {{count}} future projects",
-      "noResults": "No future projects match your filters",
+      "showingProjects_one": "Showing {{shown}} of {{count}} non-operational record",
+      "showingProjects_other": "Showing {{shown}} of {{count}} non-operational records",
+      "noResults": "No non-operational records match your filters",
       "tryAdjusting": "Try adjusting your search or fuel type filter",
-      "imminent": "IMMINENT",
       "capacity": "Capacity",
-      "expectedCod": "Expected COD",
+      "expectedCod": "Stated COD Year",
       "location": "Location",
       "pathway": "Pathway",
-      "expressInterest": "Express Interest"
+      "expressInterest": "Ask About This Entry"
     },
     "popup": {
       "capacity": "Capacity",
-      "cod": "COD",
+      "cod": "Stated COD Year",
       "city": "City",
       "country": "Country"
     },
     "email": {
-      "subject": "Off-take Interest: {{project}}",
-      "body": "I am interested in discussing off-take arrangements for the {{project}} project ({{fuelType}}, {{capacity}} ktpa, COD {{year}})."
+      "subject": "Project index inquiry: {{project}}",
+      "body": "I have an inquiry or correction concerning the {{project}} index entry ({{fuelType}}, listed capacity {{capacity}} ktpa, stated COD year {{year}})."
+    },
+    "dataset": {
+      "title": "About this project index",
+      "provenance": "This is an unverified compilation imported into Verdaxis on 17 February 2026 from a local industry CSV. The publisher, source URL, licence, observation dates, and per-record sources were not preserved. Current project status has not been confirmed.",
+      "capacityLimit": "Status, COD year, and capacity are shown as imported. Capacity means listed nameplate ktpa; totals are not operating output, supply availability, or forecasts. A non-operational record is any entry not labelled Operational in the import.",
+      "coordinates": "Markers use approximate city-level geocodes and are not verified facility locations. Some points may be wrong.",
+      "geocoderLink": "Nominatim / OpenStreetMap geocoder",
+      "reviewed": "Provenance reviewed 6 October 2026; project records were not refreshed."
     },
     "cta": {
-      "titleFutures": "Have future production to offer?",
-      "titleMap": "Want to list your project on the map?",
-      "subtitleFutures": "List your upcoming production capacity on the Verdaxis marketplace to connect with buyers and secure off-take agreements before COD.",
-      "subtitleMap": "Join our pilot programme to showcase your low-carbon fuel production facility to buyers, traders, and financiers worldwide.",
-      "buttonFutures": "List Your Production",
-      "buttonMap": "Apply for Pilot"
-    }
+      "titleFutures": "Submit a project update",
+      "titleMap": "Add or correct a project record",
+      "subtitleFutures": "Share current project details or correct a status, capacity, location, or COD year in this index.",
+      "subtitleMap": "Send Verdaxis a project submission or correction for review before it is added to the index.",
+      "buttonFutures": "Submit Project Details",
+      "buttonMap": "Submit Project Details"
+    },
+    "coordinateUnavailable": "Reliable map coordinate unavailable"
   },
   "partners": {
     "hero": {
@@ -689,62 +703,62 @@
     "partners": {
       "0": {
         "role": "Industry Standards Body",
-        "description": "Global trade association for the methanol industry. Members gain direct access to verified pricing, compliance data, and marketplace liquidity through the Verdaxis platform."
+        "description": "Independent methanol industry association shown for market context. Inclusion does not state a Verdaxis partnership, endorsement, or member access."
       },
       "1": {
         "role": "Pricing & Benchmarks",
-        "description": "The global benchmark for commodity pricing. Verdaxis integrates Platts assessments to provide transparent, reference-grade pricing across all fuel pathways."
+        "description": "Independent pricing and market-information publisher shown for market context. Verdaxis does not state that Platts assessments are integrated or licensed."
       },
       "2": {
         "role": "Regulatory Authority",
-        "description": "Singapore's maritime regulator and the world's largest bunkering port authority. Verdaxis aligns with MPA's Green Ship Programme and future fuels framework."
+        "description": "Singapore maritime authority shown as a public regulatory resource. Inclusion does not state affiliation, endorsement, or approval of Verdaxis."
       },
       "3": {
         "role": "Analytics & Technology",
-        "description": "Finnish energy technology company providing advanced project analytics, cost curve modelling, and emissions analysis tools for industrial and energy transition projects."
+        "description": "Independent analytics and technology resource shown for market context. Inclusion does not state a Verdaxis partnership, endorsement, or integration."
       }
     },
     "topBar": {
       "brandName": "Verdaxis",
-      "label": "Partner Network — Preview"
+      "label": "Industry Reference — Preview"
     },
     "hero": {
-      "ecosystemLabel": "STRATEGIC ECOSYSTEM",
-      "title1": "Trusted by the",
-      "title2": "institutions",
-      "title3": "that shape the market",
-      "subtitle": "Verdaxis partners with global pricing agencies, maritime regulators, technology providers, and industry standards bodies to build the most trusted exchange for low-carbon fuels."
+      "ecosystemLabel": "MARKET CONTEXT",
+      "title1": "Independent",
+      "title2": "industry resources",
+      "title3": "for market context",
+      "subtitle": "Independent pricing, regulatory, technology, and standards resources are shown for context. Their inclusion does not imply affiliation, endorsement, data integration, or verification by Verdaxis."
     },
     "memberRepresentation": {
       "eyebrow": "Member Representation",
-      "title": "How institute members appear on the platform",
-      "subtitle": "Members of partner institutions receive a verified trust badge on their marketplace listings, establishing credibility without compromising the Verdaxis brand identity.",
+      "title": "Illustrative Listing Labels",
+      "subtitle": "Example only. Membership, assessment sources, certification, and compliance status require supporting evidence and are not verified by Verdaxis.",
       "exampleListing": "Example Marketplace Listing",
-      "listingTitle": "Green Methanol — Rotterdam",
-      "listingMeta": "OCI Global · 5,000 MT · Spot",
-      "verifiedBadge": "Verdaxis Verified",
-      "miMember": "MI Member",
-      "plattsIndexed": "Platts-Indexed",
+      "listingTitle": "Illustrative Methanol Listing — Rotterdam",
+      "listingMeta": "Illustrative supplier · 5,000 MT · Spot",
+      "verifiedBadge": "Supplier Declared",
+      "miMember": "Membership: Illustrative",
+      "plattsIndexed": "Reference: Illustrative",
       "labels": {
         "ciScore": "CI Score",
         "energy": "Energy",
         "fuelEu": "FuelEU",
         "pathway": "Pathway",
-        "compliant": "Compliant"
+        "compliant": "Status Disclosed"
       }
     },
     "partnerCard": {
-      "verifiedBadge": "VERDAXIS VERIFIED PARTNER"
+      "verifiedBadge": "INDEPENDENT INDUSTRY RESOURCE"
     },
     "footer": {
-      "confidentialNote": "This is a confidential preview page for internal use and partner discussions. Not published on the public Verdaxis website."
+      "confidentialNote": "Illustrative public preview. Organization names and trademarks belong to their owners; inclusion does not state affiliation or endorsement."
     }
   },
   "partnerLanding": {
     "partners": {
-      "eyebrow": "Trusted by leading institutions",
-      "title": "Built with the market, not just for it",
-      "subtitle": "Verdaxis partners with global pricing agencies, maritime regulators, technology providers, and industry standards bodies."
+      "eyebrow": "Industry Context",
+      "title": "Resources That Shape the Market",
+      "subtitle": "Independent standards, regulatory, pricing, and analytics organizations provide market context. Their inclusion does not imply a partnership or endorsement."
     },
     "why": {
       "eyebrow": "The Problem",
@@ -757,7 +771,7 @@
         },
         "1": {
           "title": "Fragmented Standards",
-          "body": "RED III, 45Z, RenovaBio, FuelEU Maritime, IMO NZF — different rules, different metrics, one platform."
+          "body": "RED III, 45Z, RenovaBio, FuelEU Maritime, and the 2023 IMO GHG Strategy use different rules and metrics. Applicability depends on the fuel, activity, and jurisdiction."
         },
         "2": {
           "title": "Double-Counting Risk",
@@ -772,70 +786,70 @@
     "how": {
       "eyebrow": "The Solution",
       "title": "How Verdaxis\nWorks",
-      "subtitle": "Three steps from fuel production to verifiable downstream claims.",
+      "subtitle": "Three steps from disclosed market fields to physical order details.",
       "seeFullProcess": "See full process",
       "mobileTitle": "How Verdaxis Works",
       "steps": {
         "0": {
-          "title": "Register & Verify",
-          "body": "Producers register fuel batches with feedstock pathway, CI score, and certifications. Third-party verification locks the attributes."
+          "title": "Record Disclosed Fields",
+          "body": "Suppliers enter physical market terms and declare product, pathway, carbon-intensity, and certification information when available."
         },
         "1": {
-          "title": "Trade with Integrity",
-          "body": "Buyers and traders discover fuel on the marketplace with energy-adjusted pricing, compliance scoring, and full chain-of-custody."
+          "title": "Compare Market Records",
+          "body": "Participants review bids and asks by product, delivery point, and availability window, with source labels for displayed market data."
         },
         "2": {
-          "title": "Claim with Confidence",
-          "body": "Downstream claims are traceable to source. Every environmental attribute is locked, auditable, and impossible to double-count."
+          "title": "Review Before Action",
+          "body": "Users review source, Demo or reference status, disclosed sustainability fields, and order terms before acting."
         }
       }
     },
     "roles": {
       "eyebrow": "For Every Role",
       "title": "Built for Every Participant",
-      "subtitle": "Whether you produce, buy, trade, or finance low-carbon fuels, Verdaxis gives you the tools and trust layer you need.",
+      "subtitle": "Each role uses the same supported market records and source labels, with access controlled through account and organization approval.",
       "learnMore": "Learn more",
       "cards": {
         "0": {
           "title": "Fuel Producers",
           "bullets": {
-            "0": "Faster offtake",
-            "1": "Premium discovery",
-            "2": "Compliance-ready sales"
+            "0": "Supplier-declared product and sustainability fields",
+            "1": "Physical asks in supported market slices",
+            "2": "Order and trade status monitoring"
           }
         },
         "1": {
           "title": "Fuel Buyers",
           "bullets": {
-            "0": "Verified Scope 3 reductions",
-            "1": "Energy-adjusted pricing",
-            "2": "Reduced compliance risk"
+            "0": "Visible bids, asks, and data labels",
+            "1": "Supported products, delivery points, and windows",
+            "2": "Review of disclosed sustainability fields"
           }
         },
         "2": {
           "title": "Traders",
           "bullets": {
-            "0": "Liquidity access",
-            "1": "Standardised deals",
-            "2": "Reduced back-office friction"
+            "0": "Physical orderbook access",
+            "1": "Forward-curve and watchlist monitoring",
+            "2": "Market news and activity data"
           }
         },
         "3": {
           "title": "Financiers",
           "bullets": {
-            "0": "Bankable data",
-            "1": "Traceable claims",
-            "2": "Reduced diligence cost"
+            "0": "Listing and trade status data",
+            "1": "Source-labelled market monitoring",
+            "2": "Inputs for independent diligence"
           }
         }
       }
     },
     "frameworks": {
-      "label": "Built for global compliance frameworks",
+      "label": "Regulatory and Standards Context",
       "items": {
         "0": "FuelEU Maritime",
         "1": "RED III",
-        "2": "IMO NZF",
+        "2": "2023 IMO GHG Strategy",
         "3": "45Z Tax Credit",
         "4": "RenovaBio",
         "5": "CORSIA"
@@ -852,7 +866,7 @@
   "pilot": {
     "hero": {
       "title": "Pilot Programme",
-      "subtitle": "We are deliberately onboarding select producers, buyers, and traders to ensure a professional, error-free launch. Quality over quantity."
+      "subtitle": "We are onboarding a limited group of producers, buyers, and traders to review supported workflows and market information."
     },
     "includes": {
       "title": "What the Pilot Includes",
@@ -860,21 +874,21 @@
       "enabled": {
         "title": "What's Enabled",
         "features": {
-          "0": "Read-only market data and price discovery",
-          "1": "Bilateral matchmaking between verified participants",
-          "2": "Energy value calculator with compliance modelling",
-          "3": "Producer map with project data",
-          "4": "Compliance documentation and traceability"
+          "0": "Physical bids, asks, and market monitoring for supported products",
+          "1": "Order entry by supported product, delivery point, and availability window",
+          "2": "Illustrative energy-content comparison with published assumptions and limits",
+          "3": "Filterable methanol-project reference map with source notes",
+          "4": "Supplier-declared carbon-intensity and certification fields when provided"
         }
       },
       "notYetLive": {
         "title": "What's Not Yet Live",
         "features": {
-          "0": "Live bids and offers (exchange orderbook)",
-          "1": "Automated trade settlement",
-          "2": "Futures and forward contracts",
-          "3": "Green financing module",
-          "4": "API access for programmatic trading"
+          "0": "Automated trade settlement and clearing",
+          "1": "Integrated third-party sustainability verification",
+          "2": "Environmental-attribute registry and retirement",
+          "3": "Automated regulatory reporting",
+          "4": "Programmatic trading API access"
         }
       }
     },
@@ -916,9 +930,9 @@
       "secondaryButton": "Speak to the Team"
     },
     "timeline": {
-      "title": "Pilot Phase: Q1-Q2 2026",
+      "title": "Pilot Phase: Active",
       "point0": "Limited onboarding — we are working with select participants to ensure platform quality",
-      "point1": "Full launch follows successful pilot validation"
+      "point1": "Broader access depends on pilot review and operational readiness"
     },
     "cta": {
       "title": "Ready to join the pilot?",
@@ -956,45 +970,45 @@
   "roadmap": {
     "hero": {
       "title": "Platform Roadmap",
-      "subtitle": "Verdaxis is being built in deliberate phases. Each phase builds on the last, expanding capability while maintaining integrity. No dates — just sequence and commitment."
+      "subtitle": "Current physical-market features and planned extensions. Future integrations are indicative and may change."
     },
     "phases": {
       "current": "CURRENT",
       "0": {
         "label": "Phase 1",
-        "title": "Registry & Verification",
-        "description": "Establishing the foundation: fuel registration, attribute verification, and participant onboarding.",
+        "title": "Physical Fuel Markets",
+        "description": "Current supported workflows: participant approval, physical orders, source-labelled market views, and public reference tools.",
         "features": {
-          "0": "Fuel + attribute registration with CI scoring",
-          "1": "Third-party verification integration",
-          "2": "Producer and buyer onboarding",
-          "3": "Public website with education resources",
-          "4": "Energy value calculator",
-          "5": "Producer project map"
+          "0": "Supplier-declared fuel and sustainability fields",
+          "1": "Account and organization onboarding",
+          "2": "Physical bids and asks in supported markets",
+          "3": "Public website and sourced education resources",
+          "4": "Shared-energy fuel-cost comparison tool",
+          "5": "Compiled producer index with data limits"
         }
       },
       "1": {
         "label": "Phase 2",
-        "title": "Matching & Structured Offtake",
-        "description": "Connecting participants: bilateral matchmaking with verified data and compliance-aware pricing.",
+        "title": "Evidence and Data Quality",
+        "description": "Planned improvements to supplier evidence, source traceability, and market-reference data. These integrations are not live.",
         "features": {
-          "0": "Bilateral matchmaking between verified participants",
-          "1": "CI-adjusted pricing display",
-          "2": "Real price discovery from platform activity",
-          "3": "Enhanced producer map with live data",
-          "4": "Supplier demand signals",
-          "5": "Regional fuel availability mapping"
+          "0": "Third-party verification integrations",
+          "1": "Pathway-specific pricing context",
+          "2": "Additional eligible market observations",
+          "3": "Source-linked producer-project updates",
+          "4": "Additional supplier demand signals",
+          "5": "Regional availability-data improvements"
         }
       },
       "2": {
         "label": "Phase 3",
-        "title": "Live Bids & Offers",
-        "description": "Opening the market: live orderbook exchange with transparent price formation.",
+        "title": "Market Workflow Integrations",
+        "description": "Planned extensions to the existing physical orderbook and market-monitoring workflows.",
         "features": {
-          "0": "Live orderbook with bids and asks",
-          "1": "Real-time price discovery",
+          "0": "Orderbook workflow extensions",
+          "1": "Broader eligible price observations",
           "2": "Forward contracts and structured offtake",
-          "3": "Assessment agency data feeds (Platts)",
+          "3": "Licensed assessment feeds, subject to agreements",
           "4": "Scope 3 monetisation tools",
           "5": "Automated compliance reporting"
         }
@@ -1019,7 +1033,7 @@
       "principles": {
         "0": {
           "title": "Integrity First",
-          "description": "Each feature is tested with real participants before expanding. We don't launch features until they're production-ready."
+          "description": "Validate features before broader rollout and review readiness against their intended use."
         },
         "1": {
           "title": "Deliberate Scaling",
@@ -1039,7 +1053,7 @@
   "governance": {
     "hero": {
       "title": "Governance & Trust",
-      "subtitle": "Before live trading, governance matters more than UI. Verdaxis is built on transparency, independence, and structural separation of roles."
+      "subtitle": "Verdaxis publishes governance principles for platform operation, participant access, market records, and disclosed sustainability information."
     },
     "principles": {
       "title": "Guiding Principles",
@@ -1047,33 +1061,33 @@
       "items": {
         "0": {
           "title": "Trust Before Liquidity",
-          "description": "The platform must earn credibility before scaling volume. We prioritise verified participants, auditable processes, and regulatory alignment over rapid growth."
+          "description": "The platform prioritises account and organization approval, clear market records, and source labels before expanding access."
         },
         "1": {
           "title": "Rules Before Prices",
-          "description": "Market rules, compliance standards, and attribute definitions are established before trading begins. This ensures every participant operates under the same framework."
+          "description": "Supported products, delivery points, order fields, and data labels define the platform's current market boundaries."
         },
         "2": {
           "title": "Independence & Neutrality",
-          "description": "Verdaxis operates as a neutral infrastructure provider. Platform interests are structurally separated from participant interests."
+          "description": "Verdaxis aims to apply the same platform rules and data labels consistently across participants."
         }
       }
     },
     "structuralRoles": {
       "title": "Structural Separation of Roles",
-      "subtitle": "Verdaxis maintains clear boundaries between platform operation, market participation, and verification to prevent conflicts of interest.",
+      "subtitle": "The platform distinguishes operation, participation, and supplier-declared certification information.",
       "items": {
         "0": {
           "title": "Platform Operator",
-          "description": "Verdaxis as the technology and registry provider. Responsible for platform integrity, rule enforcement, and data security. Does not take proprietary trading positions."
+          "description": "Verdaxis operates the platform, account controls, and market rules. It is not an environmental-attribute registry."
         },
         "1": {
           "title": "Market Participants",
-          "description": "Producers, buyers, traders, and financiers who use the platform. Subject to platform rules, KYC requirements, and compliance standards."
+          "description": "Producers, buyers, traders, and financiers use the platform subject to account and organization approval, platform terms, and market rules."
         },
         "2": {
-          "title": "Verification Bodies",
-          "description": "Independent third-party certifiers who verify environmental attributes. Accredited by recognised standards bodies. Not affiliated with Verdaxis."
+          "title": "Certification Information",
+          "description": "Suppliers may name certification schemes and declare related information. Verdaxis does not independently verify those declarations unless explicitly stated."
         }
       }
     },
@@ -1083,7 +1097,7 @@
         "0": "Verdaxis treats all participant data with equal confidentiality and does not use individual trading data to advantage any party.",
         "1": "Aggregated, anonymised market data may be published for price discovery purposes.",
         "2": "Individual trade data is never shared with competitors or used for proprietary analysis.",
-        "3": "Participants retain ownership of their data and can export it at any time."
+        "3": "Data access and handling are governed by the platform's Privacy Policy and Terms of Service."
       }
     },
     "conflictOfInterest": {
@@ -1091,8 +1105,8 @@
       "points": {
         "0": "If Verdaxis, its affiliates, or its principals engage in fuel trading activity, this is fully disclosed to all participants.",
         "1": "Any affiliated trading activity is subject to the same rules as all other participants — no preferential access, no information advantage.",
-        "2": "An independent oversight function monitors for potential conflicts.",
-        "3": "Participants can report concerns through a confidential channel."
+        "2": "Potential conflicts should be disclosed and reviewed before relevant market activity.",
+        "3": "Participants can report concerns through the published contact channel."
       }
     },
     "advisoryBoard": {
@@ -1126,7 +1140,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: July 2026",
+    "lastUpdated": "Last updated: 6 October 2026",
     "sections": {
       "0": {
         "title": "1. Information We Collect",
@@ -1134,7 +1148,7 @@
       },
       "1": {
         "title": "2. How We Use Your Information",
-        "body": "We use your information to operate the exchange platform, process transactions, ensure regulatory compliance (EU ETS, FuelEU), and communicate important updates about your account."
+        "body": "We use your information to operate user accounts, support orders and trade workflows, and communicate important updates about your account."
       },
       "2": {
         "title": "3. Product Analytics",
@@ -1194,14 +1208,14 @@
     "badge": "Now accepting pilot applications",
     "titleLine1": "The trusted exchange",
     "titleLine2": "for low-carbon fuels",
-    "subtitle": "Verdaxis is the neutral exchange where verified low-carbon fuel meets real demand. Trade anonymously until confirmation, with transparent pricing and compliance documentation built into every transaction.",
+    "subtitle": "Verdaxis is a neutral marketplace for physical low-carbon fuel bids and asks. Participants remain anonymous until confirmation and can review supplier-declared sustainability fields and source-labelled market data.",
     "applyPilot": "Apply for Pilot",
     "exploreHowItWorks": "See How It Works",
     "trustSignals": {
-      "doubleCounting": "Double-Count Prevention",
-      "imoAligned": "IMO & EU Aligned",
+      "approvedOrganizations": "Approved Organizations",
+      "sourceLabels": "Source-Labelled Data",
       "physicalFirst": "Physical-First Logic",
-      "ciPricing": "CI-Adjusted Pricing"
+      "declaredCI": "Supplier-Declared CI"
     }
   },
   "pilotForm": {

@@ -80,10 +80,10 @@ export const HeroSection: React.FC = () => {
   if (!ready) return null;
 
   const trustSignalKeys = [
-    'doubleCounting',
-    'imoAligned',
+    'approvedOrganizations',
+    'sourceLabels',
     'physicalFirst',
-    'ciPricing',
+    'declaredCI',
   ] as const;
 
   const trustSignals = trustSignalKeys.map((key, i) => ({
@@ -139,7 +139,7 @@ export const HeroSection: React.FC = () => {
       <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 1 }}>
         {/* Badge */}
         <motion.div
-          initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
           style={{
@@ -172,7 +172,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Headline */}
         <motion.h1
-          initial={reducedMotion ? false : { opacity: 0, y: 30 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
           style={{
@@ -201,7 +201,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Subtitle */}
         <motion.p
-          initial={reducedMotion ? false : { opacity: 0, y: 24 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="hero-subtitle"
@@ -218,7 +218,7 @@ export const HeroSection: React.FC = () => {
 
         {/* CTA Buttons */}
         <motion.div
-          initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="hero-cta"
@@ -277,7 +277,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Shimmer divider */}
         <motion.div
-          initial={reducedMotion ? false : { scaleX: 0 }}
+          initial={false}
           animate={{ scaleX: 1 }}
           transition={{ duration: 1, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
           className="shimmer-line"
@@ -297,7 +297,7 @@ export const HeroSection: React.FC = () => {
           {trustSignals.map(({ icon: Icon, label }, i) => (
             <motion.div
               key={label}
-              initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.8 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
               style={{
