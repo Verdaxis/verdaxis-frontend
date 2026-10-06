@@ -3,7 +3,7 @@ import { motion, useInView } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { useNamespace } from '../../hooks/useNamespace';
 
-/* ── Partner Data ── */
+/* Independent industry resources; no affiliation or endorsement is implied. */
 
 interface Partner {
   name: string;
@@ -63,7 +63,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number }> = ({ child
 
 /* ── Partner Card ── */
 
-const PartnerCard: React.FC<{ partner: Partner & { role: string; description: string }; index: number; verifiedBadgeLabel: string }> = ({ partner, index, verifiedBadgeLabel }) => {
+const PartnerCard: React.FC<{ partner: Partner & { role: string; description: string }; index: number; resourceLabel: string }> = ({ partner, index, resourceLabel }) => {
   return (
     <Reveal delay={index * 0.12}>
       <motion.div
@@ -195,7 +195,7 @@ const PartnerCard: React.FC<{ partner: Partner & { role: string; description: st
             {partner.description}
           </p>
 
-          {/* Verification badge */}
+          {/* Resource label */}
           <div
             style={{
               marginTop: 20,
@@ -204,23 +204,19 @@ const PartnerCard: React.FC<{ partner: Partner & { role: string; description: st
               gap: 8,
               padding: '8px 12px',
               borderRadius: 8,
-              background: 'rgba(76, 175, 80, 0.06)',
-              border: '1px solid rgba(76, 175, 80, 0.15)',
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path d="M8 0L10 2H14L16 4V8L14 10V14L12 16H8L6 14H2L0 12V8L2 6V2L4 0H8Z" fill="#4CAF50" fillOpacity="0.15" />
-              <path d="M5 8L7 10L11 6" stroke="#4CAF50" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: '#4CAF50',
+                color: '#64748B',
                 letterSpacing: '0.04em',
               }}
             >
-              {verifiedBadgeLabel}
+              {resourceLabel}
             </span>
           </div>
         </div>
@@ -407,7 +403,7 @@ export const PartnerShowcasePage: React.FC = () => {
               key={p.name}
               partner={p}
               index={i}
-              verifiedBadgeLabel={t('partnerShowcase.partnerCard.verifiedBadge')}
+              resourceLabel={t('partnerShowcase.partnerCard.verifiedBadge')}
             />
           ))}
         </div>

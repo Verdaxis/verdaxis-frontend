@@ -23,9 +23,9 @@ describe('RoadmapPage', () => {
   it('renders all 4 phases with titles', () => {
     renderWithRouter(<RoadmapPage />);
     // Each phase title appears twice (desktop + mobile timeline), so use getAllByText
-    expect(screen.getAllByText('Registry & Verification').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Matching & Structured Offtake').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Live Bids & Offers').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Physical Fuel Markets').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Evidence and Data Quality').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Market Workflow Integrations').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Compliance Automation & Reporting').length).toBeGreaterThanOrEqual(1);
   });
 

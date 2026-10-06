@@ -27,39 +27,47 @@ describe('EnergyCalculatorPage', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     expect(screen.getByText('Energy Calculator')).toBeTruthy();
     expect(
-      screen.getByText(/compare fuels by energy content, not just price per tonne/i)
+      screen.getByText(/compare two fuel scenarios for the same energy demand/i)
     ).toBeTruthy();
   });
 
   it('shows comparison results with metric cards', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     // Both fuel rows should show metric labels
-    expect(screen.getAllByText(/fuel burn/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/co.*emissions/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/eu ets cost/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/fueleu/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/cii proxy/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/required fuel/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/direct combustion co₂/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/eu ets illustration/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/energy demand/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/price \/ gj/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/total cost/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/scenario cost/i).length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders input controls for fuel and voyage parameters', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     // Check for per-fuel parameter labels
-    expect(screen.getAllByText(/energy density/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/daily consumption/i).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText(/fuel price/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/lower calorific value/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/direct co₂ factor/i).length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText(/assumed fuel price/i).length).toBeGreaterThanOrEqual(2);
     // Check for voyage parameter labels
-    expect(screen.getByText(/voyage days/i)).toBeTruthy();
+    expect(screen.getAllByText(/voyage days/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/daily energy demand/i).length).toBeGreaterThanOrEqual(1);
     // Check for regulatory parameters
-    expect(screen.getByText(/eua price/i)).toBeTruthy();
-    expect(screen.getByText(/eu ets coverage/i)).toBeTruthy();
+    expect(screen.getAllByText(/eua price/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/voyage co₂ share in scope/i)).toBeTruthy();
+  });
+
+  it('clamps typed numeric values to the supported input range', () => {
+    renderWithRouter(<EnergyCalculatorPage />);
+    const lowerCalorificValueInput = screen.getAllByRole('spinbutton')[0] as HTMLInputElement;
+    fireEvent.change(lowerCalorificValueInput, { target: { value: '-10' } });
+    expect(lowerCalorificValueInput.value).toBe('15');
   });
 
   it('calculates correctly for default inputs', () => {
     renderWithRouter(<EnergyCalculatorPage />);
     // The results should display the savings summary
-    expect(screen.getByText(/net savings per voyage/i)).toBeTruthy();
+    expect(screen.getByText(/scenario cost difference/i)).toBeTruthy();
+    expect(screen.getByText(/does not calculate FuelEU Maritime compliance/i)).toBeTruthy();
     // Apply for Pilot CTA
     const ctaLink = screen.getByRole('link', { name: /apply for pilot/i });
     expect(ctaLink).toBeTruthy();
@@ -84,41 +92,40 @@ describe('EnergyCalculatorPage', () => {
 });
 
 describe('calculateVoyage', () => {
-  it('returns higher fuel burn for lower energy density', () => {
-    const resultA = calculateVoyage(40.4, 450, 35, defaultInputs);
-    const resultB = calculateVoyage(43.3, 450, 35, defaultInputs);
+  it('uses the same energy demand and returns higher fuel burn for lower LCV', () => {
+    const resultA = calculateVoyage(40.5, 450, 3.114, defaultInputs);
+    const resultB = calculateVoyage(42.7, 450, 3.114, defaultInputs);
+    expect(resultA.totalEnergyGJ).toBe(resultB.totalEnergyGJ);
+    expect(resultA.totalEnergyGJ).toBe(35_000);
     expect(resultA.fuelBurnT).toBeGreaterThan(resultB.fuelBurnT);
-    // With 35 t/day consumption: Fuel A = 888 t, Fuel B = 829 t
-    expect(resultA.fuelBurnT).toBe(888);
-    expect(resultB.fuelBurnT).toBe(829);
+    expect(resultA.fuelBurnT).toBe(864);
+    expect(resultB.fuelBurnT).toBe(820);
     expect(resultA.co2T).toBeGreaterThan(resultB.co2T);
     expect(resultA.totalCostUsd).toBeGreaterThan(resultB.totalCostUsd);
-    expect(resultA.pricePerGJUsd).toBe(11.14);
-    expect(resultB.pricePerGJUsd).toBe(10.39);
+    expect(resultA.pricePerGJUsd).toBe(11.11);
+    expect(resultB.pricePerGJUsd).toBe(10.54);
   });
 
-  it('returns compliant status when intensity below threshold', () => {
-    const result = calculateVoyage(43.3, 450, 35, defaultInputs);
-    // 3114 / 43.3 = 71.92 which is below threshold 89.34
-    expect(result.fueleuCompliant).toBe(true);
-    expect(result.fueleuIntensity).toBe(71.92);
-    expect(result.fueleuPenaltyEur).toBe(0);
+  it('calculates the CO2-only ETS illustration from explicit assumptions', () => {
+    const result = calculateVoyage(40.5, 450, 3.114, defaultInputs);
+    expect(result.co2T).toBe(2691);
+    expect(result.etsCostEur).toBe(100917);
+    expect(result.totalCostUsd).toBe(507971);
   });
 
-  it('returns non-compliant with penalty when above threshold', () => {
-    // Energy density of 30 MJ/kg gives intensity = 3114 / 30 = 103.8 > 89.34
-    const result = calculateVoyage(30, 450, 35, defaultInputs);
-    expect(result.fueleuCompliant).toBe(false);
-    expect(result.fueleuIntensity).toBe(103.8);
-    expect(result.fueleuPenaltyEur).toBeGreaterThan(0);
-    expect(result.fueleuPenaltyEur).toBe(171188);
+  it('rejects invalid numeric inputs instead of showing a free-fuel result', () => {
+    expect(() => calculateVoyage(0, -1, -1, {
+        ...defaultInputs,
+        dailyEnergyDemandGJ: Number.NaN,
+        voyageDays: -5,
+      }))
+      .toThrow(RangeError);
   });
 
-  it('uses per-fuel price and consumption correctly', () => {
-    // Same energy density but different prices and consumption
-    const resultCheap = calculateVoyage(40.4, 400, 30, defaultInputs);
-    const resultExpensive = calculateVoyage(40.4, 600, 40, defaultInputs);
+  it('uses per-fuel price and combustion factor correctly', () => {
+    const resultCheap = calculateVoyage(40.5, 400, 3.0, defaultInputs);
+    const resultExpensive = calculateVoyage(40.5, 600, 3.2, defaultInputs);
     expect(resultExpensive.fuelCostUsd).toBeGreaterThan(resultCheap.fuelCostUsd);
-    expect(resultExpensive.fuelBurnT).toBeGreaterThan(resultCheap.fuelBurnT);
+    expect(resultExpensive.co2T).toBeGreaterThan(resultCheap.co2T);
   });
 });

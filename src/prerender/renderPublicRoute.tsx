@@ -6,6 +6,7 @@ import { Route, Routes, StaticRouter } from 'react-router-dom';
 import { producerProjects } from '../data/producerProjects';
 import i18n, { loadNamespace } from '../i18n';
 import { PublicLayout } from '../components/public/PublicLayout';
+import { ProducerDatasetNotice } from '../components/public/ProducerDatasetNotice';
 import { BuyerUseCasePage } from '../pages/public/BuyerUseCasePage';
 import { ComplianceInfoPage } from '../pages/public/ComplianceInfoPage';
 import { EducationArticlePage } from '../pages/public/EducationArticlePage';
@@ -44,6 +45,7 @@ function StaticProducerMapPage() {
           {' · '}{totalCapacity.toLocaleString()} {t('producerMap.header.ktpaCapacity')}
         </p>
       </section>
+      <ProducerDatasetNotice />
       <section style={{ margin: '0 auto', maxWidth: 1100, padding: '48px 24px' }}>
         <h2 style={{ color: '#0F172A', fontSize: 26, margin: '0 0 8px' }}>{producerProjects.length} {t('producerMap.header.projects', { count: producerProjects.length })}</h2>
         <ul style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', listStyle: 'none', margin: 0, padding: 0 }}>
