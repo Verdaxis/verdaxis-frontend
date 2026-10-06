@@ -35,9 +35,14 @@ vi.mock('../../../data/producerProjects', () => {
     { id: 'proj-004', name: 'Shunli CO2-to-methanol', company: 'Henan Shuncheng', fuelType: 'Other Methanol', pathway: 'CO2 + H2 (non-renewable)', status: 'Operational', capacityKtpa: 110, codYear: 2022, lat: 35.99, lng: 114.51, country: 'China', city: 'Anyang' },
     { id: 'proj-005', name: 'Carbon Iceland', company: 'Carbon Iceland', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 300, codYear: 2029, lat: 64.36, lng: -21.78, country: 'Iceland', city: 'Grundartangi' },
     { id: 'proj-006', name: 'Triskelion', company: 'Forestal del Atlantico', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Engineering', capacityKtpa: 57, codYear: 2028, lat: 43.46, lng: -8.26, country: 'Spain', city: 'Mugardos' },
+    { id: 'proj-115', name: 'Gansu Zhenyuan Hydrogen and Methanol - I', company: 'SPIC', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 30, codYear: 2028, lat: null, lng: null, country: 'China', city: 'Zhenyuan County' },
   ];
   return {
     producerProjects: projects,
+    hasMapCoordinates: (project: { lat: number | null; lng: number | null }) => (
+      project.lat !== null && project.lng !== null
+      && Number.isFinite(project.lat) && Number.isFinite(project.lng)
+    ),
     fuelTypeColors: {
       'E-Methanol': '#5DADE2',
       'Bio Methanol': '#4CAF50',
@@ -93,6 +98,17 @@ describe('ProducerMapPage', () => {
     expect(markers.length).toBe(6);
   });
 
+  it('keeps an unmapped project in the index without rendering a marker', () => {
+    renderWithRouter(<ProducerMapPage />);
+
+    expect(screen.getAllByTestId('circle-marker')).toHaveLength(6);
+    expect(screen.getByText(/Showing 7 of 7/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Non-operational Records'));
+    expect(screen.getByText('Gansu Zhenyuan Hydrogen and Methanol - I')).toBeTruthy();
+    expect(screen.getByText('Reliable map coordinate unavailable')).toBeTruthy();
+  });
+
   it('renders status filter options', () => {
     renderWithRouter(<ProducerMapPage />);
     // Status labels appear in filter buttons and may appear in popup badges
@@ -106,7 +122,7 @@ describe('ProducerMapPage', () => {
   it('renders showing count', () => {
     renderWithRouter(<ProducerMapPage />);
     expect(
-      screen.getByText(/Showing 6 of 6/)
+      screen.getByText(/Showing 7 of 7/)
     ).toBeTruthy();
   });
 
@@ -122,7 +138,7 @@ describe('ProducerMapPage', () => {
 
     try {
       renderWithRouter(<ProducerMapPage />);
-      expect(screen.getByText('共 6 个项目，当前显示 6 个')).toBeTruthy();
+      expect(screen.getByText('共 7 个项目，当前显示 7 个')).toBeTruthy();
     } finally {
       cleanup();
       await i18n.changeLanguage('en');
@@ -208,6 +224,7 @@ describe('ProducerMapPage - Future Production tab', () => {
     renderWithRouter(<ProducerMapPage />);
 
     fireEvent.click(screen.getByText('Non-operational Records'));
+    fireEvent.change(screen.getByPlaceholderText('Search projects, companies, countries...'), { target: { value: 'Triskelion' } });
 
     expect(screen.getByText(/1 indexed project · 57 ktpa/)).toBeTruthy();
   });

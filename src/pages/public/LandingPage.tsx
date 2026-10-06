@@ -24,6 +24,7 @@ import { useNamespace } from '../../hooks/useNamespace';
 import { useLocalePath } from '../../hooks/useLocalePath';
 import i18n from '../../i18n';
 import { MARKET_PRODUCTS } from '../../types';
+import { APPROVED_TRADING_PORTS } from '../../data';
 import { analytics, type AnalyticsLanguage } from '../../services/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -168,12 +169,10 @@ export const LandingPage: React.FC = () => {
 
   const stats = [
     { value: MARKET_PRODUCTS.length, suffix: '', label: t('landing.stats.fuelProducts') },
-    { value: 8, suffix: '', label: t('landing.stats.tradingPorts') },
-    { value: 2, suffix: '', label: t('landing.stats.complianceRegimes') },
-    { value: 24, suffix: '/7', label: t('landing.stats.marketAccess') },
+    { value: APPROVED_TRADING_PORTS.length, suffix: '', label: t('landing.stats.tradingPorts') },
   ];
 
-  const frameworks = ['FuelEU Maritime', 'RED III', 'IMO NZF', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
+  const frameworks = ['FuelEU Maritime', 'RED III', '2023 IMO GHG Strategy', '45Z Tax Credit', 'RenovaBio', 'CORSIA'];
 
   return (
     <div style={{ overflowX: 'hidden' }}>
@@ -195,7 +194,7 @@ export const LandingPage: React.FC = () => {
             maxWidth: 1000,
             margin: '0 auto',
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(2, 1fr)',
             gap: 24,
             textAlign: 'center',
           }}

@@ -11,10 +11,23 @@ export interface ProducerProject {
   status: ProjectStatus;
   capacityKtpa: number;
   codYear: number;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   country: string;
   city?: string;
+}
+
+export type MappedProducerProject = ProducerProject & { lat: number; lng: number };
+
+export function hasMapCoordinates(project: ProducerProject): project is MappedProducerProject {
+  return project.lat !== null
+    && project.lng !== null
+    && Number.isFinite(project.lat)
+    && Number.isFinite(project.lng)
+    && project.lat >= -90
+    && project.lat <= 90
+    && project.lng >= -180
+    && project.lng <= 180;
 }
 
 export const fuelTypeColors: Record<FuelType, string> = {
@@ -138,7 +151,20 @@ export const producerProjects: ProducerProject[] = [
   { id: 'proj-112', name: 'ReNew E-fuels Malkangiri', company: 'ReNew', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 500.0, codYear: 2029, lat: 18.2745, lng: 81.952, country: 'India', city: 'Malkangiri' },
   { id: 'proj-113', name: 'ReNew E-fuels Rayagada', company: 'ReNew', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 300.0, codYear: 2029, lat: 19.4427, lng: 83.5873, country: 'India', city: 'Rayagada' },
   { id: 'proj-114', name: 'IRIS', company: 'Motor Oil', fuelType: 'Other Methanol', pathway: 'CO2 + H2 (non-renewable)', status: 'Pre-Feasibility', capacityKtpa: 10.0, codYear: 2030, lat: 35.5361, lng: 23.9308, country: 'Greece', city: 'Agioi Theodoroi' },
-  { id: 'proj-115', name: 'Gansu Zhenyuan Hydrogen and Methanol - I', company: 'State Power Investment Corporation (SPIC)', fuelType: 'E-Methanol', pathway: 'CO2 + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 30.0, codYear: 2028, lat: 23.9299, lng: 100.9376, country: 'China', city: 'Zhenyuan County' },
+  {
+    id: 'proj-115',
+    name: 'Gansu Zhenyuan Hydrogen and Methanol - I',
+    company: 'State Power Investment Corporation (SPIC)',
+    fuelType: 'E-Methanol',
+    pathway: 'CO2 + H2 (renewable)',
+    status: 'Pre-Feasibility',
+    capacityKtpa: 30.0,
+    codYear: 2028,
+    lat: null,
+    lng: null,
+    country: 'China',
+    city: 'Zhenyuan County',
+  },
   { id: 'proj-116', name: 'Sany Jilin Changling', company: 'Changling Xiaoneng Green Hydrogen (SANY Group)', fuelType: 'Bio Methanol', pathway: 'Biomass + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 327.0, codYear: 2027, lat: 44.3438, lng: 123.5873, country: 'China', city: 'Changling County' },
   { id: 'proj-117', name: 'Daan Green Methanol - I', company: 'SPIC Jilin Electric (Jiden Electric)', fuelType: 'Bio Methanol', pathway: 'Biomass + H2 (renewable)', status: 'Pre-Feasibility', capacityKtpa: 100.0, codYear: 2029, lat: 45.5044, lng: 124.2856, country: 'China', city: 'Daan, Baicheng' },
   { id: 'proj-118', name: 'Lishu Green Methanol', company: 'SPIC Jilin Electric (Jiden Electric), COSCO Shipping, SIPG Energy', fuelType: 'Bio Methanol', pathway: 'Biomass + H2 (renewable)', status: 'Under Construction', capacityKtpa: 197.0, codYear: 2027, lat: 43.4873, lng: 124.3329, country: 'China', city: 'Lishu County, Siping' },

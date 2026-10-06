@@ -80,10 +80,10 @@ export const HeroSection: React.FC = () => {
   if (!ready) return null;
 
   const trustSignalKeys = [
-    'doubleCounting',
-    'imoAligned',
+    'approvedOrganizations',
+    'sourceLabels',
     'physicalFirst',
-    'ciPricing',
+    'declaredCI',
   ] as const;
 
   const trustSignals = trustSignalKeys.map((key, i) => ({

@@ -27,25 +27,25 @@ describe('PilotPage', () => {
     renderWithRouter(<PilotPage />);
     expect(screen.getByText('Pilot Programme')).toBeTruthy();
     expect(
-      screen.getByText(/deliberately onboarding select producers, buyers, and traders/i)
+      screen.getByText(/onboarding a limited group of producers, buyers, and traders/i)
     ).toBeTruthy();
   });
 
   it('renders what is enabled and what is not', () => {
     renderWithRouter(<PilotPage />);
     // Enabled items
-    expect(screen.getByText(/read-only market data and price discovery/i)).toBeTruthy();
-    expect(screen.getByText(/bilateral matchmaking between verified participants/i)).toBeTruthy();
-    expect(screen.getByText(/energy value calculator with compliance modelling/i)).toBeTruthy();
-    expect(screen.getByText(/producer map with project data/i)).toBeTruthy();
-    expect(screen.getByText(/compliance documentation and traceability/i)).toBeTruthy();
+    expect(screen.getByText(/physical bids, asks, and market monitoring/i)).toBeTruthy();
+    expect(screen.getByText(/order entry by supported product, delivery point/i)).toBeTruthy();
+    expect(screen.getByText(/illustrative energy-content comparison/i)).toBeTruthy();
+    expect(screen.getByText(/filterable methanol-project reference map/i)).toBeTruthy();
+    expect(screen.getByText(/supplier-declared carbon-intensity and certification fields/i)).toBeTruthy();
 
     // Not yet live items
-    expect(screen.getByText(/live bids and offers/i)).toBeTruthy();
     expect(screen.getByText(/automated trade settlement/i)).toBeTruthy();
-    expect(screen.getByText(/futures and forward contracts/i)).toBeTruthy();
-    expect(screen.getByText(/green financing module/i)).toBeTruthy();
-    expect(screen.getByText(/api access for programmatic trading/i)).toBeTruthy();
+    expect(screen.getByText(/integrated third-party sustainability verification/i)).toBeTruthy();
+    expect(screen.getByText(/environmental-attribute registry and retirement/i)).toBeTruthy();
+    expect(screen.getByText(/automated regulatory reporting/i)).toBeTruthy();
+    expect(screen.getByText(/programmatic trading api access/i)).toBeTruthy();
   });
 
   it('renders qualification criteria', () => {

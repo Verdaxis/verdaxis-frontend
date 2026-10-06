@@ -8,7 +8,9 @@ import 'leaflet/dist/leaflet.css';
 import {
   producerProjects,
   fuelTypeColors,
+  hasMapCoordinates,
   type FuelType,
+  type MappedProducerProject,
   type ProjectStatus,
   type ProducerProject,
 } from '../../data/producerProjects';
@@ -111,6 +113,7 @@ const FutureProjectCard: React.FC<{
     expectedCod: string;
     location: string;
     pathway: string;
+    coordinateUnavailable: string;
     expressInterest: string;
     fuelType: string;
     status: string;
@@ -207,6 +210,9 @@ const FutureProjectCard: React.FC<{
           <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
             {project.city ? `${project.city}, ${project.country}` : project.country}
           </div>
+          {!hasMapCoordinates(project) && (
+            <div style={{ marginTop: 4, fontSize: 11, color: '#B45309' }}>{labels.coordinateUnavailable}</div>
+          )}
         </div>
         <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #F1F5F9' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
@@ -253,7 +259,7 @@ const FutureProjectCard: React.FC<{
 /* ------------------------------------------------------------------ */
 
 const ProjectMarker: React.FC<{
-  project: ProducerProject;
+  project: MappedProducerProject;
   popupLabels: { capacity: string; cod: string; city: string; country: string; close: string };
   displayLabels: { fuelType: string; status: string; pathway: string };
 }> = ({ project, popupLabels, displayLabels }) => {
@@ -344,6 +350,15 @@ export const ProducerMapPage: React.FC = () => {
     });
   }, [search, selectedFuelTypes, selectedStatus, codMin, codMax]);
 
+  const mappedProjects = useMemo(
+    () => filteredProjects.filter(hasMapCoordinates),
+    [filteredProjects],
+  );
+  const unmappedProjects = useMemo(
+    () => filteredProjects.filter((project): boolean => !hasMapCoordinates(project)),
+    [filteredProjects],
+  );
+
   const filteredFutures = useMemo(() => {
     const q = futuresSearch.toLowerCase();
     return futureProjects
@@ -384,6 +399,7 @@ export const ProducerMapPage: React.FC = () => {
     expectedCod: t('producerMap.futures.expectedCod'),
     location: t('producerMap.futures.location'),
     pathway: t('producerMap.futures.pathway'),
+    coordinateUnavailable: t('producerMap.coordinateUnavailable'),
     expressInterest: t('producerMap.futures.expressInterest'),
   };
 
@@ -591,6 +607,26 @@ export const ProducerMapPage: React.FC = () => {
                 {t('producerMap.sidebar.showingProjects', { shown: filteredProjects.length, count: producerProjects.length })}
               </div>
 
+              {unmappedProjects.length > 0 && (
+                <div
+                  role="status"
+                  style={{
+                    padding: '10px 14px',
+                    background: '#FFF7ED',
+                    border: '1px solid #FED7AA',
+                    borderRadius: 8,
+                    color: '#9A3412',
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    marginBottom: 20,
+                  }}
+                >
+                  {unmappedProjects.map((project) => (
+                    <div key={project.id}><strong>{project.name}:</strong> {t('producerMap.coordinateUnavailable')}</div>
+                  ))}
+                </div>
+              )}
+
               {/* Legend */}
               <div>
                 <h4 style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -626,7 +662,7 @@ export const ProducerMapPage: React.FC = () => {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                {filteredProjects.map((project) => (
+                {mappedProjects.map((project) => (
                   <ProjectMarker
                     key={project.id}
                     project={project}

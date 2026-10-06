@@ -7,14 +7,14 @@
   "landing": {
     "stats": {
       "fuelProducts": "Active Fuel Products",
-      "tradingPorts": "Trading Ports",
+      "tradingPorts": "Supported Delivery Points",
       "complianceRegimes": "Compliance Regimes",
       "marketAccess": "Market Access"
     },
     "why": {
       "eyebrow": "The Platform",
       "title": "Why Verdaxis",
-      "subtitle": "A unified exchange for sustainable marine fuels — bringing price discovery, transparency, and liquidity to a fragmented market.",
+      "subtitle": "A unified marketplace for sustainable marine fuels, organizing bids, asks, and source-labelled reference data across supported physical markets.",
       "cards": {
         "0": {
           "title": "Price Discovery",
@@ -62,23 +62,23 @@
     "roles": {
       "eyebrow": "For Every Role",
       "title": "Built for Every Participant",
-      "subtitle": "Whether you produce, buy, trade, or finance low-carbon fuels, Verdaxis gives you the tools and trust layer you need.",
+      "subtitle": "Producers, buyers, traders, and financiers use the same supported market slices, source labels, and order and trade status records.",
       "learnMore": "Learn more",
       "cards": {
         "0": {
           "title": "Fuel Producers",
           "bullets": {
-            "0": "Direct access to qualified buyers",
-            "1": "Market reach and visibility",
-            "2": "Lower friction for contract negotiation"
+            "0": "Physical asks in supported market slices",
+            "1": "Visibility across supported products and delivery points",
+            "2": "Order and trade status monitoring"
           }
         },
         "1": {
           "title": "Fuel Buyers",
           "bullets": {
             "0": "B30, B100, methanol, and ethanol markets",
-            "1": "Transparent, reliable pricing",
-            "2": "Efficiency and speed"
+            "1": "Visible bids, asks, and source labels",
+            "2": "Standard physical order entry"
           }
         },
         "2": {
@@ -94,13 +94,13 @@
           "bullets": {
             "0": "Listing and trade data by market",
             "1": "Order and trade status visibility",
-            "2": "Market and compliance context"
+            "2": "Market and regulatory context"
           }
         }
       }
     },
     "frameworks": {
-      "label": "Market and regulatory context"
+      "label": "Regulatory and industry reference context"
     },
     "cta": {
       "eyebrow": "Join the Pilot",
@@ -160,7 +160,7 @@
     },
     "principles": {
       "title": "Key Principles",
-      "subtitle": "The design choices that make Verdaxis a trusted and transparent marketplace.",
+      "subtitle": "Design choices for a physical-first marketplace with disclosed fields and source labels.",
       "items": {
         "0": {
           "title": "Physical-First Logic",
@@ -219,7 +219,7 @@
       "subtitle": "Compare physical bids and asks for B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol by delivery point and availability window."
     },
     "valueProps": {
-      "title": "Why Buyers Choose Verdaxis",
+      "title": "What Buyers Can Do on Verdaxis",
       "subtitle": "Supported physical fuel markets, orderbook data, and monitoring tools in one workspace.",
       "items": {
         "0": {
@@ -227,7 +227,7 @@
           "description": "Use one marketplace to view and place physical fuel bids across supported products, delivery points, and availability windows."
         },
         "1": {
-          "title": "Transparent, Reliable Pricing",
+          "title": "Visible Bids, Asks & Data Labels",
           "description": "Review bids and asks for the selected market and see whether displayed data is marked Demo or reference data."
         },
         "2": {
@@ -262,52 +262,52 @@
   "producer": {
     "hero": {
       "title": "For Fuel Producers",
-      "subtitle": "Put your fuel production in front of the largest pool of qualified buyers. More reach, lower acquisition costs, and faster deal flow — all in one marketplace."
+      "subtitle": "Place physical asks by supported product, delivery point, and availability window, with supplier-declared sustainability fields when provided."
     },
     "valueProps": {
-      "title": "Why Producers Choose Verdaxis",
-      "subtitle": "The exchange built around your need for reach, visibility, and lower friction — from first listing to signed contract.",
+      "title": "What Producers Can Do on Verdaxis",
+      "subtitle": "Create and monitor physical asks in supported markets using standard order fields and source-labelled market data.",
       "items": {
         "0": {
-          "title": "Maximum Market Reach",
-          "description": "List your production once and get it in front of the largest pool of qualified fuel buyers on the market. More eyeballs means more competitive bids and faster deal flow."
+          "title": "Supported Market Visibility",
+          "description": "Place physical asks in exact product, delivery-point, and availability-window market slices for approved platform organizations."
         },
         "1": {
-          "title": "Lower Customer Acquisition Cost",
-          "description": "Stop spending on trade shows, cold outreach, and broker commissions. Verdaxis brings motivated buyers directly to your listings — dramatically cutting the cost of finding your next offtake partner."
+          "title": "Standard Order Entry",
+          "description": "Enter product, quantity, limit price, delivery point, availability window, and supplier-declared sustainability fields in one physical ASK workflow."
         },
         "2": {
-          "title": "Deal Flow Analytics & Market Visibility",
-          "description": "See how your listings perform: views, bid activity, and price benchmarks across the market. Know where you stand and price with confidence."
+          "title": "Market Monitoring",
+          "description": "Review visible bids and asks, source-labelled forward monitoring, saved markets, and order and trade status in one workspace."
         },
         "3": {
-          "title": "Pre-Market Future Production",
-          "description": "Sell forward before the first barrel is produced. List upcoming production capacity today to secure committed buyers and give your project bankable revenue certainty."
+          "title": "Future Availability Windows",
+          "description": "Post physical asks for supported future availability windows and monitor the resulting order status and market activity."
         }
       }
     },
     "howItWorks": {
       "title": "How It Works For You",
-      "subtitle": "Three steps from listing to closed deal.",
+      "subtitle": "From market selection to a monitored physical ask in three steps.",
       "steps": {
-        "0": "List your production — current inventory or future capacity — on the Verdaxis marketplace",
-        "1": "Qualified buyers discover your listings and submit bids directly, with no intermediary friction",
-        "2": "Negotiate terms, agree price, and close deals faster with built-in contract tooling"
+        "0": "Choose a supported product, quantity, delivery point, availability window, and limit price",
+        "1": "Review the selected market's visible bids, asks, and source labels",
+        "2": "Place a physical ask and monitor its order and trade lifecycle status"
       }
     },
     "cta": {
-      "title": "Ready to grow your buyer network?",
-      "subtitle": "Join the Verdaxis pilot programme and get your production in front of the market's most active fuel buyers today.",
+      "title": "Ready to Enter a Supported Market?",
+      "subtitle": "Join the pilot to access supported physical fuel markets, orderbook data, and monitoring tools.",
       "button": "Apply for Pilot"
     }
   },
   "trader": {
     "hero": {
       "title": "For Traders & Aggregators",
-      "subtitle": "Physical bids and asks, forward-curve monitoring, watchlists, and market intelligence for professional fuel traders."
+      "subtitle": "Physical bids and asks, source-labelled forward monitoring, watchlists, and market information for professional fuel traders."
     },
     "valueProps": {
-      "title": "Why Traders Choose Verdaxis",
+      "title": "What Traders Can Do on Verdaxis",
       "subtitle": "A physical orderbook, selected-market monitoring, and market data in one workspace.",
       "items": {
         "0": {
@@ -319,7 +319,7 @@
           "description": "Monitor forward periods marked as indicative and open the corresponding physical market for order review or entry."
         },
         "2": {
-          "title": "Price Discovery & Market Intelligence",
+          "title": "Market Data & Context",
           "description": "Review displayed orderbook data, data labels, market news, and activity for the selected market."
         },
         "3": {
@@ -338,7 +338,7 @@
       }
     },
     "cta": {
-      "title": "Ready to access real liquidity?",
+      "title": "Ready to Review Supported Markets?",
       "subtitle": "Join the Verdaxis pilot programme to access supported physical fuel markets and monitoring tools.",
       "button": "Apply for Pilot"
     }
@@ -673,7 +673,8 @@
       "subtitleMap": "Send Verdaxis a project submission or correction for review before it is added to the index.",
       "buttonFutures": "Submit Project Details",
       "buttonMap": "Submit Project Details"
-    }
+    },
+    "coordinateUnavailable": "Reliable map coordinate unavailable"
   },
   "partners": {
     "hero": {
@@ -770,7 +771,7 @@
         },
         "1": {
           "title": "Fragmented Standards",
-          "body": "RED III, 45Z, RenovaBio, FuelEU Maritime, IMO NZF — different rules, different metrics, one platform."
+          "body": "RED III, 45Z, RenovaBio, FuelEU Maritime, and the 2023 IMO GHG Strategy use different rules and metrics. Applicability depends on the fuel, activity, and jurisdiction."
         },
         "2": {
           "title": "Double-Counting Risk",
@@ -1032,7 +1033,7 @@
       "principles": {
         "0": {
           "title": "Integrity First",
-          "description": "Each feature is tested with real participants before expanding. We don't launch features until they're production-ready."
+          "description": "Validate features before broader rollout and review readiness against their intended use."
         },
         "1": {
           "title": "Deliberate Scaling",
@@ -1139,7 +1140,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: July 2026",
+    "lastUpdated": "Last updated: 6 October 2026",
     "sections": {
       "0": {
         "title": "1. Information We Collect",
@@ -1147,7 +1148,7 @@
       },
       "1": {
         "title": "2. How We Use Your Information",
-        "body": "We use your information to operate the exchange platform, process transactions, ensure regulatory compliance (EU ETS, FuelEU), and communicate important updates about your account."
+        "body": "We use your information to operate user accounts, support orders and trade workflows, and communicate important updates about your account."
       },
       "2": {
         "title": "3. Product Analytics",
@@ -1207,14 +1208,14 @@
     "badge": "Now accepting pilot applications",
     "titleLine1": "The trusted exchange",
     "titleLine2": "for low-carbon fuels",
-    "subtitle": "Verdaxis is the neutral exchange where verified low-carbon fuel meets real demand. Trade anonymously until confirmation, with transparent pricing and compliance documentation built into every transaction.",
+    "subtitle": "Verdaxis is a neutral marketplace for physical low-carbon fuel bids and asks. Participants remain anonymous until confirmation and can review supplier-declared sustainability fields and source-labelled market data.",
     "applyPilot": "Apply for Pilot",
     "exploreHowItWorks": "See How It Works",
     "trustSignals": {
-      "doubleCounting": "Double-Count Prevention",
-      "imoAligned": "IMO & EU Aligned",
+      "approvedOrganizations": "Approved Organizations",
+      "sourceLabels": "Source-Labelled Data",
       "physicalFirst": "Physical-First Logic",
-      "ciPricing": "CI-Adjusted Pricing"
+      "declaredCI": "Supplier-Declared CI"
     }
   },
   "pilotForm": {

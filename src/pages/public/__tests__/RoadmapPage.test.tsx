@@ -16,7 +16,7 @@ describe('RoadmapPage', () => {
     renderWithRouter(<RoadmapPage />);
     expect(screen.getByText('Platform Roadmap')).toBeTruthy();
     expect(
-      screen.getByText(/verdaxis is being built in deliberate phases/i)
+      screen.getByText(/current physical-market features and planned extensions/i)
     ).toBeTruthy();
   });
 
@@ -37,21 +37,21 @@ describe('RoadmapPage', () => {
   it('renders phase features', () => {
     renderWithRouter(<RoadmapPage />);
     // Phase 1 features (appear in both desktop + mobile timelines)
-    expect(screen.getAllByText(/fuel \+ attribute registration with ci scoring/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/third-party verification integration/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/producer and buyer onboarding/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/public website with education resources/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/energy value calculator/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/producer project map/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/supplier-declared fuel and sustainability fields/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/account and organization onboarding/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/physical bids and asks in supported markets/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/public website and sourced education resources/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/shared-energy fuel-cost comparison tool/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/compiled producer index with data limits/i).length).toBeGreaterThanOrEqual(1);
 
     // Phase 2 features
-    expect(screen.getAllByText(/bilateral matchmaking between verified participants/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/ci-adjusted pricing display/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/real price discovery from platform activity/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/third-party verification integrations/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/pathway-specific pricing context/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/additional eligible market observations/i).length).toBeGreaterThanOrEqual(1);
 
     // Phase 3 features
-    expect(screen.getAllByText(/live orderbook with bids and asks/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/real-time price discovery/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/orderbook workflow extensions/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/broader eligible price observations/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/forward contracts and structured offtake/i).length).toBeGreaterThanOrEqual(1);
 
     // Phase 4 features
@@ -64,7 +64,7 @@ describe('RoadmapPage', () => {
     renderWithRouter(<RoadmapPage />);
     expect(screen.getByText('How We Build')).toBeTruthy();
     expect(screen.getByText('Integrity First')).toBeTruthy();
-    expect(screen.getByText(/each feature is tested with real participants/i)).toBeTruthy();
+    expect(screen.getByText(/validate features before broader rollout/i)).toBeTruthy();
     expect(screen.getByText('Deliberate Scaling')).toBeTruthy();
     expect(screen.getByText(/we add participants and volume gradually/i)).toBeTruthy();
     expect(screen.getByText('Regulatory Alignment')).toBeTruthy();

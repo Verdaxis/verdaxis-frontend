@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Route, Routes, StaticRouter } from 'react-router-dom';
 
-import { producerProjects } from '../data/producerProjects';
+import { producerProjects, hasMapCoordinates } from '../data/producerProjects';
 import i18n, { loadNamespace } from '../i18n';
 import { PublicLayout } from '../components/public/PublicLayout';
 import { ProducerDatasetNotice } from '../components/public/ProducerDatasetNotice';
@@ -58,6 +58,11 @@ function StaticProducerMapPage() {
                 {t('producerMap.popup.capacity')}: {project.capacityKtpa.toLocaleString()} ktpa
                 {' · '}{t('producerMap.popup.cod')}: {project.codYear}
               </p>
+              {!hasMapCoordinates(project) && (
+                <p style={{ color: '#9A3412', fontSize: 13, margin: '8px 0 0' }}>
+                  {t('producerMap.coordinateUnavailable')}
+                </p>
+              )}
             </li>
           ))}
         </ul>

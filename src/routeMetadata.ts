@@ -162,12 +162,12 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   partners: {
     en: {
-      title: 'Industry Partners | Verdaxis',
-      description: 'Learn about the industry relationships and market resources Verdaxis is developing for the low-carbon fuel ecosystem.',
+      title: 'Industry Resources | Verdaxis',
+      description: 'Explore independent standards, regulatory bodies, and market resources relevant to low-carbon fuel commerce. Inclusion does not imply partnership or endorsement.',
     },
     zh: {
-      title: '行业合作伙伴 | Verdaxis',
-      description: '了解 Verdaxis 正在为低碳燃料生态系统建立的行业合作关系和市场资源。',
+      title: '行业资源 | Verdaxis',
+      description: '了解与低碳燃料交易相关的独立标准、监管机构和市场资源。列示并不代表合作关系或认可。',
     },
   },
   education: {
