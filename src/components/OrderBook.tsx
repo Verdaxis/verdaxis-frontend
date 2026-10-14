@@ -520,11 +520,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                                                 </span>
                                             )}
                                             {askWttSummary && (
-                                                <span
-                                                    title={`${askWttSummary.value} · ${askWttSummary.note}`}
-                                                    className="ml-1.5 inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400"
-                                                >
-                                                    {t('bioLng.display.wtt')} {askWttSummary.value}
+                                                <span className="ml-1.5 inline-flex flex-col items-start">
+                                                    <span className="inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
+                                                        {t('bioLng.display.wtt')} {askWttSummary.value}
+                                                    </span>
+                                                    {/* The caveat qualifies the value, so it is read, not hovered. */}
+                                                    <span className="text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                                                        {askWttSummary.note}
+                                                    </span>
                                                 </span>
                                             )}
                                         </span>

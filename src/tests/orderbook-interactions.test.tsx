@@ -299,14 +299,13 @@ describe('orderbook bio-LNG depth', () => {
     asks,
   });
 
-  it('shows the well-to-tank badge with the methane-slip caveat on the ask row', async () => {
+  it('shows the well-to-tank value with the methane-slip caveat as visible text', async () => {
     snapshot.mockResolvedValue(lngSnapshot([lngAsk]));
 
     renderWithProviders(<OrderBook {...LNG_MARKET} />);
-    const badge = await screen.findByText(/-38\.25 gCO2e\/MJ/);
-    // The caveat rides along as the badge tooltip so the row stays compact.
-    const title = badge.closest('[title]')?.getAttribute('title');
-    expect(title).toContain('Excludes engine methane slip');
+    await screen.findByText(/-38\.25 gCO2e\/MJ/);
+    // The caveat qualifies the value, so it must be read without hovering.
+    expect(screen.getByText('Excludes engine methane slip, which depends on the buyer\'s engine.')).toBeTruthy();
   });
 
   it('keeps the caveat localized in Chinese', async () => {
@@ -315,8 +314,8 @@ describe('orderbook bio-LNG depth', () => {
     snapshot.mockResolvedValue(lngSnapshot([lngAsk]));
 
     renderWithProviders(<OrderBook {...LNG_MARKET} />);
-    const badge = await screen.findByText(/-38\.25 gCO2e\/MJ/);
-    expect(badge.closest('[title]')?.getAttribute('title')).toContain('不含发动机甲烷逃逸');
+    await screen.findByText(/-38\.25 gCO2e\/MJ/);
+    expect(screen.getByText('不含发动机甲烷逃逸，因其取决于买方发动机。')).toBeTruthy();
     await i18n.changeLanguage('en');
   });
 });
