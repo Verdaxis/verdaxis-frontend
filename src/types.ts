@@ -155,6 +155,7 @@ export const MARKET_PRODUCTS = [
     'SYNTHETIC_ETHANOL',
     'B30',
     'B100',
+    'BIO_LNG',
 ] as const;
 
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
