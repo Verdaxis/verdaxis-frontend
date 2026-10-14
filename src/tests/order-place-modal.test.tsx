@@ -9,6 +9,7 @@ import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import type { AvailabilityWindow } from '../types';
 import type { SupplierOffer } from '../types/fameSupplierOffer';
 import { clearAccessToken, setAccessToken } from '../services/authToken';
+import { ApiError } from '../services/api';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 
 const productsMock = vi.fn();
@@ -39,22 +40,27 @@ async function reviewAndConfirm(side: 'Bid' | 'Ask') {
   fireEvent.click(await screen.findByRole('button', { name: `Confirm and place ${side}` }));
 }
 
-vi.mock('../services/api', () => ({
-  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
-  api: {
-    catalog: {
-      products: (...args: unknown[]) => productsMock(...args),
-      deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args),
+vi.mock('../services/api', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/api')>();
+  return {
+    ApiError: actual.ApiError,
+    isKycRequiredError: actual.isKycRequiredError,
+    ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+    api: {
+      catalog: {
+        products: (...args: unknown[]) => productsMock(...args),
+        deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args),
+      },
+      orderbook: {
+        create: (...args: unknown[]) => createOrderMock(...args),
+      },
+      supplierOffers: {
+        create: (...args: unknown[]) => createSupplierOfferMock(...args),
+        update: (...args: unknown[]) => updateSupplierOfferMock(...args),
+      },
     },
-    orderbook: {
-      create: (...args: unknown[]) => createOrderMock(...args),
-    },
-    supplierOffers: {
-      create: (...args: unknown[]) => createSupplierOfferMock(...args),
-      update: (...args: unknown[]) => updateSupplierOfferMock(...args),
-    },
-  },
-}));
+  };
+});
 
 vi.mock('../context/MarketSupportContext', () => ({
   useMarketSupport: () => marketSupportControl.current,
@@ -992,6 +998,18 @@ describe('OrderPlaceModal', () => {
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
     expect(createOrderMock.mock.calls[1]?.[0]?.price_per_mt_usd).toBe(541);
     expect(createOrderMock.mock.calls[1]?.[0]?.idempotency_key).not.toBe(firstKey);
+  });
+
+  it('shows the KYC reason and the /kyc link when order creation is blocked', async () => {
+    createOrderMock.mockRejectedValueOnce(new ApiError('Complete KYC verification to trade.', 403, 'KYC_REQUIRED'));
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+    await reviewAndConfirm('Bid');
+
+    expect(await screen.findByText('KYC verification required')).toBeTruthy();
+    expect(screen.getByText('Complete KYC verification to trade.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Complete KYC' }).getAttribute('href')).toBe('/kyc');
   });
 
   it('guards against double submit while the request is pending', async () => {

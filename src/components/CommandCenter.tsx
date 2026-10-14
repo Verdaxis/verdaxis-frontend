@@ -2,7 +2,7 @@ import { LoadingScreen } from './LoadingScreen';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, FileText, Gavel, HandCoins, Search } from 'lucide-react';
 import { Trade, Page, ViewMode } from '../types';
-import { ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
@@ -240,6 +240,16 @@ export const CommandCenter: React.FC<CommandCenterProps> = ({ viewMode, onNaviga
                     return;
                 }
                 confirmRequestRef.current = null;
+                if (isKycRequiredError(error)) {
+                    setConfirmState({
+                        isOpen: true,
+                        type: 'ERROR',
+                        title: t('common:kycGate.blocked.title'),
+                        message: t('common:kycGate.blocked.message'),
+                        variant: 'warning',
+                    });
+                    return;
+                }
                 setConfirmState({
                     isOpen: true,
                     type: 'ERROR',

@@ -11,6 +11,7 @@ const controls = vi.hoisted(() => ({
 }));
 
 vi.mock('../services/api', () => ({
+  isKycRequiredError: () => false,
   api: {
     trades: {
       confirm: controls.confirmTrade,
