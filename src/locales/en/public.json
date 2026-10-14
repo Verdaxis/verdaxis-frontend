@@ -388,13 +388,13 @@
   "fuelCoverage": {
     "hero": {
       "title": "Fuel Coverage",
-      "subtitle": "Current marine orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, synthetic ethanol, and Bio-LNG (Rotterdam only, certified under ISCC EU or REDcert-EU). Aviation and land sections provide informational pathway coverage."
+      "subtitle": "Current marine orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, synthetic ethanol, and Bio-LNG. Aviation and land sections provide informational pathway coverage."
     },
     "sectors": {
       "maritime": {
         "label": "Maritime",
         "headline": "Maritime Fuels",
-        "subtitle": "Current orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol for marine delivery markets. Bio-LNG trades at Rotterdam only, certified under ISCC EU or REDcert-EU."
+        "subtitle": "Current orderbooks cover B30, B100, bio-methanol, e-methanol, bio-ethanol, and synthetic ethanol for marine delivery markets. Bio-LNG is Rotterdam only. Sellers declare their ISCC EU or REDcert-EU certification, chain of custody and Proof of Sustainability timing."
       },
       "aviation": {
         "label": "Aviation",
@@ -436,7 +436,7 @@
           "2": "Landfill gas upgrading"
         },
         "keyMarkets": "Maritime bunkering, LNG-fuelled vessels",
-        "note": "A tradable orderbook product at Rotterdam only, certified under ISCC EU or REDcert-EU with a certified Proof of Sustainability."
+        "note": "A tradable orderbook product, Rotterdam only. Sellers declare their ISCC EU or REDcert-EU certification, chain of custody and Proof of Sustainability timing."
       },
       "bioMgo": {
         "name": "B30 / B100",
