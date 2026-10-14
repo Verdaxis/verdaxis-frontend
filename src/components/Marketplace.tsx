@@ -47,7 +47,8 @@ import {
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
-import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
+import { getMarketProductMapPorts } from '../utils/buyerMapMarket';
+import { isSlicePortAllowed, sliceToPath, type MarketSlice } from '../utils/sliceUrl';
 import { MARKETPLACE_SELECTION_STORAGE_KEYS } from '../utils/marketplaceSelection';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
@@ -245,6 +246,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
         return deliveryPoints.find(point => point.name.trim().toLowerCase() === q)?.id || '';
     }, [deliveryPoints, resolvedPort, storedDeliveryPointId]);
+
+    /**
+     * Port names the selected product's catalog lanes clear. `null` means no
+     * restriction is known yet (all-products view, or a catalog that has not
+     * answered) and nothing is enforced. An empty list means the catalog grants
+     * the product no lane, so the market fails closed.
+     */
+    const laneAllowedPortNames = useMemo<string[] | null>(() => {
+        if (marketProduct === ALL_MARKET_PRODUCTS) return null;
+        if (catalogProducts.length === 0 || deliveryPointsStatus !== 'ready') return null;
+        return getMarketProductMapPorts(marketProduct, catalogProducts, deliveryPoints, PORTS).map(port => port.name);
+    }, [catalogProducts, deliveryPoints, deliveryPointsStatus, marketProduct]);
 
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
@@ -598,6 +611,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSlice?.product, initialSlice?.port, initialSlice?.window]);
 
+    // A catalog lane can invalidate a deep link or a restored selection. Once
+    // the catalog answers, move a product/port pair the lanes do not clear to
+    // the product's first allowed port, or fail closed to the marketplace root.
+    useEffect(() => {
+        if (!ready || isHistorySelected) return;
+        if (marketProduct === ALL_MARKET_PRODUCTS || laneAllowedPortNames === null) return;
+        if (!resolvedPort || isSlicePortAllowed(resolvedPort, laneAllowedPortNames)) return;
+        const fallbackPort = laneAllowedPortNames[0];
+        setCurrentSkip(0);
+        if (fallbackPort) {
+            setPortInput(fallbackPort);
+            setStoredDeliveryPointId('');
+            return;
+        }
+        setMarketProduct(ALL_MARKET_PRODUCTS);
+        setPortInput('');
+        setStoredDeliveryPointId('');
+    }, [isHistorySelected, laneAllowedPortNames, marketProduct, ready, resolvedPort]);
+
     // State → URL: on a slice URL, keep the address bar truthful as the
     // user changes product/port/window in-page (replace, not push). The
     // generic /app/marketplace view never rewrites the URL. Deliberately
@@ -654,15 +686,20 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
     }, [availability, initialSlice?.window, isHistorySelected, ready]);
 
-    const portOptions = useMemo(() => ([
-        { value: '', label: t('marketplace.filter.allPorts') },
-        ...PORTS.map((port) => ({
-            value: port.name,
-            label: port.name,
-            description: port.country,
-            tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
-        })),
-    ]), [t]);
+    const portOptions = useMemo(() => {
+        const visiblePorts = laneAllowedPortNames === null
+            ? PORTS
+            : PORTS.filter((port) => isSlicePortAllowed(port.name, laneAllowedPortNames));
+        return [
+            { value: '', label: t('marketplace.filter.allPorts') },
+            ...visiblePorts.map((port) => ({
+                value: port.name,
+                label: port.name,
+                description: port.country,
+                tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
+            })),
+        ];
+    }, [laneAllowedPortNames, t]);
 
     const sliceSummary = useMemo(() => {
         const parts = [
