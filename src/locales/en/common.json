@@ -256,5 +256,17 @@
   "feedback.submit": "Send",
   "feedback.sentShort": "Sent",
   "feedback.sent": "Thanks — we read every message.",
-  "feedback.error": "Could not send feedback. Please try again."
+  "feedback.error": "Could not send feedback. Please try again.",
+  "kycBanner.label": "KYC status notice",
+  "kycBanner.grace.title": "Complete KYC by {{date}} to keep trading",
+  "kycBanner.grace.titleNoDate": "Complete KYC to keep trading",
+  "kycBanner.grace.body": "You can post, take and confirm orders until the grace period ends.",
+  "kycBanner.required.title": "Complete KYC verification to trade",
+  "kycBanner.required.body": "You cannot post, take or confirm orders until your KYC is approved.",
+  "kycBanner.rejected.title": "Your KYC verification was rejected",
+  "kycBanner.rejected.body": "You cannot post, take or confirm orders. Submit your documents again or contact support.",
+  "kycBanner.action": "Complete KYC",
+  "kycGate.blocked.title": "KYC verification required",
+  "kycGate.blocked.message": "Complete KYC verification to trade.",
+  "kycGate.blocked.action": "Complete KYC"
 }
