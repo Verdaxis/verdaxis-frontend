@@ -930,5 +930,7 @@
   "bioLng.display.bid.minMethaneNumber": "最低甲烷值",
   "bioLng.display.bid.acceptResellers": "转售方政策",
   "bioLng.error.incompatibleTitle": "生物液化天然气条款不兼容",
-  "bioLng.error.incompatible": "该生物液化天然气条款不满足对方要求，因此成交被拒绝。未披露对手方信息。"
+  "bioLng.error.incompatible": "该生物液化天然气条款不满足对方要求，因此成交被拒绝。未披露对手方信息。",
+  "lngTerms.reseller.yes": "是",
+  "lngTerms.reseller.no": "否"
 }

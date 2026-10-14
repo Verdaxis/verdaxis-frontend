@@ -930,5 +930,7 @@
   "bioLng.display.bid.minMethaneNumber": "Minimum methane number",
   "bioLng.display.bid.acceptResellers": "Reseller policy",
   "bioLng.error.incompatibleTitle": "Bio-LNG terms incompatible",
-  "bioLng.error.incompatible": "These bio-LNG terms do not satisfy the requirements of the other side, so the take was refused. No counterparty detail was disclosed."
+  "bioLng.error.incompatible": "These bio-LNG terms do not satisfy the requirements of the other side, so the take was refused. No counterparty detail was disclosed.",
+  "lngTerms.reseller.yes": "Yes",
+  "lngTerms.reseller.no": "No"
 }

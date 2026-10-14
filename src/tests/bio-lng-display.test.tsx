@@ -63,7 +63,11 @@ describe('BioLngTermsPanel', () => {
         expect(screen.getByText('Excludes engine methane slip, which depends on the buyer\'s engine.')).toBeTruthy();
         expect(screen.getByText('84')).toBeTruthy();
         expect(screen.getByText('Truck to ship')).toBeTruthy();
-        expect(screen.getByText('Resellers accepted')).toBeTruthy();
+        // An ask states the reseller fact, not the buyer policy wording.
+        expect(screen.getByText('Reseller')).toBeTruthy();
+        expect(screen.getByText('Yes')).toBeTruthy();
+        expect(screen.queryByText('Resellers accepted')).toBeNull();
+        expect(screen.queryByText('Physical suppliers only')).toBeNull();
 
         expect(screen.queryByText('DE-NL-2026-000123')).toBeNull();
         expect(screen.queryByText('Rotterdam Bio Supplier BV')).toBeNull();
@@ -77,7 +81,16 @@ describe('BioLngTermsPanel', () => {
         expect(screen.getByText('DE-NL-2026-000123')).toBeTruthy();
         expect(screen.getByText('Rotterdam Bio Supplier BV')).toBeTruthy();
         expect(screen.getByText('After delivery')).toBeTruthy();
+        expect(screen.getByText('Yes')).toBeTruthy();
         expect(screen.queryByText('Physical suppliers only')).toBeNull();
+    });
+
+    it('answers No for an ask from the physical supplier itself', () => {
+        const { terms } = buildLngAskTerms(askForm({ seller_is_physical_supplier: true }));
+        renderWithProviders(<BioLngTermsPanel terms={toPublicLngAskTerms(terms!)} />);
+
+        expect(screen.getByText('Reseller')).toBeTruthy();
+        expect(screen.getByText('No')).toBeTruthy();
     });
 
     it('renders bid requirements including the physical-suppliers-only policy', () => {

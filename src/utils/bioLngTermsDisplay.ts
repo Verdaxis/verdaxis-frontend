@@ -89,11 +89,10 @@ export function bioLngTermsRows(
         }
         rows.push(
             { label: t('bioLng.display.deliveryMethod'), value: option('delivery', view.delivery_method) },
+            // An ask states a fact about the seller; a bid states its own policy.
             {
-                label: t('bioLng.display.resellerPolicy'),
-                value: view.reseller
-                    ? t('bioLng.display.resellerPolicy.accepted')
-                    : t('bioLng.display.resellerPolicy.physicalOnly'),
+                label: t('bioLng.display.reseller'),
+                value: t(view.reseller ? 'lngTerms.reseller.yes' : 'lngTerms.reseller.no'),
             },
         );
         if (isLngAskTerms(terms)) {
