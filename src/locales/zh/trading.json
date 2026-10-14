@@ -968,5 +968,8 @@
   "marketplace.bioLng.catalogUnavailable": "当前目录不可交易生物液化天然气。",
   "marketplace.bioLng.incompatible": "双方条款不兼容，未生成交易。",
   "marketplace.bioLng.reviewTerms": "创建交易前将核对双方生物液化天然气条款的兼容性。",
-  "orderBook.bioLngCompatibility": "生物液化天然气的卖盘与买盘必须在认证、监管链、欧盟联盟数据库状态、生物质比例、井到罐温室气体、交付方式与转售商上一致，才可匹配。"
+  "orderBook.bioLngCompatibility": "生物液化天然气的卖盘与买盘必须在认证、监管链、欧盟联盟数据库状态、生物质比例、井到罐温室气体、交付方式与转售商上一致，才可匹配。",
+  "myTrades.lngTerms.title": "随该交易保存的生物液化天然气条款",
+  "myTrades.lngTerms.notice": "这些买方要求与供应商声明在创建交易时即被冻结。",
+  "myTrades.lngTerms.supplier": "供应商生物液化天然气声明"
 }

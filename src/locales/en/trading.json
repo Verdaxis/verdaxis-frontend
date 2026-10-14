@@ -968,5 +968,8 @@
   "marketplace.bioLng.catalogUnavailable": "Bio-LNG trading is unavailable in this catalog.",
   "marketplace.bioLng.incompatible": "These orders are not terms-compatible. No trade was created.",
   "marketplace.bioLng.reviewTerms": "Both sides’ bio-LNG terms are checked for compatibility before the trade is created.",
-  "orderBook.bioLngCompatibility": "Bio-LNG asks and bids must agree on certification, chain of custody, EU Union Database status, bio share, well-to-tank GHG, delivery method and resellers before they can match."
+  "orderBook.bioLngCompatibility": "Bio-LNG asks and bids must agree on certification, chain of custody, EU Union Database status, bio share, well-to-tank GHG, delivery method and resellers before they can match.",
+  "myTrades.lngTerms.title": "Bio-LNG terms saved with this trade",
+  "myTrades.lngTerms.notice": "These buyer requirements and supplier declarations were frozen when the trade was created.",
+  "myTrades.lngTerms.supplier": "Supplier bio-LNG declaration"
 }

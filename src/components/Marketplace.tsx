@@ -65,6 +65,9 @@ import { SupplierOffersWorkspace } from './supplier/SupplierOffersWorkspace';
 import type { FameOrderBidTerms } from '../types/fameOrder';
 import { FameOrderFields, readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from './fame/FameOrderFields';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
+import type { LngOrderTerms, LngOrderTermsView } from '../types/lngOrder';
+import { LngOrderFields, initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms } from './lng/LngOrderFields';
+import { LngOrderTermsDetails, lngAskSummary } from './lng/LngOrderTermsDetails';
 
 // ─── Role Config ──────────────────────────────────────────────────
 type ColumnId = 'fuel' | 'grade' | 'volume' | 'price' | 'window' | 'expiry' | 'cert' | 'status' | 'action';
@@ -205,6 +208,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     }, []);
     const b100Product = catalogProducts.find(product => product.market_product === 'UCOME_B100');
     const b100TradingEnabled = Boolean(b100Product && isOrderbookProduct(b100Product));
+    const bioLngProduct = catalogProducts.find(product => product.market_product === 'BIO_LNG');
+    const bioLngTradingEnabled = Boolean(bioLngProduct && isOrderbookProduct(bioLngProduct));
     const [selectedMarketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => (
         isOrderbookMarketProduct(initialSlice?.product) ? initialSlice.product : readStoredMarketProduct()
     ));
@@ -309,7 +314,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         reviewedOrder: OrderBookOrder;
     } | null>(null);
     const tradeTermsForm = useRef<HTMLFormElement>(null);
+    const tradeLngTermsForm = useRef<HTMLFormElement>(null);
     const [tradeFameInput, setTradeFameInput] = useState<Pick<TradeCreateInput, 'fame_terms' | 'certification_declared' | 'msds_available'> | null>(null);
+    const [tradeLngInput, setTradeLngInput] = useState<Pick<TradeCreateInput, 'lng_terms'> | null>(null);
     const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
         const terms = selectedOrder?.fame_terms;
         if (terms?.side !== 'ASK') return undefined;
@@ -322,6 +329,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             require_quality_evidence: false, require_sustainability_evidence: false,
             evidence_due: terms.evidence_due,
         };
+    }, [selectedOrder]);
+    const initialLngTaker = useMemo<LngOrderTerms | undefined>(() => {
+        const terms = selectedOrder?.lng_terms;
+        return terms ? initialLngTakerTerms(terms) : undefined;
     }, [selectedOrder]);
     const tradeInFlightRef = useRef(false);
     const [pendingCancellation, setPendingCancellation] = useState<OrderBookOrder | null>(null);
@@ -772,6 +783,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const openTradeModal = (order: OrderBookOrder) => {
         if (!isOrderbookMarketProduct(order.market_product) || (isMarketSupportActive && !order.is_demo_listing)) return;
         if (order.market_product === 'UCOME_B100' && !b100TradingEnabled) return;
+        if (order.market_product === 'BIO_LNG' && !bioLngTradingEnabled) return;
         if (order.market_product && order.delivery_point_id && order.availability_window) {
             analytics.track('listing_opened', {
                 product: order.market_product,
@@ -782,6 +794,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             });
         }
         setTradeFameInput(null);
+        setTradeLngInput(null);
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         setSelectedOrder(order);
@@ -1010,6 +1023,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
             setTradeFameInput({ fame_terms: terms, ...declarations });
         }
+        if (selectedOrder.market_product === 'BIO_LNG') {
+            if (!bioLngTradingEnabled || !selectedOrder.lng_terms || !tradeLngTermsForm.current) {
+                setTradeError(t('marketplace.bioLng.missingTerms'));
+                return;
+            }
+            if (!tradeLngTermsForm.current.reportValidity()) return;
+            const side = selectedOrder.side === 'ASK' ? 'BID' : 'ASK';
+            const terms = readLngOrderTerms(new FormData(tradeLngTermsForm.current), side);
+            const validationError = validateLngOrderTerms(terms);
+            if (validationError) { setTradeError(t(validationError)); return; }
+            setTradeLngInput({ lng_terms: terms });
+        }
         analytics.track('trade_confirmation_opened', {
             side: selectedOrder.side,
             demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
@@ -1047,6 +1072,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
         if (!retainedRequest && selectedOrder.market_product === 'UCOME_B100' && (!b100TradingEnabled || !tradeFameInput?.fame_terms
             || !Number.isInteger(selectedOrder.version) || (selectedOrder.version ?? 0) < 1)) return;
+        if (!retainedRequest && selectedOrder.market_product === 'BIO_LNG'
+            && (!bioLngTradingEnabled || !tradeLngInput?.lng_terms)) return;
         setTradeState('submitting');
         tradeInFlightRef.current = true;
         try {
@@ -1056,6 +1083,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 expected_terms_digest: selectedOrder.terms_digest!,
                 ...(selectedOrder.market_product === 'UCOME_B100'
                     ? { ...tradeFameInput, expected_order_version: selectedOrder.version } : {}),
+                ...(selectedOrder.market_product === 'BIO_LNG' ? { ...tradeLngInput } : {}),
             };
             const signature = JSON.stringify(requestPayload);
             if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
@@ -1078,6 +1106,10 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 tradeRequestRef.current = null;
                 setTradeNeedsRefresh(true);
                 setTradeError(t('marketplace.modal.reviewRequired'));
+                setTradeState('error');
+            } else if (err instanceof ApiError && err.code === 'LNG_TERMS_INCOMPATIBLE') {
+                tradeRequestRef.current = null;
+                setTradeError(t('marketplace.bioLng.incompatible'));
                 setTradeState('error');
             } else {
                 tradeRequestRef.current = null;
@@ -1827,14 +1859,25 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                         <SkeletonRows />
                                     ) : filteredListings.length > 0 ? (
                                         filteredListings.map(order => (
-                                            <tr
-                                                key={order.id}
-                                                data-order-id={order.id}
-                                                data-tour="marketplace-listing-row"
-                                                className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
-                                            >
-                                                {configBase.columns.map(col => renderCell(col, order))}
-                                            </tr>
+                                            <React.Fragment key={order.id}>
+                                                <tr
+                                                    data-order-id={order.id}
+                                                    data-tour="marketplace-listing-row"
+                                                    className={`h-9 border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors duration-150 ${getFuelRowClasses(order.fuel_type)} ${highlightedOrderId === order.id ? 'ring-2 ring-emerald-400/70 bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}
+                                                >
+                                                    {configBase.columns.map(col => renderCell(col, order))}
+                                                </tr>
+                                                {order.market_product === 'BIO_LNG' && order.lng_terms && (
+                                                    <tr className="border-b border-sky-100 bg-sky-50/40 dark:border-sky-950/40 dark:bg-sky-950/10">
+                                                        <td colSpan={configBase.columns.length} className="px-4 py-2 align-top">
+                                                            <details>
+                                                                <summary className="cursor-pointer text-xs font-medium text-slate-500 dark:text-slate-400">{t('marketplace.bioLng.orderTerms')}</summary>
+                                                                <div className="mt-3 max-w-3xl"><LngOrderTermsDetails terms={order.lng_terms} /></div>
+                                                            </details>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         ))
                                     ) : (
                                         <tr>
@@ -1871,7 +1914,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             {/* ─── Trade Confirmation Modal ─────────────────────────── */}
             {!isHistorySelected && selectedOrder && tradeState !== 'idle' && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
+                    <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-h-[90dvh] overflow-y-auto ${selectedOrder.market_product === 'UCOME_B100' || selectedOrder.market_product === 'BIO_LNG' ? 'max-w-3xl' : 'max-w-lg'}`} data-tour="trade-modal">
                         {tradeState === 'success' ? (
                             <div className="p-8 flex flex-col items-center text-center">
                                 <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -2069,6 +2112,21 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <h4 className="mb-3 text-sm font-bold">{t('marketplace.b100.takerTerms')}</h4>
                                             <FameOrderTermsDetails terms={tradeFameInput.fame_terms} />
                                             <p className="mt-3 text-xs text-slate-500">{t('marketplace.b100.reviewTerms')}</p>
+                                        </section>}
+                                        {tradeError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{tradeError}</p>}
+                                    </div>}
+                                    {selectedOrder.market_product === 'BIO_LNG' && <div className="space-y-4">
+                                        {selectedOrder.lng_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
+                                            <summary className="cursor-pointer text-sm font-bold">{t('marketplace.bioLng.orderTerms')}</summary>
+                                            <div className="mt-4"><LngOrderTermsDetails terms={selectedOrder.lng_terms} /></div>
+                                        </details>}
+                                        <form ref={tradeLngTermsForm} aria-label={t('marketplace.bioLng.takerTerms')} hidden={tradeState !== 'confirming'} onSubmit={event => { event.preventDefault(); reviewTrade(); }}>
+                                            <LngOrderFields side={selectedOrder.side === 'ASK' ? 'BID' : 'ASK'} initial={initialLngTaker} pending={tradeState !== 'confirming'} />
+                                        </form>
+                                        {tradeState === 'reviewing' && tradeLngInput?.lng_terms && <section className="rounded-lg border border-emerald-200 p-4 dark:border-emerald-900">
+                                            <h4 className="mb-3 text-sm font-bold">{t('marketplace.bioLng.takerTerms')}</h4>
+                                            <LngOrderTermsDetails terms={tradeLngInput.lng_terms} />
+                                            <p className="mt-3 text-xs text-slate-500">{t('marketplace.bioLng.reviewTerms')}</p>
                                         </section>}
                                         {tradeError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{tradeError}</p>}
                                     </div>}
