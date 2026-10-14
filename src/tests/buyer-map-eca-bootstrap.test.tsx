@@ -16,6 +16,9 @@ const mapState = vi.hoisted(() => ({
     setStyle: ReturnType<typeof vi.fn>;
   }>,
   theme: 'light',
+  // Mapbox isStyleLoaded() is false until every source has loaded its tiles,
+  // even after 'style.load' has fired.
+  sourcesLoaded: true,
 }));
 
 vi.mock('../map/loadEcaLayers', () => ({ loadEcaLayers: overlay.loadEcaLayers }));
@@ -59,7 +62,7 @@ vi.mock('mapbox-gl', () => {
     getLayer() { return undefined; }
     getSource() { return undefined; }
     hasImage() { return true; }
-    isStyleLoaded() { return this.styleLoaded; }
+    isStyleLoaded() { return this.styleLoaded && mapState.sourcesLoaded; }
     loaded() { return true; }
     on(event: string, callback: () => void) {
       const listeners = this.listeners.get(event) ?? new Set<() => void>();
@@ -103,6 +106,7 @@ beforeEach(() => {
   mapState.events.length = 0;
   mapState.instances.length = 0;
   mapState.theme = 'light';
+  mapState.sourcesLoaded = true;
   overlay.addEcaLayers.mockReset().mockImplementation(() => mapState.events.push('eca'));
   overlay.setEcaLayersVisible.mockReset();
   overlay.loadEcaLayers.mockReset().mockResolvedValue({
@@ -161,6 +165,22 @@ it('waits for the initial Mapbox style before ECA and reinstalls the overlay aft
     visible: false,
   });
   expect(overlay.loadEcaLayers).toHaveBeenCalledOnce();
+});
+
+it('installs ECA when its data arrives while basemap tiles are still loading', async () => {
+  render(<MemoryRouter><BuyerMap active {...props} /></MemoryRouter>);
+
+  await waitFor(() => expect(mapState.instances).toHaveLength(1));
+  const currentMap = mapState.instances[0];
+  mapState.sourcesLoaded = false;
+
+  act(() => currentMap.emit('style.load'));
+
+  await waitFor(() => expect(overlay.addEcaLayers).toHaveBeenCalledOnce());
+  expect(overlay.addEcaLayers).toHaveBeenLastCalledWith(currentMap, {
+    isDark: false,
+    visible: true,
+  });
 });
 
 it('does not load ECA after unmounting before the initial style is ready', async () => {
