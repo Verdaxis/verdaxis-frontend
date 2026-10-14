@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 
 const controls = vi.hoisted(() => ({
     summary: vi.fn(),
@@ -12,11 +12,18 @@ const controls = vi.hoisted(() => ({
     OutcomeUnknown: class extends Error {},
 }));
 
-vi.mock('../services/api', () => ({
-    ApiOutcomeUnknownError: controls.OutcomeUnknown,
-    isKycRequiredError: () => false,
-    api: { trades: controls },
-}));
+// Use the real ApiError and isKycRequiredError so the KYC branch is reached
+// through the same detection the app uses; the outcome-unknown class stays a
+// controllable stub.
+vi.mock('../services/api', async importOriginal => {
+    const actual = await importOriginal<typeof import('../services/api')>();
+    return {
+        ApiError: actual.ApiError,
+        isKycRequiredError: actual.isKycRequiredError,
+        ApiOutcomeUnknownError: controls.OutcomeUnknown,
+        api: { trades: controls },
+    };
+});
 vi.mock('../hooks/useWatchlist', () => ({
     useWatchlist: () => ({ radar: null, events: [], loading: false, error: null, refresh: controls.refreshWatchlist }),
 }));
@@ -140,6 +147,19 @@ describe('Command Center trade summaries and action queue', () => {
         await waitFor(() => expect(controls.summary).toHaveBeenCalledTimes(2));
         expect(controls.myTradesPaged).toHaveBeenCalledTimes(2);
         expect(screen.getByText('21')).toBeTruthy();
+    });
+
+    it('shows the KYC reason and the /kyc link when a confirmation is blocked', async () => {
+        const { ApiError } = await import('../services/api');
+        controls.confirm.mockRejectedValueOnce(new ApiError('Complete KYC verification to trade.', 403, 'KYC_REQUIRED'));
+        renderWithProviders(<CommandCenter viewMode="BUYER" onNavigate={vi.fn()} />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Confirm' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Confirm' }).at(-1)!);
+
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByRole('heading', { name: 'KYC verification required' })).toBeTruthy();
+        // The /kyc link lives inside the confirmation dialog, not only the page banner.
+        expect(within(dialog).getByRole('link', { name: 'Complete KYC' }).getAttribute('href')).toBe('/kyc');
     });
 
     it('keeps the confirmation modal open and retries with the same key', async () => {
