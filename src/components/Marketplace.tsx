@@ -21,7 +21,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
 import type { PaginatedResult } from '../services/api';
-import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Trade, TradeCreateInput } from '../types';
+import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Product, Trade, TradeCreateInput } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
 import { createIdempotencyKey } from '../utils/idempotencyKey';
@@ -53,6 +53,7 @@ import { BioLngBidTermsFields } from './trading/BioLngTermsFields';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
+import { resolveTradingLane, isPointInLane } from '../utils/tradingLane';
 import { MARKETPLACE_SELECTION_STORAGE_KEYS } from '../utils/marketplaceSelection';
 import { useWatchlist } from '../hooks/useWatchlist';
 import { getWatchlistSliceKeyFromParts } from '../utils/watchlist';
@@ -183,6 +184,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [storedDeliveryPointId, setStoredDeliveryPointId] = useState(() => localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.deliveryPointId) || '');
     const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
     const [deliveryPointsStatus, setDeliveryPointsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
+    const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+    const [catalogProductsStatus, setCatalogProductsStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
     const [marketProduct, setMarketProduct] = useState<typeof ALL_MARKET_PRODUCTS | MarketProduct>(() => initialSlice?.product ?? readStoredMarketProduct());
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
         if (initialSlice) return initialSlice.window as AvailabilityWindow;
@@ -213,6 +216,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
         return deliveryPoints.find(point => point.name.trim().toLowerCase() === q)?.id || '';
     }, [deliveryPoints, resolvedPort, storedDeliveryPointId]);
+
+    // A product may restrict the delivery points it trades at (bio-LNG is
+    // Rotterdam only). The catalog is the source of truth, and a declared lane
+    // that resolves to nothing allows nothing.
+    const tradingLane = useMemo(
+        () => resolveTradingLane(
+            catalogProducts,
+            deliveryPoints,
+            marketProduct === ALL_MARKET_PRODUCTS ? null : marketProduct,
+        ),
+        [catalogProducts, deliveryPoints, marketProduct],
+    );
+    const catalogSettled = catalogProductsStatus !== 'loading' && deliveryPointsStatus !== 'loading';
 
     const currentSliceTarget = useMemo(() => {
         if (marketProduct === ALL_MARKET_PRODUCTS || !resolvedPort || !availability) return null;
@@ -324,7 +340,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     useEffect(() => {
         if (!ready) return;
         let cancelled = false;
-        const loadDeliveryPoints = async () => {
+        const loadCatalog = async () => {
             try {
                 const response = await api.catalog.deliveryPoints();
                 if (!cancelled) {
@@ -338,9 +354,22 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                     setDeliveryPointsStatus('failed');
                 }
             }
+            try {
+                const products = await api.catalog.products();
+                if (!cancelled) {
+                    setCatalogProducts(products.filter(product => product.is_active !== false));
+                    setCatalogProductsStatus('ready');
+                }
+            } catch (error) {
+                console.warn('Marketplace catalog products unavailable', error);
+                if (!cancelled) {
+                    setCatalogProducts([]);
+                    setCatalogProductsStatus('failed');
+                }
+            }
         };
 
-        loadDeliveryPoints();
+        loadCatalog();
         return () => {
             cancelled = true;
         };
@@ -541,6 +570,28 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [availability, marketProduct, resolvedPort]);
 
+    // A stored or deep-linked port the product's lane does not allow must not
+    // stand. Correct it to the product's first allowed port, or to no port at
+    // all, so a restriction never widens into an unsupported slice.
+    useEffect(() => {
+        if (!catalogSettled || !tradingLane) return;
+        // Wait until the deep-linked product is the active one before judging its port.
+        if (initialSlice && marketProduct !== initialSlice.product) return;
+        if (!resolvedPort || isPointInLane(tradingLane, resolvedPort)) return;
+
+        const [firstAllowed] = tradingLane.points;
+        setPortInput(firstAllowed ? firstAllowed.name : '');
+        if (initialSlice) {
+            navigate(
+                firstAllowed
+                    ? sliceToPath({ product: marketProduct as MarketProduct, port: firstAllowed.name, window: initialSlice.window })
+                    : '/app/marketplace',
+                { replace: true },
+            );
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [catalogSettled, initialSlice?.product, initialSlice?.window, marketProduct, resolvedPort, tradingLane]);
+
     // ─── Persist filter selections to localStorage ──────────────
     useEffect(() => {
         localStorage.setItem(MARKETPLACE_SELECTION_STORAGE_KEYS.port, portInput);
@@ -575,15 +626,16 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         }
     }, [availability, initialSlice?.window, ready]);
 
+    // Offer only the ports the selected product trades at.
     const portOptions = useMemo(() => ([
         { value: '', label: t('marketplace.filter.allPorts') },
-        ...PORTS.map((port) => ({
+        ...PORTS.filter((port) => !tradingLane || isPointInLane(tradingLane, port.name)).map((port) => ({
             value: port.name,
             label: port.name,
             description: port.country,
             tourId: port.name === 'Singapore' ? 'marketplace-port-option-singapore' : undefined,
         })),
-    ]), [t]);
+    ]), [t, tradingLane]);
 
     const sliceSummary = useMemo(() => {
         const parts = [
