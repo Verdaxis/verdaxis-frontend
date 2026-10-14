@@ -8,12 +8,13 @@ import {
     getAvailabilityWindowSummary,
 } from '../utils/availabilityWindow';
 import { VerdaxisSelect } from './ui/VerdaxisSelect';
-import { ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { formatMarketProduct, getProductDisplayName } from '../utils/marketProduct';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { analytics } from '../services/analytics';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type MarketSupportDraftSummary } from './market-support/MarketSupportFinalConfirmation';
+import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import i18n from '../i18n';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { formatOrderExpiry } from '../utils/fuel';
@@ -157,6 +158,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
+    const [kycBlocked, setKycBlocked] = useState(false);
     const [matchResult, setMatchResult] = useState<any>(null);
     const submissionRef = useRef<SubmissionRequest | null>(null);
     const submissionInFlightRef = useRef(false);
@@ -172,6 +174,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (submissionInFlightRef.current) return;
         setModalState('form');
         setErrorMessage('');
+        setKycBlocked(false);
         setMatchResult(null);
         submissionRef.current = null;
         submissionInFlightRef.current = false;
@@ -191,6 +194,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             setFormData(initialForm);
             setModalState('form');
             setErrorMessage('');
+            setKycBlocked(false);
             setMatchResult(null);
             submissionRef.current = null;
             supportRequestRef.current = null;
@@ -551,6 +555,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
         setModalState('submitting');
         setErrorMessage('');
+        setKycBlocked(false);
         submissionInFlightRef.current = true;
 
         try {
@@ -585,6 +590,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             if (err instanceof ApiOutcomeUnknownError) {
                 setErrorMessage(t('orderPlaceModal.outcomeUnknown.body'));
                 setModalState('outcome_unknown');
+            } else if (isKycRequiredError(err)) {
+                // The notice below carries the reason and the /kyc link.
+                setKycBlocked(true);
+                setErrorMessage('');
+                setModalState('error');
             } else {
                 setErrorMessage(i18n.language.startsWith('zh') ? t('orderPlaceModal.error.fallback') : err.message || t('orderPlaceModal.error.fallback'));
                 setModalState('error');
@@ -696,8 +706,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                 <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${modalState === 'outcome_unknown' ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
                                     <AlertTriangle size={32} className={modalState === 'outcome_unknown' ? 'text-amber-500' : 'text-red-500'} />
                                 </div>
-                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t(modalState === 'outcome_unknown' ? 'orderPlaceModal.outcomeUnknown.title' : 'orderPlaceModal.error.title')}</h3>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>
+                                <h3 id="order-place-result-title" className="text-xl font-bold text-slate-900 dark:text-white mb-2">{t(kycBlocked ? 'common:kycGate.blocked.title' : modalState === 'outcome_unknown' ? 'orderPlaceModal.outcomeUnknown.title' : 'orderPlaceModal.error.title')}</h3>
+                                {errorMessage && <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{errorMessage}</p>}
+                                {kycBlocked && <KycRequiredNotice className="mb-4" />}
                                 {modalState === 'outcome_unknown' && submissionRef.current && <button type="button" onClick={retrySubmission} className="mb-3 w-full rounded-lg border border-amber-500 px-3 py-2 text-sm font-bold text-amber-700 dark:text-amber-300">{t('orderPlaceModal.btn.retrySafely')}</button>}
                             </>
                         ) : modalState === 'auto_matched' ? (

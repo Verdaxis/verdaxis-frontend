@@ -12,7 +12,11 @@ const controls = vi.hoisted(() => ({
     OutcomeUnknown: class extends Error {},
 }));
 
-vi.mock('../services/api', () => ({ ApiOutcomeUnknownError: controls.OutcomeUnknown, api: { trades: controls } }));
+vi.mock('../services/api', () => ({
+    ApiOutcomeUnknownError: controls.OutcomeUnknown,
+    isKycRequiredError: () => false,
+    api: { trades: controls },
+}));
 vi.mock('../hooks/useWatchlist', () => ({
     useWatchlist: () => ({ radar: null, events: [], loading: false, error: null, refresh: controls.refreshWatchlist }),
 }));

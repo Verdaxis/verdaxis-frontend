@@ -29,18 +29,23 @@ function reviewAndConfirm(side: 'Bid' | 'Ask') {
   fireEvent.click(screen.getByRole('button', { name: `Confirm and place ${side}` }));
 }
 
-vi.mock('../services/api', () => ({
-  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
-  api: {
-    catalog: {
-      products: (...args: unknown[]) => productsMock(...args),
-      deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args),
+vi.mock('../services/api', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/api')>();
+  return {
+    ApiError: actual.ApiError,
+    isKycRequiredError: actual.isKycRequiredError,
+    ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+    api: {
+      catalog: {
+        products: (...args: unknown[]) => productsMock(...args),
+        deliveryPoints: (...args: unknown[]) => deliveryPointsMock(...args),
+      },
+      orderbook: {
+        create: (...args: unknown[]) => createOrderMock(...args),
+      },
     },
-    orderbook: {
-      create: (...args: unknown[]) => createOrderMock(...args),
-    },
-  },
-}));
+  };
+});
 
 vi.mock('../context/MarketSupportContext', () => ({
   useMarketSupport: () => marketSupportControl.current,

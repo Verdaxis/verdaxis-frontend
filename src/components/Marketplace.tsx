@@ -19,7 +19,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { ApiError, ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiError, ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import type { PaginatedResult } from '../services/api';
 import { Port, OrderBookOrder, AvailabilityWindow, MarketProduct, MARKET_PRODUCTS, ViewMode, DeliveryPoint, ListingComplianceOverlay, ComplianceOverlayAssumptions, Trade, TradeCreateInput } from '../types';
 import { getAuthGeneration } from '../services/authToken';
@@ -27,6 +27,7 @@ import { getMarketSupportContextId } from '../services/marketSupportContextStore
 import { createIdempotencyKey } from '../utils/idempotencyKey';
 import { PORTS } from '../data';
 import { OrderPlaceModal } from './OrderPlaceModal';
+import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { Pagination } from './ui/Pagination';
 import {
     getFuelRowClasses,
@@ -256,6 +257,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeQuantity, setTradeQuantity] = useState(0);
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
+    const [tradeKycBlocked, setTradeKycBlocked] = useState(false);
     const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
     const [tradeResult, setTradeResult] = useState<Trade | null>(null);
     const tradeRequestRef = useRef<{
@@ -712,6 +714,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeQuantity(order.remaining_quantity_mt);
         setTradeState('confirming');
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
@@ -878,6 +881,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setSelectedOrder(null);
         setTradeState('idle');
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
@@ -925,6 +929,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             demo_status: selectedOrder.is_demo_listing ? 'DEMO' : 'LIVE',
         });
         setTradeError('');
+        setTradeKycBlocked(false);
         setTradeState('reviewing');
     };
 
@@ -984,6 +989,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 tradeRequestRef.current = null;
                 setTradeNeedsRefresh(true);
                 setTradeError(t('marketplace.modal.reviewRequired'));
+                setTradeState('error');
+            } else if (isKycRequiredError(err)) {
+                tradeRequestRef.current = null;
+                setTradeKycBlocked(true);
+                setTradeError('');
                 setTradeState('error');
             } else {
                 tradeRequestRef.current = null;
@@ -1832,7 +1842,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <AlertCircle size={28} className="text-red-500" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
+                                {tradeError && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>}
+                                {tradeKycBlocked && <KycRequiredNotice className="mb-4 w-full" />}
                                 {tradeNeedsRefresh && (
                                     <button
                                         type="button"
