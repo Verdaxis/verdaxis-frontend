@@ -852,7 +852,7 @@
   "bioLng.helper.sellerIsPhysicalSupplier": "Leave this off when you resell, and name the licensed physical supplier or bunkering partner instead.",
   "bioLng.helper.physicalSupplierName": "Your organization when you are the physical supplier, or the licensed supplier you resell.",
   "bioLng.helper.posTiming": "When the buyer receives the batch Proof of Sustainability.",
-  "bioLng.helper.acceptResellers": "Leave this off to accept offers from physical suppliers only.",
+  "bioLng.helper.acceptResellers": "Turn this on to accept physical suppliers only (refuse resellers).",
   "bioLng.helper.optionalAny": "Leave blank to accept any value.",
   "bioLng.option.scheme.ISCC_EU": "ISCC EU",
   "bioLng.option.scheme.REDCERT_EU": "REDcert-EU",

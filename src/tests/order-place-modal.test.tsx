@@ -1227,6 +1227,8 @@ describe('OrderPlaceModal bio-LNG terms', () => {
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
     expect(screen.getByText('Bio-LNG requirements')).toBeTruthy();
 
+    // The helper text must match the switch: turning it on refuses resellers.
+    expect(screen.getByText('Turn this on to accept physical suppliers only (refuse resellers).')).toBeTruthy();
     fireEvent.click(screen.getByLabelText(/Physical suppliers only/));
     setPrice();
     expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', false);
@@ -1234,6 +1236,8 @@ describe('OrderPlaceModal bio-LNG terms', () => {
     reviewAndConfirm('Bid');
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    // Switch on => accept_resellers false; the default (off) accepts resellers.
+    expect(createOrderMock.mock.calls[0][0].lng_terms.accept_resellers).toBe(false);
     expect(createOrderMock.mock.calls[0][0]).toMatchObject({
       side: 'BID',
       product_id: 'prod-bio-lng',

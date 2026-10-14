@@ -852,7 +852,7 @@
   "bioLng.helper.sellerIsPhysicalSupplier": "转售时请勿勾选，并改为填写持牌的实物供应商或加注合作伙伴。",
   "bioLng.helper.physicalSupplierName": "我方为实物供应商时填写本组织名称；转售时填写持牌供应商名称。",
   "bioLng.helper.posTiming": "买方可获得批次可持续性证明的时间。",
-  "bioLng.helper.acceptResellers": "不勾选即仅接受实物供应商的卖单。",
+  "bioLng.helper.acceptResellers": "勾选后仅接受实物供应商的卖单（拒绝转售方）。",
   "bioLng.helper.optionalAny": "留空表示接受任意数值。",
   "bioLng.option.scheme.ISCC_EU": "ISCC EU",
   "bioLng.option.scheme.REDCERT_EU": "REDcert-EU",
