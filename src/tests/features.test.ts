@@ -85,6 +85,7 @@ describe('Green Fuels Market Products', () => {
             'BIO_ETHANOL',
             'SYNTHETIC_ETHANOL',
             'UCOME_B100',
+            'BIO_LNG',
         ]);
         expect(ORDERBOOK_MARKET_PRODUCTS).toEqual(MARKET_PRODUCTS);
     });

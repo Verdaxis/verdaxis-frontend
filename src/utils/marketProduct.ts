@@ -8,6 +8,7 @@ export const MARKET_PRODUCT_LABELS: Record<string, string> = {
   E_METHANOL: 'e-Methanol',
   SYNTHETIC_ETHANOL: 'e-Ethanol',
   UCOME_B100: 'UCOME B100',
+  BIO_LNG: 'Bio-LNG',
 };
 
 export function isOrderbookMarketProduct(value: string | null | undefined): value is OrderbookMarketProduct {
@@ -17,9 +18,11 @@ export function isOrderbookMarketProduct(value: string | null | undefined): valu
 export function isOrderbookProduct(product: Product): boolean {
   if (!product.is_active || !isOrderbookMarketProduct(product.market_product)) return false;
   if (product.execution_mode === 'ORDERBOOK') return true;
-  // Alcohol catalogs historically omitted this flag. B100 requires the
+  // Alcohol catalogs historically omitted this flag. B100 and Bio-LNG require the
   // explicit capability so a stale RFQ-only catalog cannot enable execution.
-  return product.execution_mode == null && product.market_product !== 'UCOME_B100';
+  return product.execution_mode == null
+    && product.market_product !== 'UCOME_B100'
+    && product.market_product !== 'BIO_LNG';
 }
 
 export function formatMarketProduct(value: string | null | undefined): string {

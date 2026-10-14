@@ -6,6 +6,8 @@ import { formatOrderExpiry } from '../../utils/fuel';
 import { useNamespace } from '../../hooks/useNamespace';
 import type { FameOrderTerms } from '../../types/fameOrder';
 import { FameOrderTermsDetails } from '../fame/FameOrderTermsDetails';
+import type { LngOrderTerms } from '../../types/lngOrder';
+import { LngOrderTermsDetails } from '../lng/LngOrderTermsDetails';
 
 export interface MarketSupportConfirmation {
   external_instruction_reference: string;
@@ -30,6 +32,7 @@ export interface MarketSupportDraftSummary {
   feedstock: string;
   origin: string;
   fameTerms?: FameOrderTerms;
+  lngTerms?: LngOrderTerms;
 }
 
 interface MarketSupportFinalConfirmationProps {
@@ -57,7 +60,7 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
   });
   const [exactTerms, setExactTerms] = useState(false);
   const [standingOrder, setStandingOrder] = useState(false);
-  const termsReady = !draft.fameTerms || (rfqReady && tradingReady);
+  const termsReady = (!draft.fameTerms || (rfqReady && tradingReady)) && (!draft.lngTerms || tradingReady);
   const valid = Boolean(termsReady && externalReference.trim() && instructionTime && exactTerms && standingOrder);
   const sideLabel = t(`marketSupport.confirm.side.${draft.side.toLowerCase()}`);
 
@@ -79,7 +82,7 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
     [t('marketSupport.confirm.quantity'), `${draft.quantityMt.toLocaleString(i18n.language)} MT`],
     [t('marketSupport.confirm.price'), `$${draft.pricePerMtUsd.toFixed(2)}/MT`],
     [t('marketSupport.confirm.expiry'), formatOrderExpiry(draft.expiresAt, i18n.language, t('marketSupport.confirm.goodTillCancelled'), true)],
-    ...(draft.side === 'ASK' && !draft.fameTerms ? [
+    ...(draft.side === 'ASK' && !draft.fameTerms && !draft.lngTerms ? [
       [t('marketSupport.confirm.certification'), draft.certificationScheme],
       [t('marketSupport.confirm.specification'), draft.specificationStandard],
       [t('marketSupport.confirm.msds'), t(draft.msdsAvailable ? 'status.available' : 'status.notAvailable')],
@@ -114,6 +117,7 @@ export const MarketSupportFinalConfirmation: React.FC<MarketSupportFinalConfirma
           ))}
         </dl>
         {draft.fameTerms && <div className="mt-4 border-t border-amber-200 pt-4 dark:border-amber-700/50"><FameOrderTermsDetails terms={draft.fameTerms} /></div>}
+        {draft.lngTerms && <div className="mt-4 border-t border-amber-200 pt-4 dark:border-amber-700/50"><LngOrderTermsDetails terms={draft.lngTerms} /></div>}
       </div>
       <div className="space-y-3.5">
         <label className="block text-xs font-bold uppercase text-slate-500">
