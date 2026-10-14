@@ -73,6 +73,8 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo or reference values into executable claims.
 
+**KYC execution gate.** `AuthContext` exposes `execution_eligibility` from `/api/auth/me`. `Layout` renders `KycDeadlineBanner` for `KYC_GRACE`, `KYC_REQUIRED`, and `KYC_REJECTED`; it links to `/kyc` and shows the grace deadline when present. A blocked execution returns HTTP 403 with code `KYC_REQUIRED`; `isKycRequiredError` in `api.ts` detects it and `KycRequiredNotice` shows the localized reason with the same link in the order modal and the take and confirm actions. Cleanup commands (cancel, decline, deliver, pay) stay enabled.
+
 ## File map
 
 ```text
@@ -87,6 +89,8 @@ src/
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
+    layout/KycDeadlineBanner.tsx    KYC grace/required/rejected deadline notice
+    kyc/KycRequiredNotice.tsx       localized KYC_REQUIRED notice with /kyc link
     Marketplace.tsx                market/listings/orderbook workspace
     OrderBook.tsx                   depth and level interaction
     OrderPlaceModal.tsx             shared BID/ASK entry

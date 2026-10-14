@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { Sidebar } from './layout/Sidebar';
 import { Header } from './layout/Header';
 import { ActingOrganizationBanner } from './market-support/ActingOrganizationBanner';
+import { KycDeadlineBanner } from './layout/KycDeadlineBanner';
 import { useMarketSupport } from '../context/MarketSupportContext';
 import { FeedbackButton } from './FeedbackButton';
 import { useTranslation } from 'react-i18next';
@@ -79,6 +80,8 @@ export const Layout: React.FC<LayoutProps> = ({
                     });
                 }} />}
                 {exitError && <div role="alert" className="border-b border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-800 dark:bg-red-950/60 dark:text-red-100">{exitError}</div>}
+
+                <KycDeadlineBanner eligibility={user?.execution_eligibility} />
 
                 <main
                     data-dashboard-page={currentPage}
