@@ -184,6 +184,8 @@
       "ammonia": "氨燃料",
       "ethanol": "乙醇",
       "biomethane": "生物甲烷",
+      "lng": "液化天然气",
+      "biolng": "生物液化天然气",
       "biomethanol": "Bio Methanol",
       "emethanol": "E-Methanol",
       "bioethanol": "Bio Ethanol",
