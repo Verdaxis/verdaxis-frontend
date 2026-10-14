@@ -23,6 +23,7 @@ import { Layout } from './components/Layout';
 import { OrderPlaceModal } from './components/OrderPlaceModal';
 import { ViewMode, Page, PAGE_SLUGS, Port, AvailabilityWindow } from './types';
 import { MarketSlice, parseSlicePath, sliceToPath, UCOME_MARKETPLACE_PATH } from './utils/sliceUrl';
+import { isOrderbookMarketProduct } from './utils/marketProduct';
 import {
   cancelDashboardNavigation,
   recordDashboardNavigationStart,
@@ -360,6 +361,12 @@ const DashboardLayout: React.FC = () => {
     onOpenSlice: handleOpenSlice,
   };
 
+  // A marketplace product deep link preselects that product in the sidebar order modal.
+  const marketplaceDeepLinkProduct = new URLSearchParams(location.search).get('product');
+  const sidebarPrefillProduct = sidebarMarketSlice?.product
+    ?? (currentPage === 'MARKETPLACE' && isOrderbookMarketProduct(marketplaceDeepLinkProduct)
+      ? marketplaceDeepLinkProduct : undefined);
+
   if (isMarketSupportLoading) {
     return <LoadingScreen fullScreen label={t('marketSupport.restoring')} />;
   }
@@ -404,9 +411,7 @@ const DashboardLayout: React.FC = () => {
         isOpen={sidebarModalSide !== null}
         onClose={() => setSidebarModalSide(null)}
         side={sidebarModalSide || 'BID'}
-        prefillMarketProduct={sidebarMarketSlice?.product ?? (currentPage === 'MARKETPLACE'
-          && new URLSearchParams(location.search).get('product') === 'UCOME_B100'
-          ? 'UCOME_B100' : undefined)}
+        prefillMarketProduct={sidebarPrefillProduct}
         prefillRegion={sidebarMarketSlice?.port}
         prefillAvailabilityWindow={sidebarMarketSlice?.window as AvailabilityWindow | undefined}
       />

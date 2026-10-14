@@ -43,6 +43,11 @@ const CATALOG_PRODUCTS: Product[] = [{
   fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 1,
   is_active: true, execution_mode: 'ORDERBOOK',
   available_delivery_point_ids: ['dp-singapore-uuid'],
+}, {
+  id: 'product-bio-lng', name: 'Bio-LNG', market_product: 'BIO_LNG',
+  fuel_type: 'LNG', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 1,
+  is_active: true, execution_mode: 'ORDERBOOK',
+  available_delivery_point_ids: ['dp-rotterdam-uuid'],
 }];
 
 const makeSummary = (overrides: Record<string, unknown> = {}) => ({
@@ -113,9 +118,9 @@ describe('MarketWatchTicker', () => {
 
     await waitFor(() => expect(screen.getAllByText('Demo').length).toBeGreaterThan(0), { timeout: 5000 });
 
-    expect(screen.getByText(/5 selected fuels/)).toBeTruthy();
+    expect(screen.getByText(/6 selected fuels/)).toBeTruthy();
     expect(priceSummariesMock).toHaveBeenCalledExactlyOnceWith({ availability_window: 'SPOT', hours: 168 });
-    for (const label of ['Bio Methanol', 'e-Methanol', 'Bio Ethanol', 'e-Ethanol', 'UCOME B100']) {
+    for (const label of ['Bio Methanol', 'e-Methanol', 'Bio Ethanol', 'e-Ethanol', 'UCOME B100', 'Bio-LNG']) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });
@@ -388,7 +393,7 @@ describe('MarketWatchTicker', () => {
       expect(priceSummariesMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByText(/5 selected fuels/)).toBeTruthy();
+    expect(screen.getByText(/6 selected fuels/)).toBeTruthy();
     expect(screen.getByText(/4 points/)).toBeTruthy();
   });
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MARKET_PRODUCTS } from '../types';
 import { APPROVED_TRADING_PORTS } from '../data';
-import { parseSlicePath, sliceToPath } from '../utils/sliceUrl';
+import { isSlicePortAllowed, parseSlicePath, sliceToPath } from '../utils/sliceUrl';
 
 const segmentsOf = (path: string) => {
   const parts = path.split('/');
@@ -74,5 +74,17 @@ describe('slice URL codec', () => {
       expect(parseSlicePath('bio-methanol', 'singapore', junk)).toBeNull();
     }
     expect(parseSlicePath('bio-methanol', 'singapore', undefined)).toBeNull();
+  });
+
+  it('checks a parsed port against the product lane coverage', () => {
+    // The grammar accepts the pair; only the catalog lane decides.
+    expect(parseSlicePath('bio-lng', 'singapore', 'spot')).toEqual({ product: 'BIO_LNG', port: 'Singapore', window: 'SPOT' });
+    expect(isSlicePortAllowed('Singapore', null)).toBe(true);          // no restriction known
+    expect(isSlicePortAllowed('Singapore', ['Rotterdam'])).toBe(false);
+    expect(isSlicePortAllowed('Rotterdam', ['Rotterdam'])).toBe(true);
+    expect(isSlicePortAllowed('rotterdam', ['Rotterdam'])).toBe(true); // case-insensitive
+    expect(isSlicePortAllowed('Singapore', [])).toBe(false);           // fail closed
+    expect(isSlicePortAllowed('', ['Rotterdam'])).toBe(false);
+    expect(isSlicePortAllowed(undefined, ['Rotterdam'])).toBe(false);
   });
 });

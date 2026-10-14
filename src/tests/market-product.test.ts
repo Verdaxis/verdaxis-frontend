@@ -46,6 +46,15 @@ describe('market product display resolution', () => {
     expect(ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value)).toContain('UCOME_B100');
   });
 
+  it('labels Bio-LNG and keeps it out of the alcohol execution fallback', () => {
+    expect(getOrderDisplayName({ market_product: 'BIO_LNG' })).toBe('Bio-LNG');
+    expect(getMarketplaceProductLabel('BIO_LNG')).toBe('Bio-LNG');
+    expect(ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value)).toContain('BIO_LNG');
+    expect(isOrderbookProduct({ ...products[0], market_product: 'BIO_LNG' })).toBe(false);
+    expect(isOrderbookProduct({ ...products[0], market_product: 'BIO_LNG', execution_mode: 'ORDERBOOK' })).toBe(true);
+    expect(isOrderbookProduct({ ...products[0], market_product: 'BIO_LNG', execution_mode: 'RFQ_ONLY' })).toBe(false);
+  });
+
   it('fails closed for RFQ-only products and preserves old alcohol catalog responses', () => {
     expect(isOrderbookProduct(products[0])).toBe(true);
     expect(isOrderbookProduct({ ...products[0], execution_mode: 'ORDERBOOK' })).toBe(true);

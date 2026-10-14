@@ -8,6 +8,7 @@ import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { formatMarketProduct, isOrderbookMarketProduct } from '../utils/marketProduct';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../utils/marketActivity';
+import { lngAskSummary } from './lng/LngOrderTermsDetails';
 import i18n from '../i18n';
 
 interface OrderBookProps {
@@ -265,6 +266,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
     );
     const liveSpread = livePriceCrossState.spread;
     const b100Visible = b100Selected || [...bids, ...asks].some(order => order.market_product === 'UCOME_B100');
+    const bioLngVisible = marketProduct === 'BIO_LNG' || [...bids, ...asks].some(order => order.market_product === 'BIO_LNG');
     const generatedAtMs = generatedAt ? Date.parse(generatedAt) : Number.NaN;
     const snapshotAgeSeconds = Number.isFinite(generatedAtMs)
         ? Math.max(0, Math.floor((clock - generatedAtMs) / 1_000))
@@ -592,6 +594,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                         <div className="mt-3 border-t border-slate-200 pt-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
                             {hoverTooltip.order.delivery_point_name || hoverTooltip.order.region} · {formatAvailabilityWindow(hoverTooltip.order.availability_window, locale)}
                         </div>
+                        {hoverTooltip.order.lng_terms && lngAskSummary(hoverTooltip.order.lng_terms, t) && (
+                            <div className="mt-2 border-t border-slate-200 pt-2 text-[11px] leading-4 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                {lngAskSummary(hoverTooltip.order.lng_terms, t)}
+                            </div>
+                        )}
                     </div>,
                     document.body,
                 )}
@@ -607,6 +614,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ fuelType, marketProduct, e
                     </span>
                 </span>
                 {b100Visible && <p className="w-full text-slate-500 dark:text-slate-400">{t('orderBook.b100Compatibility')}</p>}
+                {bioLngVisible && <p className="w-full text-sky-600 dark:text-sky-400">{t('orderBook.bioLngCompatibility')}</p>}
             </div>
         </div>
     );

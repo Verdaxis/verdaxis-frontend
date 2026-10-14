@@ -34,6 +34,7 @@ import {
 import i18n from '../i18n';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
+import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
@@ -545,6 +546,21 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                                         <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
                                                             <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">{t('myTrades.fameTerms.supplier')}</h3>
                                                             <FameOrderTermsDetails terms={trade.fame_terms_snapshot.ask} />
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </td>
+                                        </tr>}
+                                        {trade.lng_terms_snapshot && <tr className="bg-sky-50/60 dark:bg-sky-950/20">
+                                            <td colSpan={userRole === 'BUYER' ? 8 : 10} className="px-4 py-3 lg:px-6">
+                                                <details open={normalizedStatus === 'PENDING_CONFIRMATION'}>
+                                                    <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">{t('myTrades.lngTerms.title')}</summary>
+                                                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('myTrades.lngTerms.notice')}</p>
+                                                    <div className="mt-4 space-y-5">
+                                                        <LngOrderTermsDetails terms={trade.lng_terms_snapshot.bid} />
+                                                        <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
+                                                            <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-100">{t('myTrades.lngTerms.supplier')}</h3>
+                                                            <LngOrderTermsDetails terms={trade.lng_terms_snapshot.ask} />
                                                         </div>
                                                     </div>
                                                 </details>
