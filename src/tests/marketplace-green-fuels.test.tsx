@@ -7,6 +7,7 @@ import { Marketplace } from '../components/Marketplace';
 import i18n, { loadNamespace } from '../i18n';
 import { activity } from '../services/activityTracking';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
+import { buildLngAskTerms, toPublicLngAskTerms, type LngAskTermsForm } from '../utils/bioLngSpecification';
 
 const { userRole, marketSupportActive, orderPlaceModalSpy, listAsksPaged, listBidsPaged, snapshot, productCounts, myOrders, cancelOrder, deliveryPoints, toggleSlice, togglePin, tradeTapeList, tradesInitiate, pricingOverlay, TestApiError, TestApiOutcomeUnknownError } = vi.hoisted(() => ({
   userRole: { current: 'BUYER' as 'BUYER' | 'SUPPLIER' | 'ADMIN' },
@@ -1244,4 +1245,105 @@ describe('Marketplace green fuels surface', () => {
     expect(document.querySelector('[data-order-id="stale-initial"]')).toBeNull();
   }, 30_000);
 
+});
+
+describe('Marketplace bio-LNG take flow', () => {
+  // Call history only; the shared api mock implementations stay in place.
+  beforeEach(() => tradesInitiate.mockClear());
+
+  const LNG_ASK_FORM: LngAskTermsForm = {
+    sustainability_scheme: 'ISCC_EU',
+    scheme_certificate_number: 'DE-NL-2026-000123',
+    chain_of_custody: 'PHYSICAL_SEGREGATION',
+    union_database_registered: true,
+    bio_share_pct: '97.5',
+    feedstock: 'MANURE',
+    feedstock_detail: '',
+    production_country: 'NL',
+    wtt_ghg_gco2e_mj: '-45.5',
+    min_methane_number: '',
+    delivery_method: 'SHIP_TO_SHIP',
+    seller_is_physical_supplier: false,
+    physical_supplier_name: 'Rotterdam Bio Supplier BV',
+    pos_timing: 'WITH_DELIVERY',
+  };
+
+  const bioLngListing = {
+    ...listingsResponse.items[0],
+    id: 'ask-lng',
+    terms_digest: 'terms-digest-lng',
+    product_id: 'product-lng',
+    product_name: 'Bio-LNG',
+    market_product: 'BIO_LNG',
+    fuel_type: 'LNG',
+    fuel_grade: 'Bio',
+    delivery_point_id: 'dp-2',
+    delivery_point_name: 'Rotterdam',
+    region: 'Europe',
+    price_per_mt_usd: 1420,
+    remaining_quantity_mt: 500,
+    // The order book projection withholds seller identity.
+    lng_terms: toPublicLngAskTerms(buildLngAskTerms(LNG_ASK_FORM).terms!),
+  };
+
+  const openBioLngAsk = async () => {
+    listAsksPaged.mockResolvedValue({ ...listingsResponse, items: [bioLngListing] });
+    renderWithProviders(<Marketplace />);
+    fireEvent.click(await screen.findByRole('button', { name: /Bio-LNG/i }));
+    await waitFor(() => expect(listAsksPaged).toHaveBeenCalledWith(expect.objectContaining({ market_product: 'BIO_LNG' })));
+    fireEvent.click(await screen.findByRole('button', { name: /lift ask/i }));
+    await screen.findByRole('button', { name: /submit trade/i });
+  };
+
+  it('offers the public terms and sends the buyer requirements with the take', async () => {
+    await openBioLngAsk();
+
+    // The public terms carry no certificate number and no physical supplier name.
+    expect(screen.getByText('Bio-LNG terms')).toBeTruthy();
+    expect(screen.getByText('97.5%')).toBeTruthy();
+    expect(screen.getByText(/Excludes engine methane slip/)).toBeTruthy();
+    expect(screen.queryByText('DE-NL-2026-000123')).toBeNull();
+    expect(screen.queryByText('Rotterdam Bio Supplier BV')).toBeNull();
+
+    expect(screen.getByText('Bio-LNG requirements')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Physical suppliers only/));
+    expect(screen.getByText('Physical suppliers only')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit trade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm trade/i }));
+
+    await waitFor(() => expect(tradesInitiate).toHaveBeenCalledWith(expect.objectContaining({
+      order_id: 'ask-lng',
+      quantity_mt: 500,
+      expected_terms_digest: 'terms-digest-lng',
+      lng_terms: expect.objectContaining({
+        side: 'BID',
+        accepted_schemes: ['ISCC_EU', 'REDCERT_EU'],
+        accept_resellers: false,
+      }),
+    })));
+  });
+
+  it('blocks the take until the requirements are complete', async () => {
+    await openBioLngAsk();
+
+    // Clearing every accepted scheme leaves the requirements unsatisfiable.
+    fireEvent.click(screen.getByLabelText('ISCC EU'));
+    fireEvent.click(screen.getByLabelText('REDcert-EU'));
+
+    expect(screen.getByRole('button', { name: /submit trade/i })).toHaveProperty('disabled', true);
+    expect(screen.getByText('Select at least one accepted scheme.')).toBeTruthy();
+    expect(tradesInitiate).not.toHaveBeenCalled();
+  });
+
+  it('explains an incompatible bio-LNG take without counterparty detail', async () => {
+    tradesInitiate.mockRejectedValueOnce(new TestApiError(409, 'LNG_TERMS_INCOMPATIBLE'));
+    await openBioLngAsk();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit trade/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm trade/i }));
+
+    expect(await screen.findByText('Bio-LNG terms incompatible')).toBeTruthy();
+    expect(screen.getByText(/do not satisfy the requirements of the other side/)).toBeTruthy();
+  });
 });

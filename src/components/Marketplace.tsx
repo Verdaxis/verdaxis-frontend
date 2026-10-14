@@ -47,8 +47,9 @@ import {
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
-import { getBioLngSpecification, isLngTermsIncompatibleError } from '../utils/bioLngSpecification';
+import { getBioLngSpecification, isLngTermsIncompatibleError, buildLngBidTerms, createInitialLngBidForm, type LngBidTermsForm } from '../utils/bioLngSpecification';
 import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
+import { BioLngBidTermsFields } from './trading/BioLngTermsFields';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
@@ -262,6 +263,19 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeError, setTradeError] = useState('');
     const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
     const [tradeTermsIncompatible, setTradeTermsIncompatible] = useState(false);
+    // Taking a bio-LNG ask states the buyer's own requirements.
+    const [tradeLngBid, setTradeLngBid] = useState<LngBidTermsForm>(createInitialLngBidForm);
+    const [tradeLngTouched, setTradeLngTouched] = useState(false);
+    const tradeLngBidParse = useMemo(() => buildLngBidTerms(tradeLngBid), [tradeLngBid]);
+    // A buyer states its requirements when it takes a bio-LNG ask.
+    const requiresLngBidTerms = Boolean(
+        selectedOrder?.side === 'ASK' && getBioLngSpecification(selectedOrder.market_product),
+    );
+    const hasTradeLngTerms = !requiresLngBidTerms || tradeLngBidParse.terms !== null;
+    const handleTradeLngBidChange = (patch: Partial<LngBidTermsForm>) => {
+        setTradeLngTouched(true);
+        setTradeLngBid(current => ({ ...current, ...patch }));
+    };
     const [tradeResult, setTradeResult] = useState<Trade | null>(null);
     const tradeRequestRef = useRef<{
         signature: string;
@@ -719,6 +733,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeError('');
         setTradeNeedsRefresh(false);
         setTradeTermsIncompatible(false);
+        setTradeLngBid(createInitialLngBidForm());
+        setTradeLngTouched(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     };
@@ -886,6 +902,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeError('');
         setTradeNeedsRefresh(false);
         setTradeTermsIncompatible(false);
+        setTradeLngBid(createInitialLngBidForm());
+        setTradeLngTouched(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     }, []);
@@ -920,6 +938,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             return;
         }
         if (validateTradeQuantity() == null) return;
+        if (!hasTradeLngTerms) return;
         if (!selectedOrder.terms_digest) {
             tradeRequestRef.current = null;
             setTradeNeedsRefresh(true);
@@ -937,6 +956,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
 
     const confirmTrade = async () => {
         if (!selectedOrder || tradeState === 'submitting' || tradeInFlightRef.current) return;
+        if (!hasTradeLngTerms) return;
         if (selectedOrder.is_demo_listing) {
             setTradeError(t('marketplace.demo.blocked'));
             setTradeState('error');
@@ -969,6 +989,8 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 order_id: selectedOrder.id,
                 quantity_mt: normalizedTradeQuantity,
                 expected_terms_digest: selectedOrder.terms_digest!,
+                // The buyer states its bio-LNG requirements with the take.
+                ...(requiresLngBidTerms ? { lng_terms: tradeLngBidParse.terms } : {}),
             };
             const signature = JSON.stringify(requestPayload);
             if (!retainedRequest && (!tradeRequestRef.current || tradeRequestRef.current.signature !== signature)) {
@@ -1945,6 +1967,14 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
                                                 {t('bioLng.display.confirmedOnly')}
                                             </p>
+                                            {requiresLngBidTerms && (
+                                                <BioLngBidTermsFields
+                                                    form={tradeLngBid}
+                                                    issues={tradeLngBidParse.issues}
+                                                    showIssues={tradeLngTouched}
+                                                    onChange={handleTradeLngBidChange}
+                                                />
+                                            )}
                                         </div>
                                     )}
 
@@ -2010,7 +2040,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             type="button"
                                             onClick={tradeState === 'reviewing' ? confirmTrade : reviewTrade}
                                             data-tour={tradeState === 'reviewing' ? 'trade-final-confirm-button' : 'trade-review-button'}
-                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting'}
+                                            disabled={!Number.isFinite(tradeQuantity) || tradeQuantity <= 0 || tradeQuantity > (selectedOrder?.remaining_quantity_mt ?? 0) || tradeState === 'submitting' || !hasTradeLngTerms}
                                             className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transform active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {tradeState === 'submitting' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}

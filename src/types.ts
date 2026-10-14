@@ -1,5 +1,6 @@
 
 import type {
+    LngBidTerms,
     LngPublicTradeSnapshot,
     LngTradeSnapshot,
     LngVisibleTerms,
@@ -223,6 +224,8 @@ export interface TradeCreateInput {
     order_id: string;
     quantity_mt: number;
     expected_terms_digest: string;
+    /** BIO_LNG only: the buyer's requirements for the ask it is taking. */
+    lng_terms?: LngBidTerms;
     idempotency_key?: string;
 }
 
