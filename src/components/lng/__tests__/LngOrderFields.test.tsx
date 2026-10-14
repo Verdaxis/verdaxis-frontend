@@ -56,9 +56,14 @@ describe('LngOrderFields', () => {
         fill(text('lngTerms.field.certificateNumber'), 'ab');
         expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.certificateNumber');
         fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
+        // ZZ is two uppercase letters but not an ISO 3166-1 alpha-2 code.
+        fill(text('lngTerms.field.productionCountry'), 'ZZ');
+        expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.productionCountry');
         fill(text('lngTerms.field.productionCountry'), 'NLD');
         expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.productionCountry');
-        fill(text('lngTerms.field.productionCountry'), 'NL');
+        fill(text('lngTerms.field.productionCountry'), 'nl');
+        expect(terms('ASK')).toEqual(expect.objectContaining({ production_country: 'NL' }));
+        expect(validateLngOrderTerms(terms('ASK'))).toBeNull();
         fill(text('lngTerms.field.bioShare'), '0');
         expect(validateLngOrderTerms(terms('ASK'))).toBe('lngTerms.validation.bioShare');
         fill(text('lngTerms.field.bioShare'), '95.125');

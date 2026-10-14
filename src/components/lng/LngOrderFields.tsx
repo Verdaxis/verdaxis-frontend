@@ -16,6 +16,7 @@ import {
 // Generic, product-neutral form primitives. They live beside the FAME fields but
 // carry no FAME-specific behavior.
 import { ChoiceField, FormSection, TextField, fieldText, gridClass, optionalNumber } from '../fame/FameFormFields';
+import { isIsoCountryCode } from '../../utils/countries';
 
 export const LNG_SCHEMES: LngSustainabilityScheme[] = ['ISCC_EU', 'REDCERT_EU'];
 export const LNG_CUSTODY: LngChainOfCustody[] = ['MASS_BALANCE', 'PHYSICAL_SEGREGATION'];
@@ -43,7 +44,6 @@ const BIO_SHARE_MIN = 1;
 const BIO_SHARE_MAX = 100;
 const METHANE_NUMBER_MIN = 0;
 const METHANE_NUMBER_MAX = 100;
-const COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
 
 function CheckField({ name, children, required = false, defaultChecked = false, disabled = false }: {
     name: string;
@@ -157,7 +157,7 @@ export function validateLngOrderTerms(terms: LngOrderTerms): string | null {
             || !LNG_POS_TIMINGS.includes(terms.pos_timing)) return 'lngTerms.validation.requiredFields';
         const certificate = terms.scheme_certificate_number.trim();
         if (certificate.length < CERTIFICATE_NUMBER_MIN || certificate.length > CERTIFICATE_NUMBER_MAX) return 'lngTerms.validation.certificateNumber';
-        if (!COUNTRY_CODE_PATTERN.test(terms.production_country)) return 'lngTerms.validation.productionCountry';
+        if (!isIsoCountryCode(terms.production_country)) return 'lngTerms.validation.productionCountry';
         if ((terms.feedstock_detail?.trim().length ?? 0) > FEEDSTOCK_DETAIL_MAX) return 'lngTerms.validation.feedstockDetail';
         if (outsideRange(terms.bio_share_pct, BIO_SHARE_MIN, BIO_SHARE_MAX) || tooManyDecimals(terms.bio_share_pct)) return 'lngTerms.validation.bioShare';
         if (outsideRange(terms.wtt_ghg_gco2e_mj, WTT_MIN, WTT_MAX) || tooManyDecimals(terms.wtt_ghg_gco2e_mj)) return 'lngTerms.validation.wtt';
