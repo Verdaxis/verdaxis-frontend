@@ -94,6 +94,20 @@ describe('BioLngTermsPanel', () => {
         expect(screen.getAllByText('Leave blank to accept any value.').length).toBe(2);
     });
 
+    it('never renders another party certificate or supplier before confirmation', () => {
+        // The public projection is what the server sends before CONFIRMED; even a
+        // client that wrongly receives a full ask shows only the public rows.
+        const json = JSON.stringify({
+            ask: toPublicLngAskTerms(askTerms()),
+            bid: buildLngBidTerms(bidForm()).terms,
+        });
+
+        renderWithProviders(<BioLngTermsPanel terms={JSON.parse(json).ask} />);
+        expect(screen.queryByText('DE-NL-2026-000123')).toBeNull();
+        expect(screen.queryByText('Rotterdam Bio Supplier BV')).toBeNull();
+        expect(screen.getByText(/Excludes engine methane slip/)).toBeTruthy();
+    });
+
     it('renders nothing without terms', () => {
         const { container } = renderWithProviders(<BioLngTermsPanel terms={null} />);
         expect(container.firstChild).toBeNull();
