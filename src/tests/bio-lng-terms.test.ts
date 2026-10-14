@@ -15,7 +15,7 @@ import {
     type LngAskTermsForm,
     type LngBidTermsForm,
 } from '../utils/bioLngSpecification';
-import { LNG_SPECIFICATION_STANDARD, LNG_TERMS_INCOMPATIBLE } from '../types/lngOrder';
+import { LNG_SPECIFICATION_STANDARD, LNG_TERMS_INCOMPATIBLE, type LngBidTerms } from '../types/lngOrder';
 
 const validAskForm = (overrides: Partial<LngAskTermsForm> = {}): LngAskTermsForm => ({
     sustainability_scheme: 'ISCC_EU',
@@ -190,12 +190,12 @@ describe('bio-LNG compatibility', () => {
         expect(lngTermsCompatible(bid, ask)).toBe(true);
     });
 
-    it.each([
-        ['scheme', { accepted_schemes: ['REDCERT_EU'] as const }],
-        ['custody', { accepted_custody: ['MASS_BALANCE'] as const }],
-        ['delivery method', { accepted_delivery_methods: ['TRUCK_TO_SHIP'] as const }],
+    it.each<[string, Partial<LngBidTerms>]>([
+        ['scheme', { accepted_schemes: ['REDCERT_EU'] }],
+        ['custody', { accepted_custody: ['MASS_BALANCE'] }],
+        ['delivery method', { accepted_delivery_methods: ['TRUCK_TO_SHIP'] }],
     ])('rejects an ask outside the bid %s list', (_label, override) => {
-        expect(lngTermsCompatible({ ...bid, ...override } as typeof bid, ask)).toBe(false);
+        expect(lngTermsCompatible({ ...bid, ...override }, ask)).toBe(false);
     });
 
     it('rejects a block-chain-of-custody ask when the bid requires the Union Database', () => {
@@ -248,8 +248,7 @@ describe('public bio-LNG ask view', () => {
         expect(isLngAskTerms(ask)).toBe(true);
         expect(isLngPublicAskTerms(ask)).toBe(false);
         expect(isLngPublicAskTerms(publicTerms)).toBe(true);
-        expect(isLngBidTerms({ side: 'BID', accepted_schemes: [], accepted_custody: [], require_union_database: true, accepted_delivery_methods: [], accept_resellers: true }))
-            .toBe(true);
+        expect(isLngBidTerms(buildLngBidTerms(validBidForm()).terms)).toBe(true);
         expect(isLngAskTerms({ side: 'BID' })).toBe(false);
         expect(isLngAskTerms(null)).toBe(false);
     });

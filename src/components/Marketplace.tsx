@@ -47,6 +47,8 @@ import {
 } from '../utils/availabilityWindow';
 import { formatMarketProduct, getOrderDisplayName } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { getBioLngSpecification, isLngTermsIncompatibleError } from '../utils/bioLngSpecification';
+import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import { isApprovedTradingPortName } from '../utils/tradingPorts';
 import { sliceToPath, type MarketSlice } from '../utils/sliceUrl';
@@ -105,9 +107,11 @@ const ROLE_CONFIG_BASE: Record<string, RoleConfigEntry> = {
 };
 
 // ─── Product chip options ─────────────────────────────────────────
-const requiresBiofuelAsk = (order: OrderBookOrder): boolean => (
+// A supplier must declare product terms through the normal ASK flow, so a bid
+// for a product with fixed or contract terms is never taken directly.
+const requiresSupplierDeclarations = (order: OrderBookOrder): boolean => (
     order.side === 'BID'
-    && Boolean(getBiofuelSpecification(order.market_product))
+    && Boolean(getBiofuelSpecification(order.market_product) || getBioLngSpecification(order.market_product))
     && !order.is_demo_listing
     && !isDemoMarketActivity(order)
 );
@@ -257,6 +261,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const [tradeState, setTradeState] = useState<'idle' | 'confirming' | 'reviewing' | 'submitting' | 'success' | 'outcome_unknown' | 'error'>('idle');
     const [tradeError, setTradeError] = useState('');
     const [tradeNeedsRefresh, setTradeNeedsRefresh] = useState(false);
+    const [tradeTermsIncompatible, setTradeTermsIncompatible] = useState(false);
     const [tradeResult, setTradeResult] = useState<Trade | null>(null);
     const tradeRequestRef = useRef<{
         signature: string;
@@ -701,7 +706,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 demo_status: isDemo ? 'DEMO' : 'LIVE',
             });
         }
-        if (requiresBiofuelAsk(order)) {
+        if (requiresSupplierDeclarations(order)) {
             // The supplier must declare the fuel metadata through the normal ASK flow.
             // Normal orderbook priority applies; this is not a targeted trade.
             setOrderModalPrefill(order);
@@ -713,6 +718,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeState('confirming');
         setTradeError('');
         setTradeNeedsRefresh(false);
+        setTradeTermsIncompatible(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     };
@@ -879,6 +885,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeState('idle');
         setTradeError('');
         setTradeNeedsRefresh(false);
+        setTradeTermsIncompatible(false);
         setTradeResult(null);
         tradeRequestRef.current = null;
     }, []);
@@ -984,6 +991,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 tradeRequestRef.current = null;
                 setTradeNeedsRefresh(true);
                 setTradeError(t('marketplace.modal.reviewRequired'));
+                setTradeState('error');
+            } else if (isLngTermsIncompatibleError(err)) {
+                // The API refuses a take whose bio-LNG terms do not satisfy both sides.
+                tradeRequestRef.current = null;
+                setTradeTermsIncompatible(true);
+                setTradeError(t('bioLng.error.incompatible'));
                 setTradeState('error');
             } else {
                 tradeRequestRef.current = null;
@@ -1135,7 +1148,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     onClick={(e) => { e.stopPropagation(); openTradeModal(order); }}
                                     className="px-3 py-1.5 text-xs font-bold bg-[#334155] hover:bg-slate-700 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-md shadow-sm hover:shadow transition-shadow whitespace-nowrap"
                                 >
-                                    {t(isDemo ? 'marketplace.demo.view' : requiresBiofuelAsk(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
+                                    {t(isDemo ? 'marketplace.demo.view' : requiresSupplierDeclarations(order) ? 'marketplace.btn.placeAsk' : configBase.counterAction.labelKey)}
                                 </button>
                             ) : (
                                 <span className="text-xs text-slate-400 font-medium">
@@ -1831,7 +1844,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                 <div className="p-4 bg-red-500/10 rounded-full mb-4">
                                     <AlertCircle size={28} className="text-red-500" />
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t('marketplace.modal.tradeFailed')}</h3>
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{t(tradeTermsIncompatible ? 'bioLng.error.incompatibleTitle' : 'marketplace.modal.tradeFailed')}</h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{tradeError}</p>
                                 {tradeNeedsRefresh && (
                                     <button
@@ -1923,6 +1936,15 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             {selectedOrder.carbon_intensity_method && (
                                                 <p>{t(`${selectedOrder.market_product?.toLowerCase()}.carbonIntensityMethodLabel`)}: {selectedOrder.carbon_intensity_method}</p>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {getBioLngSpecification(selectedOrder.market_product) && (
+                                        <div className="space-y-2">
+                                            <BioLngTermsPanel terms={selectedOrder.lng_terms} />
+                                            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                                {t('bioLng.display.confirmedOnly')}
+                                            </p>
                                         </div>
                                     )}
 

@@ -10,6 +10,7 @@ import {
     XCircle,
     Clock,
     AlertTriangle,
+    ChevronDown,
     EyeOff,
 } from 'lucide-react';
 import { ApiOutcomeUnknownError, api } from '../services/api';
@@ -33,6 +34,8 @@ import {
 } from '../utils/tradeAnalytics';
 import i18n from '../i18n';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { isLngAskTerms } from '../utils/bioLngSpecification';
+import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'COMPLETED';
 type StatusGroup = Lowercase<FilterTab>;
@@ -63,6 +66,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const [totalCount, setTotalCount] = useState(0);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
+    const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
     useDashboardContentReady('TRADES', ready && !isLoading && hasLoaded);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const activeCommandRef = useRef<symbol | null>(null);
@@ -259,6 +263,8 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
 
     if (!ready) return null;
     const locale = i18n.resolvedLanguage ?? i18n.language ?? 'en';
+    // The price and total columns are hidden from buyers; the bio-LNG terms row spans the rest.
+    const tableColumnCount = userRole === 'BUYER' ? 8 : 10;
     const containerClass = embedded ? 'min-w-0' : 'max-w-7xl mx-auto p-4 lg:p-10 pb-24';
     const pageHeading = !embedded && (
         <div className="mb-6 lg:mb-8">
@@ -491,9 +497,12 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                     const counterpartyName = userSide === 'BUYER'
                                         ? (trade.seller_name || t('myTrades.counterparty.seller'))
                                         : (trade.buyer_name || t('myTrades.counterparty.buyer'));
+                                    const lngTerms = trade.lng_terms_snapshot;
+                                    const lngTermsOpen = expandedTradeId === trade.id;
 
                                     return (
-                                        <tr key={trade.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                        <React.Fragment key={trade.id}>
+                                        <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                                 {new Date(trade.created_at).toLocaleDateString(locale)}
                                             </td>
@@ -505,6 +514,17 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                                     <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 whitespace-nowrap">
                                                         {formatAvailabilityWindow(trade.availability_window, locale)}
                                                     </p>
+                                                )}
+                                                {lngTerms && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setExpandedTradeId(lngTermsOpen ? null : trade.id)}
+                                                        aria-expanded={lngTermsOpen}
+                                                        className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-[#5DADE2] hover:text-[#4A9BD9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5DADE2] focus-visible:ring-offset-2 rounded"
+                                                    >
+                                                        <ChevronDown size={12} className={`transition-transform ${lngTermsOpen ? 'rotate-180' : ''}`} />
+                                                        {t('bioLng.display.title')}
+                                                    </button>
                                                 )}
                                             </td>
                                             <td className="px-4 lg:px-6 py-4 text-slate-600 dark:text-slate-300 font-medium">
@@ -550,6 +570,22 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                                                 {renderActions(trade)}
                                             </td>
                                         </tr>
+                                        {lngTermsOpen && lngTerms && (
+                                            <tr className="bg-slate-50 dark:bg-slate-900/40">
+                                                <td colSpan={tableColumnCount} className="px-4 lg:px-6 py-4">
+                                                    <div className="grid gap-4 md:grid-cols-2">
+                                                        <BioLngTermsPanel terms={lngTerms.ask} />
+                                                        <BioLngTermsPanel terms={lngTerms.bid} />
+                                                    </div>
+                                                    {!isLngAskTerms(lngTerms.ask) && (
+                                                        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                                            {t('bioLng.display.confirmedOnly')}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>

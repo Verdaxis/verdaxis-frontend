@@ -7,6 +7,8 @@ import { useNamespace } from '../hooks/useNamespace';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { getBioLngSpecification } from '../utils/bioLngSpecification';
+import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import i18n from '../i18n';
@@ -550,6 +552,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                         </div>
                         {getBiofuelSpecification(hoverTooltip.order.market_product || marketProduct) && (
                             <p className="mt-2 text-[11px] leading-4 text-slate-600 dark:text-slate-300">{t(`${(hoverTooltip.order.market_product || marketProduct)?.toLowerCase()}.contract`)}</p>
+                        )}
+                        {getBioLngSpecification(hoverTooltip.order.market_product || marketProduct) && (
+                            <BioLngTermsPanel terms={hoverTooltip.order.lng_terms} className="mt-2" />
                         )}
                         {isDemoMarketActivity(hoverTooltip.order) && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">

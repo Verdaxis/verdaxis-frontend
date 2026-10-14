@@ -113,8 +113,11 @@ export interface LngBidTerms {
 /** Terms as stored on an order before the public projection. */
 export type LngOrderTerms = LngAskTerms | LngBidTerms;
 
-/** Any `lng_terms` value an order may carry to a client. */
-export type LngVisibleTerms = LngPublicAskTerms | LngBidTerms;
+/**
+ * Any `lng_terms` payload a client may receive. The full ask reaches the client
+ * only through a confirmed trade snapshot.
+ */
+export type LngVisibleTerms = LngAskTerms | LngPublicAskTerms | LngBidTerms;
 
 /** Frozen on the trade at creation and immutable afterwards. */
 export interface LngTradeSnapshot {
