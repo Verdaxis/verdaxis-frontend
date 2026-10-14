@@ -65,6 +65,8 @@ index.html
 
 **Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
 
+**Staging Bio-LNG/catalog.** `BIO_LNG` follows the same catalog and contract rules as B100: `ORDERBOOK` execution plus an explicit lane from `available_delivery_point_ids` (Rotterdam only at first), or the market stays closed. Its terms live in `types/lngOrder.ts`, are required on BIO_LNG orders, and carry the `side` discriminator (`LngAskTerms` or `LngBidTerms`). The public ask view withholds the scheme certificate number and the physical supplier name until a trade is confirmed, and exposes only `reseller` and `fueleu_recognition`. The server derives the generic ASK metadata (scheme, specification, feedstock, origin) from `lng_terms`, so the client never sends both. A direct take that fails the terms comparison returns `LNG_TERMS_INCOMPATIBLE`; the fixed names come from the bio-LNG contract addendum. BIO_LNG is exempt from the scalar carbon intensity, has no demo data, and never feeds `ci_pricing`.
+
 **Market provenance.** Demo, live-order, confirmed-trade, benchmark, mixed, and no-data states remain distinct. Marketplace and Forward Curve use the same canonical product, delivery-point, and availability-window identity. The UI must not turn demo, history, or reference values into executable claims.
 
 ## File map
@@ -78,16 +80,18 @@ src/
   types/marketSupport.ts            assisted-workspace contracts
   types/fame{Order,Rfq,SupplierOffer}.ts
                                     staging UCOME B100 and history contracts
+  types/lngOrder.ts                 staging Bio-LNG ask, public ask, bid, snapshot
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
     Marketplace.tsx                market/listings/orderbook and FAME history workspace
     OrderBook.tsx                   depth and level interaction
-    OrderPlaceModal.tsx             shared BID/ASK entry, including catalog-enabled B100
+    OrderPlaceModal.tsx             shared BID/ASK entry, including catalog-enabled B100 and Bio-LNG
     ForwardCurveWorkspace.tsx       monitoring matrix, chart, selected-period evidence
     BuyerMap.tsx                    retained authenticated intelligence map
     CommandCenter.tsx               buyer/supplier home views
     fame/                           shared UCOME B100 fields and readback
+    lng/                            Bio-LNG ask/bid fields and readback
     rfq/                            earlier FAME request history
     supplier/                       earlier FAME supplier-offer history
     admin/                          admin and product analytics workspaces
@@ -101,6 +105,8 @@ src/
     readCache.ts                    scoped TTL cache and request deduplication
     fame{Order,Rfq,SupplierOffer}.ts
                                     staging FAME normalization and events
+    lngOrder.ts                     Bio-LNG normalization without restoring redacted identity
+    orderTerms.ts                   applies every product terms layer in one pass
     publicMarketSync.ts             shared market invalidation subscriber
     analytics.ts                    optional consent-gated Umami adapter
   hooks/                            workspace readiness, SSE, preferences, watchlists
@@ -128,6 +134,7 @@ scripts/
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |
 | FAME/catalog | FAME types/services/components and `Marketplace.tsx` | `b100-order-api.test.ts`, `marketplace-b100-take.test.tsx`, FAME component tests |
+| Bio-LNG/catalog | LNG types/services/components, `Marketplace.tsx`, `OrderPlaceModal.tsx` | `lng-order-api.test.ts`, `marketplace-biolng-take.test.tsx`, `order-place-modal-biolng.test.tsx`, LNG component tests |
 | Build | `vite.config.ts`, `check-build-artifacts.mjs`, `deploy.sh` | both target builds and artifact checks |
 
 ## Run commands
