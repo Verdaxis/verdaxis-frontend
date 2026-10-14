@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from './test-utils';
 import { OrderBook } from '../components/OrderBook';
+import i18n, { loadNamespace } from '../i18n';
 import { queuePublicMarketRefresh } from '../services/publicMarketSync';
+import { buildLngAskTerms, toPublicLngAskTerms, type LngAskTermsForm } from '../utils/bioLngSpecification';
 
 const { snapshot } = vi.hoisted(() => ({ snapshot: vi.fn() }));
 
@@ -255,4 +257,66 @@ describe('orderbook inspection', () => {
     }
   });
 
+});
+
+describe('orderbook bio-LNG depth', () => {
+  const LNG_MARKET = {
+    marketProduct: 'BIO_LNG',
+    deliveryPointId: 'delivery-point-rotterdam',
+    availability: 'SPOT',
+  } as const;
+
+  const lngAsk = {
+    id: 'ask-lng', side: 'ASK', market_product: 'BIO_LNG', price_per_mt_usd: 1420,
+    remaining_quantity_mt: 500, availability_window: 'SPOT', region: 'Rotterdam',
+    certifications: [], lng_terms: toPublicLngAskTerms(buildLngAskTerms({
+      sustainability_scheme: 'ISCC_EU',
+      scheme_certificate_number: 'DE-NL-2026-000123',
+      chain_of_custody: 'MASS_BALANCE',
+      union_database_registered: true,
+      bio_share_pct: '97.5',
+      feedstock: 'MANURE',
+      feedstock_detail: '',
+      production_country: 'NL',
+      wtt_ghg_gco2e_mj: '-38.25',
+      min_methane_number: '',
+      delivery_method: 'SHIP_TO_SHIP',
+      seller_is_physical_supplier: true,
+      physical_supplier_name: 'Rotterdam Bio Supplier BV',
+      pos_timing: 'WITH_DELIVERY',
+    } satisfies LngAskTermsForm).terms!),
+  };
+
+  const lngSnapshot = (asks: unknown[]) => ({
+    market_product: 'BIO_LNG',
+    delivery_point_id: LNG_MARKET.deliveryPointId,
+    availability_window: 'SPOT',
+    generated_at: new Date().toISOString(),
+    source_kind: 'LIVE_ORDER',
+    scope: 'DELIVERY_POINT',
+    demo_status: 'REAL_ONLY',
+    bids: [],
+    asks,
+  });
+
+  it('shows the well-to-tank badge with the methane-slip caveat on the ask row', async () => {
+    snapshot.mockResolvedValue(lngSnapshot([lngAsk]));
+
+    renderWithProviders(<OrderBook {...LNG_MARKET} />);
+    const badge = await screen.findByText(/-38\.25 gCO2e\/MJ/);
+    // The caveat rides along as the badge tooltip so the row stays compact.
+    const title = badge.closest('[title]')?.getAttribute('title');
+    expect(title).toContain('Excludes engine methane slip');
+  });
+
+  it('keeps the caveat localized in Chinese', async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('zh');
+    snapshot.mockResolvedValue(lngSnapshot([lngAsk]));
+
+    renderWithProviders(<OrderBook {...LNG_MARKET} />);
+    const badge = await screen.findByText(/-38\.25 gCO2e\/MJ/);
+    expect(badge.closest('[title]')?.getAttribute('title')).toContain('不含发动机甲烷逃逸');
+    await i18n.changeLanguage('en');
+  });
 });

@@ -17,6 +17,31 @@ export interface BioLngTermsRows {
     rows: BioLngTermsRow[];
 }
 
+export interface BioLngWttSummary {
+    /** The value with its unit, for example "-38.25 gCO2e/MJ". */
+    value: string;
+    /** The localized methane-slip caveat that qualifies every WTT display. */
+    note: string;
+}
+
+/**
+ * The compact order book summary of a bio-LNG well-to-tank value, with the
+ * localized methane-slip caveat that qualifies it everywhere it appears.
+ */
+export const bioLngWttSummary = (
+    terms: LngVisibleTerms | null | undefined,
+    t: Translate,
+    locale: string,
+): BioLngWttSummary | null => {
+    if (!terms || terms.side !== 'ASK') return null;
+    const wtt = toLngDecimal(terms.wtt_ghg_gco2e_mj);
+    if (wtt === null) return null;
+    return {
+        value: `${wtt.toLocaleString(locale, { maximumFractionDigits: 2 })} gCO2e/MJ`,
+        note: t('bioLng.display.wttNote'),
+    };
+};
+
 type Translate = (key: string) => string;
 
 export function bioLngTermsRows(

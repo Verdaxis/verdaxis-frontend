@@ -8,6 +8,7 @@ import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { getBioLngSpecification } from '../utils/bioLngSpecification';
+import { bioLngWttSummary } from '../utils/bioLngTermsDisplay';
 import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../utils/marketActivity';
@@ -387,6 +388,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                         const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
                         const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
 
+                        // The compact bio-LNG badge keeps its caveat in the tooltip title.
+                        const askWttSummary = ask && getBioLngSpecification(ask.market_product)
+                            ? bioLngWttSummary(ask.lng_terms, t, locale)
+                            : null;
+
                         return (
                             <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
                                 {/* BID cell */}
@@ -511,6 +517,14 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                                                         : 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
                                                 }`}>
                                                     {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
+                                                </span>
+                                            )}
+                                            {askWttSummary && (
+                                                <span
+                                                    title={`${askWttSummary.value} · ${askWttSummary.note}`}
+                                                    className="ml-1.5 inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400"
+                                                >
+                                                    {t('bioLng.display.wtt')} {askWttSummary.value}
                                                 </span>
                                             )}
                                         </span>
