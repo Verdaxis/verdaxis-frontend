@@ -8,6 +8,7 @@ import i18n, { loadNamespace } from '../i18n';
 import { getAvailabilityWindowOptions } from '../utils/availabilityWindow';
 import type { AvailabilityWindow } from '../types';
 import { clearAccessToken, setAccessToken } from '../services/authToken';
+import { ApiError } from '../services/api';
 import { clearMarketSupportContextId, setMarketSupportContextId } from '../services/marketSupportContextStore';
 
 const productsMock = vi.fn();
@@ -1048,6 +1049,18 @@ describe('OrderPlaceModal', () => {
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(2));
     expect(createOrderMock.mock.calls[1]?.[0]?.price_per_mt_usd).toBe(541);
     expect(createOrderMock.mock.calls[1]?.[0]?.idempotency_key).not.toBe(firstKey);
+  });
+
+  it('shows the KYC reason and the /kyc link when order creation is blocked', async () => {
+    createOrderMock.mockRejectedValueOnce(new ApiError('Complete KYC verification to trade.', 403, 'KYC_REQUIRED'));
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    fireEvent.change(screen.getByPlaceholderText('e.g. 540'), { target: { value: '540' } });
+    reviewAndConfirm('Bid');
+
+    expect(await screen.findByText('KYC verification required')).toBeTruthy();
+    expect(screen.getByText('Complete KYC verification to trade.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Complete KYC' }).getAttribute('href')).toBe('/kyc');
   });
 
   it('guards against double submit while the request is pending', async () => {
