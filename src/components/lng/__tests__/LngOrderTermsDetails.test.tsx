@@ -3,8 +3,9 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import i18n, { loadNamespace } from '../../../i18n';
 import copy from '../../../locales/en/trading.json';
+import copy_zh from '../../../locales/zh/trading.json';
 import type { LngAskTerms, LngBidTerms, LngPublicAskTerms } from '../../../types/lngOrder';
-import { LngOrderTermsDetails } from '../LngOrderTermsDetails';
+import { LngOrderTermsDetails, lngAskSummary } from '../LngOrderTermsDetails';
 import { renderWithProviders } from '../../../tests/test-utils';
 
 const text = (key: string) => copy[key as keyof typeof copy] as string;
@@ -88,5 +89,17 @@ describe('LngOrderTermsDetails', () => {
         const { rerender } = render(<LngOrderTermsDetails terms={{ ...publicAsk, bio_share_pct: Number.NaN, min_methane_number: null }} />);
         rerender(<LngOrderTermsDetails terms={{ ...publicAsk, bio_share_pct: Number.NaN, min_methane_number: null }} />);
         expect(screen.getAllByText(text('lngTerms.notSupplied')).length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('carries the localized methane-slip note in the compact summary', async () => {
+        const t = (key: string, options?: Record<string, unknown>) => i18n.t(key, { ns: 'trading', ...options });
+        expect(lngAskSummary(bid, t)).toBeNull();
+        expect(lngAskSummary(publicAsk, t)).toContain('-120.5 gCO₂e/MJ');
+        expect(lngAskSummary(publicAsk, t)).toContain(text('lngTerms.wttNote'));
+
+        await i18n.changeLanguage('zh');
+        const zhNote = (copy_zh as Record<string, string>)['lngTerms.wttNote'];
+        expect(lngAskSummary(publicAsk, t)).toContain(zhNote);
+        await i18n.changeLanguage('en');
     });
 });

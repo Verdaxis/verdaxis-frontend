@@ -74,7 +74,8 @@ export function lngAskSummary(terms: LngOrderTermsView, t: (key: string, options
         t(`lngTerms.custody.${terms.chain_of_custody}`),
         t(fueleu_recognition === 'UNION_DATABASE' ? 'lngTerms.unionDatabase.registered' : 'lngTerms.unionDatabase.notRegistered'),
         t('lngTerms.summary.bioShare', { value: Number(terms.bio_share_pct).toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 }) }),
-        t('lngTerms.summary.wtt', { value: Number(terms.wtt_ghg_gco2e_mj).toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 }) }),
+        // The methane-slip exclusion travels with the WTT value wherever it appears.
+        `${t('lngTerms.summary.wtt', { value: Number(terms.wtt_ghg_gco2e_mj).toLocaleString(i18n.resolvedLanguage || 'en', { maximumFractionDigits: 2 }) })} · ${t('lngTerms.wttNote')}`,
         t(`lngTerms.feedstock.${terms.feedstock}`),
         t(`lngTerms.deliveryMethod.${terms.delivery_method}`),
         reseller ? t('lngTerms.reseller.yes') : t('lngTerms.reseller.no'),
