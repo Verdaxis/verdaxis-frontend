@@ -5,6 +5,7 @@ import {
     CHAINS_OF_CUSTODY,
     DELIVERY_METHODS,
     FEEDSTOCK_CATEGORIES,
+    ISO_COUNTRY_CODE_LENGTH,
     POS_TIMINGS,
     SUSTAINABILITY_SCHEMES,
 } from '../../types/lngOrder';
@@ -230,7 +231,7 @@ export const BioLngAskTermsFields: React.FC<BaseProps<LngAskTermsForm, LngAskIss
                         type="text"
                         value={form.production_country}
                         onChange={(event) => set('production_country')(event.target.value.toUpperCase())}
-                        maxLength={2}
+                        maxLength={ISO_COUNTRY_CODE_LENGTH}
                         className={inputClass}
                     />
                 </Field>

@@ -10,7 +10,6 @@ import {
     CHAINS_OF_CUSTODY,
     DELIVERY_METHODS,
     FEEDSTOCK_CATEGORIES,
-    ISO_COUNTRY_CODE_PATTERN,
     LNG_SPECIFICATION_STANDARD,
     LNG_TERMS_INCOMPATIBLE,
     LNG_TERMS_LIMITS,
@@ -25,6 +24,7 @@ import {
     type PosTiming,
     type SustainabilityScheme,
 } from '../types/lngOrder';
+import { isIsoCountryCode } from './countries';
 
 const MAX_LNG_DECIMAL_PLACES = 2;
 
@@ -166,7 +166,7 @@ export function buildLngAskTerms(form: LngAskTermsForm): LngAskTermsParseResult 
 
     const productionCountry = form.production_country.trim();
     if (!productionCountry) issues.push('ASK_COUNTRY_REQUIRED');
-    else if (!ISO_COUNTRY_CODE_PATTERN.test(productionCountry)) issues.push('ASK_COUNTRY_FORMAT');
+    else if (!isIsoCountryCode(productionCountry)) issues.push('ASK_COUNTRY_FORMAT');
 
     const wttGhg = parseRequiredDecimal(form.wtt_ghg_gco2e_mj, LNG_TERMS_LIMITS.wttGhgMin, LNG_TERMS_LIMITS.wttGhgMax);
     if (wttGhg.issue === 'REQUIRED') issues.push('ASK_WTT_REQUIRED');

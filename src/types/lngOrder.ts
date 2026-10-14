@@ -59,8 +59,8 @@ export const LNG_TERMS_LIMITS = {
     physicalSupplierNameMax: 120,
 } as const;
 
-/** ISO 3166-1 alpha-2, uppercase. */
-export const ISO_COUNTRY_CODE_PATTERN = /^[A-Z]{2}$/;
+/** Maximum characters of an ISO 3166-1 alpha-2 code; validated against the repo country list. */
+export const ISO_COUNTRY_CODE_LENGTH = 2;
 
 /** Seller declarations. Required on a BIO_LNG ask, rejected on any other product. */
 export interface LngAskTerms {

@@ -133,10 +133,14 @@ describe('bio-LNG ask terms', () => {
         ]);
     });
 
-    it('enforces two decimal places and a lowercase country code', () => {
+    it('enforces two decimal places and an official ISO country code', () => {
         expect(buildLngAskTerms(validAskForm({ bio_share_pct: '99.123' })).issues).toEqual(['ASK_BIO_SHARE_PRECISION']);
         expect(buildLngAskTerms(validAskForm({ wtt_ghg_gco2e_mj: '1.005' })).issues).toEqual(['ASK_WTT_PRECISION']);
         expect(buildLngAskTerms(validAskForm({ production_country: '' })).issues).toEqual(['ASK_COUNTRY_REQUIRED']);
+        // Two uppercase letters are not enough: unassigned codes must fail.
+        expect(buildLngAskTerms(validAskForm({ production_country: 'ZZ' })).issues).toEqual(['ASK_COUNTRY_FORMAT']);
+        expect(buildLngAskTerms(validAskForm({ production_country: 'XX' })).issues).toEqual(['ASK_COUNTRY_FORMAT']);
+        expect(buildLngAskTerms(validAskForm({ production_country: 'NL' })).issues).toEqual([]);
     });
 });
 
