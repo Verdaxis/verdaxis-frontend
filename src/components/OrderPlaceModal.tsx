@@ -476,9 +476,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     if (!isOpen || !ready) return null;
 
     // The server derives the generic ASK scalars from lng_terms, so a BIO_LNG ask is
-    // complete as soon as its terms parse.
+    // complete as soon as its terms parse. The safety data sheet stays required.
     const hasRequiredAskMetadata = bioLngSpecification
-        ? lngAskParse.terms !== null
+        ? lngAskParse.terms !== null && formData.msds_available
         : (biofuelSpecification ? formData.specification_standard === biofuelSpecification : formData.specification_standard.trim() !== '')
             && (!biofuelSpecification || formData.carbon_intensity_method.trim() !== '')
             && formData.msds_available
@@ -551,6 +551,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (!bioLngSpecification && formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
         if (bioLngSpecification) {
             payload.lng_terms = side === 'ASK' ? lngAskParse.terms : lngBidParse.terms;
+            // The safety data sheet declaration is not derived from lng_terms.
+            if (side === 'ASK') payload.msds_available = formData.msds_available;
         }
         if (side === 'ASK' && !bioLngSpecification) {
             payload.certification_declared = formData.certification_declared;
@@ -580,6 +582,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             // Review the bio-LNG contract itself, not the generic declaration fields.
             const display = bioLngTermsRows(payload.lng_terms, t, locale);
             display?.rows.forEach(({ label, value, note }) => addReviewDetail(label, note ? `${value} · ${note}` : value));
+            if (payload.side === 'ASK' && payload.msds_available === true) {
+                addReviewDetail(t('orderPlaceModal.label.msdsAvailable'), t('orderPlaceModal.review.confirmed'));
+            }
         }
         if (payload.side === 'BID' && !bioLngSpecification) {
             const certificationPreference = Array.isArray(payload.certifications) && payload.certifications.length > 0
@@ -759,6 +764,25 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
+    // Every product keeps the safety-data-sheet declaration, so it is one control.
+    const msdsCheckbox = (
+        <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
+            <input
+                type="checkbox"
+                checked={formData.msds_available}
+                onChange={(event) => handleChange('msds_available', event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+            />
+            <span>
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {t('orderPlaceModal.label.msdsAvailable')}
+                </span>
+                <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t(biofuelSpecification ? `${biofuelKey}.msdsHelper` : bioLngSpecification ? 'bioLng.msdsHelper' : 'orderPlaceModal.helper.msdsAvailable')}
+                </span>
+            </span>
+        </label>
+    );
 
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'outcome_unknown' || modalState === 'error') {
         return (
@@ -1175,21 +1199,24 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     </div>
 
                                     {bioLngSpecification ? (
-                                        side === 'ASK' ? (
-                                            <BioLngAskTermsFields
-                                                form={formData.lng_ask}
-                                                issues={lngAskParse.issues}
-                                                showIssues={lngTermsTouched}
-                                                onChange={handleLngAskChange}
-                                            />
-                                        ) : (
-                                            <BioLngBidTermsFields
-                                                form={formData.lng_bid}
-                                                issues={lngBidParse.issues}
-                                                showIssues={lngTermsTouched}
-                                                onChange={handleLngBidChange}
-                                            />
-                                        )
+                                        <>
+                                            {side === 'ASK' ? (
+                                                <BioLngAskTermsFields
+                                                    form={formData.lng_ask}
+                                                    issues={lngAskParse.issues}
+                                                    showIssues={lngTermsTouched}
+                                                    onChange={handleLngAskChange}
+                                                />
+                                            ) : (
+                                                <BioLngBidTermsFields
+                                                    form={formData.lng_bid}
+                                                    issues={lngBidParse.issues}
+                                                    showIssues={lngTermsTouched}
+                                                    onChange={handleLngBidChange}
+                                                />
+                                            )}
+                                            {side === 'ASK' && msdsCheckbox}
+                                        </>
                                     ) : (
                                     <>
                                     <div>
@@ -1335,22 +1362,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                 </div>
                                             </div>
 
-                                            <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.msds_available}
-                                                    onChange={(event) => handleChange('msds_available', event.target.checked)}
-                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
-                                                />
-                                                <span>
-                                                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                        {t('orderPlaceModal.label.msdsAvailable')}
-                                                    </span>
-                                                    <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                        {t(biofuelSpecification ? `${biofuelKey}.msdsHelper` : 'orderPlaceModal.helper.msdsAvailable')}
-                                                    </span>
-                                                </span>
-                                            </label>
+                                            {msdsCheckbox}
                                         </div>
                                     )}
                                     </>

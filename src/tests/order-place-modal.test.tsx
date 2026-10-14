@@ -1144,7 +1144,8 @@ describe('OrderPlaceModal bio-LNG terms', () => {
   const certificateInput = () => screen.getByLabelText('Your scheme certificate number');
   const reviewAsk = () => screen.getByRole('button', { name: 'Review Ask' }) as HTMLButtonElement;
 
-  const completeAskTerms = () => {
+  const msdsCheckbox = () => screen.getByLabelText(/MSDS available/);
+  const fillAskTerms = () => {
     fireEvent.change(certificateInput(), { target: { value: 'ISCC-EU-CERT-0001' } });
     fireEvent.change(screen.getByLabelText('Bio share (%)'), { target: { value: '100' } });
     fireEvent.click(screen.getByRole('combobox', { name: 'Feedstock category' }));
@@ -1154,10 +1155,14 @@ describe('OrderPlaceModal bio-LNG terms', () => {
     fireEvent.change(screen.getByLabelText('Certified well-to-tank value (gCO2e/MJ)'), { target: { value: '-45.5' } });
     fireEvent.change(screen.getByLabelText('Physical supplier name'), { target: { value: 'Diesol BV' } });
   };
+  const completeAskTerms = () => {
+    fillAskTerms();
+    fireEvent.click(msdsCheckbox());
+  };
 
   const setPrice = () => fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '1400' } });
 
-  it('offers only the product lane and sends the ask terms alone', async () => {
+  it('offers only the product lane and sends the ask terms with the safety declaration', async () => {
     renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
     await waitFor(() => expect(productsMock).toHaveBeenCalled());
 
@@ -1203,9 +1208,11 @@ describe('OrderPlaceModal bio-LNG terms', () => {
         pos_timing: 'WITH_DELIVERY',
       },
     });
-    // The server derives the generic ASK scalars from lng_terms; the client must not set them.
+    // The product remains the only generic field the server cannot derive.
+    expect(payload.msds_available).toBe(true);
+    // The server derives the remaining ASK scalars from lng_terms.
     for (const key of [
-      'certification_declared', 'certifications', 'specification_standard', 'msds_available',
+      'certification_declared', 'certifications', 'specification_standard',
       'carbon_intensity_gco2_mj', 'carbon_intensity_method', 'feedstock', 'origin', 'certification_scheme',
     ]) {
       expect(payload).not.toHaveProperty(key);
@@ -1240,6 +1247,27 @@ describe('OrderPlaceModal bio-LNG terms', () => {
       },
     });
     expect(createOrderMock.mock.calls[0][0]).not.toHaveProperty('certifications');
+  });
+
+  it('requires the safety data sheet before a bio-LNG ask can be reviewed', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    fillAskTerms();
+    setPrice();
+    // The server refuses an ask without the declaration, so the client blocks it too.
+    expect(reviewAsk().disabled).toBe(true);
+    expect(msdsCheckbox()).toBeTruthy();
+
+    fireEvent.click(msdsCheckbox());
+    expect(reviewAsk().disabled).toBe(false);
+
+    fireEvent.click(reviewAsk());
+    expect(screen.getByText('MSDS available')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Ask' }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    expect(createOrderMock.mock.calls[0][0]).toMatchObject({ side: 'ASK', msds_available: true });
   });
 
   it('keeps the ask blocked and explains the first incomplete term', async () => {
