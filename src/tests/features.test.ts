@@ -86,6 +86,7 @@ describe('Green Fuels Market Products', () => {
             'SYNTHETIC_ETHANOL',
             'B30',
             'B100',
+            'BIO_LNG',
         ]);
     });
 });

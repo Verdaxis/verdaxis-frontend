@@ -184,6 +184,8 @@
       "ammonia": "Ammonia",
       "ethanol": "Ethanol",
       "biomethane": "Biomethane",
+      "lng": "LNG",
+      "biolng": "Bio-LNG",
       "biomethanol": "Bio Methanol",
       "emethanol": "E-Methanol",
       "bioethanol": "Bio Ethanol",

@@ -75,6 +75,8 @@ Education articles carry maintained-by and actual source-check fields, with prim
 
 **KYC execution gate.** `AuthContext` exposes `execution_eligibility` from `/api/auth/me`. `Layout` renders `KycDeadlineBanner` for `KYC_GRACE`, `KYC_REQUIRED`, and `KYC_REJECTED`; it links to `/kyc` and shows the grace deadline when present. A blocked execution returns HTTP 403 with code `KYC_REQUIRED`; `isKycRequiredError` in `api.ts` detects it and `KycRequiredNotice` shows the localized reason with the same link in the order modal and the take and confirm actions. Cleanup commands (cancel, decline, deliver, pay) stay enabled.
 
+**Bio-LNG product terms.** `BIO_LNG` is the one product whose sales terms travel with the order. `types/lngOrder.ts` holds the shared contract, `utils/bioLngSpecification.ts` mirrors the server validation and compatibility rules, and `utils/bioLngTermsDisplay.ts` gives every surface the same label/value rows through `components/trading/BioLngTermsPanel.tsx`. A seller declares `LngAskTerms`, a buyer states `LngBidTerms`, and a buyer taking an ask sends its `lng_terms` with `POST /api/trades/`. The server derives the generic ASK scalars from `lng_terms` and withholds the certificate number and physical supplier until the trade is confirmed, so the client never sends or assumes them. BIO_LNG has no demo prices, and its delivery-point lane comes from the catalog `available_delivery_point_ids`.
+
 ## File map
 
 ```text
@@ -85,7 +87,7 @@ src/
   publicPageLoaders.ts               shared public route imports
   prerender/renderPublicRoute.tsx    build-only public content rendering
   types.ts                          shared UI and API domain types
-  types/{activity,marketSupport}.ts production activity and assisted-workspace contracts
+  types/{activity,marketSupport,lngOrder}.ts production activity, assisted-workspace, and bio-LNG terms contracts
   components/
     Layout.tsx                      authenticated shell
     layout/{Sidebar,Header,sidebarConfig}.tsx
@@ -133,6 +135,7 @@ scripts/
 |---|---|---|
 | Routes and sidebar | `App.tsx`, `layout/sidebarConfig.ts`, `types.ts` | `app-routing.test.tsx`, `sidebar-config.test.ts` |
 | Marketplace/order entry | `Marketplace.tsx`, `OrderBook.tsx`, `OrderPlaceModal.tsx`, `api.ts` | `marketplace-green-fuels.test.tsx`, `order-place-modal.test.tsx`, `api-*.test.ts` |
+| Bio-LNG terms | `types/lngOrder.ts`, `utils/bioLngSpecification.ts`, `utils/bioLngTermsDisplay.ts`, `components/trading/BioLngTerms{Panel,Fields}.tsx` | `bio-lng-terms.test.ts`, `bio-lng-display.test.tsx`, `order-place-modal.test.tsx` |
 | Forward Curve | `ForwardCurveWorkspace.tsx`, `utils/forwardCurveAxis.ts` | `forward-curve-workspace.test.tsx`, `forward-curve-axis.test.ts` |
 | Intelligence Map | `src/components/BuyerMap.tsx` | `src/tests/buyer-map-i18n.test.tsx` |
 | Market Support | `MarketSupportContext.tsx`, `types/marketSupport.ts`, `api.ts` | `market-support-*.test.tsx`, `api-market-support-context.test.ts` |

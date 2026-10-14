@@ -17,6 +17,17 @@ import { MarketSupportFinalConfirmation, type MarketSupportConfirmation, type Ma
 import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import i18n from '../i18n';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import {
+    buildLngAskTerms,
+    buildLngBidTerms,
+    createInitialLngAskForm,
+    createInitialLngBidForm,
+    getBioLngSpecification,
+    type LngAskTermsForm,
+    type LngBidTermsForm,
+} from '../utils/bioLngSpecification';
+import { bioLngTermsRows } from '../utils/bioLngTermsDisplay';
+import { BioLngAskTermsFields, BioLngBidTermsFields } from './trading/BioLngTermsFields';
 import { formatOrderExpiry } from '../utils/fuel';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -52,6 +63,10 @@ interface OrderFormData {
     origin: string;
     expiry_type: 'GTC' | 'date';
     expiry_date: string;
+    /** BIO_LNG only: seller declarations. */
+    lng_ask: LngAskTermsForm;
+    /** BIO_LNG only: buyer requirements. */
+    lng_bid: LngBidTermsForm;
 }
 
 const QUANTITY_PRESETS = [
@@ -126,6 +141,8 @@ function createInitialFormData(
         origin: '',
         expiry_type: 'GTC',
         expiry_date: '',
+        lng_ask: createInitialLngAskForm(),
+        lng_bid: createInitialLngBidForm(),
     };
 }
 
@@ -165,6 +182,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation?: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
     const [orderSnapshot, setOrderSnapshot] = useState<OrderSnapshot | null>(null);
+    // Bio-LNG issues stay hidden until the reader has changed a terms field.
+    const [lngTermsTouched, setLngTermsTouched] = useState(false);
 
     useEffect(() => {
         onCloseRef.current = onClose;
@@ -181,6 +200,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         supportRequestRef.current = null;
         setSupportDraft(null);
         setOrderSnapshot(null);
+        setLngTermsTouched(false);
         setAdvancedOpen(side === 'ASK');
         onCloseRef.current();
     }, [side]);
@@ -200,6 +220,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             supportRequestRef.current = null;
             setSupportDraft(null);
             setOrderSnapshot(null);
+            setLngTermsTouched(false);
             setAdvancedOpen(side === 'ASK');
         }
 
@@ -227,13 +248,19 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 ))
             )) ?? (!prefillMarketProduct && !prefillFuelType ? activeProds[0] : undefined);
 
-            const matchedDeliveryPoint = activeDps.find((point) => (
+            // Respect the lane the matched product allows before offering any delivery point.
+            const laneDeliveryPointIds = matchedProduct?.available_delivery_point_ids;
+            const laneMatchedDeliveryPoints = laneDeliveryPointIds?.length
+                ? activeDps.filter(point => laneDeliveryPointIds.includes(point.id))
+                : activeDps;
+
+            const matchedDeliveryPoint = laneMatchedDeliveryPoints.find((point) => (
                 (prefillDeliveryPointId && point.id === prefillDeliveryPointId)
                 || (!prefillDeliveryPointId && prefillRegion && (
                     point.region.toLowerCase().includes(prefillRegion.toLowerCase())
                     || point.name.toLowerCase().includes(prefillRegion.toLowerCase())
                 ))
-            )) ?? (!prefillDeliveryPointId && !prefillRegion ? activeDps[0] : undefined);
+            )) ?? (!prefillDeliveryPointId && !prefillRegion ? laneMatchedDeliveryPoints[0] : undefined);
 
             setFormData((prev) => ({
                 ...prev,
@@ -263,6 +290,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
     const biofuelSpecification = getBiofuelSpecification(selectedProduct?.market_product);
     const biofuelKey = selectedProduct?.market_product === 'B100' ? 'b100' : 'b30';
+    const bioLngSpecification = getBioLngSpecification(selectedProduct?.market_product);
+    const lngAskParse = useMemo(() => buildLngAskTerms(formData.lng_ask), [formData.lng_ask]);
+    const lngBidParse = useMemo(() => buildLngBidTerms(formData.lng_bid), [formData.lng_bid]);
+    // A product may be restricted to some delivery points (bio-LNG is Rotterdam only).
+    const laneDeliveryPointIds = selectedProduct?.available_delivery_point_ids;
+    const selectableDeliveryPoints = laneDeliveryPointIds?.length
+        ? deliveryPoints.filter(point => laneDeliveryPointIds.includes(point.id))
+        : deliveryPoints;
     const getDeliveryPointRegionLabel = (region: string) => {
         const key = DELIVERY_POINT_REGION_KEYS[region.trim().toLowerCase()];
         if (key) return t(key);
@@ -350,8 +385,17 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         const nextProduct = products.find(product => product.id === productId);
         setFormData(prev => {
             if (prev.product_id === productId) return prev;
+            // A product switch must not carry another product's terms, and it must
+            // not leave a delivery point outside the new product's lane.
+            const laneDeliveryPointIds = nextProduct?.available_delivery_point_ids;
+            const laneAllowsCurrentPoint = !laneDeliveryPointIds?.length
+                || laneDeliveryPointIds.includes(prev.delivery_point_id);
+            const laneDeliveryPointId = laneAllowsCurrentPoint
+                ? prev.delivery_point_id
+                : laneDeliveryPointIds?.find(id => deliveryPoints.some(point => point.id === id)) ?? '';
             // Blend declarations and alcohol metadata cannot describe the same contract.
-            if (biofuelSpecification || getBiofuelSpecification(nextProduct?.market_product)) {
+            if (biofuelSpecification || bioLngSpecification || getBiofuelSpecification(nextProduct?.market_product)
+                || getBioLngSpecification(nextProduct?.market_product)) {
                 return {
                     ...prev,
                     product_id: productId,
@@ -362,10 +406,23 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     origin: '',
                     certification_declared: false,
                     msds_available: false,
+                    lng_ask: createInitialLngAskForm(),
+                    lng_bid: createInitialLngBidForm(),
+                    delivery_point_id: laneDeliveryPointId,
                 };
             }
-            return { ...prev, product_id: productId };
+            return { ...prev, product_id: productId, delivery_point_id: laneDeliveryPointId };
         });
+    };
+
+    const handleLngAskChange = (patch: Partial<LngAskTermsForm>) => {
+        setLngTermsTouched(true);
+        setFormData(prev => ({ ...prev, lng_ask: { ...prev.lng_ask, ...patch } }));
+    };
+
+    const handleLngBidChange = (patch: Partial<LngBidTermsForm>) => {
+        setLngTermsTouched(true);
+        setFormData(prev => ({ ...prev, lng_bid: { ...prev.lng_bid, ...patch } }));
     };
 
     const toggleBidCertification = (scheme: string) => {
@@ -422,13 +479,25 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     if (!isOpen || !ready) return null;
 
-    const hasRequiredAskMetadata =
-        (biofuelSpecification ? formData.specification_standard === biofuelSpecification : formData.specification_standard.trim() !== '') &&
-        (!biofuelSpecification || formData.carbon_intensity_method.trim() !== '') &&
-        formData.msds_available &&
-        formData.carbon_intensity_gco2_mj > 0 &&
-        formData.feedstock.trim() !== '' &&
-        formData.origin.trim() !== '';
+    // The server derives the generic ASK scalars from lng_terms, so a BIO_LNG ask is
+    // complete as soon as its terms parse. The safety data sheet stays required.
+    const hasRequiredAskMetadata = bioLngSpecification
+        ? lngAskParse.terms !== null && formData.msds_available
+        : (biofuelSpecification ? formData.specification_standard === biofuelSpecification : formData.specification_standard.trim() !== '')
+            && (!biofuelSpecification || formData.carbon_intensity_method.trim() !== '')
+            && formData.msds_available
+            && formData.carbon_intensity_gco2_mj > 0
+            && formData.feedstock.trim() !== ''
+            && formData.origin.trim() !== '';
+    const hasDeclaredAskMetadata = bioLngSpecification
+        ? hasRequiredAskMetadata
+        : formData.certification_declared && hasRequiredAskMetadata;
+    const hasBioLngTerms = !bioLngSpecification
+        || (side === 'ASK' ? lngAskParse.terms !== null : lngBidParse.terms !== null);
+    // The delivery point must be one the selected product may actually trade at.
+    const hasLaneValidDeliveryPoint = selectableDeliveryPoints.some(
+        point => point.id === formData.delivery_point_id,
+    );
     const catalogMinimumQuantityMt = selectedProduct?.min_lot_size;
     const hasValidCatalogMinimum = typeof catalogMinimumQuantityMt === 'number'
         && Number.isFinite(catalogMinimumQuantityMt)
@@ -456,6 +525,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         hasValidCatalogMinimum &&
         formData.product_id !== '' &&
         formData.delivery_point_id !== '' &&
+        hasLaneValidDeliveryPoint &&
         Number.isFinite(formData.quantity_mt) &&
         formData.quantity_mt >= minimumQuantityMt &&
         formData.quantity_mt <= MAX_ORDER_QUANTITY_MT &&
@@ -465,8 +535,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.price_per_mt_usd <= MAX_ORDER_PRICE_PER_MT_USD &&
         hasAtMostTwoDecimalPlaces(formData.price_per_mt_usd) &&
         hasValidExpiry &&
-        (side === 'BID' || formData.certification_scheme.trim() !== '') &&
-        (side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
+        hasBioLngTerms &&
+        (side === 'BID' || biofuelSpecification || bioLngSpecification || formData.certification_scheme.trim() !== '') &&
+        (side === 'BID' || hasDeclaredAskMetadata);
 
     const buildOrderPayload = (supportConfirmation?: MarketSupportConfirmation): Record<string, any> => {
         const payload: Record<string, any> = {
@@ -478,9 +549,16 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             availability_window: formData.availability_window,
             is_anonymous: true,
         };
-        if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
-        if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
-        if (side === 'ASK') {
+        // For BIO_LNG the server derives certification, specification, feedstock and
+        // origin from lng_terms, so only the terms travel.
+        if (side === 'BID' && !bioLngSpecification && formData.certifications.length > 0) payload.certifications = formData.certifications;
+        if (!bioLngSpecification && formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
+        if (bioLngSpecification) {
+            payload.lng_terms = side === 'ASK' ? lngAskParse.terms : lngBidParse.terms;
+            // The safety data sheet declaration is not derived from lng_terms.
+            if (side === 'ASK') payload.msds_available = formData.msds_available;
+        }
+        if (side === 'ASK' && !bioLngSpecification) {
             payload.certification_declared = formData.certification_declared;
             payload.certifications = [formData.certification_scheme.trim()];
             payload.specification_standard = formData.specification_standard.trim();
@@ -504,13 +582,21 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         const addReviewDetail = (label: string, value: unknown) => {
             if (typeof value === 'string' && value.trim()) reviewDetails.push({ label, value: value.trim() });
         };
-        if (payload.side === 'BID') {
+        if (bioLngSpecification) {
+            // Review the bio-LNG contract itself, not the generic declaration fields.
+            const display = bioLngTermsRows(payload.lng_terms, t, locale);
+            display?.rows.forEach(({ label, value, note }) => addReviewDetail(label, note ? `${value} · ${note}` : value));
+            if (payload.side === 'ASK' && payload.msds_available === true) {
+                addReviewDetail(t('orderPlaceModal.label.msdsAvailable'), t('orderPlaceModal.review.confirmed'));
+            }
+        }
+        if (payload.side === 'BID' && !bioLngSpecification) {
             const certificationPreference = Array.isArray(payload.certifications) && payload.certifications.length > 0
                 ? payload.certifications.join(', ')
                 : t('orderPlaceModal.option.anyCertifiedScheme');
             addReviewDetail(t('orderPlaceModal.label.certificationScheme'), certificationPreference);
         }
-        if (payload.side === 'ASK') {
+        if (payload.side === 'ASK' && !bioLngSpecification) {
             addReviewDetail(t('orderPlaceModal.label.certificationScheme'), payload.certification_scheme);
             if (payload.certification_declared === true) {
                 addReviewDetail(t('orderPlaceModal.label.certificationDeclared'), t('orderPlaceModal.review.confirmed'));
@@ -688,6 +774,25 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const inputClass = "w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-[#5DADE2] focus:ring-1 focus:ring-[#5DADE2]";
     const labelClass = "block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 leading-4";
+    // Every product keeps the safety-data-sheet declaration, so it is one control.
+    const msdsCheckbox = (
+        <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
+            <input
+                type="checkbox"
+                checked={formData.msds_available}
+                onChange={(event) => handleChange('msds_available', event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
+            />
+            <span>
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {t('orderPlaceModal.label.msdsAvailable')}
+                </span>
+                <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    {t(biofuelSpecification ? `${biofuelKey}.msdsHelper` : bioLngSpecification ? 'bioLng.msdsHelper' : 'orderPlaceModal.helper.msdsAvailable')}
+                </span>
+            </span>
+        </label>
+    );
 
     if (modalState === 'success' || modalState === 'auto_matched' || modalState === 'outcome_unknown' || modalState === 'error') {
         return (
@@ -960,7 +1065,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         ariaLabel={t('orderPlaceModal.aria.deliveryPoint')}
                                         value={formData.delivery_point_id}
                                         onChange={(value) => handleChange('delivery_point_id', value)}
-                                        options={deliveryPoints.map(point => ({
+                                        options={selectableDeliveryPoints.map(point => ({
                                             value: point.id,
                                             label: point.name,
                                             description: getDeliveryPointRegionLabel(point.region),
@@ -1001,9 +1106,9 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </div>
                                     )}
                                 </div>
-                                {(biofuelSpecification || selectedProduct.spec_description) && (
+                                {(biofuelSpecification || bioLngSpecification || selectedProduct.spec_description) && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
-                                        {biofuelSpecification ? t(`${biofuelKey}.contract`) : locale.startsWith('zh')
+                                        {biofuelSpecification ? t(`${biofuelKey}.contract`) : bioLngSpecification ? t('bioLng.contract') : locale.startsWith('zh')
                                             ? t('orderPlaceModal.productSpecifications.generic')
                                             : selectedProduct.spec_description}
                                     </p>
@@ -1104,6 +1209,27 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>
 
+                                    {bioLngSpecification ? (
+                                        <>
+                                            {side === 'ASK' ? (
+                                                <BioLngAskTermsFields
+                                                    form={formData.lng_ask}
+                                                    issues={lngAskParse.issues}
+                                                    showIssues={lngTermsTouched}
+                                                    onChange={handleLngAskChange}
+                                                />
+                                            ) : (
+                                                <BioLngBidTermsFields
+                                                    form={formData.lng_bid}
+                                                    issues={lngBidParse.issues}
+                                                    showIssues={lngTermsTouched}
+                                                    onChange={handleLngBidChange}
+                                                />
+                                            )}
+                                            {side === 'ASK' && msdsCheckbox}
+                                        </>
+                                    ) : (
+                                    <>
                                     <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.certificationScheme')}</label>
                                         {side === 'BID' ? (
@@ -1247,23 +1373,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                 </div>
                                             </div>
 
-                                            <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.msds_available}
-                                                    onChange={(event) => handleChange('msds_available', event.target.checked)}
-                                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#5DADE2] focus:ring-[#5DADE2]"
-                                                />
-                                                <span>
-                                                    <span className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                        {t('orderPlaceModal.label.msdsAvailable')}
-                                                    </span>
-                                                    <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                        {t(biofuelSpecification ? `${biofuelKey}.msdsHelper` : 'orderPlaceModal.helper.msdsAvailable')}
-                                                    </span>
-                                                </span>
-                                            </label>
+                                            {msdsCheckbox}
                                         </div>
+                                    )}
+                                    </>
                                     )}
 
                                     <div>

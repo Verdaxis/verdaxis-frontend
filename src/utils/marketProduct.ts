@@ -9,6 +9,7 @@ export const MARKET_PRODUCT_LABELS: Record<MarketProduct, string> = {
   SYNTHETIC_ETHANOL: 'e-Ethanol',
   B30: 'B30',
   B100: 'B100',
+  BIO_LNG: 'Bio-LNG',
 };
 
 export function formatMarketProduct(value: string | null | undefined): string {

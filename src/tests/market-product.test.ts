@@ -43,6 +43,13 @@ describe('market product display resolution', () => {
     expect(getMarketplaceProductValue('Biofuel')).toBeUndefined();
   });
 
+  it('resolves BIO_LNG as the Bio-LNG market in the LNG fuel family', () => {
+    expect(getProductDisplayNameFromReference('BIO_LNG', [])).toBe('Bio-LNG');
+    expect(getMarketplaceProductValue('BIO_LNG')).toBe('BIO_LNG');
+    expect(getMarketplaceProductValue('bio-lng')).toBe('BIO_LNG');
+    expect(getMarketplaceFuelType('BIO_LNG')).toBe('LNG');
+  });
+
   it('normalizes legacy product labels', () => {
     expect(getProductDisplayNameFromReference('green methanol', [])).toBe('Bio Methanol');
   });
