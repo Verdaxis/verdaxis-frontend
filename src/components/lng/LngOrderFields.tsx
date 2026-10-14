@@ -134,6 +134,19 @@ export function readLngOrderTerms(data: FormData, side: 'BID' | 'ASK'): LngOrder
     };
 }
 
+export interface LngOrderAcknowledgements {
+    msds_available: boolean;
+}
+
+/**
+ * The generic ASK predicates the server derives from `lng_terms` (scheme,
+ * specification standard, feedstock, origin) are not client inputs. Only the
+ * MSDS availability is declared separately, and it stays required.
+ */
+export function readLngOrderAcknowledgements(data: FormData): LngOrderAcknowledgements {
+    return { msds_available: data.get('lng_msds_available') === 'on' };
+}
+
 /** Client mirror of the server rules; the server stays authoritative. */
 export function validateLngOrderTerms(terms: LngOrderTerms): string | null {
     if (terms.side === 'ASK') {
@@ -162,7 +175,11 @@ export function validateLngOrderTerms(terms: LngOrderTerms): string | null {
     return null;
 }
 
-function LngAskFields({ initial, pending }: { initial?: LngAskTerms | null; pending: boolean }) {
+function LngAskFields({ initial, pending, acknowledgements }: {
+    initial?: LngAskTerms | null;
+    pending: boolean;
+    acknowledgements?: LngOrderAcknowledgements;
+}) {
     const { t } = useNamespace('trading');
     const [scheme, setScheme] = useState(initial?.sustainability_scheme ?? 'ISCC_EU');
     const [custody, setCustody] = useState(initial?.chain_of_custody ?? 'MASS_BALANCE');
@@ -213,6 +230,12 @@ function LngAskFields({ initial, pending }: { initial?: LngAskTerms | null; pend
                 hint={t(physicalSupplier ? 'lngTerms.ask.supplierNameHint' : 'lngTerms.ask.physicalSupplierNameHint')}
             />
         </FormSection>
+        <FormSection title={t('lngTerms.ask.declarations')}>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t('lngTerms.ask.declarationsHint')}</p>
+            <CheckField name="lng_msds_available" required defaultChecked={acknowledgements?.msds_available} disabled={pending}>
+                {t('lngTerms.ask.msdsAvailable')}
+            </CheckField>
+        </FormSection>
     </>;
 }
 
@@ -248,14 +271,15 @@ function LngBidFields({ initial, pending }: { initial?: LngBidTerms | null; pend
     </FormSection>;
 }
 
-export function LngOrderFields({ side, initial, pending = false }: {
+export function LngOrderFields({ side, initial, acknowledgements, pending = false }: {
     side: 'BID' | 'ASK';
     initial?: LngOrderTerms | null;
+    acknowledgements?: LngOrderAcknowledgements;
     pending?: boolean;
 }) {
     return <fieldset disabled={pending} className="space-y-5">
         {side === 'ASK'
-            ? <LngAskFields initial={initial?.side === 'ASK' ? initial : undefined} pending={pending} />
+            ? <LngAskFields initial={initial?.side === 'ASK' ? initial : undefined} acknowledgements={acknowledgements} pending={pending} />
             : <LngBidFields initial={initial?.side === 'BID' ? initial : undefined} pending={pending} />}
     </fieldset>;
 }

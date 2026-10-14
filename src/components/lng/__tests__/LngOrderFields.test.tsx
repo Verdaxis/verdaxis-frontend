@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import i18n, { loadNamespace } from '../../../i18n';
 import copy from '../../../locales/en/trading.json';
 import type { LngPublicAskTerms } from '../../../types/lngOrder';
-import { LngOrderFields, initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms } from '../LngOrderFields';
+import { LngOrderFields, initialLngTakerTerms, readLngOrderAcknowledgements, readLngOrderTerms, validateLngOrderTerms } from '../LngOrderFields';
 
 const text = (key: string) => copy[key as keyof typeof copy] as string;
 
@@ -130,6 +130,17 @@ describe('LngOrderFields', () => {
             side: 'BID', accepted_schemes: ['ISCC_EU'], accepted_custody: ['MASS_BALANCE'],
             require_union_database: true, accepted_delivery_methods: [], accept_resellers: true,
         })).toBe('lngTerms.validation.acceptedDeliveryMethods');
+    });
+
+    it('reads the MSDS acknowledgement separately from the terms', () => {
+        render(<form aria-label="order"><LngOrderFields side="ASK" /></form>);
+        const msds = screen.getByLabelText(text('lngTerms.ask.msdsAvailable')) as HTMLInputElement;
+        expect(msds.required).toBe(true);
+        expect(readLngOrderAcknowledgements(data())).toEqual({ msds_available: false });
+        fireEvent.click(msds);
+        expect(readLngOrderAcknowledgements(data())).toEqual({ msds_available: true });
+        // The acknowledgement is not part of lng_terms.
+        expect(terms('ASK')).not.toHaveProperty('msds_available');
     });
 
     it('prefills the taker side from the listed order', () => {

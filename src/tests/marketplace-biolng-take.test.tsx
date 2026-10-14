@@ -148,4 +148,32 @@ describe('Marketplace Bio-LNG take flow', () => {
         // An incompatible order is not a stale one: no refresh retry is offered.
         expect(screen.queryByRole('button', { name: new RegExp(text('marketplace.modal.refreshReview'), 'i') })).toBeNull();
     });
+
+    it('keeps the MSDS declaration required when a supplier declares the ask side', async () => {
+        await renderMarketplace('SUPPLIER');
+        fireEvent.click(await screen.findByRole('button', { name: 'Hit Bid' }));
+        const form = within(await screen.findByRole('form', { name: text('marketplace.bioLng.takerTerms') }));
+        const fill = (label: string, value: string) => fireEvent.change(form.getByLabelText(label), { target: { value } });
+        fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-002');
+        fill(text('lngTerms.field.productionCountry'), 'NL');
+        fill(text('lngTerms.field.bioShare'), '97');
+        fill(text('lngTerms.field.wtt'), '-30');
+        fill(text('lngTerms.field.supplierName'), 'Taker Supplier');
+        expect((form.getByLabelText(text('lngTerms.ask.msdsAvailable')) as HTMLInputElement).required).toBe(true);
+
+        // Without the acknowledgement the trade must not be submitted.
+        fireEvent.click(screen.getByRole('button', { name: 'Submit Trade' }));
+        expect(mocks.initiate).not.toHaveBeenCalled();
+
+        fireEvent.click(form.getByLabelText(text('lngTerms.ask.msdsAvailable')));
+        fireEvent.click(screen.getByRole('button', { name: 'Submit Trade' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm Trade' }));
+
+        await waitFor(() => expect(mocks.initiate).toHaveBeenCalledTimes(1));
+        expect(mocks.initiate).toHaveBeenCalledWith(expect.objectContaining({
+            order_id: 'bio-lng-bid',
+            msds_available: true,
+            lng_terms: expect.objectContaining({ side: 'ASK', production_country: 'NL' }),
+        }));
+    });
 });

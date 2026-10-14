@@ -66,7 +66,9 @@ import type { FameOrderBidTerms } from '../types/fameOrder';
 import { FameOrderFields, readFameOrderTerms, validateFameOrderTerms, readFameOrderAcknowledgements } from './fame/FameOrderFields';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
 import type { LngOrderTerms, LngOrderTermsView } from '../types/lngOrder';
-import { LngOrderFields, initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms } from './lng/LngOrderFields';
+import {
+    LngOrderFields, initialLngTakerTerms, readLngOrderTerms, validateLngOrderTerms, readLngOrderAcknowledgements,
+} from './lng/LngOrderFields';
 import { LngOrderTermsDetails, lngAskSummary } from './lng/LngOrderTermsDetails';
 
 // ─── Role Config ──────────────────────────────────────────────────
@@ -316,7 +318,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     const tradeTermsForm = useRef<HTMLFormElement>(null);
     const tradeLngTermsForm = useRef<HTMLFormElement>(null);
     const [tradeFameInput, setTradeFameInput] = useState<Pick<TradeCreateInput, 'fame_terms' | 'certification_declared' | 'msds_available'> | null>(null);
-    const [tradeLngInput, setTradeLngInput] = useState<Pick<TradeCreateInput, 'lng_terms'> | null>(null);
+    const [tradeLngInput, setTradeLngInput] = useState<Pick<TradeCreateInput, 'lng_terms' | 'msds_available'> | null>(null);
     const initialBuyerTerms = useMemo<FameOrderBidTerms | undefined>(() => {
         const terms = selectedOrder?.fame_terms;
         if (terms?.side !== 'ASK') return undefined;
@@ -1030,10 +1032,18 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
             }
             if (!tradeLngTermsForm.current.reportValidity()) return;
             const side = selectedOrder.side === 'ASK' ? 'BID' : 'ASK';
-            const terms = readLngOrderTerms(new FormData(tradeLngTermsForm.current), side);
+            const data = new FormData(tradeLngTermsForm.current);
+            const terms = readLngOrderTerms(data, side);
             const validationError = validateLngOrderTerms(terms);
             if (validationError) { setTradeError(t(validationError)); return; }
-            setTradeLngInput({ lng_terms: terms });
+            // A supplier taking a BIO_LNG bid declares the ask side, which keeps
+            // the MSDS acknowledgement required.
+            const declarations = side === 'ASK' ? readLngOrderAcknowledgements(data) : undefined;
+            if (declarations && !declarations.msds_available) {
+                setTradeError(t('lngTerms.validation.msdsRequired'));
+                return;
+            }
+            setTradeLngInput({ lng_terms: terms, ...declarations });
         }
         analytics.track('trade_confirmation_opened', {
             side: selectedOrder.side,

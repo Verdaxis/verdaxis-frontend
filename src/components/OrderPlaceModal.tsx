@@ -28,7 +28,10 @@ import {
 } from './fame/FameOrderFields';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
 import type { LngOrderTerms } from '../types/lngOrder';
-import { LngOrderFields, readLngOrderTerms, validateLngOrderTerms } from './lng/LngOrderFields';
+import {
+    LngOrderFields, readLngOrderTerms, validateLngOrderTerms,
+    readLngOrderAcknowledgements, type LngOrderAcknowledgements,
+} from './lng/LngOrderFields';
 import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
 import type { SupplierOffer, SupplierOfferCreateInput } from '../types/fameSupplierOffer';
 import {
@@ -189,7 +192,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [matchResult, setMatchResult] = useState<any>(null);
     const submissionRef = useRef<SubmissionRequest | null>(null);
     const fameDraftRef = useRef<{ terms: FameOrderTerms; acknowledgements: FameOrderAcknowledgements } | null>(null);
-    const lngDraftRef = useRef<LngOrderTerms | null>(null);
+    const lngDraftRef = useRef<{ terms: LngOrderTerms; acknowledgements: LngOrderAcknowledgements } | null>(null);
     const submissionInFlightRef = useRef(false);
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation?: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
@@ -435,7 +438,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
         side,
         fameTerms: isFameOrder ? fameDraftRef.current?.terms : undefined,
-        lngTerms: isLngOrder ? lngDraftRef.current : undefined,
+        lngTerms: isLngOrder ? lngDraftRef.current?.terms : undefined,
         product: selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
         availabilityWindow: formData.availability_window,
@@ -531,8 +534,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             payload.fame_terms = fameDraftRef.current.terms;
             if (side === 'ASK') Object.assign(payload, fameDraftRef.current.acknowledgements);
         } else if (isLngOrder && lngDraftRef.current) {
-            // The server derives the generic ASK metadata from these terms.
-            payload.lng_terms = lngDraftRef.current;
+            // The server derives the generic ASK metadata from these terms; only
+            // the MSDS acknowledgement is a separate, required declaration.
+            payload.lng_terms = lngDraftRef.current.terms;
+            if (side === 'ASK') Object.assign(payload, lngDraftRef.current.acknowledgements);
         } else {
             if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
             if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
@@ -760,13 +765,16 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             fameDraftRef.current = { terms, acknowledgements };
         }
         if (isLngOrder) {
-            const terms = readLngOrderTerms(new FormData(e.currentTarget), side);
-            const validationError = validateLngOrderTerms(terms);
+            const data = new FormData(e.currentTarget);
+            const terms = readLngOrderTerms(data, side);
+            const acknowledgements = readLngOrderAcknowledgements(data);
+            const validationError = validateLngOrderTerms(terms)
+                ?? (side === 'ASK' && !acknowledgements.msds_available ? 'lngTerms.validation.msdsRequired' : null);
             if (validationError) {
                 setErrorMessage(t(validationError));
                 return;
             }
-            lngDraftRef.current = terms;
+            lngDraftRef.current = { terms, acknowledgements };
         }
         const snapshot = buildOrderSnapshot();
         if (snapshot.supportContextId !== (marketSupportContext?.id ?? null)) {
@@ -1475,7 +1483,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                         {isLngOrder && <LngOrderFields
                             key={`${formData.product_id}:${side}`}
                             side={side}
-                            initial={lngDraftRef.current}
+                            initial={lngDraftRef.current?.terms}
+                            acknowledgements={lngDraftRef.current?.acknowledgements}
                             pending={modalState === 'submitting'}
                         />}
                         {(isFameOrder || isLngOrder) && errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>}

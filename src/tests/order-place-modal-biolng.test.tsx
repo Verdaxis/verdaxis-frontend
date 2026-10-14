@@ -38,6 +38,14 @@ function fill(label: string, value: string) {
 function setPrice(value: string) {
   fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value } });
 }
+/** Every required ASK field except the MSDS acknowledgement. */
+function fillValidAskFields() {
+  fill(text('lngTerms.field.certificateNumber'), 'ISCC-EU-001');
+  fill(text('lngTerms.field.productionCountry'), 'NL');
+  fill(text('lngTerms.field.bioShare'), '95');
+  fill(text('lngTerms.field.wtt'), '12');
+  fill(text('lngTerms.field.supplierName'), 'Supplier A');
+}
 async function reviewAndConfirm(side: 'Bid' | 'Ask') {
   fireEvent.click(screen.getByRole('button', { name: `Review ${side}` }));
   fireEvent.click(await screen.findByRole('button', { name: `Confirm and place ${side}` }));
@@ -86,6 +94,8 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
     fill(text('lngTerms.field.wtt'), '-120.5');
     fill(text('lngTerms.field.supplierName'), 'Supplier A');
     fireEvent.click(screen.getByLabelText(text('lngTerms.ask.unionDatabase')));
+    // MSDS stays a required ASK declaration for BIO_LNG, as for every product.
+    fireEvent.click(screen.getByLabelText(text('lngTerms.ask.msdsAvailable')));
     await reviewAndConfirm('Ask');
 
     await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
@@ -96,6 +106,7 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
       delivery_point_id: 'dp-rtm',
       quantity_mt: 1000,
       price_per_mt_usd: 820,
+      msds_available: true,
       lng_terms: {
         side: 'ASK',
         sustainability_scheme: 'ISCC_EU',
@@ -115,8 +126,9 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
         pos_timing: 'WITH_DELIVERY',
       },
     }));
-    // The server derives the generic ASK metadata, so the client must not send it.
-    for (const key of ['certification_declared', 'certification_scheme', 'specification_standard', 'carbon_intensity_gco2_mj', 'feedstock', 'origin', 'msds_available']) {
+    // The server derives the generic ASK metadata from lng_terms, so the client
+    // must not send it. MSDS availability is the one exception.
+    for (const key of ['certification_declared', 'certification_scheme', 'specification_standard', 'carbon_intensity_gco2_mj', 'feedstock', 'origin']) {
       expect(payload).not.toHaveProperty(key);
     }
   });
@@ -131,9 +143,26 @@ describe('OrderPlaceModal BIO_LNG terms', () => {
     fill(text('lngTerms.field.bioShare'), '95.125');
     fill(text('lngTerms.field.wtt'), '12');
     fill(text('lngTerms.field.supplierName'), 'Supplier A');
+    fireEvent.click(screen.getByLabelText(text('lngTerms.ask.msdsAvailable')));
     fireEvent.click(screen.getByRole('button', { name: 'Review Ask' }));
 
     expect(await screen.findByRole('alert')).toHaveProperty('textContent', text('lngTerms.validation.bioShare'));
+    expect(createOrderMock).not.toHaveBeenCalled();
+  });
+
+  it('requires the MSDS declaration on a BIO_LNG ask', async () => {
+    const { container } = renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+    setPrice('820');
+    fillValidAskFields();
+    const msds = screen.getByLabelText(text('lngTerms.ask.msdsAvailable')) as HTMLInputElement;
+    expect(msds.required).toBe(true);
+    expect(msds.checked).toBe(false);
+
+    // Submitting the form directly skips the browser's native required check,
+    // so the manual guard must stop the ask.
+    fireEvent.submit(container.querySelector('form')!);
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', text('lngTerms.validation.msdsRequired'));
     expect(createOrderMock).not.toHaveBeenCalled();
   });
 
