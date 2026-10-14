@@ -52,6 +52,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             : null;
         const dialog = dialogRef.current;
         const focusableSelector = [
+            'a[href]',
             'button:not([disabled])',
             'input:not([disabled])',
             'select:not([disabled])',
