@@ -1,5 +1,6 @@
 import { MARKET_PRODUCTS, MarketProduct } from '../types';
 import { APPROVED_TRADING_PORTS } from '../data';
+import { normalizeTradingPortName } from './tradingPorts';
 import {
     CALENDAR_WINDOW_RE,
     MONTH_WINDOW_RE,
@@ -51,4 +52,20 @@ export const parseSlicePath = (
     ) return null;
 
     return { product: product as MarketProduct, port, window };
+};
+
+/**
+ * Whether a slice port is cleared by the product's catalog lanes.
+ *
+ * `allowedPorts === null` means the caller has no lane restriction to apply
+ * (the all-products view, or the catalog has not answered yet). An empty list
+ * means fail closed: the catalog grants the product no lane at all.
+ */
+export const isSlicePortAllowed = (
+    port: string | null | undefined,
+    allowedPorts: readonly string[] | null,
+): boolean => {
+    if (allowedPorts === null) return true;
+    const normalized = normalizeTradingPortName(port);
+    return normalized !== '' && allowedPorts.some(allowed => normalizeTradingPortName(allowed) === normalized);
 };

@@ -1,5 +1,5 @@
 import type { DeliveryPoint, MapCompactMarket, Port, Product } from '../types';
-import { isOrderbookMarketProduct, isOrderbookProduct, MARKET_PRODUCT_LABELS } from './marketProduct';
+import { isOrderbookMarketProduct, isOrderbookProduct, LANE_RESTRICTED_MARKET_PRODUCTS, MARKET_PRODUCT_LABELS } from './marketProduct';
 
 export interface PortMarketRow {
     key: string;
@@ -75,9 +75,9 @@ export const getMarketProductMapPorts = (
     const productsForMarket = products.filter(candidate => (
         isOrderbookProduct(candidate) && candidate.market_product === marketProduct
     ));
-    // Legacy alcohol catalogs may omit coverage. B100 requires its approved lane.
-    if (productsForMarket.length === 0) return marketProduct === 'UCOME_B100' ? [] : ports;
-    if (marketProduct !== 'UCOME_B100' && productsForMarket.some(product => !product.available_delivery_point_ids)) return ports;
+    if (productsForMarket.length === 0) return LANE_RESTRICTED_MARKET_PRODUCTS.has(marketProduct) ? [] : ports;
+    // Legacy alcohol catalogs may omit coverage; lane-restricted products require it.
+    if (!LANE_RESTRICTED_MARKET_PRODUCTS.has(marketProduct) && productsForMarket.some(product => !product.available_delivery_point_ids)) return ports;
     const availablePointIds = new Set(productsForMarket.flatMap(product => product.available_delivery_point_ids ?? []));
     const availablePointNames = new Set(deliveryPoints
         .filter(point => point.is_active && availablePointIds.has(point.id))

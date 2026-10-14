@@ -830,7 +830,10 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                     install();
                 };
                 map.on('style.load', handleStyleLoad);
-                if (map.isStyleLoaded()) install();
+                // The style has loaded before this load starts. Do not gate on
+                // isStyleLoaded(): it stays false while basemap tiles stream in,
+                // and no later 'style.load' would retry the install.
+                install();
             }).catch((error) => {
                 if (cancelled || mapRef.current !== map) return;
                 console.error('Failed to load ECA map overlay', error);

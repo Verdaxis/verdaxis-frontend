@@ -28,6 +28,12 @@ import {
     readFameOrderAcknowledgements, type FameOrderAcknowledgements,
 } from './fame/FameOrderFields';
 import { FameOrderTermsDetails } from './fame/FameOrderTermsDetails';
+import type { LngOrderTerms } from '../types/lngOrder';
+import {
+    LngOrderFields, readLngOrderTerms, validateLngOrderTerms,
+    readLngOrderAcknowledgements, type LngOrderAcknowledgements,
+} from './lng/LngOrderFields';
+import { LngOrderTermsDetails } from './lng/LngOrderTermsDetails';
 import type { SupplierOffer, SupplierOfferCreateInput } from '../types/fameSupplierOffer';
 import {
     FameSupplierOfferForm,
@@ -96,6 +102,14 @@ const getSupplierOfferDeliveryPoints = (product: Product | undefined, points: De
     point.is_active
     && point.name.trim().toLowerCase() === 'singapore'
     && product?.available_delivery_point_ids?.includes(point.id)
+));
+
+/**
+ * Bio-LNG is restricted to the lanes the catalog grants it (Rotterdam at first).
+ * A product without a lane list offers no point, so the form stays fail-closed.
+ */
+const getProductLaneDeliveryPoints = (product: Product | undefined, points: DeliveryPoint[]) => points.filter(point => (
+    point.is_active && (product?.available_delivery_point_ids ?? []).includes(point.id)
 ));
 
 type ModalState = 'form' | 'reviewing' | 'support_confirmation' | 'submitting' | 'success' | 'auto_matched' | 'outcome_unknown' | 'error';
@@ -180,6 +194,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [matchResult, setMatchResult] = useState<any>(null);
     const submissionRef = useRef<SubmissionRequest | null>(null);
     const fameDraftRef = useRef<{ terms: FameOrderTerms; acknowledgements: FameOrderAcknowledgements } | null>(null);
+    const lngDraftRef = useRef<{ terms: LngOrderTerms; acknowledgements: LngOrderAcknowledgements } | null>(null);
     const submissionInFlightRef = useRef(false);
     const supportRequestRef = useRef<{ payload: Record<string, any>; confirmation?: MarketSupportConfirmation } | null>(null);
     const [supportDraft, setSupportDraft] = useState<MarketSupportDraftSummary | null>(null);
@@ -197,6 +212,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         setMatchResult(null);
         submissionRef.current = null;
         fameDraftRef.current = null;
+        lngDraftRef.current = null;
         submissionInFlightRef.current = false;
         supportRequestRef.current = null;
         setSupportDraft(null);
@@ -225,6 +241,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             setMatchResult(null);
             submissionRef.current = null;
             fameDraftRef.current = null;
+            lngDraftRef.current = null;
             supportRequestRef.current = null;
             setSupportDraft(null);
             setOrderSnapshot(null);
@@ -295,17 +312,20 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
     const isSupplierOffer = side === 'ASK' && Boolean(editSupplierOffer);
     const isFameOrder = !isSupplierOffer && selectedProduct?.market_product === 'UCOME_B100';
+    const isLngOrder = !isSupplierOffer && selectedProduct?.market_product === 'BIO_LNG';
     const executionUnavailable = !editSupplierOffer && b100Requested && !catalogLoading && !selectedProduct;
     const namespacesReady = ready && (!(b100Requested || isFameOrder || isSupplierOffer) || rfqReady);
     const availableDeliveryPoints = useMemo(() => isSupplierOffer || isFameOrder
         ? getSupplierOfferDeliveryPoints(selectedProduct, deliveryPoints)
-        : deliveryPoints, [deliveryPoints, isSupplierOffer, isFameOrder, selectedProduct]);
+        : isLngOrder
+            ? getProductLaneDeliveryPoints(selectedProduct, deliveryPoints)
+            : deliveryPoints, [deliveryPoints, isSupplierOffer, isFameOrder, isLngOrder, selectedProduct]);
 
     useEffect(() => {
-        if ((!isSupplierOffer && !isFameOrder) || editSupplierOffer || catalogLoading) return;
+        if ((!isSupplierOffer && !isFameOrder && !isLngOrder) || editSupplierOffer || catalogLoading) return;
         if (availableDeliveryPoints.some(point => point.id === formData.delivery_point_id)) return;
         setFormData(previous => ({ ...previous, delivery_point_id: availableDeliveryPoints[0]?.id ?? '' }));
-    }, [availableDeliveryPoints, catalogLoading, editSupplierOffer, formData.delivery_point_id, isSupplierOffer, isFameOrder]);
+    }, [availableDeliveryPoints, catalogLoading, editSupplierOffer, formData.delivery_point_id, isSupplierOffer, isFameOrder, isLngOrder]);
     const getDeliveryPointRegionLabel = (region: string) => {
         const key = DELIVERY_POINT_REGION_KEYS[region.trim().toLowerCase()];
         if (key) return t(key);
@@ -386,7 +406,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     }, [isOpen, modalState]);
 
     const handleChange = (field: keyof OrderFormData, value: string | number | boolean | string[]) => {
-        if (field === 'product_id') fameDraftRef.current = null;
+        if (field === 'product_id') {
+            fameDraftRef.current = null;
+            lngDraftRef.current = null;
+        }
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -419,6 +442,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const buildSupportDraft = useCallback((): MarketSupportDraftSummary => ({
         side,
         fameTerms: isFameOrder ? fameDraftRef.current?.terms : undefined,
+        lngTerms: isLngOrder ? lngDraftRef.current?.terms : undefined,
         product: selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
         availabilityWindow: formData.availability_window,
@@ -488,11 +512,12 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         formData.price_per_mt_usd > 0 &&
         formData.price_per_mt_usd <= MAX_ORDER_PRICE_PER_MT_USD &&
         hasAtMostTwoDecimalPlaces(formData.price_per_mt_usd) &&
-        (!isFameOrder || availableDeliveryPoints.some(point => point.id === formData.delivery_point_id));
+        (!isFameOrder || availableDeliveryPoints.some(point => point.id === formData.delivery_point_id)) &&
+        (!isLngOrder || availableDeliveryPoints.some(point => point.id === formData.delivery_point_id));
     const isOrderValid = hasValidCore && hasValidExpiry &&
         Boolean(selectedProduct && isOrderbookProduct(selectedProduct)) &&
-        (isFameOrder || side === 'BID' || formData.certification_scheme.trim() !== '') &&
-        (isFameOrder || side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
+        (isFameOrder || isLngOrder || side === 'BID' || formData.certification_scheme.trim() !== '') &&
+        (isFameOrder || isLngOrder || side === 'BID' || (formData.certification_declared && hasRequiredAskMetadata));
     const isValidSupplierOffer = hasValidCore && isSupplierOffer &&
         selectedProduct?.market_product === 'UCOME_B100' &&
         availableDeliveryPoints.some(point => point.id === formData.delivery_point_id) &&
@@ -512,6 +537,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (isFameOrder && fameDraftRef.current) {
             payload.fame_terms = fameDraftRef.current.terms;
             if (side === 'ASK') Object.assign(payload, fameDraftRef.current.acknowledgements);
+        } else if (isLngOrder && lngDraftRef.current) {
+            // The server derives the generic ASK metadata from these terms; only
+            // the MSDS acknowledgement is a separate, required declaration.
+            payload.lng_terms = lngDraftRef.current.terms;
+            if (side === 'ASK') Object.assign(payload, lngDraftRef.current.acknowledgements);
         } else {
             if (side === 'BID' && formData.certifications.length > 0) payload.certifications = formData.certifications;
             if (formData.certification_scheme.trim()) payload.certification_scheme = formData.certification_scheme.trim();
@@ -539,7 +569,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         const addReviewDetail = (label: string, value: unknown) => {
             if (typeof value === 'string' && value.trim()) reviewDetails.push({ label, value: value.trim() });
         };
-        if (payload.side === 'BID' && !payload.fame_terms) {
+        if (payload.side === 'BID' && !payload.fame_terms && !payload.lng_terms) {
             const certificationPreference = Array.isArray(payload.certifications) && payload.certifications.length > 0
                 ? payload.certifications.join(', ')
                 : t('orderPlaceModal.option.anyCertifiedScheme');
@@ -743,6 +773,18 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 return;
             }
             fameDraftRef.current = { terms, acknowledgements };
+        }
+        if (isLngOrder) {
+            const data = new FormData(e.currentTarget);
+            const terms = readLngOrderTerms(data, side);
+            const acknowledgements = readLngOrderAcknowledgements(data);
+            const validationError = validateLngOrderTerms(terms)
+                ?? (side === 'ASK' && !acknowledgements.msds_available ? 'lngTerms.validation.msdsRequired' : null);
+            if (validationError) {
+                setErrorMessage(t(validationError));
+                return;
+            }
+            lngDraftRef.current = { terms, acknowledgements };
         }
         const snapshot = buildOrderSnapshot();
         if (snapshot.supportContextId !== (marketSupportContext?.id ?? null)) {
@@ -992,6 +1034,11 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                     <FameOrderTermsDetails terms={orderSnapshot.payload.fame_terms as FameOrderTerms} />
                                 </div>
                             )}
+                            {orderSnapshot.payload.lng_terms && (
+                                <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                                    <LngOrderTermsDetails terms={orderSnapshot.payload.lng_terms as LngOrderTerms} />
+                                </div>
+                            )}
 
                             <div data-tour="order-final-warning" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
                                 <div className="flex items-start gap-2">
@@ -1033,7 +1080,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                     </div>
                 ) : <form onSubmit={handleSubmit} className="min-h-0 flex flex-col bg-white dark:bg-slate-800">
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {!isSupplierOffer && !isFameOrder && errorMessage && (
+                        {!isSupplierOffer && !isFameOrder && !isLngOrder && errorMessage && (
                             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="order-modal-core-fields">
@@ -1243,7 +1290,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>
 
-                                    {!isFameOrder && <div>
+                                    {!isFameOrder && !isLngOrder && <div>
                                         <label className={labelClass}>{t('orderPlaceModal.label.certificationScheme')}</label>
                                         {side === 'BID' ? (
                                             <div className="space-y-2">
@@ -1297,7 +1344,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>}
 
-                                    {!isFameOrder && side === 'ASK' && (
+                                    {!isFameOrder && !isLngOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
                                                 <input
@@ -1444,7 +1491,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                             acknowledgements={fameDraftRef.current?.acknowledgements}
                             pending={modalState === 'submitting'}
                         />}
-                        {isFameOrder && errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>}
+                        {isLngOrder && <LngOrderFields
+                            key={`${formData.product_id}:${side}`}
+                            side={side}
+                            initial={lngDraftRef.current?.terms}
+                            acknowledgements={lngDraftRef.current?.acknowledgements}
+                            pending={modalState === 'submitting'}
+                        />}
+                        {(isFameOrder || isLngOrder) && errorMessage && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errorMessage}</p>}
 
                         {formData.quantity_mt > 0 && formData.price_per_mt_usd > 0 && (
                             <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2">

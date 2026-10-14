@@ -1,4 +1,5 @@
 import type { FameOrderPublicTerms, FameOrderTerms, FameTermsSnapshot } from './types/fameOrder';
+import type { LngOrderTerms, LngOrderTermsView, LngTermsSnapshot } from './types/lngOrder';
 export interface GeoLocation {
     lat: number;
     lng: number;
@@ -178,6 +179,7 @@ export const ORDERBOOK_MARKET_PRODUCTS = [
     'BIO_ETHANOL',
     'SYNTHETIC_ETHANOL',
     'UCOME_B100',
+    'BIO_LNG',
 ] as const;
 
 export type OrderbookMarketProduct = typeof ORDERBOOK_MARKET_PRODUCTS[number];
@@ -255,6 +257,7 @@ export interface OrderCreateInput {
     off_spec?: boolean;
     off_spec_notes?: string | null;
     fame_terms?: FameOrderTerms | null;
+    lng_terms?: LngOrderTerms | null;
     idempotency_key?: string;
 }
 
@@ -264,6 +267,7 @@ export interface TradeCreateInput {
     expected_terms_digest: string;
     expected_order_version?: number;
     fame_terms?: FameOrderTerms | null;
+    lng_terms?: LngOrderTerms | null;
     certification_declared?: boolean;
     msds_available?: boolean;
     idempotency_key?: string;
@@ -301,6 +305,7 @@ export interface OrderBookOrder {
     certification_scheme?: string | null;
     specification_standard?: string | null;
     fame_terms?: FameOrderPublicTerms | null;
+    lng_terms?: LngOrderTermsView | null;
     msds_available?: boolean;
     feedstock?: string | null;
     origin?: string | null;
@@ -369,6 +374,7 @@ export interface Trade {
     fuel_grade?: FuelGrade;
     region: string;
     fame_terms_snapshot?: FameTermsSnapshot | null;
+    lng_terms_snapshot?: LngTermsSnapshot | null;
 }
 
 export interface AggregatedOrderbook {

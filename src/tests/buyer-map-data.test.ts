@@ -50,6 +50,23 @@ describe('BuyerMap market data', () => {
         expect(getMarketProductMapPorts('UCOME_B100', [product], [], PORTS)).toEqual([]);
     });
 
+    it('fails closed for the Bio-LNG Rotterdam lane', () => {
+        const singapore: DeliveryPoint = { id: 'singapore-catalog', name: 'Singapore', region: 'Asia', is_active: true };
+        const rotterdam: DeliveryPoint = { id: 'rotterdam-catalog', name: 'Rotterdam', region: 'Europe', is_active: true };
+        const product: Product = {
+            id: 'bio-lng', name: 'Bio-LNG', market_product: 'BIO_LNG',
+            fuel_type: 'LNG', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 1,
+            is_active: true, execution_mode: 'ORDERBOOK',
+            available_delivery_point_ids: [rotterdam.id],
+        };
+
+        expect(getMarketProductMapPorts('BIO_LNG', [product], [singapore, rotterdam], PORTS).map(port => port.name)).toEqual(['Rotterdam']);
+        // A missing product or a missing lane list must not widen the restricted market.
+        expect(getMarketProductMapPorts('BIO_LNG', [], [singapore, rotterdam], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, available_delivery_point_ids: undefined }], [rotterdam], PORTS)).toEqual([]);
+        expect(getMarketProductMapPorts('BIO_LNG', [{ ...product, execution_mode: 'RFQ_ONLY' }], [rotterdam], PORTS)).toEqual([]);
+    });
+
     it('does not borrow alcohol prices or volume when B100 is selected', () => {
         const market = compactMarket({
             bid_max_price: '950', bid_total_quantity: '500', bid_order_count: 1,

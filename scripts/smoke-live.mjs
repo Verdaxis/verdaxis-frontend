@@ -29,7 +29,7 @@ const TARGETS = {
     app: 'https://staging.verdaxis.exchange',
     api: 'https://api-staging.verdaxis.exchange/api',
     expectedApiInBundle: 'https://api-staging.verdaxis.exchange/api',
-    expectedProducts: [...EXPECTED_PRODUCTS, 'UCOME_B100'],
+    expectedProducts: [...EXPECTED_PRODUCTS, 'UCOME_B100', 'BIO_LNG'],
   },
 };
 
@@ -134,6 +134,27 @@ async function smokeTarget(name, target) {
     assert(fameCurve.rows?.length === 1, `${name}: UCOME curve must include its Singapore row even without prices`);
     assert(fameCurve.rows[0].market_product === 'UCOME_B100' && fameCurve.rows[0].delivery_point_id === singapore.id,
       `${name}: UCOME curve slice mismatch`);
+  }
+
+  if (target.expectedProducts.includes('BIO_LNG')) {
+    const rotterdam = deliveryPoints.find((point) => point.name === 'Rotterdam');
+    const bioLng = products.find((product) => product.market_product === 'BIO_LNG');
+    assert(rotterdam?.id, `${name}: missing Rotterdam delivery point id`);
+    assert(bioLng?.execution_mode === 'ORDERBOOK', `${name}: Bio-LNG must use the shared orderbook`);
+    assert(Number(bioLng.min_lot_size) === 1, `${name}: Bio-LNG platform input minimum mismatch`);
+    // The public order book must not leak the certificate number or supplier name.
+    const bioLngOrders = await fetchJson(`${target.api}/orderbook?product_id=${encodeURIComponent(bioLng.id)}&limit=100`);
+    assert(Array.isArray(bioLngOrders), `${name}: Bio-LNG orderbook response must be an array`);
+    for (const order of bioLngOrders.filter((entry) => entry.product_id === bioLng.id)) {
+      assert(order.lng_terms?.side === order.side, `${name}: Bio-LNG orders must carry side-specific terms`);
+      if (order.lng_terms.side === 'ASK') {
+        assert(!('scheme_certificate_number' in order.lng_terms) && !('physical_supplier_name' in order.lng_terms),
+          `${name}: public Bio-LNG ask must omit the certificate number and physical supplier name`);
+      }
+    }
+    const bioLngCurve = await fetchJson(`${target.api}/curves/forward/table?market_products=BIO_LNG&windows=SPOT`);
+    assert(bioLngCurve.rows?.length === 1 && bioLngCurve.rows[0].delivery_point_id === rotterdam.id,
+      `${name}: Bio-LNG curve must include its Rotterdam row even without prices`);
   }
 
   const curveUrl = new URL(`${target.api}/curves/forward`);
