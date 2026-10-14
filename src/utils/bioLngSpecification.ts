@@ -96,6 +96,39 @@ export interface LngAskTermsParseResult {
     issues: LngAskIssue[];
 }
 
+/**
+ * A blank ask form. The scheme, custody, delivery method and PoS timing start
+ * on their first contract value; the rest stays empty until the seller declares it.
+ */
+export const createInitialLngAskForm = (): LngAskTermsForm => ({
+    sustainability_scheme: SUSTAINABILITY_SCHEMES[0],
+    scheme_certificate_number: '',
+    chain_of_custody: CHAINS_OF_CUSTODY[0],
+    union_database_registered: true,
+    bio_share_pct: '',
+    feedstock: '',
+    feedstock_detail: '',
+    production_country: '',
+    wtt_ghg_gco2e_mj: '',
+    min_methane_number: '',
+    delivery_method: DELIVERY_METHODS[0],
+    seller_is_physical_supplier: true,
+    physical_supplier_name: '',
+    pos_timing: POS_TIMINGS[0],
+});
+
+/** A blank bid form. The optional floors are unset, so any value is acceptable. */
+export const createInitialLngBidForm = (): LngBidTermsForm => ({
+    accepted_schemes: [...SUSTAINABILITY_SCHEMES],
+    accepted_custody: [...CHAINS_OF_CUSTODY],
+    require_union_database: true,
+    min_bio_share_pct: '',
+    max_wtt_ghg_gco2e_mj: '',
+    accepted_delivery_methods: [...DELIVERY_METHODS],
+    min_methane_number: '',
+    accept_resellers: true,
+});
+
 const parseRequiredDecimal = (raw: string, min: number, max: number) => {
     const value = toLngDecimal(raw.trim());
     if (value === null) return { issue: 'REQUIRED' as const, value: null };
