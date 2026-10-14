@@ -7,6 +7,9 @@ import { useNamespace } from '../hooks/useNamespace';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { formatMarketProduct } from '../utils/marketProduct';
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { getBioLngSpecification } from '../utils/bioLngSpecification';
+import { bioLngWttSummary } from '../utils/bioLngTermsDisplay';
+import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
 import { isDemoMarketActivity } from '../utils/marketActivity';
 import i18n from '../i18n';
@@ -385,6 +388,11 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                         const bidInteractive = actionableSide === 'BID' && Boolean(onLevelClick);
                         const askInteractive = actionableSide === 'ASK' && Boolean(onLevelClick);
 
+                        // The compact bio-LNG badge keeps its caveat in the tooltip title.
+                        const askWttSummary = ask && getBioLngSpecification(ask.market_product)
+                            ? bioLngWttSummary(ask.lng_terms, t, locale)
+                            : null;
+
                         return (
                             <div key={i} className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
                                 {/* BID cell */}
@@ -511,6 +519,17 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                                                     {t('orderBook.ci')} {Math.round(ask.carbon_intensity_gco2_mj)}
                                                 </span>
                                             )}
+                                            {askWttSummary && (
+                                                <span className="ml-1.5 inline-flex flex-col items-start">
+                                                    <span className="inline-flex items-center text-[11px] font-bold px-1 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">
+                                                        {t('bioLng.display.wtt')} {askWttSummary.value}
+                                                    </span>
+                                                    {/* The caveat qualifies the value, so it is read, not hovered. */}
+                                                    <span className="text-[10px] leading-tight text-slate-500 dark:text-slate-400">
+                                                        {askWttSummary.note}
+                                                    </span>
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="relative z-10 text-xs font-mono text-slate-500 dark:text-slate-400 text-right">
                                             {formatQty(ask.remaining_quantity_mt, locale)}
@@ -550,6 +569,9 @@ export const OrderBook: React.FC<OrderBookProps> = ({ marketProduct, region, del
                         </div>
                         {getBiofuelSpecification(hoverTooltip.order.market_product || marketProduct) && (
                             <p className="mt-2 text-[11px] leading-4 text-slate-600 dark:text-slate-300">{t(`${(hoverTooltip.order.market_product || marketProduct)?.toLowerCase()}.contract`)}</p>
+                        )}
+                        {getBioLngSpecification(hoverTooltip.order.market_product || marketProduct) && (
+                            <BioLngTermsPanel terms={hoverTooltip.order.lng_terms} className="mt-2" />
                         )}
                         {isDemoMarketActivity(hoverTooltip.order) && (
                             <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-medium text-amber-800 dark:border-amber-700/60 dark:bg-amber-900/25 dark:text-amber-200">

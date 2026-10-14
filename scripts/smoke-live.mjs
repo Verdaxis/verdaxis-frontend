@@ -7,6 +7,7 @@ const EXPECTED_PRODUCTS = [
   'SYNTHETIC_ETHANOL',
   'B30',
   'B100',
+  'BIO_LNG',
 ];
 
 const EXPECTED_DELIVERY_POINTS = [

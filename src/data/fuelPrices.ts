@@ -1,4 +1,4 @@
-import { MARKET_PRODUCTS, type AggregatedOrderbook, type DeliveryPoint, type Product } from '../types';
+import { MARKET_PRODUCTS, type AggregatedOrderbook, type DeliveryPoint, type MarketProduct, type Product } from '../types';
 import { API_URL } from '../services/config';
 import { buildDemoMarketQuotes } from '../utils/demoMarketQuotes';
 import { formatMarketProduct } from '../utils/marketProduct';
@@ -16,7 +16,9 @@ export interface FuelPrice {
   availabilityWindow: string;
 }
 
-const DEMO_PRODUCTS = MARKET_PRODUCTS;
+// BIO_LNG is a live-only market: it has no disclosed demo anchor, so it never
+// contributes a preview price to the ticker or the landing-page fuel table.
+const DEMO_PRODUCTS: readonly MarketProduct[] = MARKET_PRODUCTS.filter((product) => product !== 'BIO_LNG');
 const DEMO_PORTS = ['Singapore', 'Shanghai'];
 
 // Biofuel previews use ENGINE 2026-09-25 anchors; Shanghai remains a demo proxy.

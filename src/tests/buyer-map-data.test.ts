@@ -84,7 +84,7 @@ describe('BuyerMap market data', () => {
         });
     });
 
-    it('keeps all six canonical products separate', () => {
+    it('keeps all seven canonical products separate', () => {
         const products = [
             ['BIO_METHANOL', 'Bio Methanol', 'Methanol'],
             ['E_METHANOL', 'e-Methanol', 'Methanol'],
@@ -92,6 +92,7 @@ describe('BuyerMap market data', () => {
             ['SYNTHETIC_ETHANOL', 'Synthetic Ethanol', 'Ethanol'],
             ['B30', 'B30', 'Biofuel'],
             ['B100', 'B100', 'Biofuel'],
+            ['BIO_LNG', 'Bio-LNG', 'LNG'],
         ] as const;
         const markets = products.map(([marketProduct, productName, fuelType], index) => compactMarket({
             product_id: `product-${marketProduct}`,
@@ -115,6 +116,7 @@ describe('BuyerMap market data', () => {
             'B30',
             'Bio Ethanol',
             'Bio Methanol',
+            'Bio-LNG',
             'e-Ethanol',
             'e-Methanol',
         ]);

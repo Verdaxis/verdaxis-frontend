@@ -1,4 +1,11 @@
 
+import type {
+    LngBidTerms,
+    LngPublicTradeSnapshot,
+    LngTradeSnapshot,
+    LngVisibleTerms,
+} from './types/lngOrder';
+
 export interface GeoLocation {
     lat: number;
     lng: number;
@@ -134,6 +141,11 @@ export interface Product {
     min_lot_size: number;
     spec_description?: string;
     is_active: boolean;
+    /**
+     * Delivery points this product may be traded at. Null or absent means the
+     * product is not lane-restricted.
+     */
+    available_delivery_point_ids?: string[] | null;
 }
 
 export interface DeliveryPoint {
@@ -155,6 +167,7 @@ export const MARKET_PRODUCTS = [
     'SYNTHETIC_ETHANOL',
     'B30',
     'B100',
+    'BIO_LNG',
 ] as const;
 
 export type MarketProduct = typeof MARKET_PRODUCTS[number];
@@ -211,6 +224,8 @@ export interface TradeCreateInput {
     order_id: string;
     quantity_mt: number;
     expected_terms_digest: string;
+    /** BIO_LNG only: the buyer's requirements for the ask it is taking. */
+    lng_terms?: LngBidTerms;
     idempotency_key?: string;
 }
 
@@ -265,6 +280,8 @@ export interface OrderBookOrder {
     trade_count?: number; // Only in "my" view
     creation_method?: 'SELF_SERVICE' | 'MARKET_SUPPORT' | string;
     etag?: string;
+    /** BIO_LNG only. The public order book projection hides seller identity. */
+    lng_terms?: LngVisibleTerms | null;
 }
 
 export interface OrderBookSnapshot {
@@ -314,6 +331,11 @@ export interface Trade {
     fuel_type: string;
     fuel_grade?: FuelGrade;
     region: string;
+    /**
+     * BIO_LNG only. The snapshot frozen at trade creation; the ask carries the
+     * seller identity only after the trade is confirmed.
+     */
+    lng_terms_snapshot?: LngTradeSnapshot | LngPublicTradeSnapshot | null;
 }
 
 export interface AggregatedOrderbook {

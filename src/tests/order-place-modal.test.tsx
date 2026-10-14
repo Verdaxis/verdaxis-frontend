@@ -1101,3 +1101,213 @@ describe('OrderPlaceModal', () => {
   });
 
 });
+
+describe('OrderPlaceModal bio-LNG terms', () => {
+  const BIO_LNG_PRODUCT = {
+    id: 'prod-bio-lng',
+    name: 'Bio-LNG',
+    market_product: 'BIO_LNG',
+    fuel_type: 'LNG',
+    fuel_grade: 'Bio',
+    unit: 'MT',
+    // The platform input minimum; bio-LNG stems are usually larger.
+    min_lot_size: 1,
+    is_active: true,
+    spec_description: 'Liquefied biomethane (bio-LNG) for marine fuel use.',
+    available_delivery_point_ids: ['dp-rotterdam'],
+  };
+  const B30_PRODUCT = {
+    id: 'prod-b30',
+    name: 'B30',
+    market_product: 'B30',
+    fuel_type: 'Biodiesel',
+    fuel_grade: 'B30',
+    unit: 'MT',
+    min_lot_size: 200,
+    is_active: true,
+  };
+
+  beforeEach(async () => {
+    await loadNamespace('trading');
+    await i18n.changeLanguage('en');
+    productsMock.mockReset();
+    deliveryPointsMock.mockReset();
+    createOrderMock.mockReset();
+    productsMock.mockResolvedValue([BIO_LNG_PRODUCT, B30_PRODUCT]);
+    deliveryPointsMock.mockResolvedValue([
+      { id: 'dp-rotterdam', name: 'Rotterdam', region: 'Europe', timezone: 'Europe/Amsterdam', is_active: true },
+      { id: 'dp-singapore', name: 'Singapore', region: 'Asia', timezone: 'Asia/Singapore', is_active: true },
+    ]);
+    createOrderMock.mockResolvedValue({ trades: [] });
+  });
+
+  const certificateInput = () => screen.getByLabelText('Your scheme certificate number');
+  const reviewAsk = () => screen.getByRole('button', { name: 'Review Ask' }) as HTMLButtonElement;
+
+  const msdsCheckbox = () => screen.getByLabelText(/MSDS available/);
+  const fillAskTerms = () => {
+    fireEvent.change(certificateInput(), { target: { value: 'ISCC-EU-CERT-0001' } });
+    fireEvent.change(screen.getByLabelText('Bio share (%)'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Feedstock category' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Manure' }));
+    // The country field uppercases what the seller types.
+    fireEvent.change(screen.getByLabelText('Production country (ISO alpha-2)'), { target: { value: 'nl' } });
+    fireEvent.change(screen.getByLabelText('Certified well-to-tank value (gCO2e/MJ)'), { target: { value: '-45.5' } });
+    fireEvent.change(screen.getByLabelText('Physical supplier name'), { target: { value: 'Diesol BV' } });
+  };
+  const completeAskTerms = () => {
+    fillAskTerms();
+    fireEvent.click(msdsCheckbox());
+  };
+
+  const setPrice = () => fireEvent.change(screen.getByRole('spinbutton', { name: /^price/i }), { target: { value: '1400' } });
+
+  it('offers only the product lane and sends the ask terms with the safety declaration', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    // Bio-LNG trades at Rotterdam only, whatever the catalog lists elsewhere.
+    expect(screen.getByRole('combobox', { name: 'Order delivery point' }).textContent).toContain('Rotterdam');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order delivery point' }));
+    expect(screen.getByRole('option', { name: /Rotterdam/ })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: /Singapore/ })).toBeNull();
+
+    completeAskTerms();
+    setPrice();
+    expect(reviewAsk().disabled).toBe(false);
+
+    fireEvent.click(reviewAsk());
+    expect(screen.getByRole('heading', { name: 'Review Ask' })).toBeTruthy();
+    expect(screen.getByText('Well-to-tank (gCO2e/MJ)')).toBeTruthy();
+    expect(screen.getByText(/-45.5 gCO2e\/MJ · Excludes engine methane slip/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Ask' }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    const payload = createOrderMock.mock.calls[0][0];
+    expect(payload).toMatchObject({
+      side: 'ASK',
+      product_id: 'prod-bio-lng',
+      delivery_point_id: 'dp-rotterdam',
+      quantity_mt: 1000,
+      price_per_mt_usd: 1400,
+      lng_terms: {
+        side: 'ASK',
+        sustainability_scheme: 'ISCC_EU',
+        scheme_certificate_number: 'ISCC-EU-CERT-0001',
+        chain_of_custody: 'MASS_BALANCE',
+        union_database_registered: true,
+        bio_share_pct: 100,
+        feedstock: 'MANURE',
+        production_country: 'NL',
+        wtt_ghg_gco2e_mj: -45.5,
+        specification_standard: 'ISO 23306:2020',
+        delivery_method: 'SHIP_TO_SHIP',
+        seller_is_physical_supplier: true,
+        physical_supplier_name: 'Diesol BV',
+        pos_timing: 'WITH_DELIVERY',
+      },
+    });
+    // The product remains the only generic field the server cannot derive.
+    expect(payload.msds_available).toBe(true);
+    // The server derives the remaining ASK scalars from lng_terms.
+    for (const key of [
+      'certification_declared', 'certifications', 'specification_standard',
+      'carbon_intensity_gco2_mj', 'carbon_intensity_method', 'feedstock', 'origin', 'certification_scheme',
+    ]) {
+      expect(payload).not.toHaveProperty(key);
+    }
+  });
+
+  it('sends the buyer requirements including physical suppliers only', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="BID" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    expect(screen.queryByText('Bio-LNG requirements')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
+    expect(screen.getByText('Bio-LNG requirements')).toBeTruthy();
+
+    // The helper text must match the switch: turning it on refuses resellers.
+    expect(screen.getByText('Turn this on to accept physical suppliers only (refuse resellers).')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText(/Physical suppliers only/));
+    setPrice();
+    expect(screen.getByRole('button', { name: 'Review Bid' })).toHaveProperty('disabled', false);
+
+    reviewAndConfirm('Bid');
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    // Switch on => accept_resellers false; the default (off) accepts resellers.
+    expect(createOrderMock.mock.calls[0][0].lng_terms.accept_resellers).toBe(false);
+    expect(createOrderMock.mock.calls[0][0]).toMatchObject({
+      side: 'BID',
+      product_id: 'prod-bio-lng',
+      lng_terms: {
+        side: 'BID',
+        accepted_schemes: ['ISCC_EU', 'REDCERT_EU'],
+        accepted_custody: ['MASS_BALANCE', 'PHYSICAL_SEGREGATION'],
+        require_union_database: true,
+        accepted_delivery_methods: ['SHIP_TO_SHIP', 'TRUCK_TO_SHIP', 'TERMINAL_TO_SHIP'],
+        accept_resellers: false,
+      },
+    });
+    expect(createOrderMock.mock.calls[0][0]).not.toHaveProperty('certifications');
+  });
+
+  it('requires the safety data sheet before a bio-LNG ask can be reviewed', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    fillAskTerms();
+    setPrice();
+    // The server refuses an ask without the declaration, so the client blocks it too.
+    expect(reviewAsk().disabled).toBe(true);
+    expect(msdsCheckbox()).toBeTruthy();
+
+    fireEvent.click(msdsCheckbox());
+    expect(reviewAsk().disabled).toBe(false);
+
+    fireEvent.click(reviewAsk());
+    expect(screen.getByText('MSDS available')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Ask' }));
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledTimes(1));
+    expect(createOrderMock.mock.calls[0][0]).toMatchObject({ side: 'ASK', msds_available: true });
+  });
+
+  it('keeps the ask blocked and explains the first incomplete term', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    expect(reviewAsk().disabled).toBe(true);
+    // Issues stay quiet until the seller changes something.
+    expect(screen.queryByText('Enter the bio share.')).toBeNull();
+
+    fireEvent.change(certificateInput(), { target: { value: 'x' } });
+    expect(screen.getByText('Enter a certificate number of 3 to 64 characters.')).toBeTruthy();
+    expect(screen.getByText('Enter the bio share.')).toBeTruthy();
+
+    fireEvent.change(certificateInput(), { target: { value: 'ISCC-EU-CERT-0001' } });
+    fireEvent.change(screen.getByLabelText('Certified well-to-tank value (gCO2e/MJ)'), { target: { value: '-400' } });
+    expect(screen.getByText('The well-to-tank value must be between -150 and 100 gCO2e/MJ.')).toBeTruthy();
+    expect(reviewAsk().disabled).toBe(true);
+
+    completeAskTerms();
+    setPrice();
+    expect(reviewAsk().disabled).toBe(false);
+  });
+
+  it('clears declared terms when the product changes', async () => {
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct="BIO_LNG" />);
+    await waitFor(() => expect(productsMock).toHaveBeenCalled());
+
+    fireEvent.change(certificateInput(), { target: { value: 'ISCC-EU-CERT-0001' } });
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^B30/ }));
+    expect(screen.queryByLabelText('Your scheme certificate number')).toBeNull();
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Order product' }));
+    fireEvent.click(screen.getByRole('option', { name: /^Bio-LNG/ }));
+    expect((certificateInput() as HTMLInputElement).value).toBe('');
+  });
+});
