@@ -1247,7 +1247,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 );
             }
             case 'action': {
-                const catalogAllowsExecution = order.market_product !== 'UCOME_B100' || b100TradingEnabled;
+                const catalogAllowsExecution = order.market_product === 'UCOME_B100' ? b100TradingEnabled
+                    : order.market_product === 'BIO_LNG' ? bioLngTradingEnabled
+                        : true;
                 const isExecutable = catalogAllowsExecution && (order.status === 'OPEN' || order.status === 'PARTIALLY_FILLED');
                 const pinnable = Boolean(order.market_product && order.delivery_point_id && order.availability_window);
                 const isPinned = pinnedOrderIds.has(order.id);
@@ -1673,7 +1675,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                     <OrderBook
                                         key={`${marketProduct}:${resolvedDeliveryPointId}:${availability}`}
                                         marketProduct={marketProduct}
-                                        executionMode={marketProduct === 'UCOME_B100' ? b100Product?.execution_mode : undefined}
+                                        executionMode={marketProduct === 'UCOME_B100' ? b100Product?.execution_mode
+                                            : marketProduct === 'BIO_LNG' ? bioLngProduct?.execution_mode
+                                                : undefined}
                                         region={resolvedPort || undefined}
                                         deliveryPointId={resolvedDeliveryPointId || undefined}
                                         availability={availability || undefined}

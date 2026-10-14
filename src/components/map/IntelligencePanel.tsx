@@ -5,7 +5,7 @@ import { api } from '../../services/api';
 import { useNamespace } from '../../hooks/useNamespace';
 import { NewsFeed } from '../NewsFeed';
 import { ComplianceEstimatorCard } from './ComplianceEstimatorCard';
-import { getProductDisplayName, isOrderbookMarketProduct, isOrderbookProduct } from '../../utils/marketProduct';
+import { getProductDisplayName, isOrderbookMarketProduct, isOrderbookProduct, LANE_RESTRICTED_MARKET_PRODUCTS } from '../../utils/marketProduct';
 import { normalizeAvailabilityWindow } from '../../utils/availabilityWindow';
 
 const enumKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -29,9 +29,9 @@ function supportsDeliveryPoint(product: Product, deliveryPointId: string | undef
     if (product.available_delivery_point_ids) {
         return product.available_delivery_point_ids.includes(deliveryPointId);
     }
-    // Only legacy alcohol catalogs can omit delivery coverage. B100 needs
-    // explicit coverage before requesting a price for a selected port.
-    return product.market_product !== 'UCOME_B100';
+    // Only legacy alcohol catalogs can omit delivery coverage. Lane-restricted
+    // products need explicit coverage before requesting a price for a selected port.
+    return !LANE_RESTRICTED_MARKET_PRODUCTS.has(product.market_product ?? '');
 }
 
 function buildCurveReference(

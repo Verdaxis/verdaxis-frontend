@@ -11,6 +11,13 @@ export const MARKET_PRODUCT_LABELS: Record<string, string> = {
   BIO_LNG: 'Bio-LNG',
 };
 
+/**
+ * Products whose catalog must declare an explicit ORDERBOOK capability and the
+ * approved delivery lanes. A missing or stale catalog entry fails closed, so a
+ * legacy alcohol response can never widen a restricted market.
+ */
+export const LANE_RESTRICTED_MARKET_PRODUCTS: ReadonlySet<string> = new Set(['UCOME_B100', 'BIO_LNG']);
+
 export function isOrderbookMarketProduct(value: string | null | undefined): value is OrderbookMarketProduct {
   return ORDERBOOK_MARKET_PRODUCTS.some((product) => product === value);
 }
@@ -18,11 +25,9 @@ export function isOrderbookMarketProduct(value: string | null | undefined): valu
 export function isOrderbookProduct(product: Product): boolean {
   if (!product.is_active || !isOrderbookMarketProduct(product.market_product)) return false;
   if (product.execution_mode === 'ORDERBOOK') return true;
-  // Alcohol catalogs historically omitted this flag. B100 and Bio-LNG require the
-  // explicit capability so a stale RFQ-only catalog cannot enable execution.
-  return product.execution_mode == null
-    && product.market_product !== 'UCOME_B100'
-    && product.market_product !== 'BIO_LNG';
+  // Alcohol catalogs historically omitted this flag. Lane-restricted products
+  // require the explicit capability so a stale RFQ-only catalog cannot enable execution.
+  return product.execution_mode == null && !LANE_RESTRICTED_MARKET_PRODUCTS.has(product.market_product);
 }
 
 export function formatMarketProduct(value: string | null | undefined): string {
