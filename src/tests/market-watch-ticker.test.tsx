@@ -43,6 +43,11 @@ const CATALOG_PRODUCTS: Product[] = [{
   fuel_type: 'FAME', fuel_grade: 'UCOME', unit: 'MT', min_lot_size: 1,
   is_active: true, execution_mode: 'ORDERBOOK',
   available_delivery_point_ids: ['dp-singapore-uuid'],
+}, {
+  id: 'product-bio-lng', name: 'Bio-LNG', market_product: 'BIO_LNG',
+  fuel_type: 'LNG', fuel_grade: 'Bio', unit: 'MT', min_lot_size: 1,
+  is_active: true, execution_mode: 'ORDERBOOK',
+  available_delivery_point_ids: ['dp-rotterdam-uuid'],
 }];
 
 const makeSummary = (overrides: Record<string, unknown> = {}) => ({
