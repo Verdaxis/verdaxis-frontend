@@ -176,6 +176,7 @@ vi.mock('../hooks/useWatchlist', () => ({
 }));
 
 vi.mock('../services/api', () => ({
+  isKycRequiredError: () => false,
   api: {
     catalog: {
       deliveryPoints,

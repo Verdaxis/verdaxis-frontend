@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../services/config';
+import type { ExecutionEligibility } from '../types';
 import {
     AUTH_IDENTITY_CHANGED_EVENT,
     clearAccessToken,
@@ -24,6 +25,8 @@ export interface User {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   email_verified?: boolean;
   kyc_status?: string;
+  /** Whether the user may execute trades, and why (see `ExecutionEligibility`). */
+  execution_eligibility?: ExecutionEligibility | null;
   must_change_password?: boolean;
 }
 

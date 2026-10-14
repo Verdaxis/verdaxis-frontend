@@ -258,5 +258,17 @@
   "feedback.submit": "发送",
   "feedback.sentShort": "已发送",
   "feedback.sent": "谢谢——我们会阅读每一条反馈。",
-  "feedback.error": "反馈发送失败，请重试。"
+  "feedback.error": "反馈发送失败，请重试。",
+  "kycBanner.label": "KYC 状态提示",
+  "kycBanner.grace.title": "请在 {{date}} 前完成 KYC 以继续交易",
+  "kycBanner.grace.titleNoDate": "请完成 KYC 以继续交易",
+  "kycBanner.grace.body": "在宽限期结束前，您仍可发布、承接和确认订单。",
+  "kycBanner.required.title": "请完成 KYC 验证以进行交易",
+  "kycBanner.required.body": "在您的 KYC 获得批准之前，您无法发布、承接或确认订单。",
+  "kycBanner.rejected.title": "您的 KYC 验证已被拒绝",
+  "kycBanner.rejected.body": "您无法发布、承接或确认订单。请重新提交文件或联系客服。",
+  "kycBanner.action": "完成 KYC",
+  "kycGate.blocked.title": "需要完成 KYC 验证",
+  "kycGate.blocked.message": "请完成 KYC 验证以进行交易。",
+  "kycGate.blocked.action": "完成 KYC"
 }

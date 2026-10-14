@@ -13,7 +13,7 @@ import {
     ChevronDown,
     EyeOff,
 } from 'lucide-react';
-import { ApiOutcomeUnknownError, api } from '../services/api';
+import { ApiOutcomeUnknownError, api, isKycRequiredError } from '../services/api';
 import { Trade } from '../types';
 import { getAuthGeneration } from '../services/authToken';
 import { getMarketSupportContextId } from '../services/marketSupportContextStore';
@@ -34,6 +34,7 @@ import {
 } from '../utils/tradeAnalytics';
 import i18n from '../i18n';
 import { formatAvailabilityWindow } from '../utils/availabilityWindow';
+import { KycRequiredNotice } from './kyc/KycRequiredNotice';
 import { isLngAskTerms } from '../utils/bioLngSpecification';
 import { BioLngTermsPanel } from './trading/BioLngTermsPanel';
 
@@ -71,6 +72,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
     const activeCommandRef = useRef<symbol | null>(null);
     const [retryRequest, setRetryRequest] = useState<FrozenTradeCommand | null>(null);
+    const [kycBlocked, setKycBlocked] = useState(false);
     const requestGeneration = useRef(0);
     const requestScope = `${user?.id ?? ''}:${user?.organization_id ?? ''}`;
     const commandScope = `${requestScope}:${marketSupportContext?.id ?? 'direct'}`;
@@ -208,6 +210,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         );
         activeCommandRef.current = commandToken;
         setActionLoadingId(tradeId);
+        setKycBlocked(false);
         try {
             const updatedTrade = operation === 'confirm'
                 ? await api.trades.confirm(request.tradeId, request.idempotencyKey) as Trade
@@ -236,6 +239,14 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     title: t('myTrades.toast.outcomeUnknown.title'),
                     message: t('myTrades.toast.outcomeUnknown.message'),
                 });
+                return;
+            }
+            if (isKycRequiredError(err)) {
+                // Confirming is gated by KYC; decline and the other cleanup
+                // commands are not. Show the reason and the /kyc link instead of
+                // a generic failure toast.
+                setRetryRequest(null);
+                setKycBlocked(true);
                 return;
             }
             setRetryRequest(null);
@@ -429,6 +440,8 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
                     </button>
                 </div>
             )}
+
+            {kycBlocked && <KycRequiredNotice className="mb-6" />}
 
             {error && (
                 <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">

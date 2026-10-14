@@ -82,6 +82,7 @@ vi.mock('../components/ui/Pagination', () => ({
 vi.mock('../services/api', () => ({
   ApiError: TestApiError,
   ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+  isKycRequiredError: (error: unknown) => error instanceof TestApiError && error.code === 'KYC_REQUIRED',
   api: {
     catalog: {
       deliveryPoints,
