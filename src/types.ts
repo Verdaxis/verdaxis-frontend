@@ -122,6 +122,26 @@ export interface MarketWatchItem {
     up: boolean;
 }
 
+// ============== KYC Execution Gate ==============
+
+/** Mirrors the backend `execution_eligibility.reason` on `/api/auth/me`. */
+export type ExecutionEligibilityReason =
+    | 'KYC_APPROVED'
+    | 'KYC_GRACE'
+    | 'KYC_REQUIRED'
+    | 'KYC_REJECTED'
+    | 'NOT_APPLICABLE';
+
+/**
+ * Whether the signed-in user may execute trades. `NOT_APPLICABLE` covers
+ * platform admins and users without an organization; they are not gated.
+ */
+export interface ExecutionEligibility {
+    eligible: boolean;
+    reason: ExecutionEligibilityReason;
+    grace_expires_at: string | null;
+}
+
 export type ViewMode = 'BUYER' | 'SUPPLIER';
 
 // ============== Catalog Types ==============

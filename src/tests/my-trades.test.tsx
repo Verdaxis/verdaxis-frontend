@@ -70,18 +70,23 @@ vi.mock('../hooks/useNamespace', () => ({
     ? { ...namespaceControl, ready: namespaceControl.fuelTermsReady } : namespaceControl,
 }));
 
-vi.mock('../services/api', () => ({
-  ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
-  api: {
-    trades: {
-      myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
-      confirm: confirmMock,
-      decline: declineMock,
-      deliver: vi.fn(),
-      pay: vi.fn(),
+vi.mock('../services/api', async importOriginal => {
+  const actual = await importOriginal<typeof import('../services/api')>();
+  return {
+    ApiError: actual.ApiError,
+    isKycRequiredError: actual.isKycRequiredError,
+    ApiOutcomeUnknownError: TestApiOutcomeUnknownError,
+    api: {
+      trades: {
+        myTradesPaged: (...args: unknown[]) => myTradesPagedMock(...args),
+        confirm: confirmMock,
+        decline: declineMock,
+        deliver: vi.fn(),
+        pay: vi.fn(),
+      },
     },
-  },
-}));
+  };
+});
 
 describe('MyTrades lifecycle', () => {
   beforeEach(async () => {

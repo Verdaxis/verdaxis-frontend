@@ -137,6 +137,17 @@ export class ApiError extends Error {
     }
 }
 
+/**
+ * Detail code the backend returns with HTTP 403 when KYC blocks an execution
+ * (order create/amend, inventory publish, take, confirm). The detail object
+ * also carries `kyc_status` and `grace_expires_at`.
+ */
+export const KYC_REQUIRED_CODE = 'KYC_REQUIRED';
+
+/** True when a request failed because the user is not eligible to execute. */
+export const isKycRequiredError = (error: unknown): boolean =>
+    error instanceof ApiError && error.code === KYC_REQUIRED_CODE;
+
 export class ApiOutcomeUnknownError extends Error {
     readonly cause: unknown;
 
