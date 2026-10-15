@@ -6,7 +6,7 @@ import { API_URL } from '../services/config';
 import { useNamespace } from '../hooks/useNamespace';
 import { localizedAuthError } from './authApiError';
 
-type SubmitState = 'idle' | 'submitting' | 'approved' | 'rejected' | 'error';
+type SubmitState = 'idle' | 'submitting' | 'approved' | 'pending' | 'rejected' | 'error';
 
 const KycPage: React.FC = () => {
   const { token } = useAuth();
@@ -54,17 +54,19 @@ const KycPage: React.FC = () => {
             : data.message || t('kyc.rejected.defaultMessage'));
           setSubmitState('rejected');
         } else {
-          // PENDING or any other status — treat as pending confirmation
-          setSubmitState('approved');
+          // Receipt of documents is not approval of the account.
+          setSubmitState('pending');
         }
       } else {
         const errData = await res.json().catch(() => null);
-        setErrorMessage(localizedAuthError(errData, t, 'kyc.error.failed', 'KYC submission failed'));
+        setErrorMessage(res.status === 504
+          ? t('kyc.error.outcomeUnknown')
+          : localizedAuthError(errData, t, 'kyc.error.failed', 'KYC submission failed'));
         setSubmitState('error');
       }
     } catch (error) {
       console.error('[auth] KYC network error', error);
-      setErrorMessage(t('kyc.error.connectionFailed'));
+      setErrorMessage(t('kyc.error.outcomeUnknown'));
       setSubmitState('error');
     }
   };
@@ -92,14 +94,14 @@ const KycPage: React.FC = () => {
 
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
           {/* Approved State */}
-          {submitState === 'approved' && (
+          {(submitState === 'approved' || submitState === 'pending') && (
             <div className="text-center space-y-4 py-4">
               <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 size={36} className="text-emerald-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white">{t('kyc.approved.title')}</h2>
+              <h2 className="text-2xl font-bold text-white">{t(submitState === 'pending' ? 'kyc.pending.title' : 'kyc.approved.title')}</h2>
               <p className="text-slate-400">
-                {t('kyc.approved.message')}
+                {t(submitState === 'pending' ? 'kyc.pending.message' : 'kyc.approved.message')}
               </p>
               <div className="pt-2">
                 <Link
