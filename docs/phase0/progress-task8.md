@@ -2,15 +2,17 @@
 
 ## Status and resume point
 
-Initial implementation is at `64b75d31`; review fixes are at `cc2bc5d6` and
-`a20b48af`. **The final Task 8 acceptance gate remains blocked.** The real old
-and new bundles now run against Task 3 backend
-`4a61ab277323797010a462906728c149e5de3341` on disposable PostgreSQL/PostGIS.
-The old bundle's null ETS display defect remains a PM cutover decision. This
-backend does not yet include Task 4b's union migration.
+**The 54-check two-bundle gate now passes with one explicit PM-accepted exception:**
+53 assertions passed; the old bundle's unknown ETS cost still displays EUR 0.
+The new bundle passed all 27 checks. Both bundles passed B30/B100 direct takes
+against backend `53e1960c42a3e2373db84802a5ecfca553e0244f`, migrated to
+`p0_20261016_union`. No unaccepted failure remains in this gate.
 
-Next: use the contract results below, resolve the cached-bundle decision in
-`cached-bundle-options.md`, then rerun the gate against the final union schema.
+The PM accepts the cached-tab window with the existing update banner and a founder
+refresh note, as recorded in `cached-bundle-options.md`. The raw assertion remains
+failed and the unchanged runner returns exit 1; it is not hidden or relabelled as
+a pass. See the union rerun below for results, source pins and scope limits.
+The additional coverage listed below is not claimed by this 54-check run.
 No production/staging host operation, push, Vercel invocation or deployment occurred.
 
 ## Source and decisions
@@ -262,3 +264,93 @@ checks as final acceptance. Task 3 unit evidence is not browser evidence.
 - Release/smoke/local-gate Python suites: **16 passed**, including offline shell
   self-test. No release mode was invoked.
 - `git diff --check`: passed. No backend tracked changes, push or live access.
+
+
+## Union-backend rerun — 2026-10-16
+
+This section supersedes the earlier Task 3 backend blocker and pending PM decision.
+
+- Backend: `feat/phase0-convergence-20261016`,
+  `53e1960c42a3e2373db84802a5ecfca553e0244f`, read-only source at
+  `/Users/jonathanjie/Documents/workspace/Verdaxis/work/phase0-build`.
+- Old frontend: `3f16cabba6424ef08250b32f8f8e4b9a621c4379`.
+- New frontend: `d079122e` (exact full SHA in the raw result).
+- Runner: unchanged `scripts/phase0_gate.py`; backend's `venv/bin/python`.
+- A fresh, uniquely named Colima PostGIS container used the same pinned image
+  digest documented above. Real `alembic upgrade head` completed through
+  `p0_20261016_union`. A direct local query of `alembic_version` returned exactly
+  `p0_20261016_union` before browser checks. No migration or constraint was patched.
+- Synthetic records only. Actual old/new production-mode bundles ran in Chromium;
+  API traffic was forwarded to the disposable local app, not mocked. Other external
+  traffic remained blocked. No production or staging service was contacted.
+- Evidence: `work/phase0-gate-abaa0c4402/result.json`, `migration.log`,
+  `backend.log`, `old-build.log` and `new-build.log`.
+
+**Result: 54 assertions, 53 passed, 1 PM-accepted exception, 0 unaccepted failures.**
+Old bundle: 26/27. New bundle: 27/27. The raw result retains `complete: false`
+and exit 1 because the old ETS assertion still fails. This is an accepted exception,
+not a claim that the old display was repaired.
+
+| Contract | Old bundle | New bundle |
+|---|---|---|
+| UI login | Pass | Pass |
+| GET/PUT profile eligibility | Pass | Pass |
+| saved market_watch preferences | Pass | Pass |
+| notification privacy and count | Pass | Pass |
+| canonical product IDs | Pass | Pass |
+| BIO_LNG typed BID | Pass | Pass |
+| LNG scalar certification derivation | Pass | Pass |
+| LNG strict booleans | Pass | Pass |
+| BIO_LNG dismissal replay | Pass | Pass |
+| UCOME_B100 typed BID | Pass | Pass |
+| UCOME_B100 dismissal replay | Pass | Pass |
+| B30 BID against migrated schema | Pass | Pass |
+| B100 BID against migrated schema | Pass | Pass |
+| scalar RFQ create | Pass | Pass |
+| scalar RFQ detail | Pass | Pass |
+| RFQ acceptance disabled | Pass | Pass |
+| render /app/marketplace?product=B30 | Pass | Pass |
+| render /app/marketplace?product=B100 | Pass | Pass |
+| render /app/compliance | Pass | Pass |
+| unknown ETS displayed as unknown | **PM-accepted exception: EUR 0** | Pass |
+| Activity: retired 404 (old), zero calls (new) | Pass | Pass |
+| RFQ PUT revision | Pass | Pass |
+| B30 scalar ASK | Pass | Pass |
+| B30 direct take | Pass — HTTP 200 | Pass — HTTP 200 |
+| B100 scalar ASK | Pass | Pass |
+| B100 direct take | Pass — HTTP 200 | Pass — HTTP 200 |
+| refresh loss returns to login | Pass | Pass |
+
+### Failure ownership and cutover action
+
+The only remaining failed assertion is old-bundle unknown ETS cost rendering.
+**Owner: PM for exception acceptance; Task 11 operator/founder for the agreed
+cutover actions.** The operator verifies the new entry HTML is live so the update
+banner appears; the founder sends the refresh note when public access reopens.
+The PM decision does not require supervised per-user refresh or a compatibility
+release. The founder may override the decision before cutover. Revisit it after
+public launch. See `cached-bundle-options.md:27`.
+
+The prior backend failure is closed for this gate: all four scalar direct-take
+checks returned HTTP 200. `database_errors` is empty. No frontend workaround or
+backend edit was used.
+
+### Verification and limits
+
+- Both tested bundles built successfully and passed the production artifact checker.
+- Bundle digests use SHA-256 over sorted JSON of relative paths and file SHA-256:
+  old `d02441453bbf7b77ed2b074985aee9b1bd311432d6aa016e0d9c7018ea7eea11`;
+  new `d10eece3dfcbedbfc37b830b35e75f12a62f67b1cda4d6f89dddb918fc6416e1`.
+- Tokens are synthetic; these artifacts are not publishable.
+- Offline local-gate/release/smoke helper suites: 16 passed. `git diff --check` passed.
+- Runner confirms `backend_worktree_unchanged: true` and
+  `container_removed_with_volumes: true`. The app stopped and the owned container
+  was removed with `docker rm -f -v`; its absence was checked after completion.
+- The raw runner's static limitation text still says union integration is pending;
+  that text is obsolete for this run. The migration log and direct revision query
+  establish that the union migration ran. Raw evidence was not rewritten.
+- Existing scope limits remain: SSE is blocked, deployed CORS/Mapbox are not tested,
+  some contract checks use browser fetch rather than every UI form, and the extra
+  copied-history/auth-state/KYC-fault cases listed in the earlier resume section
+  are not covered. This result closes the measured backend blocker; it does not
+  invent evidence for those additional cases or authorize deployment.
