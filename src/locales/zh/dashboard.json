@@ -191,7 +191,9 @@
       "eethanol": "e-Ethanol",
       "greenmethanol": "绿色甲醇",
       "other": "其他燃料",
-      "lng": "液化天然气"
+      "lng": "液化天然气",
+      "biolng": "生物液化天然气",
+      "othermethanol": "其他甲醇"
     }
   },
   "newsFeed": {

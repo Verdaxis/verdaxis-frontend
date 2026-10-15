@@ -29,12 +29,12 @@ describe('EducationPage', () => {
     expect(screen.getByText('What is Carbon Intensity and Why It Matters')).toBeTruthy();
     expect(screen.getByText('Physical vs Book & Claim')).toBeTruthy();
     expect(screen.getByText('Why Compliance is Not the Same as Credits')).toBeTruthy();
-    expect(screen.getByText('How Scope 3 Emissions Are Claimed Safely')).toBeTruthy();
+    expect(screen.getByText('How to Account for Scope 3 Fuel Emissions Carefully')).toBeTruthy();
     expect(screen.getByText(/Energy Content Matters/)).toBeTruthy();
     expect(screen.getByText('FuelEU Maritime: What Fuel Buyers Need to Know')).toBeTruthy();
     const readLinks = screen
       .getAllByRole('link')
-      .filter((link) => link.getAttribute('href')?.startsWith('/education/'));
+      .filter((link) => link.getAttribute('href')?.startsWith('/en/education/'));
     expect(readLinks.length).toBe(6);
   });
 
@@ -65,6 +65,11 @@ describe('EducationArticlePage', () => {
     expect(screen.getByText('What is Carbon Intensity and Why It Matters')).toBeTruthy();
     expect(screen.getByText('Fundamentals')).toBeTruthy();
     expect(screen.getByText('4 min read')).toBeTruthy();
+    expect(screen.getByText('Maintained by Verdaxis')).toBeTruthy();
+    expect(screen.getByText('Sources checked: 2026-10-06')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Primary references' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /IMO Resolution MEPC\.391/ }).getAttribute('href'))
+      .toContain('imo.org');
   });
 
   it('shows not found for invalid slug', () => {
@@ -77,7 +82,7 @@ describe('EducationArticlePage', () => {
     );
     expect(screen.getByText('Article not found')).toBeTruthy();
     const backLink = screen.getByRole('link', { name: /back to education/i });
-    expect(backLink.getAttribute('href')).toBe('/education');
+    expect(backLink.getAttribute('href')).toBe('/en/education');
   });
 });
 

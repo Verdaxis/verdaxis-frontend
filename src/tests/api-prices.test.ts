@@ -52,7 +52,7 @@ describe('price discovery API client', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url] = fetchMock.mock.calls[0] ?? [];
-        const parsedUrl = new URL(String(url));
+        const parsedUrl = new URL(String(url), 'http://localhost');
         expect(String(url)).toContain('/prices/reference?');
         expect(String(url)).toContain('market_product=SYNTHETIC_ETHANOL');
         expect(String(url)).toContain('delivery_point_id=port-456');

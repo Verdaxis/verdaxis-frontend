@@ -35,9 +35,9 @@ import PublicLanguageWrapper from './components/public/PublicLanguageWrapper';
 import LegacyRedirect from './components/public/LegacyRedirect';
 import { useTranslation } from 'react-i18next';
 import { EDUCATION_SLUGS } from './routeMetadata';
+import { publicPageLoaders, type PreparedPublicPage } from './publicPageLoaders';
 
 const loadBuyerMap = () => import('./components/BuyerMap').then((module) => ({ default: module.BuyerMap }));
-const loadProducerMapPage = () => import('./pages/public/ProducerMapPage').then((module) => ({ default: module.ProducerMapPage }));
 
 const CHUNK_RELOAD_FLAG = 'verdaxis_chunk_reloaded';
 
@@ -63,7 +63,7 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 }
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
-const ProducerMapPage = lazyWithRetry(loadProducerMapPage);
+const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
 const BuyerDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.BuyerDashboard })));
 const SupplierDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.SupplierDashboard })));
 const SupplierQuotes = lazyWithRetry(() => import('./components/SupplierQuotes').then((module) => ({ default: module.SupplierQuotes })));
@@ -90,25 +90,25 @@ const DataAnalytics = lazyWithRetry(() => import('./components/DataAnalytics').t
 const Training = lazyWithRetry(() => import('./components/Training').then((module) => ({ default: module.Training })));
 const Settings = lazyWithRetry(() => import('./components/Settings').then((module) => ({ default: module.Settings })));
 const ForwardCurveWorkspace = lazyWithRetry(() => import('./components/ForwardCurveWorkspace').then((module) => ({ default: module.ForwardCurveWorkspace })));
-const LandingPage = lazyWithRetry(() => import('./pages/public/LandingPage').then((module) => ({ default: module.LandingPage })));
-const HowItWorksPage = lazyWithRetry(() => import('./pages/public/HowItWorksPage').then((module) => ({ default: module.HowItWorksPage })));
-const FuelCoveragePage = lazyWithRetry(() => import('./pages/public/FuelCoveragePage').then((module) => ({ default: module.FuelCoveragePage })));
-const ComplianceInfoPage = lazyWithRetry(() => import('./pages/public/ComplianceInfoPage').then((module) => ({ default: module.ComplianceInfoPage })));
-const ProducerUseCasePage = lazyWithRetry(() => import('./pages/public/ProducerUseCasePage').then((module) => ({ default: module.ProducerUseCasePage })));
-const BuyerUseCasePage = lazyWithRetry(() => import('./pages/public/BuyerUseCasePage').then((module) => ({ default: module.BuyerUseCasePage })));
-const TraderUseCasePage = lazyWithRetry(() => import('./pages/public/TraderUseCasePage').then((module) => ({ default: module.TraderUseCasePage })));
-const FinancierUseCasePage = lazyWithRetry(() => import('./pages/public/FinancierUseCasePage').then((module) => ({ default: module.FinancierUseCasePage })));
-const GovernancePage = lazyWithRetry(() => import('./pages/public/GovernancePage').then((module) => ({ default: module.GovernancePage })));
-const PilotPage = lazyWithRetry(() => import('./pages/public/PilotPage').then((module) => ({ default: module.PilotPage })));
-const EducationPage = lazyWithRetry(() => import('./pages/public/EducationPage').then((module) => ({ default: module.EducationPage })));
-const PartnersPage = lazyWithRetry(() => import('./pages/public/PartnersPage').then((module) => ({ default: module.PartnersPage })));
-const EducationArticlePage = lazyWithRetry(() => import('./pages/public/EducationArticlePage').then((module) => ({ default: module.EducationArticlePage })));
-const RoadmapPage = lazyWithRetry(() => import('./pages/public/RoadmapPage').then((module) => ({ default: module.RoadmapPage })));
-const EnergyCalculatorPage = lazyWithRetry(() => import('./pages/public/EnergyCalculatorPage').then((module) => ({ default: module.EnergyCalculatorPage })));
+const LandingPage = lazyWithRetry(publicPageLoaders.landing);
+const HowItWorksPage = lazyWithRetry(publicPageLoaders.howItWorks);
+const FuelCoveragePage = lazyWithRetry(publicPageLoaders.fuelCoverage);
+const ComplianceInfoPage = lazyWithRetry(publicPageLoaders.compliance);
+const ProducerUseCasePage = lazyWithRetry(publicPageLoaders.producers);
+const BuyerUseCasePage = lazyWithRetry(publicPageLoaders.buyers);
+const TraderUseCasePage = lazyWithRetry(publicPageLoaders.traders);
+const FinancierUseCasePage = lazyWithRetry(publicPageLoaders.financiers);
+const GovernancePage = lazyWithRetry(publicPageLoaders.governance);
+const PilotPage = lazyWithRetry(publicPageLoaders.pilot);
+const EducationPage = lazyWithRetry(publicPageLoaders.education);
+const PartnersPage = lazyWithRetry(publicPageLoaders.partners);
+const EducationArticlePage = lazyWithRetry(publicPageLoaders.educationArticle);
+const RoadmapPage = lazyWithRetry(publicPageLoaders.roadmap);
+const EnergyCalculatorPage = lazyWithRetry(publicPageLoaders.energyCalculator);
 const PartnerShowcasePage = lazyWithRetry(() => import('./pages/public/PartnerShowcasePage').then((module) => ({ default: module.PartnerShowcasePage })));
 const PartnerLandingPage = lazyWithRetry(() => import('./pages/public/PartnerLandingPage').then((module) => ({ default: module.PartnerLandingPage })));
-const PrivacyPage = lazyWithRetry(() => import('./pages/public/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
-const TermsPage = lazyWithRetry(() => import('./pages/public/TermsPage').then((module) => ({ default: module.TermsPage })));
+const PrivacyPage = lazyWithRetry(publicPageLoaders.privacy);
+const TermsPage = lazyWithRetry(publicPageLoaders.terms);
 const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 const ThankYouPage = lazyWithRetry(() => import('./pages/public/ThankYouPage').then((module) => ({ default: module.ThankYouPage })));
 
@@ -523,7 +523,14 @@ const EducationArticleRoute: React.FC = () => {
 
 // Exported for route-level tests: everything inside the router, without
 // the BrowserRouter/provider shell.
-export const AppRoutes: React.FC = () => {
+interface AppProps {
+  initialPublicPage?: PreparedPublicPage;
+}
+
+export const AppRoutes: React.FC<AppProps> = ({ initialPublicPage }) => {
+  const { pathname } = useLocation();
+  const InitialPublicPage = initialPublicPage?.pathname === pathname ? initialPublicPage.Component : undefined;
+  const publicPage = (fallback: React.ReactElement) => InitialPublicPage ? <InitialPublicPage /> : fallback;
   return (
                 <Suspense fallback={<LoadingScreen fullScreen />}>
                 <Routes>
@@ -544,26 +551,26 @@ export const AppRoutes: React.FC = () => {
                     {/* Public pages under /:lang */}
                     <Route path="/:lang" element={<PublicLanguageWrapper invalidLanguageElement={<NotFoundPage />} />}>
                       <Route element={<PublicLayout />}>
-                        <Route index element={<LandingPage />} />
-                        <Route path="how-it-works" element={<HowItWorksPage />} />
-                        <Route path="fuels" element={<FuelCoverageRoute />} />
-                        <Route path="fuels/:sector" element={<FuelCoverageRoute />} />
-                        <Route path="compliance" element={<ComplianceInfoPage />} />
-                        <Route path="for-producers" element={<ProducerUseCasePage />} />
-                        <Route path="for-buyers" element={<BuyerUseCasePage />} />
-                        <Route path="for-traders" element={<TraderUseCasePage />} />
-                        <Route path="for-financiers" element={<FinancierUseCasePage />} />
-                        <Route path="governance" element={<GovernancePage />} />
-                        <Route path="pilot" element={<PilotPage />} />
-                        <Route path="partners" element={<PartnersPage />} />
+                        <Route index element={publicPage(<LandingPage />)} />
+                        <Route path="how-it-works" element={publicPage(<HowItWorksPage />)} />
+                        <Route path="fuels" element={publicPage(<FuelCoverageRoute />)} />
+                        <Route path="fuels/:sector" element={publicPage(<FuelCoverageRoute />)} />
+                        <Route path="compliance" element={publicPage(<ComplianceInfoPage />)} />
+                        <Route path="for-producers" element={publicPage(<ProducerUseCasePage />)} />
+                        <Route path="for-buyers" element={publicPage(<BuyerUseCasePage />)} />
+                        <Route path="for-traders" element={publicPage(<TraderUseCasePage />)} />
+                        <Route path="for-financiers" element={publicPage(<FinancierUseCasePage />)} />
+                        <Route path="governance" element={publicPage(<GovernancePage />)} />
+                        <Route path="pilot" element={publicPage(<PilotPage />)} />
+                        <Route path="partners" element={publicPage(<PartnersPage />)} />
                         <Route path="partners/:slug" element={<PartnerLandingPage />} />
-                        <Route path="education" element={<EducationPage />} />
-                        <Route path="education/:slug" element={<EducationArticleRoute />} />
-                        <Route path="roadmap" element={<RoadmapPage />} />
-                        <Route path="tools/energy-calculator" element={<EnergyCalculatorPage />} />
-                        <Route path="map/producers" element={<ProducerMapPage />} />
-                        <Route path="privacy" element={<PrivacyPage />} />
-                        <Route path="terms" element={<TermsPage />} />
+                        <Route path="education" element={publicPage(<EducationPage />)} />
+                        <Route path="education/:slug" element={publicPage(<EducationArticleRoute />)} />
+                        <Route path="roadmap" element={publicPage(<RoadmapPage />)} />
+                        <Route path="tools/energy-calculator" element={publicPage(<EnergyCalculatorPage />)} />
+                        <Route path="map/producers" element={publicPage(<ProducerMapPage />)} />
+                        <Route path="privacy" element={publicPage(<PrivacyPage />)} />
+                        <Route path="terms" element={publicPage(<TermsPage />)} />
                         <Route path="*" element={<NotFoundPage />} />
                       </Route>
                     </Route>
@@ -645,7 +652,7 @@ export const AppRoutes: React.FC = () => {
   );
 };
 
-const App: React.FC = () => {
+const App: React.FC<AppProps> = ({ initialPublicPage }) => {
   return (
     <ErrorBoundary>
     <ThemeProvider>
@@ -660,7 +667,7 @@ const App: React.FC = () => {
                 <PublicMarketSync />
                 <ScrollToTop />
                 <DeploymentUpdateNotice />
-                <AppRoutes />
+                <AppRoutes initialPublicPage={initialPublicPage} />
                 </AnalyticsProvider>
             </BrowserRouter>
         </TutorialProvider>

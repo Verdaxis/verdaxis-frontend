@@ -7,6 +7,14 @@ export interface EducationArticle {
   category: 'Fundamentals' | 'Compliance' | 'Market';
   readTime: number; // minutes
   content: string; // Plain text with paragraph breaks
+  maintainer: string;
+  sourcesCheckedOn: string;
+  references: EducationReference[];
+}
+
+export interface EducationReference {
+  title: string;
+  url: string;
 }
 
 export const EDUCATION_CATEGORY_KEYS = {
@@ -29,6 +37,33 @@ const SLUGS = [
 
 const READ_TIMES = [4, 3, 3, 5, 4, 5];
 
+const REFERENCE_URLS: readonly (readonly string[])[] = [
+  [
+    'https://wwwcdn.imo.org/localresources/en/KnowledgeCentre/IndexofIMOResolutions/MEPCDocuments/MEPC.391%2881%29.pdf',
+    'https://eur-lex.europa.eu/eli/reg/2023/1805/oj',
+  ],
+  [
+    'https://rsb.org/wp-content/uploads/2023/04/rsb-pro-20-002-rsb-procedure-for-book-and-claim-4.2.pdf',
+    'https://eur-lex.europa.eu/eli/reg/2023/1805/oj',
+  ],
+  [
+    'https://eur-lex.europa.eu/eli/reg/2023/1805/oj',
+    'https://climate.ec.europa.eu/areas-action/transport-decarbonisation/reducing-emissions-shipping-sector/faq-maritime-transport-eu-emissions-trading-system-ets_en',
+  ],
+  [
+    'https://ghgprotocol.org/corporate-value-chain-scope-3-standard',
+    'https://www.ifrs.org/issued-standards/ifrs-sustainability-standards-navigator/ifrs-s2-climate-related-disclosures/',
+  ],
+  [
+    'https://wwwcdn.imo.org/localresources/en/KnowledgeCentre/IndexofIMOResolutions/MEPCDocuments/MEPC.391%2881%29.pdf',
+    'https://eur-lex.europa.eu/eli/reg/2023/1805/oj',
+  ],
+  [
+    'https://eur-lex.europa.eu/eli/reg/2023/1805/oj',
+    'https://emsa.europa.eu/reducing-emissions/webinars_and_tutorials/fueleu-webinars.html',
+  ],
+];
+
 // Category values must stay as English literals since they are used as filter keys
 // and as CSS color-map keys. We expose a separate translated display if needed.
 const CATEGORIES: EducationArticle['category'][] = [
@@ -49,6 +84,12 @@ export function getEducationArticles(): EducationArticle[] {
     category: CATEGORIES[i],
     readTime: READ_TIMES[i],
     content: t(`articles.${i}.content`),
+    maintainer: 'Verdaxis',
+    sourcesCheckedOn: '2026-10-06',
+    references: REFERENCE_URLS[i].map((url, referenceIndex) => ({
+      title: t(`articles.${i}.references.${referenceIndex}`),
+      url,
+    })),
   }));
 }
 

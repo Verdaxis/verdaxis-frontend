@@ -17,32 +17,30 @@ describe('ComplianceInfoPage', () => {
     expect(screen.getByText(/compliance & integrity/i)).toBeTruthy();
   });
 
-  it('renders stewardship section', () => {
+  it('renders the market-record sustainability disclosure', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/steward of high-integrity supply/i)).toBeTruthy();
-    expect(screen.getByText(/single source of truth/i)).toBeTruthy();
-    expect(screen.getByText(/end-to-end visibility/i)).toBeTruthy();
-    expect(screen.getByText(/recorded, timestamped, and auditable/i)).toBeTruthy();
+    expect(screen.getByText(/sustainability information in market records/i)).toBeTruthy();
+    expect(screen.getByText(/fields are not independent verification or a regulatory determination/i)).toBeTruthy();
   });
 
-  it('renders supply chain roles', () => {
+  it('renders the market record lifecycle', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText('Producer')).toBeTruthy();
-    expect(screen.getByText('Verdaxis')).toBeTruthy();
-    expect(screen.getByText('Vessel')).toBeTruthy();
-    expect(screen.getByText('Tank')).toBeTruthy();
+    expect(screen.getByText('Supplier')).toBeTruthy();
+    expect(screen.getByText('Market Record')).toBeTruthy();
+    expect(screen.getByText('Order or Trade')).toBeTruthy();
+    expect(screen.getByText('Lifecycle Status')).toBeTruthy();
   });
 
-  it('renders integrity points', () => {
+  it('renders the disclosed-information limits', () => {
     renderWithRouter(<ComplianceInfoPage />);
-    expect(screen.getByText(/verified sustainability data travels with the fuel/i)).toBeTruthy();
-    expect(screen.getByText(/platform-enforced integrity eliminates gaps/i)).toBeTruthy();
+    expect(screen.getByText(/supplier-declared certification information is labelled as a declaration/i)).toBeTruthy();
+    expect(screen.getByText(/review disclosed fields before making a market decision/i)).toBeTruthy();
   });
 
   it('renders CTA to how it works', () => {
     renderWithRouter(<ComplianceInfoPage />);
     expect(screen.getByText(/see how the platform works end-to-end/i)).toBeTruthy();
     const link = screen.getByRole('link', { name: /how it works/i });
-    expect(link.getAttribute('href')).toBe('/how-it-works');
+    expect(link.getAttribute('href')).toBe('/en/how-it-works');
   });
 });

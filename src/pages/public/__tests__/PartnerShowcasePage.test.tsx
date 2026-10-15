@@ -33,8 +33,12 @@ const renderWithRouter = (ui: React.ReactElement, { route = '/partners-preview' 
 describe('PartnerShowcasePage', () => {
   it('renders page hero with title', () => {
     renderWithRouter(<PartnerShowcasePage />);
-    expect(screen.getAllByText(/institutions/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/that shape the market/i)).toBeTruthy();
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /independent industry resources for market context/i,
+      })
+    ).toBeTruthy();
   });
 
   it('renders all four partner cards', () => {
@@ -54,33 +58,34 @@ describe('PartnerShowcasePage', () => {
     expect(screen.getByText('Analytics & Technology')).toBeTruthy();
   });
 
-  it('renders verified partner badges', () => {
+  it('labels each card as an independent industry resource', () => {
     renderWithRouter(<PartnerShowcasePage />);
-    const badges = screen.getAllByText('VERDAXIS VERIFIED PARTNER');
+    const badges = screen.getAllByText('INDEPENDENT INDUSTRY RESOURCE');
     expect(badges.length).toBe(4);
   });
 
   it('renders the mock marketplace listing', () => {
     renderWithRouter(<PartnerShowcasePage />);
     expect(screen.getByText('Example Marketplace Listing')).toBeTruthy();
-    expect(screen.getByText(/green methanol/i)).toBeTruthy();
-    expect(screen.getByText('MI Member')).toBeTruthy();
-    expect(screen.getByText('Platts-Indexed')).toBeTruthy();
+    expect(screen.getByText(/illustrative methanol listing/i)).toBeTruthy();
+    expect(screen.getByText('Membership: Illustrative')).toBeTruthy();
+    expect(screen.getByText('Reference: Illustrative')).toBeTruthy();
   });
 
   it('renders member representation section', () => {
     renderWithRouter(<PartnerShowcasePage />);
-    expect(screen.getByText(/how institute members appear/i)).toBeTruthy();
+    expect(screen.getByText(/illustrative listing labels/i)).toBeTruthy();
+    expect(screen.getByText(/require supporting evidence and are not verified by verdaxis/i)).toBeTruthy();
   });
 
-  it('renders confidential preview footer', () => {
+  it('renders the public preview disclaimer', () => {
     renderWithRouter(<PartnerShowcasePage />);
-    expect(screen.getByText(/confidential preview page/i)).toBeTruthy();
+    expect(screen.getByText(/inclusion does not state affiliation or endorsement/i)).toBeTruthy();
   });
 
   it('shows Verdaxis branding in top bar', () => {
     renderWithRouter(<PartnerShowcasePage />);
     expect(screen.getAllByText('Verdaxis').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/partner network/i)).toBeTruthy();
+    expect(screen.getByText(/industry reference — preview/i)).toBeTruthy();
   });
 });
