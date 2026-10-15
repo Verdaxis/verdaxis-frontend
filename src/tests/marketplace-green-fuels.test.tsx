@@ -372,7 +372,7 @@ describe('Marketplace green fuels surface', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Earlier RFQs' }));
     expect(await screen.findByRole('heading', { name: 'B100 RFQs' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
-    await waitFor(() => expect(rfqList).toHaveBeenCalledWith({ product_id: 'ucome-product', skip: 0, limit: 20 }));
+    await waitFor(() => expect(rfqList).toHaveBeenCalledWith({ skip: 0, limit: 20 }));
     fireEvent.click(screen.getByRole('button', { name: 'Back to market' }));
     expect(await screen.findByRole('button', { name: 'Orderbook' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'B100 RFQs' })).toBeNull();
