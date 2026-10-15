@@ -2,17 +2,19 @@
 
 ## Status and resume point
 
-**The 54-check two-bundle gate now passes with one explicit PM-accepted exception:**
-53 assertions passed; the old bundle's unknown ETS cost still displays EUR 0.
-The new bundle passed all 27 checks. Both bundles passed B30/B100 direct takes
-against backend `53e1960c42a3e2373db84802a5ecfca553e0244f`, migrated to
-`p0_20261016_union`. No unaccepted failure remains in this gate.
+**Current M3 gate: 111 checks, 109 passed, 2 visibly failed; exit 1.**
+New bundle: 56/56 passed. Old bundle: 53/55 passed. Backend:
+`64c4a8653f9257f1b1519f9be75b5cbcd9e70f71`, revision `p0_20261016_union`.
+The old ETS failure retains its narrow PM exception. The second failure is **not
+waived**: the pinned old KYC screen calls a successful review receipt “Account
+Approved.” New code is fixed; running old code cannot be repaired by this build.
+Owner: PM/cutover owner must decide this additional cached-client risk before
+sign-off. No backend defect was found in the added cases.
 
-The PM accepts the cached-tab window with the existing update banner and a founder
-refresh note, as recorded in `cached-bundle-options.md`. The raw assertion remains
-failed and the unchanged runner returns exit 1; it is not hidden or relabelled as
-a pass. See the union rerun below for results, source pins and scope limits.
-The additional coverage listed below is not claimed by this 54-check run.
+The M3 section below is current. Earlier 54-check results and pending-case lists
+are historical evidence, superseded for the cases measured here. The PM banner
+and founder refresh note apply as recorded in `cached-bundle-options.md`; this
+work does not extend that acceptance beyond ETS.
 No production/staging host operation, push, Vercel invocation or deployment occurred.
 
 ## Source and decisions
@@ -354,3 +356,134 @@ backend edit was used.
   copied-history/auth-state/KYC-fault cases listed in the earlier resume section
   are not covered. This result closes the measured backend blocker; it does not
   invent evidence for those additional cases or authorize deployment.
+
+
+## M3 sign-off coverage — 2026-10-16 (current)
+
+Evidence: `work/phase0-gate-8f2b241267/result.json` plus migration, backend and
+old/new build logs. Backend start/end SHA:
+`64c4a8653f9257f1b1519f9be75b5cbcd9e70f71`; the other session completed its
+inventory fix before this final run. `backend_worktree_unchanged: true`.
+No backend file was edited or committed by this lane. Earlier diagnostic runs
+observed that other session's changes; those are not the final evidence.
+Old frontend is pinned `3f16cabba6424ef08250b32f8f8e4b9a621c4379`; new runtime
+fixes are `27db9c3a` and `ef11be6c` (`1c42a8aa` adjusts a test expectation only).
+
+The runner used the backend's own Python, real migrations through the union,
+real PostgreSQL/PostGIS and actual complete bundles in Chromium. It removed
+its container with volumes and stopped its app. External traffic stayed blocked.
+The synthetic vault controller is frontend test tooling only, validates the
+existing disposable test environment/loopback configuration, and wraps the
+unchanged backend. It supplies a synthetic encryption key or no key through
+app state. It does not mock the upload transaction or decryption endpoint.
+The 504 proxy waits for real upstream 200 (after commit), then replaces only the
+browser response. Admin listing proves exactly two additional retained rows.
+The test-only secret-authenticated limiter reset avoids account-test rate limits;
+no deployed limiter configuration was changed.
+
+### Results
+
+**111 checks: 109 passed, 2 failed. New 56/56; old 53/55. M3 adds 57 checks.**
+All prior contracts except the already accepted old ETS assertion still pass.
+Both scalar direct takes remain HTTP 200. Database error list is empty.
+
+| Added M3 contract | Old | New |
+|---|---|---|
+| rejected login/GET/PUT eligibility | Pass | Pass |
+| rejected guarded UI | Pass | Pass |
+| moved login/GET/PUT eligibility | Pass | Pass |
+| moved guarded UI | Pass | Pass |
+| noorg login/GET/PUT eligibility | Pass | Pass |
+| noorg guarded UI | Pass | Pass |
+| admin login/GET/PUT eligibility | Pass | Pass |
+| admin guarded UI | Pass | Pass |
+| pending login/GET/PUT eligibility | Pass | Pass |
+| pending guarded UI | Pass | Pass |
+| copied pre-FAME nullable RFQ detail | Pass | Pass |
+| copied RFQ list retains historical row | Pass | Pass |
+| BIO_LNG supplier ASK | Pass | Pass |
+| BIO_LNG public/private order projection | Pass | Pass |
+| BIO_LNG pending private snapshot redaction | Pass | Pass |
+| BIO_LNG pending trade rendering | Pass | Pass |
+| BIO_LNG confirmed full snapshot | Pass | Pass |
+| BIO_LNG confirmed trade rendering | Pass | Pass |
+| UCOME_B100 supplier ASK | Pass | Pass |
+| UCOME_B100 public/private order projection | Pass | Pass |
+| UCOME_B100 pending private snapshot redaction | Pass | Pass |
+| UCOME_B100 pending trade rendering | Pass | Pass |
+| UCOME_B100 confirmed full snapshot | Pass | Pass |
+| UCOME_B100 confirmed trade rendering | Pass | Pass |
+| KYC storage 503 UI and no retained rows | Pass | Pass |
+| KYC committed upload then proxy 504 UI | Pass | Pass |
+| KYC decrypt 500 at browser client boundary | Pass | Pass |
+| KYC review receipt is not account approval | **FAIL — not covered by ETS exception** | Pass |
+| copied RFQ history rendering | No corresponding old UI; see boundary below | Pass |
+
+### What the cases establish
+
+- Profiles: real UI login plus login/GET/PUT equality for rejected, moved review,
+  no organization, admin and pending users, with pilot gate off. Rejected/moved
+  retain false eligibility and their blocking reason. No-org/admin return
+  `eligible: false, reason: NOT_APPLICABLE`. No-org renders the registration
+  guard; trading profiles render the app without startup errors. Existing approved
+  profile cases remain. This is the specified gate-off matrix, not a gate-on test.
+- History: a stored synthetic pre-FAME scalar RFQ has null contract/source snapshot
+  and a quote with null offer terms/expiry. It is inserted as historical state, not
+  created through modern RFQ ingress. Both browsers read it. The server derives
+  the quote display deadline from the RFQ; null storage need not mean null response.
+  New history UI opens the row without a typed-contract panel or crash.
+- Typed contracts: real supplier ASKs, public redaction, owner-private declarations,
+  direct takes with pending redacted snapshots, confirmation and full snapshots for
+  both UCOME FAME and LNG. Real pending/confirmed trade screens render these cases.
+  Synthetic certificate values are absent before disclosure and present in the new
+  confirmed terms UI. The old LNG terms panel also displays confirmed identity.
+- KYC unavailable vault: real upload returns 503, zero new retained rows, and the
+  form returns to an error state without approval or a false no-commit promise.
+- KYC decrypt: real retained encrypted row plus unavailable key returns structured
+  `KYC_DOCUMENT_DECRYPTION_FAILED`, HTTP 500 at the browser fetch boundary.
+- KYC proxy uncertainty: real commit retains two documents, proxy returns 504,
+  neither bundle shows approval or promises nothing was saved. New copy explicitly
+  warns the documents may have been saved and to check status/contact support.
+- An additional normal-receipt check found the old KYC page labels REVIEW_REQUIRED
+  as approval. New code shows “Documents submitted for review,” not approval.
+
+### Frontend fixes and test-first evidence
+
+1. `27db9c3a`: normal KYC review receipt and uncertain-response tests failed before
+   implementation (2 failures). Three focused tests then passed. Added bilingual
+   pending and uncertain wording; network errors also avoid a retry/no-commit claim.
+2. `ef11be6c`: nullable scalar history test failed because history requests sent the
+   UCOME-only product filter. History-only list now includes preserved scalar rows;
+   executable RFQ creation remains UCOME-scoped. Sixteen workspace tests passed.
+3. `1c42a8aa`: aligned the existing Marketplace integration expectation. The first
+   full suite caught that stale expectation; the corrected full run passed.
+
+### Remaining failure and explicit UI boundaries
+
+**Unaccepted failure owner: PM/cutover owner, with frontend support.** Cached old
+KYC code displays “Account Approved” after receipt for review. The new bundle fix
+cannot alter a loaded old bundle. The PM must decide whether to require refresh
+before KYC submission, change the cutover plan, or explicitly accept this separate
+risk. The existing ETS exception is not used as a waiver. No forced reload or
+backend change was introduced.
+
+The pinned old frontend has no RFQ detail route and no UCOME terms panel. These
+old-boundary cases use actual browser HTTP plus unchanged API payloads, not a
+fabricated old UI. Owner for acceptance of that intentional old-UI limitation:
+PM/Task 8 reviewer. New RFQ history and UCOME terms rendering are measured.
+Neither bundle has a vault-download UI; decrypt-500 is measured at the requested
+browser client boundary. No new admin feature was added. Task 5 owns actual copy
+codec proof; this gate tests synthetic post-copy nullable state. SSE and deployed
+CORS/tiles remain outside this local gate. No remaining backend defect is claimed.
+
+### Final checks and cleanup
+
+- Full Vitest: **128 files, 922 passed**. Node 25 webstorage workaround retained.
+- Typecheck and translation check: passed.
+- Staging build and artifact check: passed. Both actual production-mode bundles
+  in the final gate built and passed artifact checks; synthetic Mapbox token only.
+- Node request-manifest/artifact suites: **14 passed**.
+- Python local-gate/release/smoke helper suites: **17 passed**.
+- `git diff --check`: passed. All test runs finished before reporting.
+- Final gate reports `container_removed_with_volumes: true`; no owned gate
+  containers remain. No push, deployment, staging/prod access, skills or agents.

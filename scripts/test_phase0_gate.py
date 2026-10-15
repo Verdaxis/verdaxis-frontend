@@ -33,3 +33,15 @@ def test_browser_blocks_external_requests_and_forwards_real_api():
     assert "context.route('**/*', route_request)" in source
     assert 'route.abort()' in source
     assert 'body=response.body()' in source
+
+
+def test_m3_faults_follow_real_commit_and_keep_external_requests_blocked():
+    source = (ROOT / 'scripts/phase0_gate_m3.py').read_text()
+    assert source.index('response = context.request.fetch') < source.index("and response.ok and state['proxy504']")
+    assert "len(documents['data']) == initial_count + 2" in source
+    assert "context.route('**/*', forward)" in source
+    assert 'route.abort()' in source
+    server = (ROOT / 'scripts/phase0_gate_fault_server.py').read_text()
+    assert 'validate_config(' in server
+    assert "host='127.0.0.1'" in server
+    assert 'KeyRing' in server

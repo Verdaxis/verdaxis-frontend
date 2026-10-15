@@ -44,6 +44,8 @@ async def main():
                         data={'event': 'order_expiring', 'expires_at': '2030-01-01T00:00:00Z',
                               '_email_only': hidden, '_email_payload': {'private': 'synthetic'},
                               '_email_status': 'sent'}))
+            from phase0_gate_extra_seed import seed_extra
+            await seed_extra(session, identities)
             await session.commit()
             Path(os.environ['GATE_IDENTITIES']).write_text(json.dumps(identities))
     finally:

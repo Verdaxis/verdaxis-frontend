@@ -72,7 +72,7 @@ def main():
         'contracts': [], 'complete': False,
         'limitations': ['SSE transport blocked; no live CORS or Mapbox check',
             'Additional contract probes use browser fetch, not every UI order form',
-            'Final union migration and full copied-history gate remain Task 4b integration work']}
+            'Synthetic nullable history is inserted directly; data-copy mechanics are tested by backend Task 5']}
     environment = {'PATH': os.environ['PATH'], 'HOME': str(run), 'ENVIRONMENT': 'test',
         'RELEASE_SHA': sha, 'JWT_SECRET': 'synthetic-browser-gate-secret-at-least-32-characters',
         'KYC_EXECUTION_GATE_ENABLED': 'false', 'PYTHONDONTWRITEBYTECODE': '1',
@@ -107,8 +107,13 @@ def main():
             command(python, str(ROOT / 'scripts/phase0_gate_seed.py'), cwd=run, env=seed_environment, stdout=log, stderr=log)
         api_port = free_port()
         environment['DISPOSABLE_TEST_TOKEN'] = uuid.uuid4().hex
+        (run / 'disposable-token').write_text(environment['DISPOSABLE_TEST_TOKEN'])
+        (run / 'disposable-token').chmod(0o600)
+        environment['GATE_API_PORT'] = str(api_port)
+        environment['GATE_FAULT_CONTROL'] = str(run / 'fault-control.json')
+        (run / 'fault-control.json').write_text(json.dumps({'vault': 'unavailable'}))
         log = (run / 'backend.log').open('w')
-        process = subprocess.Popen([python, '-m', 'tests.disposable_server', '--port', str(api_port)], cwd=run, env=environment, stdout=log, stderr=log)
+        process = subprocess.Popen([python, str(ROOT / 'scripts/phase0_gate_fault_server.py')], cwd=run, env=environment, stdout=log, stderr=log)
         processes.append(process)
         api = f'http://127.0.0.1:{api_port}'
         for _ in range(90):
@@ -140,7 +145,7 @@ def main():
                 command('npm', 'run', 'build:prod', '--', '--outDir', str(output), cwd=source, env=build_env, stdout=log, stderr=log)
             from phase0_gate_browser import check_bundle
             with serve(output) as base:
-                report['contracts'].extend(check_bundle(name, base, api))
+                report['contracts'].extend(check_bundle(name, base, api, run))
         report['complete'] = all(item['passed'] for item in report['contracts'])
     except Exception as error:
         report['error'] = f'{type(error).__name__}: {error}'
@@ -157,6 +162,7 @@ def main():
             for line in database_log.stderr.splitlines() if 'ERROR:' in line))
         command('docker', 'rm', '-f', '-v', container, stdout=subprocess.DEVNULL)
         report['container_removed_with_volumes'] = True
+        report['backend_end_sha'] = command('git', '-C', str(backend), 'rev-parse', 'HEAD', capture_output=True).stdout.strip()
         report['backend_worktree_unchanged'] = backend_status == command(
             'git', '-C', str(backend), 'status', '--porcelain', capture_output=True).stdout
         (run / 'result.json').write_text(json.dumps(report, indent=2) + '\n')

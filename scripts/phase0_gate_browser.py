@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from playwright.sync_api import sync_playwright
 
 
-def check_bundle(name, base, api):
+def check_bundle(name, base, api, run):
     results = []
     def record(contract, passed, detail=''):
         results.append({'bundle': name, 'contract': contract, 'passed': bool(passed), 'detail': detail})
@@ -179,6 +179,8 @@ def check_bundle(name, base, api):
             page.goto(base + '/app/home', wait_until='domcontentloaded')
             page.wait_for_url('**/login*', timeout=15000)
             record('refresh loss returns to login', True)
+            from phase0_gate_m3 import check_m3
+            results.extend(check_m3(name, base, api, run, browser))
         except Exception as error:
             record('browser execution', False, f'{type(error).__name__}: {error}'[:500])
         finally:

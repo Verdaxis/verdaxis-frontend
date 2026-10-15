@@ -180,5 +180,10 @@ synthetic fixtures (`phase0_gate_seed.py`), backend process and two actual brows
 bundles (`phase0_gate_browser.py`). Backend egress is restricted to its database;
 browser API requests are forwarded to loopback, with other external traffic blocked.
 No backend worktree files are changed. Temporary archived trees stay under `work/`,
-which TypeScript excludes. Final union-schema acceptance and the cached-bundle
-cutover decision remain pending; see `docs/phase0/progress-task8.md`.
+which TypeScript excludes. `phase0_gate_extra_seed.py` adds nullable historical RFQs
+and account-state fixtures. `phase0_gate_m3.py` exercises actual profile/trade/KYC
+screens and client boundaries; `phase0_gate_fault_server.py` wraps the unchanged
+backend with loopback-only synthetic vault availability controls. A proxy response
+is changed to 504 only after the real upload commits, then retained rows are checked.
+The PM accepted only the old ETS display exception; see `docs/phase0/progress-task8.md`
+for current results and any other failed old-bundle checks.
