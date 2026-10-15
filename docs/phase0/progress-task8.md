@@ -2,16 +2,16 @@
 
 ## Status and resume point
 
-Frontend implementation and local checks are complete at `64b75d31` (preceded by
-`1cafd7d1`, `df1f20d2`, `02e6aea0`, and `7a328005`). **The final Task 8 acceptance
-gate is not complete.** Task 3 has not run. No disposable canonical backend with
-the final union schema was supplied or started in this lane. Do not promote these
-changes on the strength of mocked contracts.
+Initial implementation is at `64b75d31`; review fixes are at `cc2bc5d6` and
+`a20b48af`. **The final Task 8 acceptance gate remains blocked.** The real old
+and new bundles now run against Task 3 backend
+`4a61ab277323797010a462906728c149e5de3341` on disposable PostgreSQL/PostGIS.
+The old bundle's null ETS display defect remains a PM cutover decision. This
+backend does not yet include Task 4b's union migration.
 
-Next: integrate Task 3 and the canonical union schema in a disposable, synthetic
-backend. Run both the pinned production bundle and the new bundle against it.
-Confirm the contracts below, then record the backend SHA and results here. No
-production/staging host operation, push, Vercel invocation or deployment occurred.
+Next: use the contract results below, resolve the cached-bundle decision in
+`cached-bundle-options.md`, then rerun the gate against the final union schema.
+No production/staging host operation, push, Vercel invocation or deployment occurred.
 
 ## Source and decisions
 
@@ -160,3 +160,105 @@ in favor of the existing protected release path.
 
 Live smoke, Vercel release, staging/prod access and real-data testing were not run,
 as explicitly prohibited. Skills and agents were not used.
+
+
+## Independent-review fixes and real backend gate (2026-10-16)
+
+### Fixes
+
+- `cc2bc5d6`: M2 restores scalar B30/B100 guards in map selection and All-products
+  reference fallback, including forecast supply and external methanol prices.
+  N1 restores public scalar demo prices without inventing UCOME/LNG prices.
+  Four new regression cases failed before the fix; all 16 focused tests passed.
+- `a20b48af`: N2 uses and asserts `eligible`, `KYC_NOT_ENFORCED` and nullable
+  `grace_expires_at`. M1's existing null guard passed; new absent/invalid-cost
+  tests failed before fixing currency formatting. All eight focused tests passed.
+- `2c62a24b`: the eligibility union includes `KYC_NOT_ENFORCED`. TypeScript excludes
+  `work/`: archived old source plus generated bundles otherwise exhausted its 4 GB
+  heap. Ordinary typecheck passed after this scope correction; no heap increase.
+- M1 old tabs: see [cached-bundle-options.md](cached-bundle-options.md). The old
+  update banner is voluntary; maintenance Retry does not reload. PM must choose
+  supervised refresh, a separate compatibility release, or explicit risk acceptance.
+
+### Reproduce the real gate
+
+```bash
+work/phase0/browser-venv/bin/python scripts/phase0_gate.py \
+  --backend /Users/jonathanjie/Documents/workspace/Verdaxis/work/phase0-task3
+```
+
+Browser environment uses the existing pinned Playwright 1.58.0 installation.
+Backend uses that lane's `venv/bin/python`, SHA
+`4a61ab277323797010a462906728c149e5de3341`. Its tracked tree remains unchanged.
+The runner starts a unique Colima Docker container, numeric-loopback ephemeral
+ports, pinned PostGIS digest `49b4d46c9fb8b158ddecd14d1894871a21ed4acb7ef376e2050f43f79c7b7272`,
+and real Alembic migrations. It creates only synthetic approved organizations,
+users, notifications, a vessel and catalog rows. It does not patch SQL constraints
+or the trade function. The fixture-only provenance helper is restricted to the
+runner's disposable database. Application/migration connections are non-superuser;
+only synthetic fixture setup uses the local database administrator.
+
+Backend processes inherit an allowlisted environment and a socket guard that allows
+only their owned database. No backend `.env` is loaded. The browser loads complete
+old/new bundles. API requests are forwarded to loopback with actual response bodies;
+all other external requests are aborted. SSE is blocked rather than simulated.
+This does not test deployed CORS, external tiles, SSE replay or every UI order form.
+UI login, navigation, refresh-loss and compliance rendering use actual application
+code. Additional contract probes execute fetch in that browser. They are not a claim
+that the old UI supports new typed UCOME entry. Old package versions were compared
+with the installed lockfile: every pinned package version matches; the installed
+tree has additional staging packages. Both builds use an unpublishable synthetic
+Mapbox token. No live request, deployment or release workflow was run.
+
+Final completed run: `work/phase0-gate-07c5512a1e/result.json`.
+**54 checks: 49 passed, 5 failed; exit 1.** The frontend runtime fixes are those in
+`a20b48af`; the later type-only change and work exclusion do not change runtime JS.
+The report records its starting HEAD. Earlier runs corrected harness path, role,
+synthetic email, OAuth encoding and trailing-slash issues; they are not product
+failures. All runner-owned containers were removed with `docker rm -f -v`.
+
+| Contract | Old production bundle | New bundle |
+|---|---|---|
+| Real UI login; GET/PUT profile eligibility | Pass | Pass |
+| GET preferences / PUT `market_watch`, B30/B100/LNG/UCOME | Pass | Pass |
+| Visible reminder, hidden email-only row, private fields, unread count | Pass | Pass |
+| Canonical B30/B100/UCOME UUIDs | Pass | Pass |
+| Typed LNG BID, scalar scheme labels, strict boolean refusal | Pass | Pass |
+| Typed UCOME BID | Pass (explicit browser contract probe) | Pass |
+| LNG/UCOME dismissal and repeated dismissal | Pass | Pass |
+| B30/B100 BID and scalar ASK, zero lifecycle CI | Pass | Pass |
+| Scalar RFQ create/detail, disabled acceptance (409), PUT quote revision | Pass | Pass |
+| Marketplace B30/B100 and compliance route rendering | Pass | Pass |
+| Unknown ETS value rendered as unknown | **Fail: €0** | Pass |
+| Activity | Expected retired 404 responses | Zero calls |
+| Refresh-cookie loss returns to login | Pass | Pass |
+| B30 direct take | **500** | **500** |
+| B100 direct take | **500** | **500** |
+
+Database log for all direct-take failures:
+`trade product snapshot must reference an active canonical product`,
+SQLSTATE `P0001`, `verdaxis_validate_trade_snapshot()`, line 25. The old function
+comes from `alembic/versions/blng_20261014_staging.py:153` and does not admit the
+union scalar identities. This is the expected missing Task 4b integration, now
+proved through real requests. Do not relax the frontend or bypass the trigger.
+
+### Remaining gate coverage / resume
+
+B1 remains blocked, not waived. Integrate Task 4b and rerun scalar execution and
+full old/new acceptance. The current runner does not yet prove copied historical
+RFQ rows, all supplier FAME/LNG identity snapshots, admin/no-org/rejected/moved
+profile cases, pending-KYC dismissal, KYC storage faults, or every order-entry UI.
+Retain these as explicit remaining cases rather than interpreting 49 passing
+checks as final acceptance. Task 3 unit evidence is not browser evidence.
+
+### Final local verification
+
+- Full Vitest: 127 files, **918 passed**, no skips; Node 25 webstorage disabled.
+- Task 8 named Vitest files: **9 passed**.
+- Typecheck and translation check: passed.
+- Both environment builds and target artifact checks: passed; large-chunk warnings
+  remain. Artifacts under `work/task8-fix-{staging,production}` are not publishable.
+- Manifest/artifact Node suites: **14 passed**.
+- Release/smoke/local-gate Python suites: **16 passed**, including offline shell
+  self-test. No release mode was invoked.
+- `git diff --check`: passed. No backend tracked changes, push or live access.

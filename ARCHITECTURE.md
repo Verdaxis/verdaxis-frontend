@@ -175,5 +175,10 @@ Phase 0 checks: `src/tests/phase0-*.test.*`,
 `python3 -m pytest scripts/test_phase0_release.py -q`, and the local-only public
 browser smoke `scripts/test_phase0_browser.py`. The request manifest covers both
 pinned trees and current source, with explicit retired and stale-wrapper dispositions.
-Task 3 integration and disposable canonical-backend browser acceptance remain pending;
-see `docs/phase0/progress-task8.md`.
+`scripts/phase0_gate.py` owns the disposable pinned PostGIS container, migrations,
+synthetic fixtures (`phase0_gate_seed.py`), backend process and two actual browser
+bundles (`phase0_gate_browser.py`). Backend egress is restricted to its database;
+browser API requests are forwarded to loopback, with other external traffic blocked.
+No backend worktree files are changed. Temporary archived trees stay under `work/`,
+which TypeScript excludes. Final union-schema acceptance and the cached-bundle
+cutover decision remain pending; see `docs/phase0/progress-task8.md`.
