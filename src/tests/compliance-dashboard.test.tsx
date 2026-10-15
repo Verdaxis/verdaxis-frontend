@@ -13,7 +13,7 @@ vi.mock('recharts', async () => {
 
 afterEach(() => vi.restoreAllMocks());
 
-it('keeps missing ETS emissions and cost visibly unpriced instead of zero', async () => {
+it.each([null, undefined, 'not-a-number'])('keeps unknown ETS cost %s visibly unpriced instead of zero', async cost => {
   await loadNamespace('compliance');
   vi.spyOn(api.compliance, 'fleet').mockResolvedValue({
     total_vessels: 1, green_count: 0, amber_count: 1, red_count: 0,
@@ -28,7 +28,7 @@ it('keeps missing ETS emissions and cost visibly unpriced instead of zero', asyn
       },
       eu_ets: {
         calculation_status: 'UNPRICED', total_co2_tonnes: null,
-        estimated_cost_eur: null, ets_price_per_tonne_eur: '68',
+        estimated_cost_eur: cost, ets_price_per_tonne_eur: '68',
         phase_in_pct: '100', score: 50,
       },
       cii: { rating: 'C', score: 60 },

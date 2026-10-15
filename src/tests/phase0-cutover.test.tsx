@@ -95,8 +95,9 @@ it('reads only the planned public notification projection and null compliance va
 });
 
 function CutoverSession() {
-  const { isLoading, isAuthenticated, login } = useAuth();
+  const { isLoading, isAuthenticated, login, user } = useAuth();
   return <div><span>{isLoading ? 'restoring' : isAuthenticated ? 'signed in' : 'sign in again'}</span>
+    <output data-testid="eligibility">{JSON.stringify(user?.execution_eligibility)}</output>
     <button onClick={() => void login('synthetic-new-token')}>Login</button></div>;
 }
 
@@ -106,7 +107,7 @@ it('requires re-login after copied refresh sessions are absent', async () => {
     if (String(url).endsWith('/auth/refresh')) return new Response('{}', { status: 401 });
     if (String(url).endsWith('/auth/me')) return Response.json({ id: 'synthetic-user', email: 'pilot@example.test',
       role: 'BUYER', is_active: true, organization_id: 'synthetic-org',
-      execution_eligibility: { allowed: true, reason: 'KYC_GATE_DISABLED' } });
+      execution_eligibility: { eligible: true, reason: 'KYC_NOT_ENFORCED', grace_expires_at: null } });
     throw new Error(`Unclassified auth request: ${url}`);
   });
   render(<AuthProvider><CutoverSession /></AuthProvider>);
@@ -114,4 +115,7 @@ it('requires re-login after copied refresh sessions are absent', async () => {
   expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/auth/refresh'))).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Login' }));
   await waitFor(() => expect(screen.getByText('signed in')).toBeTruthy());
+  expect(JSON.parse(screen.getByTestId('eligibility').textContent!)).toEqual({
+    eligible: true, reason: 'KYC_NOT_ENFORCED', grace_expires_at: null,
+  });
 });

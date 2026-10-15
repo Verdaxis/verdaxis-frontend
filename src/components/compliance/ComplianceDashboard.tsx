@@ -107,10 +107,15 @@ const TrafficIcon: React.FC<{ light: string; size?: number }> = ({ light, size =
     return <ShieldX size={size} className="text-red-500" />;
 };
 
-const formatEur = (val: string | number | null, locale: string): string => {
-    if (val === null) return '—';
-    const num = typeof val === 'string' ? parseFloat(val) : val;
-    if (isNaN(num)) return '\u20AC0';
+const knownNumber = (value: string | number | null | undefined): number | null => {
+    if (value == null || (typeof value === 'string' && !value.trim())) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+};
+
+const formatEur = (val: string | number | null | undefined, locale: string): string => {
+    const num = knownNumber(val);
+    if (num === null) return '—';
     return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: 'EUR',
@@ -265,7 +270,7 @@ export const ComplianceDashboard: React.FC<ComplianceDashboardProps> = ({ onOpen
 
     // --- Computed values ---
     const allEtsInputsKnown = fleet.vessels.every(v =>
-        v.eu_ets.estimated_cost_eur !== null && v.eu_ets.total_co2_tonnes !== null
+        knownNumber(v.eu_ets.estimated_cost_eur) !== null && knownNumber(v.eu_ets.total_co2_tonnes) !== null
         && v.eu_ets.calculation_status !== 'UNPRICED',
     );
     const totalETSCost = allEtsInputsKnown ? fleet.vessels.reduce(
