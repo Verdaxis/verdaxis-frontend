@@ -268,5 +268,7 @@
   "kycBanner.action": "完成 KYC",
   "kycGate.blocked.title": "需要完成 KYC 验证",
   "kycGate.blocked.message": "请完成 KYC 验证以进行交易。",
-  "kycGate.blocked.action": "完成 KYC"
+  "kycGate.blocked.action": "完成 KYC",
+  "notifications.expiry.title": "订单将在48小时内到期",
+  "notifications.expiry.message": "您的订单将于{{date}}到期。如需继续交易，请在到期前查看订单。"
 }

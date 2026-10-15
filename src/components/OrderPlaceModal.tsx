@@ -294,6 +294,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 ...prev,
                 product_id: matchedProduct?.id ?? '',
                 specification_standard: getBiofuelSpecification(matchedProduct?.market_product) ?? '',
+                carbon_intensity_gco2_mj: getBiofuelSpecification(matchedProduct?.market_product) ? NaN : prev.carbon_intensity_gco2_mj,
                 delivery_point_id: matchedDeliveryPoint?.id ?? '',
                 availability_window: editSupplierOffer?.availabilityWindow || prefillAvailabilityWindow || prev.availability_window,
             }));
@@ -423,7 +424,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             if (biofuelSpecification || getBiofuelSpecification(nextProduct?.market_product)) {
                 setFormData(previous => ({ ...previous, product_id: String(value),
                     specification_standard: getBiofuelSpecification(nextProduct?.market_product) ?? '',
-                    carbon_intensity_method: '', carbon_intensity_gco2_mj: 0,
+                    carbon_intensity_method: '', carbon_intensity_gco2_mj: NaN,
                     certification_declared: false, msds_available: false, feedstock: '', origin: '',
                 }));
                 return;
@@ -492,7 +493,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const hasRequiredAskMetadata =
         (biofuelSpecification ? formData.specification_standard === biofuelSpecification && formData.carbon_intensity_method.trim() !== '' : formData.specification_standard.trim() !== '') &&
         formData.msds_available &&
-        formData.carbon_intensity_gco2_mj > 0 &&
+        (biofuelSpecification ? Number.isFinite(formData.carbon_intensity_gco2_mj) && formData.carbon_intensity_gco2_mj >= 0 : formData.carbon_intensity_gco2_mj > 0) &&
         formData.feedstock.trim() !== '' &&
         formData.origin.trim() !== '';
     const catalogMinimumQuantityMt = selectedProduct?.min_lot_size;
@@ -1403,8 +1404,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     <input
                                                         id="order-carbon-intensity"
                                                         type="number"
-                                                        value={formData.carbon_intensity_gco2_mj || ''}
-                                                        onChange={(e) => handleChange('carbon_intensity_gco2_mj', parseFloat(e.target.value) || 0)}
+                                                        value={biofuelSpecification ? (Number.isFinite(formData.carbon_intensity_gco2_mj) ? formData.carbon_intensity_gco2_mj : '') : formData.carbon_intensity_gco2_mj || ''}
+                                                        onChange={(e) => handleChange('carbon_intensity_gco2_mj', biofuelSpecification ? parseFloat(e.target.value) : parseFloat(e.target.value) || 0)}
                                                         placeholder={t('orderPlaceModal.placeholder.carbonIntensity')}
                                                         min={0}
                                                         step={0.01}

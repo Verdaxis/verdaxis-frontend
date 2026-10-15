@@ -86,6 +86,7 @@ describe('OrderPlaceModal', () => {
   it.each([
     { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: false },
     { product: 'B100', standard: 'ISO 8217:2024 DFA', ci: 22.5, assisted: false },
+    { product: 'B100', standard: 'ISO 8217:2024 DFA', ci: 0, assisted: false },
     { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: true },
   ] as const)('requires a CI basis for the fixed $product ASK (assisted: $assisted)', async ({ product, standard, ci, assisted }) => {
     productsMock.mockResolvedValue([{ id: `prod-${product.toLowerCase()}`, name: product, market_product: product, fuel_type: 'Biofuel', fuel_grade: product, unit: 'MT', min_lot_size: 200, is_active: true }]);

@@ -109,8 +109,16 @@ export const NotificationList: React.FC<NotificationListProps> = ({ onClose }) =
                 {notifications.map((notification) => {
                     const typeLabel = t(`notifications.type.${notification.type}`, { defaultValue: t('notifications.type.default') });
                     const safeMessage = t(`notifications.message.${notification.type}`, { defaultValue: t('notifications.message.default') });
-                    const title = isEnglish ? notification.title : typeLabel;
-                    const message = isEnglish ? notification.message : safeMessage;
+                    const expiryReminder = notification.data?.event === 'order_expiring';
+                    const expiryDate = expiryReminder && typeof notification.data?.expires_at === 'string'
+                        ? new Date(notification.data.expires_at).toLocaleString(i18n.resolvedLanguage || i18n.language)
+                        : '';
+                    const title = expiryReminder
+                        ? t('notifications.expiry.title')
+                        : isEnglish ? notification.title : typeLabel;
+                    const message = expiryReminder
+                        ? t('notifications.expiry.message', { date: expiryDate })
+                        : isEnglish ? notification.message : safeMessage;
                     const ariaLabel = isEnglish
                         ? `${typeLabel}: ${title}. ${t(notification.is_read ? 'notifications.status.read' : 'notifications.status.unread')}`
                         : `${title}: ${message} ${t(notification.is_read ? 'notifications.status.read' : 'notifications.status.unread')}`;
