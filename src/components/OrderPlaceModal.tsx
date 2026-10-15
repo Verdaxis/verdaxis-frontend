@@ -1,3 +1,4 @@
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Loader2, CheckCircle2, Zap, AlertTriangle, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -51,6 +52,7 @@ interface OrderPlaceModalProps {
     prefillDeliveryPointId?: string;
     prefillAvailabilityWindow?: AvailabilityWindow;
     prefillPrice?: number;
+    prefillQuantity?: number;
     editSupplierOffer?: SupplierOffer;
     onOfferSaved?: () => void;
 }
@@ -65,6 +67,7 @@ interface OrderFormData {
     certifications: string[];
     certification_declared: boolean;
     specification_standard: string;
+    carbon_intensity_method: string;
     msds_available: boolean;
     carbon_intensity_gco2_mj: number;
     feedstock: string;
@@ -137,17 +140,19 @@ function createInitialFormData(
     side: 'BID' | 'ASK',
     prefillPrice?: number,
     prefillAvailabilityWindow?: AvailabilityWindow,
+    prefillQuantity?: number,
 ): OrderFormData {
     return {
         product_id: '',
         delivery_point_id: '',
-        quantity_mt: 1_000,
+        quantity_mt: prefillQuantity && prefillQuantity > 0 ? prefillQuantity : 1_000,
         price_per_mt_usd: prefillPrice && prefillPrice > 0 ? prefillPrice : 0,
         availability_window: prefillAvailabilityWindow || SPOT_WINDOW,
         certification_scheme: side === 'BID' ? '' : CERTIFICATION_SCHEME_OPTIONS[0].value,
         certifications: [],
         certification_declared: false,
         specification_standard: '',
+        carbon_intensity_method: '',
         msds_available: false,
         carbon_intensity_gco2_mj: 0,
         feedstock: '',
@@ -167,6 +172,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     prefillDeliveryPointId,
     prefillAvailabilityWindow,
     prefillPrice,
+    prefillQuantity,
     editSupplierOffer,
     onOfferSaved,
 }) => {
@@ -186,7 +192,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     const [catalogLoading, setCatalogLoading] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState(side === 'ASK');
 
-    const [formData, setFormData] = useState<OrderFormData>(() => createInitialFormData(side, prefillPrice, prefillAvailabilityWindow));
+    const [formData, setFormData] = useState<OrderFormData>(() => createInitialFormData(side, prefillPrice, prefillAvailabilityWindow, prefillQuantity));
 
     const [modalState, setModalState] = useState<ModalState>('form');
     const [errorMessage, setErrorMessage] = useState('');
@@ -226,7 +232,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
         const preserveSubmission = submissionInFlightRef.current || submissionRef.current !== null;
         if (!preserveSubmission) {
-            const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow);
+            const initialForm = createInitialFormData(side, prefillPrice, prefillAvailabilityWindow, prefillQuantity);
             if (editSupplierOffer) {
                 initialForm.product_id = editSupplierOffer.productId;
                 initialForm.delivery_point_id = editSupplierOffer.deliveryPointId;
@@ -287,6 +293,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             setFormData((prev) => ({
                 ...prev,
                 product_id: matchedProduct?.id ?? '',
+                specification_standard: getBiofuelSpecification(matchedProduct?.market_product) ?? '',
                 delivery_point_id: matchedDeliveryPoint?.id ?? '',
                 availability_window: editSupplierOffer?.availabilityWindow || prefillAvailabilityWindow || prev.availability_window,
             }));
@@ -298,6 +305,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         isOpen,
         side,
         prefillPrice,
+    prefillQuantity,
         prefillAvailabilityWindow,
         prefillMarketProduct,
         prefillFuelType,
@@ -310,6 +318,8 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
 
     const selectedProduct = products.find(p => p.id === formData.product_id);
     const selectedDeliveryPoint = deliveryPoints.find(d => d.id === formData.delivery_point_id);
+    const biofuelSpecification = getBiofuelSpecification(selectedProduct?.market_product);
+    const biofuelKey = selectedProduct?.market_product === 'B100' ? 'b100' : 'b30';
     const isSupplierOffer = side === 'ASK' && Boolean(editSupplierOffer);
     const isFameOrder = !isSupplierOffer && selectedProduct?.market_product === 'UCOME_B100';
     const isLngOrder = !isSupplierOffer && selectedProduct?.market_product === 'BIO_LNG';
@@ -409,6 +419,15 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         if (field === 'product_id') {
             fameDraftRef.current = null;
             lngDraftRef.current = null;
+            const nextProduct = products.find(product => product.id === value);
+            if (biofuelSpecification || getBiofuelSpecification(nextProduct?.market_product)) {
+                setFormData(previous => ({ ...previous, product_id: String(value),
+                    specification_standard: getBiofuelSpecification(nextProduct?.market_product) ?? '',
+                    carbon_intensity_method: '', carbon_intensity_gco2_mj: 0,
+                    certification_declared: false, msds_available: false, feedstock: '', origin: '',
+                }));
+                return;
+            }
         }
         setFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -443,7 +462,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         side,
         fameTerms: isFameOrder ? fameDraftRef.current?.terms : undefined,
         lngTerms: isLngOrder ? lngDraftRef.current?.terms : undefined,
-        product: selectedProduct?.name || formData.product_id,
+        product: biofuelSpecification ? `${selectedProduct?.market_product} · ${t(`${biofuelKey}.contract`)}` : selectedProduct?.name || formData.product_id,
         deliveryPoint: selectedDeliveryPoint?.name || formData.delivery_point_id,
         availabilityWindow: formData.availability_window,
         quantityMt: formData.quantity_mt,
@@ -455,10 +474,10 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
         specificationStandard: formData.specification_standard.trim(),
         msdsAvailable: formData.msds_available,
         carbonIntensity: formData.carbon_intensity_gco2_mj,
-        carbonIntensityMethod: t('orderPlaceModal.carbonIntensityMethod.supplierDeclaration'),
+        carbonIntensityMethod: biofuelSpecification ? formData.carbon_intensity_method.trim() : t('orderPlaceModal.carbonIntensityMethod.supplierDeclaration'),
         feedstock: formData.feedstock.trim(),
         origin: formData.origin.trim(),
-    }), [formData, selectedDeliveryPoint, selectedProduct, side, t, isFameOrder]);
+    }), [formData, selectedDeliveryPoint, selectedProduct, side, t, isFameOrder, isLngOrder, biofuelSpecification, biofuelKey]);
 
     const backFromSupportConfirmation = useCallback(() => {
         setSupportDraft(null);
@@ -471,7 +490,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
     if (!isOpen || !namespacesReady) return null;
 
     const hasRequiredAskMetadata =
-        formData.specification_standard.trim() !== '' &&
+        (biofuelSpecification ? formData.specification_standard === biofuelSpecification && formData.carbon_intensity_method.trim() !== '' : formData.specification_standard.trim() !== '') &&
         formData.msds_available &&
         formData.carbon_intensity_gco2_mj > 0 &&
         formData.feedstock.trim() !== '' &&
@@ -551,6 +570,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                 payload.specification_standard = formData.specification_standard.trim();
                 payload.msds_available = formData.msds_available;
                 payload.carbon_intensity_gco2_mj = formData.carbon_intensity_gco2_mj;
+                if (biofuelSpecification) payload.carbon_intensity_method = formData.carbon_intensity_method.trim();
                 payload.feedstock = formData.feedstock.trim();
                 payload.origin = formData.origin.trim();
             }
@@ -587,6 +607,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
             if (typeof payload.carbon_intensity_gco2_mj === 'number') {
                 addReviewDetail(t('orderPlaceModal.label.carbonIntensity'), `${payload.carbon_intensity_gco2_mj} gCO₂e/MJ`);
             }
+            addReviewDetail(t(`${biofuelKey}.carbonIntensityMethodLabel`), payload.carbon_intensity_method);
             addReviewDetail(t('orderPlaceModal.label.feedstock'), payload.feedstock);
             addReviewDetail(t('orderPlaceModal.label.origin'), payload.origin);
         }
@@ -1160,7 +1181,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </div>
                                     )}
                                 </div>
-                                {selectedProduct.spec_description && (
+                                {(biofuelSpecification || selectedProduct.spec_description) && (
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 border-t border-slate-200 dark:border-slate-700 pt-2">
                                         {locale.startsWith('zh')
                                             ? t('orderPlaceModal.productSpecifications.generic')
@@ -1344,6 +1365,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                         </p>
                                     </div>}
 
+                                    {biofuelSpecification && <p className="text-sm text-slate-600 dark:text-slate-300">{t(`${biofuelKey}.contract`)}</p>}
                                     {!isFameOrder && !isLngOrder && side === 'ASK' && (
                                         <div data-tour="order-modal-supplier-fields" className="space-y-4">
                                             <label className="flex items-start gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-3 bg-slate-50 dark:bg-slate-900">
@@ -1358,7 +1380,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         {t('orderPlaceModal.label.certificationDeclared')}
                                                     </span>
                                                     <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                        {t('orderPlaceModal.helper.certificationDeclared')}
+                                                        {t(biofuelSpecification ? `${biofuelKey}.documentsHelper` : 'orderPlaceModal.helper.certificationDeclared')}
                                                     </span>
                                                 </span>
                                             </label>
@@ -1368,6 +1390,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     <label htmlFor="order-specification-standard" className={labelClass}>{t('orderPlaceModal.label.specificationStandard')}</label>
                                                     <input
                                                         id="order-specification-standard"
+                                                        readOnly={Boolean(biofuelSpecification)}
                                                         type="text"
                                                         value={formData.specification_standard}
                                                         onChange={(e) => handleChange('specification_standard', e.target.value)}
@@ -1376,7 +1399,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label htmlFor="order-carbon-intensity" className={labelClass}>{t('orderPlaceModal.label.carbonIntensity')}</label>
+                                                    <label htmlFor="order-carbon-intensity" className={labelClass}>{t(biofuelSpecification ? `${biofuelKey}.wholeBlendCiLabel` : 'orderPlaceModal.label.carbonIntensity')}</label>
                                                     <input
                                                         id="order-carbon-intensity"
                                                         type="number"
@@ -1389,6 +1412,14 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                     />
                                                 </div>
                                             </div>
+
+                                            {biofuelSpecification && <div>
+                                                <p className="mb-3 text-xs text-slate-500">{t(`${biofuelKey}.wholeBlendCiHelper`)}</p>
+                                                <label htmlFor="order-carbon-intensity-method" className={labelClass}>{t(`${biofuelKey}.carbonIntensityMethodLabel`)}</label>
+                                                <input id="order-carbon-intensity-method" type="text" className={inputClass}
+                                                    value={formData.carbon_intensity_method}
+                                                    onChange={event => handleChange('carbon_intensity_method', event.target.value)} />
+                                            </div>}
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div>
@@ -1427,7 +1458,7 @@ export const OrderPlaceModal: React.FC<OrderPlaceModalProps> = ({
                                                         {t('orderPlaceModal.label.msdsAvailable')}
                                                     </span>
                                                     <span className="block mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                        {t('orderPlaceModal.helper.msdsAvailable')}
+                                                        {t(biofuelSpecification ? `${biofuelKey}.msdsHelper` : 'orderPlaceModal.helper.msdsAvailable')}
                                                     </span>
                                                 </span>
                                             </label>

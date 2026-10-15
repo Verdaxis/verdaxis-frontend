@@ -1,3 +1,4 @@
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -375,6 +376,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     // ─── News panel toggle ──────────────────────────────────────
 
     // ─── Order placement modal ────────────────────────────────────
+    const [orderModalPrefill, setOrderModalPrefill] = useState<OrderBookOrder | null>(null);
     const [orderModalSide, setOrderModalSide] = useState<'BID' | 'ASK' | null>(null);
 
     useEffect(() => {
@@ -833,6 +835,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 side: order.side,
                 demo_status: order.is_demo_listing ? 'DEMO' : 'LIVE',
             });
+        }
+        if (order.side === 'BID' && getBiofuelSpecification(order.market_product) && !order.is_demo_listing) {
+            // A scalar biofuel supplier must declare an ASK. This does not target the BID.
+            setOrderModalPrefill(order);
+            setOrderModalSide('ASK');
+            return;
         }
         setTradeFameInput(null);
         setTradeLngInput(null);
@@ -2162,6 +2170,11 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             )}
                                         </p>
                                     </div>
+                                    {getBiofuelSpecification(selectedOrder.market_product) && <div className="text-sm text-slate-600 dark:text-slate-300">
+                                        <p>{t(`${selectedOrder.market_product?.toLowerCase()}.contract`)}</p>
+                                        <p>{selectedOrder.specification_standard}</p>
+                                        <p>{selectedOrder.carbon_intensity_gco2_mj ?? t('common.notAvailable')} gCO₂e/MJ · {selectedOrder.carbon_intensity_method}</p>
+                                    </div>}
                                     {selectedOrder.market_product === 'UCOME_B100' && <div className="space-y-4">
                                         {selectedOrder.fame_terms && <details className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" open>
                                             <summary className="cursor-pointer text-sm font-bold">{t('marketplace.b100.orderTerms')}</summary>
@@ -2280,6 +2293,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 isOpen={orderModalSide !== null && !isHistorySelected}
                 onClose={() => {
                     setOrderModalSide(null);
+                    setOrderModalPrefill(null);
                     if (!isHistorySelected) {
                         void fetchProductCounts(true);
                         if (marketTab === 'market') void fetchListings(true, currentSkip, true);
@@ -2288,10 +2302,12 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                 }}
                 side={orderModalSide || configBase.primaryAction.side}
                 prefillFuelType={marketProduct !== ALL_MARKET_PRODUCTS ? formatMarketProduct(marketProduct) : undefined}
-                prefillRegion={portInput || undefined}
-                prefillMarketProduct={marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined}
-                prefillDeliveryPointId={currentSliceTarget?.deliveryPointId}
-                prefillAvailabilityWindow={availability || undefined}
+                prefillRegion={orderModalPrefill?.region || portInput || undefined}
+                prefillMarketProduct={orderModalPrefill?.market_product || (marketProduct !== ALL_MARKET_PRODUCTS ? marketProduct : undefined)}
+                prefillDeliveryPointId={orderModalPrefill?.delivery_point_id || currentSliceTarget?.deliveryPointId}
+                prefillAvailabilityWindow={orderModalPrefill?.availability_window || availability || undefined}
+                prefillQuantity={orderModalPrefill ? Number(orderModalPrefill.remaining_quantity_mt) : undefined}
+                prefillPrice={orderModalPrefill ? Number(orderModalPrefill.price_per_mt_usd) : undefined}
             />
         </div>
     );

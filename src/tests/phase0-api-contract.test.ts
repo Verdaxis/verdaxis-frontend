@@ -19,7 +19,7 @@ it.each(products)('keeps %s as a separate executable catalog identity', async (c
   expect(ACTIVE_MARKETPLACE_PRODUCT_OPTIONS.map(option => option.value)).toContain(code);
   expect(getBiofuelSpecification(code)).toBe(standard);
   const product = { id, name: code, market_product: code, min_lot_size: minimum,
-    fuel_type: code === 'UCOME_B100' ? 'FAME' : 'Biofuel', unit: 'MT', is_active: true,
+    fuel_grade: code, fuel_type: code === 'UCOME_B100' ? 'FAME' : 'Biofuel', unit: 'MT', is_active: true,
     execution_mode: 'ORDERBOOK' as const };
   expect(isOrderbookProduct(product)).toBe(true);
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify([product])));
