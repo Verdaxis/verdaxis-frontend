@@ -126,6 +126,7 @@ export interface MarketWatchItem {
 
 /** Mirrors the backend `execution_eligibility.reason` on `/api/auth/me`. */
 export type ExecutionEligibilityReason =
+    | 'KYC_NOT_ENFORCED'
     | 'KYC_APPROVED'
     | 'KYC_GRACE'
     | 'KYC_REQUIRED'

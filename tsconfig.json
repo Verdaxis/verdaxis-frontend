@@ -29,5 +29,5 @@
     "resolveJsonModule": true,
     "esModuleInterop": true
   },
-  "exclude": ["node_modules", "dist", ".vercel"]
+  "exclude": ["node_modules", "dist", ".vercel", "work"]
 }
