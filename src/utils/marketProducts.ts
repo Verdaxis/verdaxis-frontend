@@ -16,6 +16,8 @@ export const MARKETPLACE_PRODUCT_OPTIONS: MarketplaceProductOption[] = [
     { value: 'E_METHANOL', label: MARKET_PRODUCT_LABELS.E_METHANOL, fuelType: 'Methanol' },
     { value: 'BIO_ETHANOL', label: MARKET_PRODUCT_LABELS.BIO_ETHANOL, fuelType: 'Ethanol' },
     { value: 'SYNTHETIC_ETHANOL', label: MARKET_PRODUCT_LABELS.SYNTHETIC_ETHANOL, fuelType: 'Ethanol' },
+    { value: 'B30', label: MARKET_PRODUCT_LABELS.B30, fuelType: 'Biofuel' },
+    { value: 'B100', label: MARKET_PRODUCT_LABELS.B100, fuelType: 'Biofuel' },
     { value: 'UCOME_B100', label: MARKET_PRODUCT_LABELS.UCOME_B100, fuelType: 'FAME' },
     { value: 'BIO_LNG', label: MARKET_PRODUCT_LABELS.BIO_LNG, fuelType: 'LNG' },
 ];
