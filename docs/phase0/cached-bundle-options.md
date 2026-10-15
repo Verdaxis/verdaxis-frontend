@@ -23,3 +23,7 @@ Recommendation: use the existing update banner with a supervised pilot refresh u
 ## Implemented locally
 
 The new bundle keeps null, absent, invalid and non-finite monetary values unknown rather than €0. Scalar map and public price regressions are fixed. The real old-bundle browser gate reproduces the null ETS defect; the new bundle renders it as unknown. No new reload mechanism was added because the pinned old bundle could not honor it.
+
+## PM decision (16 October 2026, 03:22 SGT)
+
+Use the existing changed-asset banner (`DeploymentUpdateNotice`, five-minute polling) and a short "please refresh" note from the founder to the active pilot users right after the cutover. Add both to the Task 11 cutover checklist: (1) the founder sends the note when public access reopens; (2) the operator checks that the new entry HTML is live so the banner appears. Reason: the pilot group is small and known, and the founder accepts a short window in which an old tab can show EUR 0 for an unknown ETS cost until the user refreshes. No compatibility release and no supervised per-user refresh. Revisit this if the cutover happens after public launch.
