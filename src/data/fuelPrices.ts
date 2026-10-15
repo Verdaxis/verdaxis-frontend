@@ -21,6 +21,8 @@ const DEMO_PRODUCTS: MarketProduct[] = [
   'E_METHANOL',
   'BIO_ETHANOL',
   'SYNTHETIC_ETHANOL',
+  'B30',
+  'B100',
 ];
 const DEMO_PORTS = ['Singapore', 'Shanghai'];
 
@@ -33,6 +35,11 @@ const previewPrices: Record<string, number> = {
   'Shanghai|E_METHANOL': 1095,
   'Shanghai|BIO_ETHANOL': 843,
   'Shanghai|SYNTHETIC_ETHANOL': 1208,
+  // Production demo anchors (ENGINE 2026-09-25); Shanghai is a demo proxy.
+  'Singapore|B30': 1105,
+  'Singapore|B100': 1362,
+  'Shanghai|B30': 1105,
+  'Shanghai|B100': 1362,
 };
 
 export const DEMO_FUEL_PRICES: FuelPrice[] = DEMO_PORTS.flatMap(region => (

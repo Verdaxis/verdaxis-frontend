@@ -26,6 +26,7 @@ const compactMapSummaryMock = vi.fn();
 const useSSEMock = vi.fn();
 const removeMock = vi.fn();
 const tickerPropsMock = vi.fn();
+const intelligencePropsMock = vi.fn();
 
 vi.mock('../services/api', () => ({
   api: {
@@ -62,9 +63,10 @@ vi.mock('../components/map/MarketWatchTicker', () => ({
 }));
 
 vi.mock('../components/map/IntelligencePanel', () => ({
-  IntelligencePanel: ({ portOptions = [], selectedProduct }: { portOptions?: unknown[]; selectedProduct?: string }) => (
-    <div data-testid="fallback-port-count" data-product={selectedProduct}>{portOptions.length}</div>
-  ),
+  IntelligencePanel: (props: { portOptions?: unknown[]; selectedProduct?: string }) => {
+    intelligencePropsMock(props);
+    return <div data-testid="fallback-port-count" data-product={props.selectedProduct}>{props.portOptions?.length ?? 0}</div>;
+  },
 }));
 
 vi.mock('mapbox-gl', () => {
@@ -323,6 +325,38 @@ describe('BuyerMap failure localization', () => {
         expect.objectContaining({ market_product: 'UCOME_B100', min_price: '777' }),
       ]);
     });
+  });
+
+  it.each(['B30', 'B100'])('hides methanol intelligence for %s, including the All-products reference', async product => {
+    await i18n.changeLanguage('en');
+    vi.stubEnv('VITE_MAPBOX_PUBLIC_TOKEN', 'pk.test');
+    portsListMock.mockResolvedValue([{
+      id: 'sg-sin', name: 'Singapore', location: { lat: 1.3, lng: 103.8 },
+      methanolSupply: 'High', details: { priceHistory: [456], plattsPrice: 456, swapPrice: 457,
+        forecastSupply: 'High', activeBarges: 2, avgWaitingTime: 1 },
+    }]);
+    compactMapSummaryMock.mockResolvedValue({ markets: [{
+      market_product: product, product_name: product, delivery_point_name: 'Singapore',
+      delivery_point_id: 'sg-sin', bid_order_count: 0, ask_order_count: 1,
+      bid_total_quantity: '0', ask_total_quantity: '200', bid_min_price: null, bid_max_price: null,
+      ask_min_price: '900', ask_max_price: '900', spot_best_bid: null, spot_best_ask: '900',
+      source_kind: 'LIVE_ORDER', demo_status: 'REAL_ONLY',
+    }], demo_groups: [], recent_asks: [] });
+    renderWithProviders(<BuyerMap onPortSelect={vi.fn()} onNavigate={vi.fn()} />);
+    await screen.findByRole('button', { name: product });
+    for (const explicit of [false, true]) {
+      if (explicit) fireEvent.click(screen.getByRole('button', { name: product }));
+      await waitFor(() => expect(addSourceMock.mock.calls.some(([name]) => name === 'ports')).toBe(true));
+      const source = addSourceMock.mock.calls.filter(([name]) => name === 'ports').at(-1)?.[1];
+      const singapore = source.data.features.find((feature: any) => feature.properties.name === 'Singapore');
+      const click = mapOnMock.mock.calls.filter(([event, layer]) => event === 'click' && layer === 'port-fills').at(-1)?.[2];
+      act(() => click({ features: [singapore] }));
+      const selected = intelligencePropsMock.mock.calls.at(-1)?.[0].selectedPort;
+      expect(selected.details).toMatchObject({ priceHistory: [], forecastSupply: 'Unknown' });
+      expect(selected.methanolSupply).toBe('Unknown');
+      expect(popupHtmlMock.mock.calls.at(-1)?.[0]).not.toContain('$456.00');
+      expect(popupHtmlMock.mock.calls.at(-1)?.[0]).not.toContain('$457.00');
+    }
   });
 
   it.each(['en', 'zh'])('uses shared B100 map data, controls and trading navigation at its catalog port (%s)', async language => {
