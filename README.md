@@ -55,6 +55,8 @@ npm run build:prod
 npm run build:check
 ```
 
+`npm run typecheck` runs the TypeScript 7 native checker (`tsgo`, about 8 s). `npm run typecheck:tsc` runs the TypeScript 5.8 checker (about 38 s); run it roughly weekly as a cross-check until TypeScript 7 ships stable.
+
 `npm run verify` is a production-build convenience command. It does not replace the explicit two-build sequence above.
 
 ## Live and external checks
