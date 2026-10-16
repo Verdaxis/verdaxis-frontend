@@ -1,0 +1,221 @@
+"""Playwright helpers shared by the journey runner and the screenshot baselines.
+
+Two rules matter for every run:
+
+* Determinism. Mapbox tiles, styles, fonts, and Google Fonts are stubbed (or
+  routed to transparent PNGs) so no run needs a token or the network. SSE
+  stream bodies cannot pass through Playwright's route proxy, so ``/stream/``
+  is aborted exactly like ``phase0_gate_browser.py`` does.
+* Real backend. API calls are forwarded to the disposable backend origin the
+  bundle was built against (the harness takes that origin as a parameter, so
+  the same code works for a loopback backend and for the live one), with
+  credentialed CORS headers added so the production bundle accepts them.
+"""
+import json
+import os
+from urllib.parse import urlsplit
+
+MAPBOX_HOSTS = ('api.mapbox.com', 'api.tiles.mapbox.com', 'tiles.mapbox.com',
+                'fonts.mapbox.com')
+FONT_HOSTS = ('fonts.googleapis.com', 'fonts.gstatic.com')
+
+# 1x1 transparent PNG, kept for icon fallbacks during journeys.
+TRANSPARENT_PNG = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00'
+                   b'\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\n'
+                   b'IDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00'
+                   b'\x00\x00IEND\xaeB`\x82')
+
+# Minimal valid JSON style: one background layer. Mapbox GL accepts it and the
+# ECA/port layers install on top because BuyerMap adds sources itself.
+MAPBOX_STYLE = {
+    'version': 8,
+    'name': 'Journeys stub',
+    'sources': {},
+    'layers': [{'id': 'background', 'type': 'background',
+                'paint': {'background-color': '#0b1220'}}],
+    'glyphs': 'https://fonts.mapbox.com/journeys-stub/{fontstack}/{range}.pbf',
+}
+
+
+def solid_tile_png(rgb=(11, 18, 32)):
+    """1x1 PNG filled with one RGB color; upscaled by the map as the basemap."""
+    import struct
+    import zlib
+
+    def chunk(tag, data):
+        raw = tag + data
+        return (struct.pack('>I', len(data)) + raw
+                + struct.pack('>I', zlib.crc32(raw) & 0xffffffff))
+
+    header = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', header)
+            + chunk(b'IDAT', zlib.compress(b'\x00' + bytes(rgb)))
+            + chunk(b'IEND', b''))
+
+
+class JourneyFailure(Exception):
+    """One journey step failed with evidence attached."""
+
+
+class Harness:
+    """One browser context with API forwarding and external stubs installed."""
+
+    def __init__(self, browser, base, api_origin, viewport=None, tile_color=(11, 18, 32)):
+        # api_origin is the bundle's VITE_API_URL origin, for example
+        # 'http://127.0.0.1:54321' or 'https://api.verdaxis.exchange'.
+        self.base = base
+        self.api_origin = api_origin.rstrip('/')
+        self.requests = []
+        self.errors = []
+        self.console = []
+        self.failed_requests = []
+        self.tile_color = tile_color
+        self.context = browser.new_context(
+            service_workers='block',
+            viewport=viewport or {'width': 1440, 'height': 1000},
+            # Fixed clock inputs are per-page; the context itself stays generic.
+            device_scale_factor=1,
+        )
+        self.context.add_init_script("""
+            Object.defineProperty(HTMLElement.prototype, 'animate', {
+                value: () => ({ finished: Promise.resolve(), cancel() {}, finish() {} }),
+            });
+            try { HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open',''); }; } catch {}
+        """)
+        self.page = self.context.new_page()
+        self.page.on('pageerror', lambda error: self.errors.append(str(error)))
+        self.page.on('console', self._console)
+        self.context.route('**/*', self._route)
+
+    def _console(self, message):
+        if message.type in ('error', 'warning'):
+            self.console.append(f'{message.type}: {message.text}'[:300])
+
+    def diagnostics(self):
+        """Page state, console errors, and failed requests for failure evidence."""
+        try:
+            body = self.page.locator('body').inner_text()[:200].replace('\n', ' ')
+            url = self.page.url
+        except Exception:
+            body, url = '', '?'
+        return (f'url={url} body={body!r} | '
+                + ' | '.join(self.console[-3:] + self.failed_requests[-3:]))[:600]
+
+    # -- routing ---------------------------------------------------------
+    def _route(self, route):
+        request = route.request
+        parsed = urlsplit(request.url)
+        host = parsed.hostname or ''
+        path = parsed.path
+        if request.url.startswith(self.api_origin + '/'):
+            if path.startswith('/api/stream/'):
+                # Infinite SSE bodies cannot pass through route.fulfill.
+                route.abort()
+                return
+            self._forward(route, parsed)
+            return
+        if request.url.startswith(self.base + '/'):
+            # Same-origin bundle assets move on to the static server. The map's
+            # ECA overlay chunk arrives this way, so it is recorded as evidence.
+            if 'eca' in path.lower():
+                self.requests.append((request.method, path))
+            route.continue_()
+            return
+        if host in MAPBOX_HOSTS:
+            self._stub_mapbox(route, parsed)
+            return
+        if host in FONT_HOSTS:
+            route.fulfill(status=200, content_type='font/woff2', body=b'')
+            return
+        self.failed_requests.append(f'{request.method} {request.url}'[:200])
+        route.abort()
+
+    def _stub_mapbox(self, route, parsed):
+        path = parsed.path
+        if path.endswith('.pbf') or '/fonts/' in path or '/glyphs' in path:
+            route.fulfill(status=200, content_type='application/x-protobuf',
+                          body=b'\x0a\x00')  # empty glyph block
+        elif path.startswith('/styles/') or path.endswith('.json'):
+            route.fulfill(status=200, content_type='application/json',
+                          body=json.dumps(MAPBOX_STYLE))
+        elif path.endswith('.png'):
+            route.fulfill(status=200, content_type='image/png',
+                          body=solid_tile_png(self.tile_color))
+        elif path.endswith('.jpg') or path.endswith('.jpeg') or path.endswith('.webp'):
+            route.fulfill(status=200, content_type='image/jpeg',
+                          body=solid_tile_png(self.tile_color))
+        else:
+            route.fulfill(status=204, body='')
+
+    def _forward(self, route, parsed):
+        path = parsed.path
+        query = ('?' + parsed.query) if parsed.query else ''
+        self.requests.append((route.request.method, path))
+        headers = dict(route.request.headers)
+        headers.pop('host', None)
+        headers.pop('origin', None)
+        response = self.context.request.fetch(
+            self.api_origin + path + query,
+            method=route.request.method,
+            headers=headers,
+            data=route.request.post_data_buffer,
+            timeout=30000,
+            max_redirects=0,
+        )
+        response_headers = dict(response.headers)
+        response_headers['access-control-allow-origin'] = self.base
+        response_headers['access-control-allow-credentials'] = 'true'
+        route.fulfill(status=response.status, headers=response_headers, body=response.body())
+
+    # -- helpers ---------------------------------------------------------
+    def api_call(self, path, method='GET', body=None, token=None,
+                 form=None):
+        """Direct API call through the harness's request context (real backend)."""
+        headers = {}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        data = None
+        if form is not None:
+            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            data = form
+        elif body is not None:
+            headers['Content-Type'] = 'application/json'
+            data = json.dumps(body)
+        response = self.context.request.fetch(
+            self.api_origin + path, method=method, headers=headers, data=data,
+            timeout=30000, max_redirects=0)
+        text = response.text()
+        try:
+            payload = json.loads(text)
+        except Exception:
+            payload = {'raw': text[:200]}
+        return {'status': response.status, 'body': payload}
+
+    def reset_rate_limits(self):
+        """Clear the disposable backend's rate-limit counters.
+
+        Login allows five attempts per minute; the journey net logs in once per
+        step from one address, so each session clears the counters through the
+        backend's own disposable-test endpoint before it authenticates. Real
+        traffic never gets this; the endpoint exists only under the disposable
+        wrapper with the run's single-use token.
+        """
+        token = os.environ.get('JOURNEYS_DISPOSABLE_TOKEN')
+        if not token:
+            return
+        self.context.request.post(
+            self.api_origin + '/.well-known/verdaxis-disposable-test/reset-limits',
+            headers={'x-disposable-token': token}, timeout=10000)
+
+    def login_token(self, email, password):
+        from urllib.parse import urlencode
+        self.reset_rate_limits()
+        result = self.api_call('/api/auth/login', method='POST',
+                               form=urlencode({'username': email, 'password': password}))
+        if result['status'] != 200:
+            raise JourneyFailure(f'login failed for {email}: HTTP {result["status"]}: {result["body"]}')
+        return result['body']['access_token']
+
+    def close(self):
+        self.context.unroute_all(behavior='ignoreErrors')
+        self.context.close()
