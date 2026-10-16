@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 class IntersectionObserverMock implements IntersectionObserver {
   readonly root: Element | Document | null = null;
   readonly rootMargin = '';
+  readonly scrollMargin = '0px';
   readonly thresholds: ReadonlyArray<number> = [];
 
   disconnect(): void {}
