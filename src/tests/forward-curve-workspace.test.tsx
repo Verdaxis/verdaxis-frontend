@@ -653,6 +653,14 @@ describe('ForwardCurveWorkspace', () => {
     hidden.mockReturnValue(false);
     fireEvent(document, new Event('visibilitychange'));
     await screen.findByText('Curve mark');
+    // The table mark renders from the resume's table read, and the resume
+    // dispatches its slice read from a following effect, so the mark alone does
+    // not prove that both reads are done. Wait for the slice read's own data,
+    // then confirm the resume read each source once, so the counters cleared
+    // below start from a settled resume instead of one read still in flight.
+    await screen.findByText('5.0k MT available');
+    expect(tableMock).toHaveBeenCalledTimes(1);
+    expect(sliceMock).toHaveBeenCalledTimes(1);
     tableMock.mockClear();
     sliceMock.mockClear();
     hidden.mockReturnValue(true);
