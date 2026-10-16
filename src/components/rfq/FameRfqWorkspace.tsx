@@ -160,7 +160,7 @@ export function FameRfqWorkspace({ embedded = false, historyOnly = false, source
             }
             if (!current) return;
             setCatalog({ product, deliveryPoint });
-            const response = await api.rfq.list({ product_id: product.id, skip: page * PAGE_SIZE, limit: PAGE_SIZE });
+            const response = await api.rfq.list({ ...(historyOnly ? {} : { product_id: product.id }), skip: page * PAGE_SIZE, limit: PAGE_SIZE });
             if (!current) return;
             setItems(response.items);
             setTotal(response.total);
@@ -168,7 +168,7 @@ export function FameRfqWorkspace({ embedded = false, historyOnly = false, source
             setSelectedId((id) => response.items.some((item) => item.id === id) ? id : response.items[0]?.id ?? null);
         }).catch(() => { if (current) setError('loadError'); }).finally(() => { if (current) setLoading(false); });
         return () => { current = false; };
-    }, [page, refresh, user?.id, user?.organization_id]);
+    }, [page, refresh, user?.id, user?.organization_id, historyOnly]);
 
     useEffect(() => {
         const generation = ++detailGeneration.current;

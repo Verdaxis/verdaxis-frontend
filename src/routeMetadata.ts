@@ -1,5 +1,6 @@
 export const SITE_ORIGIN = 'https://verdaxis.exchange';
 export const SOCIAL_IMAGE_PATH = '/verdaxis-social-card.png';
+export const ORGANIZATION_LOGO_PATH = '/verdaxis-logo-no-words.png';
 export const SOCIAL_IMAGE_ALT = 'Verdaxis — Low Carbon Fuels Exchange';
 
 export const SUPPORTED_PUBLIC_LANGUAGES = ['en', 'zh'] as const;
@@ -19,14 +20,20 @@ export interface RouteMetadata extends LocalizedMetadata {
   language: PublicLanguage;
   robots: 'index,follow,max-image-preview:large' | 'noindex,nofollow,noarchive';
   canonical?: string;
+  alternates?: Record<PublicLanguage | 'x-default', string>;
   type: 'website' | 'article';
+}
+
+export interface RouteStructuredData {
+  '@context': 'https://schema.org';
+  '@graph': Array<Record<string, unknown>>;
 }
 
 const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   '': {
     en: {
-      title: 'Low-Carbon Fuels Exchange | Verdaxis',
-      description: 'Explore Verdaxis, a neutral digital marketplace for low-carbon fuel supply, demand, pricing, and compliance information.',
+      title: 'Low-Carbon Marine Fuel Marketplace | Verdaxis',
+      description: 'Explore low-carbon marine fuel supply, demand, indicative pricing, and compliance context for biofuels, bio-methanol, e-methanol, and other fuel pathways.',
     },
     zh: {
       title: '低碳燃料交易平台 | Verdaxis',
@@ -45,8 +52,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   fuels: {
     en: {
-      title: 'Low-Carbon Fuel Coverage | Verdaxis',
-      description: 'Explore the maritime, aviation, and land-transport fuel pathways covered by Verdaxis.',
+      title: 'Marine Biofuel, Methanol and Alternative Fuels | Verdaxis',
+      description: 'Explore marine biofuel, bio-methanol, e-methanol, ammonia, aviation, and land-transport fuel pathways covered by Verdaxis.',
     },
     zh: {
       title: '低碳燃料范围 | Verdaxis',
@@ -55,8 +62,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   'fuels/maritime': {
     en: {
-      title: 'Maritime Fuel Coverage | Verdaxis',
-      description: 'Compare low-carbon marine fuel types, production pathways, energy content, and environmental attributes.',
+      title: 'Marine Biofuel and Methanol Market Guide | Verdaxis',
+      description: 'Compare marine biofuel blends, bio-methanol, e-methanol, ammonia, and other low-carbon fuel pathways by energy content and environmental attributes.',
     },
     zh: {
       title: '海运低碳燃料 | Verdaxis',
@@ -85,8 +92,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   compliance: {
     en: {
-      title: 'Maritime Fuel Compliance | Verdaxis',
-      description: 'Understand the maritime fuel compliance context Verdaxis uses for market information, including carbon intensity and regulatory exposure.',
+      title: 'Marine Fuel Compliance and Carbon Intensity | Verdaxis',
+      description: 'Understand carbon intensity, FuelEU Maritime, EU ETS exposure, and the compliance context used in low-carbon marine fuel procurement.',
     },
     zh: {
       title: '船用燃料合规 | Verdaxis',
@@ -95,8 +102,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   'for-producers': {
     en: {
-      title: 'Verdaxis for Fuel Producers | Verdaxis',
-      description: 'Learn how low-carbon fuel producers can present supply, qualification details, and future capacity to market participants.',
+      title: 'Low-Carbon Fuel Marketplace for Producers | Verdaxis',
+      description: 'Learn how marine biofuel and methanol producers can present supply, qualification details, and future capacity to market participants.',
     },
     zh: {
       title: '面向燃料生产商 | Verdaxis',
@@ -105,8 +112,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   'for-buyers': {
     en: {
-      title: 'Verdaxis for Fuel Buyers | Verdaxis',
-      description: 'Learn how fuel buyers can compare qualified low-carbon supply, market context, and compliance-related attributes.',
+      title: 'Marine Fuel Procurement Marketplace for Buyers | Verdaxis',
+      description: 'Learn how buyers can compare low-carbon marine fuel supply, indicative pricing, energy content, and compliance-related attributes.',
     },
     zh: {
       title: '面向燃料买家 | Verdaxis',
@@ -115,8 +122,8 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   'for-traders': {
     en: {
-      title: 'Verdaxis for Fuel Traders | Verdaxis',
-      description: 'Learn how professional fuel traders can monitor structured low-carbon markets and access transparent price information.',
+      title: 'Low-Carbon Marine Fuel Pricing for Traders | Verdaxis',
+      description: 'Learn how professional traders can monitor structured marine biofuel and methanol markets with transparent, indicative price information.',
     },
     zh: {
       title: '面向燃料交易商 | Verdaxis',
@@ -155,12 +162,12 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   partners: {
     en: {
-      title: 'Industry Partners | Verdaxis',
-      description: 'Learn about the industry relationships and market resources Verdaxis is developing for the low-carbon fuel ecosystem.',
+      title: 'Industry Resources | Verdaxis',
+      description: 'Explore independent standards, regulatory bodies, and market resources relevant to low-carbon fuel commerce. Inclusion does not imply partnership or endorsement.',
     },
     zh: {
-      title: '行业合作伙伴 | Verdaxis',
-      description: '了解 Verdaxis 正在为低碳燃料生态系统建立的行业合作关系和市场资源。',
+      title: '行业资源 | Verdaxis',
+      description: '了解与低碳燃料交易相关的独立标准、监管机构和市场资源。列示并不代表合作关系或认可。',
     },
   },
   education: {
@@ -185,22 +192,22 @@ const publicRoutes: Record<string, LocalizedRouteMetadata> = {
   },
   'tools/energy-calculator': {
     en: {
-      title: 'Fuel Energy Calculator | Verdaxis',
-      description: 'Compare marine fuels by energy content and examine how fuel properties can affect voyage and compliance costs.',
+      title: 'Marine Fuel Price and Energy Calculator | Verdaxis',
+      description: 'Compare marine fuels at the same energy demand. Estimate fuel cost, direct CO2 emissions, and an illustrative EU ETS allowance cost from editable inputs.',
     },
     zh: {
       title: '燃料能量计算器 | Verdaxis',
-      description: '按能量含量比较船用燃料，并了解燃料属性可能对航次和合规成本产生的影响。',
+      description: '按相同能量需求比较船用燃料，并根据可调整的输入估算燃料成本、直接二氧化碳排放和示例欧盟 ETS 配额成本。',
     },
   },
   'map/producers': {
     en: {
-      title: 'Low-Carbon Fuel Project Map | Verdaxis',
-      description: 'Explore a public map of low-carbon fuel production projects by location, pathway, status, and timeline.',
+      title: 'Methanol Production Project Index | Verdaxis',
+      description: 'Explore a compiled methanol project index with recorded pathways, status, capacity, commissioning years, and approximate city locations.',
     },
     zh: {
-      title: '低碳燃料项目地图 | Verdaxis',
-      description: '按地点、生产路径、状态和时间查看公开的低碳燃料生产项目地图。',
+      title: '甲醇生产项目索引 | Verdaxis',
+      description: '查看汇编的甲醇项目索引，包括记录的生产路径、状态、产能、投产年份和近似城市位置。',
     },
   },
   privacy: {
@@ -277,7 +284,7 @@ const privateRoutes: Array<{ pattern: RegExp; copy: LocalizedRouteMetadata }> = 
   { pattern: /^\/app\/?$/, copy: privateCopy('Platform Workspace', '平台工作区', 'Access the private Verdaxis platform workspace.', '访问 Verdaxis 私密平台工作区。') },
   { pattern: /^\/app\/home\/?$/, copy: privateCopy('Command Center', '指挥中心', 'Review private market activity and account actions.', '查看私密市场活动和账户操作。') },
   { pattern: /^\/app\/map\/?$/, copy: privateCopy('Intelligence Map', '情报地图', 'Review private market and port intelligence.', '查看私密市场和港口情报。') },
-  { pattern: /^\/app\/(?:marketplace|rfqs|m\/[^/]+\/[^/]+\/[^/]+)\/?$/, copy: privateCopy('Marketplace', '市场', 'Access the private Verdaxis low-carbon fuel marketplace.', '访问 Verdaxis 私密低碳燃料市场。') },
+  { pattern: /^\/app\/(?:marketplace|m\/[^/]+\/[^/]+\/[^/]+)\/?$/, copy: privateCopy('Marketplace', '市场', 'Access the private Verdaxis low-carbon fuel marketplace.', '访问 Verdaxis 私密低碳燃料市场。') },
   { pattern: /^\/app\/curve\/?$/, copy: privateCopy('Forward Curve', '远期曲线', 'Monitor private forward-market information.', '监测私密远期市场信息。') },
   { pattern: /^\/app\/watchlist\/?$/, copy: privateCopy('Watchlist', '关注列表', 'Review private tracked market slices and events.', '查看私密关注市场切片和事件。') },
   { pattern: /^\/app\/analytics\/?$/, copy: privateCopy('Market Analytics', '市场分析', 'Review private supply-and-demand analytics.', '查看私密供需分析。') },
@@ -302,6 +309,15 @@ const normalizePathname = (pathname: string): string => {
   if (withoutQuery === '/') return '/';
   return `/${withoutQuery.replace(/^\/+|\/+$/g, '')}`;
 };
+
+const localizedPublicUrl = (language: PublicLanguage, routeKey: string): string =>
+  `${SITE_ORIGIN}${routeKey ? `/${language}/${routeKey}` : `/${language}/`}`;
+
+const publicAlternates = (routeKey: string): RouteMetadata['alternates'] => ({
+  en: localizedPublicUrl('en', routeKey),
+  zh: localizedPublicUrl('zh', routeKey),
+  'x-default': localizedPublicUrl('en', routeKey),
+});
 
 function publicRoute(pathname: string): { language: PublicLanguage; routeKey: string } | null {
   const normalized = normalizePathname(pathname);
@@ -340,7 +356,8 @@ export function resolveRouteMetadata(pathname: string, preferredLanguage: string
         ...copy,
         language: route.language,
         robots: 'index,follow,max-image-preview:large',
-        canonical: `${SITE_ORIGIN}${route.routeKey ? `/${route.language}/${route.routeKey}` : `/${route.language}/`}`,
+        canonical: localizedPublicUrl(route.language, route.routeKey),
+        alternates: publicAlternates(route.routeKey),
         type: educationSlug ? 'article' : 'website',
       };
     }
@@ -374,10 +391,57 @@ const escapeHtml = (value: string): string => value
   .replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;');
 
+export function buildRouteStructuredData(metadata: RouteMetadata): RouteStructuredData | undefined {
+  if (!metadata.canonical) return undefined;
+
+  const organizationId = `${SITE_ORIGIN}/#organization`;
+  const websiteId = `${SITE_ORIGIN}/#website`;
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': organizationId,
+        name: 'Verdaxis',
+        url: SITE_ORIGIN,
+        logo: `${SITE_ORIGIN}${ORGANIZATION_LOGO_PATH}`,
+        description: 'Verdaxis is a digital marketplace for low-carbon fuels.',
+      },
+      {
+        '@type': 'WebSite',
+        '@id': websiteId,
+        url: `${SITE_ORIGIN}/`,
+        name: 'Verdaxis',
+        inLanguage: [...SUPPORTED_PUBLIC_LANGUAGES],
+        publisher: { '@id': organizationId },
+      },
+      {
+        '@type': 'WebPage',
+        '@id': `${metadata.canonical}#webpage`,
+        url: metadata.canonical,
+        name: metadata.title,
+        description: metadata.description,
+        inLanguage: metadata.language,
+        isPartOf: { '@id': websiteId },
+        about: { '@id': organizationId },
+      },
+    ],
+  };
+}
+
+export const serializeStructuredData = (structuredData: RouteStructuredData): string =>
+  JSON.stringify(structuredData).replaceAll('<', '\\u003c');
+
 export function renderMetadataTags(metadata: RouteMetadata, forceNoIndex = false): string {
   const robots = forceNoIndex ? 'noindex,nofollow,noarchive' : metadata.robots;
   const canonical = metadata.canonical;
   const socialImage = `${SITE_ORIGIN}${SOCIAL_IMAGE_PATH}`;
+  const alternateTags = metadata.alternates
+    ? (['en', 'zh', 'x-default'] as const).map((language) =>
+      `<link rel="alternate" hreflang="${language}" href="${escapeHtml(metadata.alternates![language])}" data-verdaxis-route-metadata="alternate" />`,
+    )
+    : [];
+  const structuredData = buildRouteStructuredData(metadata);
   const tags = [
     `<title>${escapeHtml(metadata.title)}</title>`,
     `<meta name="description" content="${escapeHtml(metadata.description)}" />`,
@@ -398,6 +462,10 @@ export function renderMetadataTags(metadata: RouteMetadata, forceNoIndex = false
     `<meta name="twitter:description" content="${escapeHtml(metadata.description)}" />`,
     `<meta name="twitter:image" content="${socialImage}" />`,
     `<meta name="twitter:image:alt" content="${escapeHtml(SOCIAL_IMAGE_ALT)}" />`,
+    ...alternateTags,
+    structuredData
+      ? `<script id="verdaxis-structured-data" type="application/ld+json">${serializeStructuredData(structuredData)}</script>`
+      : '',
   ];
   return tags.filter(Boolean).join('\n    ');
 }

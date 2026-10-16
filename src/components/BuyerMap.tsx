@@ -20,6 +20,7 @@ import { PORTS as APPROVED_MAP_PORTS } from '../data';
 import { ACTIVE_MARKETPLACE_PRODUCT_OPTIONS } from '../utils/marketProducts';
 import { sliceToPath } from '../utils/sliceUrl';
 import { isOrderbookMarketProduct } from '../utils/marketProduct';
+import { getBiofuelSpecification } from '../utils/biofuelSpecification';
 import { useDashboardContentReady } from '../hooks/useDashboardContentReady';
 import { usePublicMarketRefresh } from '../hooks/usePublicMarketRefresh';
 import { loadEcaLayers, type EcaLayersModule } from '../map/loadEcaLayers';
@@ -406,14 +407,17 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
     const selectedPort = useMemo(() => {
         const port = ports.find(item => item.id === selectedPortId);
         if (!port) return undefined;
+        const reference = portMarketMap[port.id]?.reference;
+        const hideMethanolIntelligence = Boolean(selectedProduct || getBiofuelSpecification(reference?.productLabel));
         return {
             ...port,
-            priceMethanol: portMarketMap[port.id]?.reference?.price ?? 0,
+            priceMethanol: reference?.price ?? 0,
             priceTrend: undefined,
             // Legacy port intelligence is methanol-specific, not a B100 price history.
-            methanolSupply: selectedProduct ? 'Unknown' as const : port.methanolSupply,
-            details: selectedProduct && port.details ? {
+            methanolSupply: hideMethanolIntelligence ? 'Unknown' as const : port.methanolSupply,
+            details: hideMethanolIntelligence && port.details ? {
                 ...port.details,
+                forecastSupply: 'Unknown' as const,
                 priceHistory: [],
                 plattsPrice: undefined,
                 swapPrice: undefined,
@@ -728,8 +732,9 @@ export const BuyerMap: React.FC<BuyerMapProps> = ({ active = true, onPortSelect,
                             : mkt.reference.source === 'MIXED'
                                 ? translate('buyerMap.mixedMarketplace')
                                 : translate('buyerMap.marketplace');
-                    const plattsPrice = !selectedProductRef.current && port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
-                    const swapPrice = !selectedProductRef.current && port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
+                    const hideMethanolIntelligence = Boolean(selectedProductRef.current || getBiofuelSpecification(mkt.reference?.productLabel));
+                    const plattsPrice = !hideMethanolIntelligence && port.details?.plattsPrice ? '$' + port.details.plattsPrice.toFixed(2) : '--';
+                    const swapPrice = !hideMethanolIntelligence && port.details?.swapPrice ? '$' + port.details.swapPrice.toFixed(2) : '--';
                     const congestion = port.details?.congestionLevel && port.details.congestionLevel !== 'Unknown' ? port.details.congestionLevel : '--';
                     const congestionLabel = congestion === '--'
                         ? congestion

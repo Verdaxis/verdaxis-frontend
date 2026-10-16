@@ -1,0 +1,3379 @@
+{
+  "pins": {
+    "production": "3f16cabba6424ef08250b32f8f8e4b9a621c4379",
+    "staging": "3cfeac54e1aaf662cf4f48a3bf3243c445d8a087"
+  },
+  "production": [
+    {
+      "file": "src/components/DeploymentUpdateNotice.tsx",
+      "line": 27,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 63,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/my-referrals"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 68,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/leaderboard"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 85,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/referrals/invite"
+    },
+    {
+      "file": "src/components/Settings.tsx",
+      "line": 155,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 127,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/logout"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 205,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 252,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 278,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 305,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 96,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 97,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 98,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 39,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 54,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/prices"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/orderbook"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/trades"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 97,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/resolve"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 140,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/accept"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 310,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 348,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register-with-org"
+    },
+    {
+      "file": "src/pages/ForcePasswordChangePage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/pages/ForgotPasswordPage.tsx",
+      "line": 23,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/forgot-password"
+    },
+    {
+      "file": "src/pages/InvitePage.tsx",
+      "line": 26,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/resolve/{id}"
+    },
+    {
+      "file": "src/pages/KycPage.tsx",
+      "line": 38,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/kyc/submit"
+    },
+    {
+      "file": "src/pages/LoginPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "file": "src/pages/OnboardingPage.tsx",
+      "line": 39,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 73,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 109,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register"
+    },
+    {
+      "file": "src/pages/ResetPasswordPage.tsx",
+      "line": 51,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/reset-password"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/verify-email"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/survey"
+    },
+    {
+      "file": "src/services/ai-engine/generators.ts",
+      "line": 9,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/ai/chat"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 245,
+      "transport": "fetch",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 310,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 394,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 408,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/acquisition"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/activation"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/engagement"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/marketplace"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/retention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 572,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/reliability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 661,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/activity/events"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 682,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/users/me/preferences"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 689,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/users/me/preferences/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 700,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/ports"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 705,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/ports/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 712,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 745,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 761,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fleet"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 765,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/vessels/{id}/score"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 769,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/scenario"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 777,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/pricing-overlay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 785,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fuels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 792,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 816,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory/{id}/publish"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 823,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 831,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 849,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 877,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 881,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications/unread-count"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 886,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/{id}/read"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 893,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/read-all"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 903,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 906,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 922,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/snapshot"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 940,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/with-ci"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 952,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 964,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 979,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 991,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1006,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1009,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1025,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1035,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/orderbook/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1052,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1063,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1066,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/regions"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1069,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/fuel-types"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1084,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/product-counts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1088,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1092,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary/compact"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1108,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1123,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices/reference"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1130,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1141,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1145,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1164,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1167,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/confirm"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1173,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/decline"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1179,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/deliver"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1186,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades/{id}/pay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1208,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/producers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1217,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/availability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1227,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/demand"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1233,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1236,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/users"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1249,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/users/{id}/activity"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1255,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/invitations/organizations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1258,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/admin/invitations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1265,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1268,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1271,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1278,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/approve/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1284,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1290,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization-joins/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1297,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/admin/analytics/users/{id}/reject"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1303,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/daily"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1306,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-usage"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1314,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/audit-logs"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1317,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/orders/admin/commissions/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1320,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1323,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/onboarding-attention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1328,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1338,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/capabilities"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1340,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/organizations/{id}/entry"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1348,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1358,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/active"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1360,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1362,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts/{id}/exit"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1372,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1381,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/board"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1390,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/table"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1402,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/slice"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1415,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1423,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1430,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/alerts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1440,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/fees"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1443,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1449,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/fleet-intelligence"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1455,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1462,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1464,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1466,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quote"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1469,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/accept/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1472,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1475,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/decline"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1478,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/counter"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1481,
+      "transport": "fetchApi",
+      "method": "PATCH",
+      "path": "/api/rfq/{id}/quotes/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1484,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/withdraw"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1487,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/seller-accept"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1502,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trade-tape"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1507,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1509,
+      "transport": "readApi",
+      "method": "POST",
+      "path": "/api/watchlists/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1512,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1515,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1522,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1529,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/targets/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1536,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists/{id}/events"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1539,
+      "transport": "mutateApi",
+      "method": "PATCH",
+      "path": "/api/watchlists/{id}/events/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1542,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/entries"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1545,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/entries/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1548,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1554,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/referrals/my-code"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1565,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/news"
+    },
+    {
+      "file": "src/services/authToken.ts",
+      "line": 103,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/refresh"
+    }
+  ],
+  "staging": [
+    {
+      "file": "src/components/DeploymentUpdateNotice.tsx",
+      "line": 27,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 63,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/my-referrals"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 68,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/leaderboard"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 85,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/referrals/invite"
+    },
+    {
+      "file": "src/components/Settings.tsx",
+      "line": 155,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 119,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/logout"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 197,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 244,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 270,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 297,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 94,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 95,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 96,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 39,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 54,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/prices"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/orderbook"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/trades"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 97,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/resolve"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 140,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/accept"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 310,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 348,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register-with-org"
+    },
+    {
+      "file": "src/pages/ForcePasswordChangePage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/pages/ForgotPasswordPage.tsx",
+      "line": 23,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/forgot-password"
+    },
+    {
+      "file": "src/pages/InvitePage.tsx",
+      "line": 26,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/resolve/{id}"
+    },
+    {
+      "file": "src/pages/KycPage.tsx",
+      "line": 38,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/kyc/submit"
+    },
+    {
+      "file": "src/pages/LoginPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "file": "src/pages/OnboardingPage.tsx",
+      "line": 39,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 73,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 109,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register"
+    },
+    {
+      "file": "src/pages/ResetPasswordPage.tsx",
+      "line": 51,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/reset-password"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/verify-email"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/survey"
+    },
+    {
+      "file": "src/services/ai-engine/generators.ts",
+      "line": 9,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/ai/chat"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 243,
+      "transport": "fetch",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 306,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 390,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 404,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/acquisition"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/activation"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/engagement"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/marketplace"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/retention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/reliability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 651,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/users/me/preferences"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 658,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/users/me/preferences/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 669,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/ports"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 674,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/ports/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 681,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 714,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 730,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fleet"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 734,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/vessels/{id}/score"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 738,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/scenario"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 746,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/pricing-overlay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 754,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fuels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 761,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 785,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory/{id}/publish"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 792,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 800,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 818,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 846,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 850,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications/unread-count"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 855,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/{id}/read"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 862,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/read-all"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 872,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 875,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 891,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/snapshot"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 914,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/with-ci"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 926,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 938,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 953,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 965,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 980,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 983,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 988,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 998,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/orderbook/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1015,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1026,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1029,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/regions"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1032,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/fuel-types"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1047,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/product-counts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1051,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1055,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary/compact"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1071,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1086,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices/reference"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1093,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1104,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1108,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1127,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1130,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/confirm"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1136,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/decline"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1142,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/deliver"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1149,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades/{id}/pay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1171,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/producers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1180,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/availability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1190,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/demand"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1196,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/matchmaking/suggestions"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1199,
+      "transport": "fetchApi",
+      "method": "PATCH",
+      "path": "/api/matchmaking/suggestions/{id}/dismiss"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1208,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1211,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/users"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1214,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/invitations/organizations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1217,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/admin/invitations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1224,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1227,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1230,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1237,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/approve/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1243,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1249,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization-joins/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1256,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/admin/analytics/users/{id}/reject"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1262,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/daily"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1265,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-usage"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1273,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/audit-logs"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1276,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/orders/admin/commissions/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1279,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1282,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/onboarding-attention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1287,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1297,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/capabilities"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1299,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/organizations/{id}/entry"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1307,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1317,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/active"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1319,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1321,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts/{id}/exit"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1331,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1340,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/board"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1349,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/table"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1361,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/slice"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1374,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1382,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1389,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/alerts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1399,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/fees"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1402,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1408,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/fleet-intelligence"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1414,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1417,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1420,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1423,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/supplier-offers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1432,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/supplier-offers/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1437,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/supplier-offers/{id}/withdraw"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1445,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1453,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1456,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1459,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quote"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1462,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1465,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/rfq/{id}/quotes/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1468,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/withdraw"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1483,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trade-tape"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1488,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1490,
+      "transport": "readApi",
+      "method": "POST",
+      "path": "/api/watchlists/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1493,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1496,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1503,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1510,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/targets/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1517,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists/{id}/events"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1520,
+      "transport": "mutateApi",
+      "method": "PATCH",
+      "path": "/api/watchlists/{id}/events/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1523,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/entries"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1526,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/entries/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1529,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1535,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/referrals/my-code"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1546,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/news"
+    },
+    {
+      "file": "src/services/authToken.ts",
+      "line": 103,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/refresh"
+    }
+  ],
+  "working": [
+    {
+      "file": "src/components/DeploymentUpdateNotice.tsx",
+      "line": 27,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 63,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/my-referrals"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 68,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/leaderboard"
+    },
+    {
+      "file": "src/components/ReferralsTab.tsx",
+      "line": 85,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/referrals/invite"
+    },
+    {
+      "file": "src/components/Settings.tsx",
+      "line": 155,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 119,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/logout"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 197,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 244,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 270,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/context/AuthContext.tsx",
+      "line": 297,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 94,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 95,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/data/fuelPrices.ts",
+      "line": 96,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 39,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 54,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/auth/stream-token"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/prices"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/orderbook"
+    },
+    {
+      "file": "src/hooks/useSSE.ts",
+      "line": 187,
+      "transport": "EventSource",
+      "method": "GET",
+      "path": "/api/stream/trades"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 97,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/resolve"
+    },
+    {
+      "file": "src/pages/AcceptInvitationPage.tsx",
+      "line": 140,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/invitations/accept"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 310,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/CreateOrganizationPage.tsx",
+      "line": 348,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register-with-org"
+    },
+    {
+      "file": "src/pages/ForcePasswordChangePage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me/password"
+    },
+    {
+      "file": "src/pages/ForgotPasswordPage.tsx",
+      "line": 23,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/forgot-password"
+    },
+    {
+      "file": "src/pages/InvitePage.tsx",
+      "line": 26,
+      "transport": "fetch",
+      "method": "GET",
+      "path": "/api/referrals/resolve/{id}"
+    },
+    {
+      "file": "src/pages/KycPage.tsx",
+      "line": 38,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/kyc/submit"
+    },
+    {
+      "file": "src/pages/LoginPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "file": "src/pages/OnboardingPage.tsx",
+      "line": 39,
+      "transport": "fetch",
+      "method": "PUT",
+      "path": "/api/auth/me"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 73,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/pages/RegisterPage.tsx",
+      "line": 109,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/register"
+    },
+    {
+      "file": "src/pages/ResetPasswordPage.tsx",
+      "line": 51,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/reset-password"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 37,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/verify-email"
+    },
+    {
+      "file": "src/pages/VerifyEmailPage.tsx",
+      "line": 59,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/survey"
+    },
+    {
+      "file": "src/services/ai-engine/generators.ts",
+      "line": 9,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/ai/chat"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 243,
+      "transport": "fetch",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 306,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "dynamic": "url"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 390,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 404,
+      "transport": "fetchApi",
+      "method": "GET",
+      "dynamic": "path"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/acquisition"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/activation"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/engagement"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/marketplace"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/retention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 568,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-analytics/reliability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 651,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/users/me/preferences"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 658,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/users/me/preferences/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 669,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/ports"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 674,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/ports/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 681,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 714,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/vessels/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 730,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fleet"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 734,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/vessels/{id}/score"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 738,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/scenario"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 746,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/compliance/pricing-overlay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 754,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/compliance/fuels"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 761,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 785,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory/{id}/publish"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 792,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 800,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/inventory/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 818,
+      "transport": "fetchWithTimeout",
+      "method": "POST",
+      "path": "/api/inventory"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 846,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 850,
+      "transport": "fetchWithTimeout",
+      "method": "GET",
+      "path": "/api/notifications/unread-count"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 855,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/{id}/read"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 862,
+      "transport": "fetchWithTimeout",
+      "method": "PATCH",
+      "path": "/api/notifications/read-all"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 872,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/products"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 875,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/catalog/delivery-points"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 891,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/snapshot"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 914,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/with-ci"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 926,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 938,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 953,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/bids"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 965,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 980,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/asks"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 983,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 988,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 998,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/orderbook/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1015,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/orderbook/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1026,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/aggregated"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1029,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/regions"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1032,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/fuel-types"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1047,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/product-counts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1051,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1055,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/orderbook/map-summary/compact"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1071,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1086,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/prices/reference"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1093,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1104,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1108,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1127,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trades/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1130,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/confirm"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1136,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/decline"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1142,
+      "transport": "mutateApi",
+      "method": "PUT",
+      "path": "/api/trades/{id}/deliver"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1149,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/trades/{id}/pay"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1171,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/producers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1180,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/availability"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1190,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/demand"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1196,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/matchmaking/suggestions"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1199,
+      "transport": "fetchApi",
+      "method": "PATCH",
+      "path": "/api/matchmaking/suggestions/{id}/dismiss"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1208,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/overview"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1211,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/users"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1214,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/invitations/organizations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1217,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/admin/invitations"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1224,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1227,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/auth/admin/review-queue/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1230,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/auth/resend-verification-email"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1237,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/approve/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1243,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1249,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/auth/organization-joins/{id}/approve"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1256,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/admin/analytics/users/{id}/reject"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1262,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/daily"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1265,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/analytics/product-usage"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1273,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/audit-logs"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1276,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/orders/admin/commissions/summary"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1279,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1282,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/onboarding-attention"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1287,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/feedback"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1297,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/capabilities"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1299,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/organizations/{id}/entry"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1307,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1317,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/active"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1319,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/admin/market-support/contexts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1321,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/admin/market-support/contexts/{id}/exit"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1331,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1340,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/board"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1349,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/table"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1361,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/curves/forward/slice"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1374,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1382,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/alerts"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1389,
+      "transport": "fetchWithTimeout",
+      "method": "DELETE",
+      "path": "/api/alerts/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1399,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/fees"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1402,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/subscriptions/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1408,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/fleet-intelligence"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1414,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1417,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers/my"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1420,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/supplier-offers/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1423,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/supplier-offers"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1432,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/supplier-offers/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1437,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/supplier-offers/{id}/withdraw"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1445,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1453,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1456,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/rfq/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1459,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quote"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1462,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/cancel"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1465,
+      "transport": "fetchApi",
+      "method": "PUT",
+      "path": "/api/rfq/{id}/quotes/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1468,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/rfq/{id}/quotes/{id}/withdraw"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1483,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/trade-tape"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1488,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1490,
+      "transport": "readApi",
+      "method": "POST",
+      "path": "/api/watchlists/me"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1493,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1496,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1503,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/targets"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1510,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/targets/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1517,
+      "transport": "readApi",
+      "method": "GET",
+      "path": "/api/watchlists/{id}/events"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1520,
+      "transport": "mutateApi",
+      "method": "PATCH",
+      "path": "/api/watchlists/{id}/events/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1523,
+      "transport": "mutateApi",
+      "method": "POST",
+      "path": "/api/watchlists/{id}/entries"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1526,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}/entries/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1529,
+      "transport": "mutateApi",
+      "method": "DELETE",
+      "path": "/api/watchlists/{id}"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1535,
+      "transport": "fetchApi",
+      "method": "POST",
+      "path": "/api/referrals/my-code"
+    },
+    {
+      "file": "src/services/api.ts",
+      "line": 1546,
+      "transport": "fetchApi",
+      "method": "GET",
+      "path": "/api/news"
+    },
+    {
+      "file": "src/services/authToken.ts",
+      "line": 103,
+      "transport": "fetch",
+      "method": "POST",
+      "path": "/api/auth/refresh"
+    }
+  ]
+}

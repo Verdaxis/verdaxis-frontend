@@ -22,24 +22,24 @@ describe('ProducerUseCasePage', () => {
   it('renders title and value propositions', () => {
     renderWithRouter(<ProducerUseCasePage />);
     expect(screen.getByText('For Fuel Producers')).toBeTruthy();
-    expect(screen.getByText('Maximum Market Reach')).toBeTruthy();
-    expect(screen.getByText('Lower Customer Acquisition Cost')).toBeTruthy();
-    expect(screen.getByText(/Deal Flow Analytics/)).toBeTruthy();
-    expect(screen.getByText('Pre-Market Future Production')).toBeTruthy();
+    expect(screen.getByText('Supported Market Visibility')).toBeTruthy();
+    expect(screen.getByText('Standard Order Entry')).toBeTruthy();
+    expect(screen.getByText('Market Monitoring')).toBeTruthy();
+    expect(screen.getByText('Future Availability Windows')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<ProducerUseCasePage />);
-    expect(screen.getAllByText(/List your production/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Qualified buyers discover/i)).toBeTruthy();
-    expect(screen.getByText(/Negotiate terms/i)).toBeTruthy();
+    expect(screen.getByText(/choose a supported product, quantity, delivery point/i)).toBeTruthy();
+    expect(screen.getByText(/review the selected market's visible bids, asks, and source labels/i)).toBeTruthy();
+    expect(screen.getByText(/place a physical ask and monitor its order and trade lifecycle status/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<ProducerUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -52,23 +52,23 @@ describe('BuyerUseCasePage', () => {
     renderWithRouter(<BuyerUseCasePage />);
     expect(screen.getByText('For Owners & Charterers')).toBeTruthy();
     expect(screen.getByText('Unified Market Access')).toBeTruthy();
-    expect(screen.getByText('Transparent, Reliable Pricing')).toBeTruthy();
-    expect(screen.getByText('All Sustainable Fuel Types')).toBeTruthy();
-    expect(screen.getByText('Hedging & Price Risk Tools')).toBeTruthy();
+    expect(screen.getByText('Visible Bids, Asks & Data Labels')).toBeTruthy();
+    expect(screen.getByText('Supported Marine Fuel Products')).toBeTruthy();
+    expect(screen.getByText('Forward Market Monitoring')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<BuyerUseCasePage />);
-    expect(screen.getByText(/Post your fuel requirements/i)).toBeTruthy();
-    expect(screen.getByText(/Review matched offers/i)).toBeTruthy();
-    expect(screen.getByText(/Execute the trade/i)).toBeTruthy();
+    expect(screen.getByText(/Choose a market product/i)).toBeTruthy();
+    expect(screen.getByText(/Review the selected market's bids/i)).toBeTruthy();
+    expect(screen.getByText(/Place a physical bid/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<BuyerUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -80,24 +80,24 @@ describe('TraderUseCasePage', () => {
   it('renders title and value propositions', () => {
     renderWithRouter(<TraderUseCasePage />);
     expect(screen.getByText('For Traders & Aggregators')).toBeTruthy();
-    expect(screen.getByText('Deep Liquidity Pool')).toBeTruthy();
-    expect(screen.getByText('Hedging Tools & Swaps')).toBeTruthy();
-    expect(screen.getByText('Price Discovery & Market Intelligence')).toBeTruthy();
-    expect(screen.getByText('Integrated Risk Management')).toBeTruthy();
+    expect(screen.getByText('Physical Orderbook')).toBeTruthy();
+    expect(screen.getByText('Forward-Curve Monitoring')).toBeTruthy();
+    expect(screen.getByText('Market Data & Context')).toBeTruthy();
+    expect(screen.getByText('Orders & Trade History')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<TraderUseCasePage />);
-    expect(screen.getByText(/Access the live orderbook/i)).toBeTruthy();
-    expect(screen.getByText(/Execute spot trades, swaps, or forwards/i)).toBeTruthy();
-    expect(screen.getByText(/Monitor positions/i)).toBeTruthy();
+    expect(screen.getByText(/Select a product, delivery point/i)).toBeTruthy();
+    expect(screen.getByText(/Place a physical bid or ask/i)).toBeTruthy();
+    expect(screen.getByText(/Monitor open orders/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<TraderUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });
 
@@ -109,23 +109,23 @@ describe('FinancierUseCasePage', () => {
   it('renders title and value propositions', () => {
     renderWithRouter(<FinancierUseCasePage />);
     expect(screen.getByText('For Financiers & Auditors')).toBeTruthy();
-    expect(screen.getByText('Verified Sustainability Data')).toBeTruthy();
-    expect(screen.getByText('Integrated Risk Management')).toBeTruthy();
-    expect(screen.getByText('Reduced Diligence Cost')).toBeTruthy();
-    expect(screen.getByText('Market Intelligence & Forecasting')).toBeTruthy();
+    expect(screen.getByText('Disclosed Sustainability Fields')).toBeTruthy();
+    expect(screen.getByText('Structured Market Context')).toBeTruthy();
+    expect(screen.getByText('Consistent Market Records')).toBeTruthy();
+    expect(screen.getByText('Source-Labelled Monitoring')).toBeTruthy();
   });
 
   it('renders how-it-works steps', () => {
     renderWithRouter(<FinancierUseCasePage />);
-    expect(screen.getByText(/Access bankable, auditable sustainability data/i)).toBeTruthy();
-    expect(screen.getByText(/Run integrated risk assessments/i)).toBeTruthy();
-    expect(screen.getByText(/Apply market intelligence and forecasting/i)).toBeTruthy();
+    expect(screen.getByText(/review sustainability fields disclosed for the selected physical market/i)).toBeTruthy();
+    expect(screen.getByText(/compare bids and asks for the exact product/i)).toBeTruthy();
+    expect(screen.getByText(/use source and status labels as inputs to your own review/i)).toBeTruthy();
   });
 
   it('renders CTA to pilot', () => {
     renderWithRouter(<FinancierUseCasePage />);
     const link = screen.getByRole('link', { name: /apply for pilot/i });
     expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/pilot');
+    expect(link.getAttribute('href')).toBe('/en/pilot');
   });
 });

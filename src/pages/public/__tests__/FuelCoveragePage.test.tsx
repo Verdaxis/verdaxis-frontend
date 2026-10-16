@@ -25,8 +25,8 @@ describe('FuelCoveragePage', () => {
     expect(screen.getByRole('button', { name: /land/i })).toBeTruthy();
     expect(screen.getAllByText(/methanol/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/ethanol/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/bio-lng/i)).toBeTruthy();
-    expect(screen.getByText(/bio-mgo/i)).toBeTruthy();
+    expect(screen.getAllByText(/bio-lng/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/B30 \/ B100/i)).toBeTruthy();
     expect(screen.getAllByText(/ammonia/i).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -61,9 +61,9 @@ describe('FuelCoveragePage', () => {
     expect(screen.getAllByText(/power generation/i).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Coming Soon badge for hydrogen derivatives', () => {
+  it('labels the ammonia card as informational', () => {
     renderWithRouter(<FuelCoveragePage />);
-    expect(screen.getByText(/coming soon/i)).toBeTruthy();
+    expect(screen.getByText(/^informational$/i)).toBeTruthy();
   });
 
   it('renders CTA with link to producer map', () => {
@@ -93,9 +93,9 @@ describe('FuelCoveragePage', () => {
       );
 
       expect(screen.getByRole('heading', { name: '甲醇' })).toBeTruthy();
-      expect(screen.getByText('生物甲醇（废弃物/生物质）')).toBeTruthy();
+      expect(screen.getByText('生物甲醇')).toBeTruthy();
       expect(screen.getByText('船用燃料加注、化工原料')).toBeTruthy();
-      expect(screen.getByText(/预计 2026 年产量约为 2M mt/)).toBeTruthy();
+      expect(screen.getByText(/生物甲醇和 e-甲醇分别作为船用市场产品提供/)).toBeTruthy();
       expect(screen.queryByText('Bio-methanol (waste/biomass)')).toBeNull();
       expect(screen.queryByText('Maritime bunkering, chemical feedstock')).toBeNull();
       expect(screen.queryByText(/∼2M mt expected production/)).toBeNull();
@@ -107,13 +107,13 @@ describe('FuelCoveragePage', () => {
 
   it('renders subtitle text', () => {
     renderWithRouter(<FuelCoveragePage />);
-    expect(screen.getByText(/verdaxis supports sustainable fuels across maritime, aviation, and land transport/i)).toBeTruthy();
+    expect(screen.getByText(/current marine orderbooks cover B30, B100/i)).toBeTruthy();
   });
 
   it('renders fuel pathway information', () => {
     renderWithRouter(<FuelCoveragePage />);
     expect(screen.getAllByText(/e-methanol/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/cellulosic/i)).toBeTruthy();
+    expect(screen.getAllByText(/synthetic ethanol/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/UCOME/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/green ammonia/i)).toBeTruthy();
   });

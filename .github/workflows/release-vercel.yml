@@ -1,0 +1,103 @@
+name: Release Vercel Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Approved canonical staging tip (40 hexadecimal characters)
+        required: true
+        type: string
+      backend_release_sha:
+        description: Approved canonical backend release (40 hexadecimal characters)
+        required: true
+        type: string
+      candidate_only:
+        description: Validate the production candidate without promoting it
+        required: true
+        default: true
+        type: boolean
+      notify_release:
+        description: Send Telegram release notifications
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verdaxis-vercel-production
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - name: Check out the approved canonical source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Verify the approved canonical tip
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          BACKEND_RELEASE_SHA: ${{ inputs.backend_release_sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BACKEND_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git fetch origin staging
+          [[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]]
+          [[ "$(git rev-parse origin/staging)" == "$SOURCE_SHA" ]]
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install release tooling
+        run: |
+          npm install --global vercel@50.37.2
+          python -m pip install --requirement scripts/requirements-navigation-smoke.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Verify Mapbox tile access
+        env:
+          VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
+        run: node scripts/check-mapbox-access.mjs
+
+      - name: Validate and release the immutable candidate
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          BACKEND_RELEASE_SHA: ${{ inputs.backend_release_sha }}
+          VERDAXIS_RELEASE_CONTEXT: github-actions
+          VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          TELEGRAM_BOT_TOKEN: ${{ inputs.notify_release && secrets.TELEGRAM_BOT_TOKEN || '' }}
+          TELEGRAM_CHAT_ID: ${{ inputs.notify_release && secrets.TELEGRAM_CHAT_ID || '' }}
+        run: |
+          if [[ "${{ inputs.candidate_only }}" == "true" ]]; then
+            bash scripts/release-vercel.sh --candidate-only
+          else
+            bash scripts/release-vercel.sh
+          fi
+
+      - name: Upload the bounded release report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verdaxis-vercel-release-${{ github.run_id }}
+          path: release-report/
+          if-no-files-found: warn
+          retention-days: 14

@@ -66,6 +66,16 @@ async function renderLoaded() {
 }
 
 describe('UCOME RFQ workspace', () => {
+    it('loads copied scalar history without a UCOME product filter', async () => {
+        const legacy = { ...request(), productId: 'scalar-b100', contractTerms: null,
+            sourceOfferSnapshot: null, status: 'CANCELLED', quotes: [] };
+        control.list.mockResolvedValue({ items: [legacy], total: 1 });
+        control.get.mockResolvedValue(legacy);
+        renderWithProviders(<FameRfqWorkspace historyOnly />);
+        await waitFor(() => expect(control.get).toHaveBeenCalled());
+        expect(control.list).toHaveBeenCalledWith({ skip: 0, limit: 20 });
+        expect(screen.queryByRole('button', { name: 'Create request' })).toBeNull();
+    });
     it('keeps RFQ history viewable and cancellable without new requests or quote revisions', async () => {
         const view = renderWithProviders(<FameRfqWorkspace historyOnly />);
         await screen.findByRole('heading', { name: 'Contract requirements' });

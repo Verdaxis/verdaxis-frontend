@@ -29,28 +29,28 @@ describe('HowItWorksPage', () => {
     renderWithRouter(<HowItWorksPage />);
     expect(screen.getByText(/key principles/i)).toBeTruthy();
     expect(screen.getByText(/physical-first logic/i)).toBeTruthy();
-    expect(screen.getAllByText(/verified sustainability data/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/chain of custody/i)).toBeTruthy();
+    expect(screen.getByText(/market records can carry product/i)).toBeTruthy();
+    expect(screen.getByText(/end-to-end integrity/i)).toBeTruthy();
   });
 
   it('renders current process capabilities', () => {
     renderWithRouter(<HowItWorksPage />);
-    expect(screen.getByText(/real-time aggregation and matching/i)).toBeTruthy();
-    expect(screen.getByText(/drives price discovery/i)).toBeTruthy();
-    expect(screen.getByText(/ai-powered market intelligence/i)).toBeTruthy();
+    expect(screen.getByText(/aggregate bids and asks/i)).toBeTruthy();
+    expect(screen.getByText(/display price and depth/i)).toBeTruthy();
+    expect(screen.getByText(/market news and selected-market activity/i)).toBeTruthy();
   });
 
   it('renders CTA with link to fuels page', () => {
     renderWithRouter(<HowItWorksPage />);
     expect(screen.getByText(/explore fuel coverage/i)).toBeTruthy();
     const link = screen.getByRole('link', { name: /explore fuel coverage/i });
-    expect(link.getAttribute('href')).toBe('/fuels');
+    expect(link.getAttribute('href')).toBe('/en/fuels');
   });
 
   it('renders benefit details', () => {
     renderWithRouter(<HowItWorksPage />);
-    expect(screen.getByText(/direct access to qualified buyers/i)).toBeTruthy();
-    expect(screen.getByText(/access to a unified market/i)).toBeTruthy();
-    expect(screen.getByText(/integrated risk management tools/i)).toBeTruthy();
+    expect(screen.getByText(/place physical asks by product/i)).toBeTruthy();
+    expect(screen.getByText(/compare physical bids and asks/i)).toBeTruthy();
+    expect(screen.getByText(/forward-curve, watchlist, and trade monitoring/i)).toBeTruthy();
   });
 });

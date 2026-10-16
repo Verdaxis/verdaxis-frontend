@@ -7,6 +7,8 @@ export const MARKET_PRODUCT_LABELS: Record<string, string> = {
   BIO_ETHANOL: 'Bio Ethanol',
   E_METHANOL: 'e-Methanol',
   SYNTHETIC_ETHANOL: 'e-Ethanol',
+  B30: 'B30',
+  B100: 'B100',
   UCOME_B100: 'UCOME B100',
   BIO_LNG: 'Bio-LNG',
 };

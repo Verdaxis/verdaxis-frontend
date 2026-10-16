@@ -1,0 +1,112 @@
+# Vercel Production Release
+
+Production releases use one immutable artifact and one supported launcher:
+the **Release Vercel Production** GitHub Actions workflow. The workflow checks
+out the approved full `source_sha` from canonical `staging` and invokes `scripts/release-vercel.sh`. Direct Vercel production
+deployments are not a supported release path. `vercel.json` disables automatic
+Git deployments so a branch push cannot bypass these gates.
+
+## Configuration Authority
+
+- `.env.production` is the only production source for public Vite settings.
+- Release preflight removes a redundant Vercel Production `VITE_API_URL`
+  override, if present, and verifies that it is gone before building.
+- Secrets remain in the protected GitHub `production` environment.
+- `VITE_MAPBOX_PUBLIC_TOKEN` is supplied by that environment for map builds.
+  Staging uses its gitignored `.env.staging.local`. Only a public `pk.` token is accepted.
+- `VERCEL_TOKEN` is loaded through a temporary mode-`0600` CLI auth directory
+  and must never appear in arguments, logs, artifacts, or source.
+
+## Release Contract
+
+1. Require a clean checkout at the explicit 40-hex `source_sha`, exactly equal to `origin/staging`.
+2. Refuse local `.env.local` and `.env.production.local` overrides.
+3. Verify the configured Vercel organization and project IDs.
+4. Run tests, typecheck, translation checks, and one `vercel build --prod`.
+5. Validate the exact `.vercel/output/static` artifact as `production`.
+6. Capture the current production deployment and candidate asset identity.
+7. Deploy with `--prebuilt --prod --skip-domain`.
+8. Require exact production readiness at the approved `backend_release_sha`, then point `canary.verdaxis.exchange` at that exact candidate.
+9. Run the rendered release smoke against the canary.
+10. Recheck the same backend SHA. Reconfirm the captured prior deployment is still current, request promotion
+    of the same candidate without rebuilding, and reconcile against the actual
+    deployment served by `app.verdaxis.exchange`.
+11. Verify all production domains serve the candidate asset and run the
+    rendered smoke against `app.verdaxis.exchange`.
+
+Candidate failure stops the release before users are affected. No build occurs
+between canary validation and promotion.
+
+## Automated Diagnosis
+
+The rendered smoke emits one classification:
+
+- `success`: expected bundle, browser, login form, and production API route.
+- `frontend_critical`: wrong bundle target, broken required asset, startup
+  exception, or maintenance screen without simultaneous dependency or
+  transient evidence.
+- `dependency_failure`: production API or browser CORS connectivity failure.
+- `transient`: timeout, DNS, TLS, or indeterminate browser infrastructure
+  failure.
+
+The release report includes only bounded URLs, status codes, asset names, and
+error classes. It never includes credentials, cookies, tokens, or response
+bodies containing user data.
+
+## Rollback Policy
+
+Candidate failures never require rollback because production has not moved.
+
+After promotion, automatically roll back to the exact captured prior
+deployment only when:
+
+1. the same `frontend_critical` failure occurs three times;
+2. the production API readiness endpoint independently returns healthy at the same approved backend SHA; and
+3. Vercel confirms the candidate is the current production deployment.
+
+Do not automatically roll back for backend failure, one network timeout,
+monitor failure, analytics failure, changing market data, authentication
+credentials, or mixed frontend/dependency evidence. Those conditions alert an
+operator while preserving deployment evidence.
+
+After rollback, verify all production domains serve the prior asset identity
+and run the rendered smoke again. A failed rollback verification is a critical
+operator incident.
+
+## Canary
+
+`canary.verdaxis.exchange` is a stable Vercel alias and an exact production API
+CORS origin. Never allow wildcard `*.vercel.app` origins. If Vercel Deployment
+Protection is enabled, the smoke may use `VERCEL_PROTECTION_BYPASS`; the secret
+is sent only to the canary frontend origin.
+
+The canary is not a separate build or environment. It always points to the
+staged production artifact that will be promoted.
+
+## Incident Path
+
+Use the same serialized workflow for urgent releases. If GitHub Actions itself
+is unavailable during an active production incident, use Vercel's manual
+rollback to the last verified deployment and record the deployment IDs; do not
+run a separate build or bypass the canary pipeline.
+
+Rotate any Vercel token exposed outside protected secret storage before the
+next normal production release.
+
+## Phase 0 approval boundary
+
+`candidate_only` defaults to true. One approved run may validate and promote the
+same candidate; a second candidate-only build is not required. If approval pauses,
+retain the deployment ID, source SHA, backend SHA, prior deployment ID and report.
+Use the reviewed existing promotion procedure, with readiness and alias checks;
+do not rebuild or create a candidate-reuse service.
+
+Build staging separately from the same source SHA with `.env.staging`. Never copy
+the production-configured JavaScript to staging. Phase 0 local artifacts use a
+synthetic Mapbox token and are not publishable. The Mapbox access gate remains
+required in the protected release workflow.
+
+Task 3 is pending. No Phase 0 promotion is approved by these local checks. Repeat
+old/new browser checks against the disposable canonical backend after Task 3,
+including profile eligibility, LNG strict booleans/certifications, notification
+redaction and missing refresh sessions, before requesting release approval.

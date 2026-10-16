@@ -191,7 +191,9 @@
       "eethanol": "e-Ethanol",
       "greenmethanol": "Green Methanol",
       "other": "Other fuel",
-      "lng": "LNG"
+      "lng": "LNG",
+      "biolng": "Bio-LNG",
+      "othermethanol": "Other Methanol"
     }
   },
   "newsFeed": {

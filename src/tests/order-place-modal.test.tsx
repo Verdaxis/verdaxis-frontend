@@ -83,6 +83,70 @@ vi.mock('../components/supplier/FameSupplierOfferForm', () => ({
 }));
 
 describe('OrderPlaceModal', () => {
+  it.each([
+    { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: false },
+    { product: 'B100', standard: 'ISO 8217:2024 DFA', ci: 22.5, assisted: false },
+    { product: 'B100', standard: 'ISO 8217:2024 DFA', ci: 0, assisted: false },
+    { product: 'B30', standard: 'ISO 8217:2024 RF 380', ci: 74.2, assisted: true },
+  ] as const)('requires a CI basis for the fixed $product ASK (assisted: $assisted)', async ({ product, standard, ci, assisted }) => {
+    productsMock.mockResolvedValue([{ id: `prod-${product.toLowerCase()}`, name: product, market_product: product, fuel_type: 'Biofuel', fuel_grade: product, unit: 'MT', min_lot_size: 200, is_active: true }]);
+    if (assisted) {
+      marketSupportControl.current = {
+        isActive: true,
+        isLoading: false,
+        context: { id: 'ctx-1', organization: { name: 'Northstar Fuels' }, supportReference: 'CASE-42' },
+      };
+      setMarketSupportContextId('ctx-1');
+    }
+    renderWithProviders(<OrderPlaceModal isOpen onClose={() => undefined} side="ASK" prefillMarketProduct={product} prefillQuantity={375} prefillPrice={700} />);
+    const specification = await screen.findByDisplayValue(standard);
+    expect((specification as HTMLInputElement).readOnly).toBe(true);
+    expect(screen.getByText(i18n.t(`${product.toLowerCase()}.contract`, { ns: 'trading' }))).toBeTruthy();
+    expect(screen.getByText(/Certificate of Quality.*batch Proof of Sustainability.*before delivery/)).toBeTruthy();
+    expect(screen.getByText(/safety data sheet.*finished B(30|100)/)).toBeTruthy();
+
+    expect((screen.getByLabelText(/price.*MT/i) as HTMLInputElement).value).toBe('700');
+    expect((document.getElementById('order-quantity') as HTMLInputElement).value).toBe('375');
+    fireEvent.click(screen.getByRole('checkbox', { name: /certification declaration/i }));
+    fireEvent.change(screen.getByLabelText(/carbon intensity.*gCO2e/i), { target: { value: String(ci) } });
+    fireEvent.change(screen.getByLabelText('Feedstock'), { target: { value: 'Used cooking oil' } });
+    fireEvent.change(screen.getByLabelText('Origin'), { target: { value: 'Singapore' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /MSDS available/i }));
+    const submit = screen.getByRole('button', { name: assisted ? 'Place Ask' : 'Review Ask' }) as HTMLButtonElement;
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: '  ' } });
+    expect(submit.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Carbon intensity method / basis'), { target: { value: '  RED lifecycle calculation, well-to-wake, whole blend  ' } });
+    fireEvent.click(submit);
+    if (assisted) {
+      expect(createOrderMock).not.toHaveBeenCalled();
+      expect(screen.getByText(/74.2 gCO₂e\/MJ · RED lifecycle calculation, well-to-wake, whole blend/)).toBeTruthy();
+      expect(screen.getByText(/B30 · 30% FAME.*70% VLSFO/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('checkbox', { name: /exact terms/i }));
+      fireEvent.click(screen.getByRole('checkbox', { name: /standing order/i }));
+      fireEvent.click(screen.getByRole('button', { name: /confirm and submit ask/i }));
+    } else {
+      expect(screen.getByText('RED lifecycle calculation, well-to-wake, whole blend')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm and place Ask' }));
+    }
+
+    await waitFor(() => expect(createOrderMock).toHaveBeenCalledWith(expect.objectContaining({
+      side: 'ASK',
+      product_id: `prod-${product.toLowerCase()}`,
+      quantity_mt: 375,
+      price_per_mt_usd: 700,
+      specification_standard: standard,
+      carbon_intensity_gco2_mj: ci,
+      carbon_intensity_method: 'RED lifecycle calculation, well-to-wake, whole blend',
+      certification_declared: true,
+      certifications: ['ISCC EU'],
+      msds_available: true,
+      feedstock: 'Used cooking oil',
+      origin: 'Singapore',
+    })));
+  });
+
+
   beforeEach(async () => {
     await loadNamespace('trading');
     await loadNamespace('rfq');

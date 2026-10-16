@@ -126,6 +126,7 @@ export interface MarketWatchItem {
 
 /** Mirrors the backend `execution_eligibility.reason` on `/api/auth/me`. */
 export type ExecutionEligibilityReason =
+    | 'KYC_NOT_ENFORCED'
     | 'KYC_APPROVED'
     | 'KYC_GRACE'
     | 'KYC_REQUIRED'
@@ -170,7 +171,7 @@ export interface DeliveryPoint {
 }
 
 // ============== Order Marketplace Types ==============
-export type FuelGrade = 'Conventional' | 'Green' | 'Bio';
+export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'B30' | 'B100';
 export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
 
 export const ORDERBOOK_MARKET_PRODUCTS = [
@@ -178,6 +179,8 @@ export const ORDERBOOK_MARKET_PRODUCTS = [
     'E_METHANOL',
     'BIO_ETHANOL',
     'SYNTHETIC_ETHANOL',
+    'B30',
+    'B100',
     'UCOME_B100',
     'BIO_LNG',
 ] as const;

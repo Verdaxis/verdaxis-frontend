@@ -1,31 +1,31 @@
 export interface CalculatorInputs {
-  fuelA_energyDensity: number;      // MJ/kg
-  fuelB_energyDensity: number;      // MJ/kg
-  fuelA_price: number;              // $/mt
-  fuelB_price: number;              // $/mt
-  fuelA_dailyConsumption: number;   // t/day at reference energy
-  fuelB_dailyConsumption: number;   // t/day at reference energy
+  fuelA_energyDensity: number;      // lower calorific value, MJ/kg (equivalent to GJ/t)
+  fuelB_energyDensity: number;      // lower calorific value, MJ/kg (equivalent to GJ/t)
+  fuelA_price: number;              // illustrative USD/t
+  fuelB_price: number;              // illustrative USD/t
+  fuelA_emissionFactor: number;     // direct combustion tCO2/t fuel
+  fuelB_emissionFactor: number;     // direct combustion tCO2/t fuel
+  dailyEnergyDemandGJ: number;
   voyageDays: number;
-  euaPrice: number;                 // EUR/tCO2
-  etsCoverage: number;              // fraction (0.5 = 50%)
-  fueleuThreshold: number;          // gCO2e/MJ
-  eurToUsd: number;
-  emissionFactor: number;           // tCO2/t fuel
+  euaPrice: number;                 // illustrative EUR/tCO2
+  etsCoverage: number;              // fraction of voyage CO2 in scope
+  eurToUsd: number;                 // illustrative conversion assumption
 }
 
 export const defaultInputs: CalculatorInputs = {
-  fuelA_energyDensity: 40.4,
-  fuelB_energyDensity: 43.3,
+  // HFO and MDO/MGO default LCV and CO2 factors from Regulation (EU) 2023/1805,
+  // Annex II. Prices, energy demand, EUA price, scope, and FX are scenario inputs.
+  fuelA_energyDensity: 40.5,
+  fuelB_energyDensity: 42.7,
   fuelA_price: 450,
   fuelB_price: 480,
-  fuelA_dailyConsumption: 35,
-  fuelB_dailyConsumption: 33,
+  fuelA_emissionFactor: 3.114,
+  fuelB_emissionFactor: 3.206,
+  dailyEnergyDemandGJ: 1400,
   voyageDays: 25,
   euaPrice: 75,
   etsCoverage: 0.50,
-  fueleuThreshold: 89.34,
   eurToUsd: 1.18,
-  emissionFactor: 3.114,
 };
 
 export interface VoyageResult {
@@ -35,10 +35,6 @@ export interface VoyageResult {
   totalEnergyGJ: number;
   co2T: number;
   etsCostEur: number;
-  fueleuIntensity: number;
-  fueleuCompliant: boolean;
-  fueleuPenaltyEur: number;
-  ciiProxy: number;
   fuelCostUsd: number;
   totalCostUsd: number;
   pricePerGJUsd: number;
@@ -47,45 +43,35 @@ export interface VoyageResult {
 export function calculateVoyage(
   energyDensity: number,
   fuelPrice: number,
-  dailyConsumption: number,
+  emissionFactor: number,
   inputs: CalculatorInputs,
 ): VoyageResult {
-  // Reference energy needed for voyage (based on ~41 MJ/kg reference)
-  // Total energy = daily consumption * voyage days * reference energy density
-  // Same ship needs same ENERGY, not same MASS
-  const referenceEnergyMJ = dailyConsumption * 1000 * inputs.voyageDays * 41.0; // ~41 MJ/kg reference
-  const totalEnergyGJ = referenceEnergyMJ / 1000;
+  const validInputs = [energyDensity, fuelPrice, emissionFactor, inputs.dailyEnergyDemandGJ,
+    inputs.voyageDays, inputs.euaPrice, inputs.etsCoverage, inputs.eurToUsd].every(Number.isFinite);
+  if (
+    !validInputs
+    || energyDensity <= 0
+    || fuelPrice < 0
+    || emissionFactor < 0
+    || inputs.dailyEnergyDemandGJ <= 0
+    || inputs.voyageDays <= 0
+    || inputs.euaPrice < 0
+    || inputs.etsCoverage < 0
+    || inputs.etsCoverage > 1
+    || inputs.eurToUsd <= 0
+  ) {
+    throw new RangeError('Calculator inputs are outside the supported range');
+  }
 
-  // Fuel required = total energy / fuel energy density
-  const fuelBurnT = referenceEnergyMJ / (energyDensity * 1000); // MJ / (MJ/kg * 1000 kg/t)
-
+  const totalEnergyGJ = inputs.dailyEnergyDemandGJ * inputs.voyageDays;
+  // 1 MJ/kg equals 1 GJ/t, so no additional unit conversion is required.
+  const fuelBurnT = totalEnergyGJ / energyDensity;
   const effTperDay = fuelBurnT / inputs.voyageDays;
-
-  // CO2 emissions
-  const co2T = fuelBurnT * inputs.emissionFactor;
-
-  // EU ETS cost
+  const co2T = fuelBurnT * emissionFactor;
   const etsCostEur = co2T * inputs.euaPrice * inputs.etsCoverage;
-
-  // FuelEU Maritime intensity (gCO2e/MJ)
-  // emissionFactor is tCO2/t fuel = 3.114
-  // In g/kg: 3.114 * 1000 * 1000 / 1000 = 3114 gCO2/kg
-  // Intensity = 3114 / energyDensity gCO2e/MJ
-  const fueleuIntensity = (inputs.emissionFactor * 1000000 / 1000) / energyDensity;
-
-  const fueleuCompliant = fueleuIntensity <= inputs.fueleuThreshold;
-
-  // FuelEU penalty: simplified as excess intensity * total energy * penalty factor
-  const excessIntensity = Math.max(0, fueleuIntensity - inputs.fueleuThreshold);
-  const fueleuPenaltyEur = fueleuCompliant ? 0 : excessIntensity * totalEnergyGJ * 0.33;
-
-  // CII proxy (relative rating, lower is better)
-  const ciiProxy = co2T / (totalEnergyGJ * 0.01);
-
-  // Costs
   const fuelCostUsd = fuelBurnT * fuelPrice;
-  const totalCostUsd = fuelCostUsd + (etsCostEur * inputs.eurToUsd) + (fueleuPenaltyEur * inputs.eurToUsd);
-  const pricePerGJUsd = energyDensity > 0 ? fuelPrice / energyDensity : 0;
+  const totalCostUsd = fuelCostUsd + (etsCostEur * inputs.eurToUsd);
+  const pricePerGJUsd = fuelPrice / energyDensity;
 
   return {
     energyDensity,
@@ -94,10 +80,6 @@ export function calculateVoyage(
     totalEnergyGJ: Math.round(totalEnergyGJ),
     co2T: Math.round(co2T),
     etsCostEur: Math.round(etsCostEur),
-    fueleuIntensity: Math.round(fueleuIntensity * 100) / 100,
-    fueleuCompliant,
-    fueleuPenaltyEur: Math.round(fueleuPenaltyEur),
-    ciiProxy: Math.round(ciiProxy * 100) / 100,
     fuelCostUsd: Math.round(fuelCostUsd),
     totalCostUsd: Math.round(totalCostUsd),
     pricePerGJUsd: Math.round(pricePerGJUsd * 100) / 100,

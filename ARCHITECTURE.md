@@ -8,7 +8,7 @@ This repository is the Verdaxis React single-page application. It serves localiz
 
 | Target | Static frontend | API and database | Release control |
 |---|---|---|---|
-| Production | Vercel | EU production host | Protected Vercel workflow on `prod` |
+| Production | Vercel | EU production host | Protected Vercel workflow with an approved canonical `staging` SHA |
 | Staging | Caddy on the shared VPS | Shared VPS staging services | Host-side atomic publisher after staging CI |
 
 Production is not served from the shared VPS frontend directory. On this branch, `scripts/deploy.sh staging` creates a checked staging artifact. The reviewed host publisher builds from the exact accepted `staging` commit, atomically exchanges the static directory, runs live smoke, and only then aligns the staging checkout.
@@ -62,6 +62,8 @@ index.html
 **Unknown order outcomes.** An intentional retry after `ApiOutcomeUnknownError` reuses the frozen reviewed request and idempotency key, including any Market Support confirmation. It proceeds only while the principal's auth generation and Market Support context match the reviewed execution context.
 
 **Private stream recovery.** Only a private trade-stream `reset` with reason `subscriber_overflow` retains the last acknowledged replay cursor. `useSSE` still invalidates affected REST reads and delivers the reset callback before reconnect; other resets, `auth_revoked`, and user, organization, or Market Support scope changes clear the cursor.
+
+**Canonical products.** B30 (`c4cecebc-3d2d-5840-8021-57a9a11bc673`) and B100 (`74eb9cb5-f0e3-55f1-b82c-fe29b7c45bf5`) retain scalar biofuel contracts, fixed ISO specifications, whole-fuel CI methods and the 200 MT catalog minimum. UCOME_B100 retains its separate UUID, typed terms, 1 MT minimum and Singapore lane. Scalar biofuel suppliers enter through ASK declarations, not an undeclared direct take of a BID.
 
 **Staging FAME/catalog.** `UCOME_B100` enters the shared orderbook only when the catalog explicitly enables `ORDERBOOK` execution and delivery-point coverage. Its order terms live in `types/fameOrder.ts` and pass through the standard order API. Earlier supplier offers and RFQs remain separate, non-executable history in the FAME services and components. This branch does not include the production identified-activity pipeline.
 
@@ -146,8 +148,42 @@ scripts/
 ```bash
 npm ci --legacy-peer-deps   # Node 24
 npm test && npm run typecheck && npm run i18n:check
-npm run build:staging && npm run build:check
+npm run build:staging && npm run build:check:staging
 npm run build:prod && npm run build:check
 ```
 
 See [README.md](README.md) for the full routine CI sequence and the separation between local checks and live smoke. [`scripts/deploy.sh`](scripts/deploy.sh) is the staging build guide; the host atomic publisher remains the release control.
+
+## Phase 0 public and release convergence
+
+`publicPageLoaders.ts` is shared by route lazy loading, initial-page preparation
+and `prerender/renderPublicRoute.tsx`. Vite emits localized public HTML. The browser
+preloads the matching page and translations before React mounts; this preserves
+the production approach (createRoot replacement, not React hydrateRoot).
+Production public wording and the producer dataset notice are retained. Authenticated
+compliance components keep staging's null/unpriced monetary contract.
+
+`release-vercel.yml` takes an approved full source SHA equal to canonical staging
+and an approved backend SHA. `release-vercel.sh` builds one immutable production
+candidate, checks exact backend readiness before canary and promotion, captures the
+previous deployment, and retains dependency-aware rollback. Candidate-only is the
+default. Staging requires its own environment build. See
+`docs/vercel-production-release.md`; no release is authorized by local tests.
+
+Phase 0 checks: `src/tests/phase0-*.test.*`,
+`node --test scripts/phase0-request-manifest.test.mjs`,
+`python3 -m pytest scripts/test_phase0_release.py -q`, and the local-only public
+browser smoke `scripts/test_phase0_browser.py`. The request manifest covers both
+pinned trees and current source, with explicit retired and stale-wrapper dispositions.
+`scripts/phase0_gate.py` owns the disposable pinned PostGIS container, migrations,
+synthetic fixtures (`phase0_gate_seed.py`), backend process and two actual browser
+bundles (`phase0_gate_browser.py`). Backend egress is restricted to its database;
+browser API requests are forwarded to loopback, with other external traffic blocked.
+No backend worktree files are changed. Temporary archived trees stay under `work/`,
+which TypeScript excludes. `phase0_gate_extra_seed.py` adds nullable historical RFQs
+and account-state fixtures. `phase0_gate_m3.py` exercises actual profile/trade/KYC
+screens and client boundaries; `phase0_gate_fault_server.py` wraps the unchanged
+backend with loopback-only synthetic vault availability controls. A proxy response
+is changed to 504 only after the real upload commits, then retained rows are checked.
+The PM accepted only the old ETS display exception; see `docs/phase0/progress-task8.md`
+for current results and any other failed old-bundle checks.

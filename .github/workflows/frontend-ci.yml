@@ -16,7 +16,9 @@ jobs:
     env:
       VITE_MAPBOX_PUBLIC_TOKEN: ${{ secrets.VITE_MAPBOX_PUBLIC_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,6 +32,14 @@ jobs:
       - name: Run Tests
         run: npm test
 
+      - name: Check Phase 0 request classifications
+        run: node --test scripts/phase0-request-manifest.test.mjs
+
+      - name: Check artifact and release helpers offline
+        run: |
+          npm run test:artifact-check
+          npm run test:release-smoke
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -40,7 +50,7 @@ jobs:
         run: npm run build:staging
 
       - name: Check staging artifacts
-        run: npm run build:check
+        run: npm run build:check:staging
 
       - name: Build production bundle
         run: npm run build:prod

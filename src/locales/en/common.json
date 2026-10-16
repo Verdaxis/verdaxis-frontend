@@ -268,5 +268,7 @@
   "kycBanner.action": "Complete KYC",
   "kycGate.blocked.title": "KYC verification required",
   "kycGate.blocked.message": "Complete KYC verification to trade.",
-  "kycGate.blocked.action": "Complete KYC"
+  "kycGate.blocked.action": "Complete KYC",
+  "notifications.expiry.title": "Order expires within 48 hours",
+  "notifications.expiry.message": "Your order expires on {{date}}. Review it before expiry if you want to keep trading."
 }

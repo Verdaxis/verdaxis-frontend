@@ -90,7 +90,7 @@ describe('useSSE', () => {
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:8000/api/auth/stream-token',
+      '/api/auth/stream-token',
       { headers: { Authorization: 'Bearer access-token' }, signal: expect.any(AbortSignal) },
     );
     expect(FakeEventSource.instances[0].url).toContain('stream_token=stream-token');
@@ -113,7 +113,7 @@ describe('useSSE', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:8000/api/auth/stream-token',
+      '/api/auth/stream-token',
       { headers: { Authorization: 'Bearer refreshed-access-token' }, signal: expect.any(AbortSignal) },
     );
   });
@@ -279,7 +279,7 @@ describe('useSSE', () => {
     await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(FakeEventSource.instances[0].url).toBe('http://localhost:8000/api/stream/prices');
+    expect(FakeEventSource.instances[0].url).toBe('/api/stream/prices');
   });
 
   it('invalidates every public market cache before delivering a committed refresh signal', async () => {
