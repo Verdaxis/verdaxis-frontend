@@ -2,6 +2,8 @@
 
 Read-only audit of `verdaxis-frontend` at `5f3cd698` (branch `refactor/frontend-audit`, worktree `work/phase0-frontend`), supporting decision 61: refactor for code quality with the **same look and behavior**; UX changes are later, separate projects. No application code was changed for this audit.
 
+**Extended for decision 62** ("as performant and maintainable as possible; TS-rust and file/distribution changes allowed"): sections 11-15 were added on 2026-10-17, adding a fresh measured production build (`CALL_EXIT=0`), delivery analysis, native type-checker benchmarks, runtime-render analysis, and a revised architecture/sequence. Sections 1-10 are unchanged except where §15 explicitly revises §9-10.
+
 Scope notes and honesty up front:
 
 - One production build was attempted through `verdaxis-prod-test "$PWD" 'npm ci --legacy-peer-deps && npm run build'`. It **failed** with `CALL_EXIT=1`: `Error: A public VITE_MAPBOX_PUBLIC_TOKEN is required` (`vite.config.ts` build guard; the test host has no Mapbox token). Bundle numbers below come from the committed `dist/` built from `64b75d31` (2026-10-16 02:23, one commit before the `5f3cd698` merge) plus a fresh `git diff --stat 64b75d31..5f3cd698 -- src` check showing only 15 files / +142 −31 changed since (KYC copy, BuyerMap fuel prices, RFQ history), so chunk sizes are representative to within a few KB.
@@ -269,3 +271,129 @@ Estimated total: 6-9 calendar weeks of focused work for steps 1-7 (the user-faci
 10. **Mapbox + ECA GeoJSON ≈ 900 KB gz on the map path** with a second map stack (Leaflet) and second chart stack (Recharts + lightweight-charts) — `dist/assets` measurement, `vite.config.ts:147-155`, `src/data/eca-zones-web.json`. (Medium; user-perceived on first map load)
 
 **Uncertainty register:** (a) bundle numbers are from `64b75d31`'s committed `dist/`, not a fresh build of `5f3cd698` — the attempted build failed for lack of a Mapbox token on the test host; deltas since are small and listed. (b) "Unused" findings rest on static-import greps; I verified no dynamic imports exist, but test-only consumers were excluded by design. (c) I did not audit the 8 npm-audit vulnerabilities' reachability. (d) Backend comparison sampled the order/trade/user/price/referral schemas, not all 39 routers.
+
+---
+
+# Part II — Performance and distribution extension (decision 62)
+
+## 11. Measured bundle and load path
+
+A fresh production build succeeded on the test host (`verdaxis-prod-test "$PWD" 'npm ci --legacy-peer-deps && VITE_MAPBOX_PUBLIC_TOKEN=pk.measurement-only npm run build && du -b dist/assets/* | sort -n | tail -40'`, `CALL_EXIT=0`, built in 1m 2s from commit `a7c612f8`+report). The build re-confirmed §8's numbers and corrected two §8 claims:
+
+- **`vendor-lightweight-charts` is a 1-byte empty chunk.** The only import is `import type` (`src/utils/curveChart.ts:1`), so Rollup emits `Generated an empty chunk: "vendor-lightweight-charts"` and the file contains one newline. `lightweight-charts` is effectively a removable dependency, and "two chart stacks" in §2/§8 is wrong — only Recharts renders. `curveChart.ts` is itself dead outside its test (§3).
+- **`addEcaLayers` is already a dynamic import** (`src/map/loadEcaLayers.ts:3`, triggered on Mapbox `style.load`, `BuyerMap.tsx:811-814`) — but it still sits in the map route's dependency graph, so the browser fetches it during first map load in parallel with tiles.
+
+### First-load totals per route (measured: entry + modulepreloads + CSS + route chunk + its static import chain; gzip and brotli)
+
+| Route | gzip | brotli | Dominant chunks |
+|---|---|---|---|
+| **Landing `/en/`** (prerendered HTML 78 KB raw / 10 KB gz) | **365 KB** | 311 KB | `index` 190 + `HeroSection` 48 + `use-in-view` (motion) 39 + `public` ns 14+13 + CSS 19 |
+| **Marketplace** | **297 KB** | 250 KB | `index` 190 + `Marketplace` 32 + `trading` ns 16 + shared utils ~10 + CSS 19 |
+| **Intelligence Map (first visit)** | **1,174 KB** | 926 KB | `vendor-mapbox` 508 + `addEcaLayers` 394 (GeoJSON) + `BuyerMap` 23 + map CSS 6 + entry 190 |
+| Command Center | 268 KB | 224 KB | entry + `CommandCenter` 7 + `dashboard` ns 9 |
+| Compliance | 349 KB | 293 KB | entry + `vendor-recharts` 106 statically imported by the route chunk |
+
+Eager set on every page (modulepreloads in `dist/en/index.html`): `index` (671 KB raw), `vendor-react` (44), `vendor-i18n` (67), `vendor-clsx` (**374 bytes — a whole chunk + preload for one `clsx` import**), plus `index-BPE1BxNv.css` (121 KB raw / 19 KB gz). The zh `common` namespace (both languages' common JSON are statically imported, `src/i18n.ts:5-6`, ~5 KB gz each) is baked into the entry chunk; all other namespaces are per-language lazy chunks (public 14 KB gz, trading 17, admin 8, dashboard 9…).
+
+### What loads eagerly that could load on demand
+
+| Item | Weight (gz) | Evidence | Fix |
+|---|---|---|---|
+| **ECA GeoJSON** in `addEcaLayers` | 394 KB (295 KB br); 1.1 MB raw, 10 features, **49,133 coordinate points**, 13.7 KB properties | `src/data/eca-zones-web.json` → `secaZones.ts:1` → `map/addEcaLayers.ts` | Simplify geometry (~90 % point reduction is visually lossless for zone fills) → ~**38 KB gz**, fetch as a separately cached file or backend endpoint with ETag instead of a JS chunk |
+| **Recharts** on Compliance/Admin routes | 106 KB | `TrendChart-DwDpphfP.js` and `Compliance-*.js` statically `from"./vendor-recharts-…"` | Keep the manual chunk but make the two chart components `lazy()` inside their tabs so the route shell paints first |
+| **`vendor-clsx` chunk + preload** | ~0.4 KB chunk + request overhead | `vite.config.ts:151`; single import at `NotificationList.tsx:8` | Delete the manualChunks entry (merge into entry) or inline the 3-line helper |
+| **Both languages' `common` namespace** in entry | ~5 KB gz (zh) | `i18n.ts:5-6` static imports | Make `common` lazy per language like every other namespace (needs the boot path in `index.tsx` to await it — it already awaits `preparePublicRoute`) |
+| GSAP | inside `HeroSection` 48 KB gz | `HeroSection-Dg_V18Ij.js` contains `gsap`+`ScrollTrigger` | Already route-lazy; fine |
+| motion (framer) | 39 KB gz shared chunk | `use-in-view-CzZ38Uvz.js` | `LazyMotion`+`domAnimation` would cut ~15-20 KB but touches many public components; low priority |
+| `react-joyride` (+`react-floater`, `react-redux`!) | inside entry chunk | `grep react-floater dist/assets/index-*.js` hits; `@reduxjs/toolkit` arrives as recharts' peer | Move `GuidedTutorial` out of the entry: it is only mounted inside `DashboardLayout` (`App.tsx:382`) but its import chain is static from `App.tsx:12` |
+| Mapbox tiles + style | runtime cost, not bundle | `BuyerMap.tsx:496` `mapbox://styles/…dark-v11/light-v11` | Nothing to do in-bundle; preconnect helps (§12) |
+| Leaflet stack | 44 KB gz, only `/map/producers` | `vendor-leaflet-Vm7zCmPa.js` ← `ProducerMapPage.tsx:4` | Route-lazy already; dropping it entirely means rebuilding the public producer map on Mapbox — keep for now, revisit in step 15.7 |
+
+Nothing else loads eagerly that should not: all authenticated views, auth pages, and public pages are `lazyWithRetry` route chunks (`App.tsx:40-113`), and locale namespaces load on demand per language.
+
+## 12. Asset storage and delivery
+
+### Today
+
+- **Storage/output:** Vite `dist/` (142 JS + 3 CSS chunks, hashed filenames) deployed to Vercel (`vercel.json`: `framework: vite`, `outputDirectory: dist`). 52 prerendered localized HTML files (26 routes × en/zh, ~1.18 MB per language dir) are part of the same static output (`vite.config.ts` `staticRouteMetadataPlugin`). Staging is a Caddy static artifact on the shared VPS (same `dist/` shape).
+- **Caching:** `vercel.json` sets `Cache-Control: public, max-age=31536000, immutable` for `/assets/*` only. **Everything else — HTML, `robots.txt`, `sitemap.xml`, and all `public/` images — has no explicit cache header** (Vercel defaults apply). The hashed-asset policy is correct; the images (logo PNGs up to 344 KB) are served with default caching and no far-future header.
+- **Compression:** nothing configured in the repo — Vercel's edge brotli/gzip applies automatically to text assets. The numbers in §11 show brotli saves a further ~20 % over gzip on the big chunks (map route 1,174 KB gz → 926 KB br), which the CDN already handles. The staging Caddy path should be checked for parity (out of scope here — no SSH).
+- **Preconnect/preload:** only Google Fonts is preconnected (`index.html:27-28`). **No preconnect to `api.verdaxis.exchange`** (the first thing every authenticated route does is hit `/auth/me`/`/auth/refresh`) and **none to `api.mapbox.com`/`fonts.gstatic.com`-adjacent mapbox tile origins** on the map route. `modulepreload` tags for the entry's static deps are emitted by Vite. A blocking `<link rel="stylesheet" href="/src/loading-screen.css">` plus Google Fonts CSS sit in `<head>` (`index.html:26-31`) — render-blocking on a third party for first paint.
+- **Fonts:** three families × multiple weights from Google Fonts CSS (33 `@font-face` declarations incl. cyrillic/greek/vietnamese subsets; ~8 latin woff2 files ≈ 186 KB actually downloaded for a typical session). Latin-only self-hosted subsets would cut this to ~60-80 KB and remove the third-party round trip. Note `BuyerMap` popup HTML also names `IBM Plex Mono` (`BuyerMap.tsx:672,716`) — a fourth family that is *not* loaded, so popups fall back to system monospace; either load it or standardize on JetBrains Mono (visual nit, same-look constraint allows the fallback it already renders).
+- **Images:** PNG only, in `public/` unhashed — 344 KB `logo-no-words.png`, 244 KB `logo-words-bottom.png`, 136 KB `logo-words-right.png` (the nav logo used on every public page, served at 152×42 display size from a 384-px-wide file). No WebP/AVIF variants despite `scripts/optimize-brand-images.sh` existing.
+- **Service worker:** none (verified: no `navigator.serviceWorker`/workbox references). `DeploymentUpdateNotice` polls `/?release-check=…` to detect deploys and prompt reload instead (`DeploymentUpdateNotice.tsx:27`).
+- **GeoJSON/locales/data:** ECA zones are a JS-module import (§11); locales are lazy JS chunks; producer projects (68 KB chunk) ride the producer-map route. No ETag/304 usage anywhere in `src/services/api.ts` reads (the only ETag use is the order-cancel `If-Match`, `api.ts:1019`).
+
+### Target delivery design
+
+1. **Immutable hashed assets — keep, extend:** `/assets/*` policy stays; add `public/` build-time hashing (move brand images through Vite imports instead of `public/`) so images get the same immutable URLs. HTML keeps default short-cache/no-cache (correct for deploy promptness).
+2. **Move the ECA GeoJSON out of the JS bundle:** simplify coordinates (~49k → ~5k points, ≈38 KB gz vs 394 KB) and ship it either as a static `/assets/eca-zones.json` fetched by `loadEcaLayers` (keeps CDN caching + immutable URL) or as a backend endpoint with ETag (lets the backend own marine-zone updates). Either way the map route drops ~394 KB of JS parse for ~38 KB of JSON *after first paint* (the overlay installs on `style.load` anyway, `BuyerMap.tsx:811`).
+3. **Compress:** rely on Vercel brotli (already automatic); verify staging Caddy sends brotli/gzip for `.js/.css/.json/.geojson` — one config line, checked during a staging publish.
+4. **Preconnect:** `<link rel="preconnect" href="https://api.verdaxis.exchange">` in `index.html` (and `dns-prefetch` fallback) — saves one DNS+TLS on the critical auth path for every session. Add `preconnect` to `https://api.mapbox.com` (and `fonts.gstatic.com` is already covered) scoped to the map route via the route-metadata plugin if trivial, else globally (harmless).
+5. **Fonts:** self-host latin-subset woff2 for Lato (3 weights), Montserrat (3), JetBrains Mono (2), `font-display: swap`, preloaded for the two above-the-fold families. Removes two render-blocking third-party requests (Google CSS + font files) and ~100 KB of unused subset declarations. Same glyphs, same look.
+6. **Images:** re-encode brand PNGs to WebP/AVIF with PNG fallback at correct display sizes (136 KB nav logo → ~10-20 KB); hash them. The `optimize-brand-images.sh` script exists as a starting point.
+7. **No service worker for now:** the app is a trading tool where freshness beats offline; the existing `DeploymentUpdateNotice` handles stale-deploy recovery. Revisit only if public-site repeat traffic justifies it.
+
+**Estimated effect on first load:** landing 365→~330 KB gz and first paint one round trip earlier (fonts local, no Google CSS block); map first visit 1,174→~780 KB gz of JS (ECA out of bundle) with the overlay data arriving ~38 KB post-paint; every authenticated page saves a DNS+TLS to the API via preconnect; repeat visits save ~110 KB of images through hashing+WebP on logo-heavy public pages.
+
+## 13. Type-check speed: TypeScript 7 (tsgo) vs tsc-rs vs tsc 5.8
+
+All measurements on the `verdaxis-prod-test` host (Linux VPS, warm FS cache, `npm ci` first). Install-only-inside-run; no lockfile or package.json change was committed.
+
+| Checker | Command | Result | Wall time | Notes |
+|---|---|---|---|---|
+| **tsc 5.8 (current)** | `npx tsc --noEmit` | 0 errors | **37.9 s** (cold), 45.9 s in the second run's colder pass; `user 53 s` | Baseline. CI pays this on every job. |
+| **tsgo (TS 7 native)** | `npx tsgo --noEmit` (`@typescript/native-preview@7.0.0-dev.20260707.2`) | **55 errors** | **8.0 s** | 4.7× faster than baseline. Install needed `--legacy-peer-deps` (first attempt hit the repo's react-joyride/react-19 peer conflict). |
+| **tsc-rs** | `npx -y tsc-rs@0.7.0 -p tsconfig.json --noEmit` | **56 errors** | **7.8 s** | Same speed class as tsgo. |
+
+**Diagnostics delta vs tsc 5.8 (identical profile between tsgo and tsc-rs — 55 vs 56 errors, one extra `TS7031` in tsc-rs on a test file):** the native checkers surface errors that tsc 5.8 silently accepts in this non-strict config. Grouped:
+
+- 18 × `TS2322` in `src/App.tsx:67-…`: the `lazyWithRetry(() => import(...).then(m => ({ default: m.X })))` pattern widens to `ComponentType<never>` in a union when a module has mixed exports (e.g. `CommandCenter.tsx` exports `CommandCenter`, `BuyerDashboard`, `SupplierDashboard`). Fix is typing each loader's return — mechanical.
+- 13 × `TS18047 'props' is possibly 'null'` in `BuyerMap.tsx:671-…`: Mapbox `feature.properties` is nullable; today's code relies on it not being null at runtime. A guard fixes it.
+- 6 × `TS7016` — **`@types/react-dom` is missing from devDependencies.** It type-checks today only because `@types/react` is hoisted by Testing Library peers and `react-dom`'s own types resolve loosely under current settings; the native checkers notice (`react-dom/client`, `/server` for the prerender module). This is a genuine latent gap in `package.json:50-62`, worth fixing regardless of checker choice.
+- Remainder: nullable/undefined strictness (`VesselDetailModal`, `MyTrades`, `marketPorts`), a Recharts tooltip formatter signature (`ComplianceDashboard.tsx:433`), and mock-typing mismatches in six test files.
+
+**Runtime disclaimer, plainly: none of these checkers changes the app's runtime speed.** They compile to nothing shipped; the choice is purely developer/CI latency.
+
+**Recommendation.** Adopt **tsgo (official `@typescript/native-preview`, the TypeScript 7 line)** as the CI typecheck once the 55 surfaced errors are fixed — it is Microsoft's supported path to TS 7, tracks real tsc semantics, and here delivers 38 s → 8 s on every CI job and local check. **Do not adopt `tsc-rs` for this repository**: it is the same speed, but it is ~10 days old, self-described experimental, unreviewed by its author, and adds a third-party binary+installer to the supply chain for zero speed advantage over the official option. Revisit tsc-rs only if it differentiates (IDE/watch integrations). Sequence: add `@types/react-dom` + fix the 55 errors against tsc 5.8 *first* (they are real code-quality wins under §4's non-strict finding), then flip `typecheck` to `tsgo` and keep `tsc --noEmit` as a weekly cross-check until TS 7 ships stable.
+
+## 14. Runtime rendering
+
+Where re-render cost is actually real, and what to do:
+
+- **OrderBook — a 1-second clock re-render.** `setInterval(() => setClock(Date.now()), 1000)` (`OrderBook.tsx:252`) re-renders the whole ladder every second to update one "snapshot age" label (`:267-272`). With ~30 rows × rich cells this is the single hottest steady-state render in the app. Fix without visual change: isolate the age label into a small component with its own interval (or a shared `useTicker`), so the ladder renders only when `bids`/`asks` actually change. Same pattern duplicated as `setNow` tickers in `SupplierOffersWorkspace.tsx:50` and `FameRfqWorkspace.tsx:145`.
+- **Marketplace — 39 useState in one component.** Any filter keystroke or SSE refresh re-renders the entire workspace including the table, chips, orderbook and modals. `renderCell` and column configs are recreated per render (no `useMemo` on headers — `COLUMN_HEADERS` at `:166` rebuilds every pass; cheap, but symptomatic). 25 `useMemo`/`useCallback` exist, zero `React.memo` anywhere in `src/components` (grep). List sizes are bounded (PAGE_SIZE 8 listings, MAX_ROWS 15 ladder rows), so **virtualization is unnecessary** — do not add it; the win is component decomposition + Query's structural sharing so unchanged data yields referentially-equal props.
+- **BuyerMap — imperative by design, mostly fine.** Mapbox GL work happens outside React (map instance in refs); React re-renders drive data sources via `setData`. The expensive paths (popup HTML string building on hover, `:657-684`) are already event-scoped, not render-scoped. 10 `useMemo` cover derived layer data. Residual cost: the retained-across-navigation design (`App.tsx:383-402`) keeps one map alive always — that is a deliberate UX trade, keep it.
+- **Charts — small and static.** Forward Curve builds SVG path strings inside `useMemo` (`ForwardCurveWorkspace.tsx:484-503`); Recharts renders only in Compliance (one BarChart) and admin TrendCharts, all behind route chunks, none updating on streams. No action needed beyond §11's lazy-chart suggestion.
+- **Live streams.** The `trades` SSE handler in `CommandCenter`/`MyTrades`/`TradeNotifier` each trigger full workspace refetch-and-rerender per event (`refreshTradeData` → `loadDashboardData(true)` sets `trades` + `summary` state, `CommandCenter.tsx:107-146`). Under a burst of trade events the read-cache debounces network but not renders. Consolidating to one SSE connection (§5) plus Query invalidation gives natural dedup: one invalidation per debounce window, one refetch, structural sharing keeps untouched rows referentially stable.
+- **React Compiler readiness:** React 19.2 is in place and there is no Babel override preventing `babel-plugin-react-compiler`. But the codebase's patterns are hostile to it: widespread refs-mirroring-state (`currentMarketScope.current = marketScopeKey` in render body, `Marketplace.tsx:446-447`), mutation-during-render idioms it must bail on, and zero existing `memo` discipline to measure against. Recommendation: adopt the compiler **after** the Marketplace/OrderBook decomposition (step sequence below), not before — on decomposed components it can replace hand-memoization cheaply; on today's monoliths it will mostly bail out and add build time for nothing.
+- **TanStack Query's effect on rendering:** query results are structurally shared and referentially stable across refetches when data is unchanged, so SSE-driven invalidations that return identical payloads stop causing re-renders entirely (today every successful refetch sets new array identities). Combined with decomposed components, this removes most of the steady-state render load without touching a single className.
+
+## 15. Revised architecture and sequence (decision 62)
+
+**What changes from §9's recommendation (Option A):** the target architecture itself stands — feature folders, generated API types, TanStack Query, same Tailwind/DOM rendering. Decision 62 changes the *order and additions*: performance work moves first because the measurements show the cheapest wins are delivery-side, not code-side; and the toolchain gets explicit upgrades (Vite major, TS 7) since "maintainable" now includes CI speed. Concretely:
+
+1. **Delivery fixes precede page refactors** (they are one-line to one-day each, user-visible immediately, and carry zero behavioral risk): ECA GeoJSON out of the JS bundle (−394 KB gz on the map route), `vendor-clsx` chunk removed, `common` locale made lazy, API preconnect, self-hosted subset fonts, hashed WebP images, `GuidedTutorial`/joyride moved off the entry chunk, chart components lazied inside Compliance/Admin. Same pixels, faster loads.
+2. **Vite:** upgrade 6 → 7 (rolldown-vite is optional; plain 7 keeps the current plugin API and the custom prerender plugin intact — the plugin uses stable `generateBundle`/`writeBundle` hooks). Do this as its own step after the delivery fixes so bundle-size diffs stay attributable. Vite 8 exists but is a larger jump with no additional benefit for this app; revisit at the next cycle.
+3. **Drop neither map stack yet.** Leaflet (44 KB gz, route-isolated, public producer map) and Mapbox (core product) serve different audiences; unifying them onto Mapbox is a visual-risk change (§ decision 61) for a small win — defer to a UX-allowed project. **Do drop `lightweight-charts`** (dead, §11) and the other dead code from §3 — pure deletion, zero risk.
+4. **React Compiler** joins the plan as a late, per-feature opt-in (§14) rather than an early bet.
+5. **TypeScript 7 (tsgo)** replaces tsc as the CI typecheck after the 55 errors are fixed (§13); tsc-rs is declined.
+
+### Revised step order (sizes; every step ships through the existing staging CI → release-vercel candidate → canary smoke → promote path)
+
+| # | Step | Size | Verification |
+|---|---|---|---|
+| 1 | **Delivery quick wins** (from §12 target list: ECA out of bundle + simplified/fetched GeoJSON, clsx chunk, lazy `common` ns, preconnect API/Mapbox, self-hosted subset fonts, hashed WebP images, joyride off entry, lazy chart mounts) — can be split into 2-3 PRs | M (3-5 days total) | Existing 128 Vitest suites + both builds + `build:check` + canary smoke; before/after bundle table in the PR (repeat §11's measurement) |
+| 2 | **Playwright journey net** (unchanged from §10.1; fix dead TERMINAL selectors) | M (3-5 days) | New `smoke:journeys` green on candidate |
+| 3 | **Dead-code removal + dependency hygiene**: delete `MatchSuggestions`+matchmaking api, `ai.ts`/ai-engine, `curveChart.ts`+`lightweight-charts` dep, `listWithCI`, `@studio-freight/lenis`, `@types/react-grid-layout`, mock voyage data; add `@types/react-dom` | S (1-2 days) | typecheck, tests, `build:check` (expected-vendor-chunks list in `scripts/check-build-artifacts.mjs:19` must drop `vendor-lightweight-charts`) |
+| 4 | **Regenerate OpenAPI + CI drift check** (unchanged §10.0) | S (½ day) | CI green |
+| 5 | **Generated API types + decimal boundary** (unchanged §10.2) | M-L (1-2 weeks) | typecheck + suites + journeys |
+| 6 | **Fix the 55 native-checker errors** against tsc 5.8, then **flip `typecheck` to tsgo** (TS 7); keep weekly tsc cross-check | M (3-5 days) | tsgo 0 errors in CI; artifact hashes unchanged |
+| 7 | **Vite 6 → 7** | S-M (2-3 days) | byte-comparable builds where source unchanged; prerender plugin output verified on 52 pages |
+| 8 | **Marketplace + OrderBook refactor** into `features/marketplace` with Query hooks, OrderBook clock isolated, one request-guard util (unchanged §10.5, now with §14 render fixes) | L (1-2 weeks) | journeys + suites + canary |
+| 9 | **Orders/trades features + single SSE connection** (unchanged §10.6) | L (1-2 weeks) | journeys incl. confirm/deliver/pay; SSE tests |
+| 10 | **Curve, Map, CommandCenter features**; popup HTML → typed template module with one escape fn | L (2 weeks) | map/curve smokes; bundle check |
+| 11 | **Admin + remaining surfaces; React Compiler opt-in per feature** | M (1 week) | suites + compiler bail-out report reviewed |
+| 12 | **Strict-mode ratchet per folder** (unchanged §10.9) | continuous | typecheck per PR |
+
+Steps 1-3 alone deliver most of the measurable performance gain (map route −394 KB gz JS, landing faster first paint, every auth page one connection setup cheaper) with near-zero behavioral risk, which is why they now lead the sequence. Total remains ~6-9 weeks of focused work through step 10.
