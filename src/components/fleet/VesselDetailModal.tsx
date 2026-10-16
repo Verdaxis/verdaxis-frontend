@@ -55,16 +55,20 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
     // Calculator State
     const [targetRating, setTargetRating] = useState<'A' | 'B' | 'C'>('C');
     const [selectedBlend, setSelectedBlend] = useState<'B24' | 'B30' | 'B100'>('B100');
-    const destination = vessel.nextVoyage.split(/->|→/)[1]?.trim() || vessel.nextVoyage;
+    // The vessel API model does not report a voyage or a dry-dock date yet; when they
+    // are absent the modal keeps the same "unknown" wording it uses for the sentinels.
+    const nextVoyage = vessel.nextVoyage ?? 'En route';
+    const nextDryDock = vessel.nextDryDock ?? 'TBD';
+    const destination = nextVoyage.split(/->|→/)[1]?.trim() || nextVoyage;
     const localizedDestination = destination
         .replace(/\(ETA: (\d+) Days?\)/, (_, count) => `(${t('detail.etaDays', { count: Number(count) })})`)
         .replace('(Dep: Tomorrow)', `(${t('detail.departureTomorrow')})`);
-    const localizedVoyage = vessel.nextVoyage === 'En route'
+    const localizedVoyage = nextVoyage === 'En route'
         ? t('detail.enRouteUnknown')
         : t('detail.enRoute', { destination: localizedDestination });
-    const dryDockDate = /^([A-Za-z]{3}) (\d{4})$/.test(vessel.nextDryDock)
-        ? new Date(`${vessel.nextDryDock} 1`).toLocaleDateString(i18n.language, { month: 'short', year: 'numeric' })
-        : vessel.nextDryDock === 'TBD' ? t('detail.tbd') : vessel.nextDryDock;
+    const dryDockDate = /^([A-Za-z]{3}) (\d{4})$/.test(nextDryDock)
+        ? new Date(`${nextDryDock} 1`).toLocaleDateString(i18n.language, { month: 'short', year: 'numeric' })
+        : nextDryDock === 'TBD' ? t('detail.tbd') : nextDryDock;
 
     // Derived Calculator Values
     const calculation = useMemo(() => {
@@ -180,7 +184,7 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
                                         <Navigation size={16} />
                                         <span>{t('detail.currentStatus')}</span>
                                     </div>
-                                    <div className="text-lg font-bold text-[#334155]">{t(`detail.vesselStatus.${vessel.status}`)}</div>
+                                    <div className="text-lg font-bold text-[#334155]">{vessel.status ? t(`detail.vesselStatus.${vessel.status}`) : t('detail.tbd')}</div>
                                     <div className="text-xs text-slate-500 mt-1">{localizedVoyage}</div>
                                 </div>
                                 <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">

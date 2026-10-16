@@ -62,14 +62,16 @@ export interface Vessel {
     name: string;
     imo: string;
     vesselType: string;
-    status: 'At Sea' | 'In Port' | 'Dry Dock';
     complianceEUETS: 'Compliant' | 'Warning' | 'Non-Compliant';
     complianceFuelEU: 'Compliant' | 'Warning' | 'Non-Compliant';
     ciiGrade: 'A' | 'B' | 'C' | 'D' | 'E';
-    nextVoyage: string;
-    nextDryDock: string;
     location?: GeoLocation; // Live position
     previousLocation?: GeoLocation; // For heading
+    // The vessel API model has no live status, voyage or dry-dock field yet, so
+    // these stay optional and no client-side itinerary is invented for them.
+    status?: 'At Sea' | 'In Port' | 'Dry Dock';
+    nextVoyage?: string;
+    nextDryDock?: string;
 }
 
 export interface Course {
