@@ -38,6 +38,9 @@ jobs:
       - name: Check vendored OpenAPI contract
         run: npm run check:openapi
 
+      - name: Check generated API types
+        run: npm run check:api-types
+
       - name: Check artifact and release helpers offline
         run: |
           npm run test:artifact-check
