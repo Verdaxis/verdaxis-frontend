@@ -23,7 +23,6 @@ import statistics
 import subprocess
 import sys
 import threading
-import time
 import urllib.parse
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -49,13 +48,11 @@ TARGETS = {
     },
 }
 
-PAGES = ["MAP", "MARKETPLACE", "TERMINAL"]
+# The TERMINAL view was archived in 2026-07; the live sidebar destinations are
+# MAP and MARKETPLACE (see src/components/layout/sidebarConfig.ts).
+PAGES = ["MAP", "MARKETPLACE"]
 TRANSITIONS = [
     ("MAP", "MARKETPLACE"),
-    ("MARKETPLACE", "TERMINAL"),
-    ("TERMINAL", "MAP"),
-    ("MAP", "TERMINAL"),
-    ("TERMINAL", "MARKETPLACE"),
     ("MARKETPLACE", "MAP"),
 ]
 
@@ -174,15 +171,10 @@ def click_nav(page, page_name: str, viewport: dict[str, int]) -> None:
 
 
 def readiness_selectors(page_name: str) -> list[str]:
-    selectors = [f"main[data-dashboard-page='{page_name}']"]
-    if page_name == "MAP":
-        selectors.append("main[data-dashboard-page='MAP'] [data-navigation-ready='MAP']")
-    elif page_name == "MARKETPLACE":
-        selectors.append("main[data-dashboard-page='MARKETPLACE'] [data-navigation-ready='MARKETPLACE']")
-    elif page_name == "TERMINAL":
-        selectors.append("main[data-dashboard-page='TERMINAL'] [data-navigation-ready='TERMINAL']")
-        selectors.append("main[data-dashboard-page='TERMINAL'] [data-navigation-ready='FORWARD_CURVE']")
-    return selectors
+    # The [data-navigation-ready] markers were removed from BuyerMap and
+    # Marketplace in the 2026-06 production merge; the dashboard <main> marker
+    # plus the nav metric below are the live readiness contracts.
+    return [f"main[data-dashboard-page='{page_name}']"]
 
 
 def wait_for_usable(page, page_name: str) -> None:
