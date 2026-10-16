@@ -148,7 +148,6 @@ export default defineConfig(({ command, mode }) => {
             manualChunks: {
               'vendor-react': ['react', 'react-dom', 'react-router-dom'],
               'vendor-i18n': ['i18next', 'i18next-browser-languagedetector', 'react-i18next'],
-              'vendor-clsx': ['clsx'],
               'vendor-recharts': ['recharts'],
               'vendor-mapbox': ['mapbox-gl'],
               'vendor-leaflet': ['leaflet', 'react-leaflet'],
