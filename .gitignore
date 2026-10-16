@@ -28,6 +28,7 @@ dist-ssr
 *.bak
 .vercel
 __pycache__/
+*.py[cod]
 
 # Generated artifacts
 openapi.json
