@@ -459,59 +459,6 @@ export interface PriceDiscoveryResponse {
     generated_at: string;
 }
 
-// ============== CI-Adjusted Pricing ==============
-export interface CIAdjustedPrice {
-    base_price_per_mt: number;
-    carbon_intensity_gco2_mj: number;
-    fueleu_ghg_intensity: number;
-    compliance_cost_per_mt: number;
-    effective_price_per_mt: number;
-    ghg_reduction_pct: number;
-}
-
-export interface OrderBookOrderWithCI extends OrderBookOrder {
-    ci_adjusted_price?: CIAdjustedPrice | null;
-}
-
-// ============== Producer Project Types ==============
-export type ProjectStatus = 'ANNOUNCED' | 'UNDER_CONSTRUCTION' | 'OPERATIONAL' | 'CANCELLED';
-
-export interface ProducerProject {
-    id: string;
-    name: string;
-    fuel_type: string;
-    capacity_kt_per_year?: number | null;
-    country: string;
-    region?: string | null;
-    lat?: number | null;
-    lng?: number | null;
-    cod_date?: string | null;
-    cod_year?: number | null;
-    status: ProjectStatus;
-    data_source?: string | null;
-    gena_project_id?: string | null;
-    organization_id?: string | null;
-    feedstock?: string | null;
-    technology?: string | null;
-    carbon_intensity_gco2_mj?: number | null;
-    notes?: string | null;
-    created_at: string;
-}
-
-// ============== Availability Map Types ==============
-export type AvailabilityLevel = 'AVAILABLE' | 'LIMITED' | 'NONE';
-
-export interface PortFuelAvailability {
-    port_id: string;
-    port_name: string;
-    lat: number;
-    lng: number;
-    fuel_type: string;
-    total_stock_mt: number;
-    supplier_count: number;
-    availability_level: AvailabilityLevel;
-    avg_price_per_mt: number | null;
-}
 export type Page = 'MAP' | 'MARKETPLACE' | 'COMPLIANCE' | 'TRAINING' | 'SETTINGS' | 'DASHBOARD' | 'QUOTES' | 'INVENTORY' | 'FORWARD_CURVE' | 'ANALYTICS' | 'ORDERBOOK' | 'DEMAND_FEED' | 'TRADES' | 'ADMIN' | 'WATCHLISTS' | 'DATA_ANALYTICS' | 'RFQS';
 
 // URL slug under /app for every legacy Page value. Legacy pages that no
