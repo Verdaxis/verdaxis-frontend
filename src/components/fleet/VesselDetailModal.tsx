@@ -84,7 +84,9 @@ export const VesselDetailModal: React.FC<VesselDetailModalProps> = ({ vessel, on
         const isAlreadyAchieved = currentScore <= targetLimit;
 
         if (isAlreadyAchieved) {
-            return { requiredVol: 0, cost: 0, savings: 0, currentScore, targetLimit };
+            // Same shape as the calculation below; the render path for zero required
+            // volume never shows the saving, so the value is 0.
+            return { requiredVol: 0, cost: 0, etsSavings: 0, currentScore, targetLimit };
         }
 
         // Simplified Physics Logic:
