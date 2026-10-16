@@ -19,10 +19,12 @@
     "smoke:navigation:setup": "python3 -m pip install -r scripts/requirements-navigation-smoke.txt && python3 -m playwright install chromium",
     "smoke:navigation": "python3 scripts/smoke_navigation.py",
     "smoke:live": "node scripts/smoke-live.mjs",
-    "verify": "npm run test && npm run i18n:check && npm run build:prod && npm run build:check && npm run typecheck",
+    "verify": "npm run check:openapi && npm run test && npm run i18n:check && npm run build:prod && npm run build:check && npm run typecheck",
     "build:check:prod": "node scripts/check-build-artifacts.mjs --target production --root dist",
     "build:check:staging": "node scripts/check-build-artifacts.mjs --target staging --root dist",
+    "check:openapi": "node scripts/check-openapi-source.mjs",
     "test:artifact-check": "node --test scripts/check-build-artifacts.test.mjs",
+    "test:openapi-source": "node --test scripts/check-openapi-source.test.mjs",
     "test:release-smoke": "python3 scripts/test_smoke_release.py && bash scripts/release-vercel.sh --self-test",
     "smoke:release": "python3 scripts/smoke_release.py"
   },

@@ -35,9 +35,13 @@ jobs:
       - name: Check Phase 0 request classifications
         run: node --test scripts/phase0-request-manifest.test.mjs
 
+      - name: Check vendored OpenAPI contract
+        run: npm run check:openapi
+
       - name: Check artifact and release helpers offline
         run: |
           npm run test:artifact-check
+          npm run test:openapi-source
           npm run test:release-smoke
 
       - name: Typecheck (TypeScript 7 native)
