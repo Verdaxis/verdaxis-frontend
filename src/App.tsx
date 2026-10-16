@@ -64,32 +64,51 @@ function lazyWithRetry<P extends object>(load: () => Promise<{ default: React.Co
 
 const BuyerMap = lazyWithRetry(loadBuyerMap);
 const ProducerMapPage = lazyWithRetry(publicPageLoaders.producerMap);
-const BuyerDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.BuyerDashboard })));
-const SupplierDashboard = lazyWithRetry(() => import('./components/CommandCenter').then((module) => ({ default: module.SupplierDashboard })));
-const SupplierQuotes = lazyWithRetry(() => import('./components/SupplierQuotes').then((module) => ({ default: module.SupplierQuotes })));
-const TradeHistoryPage = lazyWithRetry(() => import('./components/TradeHistoryPage').then((module) => ({ default: module.TradeHistoryPage })));
-const Marketplace = lazyWithRetry(() => import('./components/Marketplace').then((module) => ({ default: module.Marketplace })));
-const WatchlistPage = lazyWithRetry(() => import('./components/WatchlistPage').then((module) => ({ default: module.WatchlistPage })));
-const Compliance = lazyWithRetry(() => import('./components/Compliance').then((module) => ({ default: module.Compliance })));
-const AdminDashboard = lazyWithRetry(() => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard })));
+
+// Bound on its own line, a loader keeps the module's component type — and with it the
+// route's real prop types — through `React.lazy`. Inlining the loader in the
+// `lazyWithRetry(...)` call makes the checker infer the component type from the props
+// parameter instead, which widens it to `ComponentType<never>` and fails.
+const loadBuyerDashboard = () => import('./components/CommandCenter').then((module) => ({ default: module.BuyerDashboard }));
+const BuyerDashboard = lazyWithRetry(loadBuyerDashboard);
+const loadSupplierDashboard = () => import('./components/CommandCenter').then((module) => ({ default: module.SupplierDashboard }));
+const SupplierDashboard = lazyWithRetry(loadSupplierDashboard);
+const loadSupplierQuotes = () => import('./components/SupplierQuotes').then((module) => ({ default: module.SupplierQuotes }));
+const SupplierQuotes = lazyWithRetry(loadSupplierQuotes);
+const loadTradeHistoryPage = () => import('./components/TradeHistoryPage').then((module) => ({ default: module.TradeHistoryPage }));
+const TradeHistoryPage = lazyWithRetry(loadTradeHistoryPage);
+const loadMarketplace = () => import('./components/Marketplace').then((module) => ({ default: module.Marketplace }));
+const Marketplace = lazyWithRetry(loadMarketplace);
+const loadWatchlistPage = () => import('./components/WatchlistPage').then((module) => ({ default: module.WatchlistPage }));
+const WatchlistPage = lazyWithRetry(loadWatchlistPage);
+const loadCompliance = () => import('./components/Compliance').then((module) => ({ default: module.Compliance }));
+const Compliance = lazyWithRetry(loadCompliance);
+const loadAdminDashboard = () => import('./components/admin/AdminDashboard').then((module) => ({ default: module.AdminDashboard }));
+const AdminDashboard = lazyWithRetry(loadAdminDashboard);
 
 // Route code loads when needed; reuse the existing deploy-safe chunk retry.
 const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
 const RegisterPage = lazyWithRetry(() => import('./pages/RegisterPage'));
-const InvitePage = lazyWithRetry(() => import('./pages/InvitePage').then((module) => ({ default: module.InvitePage })));
+const loadInvitePage = () => import('./pages/InvitePage').then((module) => ({ default: module.InvitePage }));
+const InvitePage = lazyWithRetry(loadInvitePage);
 const ForgotPasswordPage = lazyWithRetry(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazyWithRetry(() => import('./pages/ResetPasswordPage'));
 const AcceptInvitationPage = lazyWithRetry(() => import('./pages/AcceptInvitationPage'));
 const ForcePasswordChangePage = lazyWithRetry(() => import('./pages/ForcePasswordChangePage'));
 const MaintenancePage = lazyWithRetry(() => import('./pages/MaintenancePage'));
-const OnboardingPage = lazyWithRetry(() => import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage })));
+const loadOnboardingPage = () => import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage }));
+const OnboardingPage = lazyWithRetry(loadOnboardingPage);
 const CreateOrganizationPage = lazyWithRetry(() => import('./pages/CreateOrganizationPage'));
 const VerifyEmailPage = lazyWithRetry(() => import('./pages/VerifyEmailPage'));
 const KycPage = lazyWithRetry(() => import('./pages/KycPage'));
-const DataAnalytics = lazyWithRetry(() => import('./components/DataAnalytics').then((module) => ({ default: module.DataAnalytics })));
-const Training = lazyWithRetry(() => import('./components/Training').then((module) => ({ default: module.Training })));
-const Settings = lazyWithRetry(() => import('./components/Settings').then((module) => ({ default: module.Settings })));
-const ForwardCurveWorkspace = lazyWithRetry(() => import('./components/ForwardCurveWorkspace').then((module) => ({ default: module.ForwardCurveWorkspace })));
+const loadDataAnalytics = () => import('./components/DataAnalytics').then((module) => ({ default: module.DataAnalytics }));
+const DataAnalytics = lazyWithRetry(loadDataAnalytics);
+const loadTraining = () => import('./components/Training').then((module) => ({ default: module.Training }));
+const Training = lazyWithRetry(loadTraining);
+const loadSettings = () => import('./components/Settings').then((module) => ({ default: module.Settings }));
+const Settings = lazyWithRetry(loadSettings);
+const loadForwardCurveWorkspace = () => import('./components/ForwardCurveWorkspace').then((module) => ({ default: module.ForwardCurveWorkspace }));
+const ForwardCurveWorkspace = lazyWithRetry(loadForwardCurveWorkspace);
 const LandingPage = lazyWithRetry(publicPageLoaders.landing);
 const HowItWorksPage = lazyWithRetry(publicPageLoaders.howItWorks);
 const FuelCoveragePage = lazyWithRetry(publicPageLoaders.fuelCoverage);
@@ -105,12 +124,16 @@ const PartnersPage = lazyWithRetry(publicPageLoaders.partners);
 const EducationArticlePage = lazyWithRetry(publicPageLoaders.educationArticle);
 const RoadmapPage = lazyWithRetry(publicPageLoaders.roadmap);
 const EnergyCalculatorPage = lazyWithRetry(publicPageLoaders.energyCalculator);
-const PartnerShowcasePage = lazyWithRetry(() => import('./pages/public/PartnerShowcasePage').then((module) => ({ default: module.PartnerShowcasePage })));
-const PartnerLandingPage = lazyWithRetry(() => import('./pages/public/PartnerLandingPage').then((module) => ({ default: module.PartnerLandingPage })));
+const loadPartnerShowcasePage = () => import('./pages/public/PartnerShowcasePage').then((module) => ({ default: module.PartnerShowcasePage }));
+const PartnerShowcasePage = lazyWithRetry(loadPartnerShowcasePage);
+const loadPartnerLandingPage = () => import('./pages/public/PartnerLandingPage').then((module) => ({ default: module.PartnerLandingPage }));
+const PartnerLandingPage = lazyWithRetry(loadPartnerLandingPage);
 const PrivacyPage = lazyWithRetry(publicPageLoaders.privacy);
 const TermsPage = lazyWithRetry(publicPageLoaders.terms);
-const NotFoundPage = lazyWithRetry(() => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
-const ThankYouPage = lazyWithRetry(() => import('./pages/public/ThankYouPage').then((module) => ({ default: module.ThankYouPage })));
+const loadNotFoundPage = () => import('./pages/public/NotFoundPage').then((module) => ({ default: module.NotFoundPage }));
+const NotFoundPage = lazyWithRetry(loadNotFoundPage);
+const loadThankYouPage = () => import('./pages/public/ThankYouPage').then((module) => ({ default: module.ThankYouPage }));
+const ThankYouPage = lazyWithRetry(loadThankYouPage);
 
 // Scroll to top on route change
 const ScrollToTop: React.FC = () => {
