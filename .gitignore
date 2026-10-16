@@ -27,6 +27,8 @@ dist-ssr
 # Backup files (may contain credentials)
 *.bak
 .vercel
+__pycache__/
+*.py[cod]
 
 # Generated artifacts
 openapi.json
