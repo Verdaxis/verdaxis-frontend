@@ -12,20 +12,29 @@ describe('MobileDesktopGate', () => {
 
   it('mounts the workspace only while the viewport is at least 768px wide', () => {
     let matches = false;
-    const listeners = new Set<(event: MediaQueryListEvent) => void>();
+    const listeners = new Set<EventListenerOrEventListenerObject>();
     const mediaQuery = {
       get matches() {
         return matches;
       },
       media: '(min-width: 768px)',
       onchange: null,
-      addEventListener: vi.fn((_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.add(listener)),
-      removeEventListener: vi.fn((_type: string, listener: (event: MediaQueryListEvent) => void) => listeners.delete(listener)),
+      addEventListener: vi.fn((_type: string, listener: EventListenerOrEventListenerObject) => listeners.add(listener)),
+      removeEventListener: vi.fn((_type: string, listener: EventListenerOrEventListenerObject) => listeners.delete(listener)),
       addListener: vi.fn(),
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
     } satisfies MediaQueryList;
     vi.stubGlobal('matchMedia', vi.fn(() => mediaQuery));
+
+    // The gate registers a plain listener function; the DOM signature also allows an object.
+    const dispatchChange = () => {
+      const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
+      listeners.forEach((listener) => {
+        if (typeof listener === 'function') listener(event);
+        else listener.handleEvent(event);
+      });
+    };
 
     const mounted = vi.fn();
     const unmounted = vi.fn();
@@ -44,14 +53,14 @@ describe('MobileDesktopGate', () => {
 
     act(() => {
       matches = true;
-      listeners.forEach((listener) => listener({ matches, media: mediaQuery.media } as MediaQueryListEvent));
+      dispatchChange();
     });
     expect(screen.getByText('workspace')).toBeTruthy();
     expect(mounted).toHaveBeenCalledTimes(1);
 
     act(() => {
       matches = false;
-      listeners.forEach((listener) => listener({ matches, media: mediaQuery.media } as MediaQueryListEvent));
+      dispatchChange();
     });
     expect(screen.queryByText('workspace')).toBeNull();
     expect(unmounted).toHaveBeenCalledTimes(1);

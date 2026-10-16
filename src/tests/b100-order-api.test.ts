@@ -96,9 +96,11 @@ describe('B100 standard orderbook API', () => {
         const trade = await api.trades.initiate({ order_id: 'ask-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-1', fame_terms: bidTerms, idempotency_key: 'trade-uuid' });
         expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/trades\/$/);
         expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ order_id: 'ask-1', quantity_mt: 100, expected_terms_digest: 'terms-digest-1', fame_terms: bidTerms });
-        expect(trade.fame_terms_snapshot.bid.max_ci_gco2e_mj).toBe(0);
-        expect(trade.fame_terms_snapshot.ask.ci_gco2e_mj).toBe(0);
-        expect(trade.fame_terms_snapshot.ask).not.toHaveProperty('certificate_holder');
+        const snapshot = trade.fame_terms_snapshot;
+        if (!snapshot) throw new Error('the initiated trade must carry a FAME terms snapshot');
+        expect(snapshot.bid.max_ci_gco2e_mj).toBe(0);
+        expect(snapshot.ask.ci_gco2e_mj).toBe(0);
+        expect(snapshot.ask).not.toHaveProperty('certificate_holder');
     });
 
     it('normalizes owner declarations on my orders without changing legacy alcohol records', async () => {

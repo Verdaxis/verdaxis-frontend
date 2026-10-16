@@ -263,7 +263,8 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
         </div>
     );
 
-    const STATUS_CONFIG = {
+    // Statuses come from the backend, so an unknown value must still fall back to CANCELLED.
+    const STATUS_CONFIG: Record<string, { label: string; tone: string }> = {
         PENDING_CONFIRMATION: {
             label: t('myTrades.status.pending'),
             tone: 'text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800',
@@ -280,7 +281,7 @@ export const MyTrades: React.FC<{ embedded?: boolean }> = ({ embedded = false })
             label: t('myTrades.status.declined'),
             tone: 'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800',
         },
-    } as const;
+    };
 
     const renderActions = (trade: Trade) => {
         const userSide = getUserSide(trade);

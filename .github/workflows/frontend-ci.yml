@@ -40,7 +40,7 @@ jobs:
           npm run test:artifact-check
           npm run test:release-smoke
 
-      - name: Typecheck
+      - name: Typecheck (TypeScript 7 native)
         run: npm run typecheck
 
       - name: Check translations

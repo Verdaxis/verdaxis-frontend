@@ -43,12 +43,19 @@ export const resolveApprovedMapPorts = (
             priceTrend: livePort.priceTrend,
             methanolSupply: livePort.methanolSupply,
             biofuelSupply: livePort.biofuelSupply,
+            // Live intelligence wins; the approved port supplies the rest. The final
+            // values only apply when neither source has details, which the approved
+            // set always does, and keep the merged object a complete `PortDetails`.
             details: {
                 ...canonicalPort.details,
                 ...livePort.details,
+                congestionLevel: livePort.details?.congestionLevel ?? canonicalPort.details?.congestionLevel ?? 'Unknown',
+                avgWaitingTime: livePort.details?.avgWaitingTime ?? canonicalPort.details?.avgWaitingTime ?? 0,
+                activeBarges: livePort.details?.activeBarges ?? canonicalPort.details?.activeBarges ?? 0,
+                forecastSupply: livePort.details?.forecastSupply ?? canonicalPort.details?.forecastSupply ?? 'Unknown',
                 priceHistory: livePort.details?.priceHistory?.length
                     ? livePort.details.priceHistory
-                    : canonicalPort.details?.priceHistory,
+                    : canonicalPort.details?.priceHistory ?? [],
                 upcomingProjects: canonicalPort.details?.upcomingProjects,
             },
         };

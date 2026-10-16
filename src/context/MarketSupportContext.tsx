@@ -57,7 +57,7 @@ const organization = (value: unknown): SupportOrganization => {
   };
 };
 
-export const normalizeMarketSupportSession = (value: unknown, actorFallback?: { id?: string; first_name?: string; last_name?: string; email?: string } | null): MarketSupportSession => {
+export const normalizeMarketSupportSession = (value: unknown, actorFallback?: { id?: string; first_name?: string | null; last_name?: string | null; email?: string | null } | null): MarketSupportSession => {
   const envelope = asRecord(value);
   const raw = asRecord(envelope.context ?? envelope.session ?? value);
   const actorRaw = asRecord(raw.actor ?? raw.admin ?? raw.admin_user ?? raw.created_by ?? actorFallback);

@@ -96,10 +96,10 @@ describe('product analytics API client', () => {
   });
 
   it('a stale aborted request never resolves with data for the caller', async () => {
-    let resolveFetch: ((response: Response) => void) | null = null;
+    const pendingFetch: { resolveFetch?: (response: Response) => void } = {};
     global.fetch = ((input: RequestInfo, init?: RequestInit) =>
       new Promise<Response>((resolve, reject) => {
-        resolveFetch = resolve;
+        pendingFetch.resolveFetch = resolve;
         init?.signal?.addEventListener('abort', () =>
           reject(new DOMException('aborted', 'AbortError')),
         );
@@ -115,7 +115,7 @@ describe('product analytics API client', () => {
       (error: unknown) => (isAbortError(error) ? 'aborted' : 'errored'),
     );
     controller.abort();
-    resolveFetch?.(okJson({ late: true }));
+    pendingFetch.resolveFetch?.(okJson({ late: true }));
 
     expect(await outcome).toBe('aborted');
   });
