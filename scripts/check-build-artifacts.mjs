@@ -3,7 +3,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { constants as zlibConstants, gzipSync } from 'node:zlib';
+import { constants as zlibConstants, brotliCompressSync, gzipSync } from 'node:zlib';
 
 const TARGETS = {
   production: {
@@ -225,6 +225,33 @@ export function measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, p
   return total;
 }
 
+/** The same first-load measurement, plus the brotli total a CDN would serve. */
+export function measureRouteFirstLoadSizes({ assetsDirectory, files, shellHtml, prefixes }) {
+  const gzipBytes = measureRouteFirstLoadGzip({ assetsDirectory, files, shellHtml, prefixes });
+
+  const seed = files.filter(
+    (file) => file.endsWith('.js') && prefixes.some((prefix) => file.startsWith(prefix)),
+  );
+  const closure = staticImportClosure({ assetsDirectory, files, seed });
+  const shell = parseShellHtml(shellHtml);
+  const stems = new Set(Array.from(closure, chunkStem));
+  const firstLoad = new Set([
+    shell.entry,
+    ...shell.preloads,
+    ...shell.stylesheets,
+    ...closure,
+    ...files.filter((file) => file.endsWith('.css') && stems.has(chunkStem(file))),
+  ]);
+
+  let brotliBytes = 0;
+  for (const file of firstLoad) {
+    const filePath = path.join(assetsDirectory, file);
+    if (!existsSync(filePath)) continue;
+    brotliBytes += brotliCompressSync(readFileSync(filePath)).length;
+  }
+  return { gzipBytes, brotliBytes };
+}
+
 export function assertRouteFirstLoadBudgets({
   assetsDirectory,
   files,
@@ -353,13 +380,16 @@ function reportRouteBudgets({ root }) {
   const assets = readdirSync(assetsDirectory);
   const shellHtml = readFileSync(path.join(artifactRoot, 'index.html'), 'utf8');
   for (const budget of ROUTE_FIRST_LOAD_BUDGETS) {
-    const measured = measureRouteFirstLoadGzip({
+    const { gzipBytes: gzipTotal, brotliBytes } = measureRouteFirstLoadSizes({
       assetsDirectory,
       files: assets,
       shellHtml,
       prefixes: budget.prefixes,
     });
-    console.log(`${budget.name}: ${measured} gzip bytes (${(measured / 1024).toFixed(0)} KB)`);
+    console.log(
+      `${budget.name}: ${gzipTotal} gzip bytes (${(gzipTotal / 1024).toFixed(0)} KB), `
+      + `${brotliBytes} brotli bytes (${(brotliBytes / 1024).toFixed(0)} KB)`,
+    );
   }
 }
 
