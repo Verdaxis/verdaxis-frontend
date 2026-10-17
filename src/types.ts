@@ -169,7 +169,8 @@ export interface DeliveryPoint {
 
 // ============== Order Marketplace Types ==============
 export type FuelGrade = 'Conventional' | 'Green' | 'Bio' | 'B30' | 'B100';
-export type AvailabilityWindow = 'Spot' | 'Q1 2025' | 'Q2 2025' | 'Q3 2025' | 'Q4 2025' | 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Forward 2027' | 'Q1 2027' | 'Q2 2027' | 'Q3 2027' | 'Q4 2027' | 'Forward 2028' | 'Forward 2029' | 'Forward 2030';
+/** Wire window code; legacy labels are normalized only at existing boundaries. */
+export type AvailabilityWindow = WireOrder['availability_window'];
 
 export const ORDERBOOK_MARKET_PRODUCTS = [
     'BIO_METHANOL',
@@ -352,7 +353,7 @@ export interface Trade extends Pick<WireTrade, 'unknown_count' | 'source_kind' |
     product_name?: string;
     delivery_point_id?: string;
     delivery_point_name?: string;
-    availability_window?: string; // Canonical API code; legacy labels are normalized at display boundaries.
+    availability_window?: WireTrade['availability_window']; // The mapper normalizes wire null to undefined.
     market_product?: string | Product;
     fuel_type: string;
     fuel_grade?: FuelGrade;

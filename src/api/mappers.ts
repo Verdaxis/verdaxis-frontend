@@ -158,7 +158,7 @@ export const toOrderBookOrder = (wire: WireOrder): OrderBookOrder => ({
     benchmark_price_per_mt_usd: parseWireDecimal(wire.benchmark_price_per_mt_usd),
     premium_discount_per_mt_usd: parseWireDecimal(wire.premium_discount_per_mt_usd),
     fuel_grade: wire.fuel_grade,
-    availability_window: wire.availability_window as OrderBookOrder['availability_window'],
+    availability_window: wire.availability_window,
     market_product: wire.market_product as OrderBookOrder['market_product'],
     source_kind: wire.source_kind,
     scope: wire.scope,

@@ -221,9 +221,9 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
     ));
     const marketProduct = isOrderbookMarketProduct(requestedProduct) ? requestedProduct : selectedMarketProduct;
     const [availability, setAvailability] = useState<AvailabilityWindow | ''>(() => {
-        if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window as AvailabilityWindow;
+        if (initialSlice && isOrderbookMarketProduct(initialSlice.product)) return initialSlice.window;
         const stored = localStorage.getItem(MARKETPLACE_SELECTION_STORAGE_KEYS.availabilityWindow);
-        return stored ? (normalizeAvailabilityWindow(stored) as AvailabilityWindow) : '';
+        return stored ? (normalizeAvailabilityWindow(stored)) : '';
     });
     const availabilityOptions = useMemo(() => getAvailabilityWindowOptions({ locale }), [locale]);
     const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -611,7 +611,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setMarketProduct(initialSlice.product);
         setPortInput(initialSlice.port);
         setStoredDeliveryPointId('');
-        setAvailability(initialSlice.window as AvailabilityWindow);
+        setAvailability(initialSlice.window);
         setCurrentSkip(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSlice?.product, initialSlice?.port, initialSlice?.window]);
@@ -1506,7 +1506,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
                                             <VerdaxisSelect
                                                 ariaLabel={t('marketplace.filter.window')}
                                                 value={availability}
-                                                onChange={(value) => setAvailability(value as AvailabilityWindow | '')}
+                                                onChange={(value) => setAvailability(value)}
                                                 options={[
                                                     { value: '', label: t('marketplace.filter.anyWindow') },
                                                     ...availabilityOptions.map(option => ({

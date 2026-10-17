@@ -126,24 +126,6 @@ expectTypeOf<MapCompactMarket['bid_total_quantity']>().toEqualTypeOf<number>();
 expectTypeOf<typeof toMapCompactMarket>().parameter(0).toEqualTypeOf<WireMapCompactMarket>();
 expectTypeOf<typeof toMapCompactMarket>().returns.toEqualTypeOf<MapCompactMarket>();
 
-// ─── DRIFT-6: availability windows, display labels against codes ───
-// The frontend union holds display labels ("Q1 2026"); the wire sends canonical
-// codes ("2026-Q1"). Every cast of a canonical code into `AvailabilityWindow`
-// puts a value in the union that the union does not describe.
-
-expectTypeOf<WireOrder['availability_window']>().toEqualTypeOf<string>();
-expectTypeOf<HasMember<WireOrder['availability_window'], 'SPOT'>>().toEqualTypeOf<true>();
-
-expectTypeOf<HasMember<AvailabilityWindow, 'Spot'>>().toEqualTypeOf<true>();
-expectTypeOf<HasMember<AvailabilityWindow, 'SPOT'>>().toEqualTypeOf<false>();
-expectTypeOf<HasMember<AvailabilityWindow, '2026-Q3'>>().toEqualTypeOf<false>();
-expectTypeOf<HasMember<AvailabilityWindow, '2026-CAL'>>().toEqualTypeOf<false>();
-expectTypeOf<HasMember<AvailabilityWindow, '2026-04'>>().toEqualTypeOf<false>();
-
-expectTypeOf<OrderBookOrder['availability_window']>().toEqualTypeOf<AvailabilityWindow>();
-expectTypeOf<WireTrade['availability_window']>().toEqualTypeOf<string | null | undefined>();
-expectTypeOf<Trade['availability_window']>().toEqualTypeOf<string | undefined>();
-
 // ─── DRIFT-7: remaining differences on the named wire shapes ──────
 
 // `product_name` is on the wire and missing from the app's price summary.
@@ -191,6 +173,10 @@ expectTypeOf<Notification['data']>().toEqualTypeOf<any>();
 
 // ─── Shapes that already agree ─────────────────────────────────────
 // Pinned so a change to either side is noticed here too.
+
+expectTypeOf<AvailabilityWindow>().toEqualTypeOf<WireOrder['availability_window']>();
+expectTypeOf<OrderBookOrder['availability_window']>().toEqualTypeOf<AvailabilityWindow>();
+expectTypeOf<Trade['availability_window']>().toEqualTypeOf<WireTrade['availability_window']>();
 
 expectTypeOf<User>().toEqualTypeOf<WireUser>();
 expectTypeOf<HasProperty<User, 'email_verified'>>().toEqualTypeOf<false>();

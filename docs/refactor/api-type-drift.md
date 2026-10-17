@@ -39,9 +39,9 @@ tracker decision 67, which lets the backend respell a decimal).
 | DRIFT-3 | Provenance and order metadata derived from the wire | 8 (resolved) | 5c |
 | DRIFT-4 | Owner metadata derived; public compatibility retained | 5 (resolved) | 5c |
 | DRIFT-5 | Auth profile and eligibility derived from the wire | 8 (resolved) | 5c |
-| DRIFT-6 | Availability windows: display labels against canonical codes | 3 | 5c |
+| DRIFT-6 | Window types derive the wire string; labels unchanged | 3 (resolved) | 5c |
 | DRIFT-7 | Remaining differences on the named wire shapes | 9 (2 resolved: 7.3, 7.4) | 5b/5c |
-| | **Open** | **12** | |
+| | **Open** | **9** | |
 
 `openapi-typescript` marks a property required when it is in the schema's
 `required` array **or** has a `default`. The backend gives most prose fields a
@@ -323,47 +323,16 @@ referral code only in a separate behavior/request change.
 
 ---
 
-## DRIFT-6 — Availability windows: display labels against canonical codes
+## DRIFT-6 — resolved in step 5c
 
-`AvailabilityWindow` (`src/types.ts:175`) is the *display* vocabulary:
-`'Spot'`, `'Q1 2026'`, `'Forward 2027'`. The wire sends canonical codes
-(`SPOT`, `2026-Q1`, `2026-04`, `2026-CAL`) as a `string` with a pattern, and the
-backend normalizes legacy labels on input only. `src/utils/availabilityWindow.ts`
-does the display conversion. No type connects the two.
+`AvailabilityWindow` now derives the wire string instead of enumerating dated
+display labels. The trade field admits the wire's nullable optional value, while
+its existing mapper still normalizes null to undefined. Canonical-to-label casts
+in App and Marketplace are removed; they emitted no JavaScript. All existing
+normalization, option generation and display formatting stay unchanged.
 
-| Entry | Hand-written | Wire | Declared at |
-|---|---|---|---|
-| 6.1 `AvailabilityWindow` | display labels; no `SPOT`, no `2026-Q3` | canonical-code `string` | `src/types.ts:175` |
-| 6.2 `OrderBookOrder.availability_window` | `AvailabilityWindow` | `string` | `src/types.ts:300` |
-| 6.3 `Trade.availability_window` | `string \| undefined` | `string \| null \| undefined` | `src/types.ts:374` |
-
-Consumers that cast a canonical code into the label union:
-
-- `src/App.tsx:439` — `sidebarMarketSlice?.window as AvailabilityWindow \| undefined`
-- `src/components/Marketplace.tsx:223` — `initialSlice.window as AvailabilityWindow`
-- `src/components/Marketplace.tsx:225` — `normalizeAvailabilityWindow(stored) as AvailabilityWindow`
-- `src/components/Marketplace.tsx:613` — `setAvailability(initialSlice.window as AvailabilityWindow)`
-- `src/components/Marketplace.tsx:1504` — `onChange` value cast to `AvailabilityWindow`
-
-Consumers that rely on the display conversion instead of the type:
-`src/utils/fuel.ts:133`, `src/utils/watchlist.ts:35`,
-`src/utils/tradeAnalytics.ts:87`, `src/components/MyTrades.tsx:506`,
-`src/components/OrderBook.tsx:344,595`, `src/components/SupplierDemandFeed.tsx:107`,
-`src/components/TradeHistoryPage.tsx:64`, `src/components/WatchlistPage.tsx:150`,
-`src/components/supplier/SupplierOfferDetails.tsx:41`,
-`src/components/map/IntelligencePanel.tsx:52,57`,
-`src/components/ForwardCurveWorkspace.tsx:323,543,595,1076,1184,1204`,
-`src/components/admin/product-analytics/MarketplaceTab.tsx:89,146,241`,
-`src/components/admin/product-analytics/AnalyticsFilterRail.tsx:155`,
-`src/components/market-support/MarketSupportFinalConfirmation.tsx:81`,
-`src/components/public/PriceTicker.tsx:126`,
-`src/components/map/MarketWatchTicker.tsx:162`,
-`src/components/OrderPlaceModal.tsx:53,142,150,299,349`.
-
-The typed label list is also the source of the quarterly churn the audit notes:
-`getAvailabilityWindowOptions` (`src/utils/availabilityWindow.ts:182-225`)
-generates windows from the current date, so the union in `src/types.ts:175` will
-need a new member each year while the wire vocabulary never changes.
+Founder decision: the display vocabulary and legacy-label policy. No labels,
+request values or runtime branches change in this step.
 
 ---
 
