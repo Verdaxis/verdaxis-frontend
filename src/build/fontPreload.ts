@@ -35,16 +35,23 @@ export function buildFontPreloadTags(emittedFiles: string[]): string[] {
 }
 
 const HEAD_OPEN = /<head(?:\s[^>]*)?>/;
+const CHARSET_ELEMENT = /<meta\s+charset\s*=\s*(?:"[^"]*"|'[^']*'|[^\s/>]+)\s*\/?>/i;
 
 /**
- * Insert the preload links as the first children of `<head>`, ahead of the
- * charset and the stylesheet, so the browser starts the font requests as early
- * as the tags are parsed.
+ * Insert the preload links directly after the charset declaration, and ahead
+ * of the stylesheets. The charset must stay the first element of `<head>`: the
+ * parser fixes the document encoding on it, so anything before it delays that
+ * decision and can leave the first bytes to an encoding guess. Everything after
+ * the charset is still early enough for the font requests to start with the
+ * first parsed tags.
  */
 export function injectFontPreloads(html: string, emittedFiles: string[]): string {
-  const match = HEAD_OPEN.exec(html);
-  if (!match) throw new Error('index.html has no <head> element');
+  const head = HEAD_OPEN.exec(html);
+  if (!head) throw new Error('index.html has no <head> element');
   const links = buildFontPreloadTags(emittedFiles).map((tag) => `    ${tag}`).join('\n');
-  const at = match.index + match[0].length;
+  const headEnd = head.index + head[0].length;
+  const charset = CHARSET_ELEMENT.exec(html.slice(headEnd));
+  if (!charset) throw new Error('index.html has no <meta charset> element in <head>');
+  const at = headEnd + charset.index + charset[0].length;
   return `${html.slice(0, at)}\n${links}${html.slice(at)}`;
 }

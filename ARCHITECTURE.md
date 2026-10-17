@@ -194,8 +194,10 @@ the stylesheet link are gone. The one Google Fonts request left in the app is
 that predates this step and is not self-hosted yet. `src/build/fontPreload.ts`
 builds the two preload tags for the above-the-fold files (Lato 400 and
 Montserrat's variable file) from the names Vite emitted, because the hashes only
-exist after the CSS is transformed; `src/tests/self-hosted-fonts.test.ts` covers
-the face set, the slice ranges, the files on disk and the preload builder.
+exist after the CSS is transformed, and places them directly after the shell's
+`<meta charset>` (and ahead of the stylesheets), so the charset stays the first
+element of `<head>`; `src/tests/self-hosted-fonts.test.ts` covers the face set,
+the slice ranges, the files on disk and the preload builder.
 
 Brand artwork is served right-sized. `scripts/optimize-brand-images.sh` writes
 lossless 1x/2x WebP cuts into `src/assets/brand/`, `src/utils/brandImages.ts`

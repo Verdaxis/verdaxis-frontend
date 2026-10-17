@@ -108,9 +108,9 @@ describe('self-hosted fonts', () => {
     expect(tags).toHaveLength(PRELOADED_FONT_FILES.length);
   });
 
-  it('injects the preloads as the first children of head', () => {
+  it('injects the preloads directly after the charset', () => {
     const html = injectFontPreloads(
-      '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n  </head>\n</html>',
+      '<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="UTF-8" />\n    <link rel="stylesheet" href="/assets/index-abc123.css" />\n  </head>\n</html>',
       ['assets/lato-latin-400-normal-911dda87.woff2',
        'assets/montserrat-latin-500-700-normal-7d54aa8b.woff2']);
 
@@ -118,21 +118,31 @@ describe('self-hosted fonts', () => {
       '<!doctype html>',
       '<html lang="en">',
       '  <head>',
+      '    <meta charset="UTF-8" />',
       '    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/lato-latin-400-normal-911dda87.woff2" />',
       '    <link rel="preload" as="font" type="font/woff2" crossorigin href="/assets/montserrat-latin-500-700-normal-7d54aa8b.woff2" />',
-      '    <meta charset="UTF-8" />',
+      '    <link rel="stylesheet" href="/assets/index-abc123.css" />',
       '  </head>',
       '</html>',
     ].join('\n'));
     expect(html.match(/rel="preload"/g)).toHaveLength(PRELOADED_FONT_FILES.length);
   });
 
-  it('injects the preloads into a head tag that carries attributes', () => {
-    const html = injectFontPreloads('<head data-x="1"><meta charset="UTF-8" /></head>',
+  it('keeps the charset ahead of the preloads in a head tag with attributes', () => {
+    const html = injectFontPreloads('<head data-x="1"><meta charset="UTF-8" /><link rel="stylesheet" href="/a.css" /></head>',
       ['assets/lato-latin-400-normal-911dda87.woff2',
        'assets/montserrat-latin-500-700-normal-7d54aa8b.woff2']);
 
-    expect(html).toMatch(/^<head data-x="1">\n\s+<link rel="preload"/);
+    expect(html).toMatch(/^<head data-x="1"><meta charset="UTF-8" \/>\n {4}<link rel="preload"/);
+    expect(html.indexOf('charset')).toBeLessThan(html.indexOf('rel="preload"'));
+    expect(html.indexOf('rel="preload"')).toBeLessThan(html.indexOf('rel="stylesheet"'));
+  });
+
+  it('fails the build when the shell has no charset element', () => {
+    expect(() => injectFontPreloads('<head><link rel="stylesheet" href="/a.css" /></head>',
+      ['assets/lato-latin-400-normal-911dda87.woff2',
+       'assets/montserrat-latin-500-700-normal-7d54aa8b.woff2']))
+      .toThrow('index.html has no <meta charset> element in <head>');
   });
 
   it('fails the build when a preloaded font is not emitted', () => {
