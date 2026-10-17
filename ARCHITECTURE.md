@@ -167,6 +167,12 @@ the 2026-10-17 frontend audit uses in section 11. `node scripts/check-build-arti
 --report --root dist` prints the current numbers. A commit that lowers a route's
 first load lowers its ceiling with it.
 
+`vite.config.ts` also injects preconnect tags for the build-time API origin
+(from `VITE_API_URL`, with a `dns-prefetch` fallback) and for
+`https://api.mapbox.com`; `src/build/preconnect.ts` holds the pure tag builders
+and `src/tests/api-preconnect.test.ts` covers them. Only these tags are added
+to the shell and to every prerendered page.
+
 ## Run commands
 
 ```bash

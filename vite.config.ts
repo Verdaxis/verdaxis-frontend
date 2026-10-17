@@ -7,11 +7,26 @@ import {
     renderRouteHtml,
     resolveRouteMetadata,
 } from './src/routeMetadata';
+import { buildPreconnectTags } from './src/build/preconnect';
 
 export const RELEASE_API_URLS = {
     production: 'https://api.verdaxis.exchange/api',
     staging: 'https://api-staging.verdaxis.exchange/api',
 } as const;
+
+/**
+ * Inject preconnect tags for the API origin the bundle is built against and
+ * for the Mapbox API. `buildPreconnectTags` derives the origin from the
+ * configured URL, so a local `/api` (proxied) adds only the Mapbox tag.
+ */
+export function apiPreconnectPlugin(apiUrl: string | undefined): Plugin {
+    return {
+        name: 'verdaxis-api-preconnect',
+        transformIndexHtml(html) {
+            return { html, tags: buildPreconnectTags(apiUrl) };
+        },
+    };
+}
 
 export function validateReleaseApiUrl(
     mode: string,
@@ -138,7 +153,7 @@ export default defineConfig(({ command, mode }) => {
           },
         },
       },
-      plugins: [react(), staticRouteMetadataPlugin(mode)],
+      plugins: [react(), apiPreconnectPlugin(process.env.VITE_API_URL ?? env.VITE_API_URL), staticRouteMetadataPlugin(mode)],
       // SECURITY: No API keys in define{} — all AI calls go through backend /api/ai/chat
       build: {
         // SECURITY: Disable source maps in production to prevent source code exposure
