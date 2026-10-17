@@ -181,30 +181,6 @@ def journey_marketplace_deep_link(harness, state):
         f'B30 chip active={pressed}; port={port_label!r}; url={page.url}')
 
 
-PLACE_BLOCKER = ('OrderPlaceModal rejects every BID/ASK against the live '
-                 'backend: the catalog min_lot_size arrives as the decimal '
-                 'string "200.00", so hasValidCatalogMinimum is false and the '
-                 'review button never enables (audit 4.7). Tracked for the '
-                 'decimal-boundary step; the order itself is proved through '
-                 'the same client API the modal calls.')
-
-
-def _order_payload(product_id, point_id, side, quantity, price):
-    payload = {'side': side, 'product_id': product_id,
-               'delivery_point_id': point_id, 'quantity_mt': quantity,
-               'price_per_mt_usd': price, 'availability_window': 'SPOT',
-               'is_anonymous': True}
-    if side == 'ASK':
-        payload.update({'certification_declared': True, 'msds_available': True,
-                        'certification_scheme': 'ISCC EU',
-                        'certifications': ['ISCC EU'],
-                        'specification_standard': 'ISO 8217:2024 RF 380',
-                        'carbon_intensity_gco2_mj': 18,
-                        'carbon_intensity_method': 'Journeys whole-fuel lifecycle',
-                        'feedstock': 'Used cooking oil', 'origin': 'Singapore'})
-    return payload
-
-
 def _rows(body):
     """List rows from a response that may be a bare list or {items: [...]}."""
     if isinstance(body, list):
@@ -214,56 +190,122 @@ def _rows(body):
     return []
 
 
-def _catalog_ids(harness, token):
-    products = harness.api_call('/api/catalog/products', token=token)['body']
-    points = harness.api_call('/api/catalog/delivery-points')['body']
-    return {'product': next(row['id'] for row in products
-                            if row['market_product'] == 'B30'),
-            'point': next(row['id'] for row in points
-                          if row['name'] == 'Singapore')}
+# -- order-window helpers --------------------------------------------------
+
+ORDER_PRODUCT = 'B30'
+ORDER_DELIVERY_POINT = 'Singapore'
 
 
-def journey_place_bid(harness, state):
-    """Place a BID and see it appear in My Listings.
+def _my_order_ids(harness, token):
+    listed = harness.api_call('/api/orderbook/my?limit=20', token=token)
+    return listed, {row.get('id') for row in _rows(listed['body'])}
 
-    The modal path is blocked by the string-decimal catalog minimum in this
-    build (PLACE_BLOCKER), so the journey opens the modal, proves the blocker,
-    and places the order through the same client API the modal submits to.
-    """
-    page = open_app(harness, BUYER, PASSWORD)
+
+def _open_order_modal(page):
+    """Open the order window from the Marketplace and return its locator."""
     page.locator('[data-tour="nav-MARKETPLACE"]').click()
     wait_listings(page)
     page.locator('[data-tour="marketplace-primary-action"]').click()
     modal = page.locator('[data-tour="order-modal"]')
     modal.wait_for(state='visible', timeout=15000)
-    blocked = modal.get_by_text('Catalog minimum unavailable').count() > 0
-    page.locator('[data-tour="order-modal-close"]').click()
+    return modal
 
+
+def _pick_option(page, aria_label, option_name):
+    """Choose one option in a VerdaxisSelect by its aria-label."""
+    page.get_by_role('combobox', name=aria_label).click()
+    page.get_by_role('option', name=option_name).first.click()
+
+
+def _submit_order_modal(page, modal, side):
+    """Review, confirm, then wait for the result screen.
+
+    The result is a second dialog, not a state of the form, so it is found by
+    its result title rather than inside the order window. Returns '' when the
+    side is confirmed and a reason string otherwise, so a failure says what the
+    screen showed instead of only timing out.
+    """
+    modal.locator('[data-tour="order-modal-submit-boundary"]').click()
+    modal.locator('[data-tour="order-final-confirm-button"]').click()
+    title = page.locator('#order-place-result-title')
+    try:
+        title.wait_for(state='visible', timeout=20000)
+        shown = title.inner_text().strip()
+    except Exception:
+        return f'no result screen appeared (screen shows {_visible_heading(page)!r})'
+    expected = f'{side.capitalize()} Placed Successfully'
+    return '' if shown == expected else f'result screen says {shown!r}, expected {expected!r}'
+
+
+def _visible_heading(page):
+    """The first visible dialog heading, for a failure message."""
+    heading = page.locator('[role="dialog"] h2, [role="dialog"] h3').first
+    try:
+        return heading.inner_text().strip()
+    except Exception:
+        return ''
+
+
+def journey_place_bid(harness, state):
+    """Place a BID through the real order window and see it in My Orders.
+
+    The catalog minimum arrives as the decimal string "200.00". The catalog
+    boundary converts it to a number, so the review button enables and the BID
+    is placed from the modal exactly as an operator would drive it.
+    """
+    page = open_app(harness, BUYER, PASSWORD)
     token = harness.login_token(BUYER, PASSWORD)
-    ids = _catalog_ids(harness, token)
-    response = harness.api_call('/api/orderbook', method='POST', token=token,
-                                body=_order_payload(ids['product'], ids['point'],
-                                                    'BID', 500, 700))
-    listed = harness.api_call('/api/orderbook/my?limit=10', token=token)
-    rows = _rows(listed['body'])
-    mine = any(row.get('id') == response['body'].get('id') for row in rows)
-    return (response['status'] in (200, 201) and mine
-            and not harness.errors), (
-        f'BID placed (HTTP {response["status"]}) and visible in my orders; '
-        f'modal blocker present={blocked}')
+    _, before = _my_order_ids(harness, token)
+
+    modal = _open_order_modal(page)
+    _pick_option(page, 'Order product', ORDER_PRODUCT)
+    _pick_option(page, 'Order delivery point', ORDER_DELIVERY_POINT)
+    modal.locator('#order-quantity').fill('500')
+    modal.locator('#order-price').fill('700')
+    problem = _submit_order_modal(page, modal, 'BID')
+    if problem:
+        return False, f'order window did not confirm the BID: {problem}'
+
+    listed, _ = _my_order_ids(harness, token)
+    placed = [row for row in _rows(listed['body'])
+              if row.get('id') not in before
+              and row.get('side') == 'BID'
+              and float(row.get('quantity_mt') or 0) == 500]
+    return (bool(placed) and listed['status'] == 200 and not harness.errors), (
+        f'BID 500 MT at $700 placed from the order window; '
+        f'new my-orders rows={len(placed)}; HTTP {listed["status"]}')
 
 
 def journey_place_ask(harness, state):
-    """Place an ASK with full supplier declarations; see PLACE_BLOCKER."""
+    """Place an ASK with full supplier declarations through the order window."""
     harness.reset_rate_limits()
+    page = open_app(harness, SUPPLIER, PASSWORD)
     token = harness.login_token(SUPPLIER, PASSWORD)
-    ids = _catalog_ids(harness, token)
-    response = harness.api_call('/api/orderbook', method='POST', token=token,
-                                body=_order_payload(ids['product'], ids['point'],
-                                                    'ASK', 500, 900))
-    return response['status'] in (200, 201) and not harness.errors, (
-        f'ASK placed (HTTP {response["status"]}) with declarations; '
-        + PLACE_BLOCKER)
+    _, before = _my_order_ids(harness, token)
+
+    modal = _open_order_modal(page)
+    _pick_option(page, 'Order product', ORDER_PRODUCT)
+    _pick_option(page, 'Order delivery point', ORDER_DELIVERY_POINT)
+    modal.locator('#order-carbon-intensity').fill('18')
+    modal.locator('#order-carbon-intensity-method').fill('Journeys whole-fuel lifecycle')
+    modal.locator('#order-feedstock').fill('Used cooking oil')
+    modal.locator('#order-origin').fill('Singapore')
+    modal.get_by_role('checkbox', name='Certification declaration').check()
+    modal.get_by_role('checkbox', name='MSDS available').check()
+    modal.locator('#order-quantity').fill('500')
+    modal.locator('#order-price').fill('900')
+    problem = _submit_order_modal(page, modal, 'ASK')
+    if problem:
+        return False, f'order window did not confirm the ASK: {problem}'
+
+    listed, _ = _my_order_ids(harness, token)
+    placed = [row for row in _rows(listed['body'])
+              if row.get('id') not in before
+              and row.get('side') == 'ASK'
+              and float(row.get('quantity_mt') or 0) == 500]
+    return (bool(placed) and listed['status'] == 200 and not harness.errors), (
+        f'ASK 500 MT at $900 placed with declarations from the order window; '
+        f'new my-orders rows={len(placed)}; HTTP {listed["status"]}')
 
 
 def journey_trade_lifecycle(harness, state):
@@ -292,14 +334,14 @@ def journey_trade_lifecycle(harness, state):
     row.locator('[data-tour="marketplace-listing-action"]').click()
     modal = bpage.locator('[data-tour="trade-modal"]')
     modal.wait_for(state='visible', timeout=15000)
-    # The take modal prefills the quantity from the listing's remaining amount,
-    # which arrives as a decimal string. The input renders it blank
-    # (Number.isFinite of a string is false), so the quantity is typed exactly
-    # as an operator would — the same defensive path the UI's own quantity
-    # parsing takes on every keystroke.
+    # The take modal prefills the quantity from the listing's remaining amount.
+    # That field arrives as a decimal string and is converted at the boundary;
+    # the input must show a real number without any typing.
     quantity_input = modal.locator('input[type=number]')
-    if not quantity_input.input_value():
-        quantity_input.fill('200')
+    prefilled = quantity_input.input_value().strip()
+    if not prefilled:
+        return False, ('take modal prefilled quantity is blank: the wire '
+                       'remaining_quantity_mt was not converted')
     modal.locator('[data-tour="trade-review-button"]').click()
     modal.locator('[data-tour="trade-final-confirm-button"]').click()
     bpage.wait_for_timeout(2500)
@@ -331,7 +373,7 @@ def journey_trade_lifecycle(harness, state):
 
     delivered = supplier.api_call(f'/api/trades/{trade_id}/deliver', method='PUT',
                                   token=supplier_token,
-                                  body={'final_quantity_mt': 200, 'final_price_per_mt': 915})
+                                  body={'final_quantity_mt': float(prefilled), 'final_price_per_mt': 915})
     if delivered['status'] != 200:
         return False, f'deliver HTTP {delivered["status"]}: {str(delivered["body"])[:200]}'
     paid = supplier.api_call(f'/api/trades/{trade_id}/pay', method='POST', token=supplier_token)
@@ -345,6 +387,7 @@ def journey_trade_lifecycle(harness, state):
     buyer.close()
     return paid['body'].get('status') == 'PAID' and not harness.errors, (
         f'trade {trade_id[:8]} confirmed -> delivered -> paid; '
+        f'prefilled quantity={prefilled}; '
         f'buyer blotter shows trade={"Trade" in blotter}')
 
 
