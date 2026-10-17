@@ -54,6 +54,9 @@ expectTypeOf<WireOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<string | n
 
 expectTypeOf<OrderBookOrder['quantity_mt']>().toEqualTypeOf<number>();
 expectTypeOf<OrderBookOrder['remaining_quantity_mt']>().toEqualTypeOf<number>();
+// The take-window prefill is the one reader that needs the number form now; it
+// calls `parseWireDecimal` (`src/components/Marketplace.tsx`). Other readers
+// still coerce with `Number(...)`. See entry 1.1 in the drift record.
 expectTypeOf<OrderBookOrder['price_per_mt_usd']>().toEqualTypeOf<number>();
 expectTypeOf<OrderBookOrder['carbon_intensity_gco2_mj']>().toEqualTypeOf<number | null | undefined>();
 expectTypeOf<OrderBookOrder['benchmark_price_per_mt_usd']>().toEqualTypeOf<number | string | null | undefined>();
@@ -87,6 +90,9 @@ expectTypeOf<PriceSummary['volume_24h']>().toEqualTypeOf<number>();
 
 expectTypeOf<WireProduct['min_lot_size']>().toEqualTypeOf<string>();
 expectTypeOf<Product['min_lot_size']>().toEqualTypeOf<number>();
+// The catalog boundary converts the wire string into this number
+// (`mapCatalogProduct` in `src/services/api.ts`, `parseWireDecimal` in
+// `src/api/decimals.ts`). See entry 1.8 in `docs/refactor/api-type-drift.md`.
 
 // The create payload accepts either form on the wire; the frontend sends numbers.
 expectTypeOf<WireOrderCreateInput['quantity_mt']>().toEqualTypeOf<number | string>();

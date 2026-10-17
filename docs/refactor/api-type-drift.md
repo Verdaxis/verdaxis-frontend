@@ -68,6 +68,30 @@ decimals as strings, so `src/utils/buyerMapMarket.ts:89,94,135` and
 `src/components/BuyerMap.tsx:456,479,480` do the right thing. Only optionality
 still differs, because the frontend marks the field required.
 
+### Handled at the boundary today
+
+Step 5b converts a wire decimal where it enters the app instead of at every
+consumer. Two entries have moved. Neither changes the wire type or the
+hand-written type, so both rows above stay as they are; this records where the
+conversion now happens.
+
+- **1.8 `Product.min_lot_size`** — converted once at the catalog boundary in
+  `src/services/api.ts` (`mapCatalogProduct`, called from
+  `api.catalog.products`), using `parseWireDecimal` from `src/api/decimals.ts`.
+  The converter returns `null` for an absent or malformed value, so the mapper
+  stores `NaN`: the order form keeps its `hasValidCatalogMinimum` guard and its
+  "Catalog minimum unavailable" message instead of accepting a bogus minimum.
+  The only display consumer is `src/components/OrderPlaceModal.tsx:499`
+  (`:1174` value, `:1225` placeholder, `:1228` `min`), which formats the number
+  with `toLocaleString(locale)`; that formatting is untouched, so no displayed
+  text changes.
+- **1.1 `remaining_quantity_mt` on the take window** — the only reader that must
+  treat it as a `number` is the quantity prefill at
+  `src/components/Marketplace.tsx:851`, which now calls
+  `parseWireDecimal(order.remaining_quantity_mt) ?? NaN`. Before, it assigned the
+  raw wire string, so `Number.isFinite` was false and the input rendered empty.
+  Every other 1.1 reader keeps its existing `Number(...)` coercion.
+
 Consumers that depend on the current shape — every site that coerces a wire
 decimal with `Number(...)`:
 

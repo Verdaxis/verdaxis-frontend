@@ -1,4 +1,5 @@
 import { getBiofuelSpecification } from '../utils/biofuelSpecification';
+import { parseWireDecimal } from '../api/decimals';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -847,7 +848,7 @@ export const Marketplace: React.FC<MarketplaceProps> = ({ initialPort, viewMode,
         setTradeNeedsRefresh(false);
         setTradeResult(null);
         setSelectedOrder(order);
-        setTradeQuantity(order.remaining_quantity_mt);
+        setTradeQuantity(parseWireDecimal(order.remaining_quantity_mt) ?? NaN);
         setTradeState('confirming');
         setTradeError('');
         setTradeKycBlocked(false);

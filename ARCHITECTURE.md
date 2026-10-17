@@ -216,18 +216,16 @@ and glyphs are stubbed, so no run needs a token or the public network.
 
 The same-look gate captures nine screens at 1440x1000 (landing, how-it-works,
 marketplace light/dark, order book, trade blotter, map light/dark with tiles
-stubbed to a solid colour, one admin screen) with animations disabled, the
+stubbed to a solid colour, the admin Users tab) with animations disabled, the
 wall clock frozen, the theme pinned and the cookie banner pre-dismissed. The
 screens run before the journeys so they capture exactly the seeded state.
 `--screenshots compare` (the default) fails above a 0.002 pixel-difference
 ratio; `npm run smoke:journeys:record` refreshes the committed baselines in
 `scripts/journeys/baselines/`.
 
-Two product findings the net already holds: `OrderPlaceModal` cannot submit
-any BID/ASK against the live backend in this build (the catalog `min_lot_size`
-arrives as the decimal string `"200.00"`, so `hasValidCatalogMinimum` is false
-for every product and the review button never enables), and the take modal
-prefills its quantity from the same string field and renders it blank. Both
-are consequences of the decimal-string boundary the audit documents (4.7);
-the journeys record the blockers on screen and cover the order flows through
-the same client API until the decimal boundary lands.
+The order journeys drive the real order modal. The catalog boundary converts the
+wire decimal string into a number (`parseWireDecimal`), so `min_lot_size` is
+usable and the review button enables; the take journey reads the prefilled
+quantity the same way instead of typing it. Both defects the net first recorded
+(the review button never enabling, and the blank take prefill) came from the
+decimal-string boundary the audit documents (4.7) and are fixed there.

@@ -5,6 +5,7 @@ import { mapSupplierOfferResponse, mapSupplierOfferListResponse, supplierOfferLi
 import { Port, Vessel, InventoryItem, Notification, PriceDiscoveryResponse, PricingOverlayResponse, Product, DeliveryPoint, MarketProduct } from '../types';
 import type { AggregatedOrderbook, MapCompactMarket, MarketDemoStatus, MarketScope, MarketSourceKind, OrderBookSnapshot, OrderCreateInput, Trade, TradeCreateInput } from '../types';
 import { mapOrderbookTermsResponse, mapTradeTermsResponse } from './orderTerms';
+import { parseWireDecimal } from '../api/decimals';
 import {
     AcquisitionResponse,
     ActivationResponse,
@@ -52,6 +53,22 @@ export const mapPortResponse = (p: any): Port => ({
         lastDone: p.details?.lastDone ?? undefined,
     }
 });
+
+/**
+ * Catalog product as the app consumes it. The wire sends `min_lot_size` as a
+ * decimal string; this is the boundary that turns it into the `number` the
+ * hand-written `Product` type declares (DRIFT-1, entry 1.8). An unusable value
+ * becomes `NaN` so the order form keeps its existing "catalog minimum
+ * unavailable" guard instead of accepting a bogus minimum.
+ */
+const mapCatalogProduct = (raw: any): Product => ({
+    ...raw,
+    min_lot_size: parseWireDecimal(raw?.min_lot_size) ?? NaN,
+});
+
+const mapCatalogProducts = (raw: unknown): Product[] => (
+    Array.isArray(raw) ? raw.map(mapCatalogProduct) : []
+);
 
 const getHeaders = () => {
     const token = getAccessToken();
@@ -869,7 +886,8 @@ export const api = {
 
     catalog: {
         products: async (cacheOptions?: ReadCacheOptions): Promise<Product[]> => {
-            return readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            const raw = await readApi('catalog:products', '/catalog/products', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
+            return mapCatalogProducts(raw);
         },
         deliveryPoints: async (cacheOptions?: ReadCacheOptions): Promise<DeliveryPoint[]> => {
             return readApi('catalog:delivery-points', '/catalog/delivery-points', 'reference', 'private', { headers: getHeaders() }, cacheOptions);
